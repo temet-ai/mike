@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 
 use super::definition::FleetDefinition;
@@ -83,6 +84,7 @@ pub(super) async fn launch(
         )));
     }
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: job.run_id.clone(),
             project_path: Some(def.repo.clone()),

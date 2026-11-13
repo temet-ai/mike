@@ -3,7 +3,9 @@ use mike::launch::fleet::status::{FleetStatus, assemble};
 use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_notes::{NewSessionNote, SessionNoteRow, SessionNoteUpdate};
 use mike::store::persistence::test_support::{
     TestDbHandle, acquire_ephemeral_db, seed_fleet_starting,
@@ -31,11 +33,15 @@ impl Fixture {
         let acceptance = Uuid::new_v4();
         let worker = Uuid::new_v4();
         for session in [acceptance, worker] {
-            persist.ensure_session_exists(&session.to_string()).await?;
+            persist
+                .launch()
+                .ensure_session_exists(&session.to_string())
+                .await?;
         }
         let run = format!("obligation-refresh-{}", Uuid::new_v4());
         let path = format!("/tmp/{run}");
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: Some(path.clone()),
@@ -45,6 +51,7 @@ impl Fixture {
             })
             .await?;
         let row = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: run.clone(),
                 project_path: path.clone(),
@@ -70,6 +77,7 @@ impl Fixture {
             launch(&persist, &run, &path, (session, seat, role)).await?;
         }
         let row = persist
+            .fleet()
             .transition_fleet_state(&row, "running", None, None)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture did not start"))?;
@@ -96,6 +104,7 @@ impl Fixture {
     pub(super) async fn obligation(&self, data: &Value) -> anyhow::Result<SessionNoteRow> {
         Ok(self
             .persist
+            .launch()
             .create_session_note(
                 self.acceptance,
                 NewSessionNote {
@@ -120,6 +129,7 @@ impl Fixture {
         ];
         Ok(self
             .persist
+            .launch()
             .create_session_note(
                 self.acceptance,
                 NewSessionNote {
@@ -144,6 +154,7 @@ impl Fixture {
         let mut data = note.data.clone();
         data["outcome"] = json!(outcome);
         self.persist
+            .launch()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {
@@ -162,7 +173,7 @@ impl Fixture {
     }
 
     pub(super) async fn unchanged_verdict(&self, verdict: &SessionNoteRow) -> anyhow::Result<()> {
-        let notes = self.persist.fleet_note_rows(&self.run).await?;
+        let notes = self.persist.fleet().fleet_note_rows(&self.run).await?;
         let decisions: Vec<_> = notes
             .iter()
             .filter(|note| note.kind == "decision")
@@ -193,8 +204,9 @@ async fn launch(
     launch.session_uuid = Some(session);
     launch.seat = Some(seat.into());
     launch.identity = Some(json!({"role": role}));
-    let id = persist.insert_launch(&launch).await?;
+    let id = persist.launch().insert_launch(&launch).await?;
     persist
+        .launch()
         .record_launch_opened(id, &LaunchSurfaceRefs::default())
         .await?;
     Ok(())

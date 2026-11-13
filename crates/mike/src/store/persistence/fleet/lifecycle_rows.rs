@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub struct UnsettledFleetLaunch {
@@ -39,9 +39,9 @@ impl FleetRunAdmission {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn unsettled_fleet_launches(
-        &self,
+        self,
         run_id: &str,
     ) -> Result<Vec<UnsettledFleetLaunch>, PersistError> {
         crate::metrics::time_db("launch_unsettled_fleet_launches", async move {
@@ -57,7 +57,7 @@ impl PersistHandle {
     }
 
     pub async fn pending_fleet_commands(
-        &self,
+        self,
         run_id: &str,
     ) -> Result<Vec<PendingFleetCommand>, PersistError> {
         crate::metrics::time_db("launch_pending_fleet_commands", async move {
@@ -73,7 +73,7 @@ impl PersistHandle {
     }
 
     pub async fn fleet_run_admission(
-        &self,
+        self,
         run_id: &str,
     ) -> Result<Option<FleetRunAdmission>, PersistError> {
         crate::metrics::time_db("launch_fleet_run_admission", async move {
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub async fn record_fleet_launch_closure(
-        &self,
+        self,
         launch_id: i64,
         run_id: &str,
         reason: &str,
@@ -121,7 +121,7 @@ impl PersistHandle {
     }
 
     pub async fn close_never_started_fleet_launch(
-        &self,
+        self,
         launch_id: i64,
         run_id: &str,
         reason: &str,
@@ -143,7 +143,7 @@ impl PersistHandle {
     }
 
     pub async fn record_fleet_launch_verified_exit(
-        &self,
+        self,
         launch_id: i64,
         run_id: &str,
         reason: &str,

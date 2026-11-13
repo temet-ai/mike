@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -90,6 +91,7 @@ async fn record_search_event_with_an_unknown_tool_is_refused_by_the_table() -> a
 
     let outcome = fixture
         .handle
+        .knowledge()
         .record_search_event(&NewSearchEvent {
             session: None,
             tool: "search_everything",

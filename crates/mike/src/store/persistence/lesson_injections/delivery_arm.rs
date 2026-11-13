@@ -1,8 +1,8 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn record_lesson_delivery(
-        &self,
+        self,
         session_uuid: &str,
         arm: &str,
         lessons: i32,

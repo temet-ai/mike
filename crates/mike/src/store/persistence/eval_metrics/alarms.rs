@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::band::{band_detail, band_stats};
 use super::shift::{shift_detail, shift_stats};
 use super::sql_label_mix::{MixWindowRow, read_windows};
@@ -18,9 +18,9 @@ fn firing(kind: AlarmKind, subject: String, detail: serde_json::Value) -> Firing
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn apply_alarm_pass(
-        &self,
+        self,
         kinds: &[AlarmKind],
         firings: &[Firing],
         clear_after: i32,
@@ -46,7 +46,7 @@ impl PersistHandle {
     }
 
     async fn turns_owed_a_verdict(
-        &self,
+        self,
         now: DateTime<Utc>,
         closed_before: DateTime<Utc>,
     ) -> Result<(i64, Option<DateTime<Utc>>), PersistError> {
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     async fn judge_firings(
-        &self,
+        self,
         t: &AlarmThresholds,
         now: DateTime<Utc>,
     ) -> Result<Vec<Firing>, PersistError> {
@@ -90,7 +90,7 @@ impl PersistHandle {
     }
 
     pub async fn evaluate_operational_alarms(
-        &self,
+        self,
         t: &AlarmThresholds,
         roles: &[String],
     ) -> Result<Vec<Firing>, PersistError> {
@@ -135,7 +135,7 @@ impl PersistHandle {
     }
 
     pub async fn label_mix_windows(
-        &self,
+        self,
         days: &[DateTime<Utc>],
     ) -> Result<Vec<MixWindowRow>, PersistError> {
         let mut conn = self.pool.acquire().await?;
@@ -143,7 +143,7 @@ impl PersistHandle {
     }
 
     pub async fn evaluate_daily_alarms(
-        &self,
+        self,
         t: &AlarmThresholds,
         window_end: DateTime<Utc>,
     ) -> Result<Vec<Firing>, PersistError> {

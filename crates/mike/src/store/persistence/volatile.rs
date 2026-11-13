@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone)]
 pub(crate) struct VolatilePatternRow {
@@ -60,9 +60,9 @@ pub(crate) struct VolatilePatternPatch<'a> {
     pub(crate) notes: Option<Option<&'a str>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub(crate) async fn list_volatile_patterns(
-        &self,
+        self,
     ) -> Result<Vec<VolatilePatternRow>, PersistError> {
         crate::metrics::time_db("list_volatile_patterns", async {
             let rows = sqlx::query_as!(
@@ -79,7 +79,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_volatile_pattern_by_id(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<VolatilePatternRow>, PersistError> {
         crate::metrics::time_db("fetch_volatile_pattern_by_id", async move {
@@ -101,7 +101,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn create_volatile_pattern(
-        &self,
+        self,
         name: &str,
         pattern: &str,
         applies_to_block_index: u8,
@@ -130,7 +130,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn patch_volatile_pattern(
-        &self,
+        self,
         id: i64,
         patch: VolatilePatternPatch<'_>,
     ) -> Result<Option<VolatilePatternRow>, PersistError> {
@@ -167,7 +167,7 @@ impl PersistHandle {
         .await
     }
 
-    pub(crate) async fn delete_volatile_pattern(&self, id: i64) -> Result<bool, PersistError> {
+    pub(crate) async fn delete_volatile_pattern(self, id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("delete_volatile_pattern", async move {
             let result = sqlx::query!("DELETE FROM rules.volatile_line_patterns WHERE id = $1", id)
                 .execute(&self.pool)
@@ -178,7 +178,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn reload_volatile_cache(
-        &self,
+        self,
         cache: &crate::compose_prompt::volatile::VolatilePatternCache,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("reload_volatile_cache", async move {

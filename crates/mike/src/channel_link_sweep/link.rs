@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
@@ -85,6 +86,7 @@ pub async fn write_links(
     let mut linked = 0;
     for cse_id in cse_ids {
         match persist
+            .proxy()
             .link_channel_from_request_body(cse_id, session_uuid)
             .await
         {

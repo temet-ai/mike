@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod dedupe;
 mod file_guidance;
 mod guidance;
@@ -221,7 +222,7 @@ fn log_candidate_failed(verdict_id: i64, error: &CandidateError) {
 
 pub async fn run_tick(deps: &ProposerDeps<'_>) -> ProposerReport {
     let mut report = ProposerReport::default();
-    let _guard = match deps.persist.lock_lesson_proposer().await {
+    let _guard = match deps.persist.lessons().lock_lesson_proposer().await {
         Ok(Some(guard)) => guard,
         Ok(None) => return report,
         Err(error) => {
@@ -274,7 +275,12 @@ async fn reserve_candidate(
     if *calls_this_tick >= 40 {
         return false;
     }
-    match deps.persist.reserve_lesson_proposer_call(daily_limit).await {
+    match deps
+        .persist
+        .lessons()
+        .reserve_lesson_proposer_call(daily_limit)
+        .await
+    {
         Ok(true) => {
             *calls_this_tick += 1;
             true
@@ -329,6 +335,7 @@ async fn process_one(
         generation_id: usage.generation_id,
     };
     deps.persist
+        .lessons()
         .save_lesson_proposal(&saved)
         .await
         .map_err(|e| CandidateError::Other(e.to_string()))?;

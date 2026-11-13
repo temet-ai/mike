@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{LazyLock, Mutex, PoisonError};
 
@@ -128,7 +129,11 @@ async fn order_siblings(
     if !def.staffing.warm_siblings {
         return ready;
     }
-    let seats = persist.fleet_seat_rows(run_id).await.unwrap_or_default();
+    let seats = persist
+        .fleet()
+        .fleet_seat_rows(run_id)
+        .await
+        .unwrap_or_default();
     let (start, held) = warm_order(def, &ready, &seats, Utc::now());
     for hold in &held {
         tracing::debug!(task = %hold.task, waiting_for = %hold.waiting_for, "fleet: a fork waits for its warm sibling");

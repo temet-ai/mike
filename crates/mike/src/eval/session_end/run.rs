@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
@@ -96,7 +97,7 @@ async fn judged(
     j: &SessionJudgementV3,
 ) -> ItemResult {
     let row = verdict_row(j, &req.cfg, item.session_id, "eval", Some(req.bundle_id));
-    let verdict_id = match persist.insert_session_verdict_v3(&row).await {
+    let verdict_id = match persist.eval().insert_session_verdict_v3(&row).await {
         Ok(id) => Some(id),
         Err(e) => {
             tracing::warn!(end_turn_id = item.end_turn_id, error = %e, "session-end eval: verdict insert failed");
@@ -160,6 +161,7 @@ async fn create_run(
         "limit": req.limit,
     });
     persist
+        .eval()
         .create_eval_run(&NewEvalRun {
             purpose: &req.purpose,
             bundle_id: req.bundle_id,
@@ -181,6 +183,7 @@ async fn create_run(
 
 pub async fn estimate_usd(persist: &PersistHandle, bundle_id: i64, items: usize) -> f64 {
     let mean = persist
+        .eval()
         .session_v3_mean_cost(bundle_id)
         .await
         .ok()
@@ -195,6 +198,7 @@ pub async fn run_session_end_eval(
     req: &SessionEndRunRequest,
 ) -> Result<SessionEndRunOutcome, PersistError> {
     let mut items = persist
+        .eval()
         .load_session_end_label_set(req.labels_as_of, &req.split, &req.tiers)
         .await?;
     if let Some(limit) = req.limit {
@@ -211,6 +215,7 @@ pub async fn run_session_end_eval(
     let (status, scored) = judge_all(persist, llm, req, run_id, &items).await?;
     let report = score_session_end_run(&scored, SCORE_SEED);
     persist
+        .eval()
         .refresh_session_end_run(run_id, status, Some(&report))
         .await?;
     Ok(SessionEndRunOutcome::Finished {
@@ -236,6 +241,7 @@ async fn judge_all(
         let r = judge_item(persist, llm, req, item).await;
         spent += r.cost_usd;
         persist
+            .eval()
             .insert_session_end_item(&NewSessionEndItem {
                 run_id,
                 end_turn_id: item.end_turn_id,

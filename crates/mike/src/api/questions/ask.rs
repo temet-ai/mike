@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -37,7 +39,7 @@ async fn about_note(
             format!("about `{raw}` is not a note id"),
         )));
     };
-    match persist.note_ref(id).await {
+    match persist.launch().note_ref(id).await {
         Ok(Some(note)) => Ok(Some(note)),
         Ok(None) => Err(Box::new(problem(
             StatusCode::NOT_FOUND,
@@ -49,6 +51,7 @@ async fn about_note(
 
 async fn run_of(persist: &PersistHandle, asker: Uuid) -> Option<String> {
     persist
+        .fleet()
         .find_fleet_header_for_session(asker)
         .await
         .ok()
@@ -72,6 +75,7 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
     let asker = session(persist, &body.from, "from").await?;
     let to = destination(persist, asker, &body.to).await?;
     if let Some(closed) = persist
+        .launch()
         .closed_fleet_seat(to.session)
         .await
         .map_err(|err| Box::new(database(err)))?

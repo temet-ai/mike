@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::HashMap;
 use std::future::{Future, ready};
 use std::time::Duration;
@@ -167,7 +168,7 @@ async fn claim_block(
     reminder: &SystemReminder,
 ) -> Option<MailBlock> {
     let id = job.session.to_string();
-    match job.persist.claim_message(message_uuid).await {
+    match job.persist.launch().claim_message(message_uuid).await {
         Ok(true) => Some(MailBlock {
             source: job.source,
             message_id: Some(message_uuid),
@@ -194,7 +195,12 @@ fn unwrapped(payload: &str) -> &str {
 }
 
 async fn stamp_sent(job: &ClaimJob, message_uuid: Uuid) {
-    if let Err(e) = job.persist.consume_client_claimed(message_uuid).await {
+    if let Err(e) = job
+        .persist
+        .launch()
+        .consume_client_claimed(message_uuid)
+        .await
+    {
         tracing::warn!(session_id = %job.session, %message_uuid, error = %e, "mail claim: recording the message consumed by the client failed");
     }
 }
@@ -210,7 +216,7 @@ async fn release_late_claim(job: &ClaimJob, message_uuid: Uuid, reminder: System
 }
 
 async fn unclaim(job: &ClaimJob, message_uuid: Uuid) {
-    if let Err(e) = job.persist.unclaim_message(message_uuid).await {
+    if let Err(e) = job.persist.launch().unclaim_message(message_uuid).await {
         tracing::warn!(session_id = %job.session, %message_uuid, error = %e, "mail claim: releasing a late claim failed");
     }
 }

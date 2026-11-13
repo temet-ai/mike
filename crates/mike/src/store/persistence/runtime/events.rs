@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use super::{RuntimeWriteOutcome, invalid, same_or_conflict};
 use crate::runtime::{RuntimeEventEnvelope, RuntimeObservation};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 struct ObservationRow {
     envelope: Json<RuntimeEventEnvelope>,
@@ -22,9 +22,9 @@ impl From<ObservationRow> for RuntimeObservation {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn append_runtime_observation(
-        &self,
+        self,
         observation: &RuntimeObservation,
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         observation.validate().map_err(invalid)?;
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_observation(
-        &self,
+        self,
         namespace_id: Uuid,
         ingestion_id: Uuid,
     ) -> Result<Option<RuntimeObservation>, PersistError> {

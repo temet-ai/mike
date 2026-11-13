@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use super::types::{AskedQuestion, QuestionRow};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn ask_question(&self, new: &AskedQuestion<'_>) -> Result<QuestionRow, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub async fn ask_question(self, new: &AskedQuestion<'_>) -> Result<QuestionRow, PersistError> {
         if new.question.trim().is_empty() {
             return Err(PersistError::DataInvariant(
                 "ask_question: the question is empty".to_owned(),
@@ -32,11 +32,11 @@ impl PersistHandle {
         .await
     }
 
-    async fn session_known(&self, session: Uuid) -> Result<bool, PersistError> {
+    async fn session_known(self, session: Uuid) -> Result<bool, PersistError> {
         Ok(self.session_row_id(session).await?.is_some())
     }
 
-    async fn refusal_of(&self, new: &AskedQuestion<'_>) -> Result<PersistError, PersistError> {
+    async fn refusal_of(self, new: &AskedQuestion<'_>) -> Result<PersistError, PersistError> {
         if !self.session_known(new.asker).await? {
             return Ok(PersistError::DataInvariant(format!(
                 "ask_question: asker session {} not found",

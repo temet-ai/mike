@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug)]
 pub struct DispositionRequestRow {
@@ -21,9 +21,9 @@ pub struct DispositionRequestRow {
     pub attached: bool,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn session_db_ids_by_uuid(
-        &self,
+        self,
         session_uuids: &[Uuid],
     ) -> Result<HashMap<Uuid, i64>, PersistError> {
         let mut found = HashMap::with_capacity(session_uuids.len());
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     pub async fn list_disposition_requests(
-        &self,
+        self,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
     ) -> Result<Vec<DispositionRequestRow>, PersistError> {

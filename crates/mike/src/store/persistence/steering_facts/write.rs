@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SteeringFactsWrite {
@@ -17,9 +17,9 @@ pub struct SteeringFactsWrite {
     pub steering_facts_version: i16,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn write_steering_facts(
-        &self,
+        self,
         rows: &[SteeringFactsWrite],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {

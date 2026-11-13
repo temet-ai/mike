@@ -1,9 +1,8 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     #[rustfmt::skip]
-    pub async fn record_lesson_injections(
-        &self,
+    pub async fn record_lesson_injections(self,
         request_id: i64,
         session_uuid: &str,
         lane: &str,

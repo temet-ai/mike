@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn knowledge_rerank_passages(
-        &self,
+        self,
         references: &[String],
         vector: Option<&super::QueryEmbedding>,
     ) -> Result<HashMap<String, String>, PersistError> {

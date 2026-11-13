@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 const INSERT_SQL: &str = "INSERT INTO session_judges.verdicts
     (session_id, outcome_id, quality_score, rationale, judge_model, rubric_version, judged_at, mode,
@@ -43,9 +43,9 @@ pub struct SessionVerdictV3Row<'a> {
     pub latency_ms: Option<i32>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn insert_session_verdict_v3(
-        &self,
+        self,
         r: &SessionVerdictV3Row<'_>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_session_verdict_v3", async move {

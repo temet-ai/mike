@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 
@@ -172,7 +173,7 @@ impl LessonRelevance {
             return;
         }
         let ids: Vec<i64> = eligible.iter().copied().collect();
-        match persist.lesson_outcomes(&ids).await {
+        match persist.lessons().lesson_outcomes(&ids).await {
             Ok(rows) => self.replace_outcomes(rows).await,
             Err(error) => {
                 tracing::warn!(%error, "lesson outcome records unavailable; ranking by match alone");
@@ -239,7 +240,10 @@ impl LessonRelevance {
         model_name: &str,
         eligible: HashSet<i64>,
     ) -> Result<Option<(VectorsKey, HashMap<i64, Vec<f32>>)>, PersistError> {
-        let fingerprint = persist.injectable_lesson_vectors_fingerprint().await?;
+        let fingerprint = persist
+            .lessons()
+            .injectable_lesson_vectors_fingerprint()
+            .await?;
         let key = VectorsKey {
             model_name: model_name.to_owned(),
             fingerprint,
@@ -249,6 +253,7 @@ impl LessonRelevance {
             return Ok(None);
         }
         let documents = persist
+            .lessons()
             .injectable_lesson_vectors(model_name)
             .await?
             .into_iter()

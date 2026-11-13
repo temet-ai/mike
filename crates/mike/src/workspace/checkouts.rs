@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -12,20 +13,25 @@ pub(crate) async fn project_for_repo(
     identity: &RepoIdentity,
 ) -> Result<Option<i64>, PersistError> {
     let main_root = identity.main_root.to_string_lossy();
-    let roots = persist.machine_location_roots(machine).await?;
+    let roots = persist.knowledge().machine_location_roots(machine).await?;
     if let Some(location) = roots
         .iter()
         .find(|location| location.root_path.trim_end_matches('/') == main_root)
     {
         return Ok(Some(location.project_id));
     }
-    if let Some(project) = persist.project_id_for_path(&main_root).await? {
+    if let Some(project) = persist.knowledge().project_id_for_path(&main_root).await? {
         return Ok(Some(project));
     }
     let Some(origin) = identity.origin_url.as_deref() else {
         return Ok(None);
     };
-    match persist.project_ids_for_origin(origin).await?.as_slice() {
+    match persist
+        .knowledge()
+        .project_ids_for_origin(origin)
+        .await?
+        .as_slice()
+    {
         [project] => Ok(Some(*project)),
         _ => Ok(None),
     }
@@ -43,12 +49,21 @@ pub(crate) async fn project_or_new(
         return Ok(None);
     };
     let scratch = is_scratch(&identity.main_root.to_string_lossy());
-    if scratch || !persist.project_ids_for_origin(origin).await?.is_empty() {
+    if scratch
+        || !persist
+            .knowledge()
+            .project_ids_for_origin(origin)
+            .await?
+            .is_empty()
+    {
         return Ok(None);
     }
     let name = origin.rsplit('/').next().unwrap_or(origin);
     let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, origin.as_bytes());
-    let project = persist.define_knowledge_project(name, uuid).await?;
+    let project = persist
+        .knowledge()
+        .define_knowledge_project(name, uuid)
+        .await?;
     Ok(Some(project.id))
 }
 
@@ -59,17 +74,24 @@ pub(crate) async fn place_folder(
     path: &str,
 ) -> Result<Option<i64>, PersistError> {
     let Some(identity) = repo_identity(Path::new(path)) else {
-        return persist.project_id_enclosing(machine, path).await;
+        return persist
+            .knowledge()
+            .project_id_enclosing(machine, path)
+            .await;
     };
     let Some(project) = project_or_new(persist, machine, &identity).await? else {
         return Ok(None);
     };
     let root = identity.checkout_root.to_string_lossy();
     let location = persist
+        .knowledge()
         .add_checkout_location(machine, machine_name, &root, project)
         .await?;
     if let (Some(location), Some(origin)) = (location, identity.origin_url.as_deref()) {
-        persist.set_location_origin(location, origin).await?;
+        persist
+            .knowledge()
+            .set_location_origin(location, origin)
+            .await?;
     }
     Ok(Some(project))
 }
@@ -78,7 +100,7 @@ pub(crate) async fn record_origins(
     persist: &PersistHandle,
     machine: Uuid,
 ) -> Result<(), PersistError> {
-    for location in persist.locations_on_machine(machine).await? {
+    for location in persist.knowledge().locations_on_machine(machine).await? {
         let root = Path::new(location.root_path.trim_end_matches('/'));
         let Some(identity) = repo_identity(root) else {
             continue;
@@ -88,6 +110,7 @@ pub(crate) async fn record_origins(
         }
         if let Some(origin) = identity.origin_url.as_deref() {
             persist
+                .knowledge()
                 .set_location_origin(location.location_uuid, origin)
                 .await?;
         }

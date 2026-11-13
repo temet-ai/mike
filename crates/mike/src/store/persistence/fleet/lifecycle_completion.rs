@@ -3,11 +3,11 @@ use sqlx::PgConnection;
 
 use super::FleetRow;
 use super::lifecycle::{lock_fleet, same_lifecycle};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn complete_fleet_run(
-        &self,
+        self,
         expected: &FleetRow,
         definition: Option<&Value>,
     ) -> Result<Option<FleetRow>, PersistError> {

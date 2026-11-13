@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
@@ -256,7 +257,7 @@ pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> Author
         verdicts: follow_place_verdicts(persist).await,
         ..AuthorPassReport::default()
     };
-    let target = match persist.next_skill_draft_target().await {
+    let target = match persist.lessons().next_skill_draft_target().await {
         Ok(Some(target)) => target,
         Ok(None) => return report,
         Err(e) => return failed(report, format!("target: {e}")),
@@ -273,7 +274,7 @@ pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> Author
 }
 
 async fn follow_place_verdicts(persist: &PersistHandle) -> VerdictFollowThrough {
-    match persist.apply_skill_place_verdicts().await {
+    match persist.lessons().apply_skill_place_verdicts().await {
         Ok(done) => {
             log_verdicts_applied(&done);
             done
@@ -312,7 +313,11 @@ fn written(mut report: AuthorPassReport, draft_id: i64) -> AuthorPassReport {
 }
 
 async fn record_failure(persist: &PersistHandle, target: &DraftTarget, error: &str) {
-    if let Err(e) = persist.record_skill_draft_failure(target, error).await {
+    if let Err(e) = persist
+        .lessons()
+        .record_skill_draft_failure(target, error)
+        .await
+    {
         tracing::warn!(error = %e, folder = target.folder, "skill author: failure not recorded");
     }
 }
@@ -324,6 +329,7 @@ async fn author(
     report: &mut AuthorPassReport,
 ) -> Result<i64, String> {
     let lessons = persist
+        .lessons()
         .skill_draft_lessons(target)
         .await
         .map_err(|e| format!("lessons: {e}"))?;
@@ -332,10 +338,12 @@ async fn author(
     }
     report.lessons = lessons.len();
     let previous = persist
+        .lessons()
         .previous_rejected_skill_draft(target)
         .await
         .map_err(|e| format!("previous draft: {e}"))?;
     let retired = persist
+        .lessons()
         .retired_skill_evidence(target)
         .await
         .map_err(|e| format!("retired skill: {e}"))?;
@@ -354,6 +362,7 @@ async fn author(
     let references = reference_files(&authored);
     let trigger_queries = serde_json::to_value(&authored.trigger_queries).unwrap_or(Value::Null);
     persist
+        .lessons()
         .insert_skill_draft(NewSkillDraft {
             target,
             lesson_ids: &lesson_ids,

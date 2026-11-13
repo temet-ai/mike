@@ -1,6 +1,7 @@
 use super::*;
 use crate::compose_prompt::PromptClassKey;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::wire::composition::CompositionMode;
 
 #[tokio::test]
@@ -18,10 +19,11 @@ async fn load_prompt_compositions_seeds_from_db() -> anyhow::Result<()> {
         {"text": "load-test-body"},
     ]);
 
-    let baseline = handle.load_prompt_compositions().await?.len();
+    let baseline = handle.proxy().load_prompt_compositions().await?.len();
 
     let linked_sha = "1".repeat(64);
     let linked = handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &linked_sha,
             label: "linked-comp",
@@ -41,6 +43,7 @@ async fn load_prompt_compositions_seeds_from_db() -> anyhow::Result<()> {
 
     let unlinked_sha = "2".repeat(64);
     handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &unlinked_sha,
             label: "unlinked-comp",
@@ -51,7 +54,7 @@ async fn load_prompt_compositions_seeds_from_db() -> anyhow::Result<()> {
         })
         .await?;
 
-    let loaded = handle.load_prompt_compositions().await?;
+    let loaded = handle.proxy().load_prompt_compositions().await?;
     assert_eq!(
         loaded.len(),
         baseline + 2,

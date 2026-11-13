@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistError, PersistHandle,
     test_support::{TestDbHandle, acquire_ephemeral_db, seed_project, seed_two_sessions},
@@ -37,6 +38,7 @@ impl World {
     async fn project(&self, name: &str) -> anyhow::Result<ProjectIdentity> {
         Ok(self
             .handle
+            .knowledge()
             .define_knowledge_project(name, Uuid::new_v4())
             .await?)
     }
@@ -49,6 +51,7 @@ impl World {
     ) -> anyhow::Result<Uuid> {
         let row = self
             .handle
+            .knowledge()
             .register_project_location(&LocationInput {
                 project: project.project_uuid.to_string(),
                 machine_uuid: machine,
@@ -109,10 +112,12 @@ async fn session_binding_second_machine_with_a_different_path_resolves_the_same_
 
     world
         .handle
+        .knowledge()
         .bind_session_location(world.sessions[0], desktop)
         .await?;
     world
         .handle
+        .knowledge()
         .bind_session_location(world.sessions[1], laptop)
         .await?;
 
@@ -146,6 +151,7 @@ async fn session_binding_while_a_capture_holds_a_foreign_key_lock_completes() ->
         std::time::Duration::from_secs(5),
         world
             .handle
+            .knowledge()
             .bind_session_location(world.sessions[0], location),
     )
     .await;
@@ -174,10 +180,22 @@ async fn session_binding_repeated_location_is_idempotent() -> anyhow::Result<()>
     assert_eq!(world.location_rows(&project).await?, 1);
 
     let session = world.sessions[0];
-    world.handle.bind_session_location(session, first).await?;
+    world
+        .handle
+        .knowledge()
+        .bind_session_location(session, first)
+        .await?;
     let bound = world.state(session).await?;
-    world.handle.bind_session_location(session, first).await?;
-    world.handle.bind_session_location(session, again).await?;
+    world
+        .handle
+        .knowledge()
+        .bind_session_location(session, first)
+        .await?;
+    world
+        .handle
+        .knowledge()
+        .bind_session_location(session, again)
+        .await?;
 
     assert_eq!(world.state(session).await?, bound);
     assert_eq!(bound, (Some(first), project.id, "operator".to_string()));
@@ -195,10 +213,18 @@ async fn session_binding_location_of_another_project_is_refused_and_binding_kept
     let owned = world.location(&first, machine, "/work/first").await?;
     let foreign = world.location(&second, machine, "/work/second").await?;
     let session = world.sessions[0];
-    world.handle.bind_session_location(session, owned).await?;
+    world
+        .handle
+        .knowledge()
+        .bind_session_location(session, owned)
+        .await?;
 
     assert!(is_conflict(
-        world.handle.bind_session_location(session, foreign).await
+        world
+            .handle
+            .knowledge()
+            .bind_session_location(session, foreign)
+            .await
     ));
 
     assert_eq!(
@@ -219,6 +245,7 @@ async fn session_binding_registering_a_root_owned_by_another_project_is_refused(
 
     let attempt = world
         .handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: intruder.project_uuid.to_string(),
             machine_uuid: machine,
@@ -229,7 +256,12 @@ async fn session_binding_registering_a_root_owned_by_another_project_is_refused(
 
     assert!(is_conflict(attempt));
     assert_eq!(
-        world.handle.project_for_location(location).await?.id,
+        world
+            .handle
+            .knowledge()
+            .project_for_location(location)
+            .await?
+            .id,
         owner.id
     );
     assert_eq!(world.location_rows(&intruder).await?, 0);
@@ -248,10 +280,12 @@ async fn local_root_binding_picks_the_longest_matching_root() -> anyhow::Result<
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(nested, machine, "/work/app/crates/mike")
         .await?;
     let other = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(sibling, machine, "/work/other")
         .await?;
 
@@ -272,10 +306,12 @@ async fn local_root_binding_matches_the_root_itself_and_a_trailing_slash() -> an
 
     let at_root = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(exact, machine, "/work/app")
         .await?;
     let with_slash = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(slashed, machine, "/work/app/")
         .await?;
 
@@ -297,6 +333,7 @@ async fn local_root_binding_does_not_match_a_sibling_directory_sharing_the_prefi
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(session, machine, "/work/app-two/src")
         .await?;
 
@@ -317,6 +354,7 @@ async fn local_root_binding_ignores_roots_registered_by_other_machines() -> anyh
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(session, Uuid::new_v4(), "/work/app/src")
         .await?;
 
@@ -336,10 +374,15 @@ async fn local_root_binding_leaves_an_already_bound_session_alone() -> anyhow::R
         .await?;
     world.location(&local, machine, "/work/app").await?;
     let session = world.sessions[0];
-    world.handle.bind_session_location(session, owned).await?;
+    world
+        .handle
+        .knowledge()
+        .bind_session_location(session, owned)
+        .await?;
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(session, machine, "/work/app/src")
         .await?;
 
@@ -368,6 +411,7 @@ async fn local_root_binding_respects_an_operator_project_assignment() -> anyhow:
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(session, machine, "/work/app/src")
         .await?;
 
@@ -385,6 +429,7 @@ async fn local_root_binding_unknown_session_is_none() -> anyhow::Result<()> {
 
     let bound = world
         .handle
+        .knowledge()
         .bind_session_to_local_root(Uuid::new_v4(), machine, "/work/app")
         .await?;
 
@@ -397,6 +442,7 @@ async fn session_binding_unknown_location_is_refused() -> anyhow::Result<()> {
     let world = World::boot().await?;
     let attempt = world
         .handle
+        .knowledge()
         .bind_session_location(world.sessions[0], Uuid::new_v4())
         .await;
     assert!(is_conflict(attempt));

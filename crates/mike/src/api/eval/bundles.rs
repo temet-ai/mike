@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -97,7 +98,7 @@ pub(crate) async fn list_eval_bundles(
         before_id: query.before_id,
         limit: limit + 1,
     };
-    match persist.list_bundles(&filter).await {
+    match persist.eval().list_bundles(&filter).await {
         Ok(rows) => Json(page_of(rows, limit)).into_response(),
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -113,7 +114,7 @@ pub(crate) async fn get_eval_bundle(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.get_bundle(id).await {
+    match persist.eval().get_bundle(id).await {
         Ok(Some(row)) => Json(BundleDto::from(row)).into_response(),
         Ok(None) => error(StatusCode::NOT_FOUND, format!("no bundle with id {id}")),
         Err(e) => error(

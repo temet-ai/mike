@@ -1,7 +1,7 @@
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(crate) struct NewSearchEvent<'a> {
     pub(crate) session: Option<Uuid>,
@@ -12,9 +12,9 @@ pub(crate) struct NewSearchEvent<'a> {
     pub(crate) rerank_state: &'a str,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn record_search_event(
-        &self,
+        self,
         event: &NewSearchEvent<'_>,
     ) -> Result<i64, PersistError> {
         let id = sqlx::query_file_scalar!(

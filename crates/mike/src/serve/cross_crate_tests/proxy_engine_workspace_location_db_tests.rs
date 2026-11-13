@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/proxy/engine/workspace_location_db_tests.rs by the crate split: it reaches the serve
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use std::time::{Duration, Instant};
 
@@ -85,6 +86,7 @@ impl Env {
     async fn project(&self, name: &str) -> anyhow::Result<ProjectIdentity> {
         Ok(self
             .persist
+            .knowledge()
             .define_knowledge_project(name, Uuid::new_v4())
             .await?)
     }
@@ -97,6 +99,7 @@ impl Env {
     ) -> anyhow::Result<Uuid> {
         let row = self
             .persist
+            .knowledge()
             .register_project_location(&LocationInput {
                 project: project.project_uuid.to_string(),
                 machine_uuid: machine,
@@ -245,6 +248,7 @@ async fn first_request_keeps_the_binding_a_launcher_registered_session_already_h
         )
         .await?;
     env.persist
+        .knowledge()
         .bind_session_location(session, launched_location)
         .await?;
 

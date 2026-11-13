@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::DossierTurnRow;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_turns_as_of(
-        &self,
+        self,
         session_db_id: i64,
         at: DateTime<Utc>,
     ) -> Result<Vec<DossierTurnRow>, PersistError> {
@@ -35,8 +35,8 @@ pub struct TurnLocator {
     pub closed_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
-    pub async fn locate_turn(&self, turn_id: i64) -> Result<Option<TurnLocator>, PersistError> {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
+    pub async fn locate_turn(self, turn_id: i64) -> Result<Option<TurnLocator>, PersistError> {
         crate::metrics::time_db("locate_turn", async move {
             let row = sqlx::query_as!(
                 TurnLocator,
@@ -56,7 +56,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_turn_facts_by_id(
-        &self,
+        self,
         turn_id: i64,
     ) -> Result<Option<crate::store::persistence::turn_facts::TurnFactsRow>, PersistError> {
         crate::metrics::time_db("fetch_turn_facts_by_id", async move {

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[cfg(test)]
 #[path = "scheduled_job_runs_db_tests.rs"]
@@ -29,9 +29,9 @@ pub(crate) struct LatestJobRuns {
     pub(crate) last_scheduled_start: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn record_scheduled_job_run(
-        &self,
+        self,
         run: &JobRunRow,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("record_scheduled_job_run", async move {
@@ -62,7 +62,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn latest_scheduled_job_runs(
-        &self,
+        self,
         job_name: &str,
         machine: Option<Uuid>,
     ) -> Result<LatestJobRuns, PersistError> {
@@ -78,7 +78,7 @@ impl PersistHandle {
     }
 
     async fn latest_job_run(
-        &self,
+        self,
         job_name: &str,
         machine: Option<Uuid>,
     ) -> Result<Option<JobRunRow>, PersistError> {
@@ -117,7 +117,7 @@ impl PersistHandle {
     }
 
     async fn last_scheduled_job_start(
-        &self,
+        self,
         job_name: &str,
         machine: Option<Uuid>,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {

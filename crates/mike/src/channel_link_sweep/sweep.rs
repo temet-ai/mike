@@ -1,5 +1,6 @@
 use super::own_marker::own_channel_ids;
 use crate::proxy::remote_control::route::is_channel_id;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::store::persistence::remote_control::ChannelLinkSweepCandidate;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -10,6 +11,7 @@ pub async fn run_sweep_tick(persist: &PersistHandle, window_minutes: i64, batch_
     }
     let since = chrono::Utc::now() - chrono::Duration::minutes(window_minutes);
     let candidates = match persist
+        .proxy()
         .fetch_channel_link_sweep_candidates(since, batch_size)
         .await
     {
@@ -76,6 +78,7 @@ async fn link_candidate(persist: &PersistHandle, candidate: &ChannelLinkSweepCan
     let mut linked = false;
     for cse_id in candidate_cse_ids(body) {
         match persist
+            .proxy()
             .link_channel_from_request_body(&cse_id, candidate.session_uuid)
             .await
         {

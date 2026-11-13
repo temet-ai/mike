@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CarryNote {
@@ -47,9 +47,9 @@ async fn carry_exists(
     Ok(!existing.is_empty())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn carry_note_facts(
-        &self,
+        self,
         note_uuid: Uuid,
     ) -> Result<Option<CarryNote>, PersistError> {
         let row = sqlx::query_file!("src/store/persistence/fleet/carry_sql/note.sql", note_uuid)
@@ -66,7 +66,7 @@ impl PersistHandle {
         }))
     }
 
-    pub async fn carry_seat_agent(&self, session: Uuid) -> Result<Option<String>, PersistError> {
+    pub async fn carry_seat_agent(self, session: Uuid) -> Result<Option<String>, PersistError> {
         Ok(sqlx::query_file_scalar!(
             "src/store/persistence/fleet/carry_sql/seat_agent.sql",
             session
@@ -75,7 +75,7 @@ impl PersistHandle {
         .await?)
     }
 
-    pub async fn carry_own_candidate(&self, note_uuid: Uuid) -> Result<Option<i64>, PersistError> {
+    pub async fn carry_own_candidate(self, note_uuid: Uuid) -> Result<Option<i64>, PersistError> {
         Ok(
             sqlx::query_file_scalar!("src/store/persistence/fleet/carry_sql/own.sql", note_uuid)
                 .fetch_optional(&self.pool)
@@ -84,7 +84,7 @@ impl PersistHandle {
     }
 
     pub async fn carry_count_findings(
-        &self,
+        self,
         note: (Uuid, &CarryNote),
         tags: &[String],
         discipline: Option<&str>,
@@ -119,7 +119,7 @@ impl PersistHandle {
     }
 
     pub async fn carry_create_candidate(
-        &self,
+        self,
         note: (Uuid, &CarryNote),
         new: &NewCarry<'_>,
     ) -> Result<Option<i64>, PersistError> {
@@ -146,7 +146,7 @@ impl PersistHandle {
     }
 
     pub async fn carried_for_warmup(
-        &self,
+        self,
         fleet_uuid: Uuid,
         run_id: &str,
         disciplines: &[String],

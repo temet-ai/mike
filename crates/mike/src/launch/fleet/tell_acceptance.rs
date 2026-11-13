@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -20,7 +21,7 @@ pub async fn read_waiting(
     def: &FleetDefinition,
     run: &str,
 ) -> Vec<Waiting> {
-    match persist.fleet_note_rows(run).await {
+    match persist.fleet().fleet_note_rows(run).await {
         Ok(rows) => {
             let notes: Vec<NoteFacts> = rows.into_iter().map(note_facts).collect();
             waiting_reports(def, &notes)

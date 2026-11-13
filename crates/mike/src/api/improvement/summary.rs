@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -54,7 +55,7 @@ pub(crate) async fn get_counts(State(state): State<AppState>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.improvement_counts().await {
+    match persist.eval().improvement_counts().await {
         Ok(summary) => Json(SummaryView::from(summary)).into_response(),
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
@@ -43,6 +44,7 @@ async fn session_lessons_counts_distinct_lesson_not_injections() -> anyhow::Resu
     assert_eq!(request_ids.len(), 3, "seed_session_turns must land 3 rows");
 
     let injected_lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -56,6 +58,7 @@ async fn session_lessons_counts_distinct_lesson_not_injections() -> anyhow::Resu
         .await?;
     for request_id in &request_ids {
         handle
+            .lessons()
             .record_lesson_injections(
                 *request_id,
                 &session,
@@ -67,6 +70,7 @@ async fn session_lessons_counts_distinct_lesson_not_injections() -> anyhow::Resu
     }
 
     let recorded_lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -80,7 +84,7 @@ async fn session_lessons_counts_distinct_lesson_not_injections() -> anyhow::Resu
         .await?;
 
     let uuid = Uuid::parse_str(&session)?;
-    let Some(result) = handle.session_lessons(uuid).await? else {
+    let Some(result) = handle.lessons().session_lessons(uuid).await? else {
         anyhow::bail!("a session that exists must return Some, not None");
     };
 
@@ -153,6 +157,7 @@ async fn session_lessons_excludes_injections_from_other_sessions() -> anyhow::Re
     .await?;
 
     let lesson_a = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "warning",
@@ -165,6 +170,7 @@ async fn session_lessons_excludes_injections_from_other_sessions() -> anyhow::Re
         })
         .await?;
     let lesson_b = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "warning",
@@ -177,14 +183,16 @@ async fn session_lessons_excludes_injections_from_other_sessions() -> anyhow::Re
         })
         .await?;
     handle
+        .lessons()
         .record_lesson_injections(request_id_a, &session_a, "primary", None, &[lesson_a.id])
         .await?;
     handle
+        .lessons()
         .record_lesson_injections(request_id_b, &session_b, "primary", None, &[lesson_b.id])
         .await?;
 
     let uuid_a = Uuid::parse_str(&session_a)?;
-    let Some(result) = handle.session_lessons(uuid_a).await? else {
+    let Some(result) = handle.lessons().session_lessons(uuid_a).await? else {
         anyhow::bail!("session A exists and must return Some");
     };
 
@@ -226,14 +234,14 @@ async fn session_lessons_empty_session_returns_empty_lists_and_unknown_session_r
     test_support::seed_two_sessions(&pool, &session, &other, project_id).await?;
 
     let uuid = Uuid::parse_str(&session)?;
-    let Some(result) = handle.session_lessons(uuid).await? else {
+    let Some(result) = handle.lessons().session_lessons(uuid).await? else {
         anyhow::bail!("a real session with no lesson activity must still return Some");
     };
     assert!(result.injected.is_empty());
     assert!(result.recorded.is_empty());
 
     let unknown = Uuid::new_v4();
-    let unknown_result = handle.session_lessons(unknown).await?;
+    let unknown_result = handle.lessons().session_lessons(unknown).await?;
     assert!(
         unknown_result.is_none(),
         "a session UUID that matches no row must return None"

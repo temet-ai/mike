@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::response::IntoResponse;
 
 use super::*;
@@ -91,10 +92,16 @@ async fn closed_thread_notify_reports_failure_and_retains_post_body() -> anyhow:
     let thread = f
         .env
         .persist
+        .launch()
         .fetch_thread_core_by_uuid(id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("created thread missing"))?;
-    let messages = f.env.persist.fetch_thread_messages(thread.id).await?;
+    let messages = f
+        .env
+        .persist
+        .launch()
+        .fetch_thread_messages(thread.id)
+        .await?;
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].body, "keep this thread body");
     f.env.cleanup().await
@@ -109,6 +116,7 @@ async fn threaded_reply_counts_only_open_recipients_with_context() -> anyhow::Re
     let thread = f
         .env
         .persist
+        .launch()
         .create_thread(Uuid::new_v4(), "mixed reply", Some(f.env.project), None)
         .await?;
     let body = PostThreadMessageBody {

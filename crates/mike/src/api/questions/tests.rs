@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -49,7 +50,10 @@ impl Env {
             .ok_or_else(|| anyhow::anyhow!("persist_enabled config must yield a PersistHandle"))?;
         let (asker, recipient) = (Uuid::new_v4(), Uuid::new_v4());
         for session in [asker, recipient] {
-            persist.ensure_session_exists(&session.to_string()).await?;
+            persist
+                .launch()
+                .ensure_session_exists(&session.to_string())
+                .await?;
         }
         Ok(Some(Self {
             db,
@@ -89,6 +93,7 @@ impl Env {
     async fn inbox(&self, session: Uuid) -> anyhow::Result<Vec<String>> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(session)
             .await?
             .inbox
@@ -130,7 +135,11 @@ async fn asking_writes_the_question_and_mails_the_recipient_once() -> anyhow::Re
     assert_eq!(body["mailed"], json!(true));
     let id = id_of(&body)?;
 
-    let open = env.persist.open_questions_for(env.recipient).await?;
+    let open = env
+        .persist
+        .launch()
+        .open_questions_for(env.recipient)
+        .await?;
     assert_eq!(open.len(), 1);
     assert_eq!(open[0].question_uuid, id);
     let mail = env.inbox(env.recipient).await?;
@@ -165,6 +174,7 @@ async fn asking_is_refused_for_what_cannot_be_resolved_and_nothing_is_written() 
     assert_eq!(bad_note, StatusCode::NOT_FOUND);
     assert!(
         env.persist
+            .launch()
             .open_questions_for(env.recipient)
             .await?
             .is_empty()
@@ -190,6 +200,7 @@ async fn an_answer_settles_the_question_and_mails_the_asker_once() -> anyhow::Re
     assert!(mail[0].contains("fleet_target.rs"));
     assert!(
         env.persist
+            .launch()
             .open_questions_for(env.recipient)
             .await?
             .is_empty()
@@ -240,6 +251,7 @@ async fn an_answer_with_amend_adds_itself_to_the_brief_a_question_is_about() -> 
     ];
     let note = env
         .persist
+        .launch()
         .create_session_note(
             env.recipient,
             NewSessionNote {
@@ -254,6 +266,7 @@ async fn an_answer_with_amend_adds_itself_to_the_brief_a_question_is_about() -> 
         .await?;
     let plain = env
         .persist
+        .launch()
         .create_session_note(
             env.recipient,
             NewSessionNote {
@@ -283,7 +296,11 @@ async fn an_answer_with_amend_adds_itself_to_the_brief_a_question_is_about() -> 
     let (refused_again, _) = env.answer(id_of(&none_about)?, "x", true).await;
     assert_eq!(refused_again, StatusCode::BAD_REQUEST);
     assert_eq!(
-        env.persist.open_questions_for(env.recipient).await?.len(),
+        env.persist
+            .launch()
+            .open_questions_for(env.recipient)
+            .await?
+            .len(),
         2,
         "a refused amend leaves the question open"
     );

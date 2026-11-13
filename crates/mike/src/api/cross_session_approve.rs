@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -105,7 +106,7 @@ pub async fn approve_proposal(
         target_project_ids: &body.target_project_ids,
         expires_at: body.expires_at,
     };
-    let lessons = match persist.approve_directive_proposal(&params).await {
+    let lessons = match persist.steerer().approve_directive_proposal(&params).await {
         Ok(rows) => rows,
         Err(e) => {
             return error(
@@ -116,6 +117,7 @@ pub async fn approve_proposal(
     };
     if lessons.is_empty() {
         let status = persist
+            .steerer()
             .fetch_proposal_detail(id)
             .await
             .ok()

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::time::Duration;
 
 use super::ProposerDeps;
@@ -56,6 +57,7 @@ pub(super) async fn closest_to_text(
     let vector = query_vector(deps, text).await;
     let mut rows = match deps
         .persist
+        .knowledge()
         .closest_guidance(project_id, text, vector.as_ref(), GUIDANCE_K)
         .await
     {
@@ -85,6 +87,7 @@ pub(super) async fn record(
         .collect();
     if let Err(error) = deps
         .persist
+        .knowledge()
         .record_proposal_guidance(candidate.verdict_id, candidate.project_id, &shown)
         .await
     {

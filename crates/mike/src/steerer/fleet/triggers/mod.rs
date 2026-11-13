@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 pub(super) mod response_trigger;
 #[cfg(test)]
 mod tests;
@@ -51,7 +52,7 @@ pub(super) async fn fetch_anchor(
     target: &EvalTarget,
 ) -> Option<Anchor> {
     let ph = ctx.persist.as_ref()?;
-    match ph.get_session_goal(session_uuid).await {
+    match ph.steerer().get_session_goal(session_uuid).await {
         Ok(Some(sg)) => Some(Anchor {
             state_of_play: sg.goal,
             next: sg.next_steps,
@@ -106,7 +107,11 @@ pub(super) async fn resolve_trigger_steerers<'r>(
         log_no_persistence_forces_skip(target, trigger);
         return None;
     };
-    let enrolments = match ph.list_active_enrolments_for_session(session_uuid).await {
+    let enrolments = match ph
+        .steerer()
+        .list_active_enrolments_for_session(session_uuid)
+        .await
+    {
         Ok(rows) => rows,
         Err(e) => {
             log_enrolment_lookup_failed(target, trigger, &e);

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub struct AcceptanceCriterionRow {
@@ -43,9 +43,9 @@ impl AskSeen {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn insert_acceptance_criteria_map(
-        &self,
+        self,
         session_db_id: i64,
         seen: AskSeen,
         model: Option<&str>,
@@ -104,7 +104,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_project_path(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<String>, PersistError> {
         let path = sqlx::query_scalar!(
@@ -120,7 +120,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_acceptance_criteria_ask_seen(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<AskSeen>, PersistError> {
         let row = sqlx::query!(
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_current_acceptance_criteria(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<AcceptanceCriteriaMap>, PersistError> {
         let map = sqlx::query!(
@@ -181,7 +181,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_acceptance_criteria_history(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<AcceptanceCriteriaMap>, PersistError> {
         let maps = sqlx::query!(

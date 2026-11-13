@@ -1,4 +1,5 @@
 use crate::store::remote_control::support::{call_at, shared_handle, unique};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[tokio::test]
 async fn links_an_unlinked_channel_to_the_session_uuid() -> anyhow::Result<()> {
@@ -8,11 +9,13 @@ async fn links_an_unlinked_channel_to_the_session_uuid() -> anyhow::Result<()> {
     let cse_id = unique("cse_ABC123");
 
     handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", "/worker/events"))
         .await?;
 
     let session_uuid = uuid::Uuid::new_v4();
     handle
+        .proxy()
         .link_channel_from_request_body(&cse_id, session_uuid)
         .await?;
 
@@ -39,12 +42,15 @@ async fn a_second_call_does_not_move_an_already_linked_channel() -> anyhow::Resu
     let second_uuid = uuid::Uuid::new_v4();
 
     handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", "/worker/events"))
         .await?;
     handle
+        .proxy()
         .link_channel_from_request_body(&cse_id, first_uuid)
         .await?;
     handle
+        .proxy()
         .link_channel_from_request_body(&cse_id, second_uuid)
         .await?;
 
@@ -72,6 +78,7 @@ async fn a_cse_id_with_no_channel_row_is_a_silent_no_op() -> anyhow::Result<()> 
     let cse_id = unique("cse_never_seen");
 
     handle
+        .proxy()
         .link_channel_from_request_body(&cse_id, uuid::Uuid::new_v4())
         .await?;
 
@@ -115,9 +122,11 @@ async fn resolves_session_id_when_the_session_already_exists() -> anyhow::Result
     .await?;
 
     handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", "/worker/events"))
         .await?;
     handle
+        .proxy()
         .link_channel_from_request_body(&cse_id, session_uuid)
         .await?;
 

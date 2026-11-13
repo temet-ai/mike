@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -56,6 +57,7 @@ async fn text_search(fixture: &Fixture, needle: &str, requests: &[i64]) -> anyho
 async fn mark(fixture: &Fixture) -> anyhow::Result<()> {
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
     Ok(())

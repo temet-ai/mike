@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::launch::fleet::background_result;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewTreeChange {
@@ -47,9 +47,9 @@ pub struct BackgroundEnd {
     pub finished_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn background_ends(
-        &self,
+        self,
         use_ids: &[i64],
     ) -> Result<Vec<BackgroundEnd>, PersistError> {
         if use_ids.is_empty() {
@@ -69,7 +69,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_tree_changes(
-        &self,
+        self,
         run_id: &str,
         changes: &[NewTreeChange],
     ) -> Result<u64, PersistError> {
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub async fn tree_changes_since(
-        &self,
+        self,
         run_id: &str,
         since: DateTime<Utc>,
         path_prefix: Option<&str>,
@@ -118,7 +118,7 @@ impl PersistHandle {
     }
 
     pub async fn tree_changed_paths_since(
-        &self,
+        self,
         run_id: &str,
         since: DateTime<Utc>,
     ) -> Result<Vec<ChangedPathRow>, PersistError> {
@@ -137,7 +137,7 @@ impl PersistHandle {
     }
 
     pub async fn tree_results(
-        &self,
+        self,
         run_id: &str,
         command: Option<&str>,
         since: DateTime<Utc>,

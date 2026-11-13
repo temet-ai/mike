@@ -3,6 +3,7 @@ use crate::lesson_proposer::{
     ProposedLesson, ProposerSettings, WriteOutcome, dedupe::Embedded, write,
 };
 use crate::store::persistence::lessons::proposals::queue::SavedProposal;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistHandle, test_support};
 
 #[tokio::test]
@@ -16,6 +17,7 @@ async fn embedding_failure_retains_full_proposal_for_restart_without_new_model_c
     let since = chrono::Utc::now() - chrono::Duration::days(1);
     let candidate = fx
         .handle
+        .lessons()
         .select_correction_candidates(since, 1)
         .await?
         .remove(0);
@@ -32,8 +34,8 @@ async fn embedding_failure_retains_full_proposal_for_restart_without_new_model_c
         cost_usd: Some(0.01),
         generation_id: Some("original-generation".to_owned()),
     };
-    fx.handle.save_lesson_proposal(&saved).await?;
-    fx.handle.save_lesson_proposal(&saved).await?;
+    fx.handle.lessons().save_lesson_proposal(&saved).await?;
+    fx.handle.lessons().save_lesson_proposal(&saved).await?;
     let mut decision = write::Decision {
         candidate: &saved.candidate,
         proposed: &saved.proposed,
@@ -50,12 +52,13 @@ async fn embedding_failure_retains_full_proposal_for_restart_without_new_model_c
     );
     assert!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .is_empty()
     );
     let restarted = PersistHandle::connect(&fx.db.database_url).await?;
-    let pending = restarted.pending_lesson_proposals(10).await?;
+    let pending = restarted.lessons().pending_lesson_proposals(10).await?;
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].proposed, saved.proposed);
     assert_eq!(pending[0].generation_id, saved.generation_id);
@@ -68,7 +71,13 @@ async fn embedding_failure_retains_full_proposal_for_restart_without_new_model_c
         write::decide_and_write(&restarted, &ProposerSettings::default(), &decision).await?,
         WriteOutcome::Created { .. }
     ));
-    assert!(restarted.pending_lesson_proposals(10).await?.is_empty());
+    assert!(
+        restarted
+            .lessons()
+            .pending_lesson_proposals(10)
+            .await?
+            .is_empty()
+    );
     fx.db.cleanup().await?;
     Ok(())
 }
@@ -79,16 +88,16 @@ async fn daily_budget_is_atomic_and_survives_handle_restart() -> anyhow::Result<
         return Ok(());
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
-    assert!(!handle.reserve_lesson_proposer_call(0).await?);
+    assert!(!handle.lessons().reserve_lesson_proposer_call(0).await?);
     let (first, second) = tokio::join!(
-        handle.reserve_lesson_proposer_call(1),
-        handle.reserve_lesson_proposer_call(1)
+        handle.lessons().reserve_lesson_proposer_call(1),
+        handle.lessons().reserve_lesson_proposer_call(1)
     );
     assert_ne!(first?, second?);
     let restarted = PersistHandle::connect(&db.database_url).await?;
-    assert!(!restarted.reserve_lesson_proposer_call(1).await?);
-    assert!(restarted.reserve_lesson_proposer_call(2).await?);
-    assert!(!restarted.reserve_lesson_proposer_call(2).await?);
+    assert!(!restarted.lessons().reserve_lesson_proposer_call(1).await?);
+    assert!(restarted.lessons().reserve_lesson_proposer_call(2).await?);
+    assert!(!restarted.lessons().reserve_lesson_proposer_call(2).await?);
     db.cleanup().await?;
     Ok(())
 }
@@ -99,19 +108,25 @@ async fn proposer_lock_prevents_duplicate_processing_and_releases_on_drop() -> a
         return Ok(());
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
-    let Some(guard) = handle.lock_lesson_proposer().await? else {
+    let Some(guard) = handle.lessons().lock_lesson_proposer().await? else {
         anyhow::bail!("first worker must lock");
     };
-    assert!(handle.lock_lesson_proposer().await?.is_none());
+    assert!(handle.lessons().lock_lesson_proposer().await?.is_none());
     guard.rollback().await?;
-    let Some(next) = handle.lock_lesson_proposer().await? else {
+    let Some(next) = handle.lessons().lock_lesson_proposer().await? else {
         anyhow::bail!("lock must release");
     };
     next.rollback().await?;
     handle.pool().close().await;
-    assert!(handle.reserve_lesson_proposer_call(10).await.is_err());
-    assert!(handle.pending_lesson_proposals(10).await.is_err());
-    assert!(handle.lock_lesson_proposer().await.is_err());
+    assert!(
+        handle
+            .lessons()
+            .reserve_lesson_proposer_call(10)
+            .await
+            .is_err()
+    );
+    assert!(handle.lessons().pending_lesson_proposals(10).await.is_err());
+    assert!(handle.lessons().lock_lesson_proposer().await.is_err());
     db.cleanup().await?;
     Ok(())
 }
@@ -129,6 +144,7 @@ async fn machine_prompt_and_stale_verdict_are_ineligible_but_empty_reply_is_not(
         .await?;
     assert_eq!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .len(),
@@ -142,6 +158,7 @@ async fn machine_prompt_and_stale_verdict_are_ineligible_but_empty_reply_is_not(
     .await?;
     assert!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .is_empty()
@@ -156,6 +173,7 @@ async fn machine_prompt_and_stale_verdict_are_ineligible_but_empty_reply_is_not(
         .await?;
     assert!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .is_empty()
@@ -172,6 +190,7 @@ async fn legacy_ambiguous_evidence_is_reproposed_once_with_original_preserved() 
     };
     let empty = serde_json::json!([]);
     fx.handle
+        .lessons()
         .record_evidence(super::no_evidence(fx.verdict_id, fx.turn_id, &empty))
         .await?;
     sqlx::query("INSERT INTO memory.lesson_proposal_recovery (verdict_id, original_evidence, recovery_state) SELECT verdict_id, to_jsonb(e), 'needs_reproposal' FROM memory.lesson_proposal_evidence e WHERE verdict_id = $1")
@@ -179,6 +198,7 @@ async fn legacy_ambiguous_evidence_is_reproposed_once_with_original_preserved() 
     let since = chrono::Utc::now() - chrono::Duration::days(1);
     assert_eq!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .len(),
@@ -186,9 +206,10 @@ async fn legacy_ambiguous_evidence_is_reproposed_once_with_original_preserved() 
     );
     let mut replacement = super::no_evidence(fx.verdict_id, fx.turn_id, &empty);
     replacement.reason = "new model explicitly rejected generalisation";
-    fx.handle.record_evidence(replacement).await?;
+    fx.handle.lessons().record_evidence(replacement).await?;
     assert!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .is_empty()
@@ -208,6 +229,7 @@ async fn obsolete_legacy_correction_is_terminal_with_original_preserved() -> any
     };
     let empty = serde_json::json!([]);
     fx.handle
+        .lessons()
         .record_evidence(super::no_evidence(fx.verdict_id, fx.turn_id, &empty))
         .await?;
     sqlx::query("INSERT INTO memory.lesson_proposal_recovery (verdict_id,original_evidence) SELECT verdict_id,to_jsonb(e) FROM memory.lesson_proposal_evidence e WHERE verdict_id=$1")
@@ -216,7 +238,13 @@ async fn obsolete_legacy_correction_is_terminal_with_original_preserved() -> any
         .bind(fx.turn_id)
         .execute(fx.handle.pool())
         .await?;
-    assert!(fx.handle.pending_lesson_proposals(10).await?.is_empty());
+    assert!(
+        fx.handle
+            .lessons()
+            .pending_lesson_proposals(10)
+            .await?
+            .is_empty()
+    );
     let (state,reason,original): (String,String,serde_json::Value) = sqlx::query_as("SELECT recovery_state,disposition_reason,original_evidence FROM memory.lesson_proposal_recovery WHERE verdict_id=$1")
         .bind(fx.verdict_id).fetch_one(fx.handle.pool()).await?;
     assert_eq!(state, "obsolete");
@@ -232,9 +260,15 @@ async fn quiet_activity_includes_tool_loops_and_excludes_sidecars() -> anyhow::R
         return Ok(());
     };
     let since = chrono::Utc::now() - chrono::Duration::hours(1);
-    assert!(fx.handle.has_recent_primary_activity(since).await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .has_recent_primary_activity(since)
+            .await?
+    );
     assert!(
         !fx.handle
+            .lessons()
             .has_recent_primary_activity(chrono::Utc::now() + chrono::Duration::days(1))
             .await?
     );
@@ -242,10 +276,20 @@ async fn quiet_activity_includes_tool_loops_and_excludes_sidecars() -> anyhow::R
         .bind(fx.project_id)
         .execute(fx.handle.pool())
         .await?;
-    assert!(fx.handle.has_recent_primary_activity(since).await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .has_recent_primary_activity(since)
+            .await?
+    );
     sqlx::query("UPDATE requests.requests SET turn_origin_id=(SELECT id FROM requests.turn_origins WHERE code='title_sidecar') WHERE project_id=$1")
         .bind(fx.project_id).execute(fx.handle.pool()).await?;
-    assert!(!fx.handle.has_recent_primary_activity(since).await?);
+    assert!(
+        !fx.handle
+            .lessons()
+            .has_recent_primary_activity(since)
+            .await?
+    );
     fx.db.cleanup().await?;
     Ok(())
 }
@@ -260,6 +304,7 @@ async fn legacy_unknown_author_requires_positive_operator_classification() -> an
         .bind(fx.turn_id).execute(fx.handle.pool()).await?;
     assert_eq!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .len(),
@@ -269,6 +314,7 @@ async fn legacy_unknown_author_requires_positive_operator_classification() -> an
         .bind(fx.turn_id).execute(fx.handle.pool()).await?;
     assert!(
         fx.handle
+            .lessons()
             .select_correction_candidates(since, 10)
             .await?
             .is_empty()
@@ -316,7 +362,7 @@ async fn refused_limiter_does_not_consume_durable_proposer_allowance() -> anyhow
     assert_eq!(report.candidates, 1);
     assert!(report.budget_exhausted);
     assert_eq!(report.errors, 0);
-    assert!(fx.handle.reserve_lesson_proposer_call(1).await?);
+    assert!(fx.handle.lessons().reserve_lesson_proposer_call(1).await?);
     fx.db.cleanup().await?;
     Ok(())
 }

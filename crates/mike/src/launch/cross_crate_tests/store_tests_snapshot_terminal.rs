@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/store/tests/snapshot_terminal.rs by the crate split: it reaches the launch
 //! crate, so it is tested from there.
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use crate::store::models::{RequestId, RequestStatus};
 use crate::store::tests::*;
@@ -61,7 +62,10 @@ async fn snapshot_terminal_persists_unpinned_request() -> anyhow::Result<()> {
         .resolve_session_db_id(&session_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session must exist after snapshot"))?;
-    let eff = handle.effective_pinned_for_session(session_db_id).await?;
+    let eff = handle
+        .launch()
+        .effective_pinned_for_session(session_db_id)
+        .await?;
     assert!(
         !eff,
         "session+project both unpinned → effective_pinned=false"
@@ -92,7 +96,10 @@ async fn snapshot_terminal_persists_pinned_via_session() -> anyhow::Result<()> {
         .resolve_session_db_id(&session_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session must exist after snapshot"))?;
-    let eff = handle.effective_pinned_for_session(session_db_id).await?;
+    let eff = handle
+        .launch()
+        .effective_pinned_for_session(session_db_id)
+        .await?;
     assert!(
         eff,
         "session.pinned=true must surface as effective_pinned=true"
@@ -144,7 +151,10 @@ async fn snapshot_terminal_persists_pinned_via_project_cascade() -> anyhow::Resu
         .resolve_session_db_id(&session_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session must exist after snapshot"))?;
-    let eff = handle.effective_pinned_for_session(session_db_id).await?;
+    let eff = handle
+        .launch()
+        .effective_pinned_for_session(session_db_id)
+        .await?;
     assert!(
         eff,
         "project.pinned=true with session.pinned=false must cascade to effective_pinned=true"

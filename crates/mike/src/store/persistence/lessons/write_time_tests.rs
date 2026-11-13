@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::{OTHER_SESSION, fixture, no_evidence, seed_verdict, unit_embedding};
@@ -42,6 +43,7 @@ async fn judge_lesson(
     let embedding = unit_embedding();
     Ok(fx
         .handle
+        .lessons()
         .create_candidate_lesson(
             NewCandidateLesson {
                 project_id: fx.project_id,
@@ -80,6 +82,7 @@ async fn pair_with_relation(kind: &str, old_is_operator: bool) -> anyhow::Result
     let old = if old_is_operator {
         let row: LessonInsertRow = fx
             .handle
+            .lessons()
             .create_lesson_with_topic(NewLessonWrite {
                 project_id: fx.project_id,
                 kind: "convention",
@@ -103,6 +106,7 @@ async fn pair_with_relation(kind: &str, old_is_operator: bool) -> anyhow::Result
         )
         .await?;
         fx.handle
+            .lessons()
             .approve_lesson_candidate(id, None, "judge")
             .await?;
         id
@@ -184,6 +188,7 @@ async fn rewriting_a_judge_candidate_moves_its_evidence_to_the_first_rule() -> a
     ];
     let ids = fx
         .handle
+        .lessons()
         .rewrite_lesson_into_rules(&ShapeRewrite {
             lesson_id: original,
             rules: &rules,
@@ -194,9 +199,12 @@ async fn rewriting_a_judge_candidate_moves_its_evidence_to_the_first_rule() -> a
         .await?
         .unwrap_or_default();
     assert_eq!(ids.len(), 2);
-    assert_eq!(fx.handle.count_lesson_evidence(ids[0]).await?, 1);
-    assert_eq!(fx.handle.count_lesson_evidence(ids[1]).await?, 0);
-    assert_eq!(fx.handle.count_lesson_evidence(original).await?, 0);
+    assert_eq!(fx.handle.lessons().count_lesson_evidence(ids[0]).await?, 1);
+    assert_eq!(fx.handle.lessons().count_lesson_evidence(ids[1]).await?, 0);
+    assert_eq!(
+        fx.handle.lessons().count_lesson_evidence(original).await?,
+        0
+    );
     let (stage, reason) = stage_of(&fx, original).await?;
     assert_eq!(
         (stage.as_str(), reason.as_deref()),
@@ -237,9 +245,21 @@ async fn promotion_evidence_counts_the_corrections_behind_the_replaced_lesson() 
     let Some(p) = pair_with_relation("supersedes", false).await? else {
         return Ok(());
     };
-    assert_eq!(p.fx.handle.count_lesson_evidence(p.new).await?, 1);
-    assert_eq!(p.fx.handle.count_promotion_evidence(p.new).await?, 2);
-    assert_eq!(p.fx.handle.count_promotion_evidence(p.old).await?, 1);
+    assert_eq!(p.fx.handle.lessons().count_lesson_evidence(p.new).await?, 1);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .count_promotion_evidence(p.new)
+            .await?,
+        2
+    );
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .count_promotion_evidence(p.old)
+            .await?,
+        1
+    );
     p.fx.db.cleanup().await?;
     Ok(())
 }
@@ -251,6 +271,7 @@ async fn judge_only_relations_confirm_after_the_replacement_is_promoted() -> any
     };
     assert_eq!(
         p.fx.handle
+            .lessons()
             .confirm_judge_only_write_time_relations()
             .await?,
         0
@@ -258,10 +279,12 @@ async fn judge_only_relations_confirm_after_the_replacement_is_promoted() -> any
     assert_eq!(relation_row(&p.fx, p.new, p.old).await?.1, "proposed");
 
     p.fx.handle
+        .lessons()
         .approve_lesson_candidate(p.new, None, "judge")
         .await?;
     assert_eq!(
         p.fx.handle
+            .lessons()
             .confirm_judge_only_write_time_relations()
             .await?,
         1
@@ -279,16 +302,24 @@ async fn a_relation_that_touches_an_operator_lesson_waits_for_the_operator() -> 
         return Ok(());
     };
     p.fx.handle
+        .lessons()
         .approve_lesson_candidate(p.new, None, "judge")
         .await?;
     assert_eq!(
         p.fx.handle
+            .lessons()
             .confirm_judge_only_write_time_relations()
             .await?,
         0
     );
     assert_eq!(relation_row(&p.fx, p.new, p.old).await?.1, "proposed");
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 0);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        0
+    );
     assert_eq!(stage_of(&p.fx, p.old).await?.0, "long_term");
 
     let id: i64 = sqlx::query_scalar(
@@ -298,8 +329,17 @@ async fn a_relation_that_touches_an_operator_lesson_waits_for_the_operator() -> 
     .bind(p.old)
     .fetch_one(p.fx.handle.pool())
     .await?;
-    p.fx.handle.confirm_relation(id, "operator").await?;
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 1);
+    p.fx.handle
+        .lessons()
+        .confirm_relation(id, "operator")
+        .await?;
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        1
+    );
     let (stage, reason) = stage_of(&p.fx, p.old).await?;
     assert_eq!(
         (stage.as_str(), reason.as_deref()),
@@ -315,15 +355,23 @@ async fn a_contradicts_relation_is_never_confirmed_or_applied() -> anyhow::Resul
         return Ok(());
     };
     p.fx.handle
+        .lessons()
         .approve_lesson_candidate(p.new, None, "judge")
         .await?;
     assert_eq!(
         p.fx.handle
+            .lessons()
             .confirm_judge_only_write_time_relations()
             .await?,
         0
     );
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 0);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        0
+    );
     assert_eq!(relation_row(&p.fx, p.new, p.old).await?.1, "proposed");
     assert_eq!(stage_of(&p.fx, p.old).await?.0, "daily");
     p.fx.db.cleanup().await?;
@@ -343,7 +391,13 @@ async fn applying_waits_while_the_replacement_is_still_a_raw_judge_candidate() -
     .bind(p.new)
     .execute(p.fx.handle.pool())
     .await?;
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 0);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        0
+    );
     assert_eq!(stage_of(&p.fx, p.old).await?.0, "daily");
     p.fx.db.cleanup().await?;
     Ok(())
@@ -366,6 +420,7 @@ async fn applying_archives_the_old_lesson_moves_evidence_and_inherits_relations(
     .fetch_one(p.fx.handle.pool())
     .await?;
     p.fx.handle
+        .lessons()
         .insert_lesson_relation(
             &crate::store::persistence::lesson_relations::LessonRelationDraft {
                 from_lesson_id: other,
@@ -386,24 +441,32 @@ async fn applying_archives_the_old_lesson_moves_evidence_and_inherits_relations(
         )
         .await?;
     p.fx.handle
+        .lessons()
         .approve_lesson_candidate(p.new, None, "judge")
         .await?;
     assert_eq!(
         p.fx.handle
+            .lessons()
             .confirm_judge_only_write_time_relations()
             .await?,
         1
     );
 
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 1);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        1
+    );
     let (stage, reason) = stage_of(&p.fx, p.old).await?;
     assert_eq!(
         (stage.as_str(), reason.as_deref()),
         ("archived", Some("superseded"))
     );
     assert_eq!(stage_of(&p.fx, p.new).await?.0, "daily");
-    assert_eq!(p.fx.handle.count_lesson_evidence(p.new).await?, 2);
-    assert_eq!(p.fx.handle.count_lesson_evidence(p.old).await?, 0);
+    assert_eq!(p.fx.handle.lessons().count_lesson_evidence(p.new).await?, 2);
+    assert_eq!(p.fx.handle.lessons().count_lesson_evidence(p.old).await?, 0);
 
     let inherited = relation_row(&p.fx, other, p.new).await?;
     assert_eq!(
@@ -427,7 +490,13 @@ async fn applying_archives_the_old_lesson_moves_evidence_and_inherits_relations(
     assert_eq!(evidence["moved_evidence"], 1);
     assert_eq!(evidence["inherited_injections"], 0);
 
-    assert_eq!(p.fx.handle.apply_confirmed_lesson_relations().await?, 0);
+    assert_eq!(
+        p.fx.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        0
+    );
     p.fx.db.cleanup().await?;
     Ok(())
 }

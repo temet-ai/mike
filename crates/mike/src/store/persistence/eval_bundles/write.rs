@@ -1,7 +1,7 @@
 use serde_json::json;
 
+use super::super::PersistError;
 use super::super::change_log::{NewChange, append_change_in};
-use super::super::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewBundleRow {
@@ -33,9 +33,9 @@ pub struct StatusChange<'a> {
     pub source_json: &'a str,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn ensure_bundles(
-        &self,
+        self,
         candidates: &[NewBundleRow],
         build: BuildOrigin<'_>,
         cause: &serde_json::Value,
@@ -68,7 +68,7 @@ impl PersistHandle {
     }
 
     pub async fn create_candidate_bundle(
-        &self,
+        self,
         role: &str,
         subject_key: &str,
         components: &serde_json::Value,
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     pub async fn set_bundle_status(
-        &self,
+        self,
         change: &StatusChange<'_>,
     ) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("set_bundle_status", async move {

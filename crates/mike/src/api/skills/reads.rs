@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -24,7 +25,7 @@ pub(crate) async fn list_projects(State(state): State<AppState>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.list_skill_projects().await {
+    match persist.lessons().list_skill_projects().await {
         Ok(projects) => {
             let waiting = projects.iter().map(|p| p.waiting).sum();
             Json(ProjectsResponse { projects, waiting }).into_response()
@@ -61,13 +62,17 @@ pub(crate) async fn list_folders(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let (mode_code, mode_set) = match persist.skill_project_mode(params.project).await {
+    let (mode_code, mode_set) = match persist.lessons().skill_project_mode(params.project).await {
         Ok(Some(found)) => found,
         Ok(None) => return error(StatusCode::NOT_FOUND, "no such project"),
         Err(e) => return persist_failed(&e),
     };
     let mode = Mode::parse(&mode_code).unwrap_or(Mode::Ask);
-    match persist.list_project_skill_folders(params.project).await {
+    match persist
+        .lessons()
+        .list_project_skill_folders(params.project)
+        .await
+    {
         Ok(rows) => Json(FoldersResponse {
             project: params.project,
             mode: mode_code,
@@ -101,6 +106,7 @@ async fn folder_view(
     mode: Mode,
 ) -> Result<Option<FolderView>, Response> {
     let rows = persist
+        .lessons()
         .list_project_skill_folders(draft.project_uuid)
         .await
         .map_err(|e| persist_failed(&e))?;
@@ -118,21 +124,30 @@ pub(crate) async fn get_draft(State(state): State<AppState>, Path(id): Path<i64>
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let draft = match persist.skill_draft_detail(id).await {
+    let draft = match persist.lessons().skill_draft_detail(id).await {
         Ok(Some(draft)) => draft,
         Ok(None) => return error(StatusCode::NOT_FOUND, "no such skill draft"),
         Err(e) => return persist_failed(&e),
     };
-    let mode_code = match persist.skill_project_mode(draft.project_uuid).await {
+    let mode_code = match persist
+        .lessons()
+        .skill_project_mode(draft.project_uuid)
+        .await
+    {
         Ok(found) => found.map_or_else(|| "ask".to_owned(), |(code, _)| code),
         Err(e) => return persist_failed(&e),
     };
     let mode = Mode::parse(&mode_code).unwrap_or(Mode::Ask);
-    let lessons = match persist.skill_draft_source_lessons(&draft.lesson_ids).await {
+    let lessons = match persist
+        .lessons()
+        .skill_draft_source_lessons(&draft.lesson_ids)
+        .await
+    {
         Ok(rows) => rows,
         Err(e) => return persist_failed(&e),
     };
     let revisions = match persist
+        .lessons()
         .skill_draft_revisions(draft.project_id, &draft.folder)
         .await
     {

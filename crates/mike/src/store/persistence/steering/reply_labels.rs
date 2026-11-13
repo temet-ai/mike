@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ReplyLabelCandidate {
@@ -20,9 +20,9 @@ pub struct ReplyLabelCandidate {
     pub revert_reason: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn reply_label_candidates(
-        &self,
+        self,
         limit: i64,
         since: DateTime<Utc>,
         regrade: RegradeOlderVersions<'_>,
@@ -85,9 +85,9 @@ pub(crate) struct SteererLabelWindow {
     pub(crate) wrong: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn steerer_label_windows(
-        &self,
+        self,
         floor: DateTime<Utc>,
     ) -> Result<Vec<SteererLabelWindow>, PersistError> {
         crate::metrics::time_db("steerer_label_windows", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::sync::Arc;
 
 use uuid::Uuid;
@@ -19,6 +20,7 @@ pub(super) async fn bind_host_location(
         return;
     };
     let bound = match persist
+        .knowledge()
         .bind_session_to_local_root(session, machine, cwd)
         .await
     {

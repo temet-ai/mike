@@ -1,5 +1,6 @@
 use super::{EvaluationMode, EvaluationVerdict, NewEvaluation};
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::test_support::{self, TestDbHandle};
 
 struct Fixture {
@@ -81,10 +82,12 @@ async fn dispatched_then_resolved_pass_round_trip() -> anyhow::Result<()> {
     };
     let eval_uuid = f
         .handle
+        .steerer()
         .insert_evaluation_dispatched(&new_evaluation(&f))
         .await?;
     let Some(mid) = f
         .handle
+        .steerer()
         .get_latest_evaluation_for_session(f.session.parse()?, "verifier")
         .await?
     else {
@@ -94,11 +97,13 @@ async fn dispatched_then_resolved_pass_round_trip() -> anyhow::Result<()> {
     assert_eq!(mid.status, "dispatched");
     assert!(
         f.handle
+            .steerer()
             .resolve_evaluation(eval_uuid, false, None, None)
             .await?
     );
     let Some(resolved) = f
         .handle
+        .steerer()
         .get_latest_evaluation_for_session(f.session.parse()?, "verifier")
         .await?
     else {
@@ -118,6 +123,7 @@ async fn resolved_pass_with_verdict_writes_all_three_columns() -> anyhow::Result
     };
     let eval_uuid = f
         .handle
+        .steerer()
         .insert_evaluation_dispatched(&new_evaluation(&f))
         .await?;
     let verdict = EvaluationVerdict {
@@ -126,6 +132,7 @@ async fn resolved_pass_with_verdict_writes_all_three_columns() -> anyhow::Result
         reason: Some("the turn showed a passing test run".to_string()),
     };
     f.handle
+        .steerer()
         .resolve_evaluation(eval_uuid, false, None, Some(verdict))
         .await?;
     let (json, confidence, reason) = verdict_columns(&f, eval_uuid).await?;
@@ -150,9 +157,11 @@ async fn resolved_pass_with_no_verdict_records_that_nothing_was_judged() -> anyh
     };
     let eval_uuid = f
         .handle
+        .steerer()
         .insert_evaluation_dispatched(&new_evaluation(&f))
         .await?;
     f.handle
+        .steerer()
         .resolve_evaluation(eval_uuid, false, None, None)
         .await?;
     let (json, confidence, reason) = verdict_columns(&f, eval_uuid).await?;
@@ -179,9 +188,13 @@ async fn shadow_rows_are_not_the_validation_status() -> anyhow::Result<()> {
         mode: EvaluationMode::Shadow,
         ..new_evaluation(&f)
     };
-    f.handle.insert_evaluation_dispatched(&shadow).await?;
+    f.handle
+        .steerer()
+        .insert_evaluation_dispatched(&shadow)
+        .await?;
     let found = f
         .handle
+        .steerer()
         .get_latest_evaluation_for_session(f.session.parse()?, "verifier")
         .await?;
     assert!(found.is_none());
@@ -197,6 +210,7 @@ async fn no_evaluation_history_returns_none() -> anyhow::Result<()> {
     };
     let found = f
         .handle
+        .steerer()
         .get_latest_evaluation_for_session(f.session.parse()?, "verifier")
         .await?;
     assert!(found.is_none());

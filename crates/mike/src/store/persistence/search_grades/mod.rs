@@ -4,7 +4,7 @@ use sqlx::Row;
 use sqlx::postgres::PgRow;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[cfg(test)]
 mod grades_tests;
@@ -69,9 +69,9 @@ pub(crate) struct NewTuningRun {
     pub(crate) reason: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn ungraded_search_events(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<UngradedEvent>, PersistError> {
         let rows = sqlx::query(include_str!("ungraded_events.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
@@ -82,7 +82,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_search_grade(
-        &self,
+        self,
         grade: &NewGrade<'_>,
     ) -> Result<(), PersistError> {
         sqlx::query(include_str!("insert_grade.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
@@ -100,7 +100,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn search_grades_since(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<Vec<StoredGrade>, PersistError> {
         let rows = sqlx::query(include_str!("grades_since.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
@@ -111,7 +111,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_search_tuning_runs(
-        &self,
+        self,
         outcome: TuningOutcome,
         runs: &[NewTuningRun],
         graded_events: i32,
@@ -141,7 +141,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn search_tuned_since(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<bool, PersistError> {
         Ok(

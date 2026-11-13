@@ -1,6 +1,7 @@
 use mike::lesson_proposer::skill_eval::run_pass;
 use mike::llm::{OpenRouterClient, reset_global_for_tests};
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -133,6 +134,7 @@ async fn a_draft_without_trigger_queries_is_rejected_at_once() -> anyhow::Result
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target, &[1, 2], &empty))
         .await?;
     let (_server, client) = serve(Scripted::approving()).await?;

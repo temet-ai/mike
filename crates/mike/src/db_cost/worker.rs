@@ -1,3 +1,4 @@
+use crate::store::persistence::state_repo::StatePersist as _;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -77,6 +78,7 @@ pub(crate) async fn tick(persist: &PersistHandle, monitor: &mut Monitor) -> DbCo
         .ok();
     let mut built = report::build(&window, requests, monitor.config(), now);
     built.maintenance = persist
+        .state()
         .read_database_maintenance()
         .await
         .map_err(|error| tracing::warn!(%error, "db_cost: reading maintenance statistics failed"))

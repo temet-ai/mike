@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use uuid::Uuid;
 
 use super::events::{CommitLanded, EventPayload, NewFleetEvent};
@@ -17,7 +18,7 @@ pub(super) async fn record(
             sha: sha.to_string(),
         }),
     };
-    if let Err(err) = persist.append_fleet_event(&event).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&event).await {
         tracing::warn!(error = %err, task, sha, "fleet commit: could not record the landed commit");
     }
 }

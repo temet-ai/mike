@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::{seed_fleet_done, seed_fleet_running};
 use chrono::{Duration, Utc};
 use serde_json::json;
@@ -227,6 +229,7 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
     let persist = PersistHandle::connect(&db.database_url).await?;
     let source = format!("source-{}", Uuid::new_v4());
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: source.clone(),
             project_path: Some("/tmp/retro".to_string()),
@@ -236,6 +239,7 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
         })
         .await?;
     let row = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: format!("retro-{}", Uuid::new_v4()),
             project_path: "/tmp/retro".to_string(),
@@ -246,6 +250,7 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
         .await?;
     let row = seed_fleet_running(&persist, row.fleet_uuid, &source).await?;
     let row = persist
+        .fleet()
         .set_fleet_state(row.fleet_uuid, "stopping", None, None)
         .await?;
     let (first, second) = tokio::join!(
@@ -255,6 +260,7 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
     assert!(first?);
     assert!(second?);
     let queued = persist
+        .fleet()
         .find_fleet(&row.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| anyhow::anyhow!("queued fleet missing"))?;
@@ -263,13 +269,14 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
     assert_eq!(original.phase, Phase::Pending);
     assert!(
         persist
+            .fleet()
             .pending_fleet_retrospectives()
             .await?
             .iter()
             .all(|item| item.fleet_uuid != row.fleet_uuid)
     );
     seed_fleet_done(&persist, row.fleet_uuid).await?;
-    let ready = persist.pending_fleet_retrospectives().await?;
+    let ready = persist.fleet().pending_fleet_retrospectives().await?;
     let ready = ready
         .iter()
         .find(|item| item.fleet_uuid == row.fleet_uuid)
@@ -289,6 +296,7 @@ async fn closing_queues_one_durable_job_and_only_done_fleets_dispatch() -> anyho
     );
     assert!(super::retrospective::stage(&persist, &row, &source).await?);
     let recovered = persist
+        .fleet()
         .find_fleet(&row.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| anyhow::anyhow!("recovered fleet missing"))?;

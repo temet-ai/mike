@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, planar_unit, seed_project, seed_session};
 use chrono::{SubsecRound, Utc};
@@ -27,6 +28,7 @@ async fn pairwise_session_similarities_returns_only_pairs_with_both_vectors() ->
     let (_c_pk, c_uuid) = seed_session(&pool, project_id, Some("C"), now).await?;
 
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -37,6 +39,7 @@ async fn pairwise_session_similarities_returns_only_pairs_with_both_vectors() ->
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(10.0),
@@ -48,6 +51,7 @@ async fn pairwise_session_similarities_returns_only_pairs_with_both_vectors() ->
         .await?;
 
     let pairs = persist
+        .knowledge()
         .pairwise_session_similarities(&[a_uuid, b_uuid, c_uuid])
         .await?;
     assert_eq!(
@@ -70,6 +74,7 @@ async fn pairwise_session_similarities_returns_only_pairs_with_both_vectors() ->
 
     let (_none_pk, none_uuid) = seed_session(&pool, project_id, None, now).await?;
     let empty = persist
+        .knowledge()
         .pairwise_session_similarities(&[c_uuid, none_uuid])
         .await?;
     assert!(empty.is_empty());

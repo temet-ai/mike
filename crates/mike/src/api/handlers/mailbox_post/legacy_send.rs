@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -16,6 +17,7 @@ pub(super) async fn send(
     ctx: SendContext<'_>,
 ) -> Result<Response, Response> {
     match handle
+        .launch()
         .insert_message_with_context(
             ctx.message_uuid,
             ctx.to_session_uuid,
@@ -72,7 +74,11 @@ async fn unqueued(handle: &PersistHandle, ctx: &SendContext<'_>) -> Response {
     {
         return response;
     }
-    let exists = match handle.resolve_session_core(ctx.to_session_uuid).await {
+    let exists = match handle
+        .launch()
+        .resolve_session_core(ctx.to_session_uuid)
+        .await
+    {
         Ok(core) => core.is_some(),
         Err(err) => {
             tracing::warn!(error = %err, to = %ctx.to_session_uuid, "mailbox: could not classify an unqueued delivery");
@@ -127,7 +133,7 @@ async fn queued_response(
 ) -> Response {
     let from = from_session_uuid.map(|u| u.to_string());
     let sender_label = match from_session_uuid {
-        Some(u) => handle.sender_label(u).await,
+        Some(u) => handle.launch().sender_label(u).await,
         None => None,
     };
     let reminder = crate::store::models::SystemReminder {

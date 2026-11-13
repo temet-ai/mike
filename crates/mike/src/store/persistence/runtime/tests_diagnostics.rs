@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::{Duration, Utc};
 use serde_json::json;
 use uuid::Uuid;
@@ -46,9 +47,10 @@ async fn diagnostic_default_off_preserves_facts_without_payload_copies() -> anyh
         return Ok(());
     };
     let o = observation(f.session)?;
-    f.handle.apply_session_observation(&o).await?;
+    f.handle.runtime().apply_session_observation(&o).await?;
     let result = f
         .handle
+        .runtime()
         .record_responses_diagnostic(&exchange(Some(f.session)), &DiagnosticLimits::default())
         .await?;
     assert_eq!(result.evidence_status, EvidenceStatus::NotCollected);
@@ -67,7 +69,10 @@ async fn diagnostic_default_off_preserves_facts_without_payload_copies() -> anyh
     );
     assert_eq!(row.output_items, json!([]));
     assert_eq!(
-        f.handle.session_observations(&[f.session]).await?[0]
+        f.handle
+            .runtime()
+            .session_observations(&[f.session])
+            .await?[0]
             .observed_model
             .as_deref(),
         Some("actual-model")
@@ -88,8 +93,8 @@ async fn diagnostic_concurrent_byte_quota_refuses_wire_and_expiry_reclaims_unlin
         ..Default::default()
     };
     let (a, b) = tokio::join!(
-        f.handle.record_responses_diagnostic(&e, &limits),
-        f.handle.record_responses_diagnostic(&e, &limits)
+        f.handle.runtime().record_responses_diagnostic(&e, &limits),
+        f.handle.runtime().record_responses_diagnostic(&e, &limits)
     );
     let statuses = [a?.evidence_status, b?.evidence_status];
     assert!(statuses.contains(&EvidenceStatus::Retained));
@@ -114,6 +119,7 @@ async fn diagnostic_concurrent_byte_quota_refuses_wire_and_expiry_reclaims_unlin
     assert!(bodies.response_body.is_some());
     let swept = f
         .handle
+        .runtime()
         .sweep_runtime_observations(Utc::now() + Duration::days(2), 100)
         .await?;
     assert_eq!(swept.diagnostics_expired, 1);
@@ -126,6 +132,7 @@ async fn diagnostic_concurrent_byte_quota_refuses_wire_and_expiry_reclaims_unlin
     assert!(expired.request_body.is_none() && expired.response_body.is_none());
     let swept = f
         .handle
+        .runtime()
         .sweep_runtime_observations(Utc::now() + Duration::days(8), 100)
         .await?;
     assert_eq!(swept.diagnostics_removed, 2);
@@ -149,11 +156,19 @@ async fn diagnostic_record_and_session_ceilings_leave_honest_availability() -> a
         max_record_bytes: 100,
         ..Default::default()
     };
-    let result = f.handle.record_responses_diagnostic(&e, &limits).await?;
+    let result = f
+        .handle
+        .runtime()
+        .record_responses_diagnostic(&e, &limits)
+        .await?;
     assert_eq!(result.evidence_status, EvidenceStatus::BudgetRefused);
     assert!(result.exchange_id.is_some());
     limits.max_session_bytes = 1;
-    let result = f.handle.record_responses_diagnostic(&e, &limits).await?;
+    let result = f
+        .handle
+        .runtime()
+        .record_responses_diagnostic(&e, &limits)
+        .await?;
     assert_eq!(result.evidence_status, EvidenceStatus::BudgetRefused);
     assert!(result.exchange_id.is_none());
     sqlx::query!("DELETE FROM sessions.sessions WHERE id = $1", f.session_db)

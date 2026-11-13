@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use uuid::Uuid;
@@ -123,7 +125,7 @@ impl Ledger {
 
     pub(super) async fn try_upsert_run(&self, run: &NewRun) -> Result<(), String> {
         match &self.store {
-            Store::Database(h) => h.upsert_run(run).await.map_err(|e| e.to_string()),
+            Store::Database(h) => h.launch().upsert_run(run).await.map_err(|e| e.to_string()),
             Store::Proxy(p) => p.upsert_run(run).await,
             Store::Absent => Err(NO_STORE.to_string()),
         }
@@ -131,7 +133,11 @@ impl Ledger {
 
     pub(super) async fn try_insert_launch(&self, new: &NewLaunch) -> Result<i64, String> {
         match &self.store {
-            Store::Database(h) => h.insert_launch(new).await.map_err(|e| e.to_string()),
+            Store::Database(h) => h
+                .launch()
+                .insert_launch(new)
+                .await
+                .map_err(|e| e.to_string()),
             Store::Proxy(p) => p.insert_launch(new).await,
             Store::Absent => Err(NO_STORE.to_string()),
         }
@@ -144,6 +150,7 @@ impl Ledger {
     ) -> Result<(), String> {
         match &self.store {
             Store::Database(h) => h
+                .launch()
                 .record_launch_opened(id, refs)
                 .await
                 .map_err(|e| e.to_string()),
@@ -159,6 +166,7 @@ impl Ledger {
     ) -> Result<(), String> {
         match &self.store {
             Store::Database(h) => h
+                .launch()
                 .record_launch_outcome(id, outcome)
                 .await
                 .map_err(|e| e.to_string()),
@@ -170,6 +178,7 @@ impl Ledger {
     pub(super) async fn try_record_closed(&self, id: i64, body: &ClosedBody) -> Result<(), String> {
         match &self.store {
             Store::Database(h) => h
+                .launch()
                 .record_launch_closed(id, &body.reason, body.process_exited)
                 .await
                 .map_err(|e| e.to_string()),
@@ -184,6 +193,7 @@ impl Ledger {
     ) -> Result<Option<LaunchRow>, String> {
         match &self.store {
             Store::Database(h) => h
+                .launch()
                 .find_launch_by_session(session)
                 .await
                 .map_err(|e| e.to_string()),
@@ -236,7 +246,7 @@ impl Ledger {
 
     pub(crate) async fn find_run(&self, run_id: &str) -> Option<RunRow> {
         let result = match &self.store {
-            Store::Database(h) => h.find_run(run_id).await.map_err(|e| e.to_string()),
+            Store::Database(h) => h.launch().find_run(run_id).await.map_err(|e| e.to_string()),
             Store::Proxy(p) => p.find_run(run_id).await,
             Store::Absent => return None,
         };
@@ -249,6 +259,7 @@ impl Ledger {
     ) -> Result<Option<RecordedSettings>, String> {
         match &self.store {
             Store::Database(h) => h
+                .fleet()
                 .find_fleet(key)
                 .await
                 .map(|row| {
@@ -336,7 +347,11 @@ impl Ledger {
 
     pub(crate) async fn list_launches(&self, filter: &LaunchListFilter) -> Option<Vec<LaunchRow>> {
         let result = match &self.store {
-            Store::Database(h) => h.list_launches(filter).await.map_err(|e| e.to_string()),
+            Store::Database(h) => h
+                .launch()
+                .list_launches(filter)
+                .await
+                .map_err(|e| e.to_string()),
             Store::Proxy(p) => p.list_launches(filter).await,
             Store::Absent => return None,
         };
@@ -348,6 +363,7 @@ impl Ledger {
             Store::Proxy(p) => p.channel_present(session).await,
             _ => self
                 .handle()?
+                .launch()
                 .session_has_remote_control_channel(session)
                 .await
                 .map_err(|e| e.to_string()),
@@ -362,6 +378,7 @@ impl Ledger {
     ) -> bool {
         let result = match &self.store {
             Store::Database(h) => h
+                .launch()
                 .session_prompt_turn_seen(session, since, prefix)
                 .await
                 .map_err(|e| e.to_string()),
@@ -381,6 +398,7 @@ impl Ledger {
             Store::Proxy(p) => p.link_channel(cse_id, session, cwd).await,
             _ => self
                 .handle()?
+                .launch()
                 .link_channel_to_session(cse_id, session, cwd)
                 .await
                 .map_err(|e| e.to_string()),
@@ -392,6 +410,7 @@ impl Ledger {
         backend: &str,
     ) -> Result<Option<BackendValidationRow>, String> {
         self.handle()?
+            .launch()
             .latest_backend_validation(backend)
             .await
             .map_err(|e| e.to_string())
@@ -399,6 +418,7 @@ impl Ledger {
 
     pub(crate) async fn insert_validation(&self, v: &NewBackendValidation) -> Result<i64, String> {
         self.handle()?
+            .launch()
             .insert_backend_validation(v)
             .await
             .map_err(|e| e.to_string())
@@ -409,6 +429,7 @@ impl Ledger {
         new: &NewTemplate,
     ) -> Result<InsertedTemplate, String> {
         self.handle()?
+            .launch()
             .insert_template(new)
             .await
             .map_err(|e| e.to_string())
@@ -419,6 +440,7 @@ impl Ledger {
         name: &str,
     ) -> Result<Option<TemplateRow>, String> {
         self.handle()?
+            .launch()
             .find_live_template_by_name(name)
             .await
             .map_err(|e| e.to_string())
@@ -429,6 +451,7 @@ impl Ledger {
         session: Uuid,
     ) -> Result<Option<TemplateRow>, String> {
         self.handle()?
+            .launch()
             .find_live_template_by_session(session)
             .await
             .map_err(|e| e.to_string())
@@ -436,6 +459,7 @@ impl Ledger {
 
     pub(crate) async fn list_templates(&self) -> Result<Vec<TemplateRow>, String> {
         self.handle()?
+            .launch()
             .list_live_templates()
             .await
             .map_err(|e| e.to_string())
@@ -443,6 +467,7 @@ impl Ledger {
 
     pub(crate) async fn close_template(&self, name: &str) -> Result<bool, String> {
         self.handle()?
+            .launch()
             .close_template(name)
             .await
             .map_err(|e| e.to_string())

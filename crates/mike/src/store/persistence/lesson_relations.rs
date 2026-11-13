@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 use sqlx::{PgPool, QueryBuilder};
 
 pub struct LessonRelationDraft<'a> {
@@ -158,9 +158,9 @@ async fn page_relations(
     Ok(rows)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn insert_lesson_relation(
-        &self,
+        self,
         draft: &LessonRelationDraft<'_>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_lesson_relation", async move {
@@ -202,7 +202,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn live_replacements_of(&self, lesson_id: i64) -> Result<Vec<i64>, PersistError> {
+    pub async fn live_replacements_of(self, lesson_id: i64) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("live_replacements_of", async move {
             let ids = sqlx::query_scalar!(
                 r#"WITH RECURSIVE chain AS (
@@ -229,7 +229,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn lesson_exists(&self, id: i64) -> Result<bool, PersistError> {
+    pub async fn lesson_exists(self, id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("lesson_relations_lesson_exists", async move {
             let exists = sqlx::query_scalar!(
                 r#"SELECT EXISTS(SELECT 1 FROM memory.lessons WHERE id = $1) AS "exists!""#,
@@ -243,7 +243,7 @@ impl PersistHandle {
     }
 
     pub async fn confirm_relation(
-        &self,
+        self,
         id: i64,
         decided_by: &str,
     ) -> Result<RelationDecisionOutcome, PersistError> {
@@ -251,7 +251,7 @@ impl PersistHandle {
     }
 
     pub async fn reject_relation(
-        &self,
+        self,
         id: i64,
         decided_by: &str,
     ) -> Result<RelationDecisionOutcome, PersistError> {
@@ -259,7 +259,7 @@ impl PersistHandle {
     }
 
     async fn decide_relation(
-        &self,
+        self,
         id: i64,
         decided_by: &str,
         target_status: &str,
@@ -315,7 +315,7 @@ impl PersistHandle {
     }
 
     pub async fn list_relations(
-        &self,
+        self,
         filter: &LessonRelationsFilter,
     ) -> Result<(i64, Vec<LessonRelationRow>), PersistError> {
         let filter = filter.clone();
@@ -328,7 +328,7 @@ impl PersistHandle {
     }
 
     pub async fn list_relations_for_lesson(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Vec<LessonRelationRow>, PersistError> {
         crate::metrics::time_db("list_relations_for_lesson", async move {
@@ -345,7 +345,7 @@ impl PersistHandle {
     }
 
     pub async fn lookup_project_id_by_path(
-        &self,
+        self,
         project_path: &str,
     ) -> Result<Option<i64>, PersistError> {
         let project_path = project_path.to_owned();
@@ -361,7 +361,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_project_ids_with_embedded_lessons(&self) -> Result<Vec<i64>, PersistError> {
+    pub async fn list_project_ids_with_embedded_lessons(self) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("list_project_ids_with_embedded_lessons", async move {
             let ids = sqlx::query_scalar!(
                 r#"SELECT DISTINCT l.project_id AS "project_id!"
@@ -378,7 +378,7 @@ impl PersistHandle {
     }
 
     pub async fn find_candidate_relation_pairs(
-        &self,
+        self,
         project_id: i64,
         distance_threshold: f64,
     ) -> Result<Vec<CandidateLessonPair>, PersistError> {
@@ -412,7 +412,7 @@ impl PersistHandle {
     }
 
     pub async fn list_injectable_lessons(
-        &self,
+        self,
         project_path: &str,
     ) -> Result<Vec<super::lessons::LessonRow>, PersistError> {
         let project_path = project_path.to_owned();

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -15,9 +16,10 @@ async fn insert_launch_herdr_core_keeps_its_backend_and_reason() -> anyhow::Resu
     let mut new = NewLaunch::new("herdr-core", "/tmp/backend-reason");
     new.session_uuid = Some(session);
     new.backend_reason = Some("the caller runs in Herdr app terminal t13".to_string());
-    handle.insert_launch(&new).await?;
+    handle.launch().insert_launch(&new).await?;
 
     let row = handle
+        .launch()
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the launch was not found"))?;
@@ -37,6 +39,7 @@ async fn insert_launch_unknown_backend_is_refused() -> anyhow::Result<()> {
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let refused = handle
+        .launch()
         .insert_launch(&NewLaunch::new("screen", "/tmp/backend-reason"))
         .await;
     assert!(refused.is_err(), "an unknown backend must fail the CHECK");

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::response::Response;
 use serde_json::{Value, json};
 
@@ -12,7 +13,11 @@ pub(super) async fn read(
     project: Option<&str>,
     reference: &str,
 ) -> Result<Value, Response> {
-    match handle.read_project_knowledge(project, reference).await {
+    match handle
+        .knowledge()
+        .read_project_knowledge(project, reference)
+        .await
+    {
         Ok(read) => Ok(read),
         Err(error) if project.is_some() => read_outside(state, handle, reference, error).await,
         Err(error) => Err(knowledge_error(error)),
@@ -29,10 +34,11 @@ async fn read_outside(
     if !missing || !state.rerank_service().current_config().search_no_project {
         return Err(knowledge_error(error));
     }
-    let Ok(Some(outside)) = handle.no_project_knowledge_project().await else {
+    let Ok(Some(outside)) = handle.knowledge().no_project_knowledge_project().await else {
         return Err(knowledge_error(error));
     };
     match handle
+        .knowledge()
         .read_project_knowledge(Some(&outside.project_uuid.to_string()), reference)
         .await
     {

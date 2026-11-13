@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde::Serialize;
 use serde_json::json;
 
@@ -75,6 +77,7 @@ pub(super) async fn run_pass(deps: &ProposerDeps<'_>) -> ShapeReport {
 
 async fn claim(deps: &ProposerDeps<'_>) -> Vec<ShapeWork> {
     deps.persist
+        .lessons()
         .claim_shape_work(REWRITES_PER_TICK)
         .await
         .unwrap_or_else(|error| {
@@ -86,6 +89,7 @@ async fn claim(deps: &ProposerDeps<'_>) -> Vec<ShapeWork> {
 async fn unchecked(deps: &ProposerDeps<'_>) -> Vec<(i64, Assessment)> {
     let rows = deps
         .persist
+        .lessons()
         .unchecked_lessons_for_shape(SCAN_BATCH)
         .await
         .unwrap_or_else(|error| {
@@ -106,7 +110,12 @@ async fn unchecked(deps: &ProposerDeps<'_>) -> Vec<(i64, Assessment)> {
 
 async fn scan(deps: &ProposerDeps<'_>, report: &mut ShapeReport) {
     let findings = unchecked(deps).await;
-    match deps.persist.record_shape_findings(&findings).await {
+    match deps
+        .persist
+        .lessons()
+        .record_shape_findings(&findings)
+        .await
+    {
         Ok(_) => {
             report.checked += findings.len() as u64;
             report.flagged += findings.iter().filter(|(_, a)| !a.is_rule()).count() as u64;
@@ -245,6 +254,7 @@ async fn twin_decisions(
     };
     let neighbours: Vec<_> = deps
         .persist
+        .lessons()
         .find_lesson_neighbours(
             project_id,
             &embedding.vector,
@@ -266,6 +276,7 @@ async fn twin_decisions(
         .await;
     if !deps
         .persist
+        .lessons()
         .reserve_lesson_proposer_call(daily_limit)
         .await
         .unwrap_or(false)
@@ -353,7 +364,12 @@ async fn rewrite(
         original_chars: work.text.chars().count(),
         rationale: &rationale,
     };
-    match deps.persist.rewrite_lesson_into_rules(&rewrite).await {
+    match deps
+        .persist
+        .lessons()
+        .rewrite_lesson_into_rules(&rewrite)
+        .await
+    {
         Ok(Some(ids)) => {
             report.rewritten += 1;
             report.replacements += ids.len() as u64;
@@ -368,6 +384,7 @@ async fn fail(deps: &ProposerDeps<'_>, report: &mut ShapeReport, work: &ShapeWor
     report.failed += 1;
     match deps
         .persist
+        .lessons()
         .record_shape_failure(work.lesson_id, message)
         .await
     {
@@ -379,6 +396,7 @@ async fn fail(deps: &ProposerDeps<'_>, report: &mut ShapeReport, work: &ShapeWor
 async fn retire(deps: &ProposerDeps<'_>, report: &mut ShapeReport, work: &ShapeWork, reason: &str) {
     match deps
         .persist
+        .lessons()
         .retire_lesson_as_not_a_lesson(work.lesson_id)
         .await
     {
@@ -420,7 +438,12 @@ async fn write_handover_note(deps: &ProposerDeps<'_>, work: &ShapeWork, reason: 
         tags: Some(&tags),
         data: Some(&data),
     };
-    if let Err(error) = deps.persist.create_session_note(session_uuid, note).await {
+    if let Err(error) = deps
+        .persist
+        .launch()
+        .create_session_note(session_uuid, note)
+        .await
+    {
         log_handover_failed(work.lesson_id, &error);
     }
 }

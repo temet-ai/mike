@@ -1,4 +1,5 @@
 use mike::lesson_proposer::{ProposerSettings, run_tick};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 
 use crate::turn_facts::{Fixture, fixture};
 
@@ -96,8 +97,14 @@ async fn an_update_decision_stores_the_replacement_and_proposes_a_supersedes_rel
         1
     );
 
-    f.handle.confirm_judge_only_write_time_relations().await?;
-    f.handle.apply_confirmed_lesson_relations().await?;
+    f.handle
+        .lessons()
+        .confirm_judge_only_write_time_relations()
+        .await?;
+    f.handle
+        .lessons()
+        .apply_confirmed_lesson_relations()
+        .await?;
     assert_eq!(
         stage_and_text(&f, existing).await?.0,
         "long_term",
@@ -120,8 +127,20 @@ async fn a_promoted_judge_replacement_archives_the_replaced_lesson_at_the_nightl
     let report = run_tick(&rig.deps(&f.handle)).await;
     assert_eq!((report.created, report.promoted), (1, 1), "{report:?}");
 
-    assert_eq!(f.handle.confirm_judge_only_write_time_relations().await?, 1);
-    assert_eq!(f.handle.apply_confirmed_lesson_relations().await?, 1);
+    assert_eq!(
+        f.handle
+            .lessons()
+            .confirm_judge_only_write_time_relations()
+            .await?,
+        1
+    );
+    assert_eq!(
+        f.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        1
+    );
     let relations = relations_to(&f, existing).await?;
     assert_eq!(relations[0].2, "confirmed");
     let archived: Option<String> = sqlx::query_scalar(
@@ -140,6 +159,7 @@ async fn a_promoted_judge_replacement_archives_the_replaced_lesson_at_the_nightl
             .await?;
     let injectable: Vec<String> = f
         .handle
+        .lessons()
         .list_injectable_lessons(&project_path)
         .await?
         .into_iter()
@@ -162,8 +182,20 @@ async fn an_update_of_an_operator_lesson_waits_for_the_operator() -> anyhow::Res
     let report = run_tick(&rig.deps(&f.handle)).await;
     assert_eq!(report.created, 1, "{report:?}");
 
-    assert_eq!(f.handle.confirm_judge_only_write_time_relations().await?, 0);
-    assert_eq!(f.handle.apply_confirmed_lesson_relations().await?, 0);
+    assert_eq!(
+        f.handle
+            .lessons()
+            .confirm_judge_only_write_time_relations()
+            .await?,
+        0
+    );
+    assert_eq!(
+        f.handle
+            .lessons()
+            .apply_confirmed_lesson_relations()
+            .await?,
+        0
+    );
     assert_eq!(relations_to(&f, existing).await?[0].2, "proposed");
     assert_eq!(stage_and_text(&f, existing).await?.0, "long_term");
     f.db.cleanup().await?;

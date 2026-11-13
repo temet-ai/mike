@@ -1,8 +1,8 @@
 use serde::Serialize;
 use sqlx::{Postgres, QueryBuilder};
 
+use super::PersistError;
 use super::keyset::{CappedCount, KeysetCursor, probe_limit, split_page};
-use super::{PersistError, PersistHandle};
 use crate::types::SortOrder;
 
 mod seat_reads;
@@ -84,9 +84,9 @@ fn push_use_filters(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn list_tool_uses(
-        &self,
+        self,
         filter: &ToolUsesFilter,
     ) -> Result<ToolUsesPage, PersistError> {
         crate::metrics::time_db("list_tool_uses", async move {
@@ -119,7 +119,7 @@ impl PersistHandle {
     }
 
     async fn count_tool_uses(
-        &self,
+        self,
         filter: &ToolUsesFilter,
         session: Option<i64>,
     ) -> Result<CappedCount, PersistError> {
@@ -147,7 +147,7 @@ impl PersistHandle {
     }
 
     async fn tool_uses_page(
-        &self,
+        self,
         filter: &ToolUsesFilter,
         session: Option<i64>,
     ) -> Result<Vec<ToolUsesFeedRow>, PersistError> {
@@ -188,7 +188,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_tool_use_facets(
-        &self,
+        self,
     ) -> Result<(Vec<String>, Vec<String>), PersistError> {
         crate::metrics::time_db("list_tool_use_facets", async move {
             let projects = sqlx::query_scalar!(

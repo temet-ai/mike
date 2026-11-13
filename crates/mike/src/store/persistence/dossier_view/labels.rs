@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, sqlx::FromRow)]
 pub struct CorrectionLabelRow {
@@ -13,9 +13,9 @@ pub struct CorrectionLabelRow {
     pub corrected_prompt: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn correction_labels_as_of(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         label_bound: DateTime<Utc>,
         tiers: &[String],

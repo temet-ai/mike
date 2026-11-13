@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 mod events;
 mod hooks;
 mod paths;
@@ -107,6 +108,7 @@ pub(super) async fn events_in(
     checkout: &str,
 ) -> anyhow::Result<Vec<ChangeEvent>> {
     Ok(handle
+        .fleet()
         .change_events_after(&ChangeQuery::everything_after(checkout, 0, 100))
         .await?)
 }

@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -62,10 +64,14 @@ async fn made_requests(state: &AppState, relaunch: &Relaunch, session: Uuid) -> 
     let (Some(persist), Some(run)) = (state.persist(), relaunch.run.as_deref()) else {
         return false;
     };
-    persist.fleet_seat_rows(run).await.is_ok_and(|rows| {
-        rows.iter()
-            .any(|row| row.session_uuid == Some(session) && row.requests > 0)
-    })
+    persist
+        .fleet()
+        .fleet_seat_rows(run)
+        .await
+        .is_ok_and(|rows| {
+            rows.iter()
+                .any(|row| row.session_uuid == Some(session) && row.requests > 0)
+        })
 }
 
 pub(crate) async fn replaced(state: &AppState, relaunch: &Relaunch, session: Uuid) -> bool {
@@ -77,6 +83,7 @@ pub(crate) async fn replaced(state: &AppState, relaunch: &Relaunch, session: Uui
         return false;
     };
     let launches = persist
+        .launch()
         .list_launches(&LaunchListFilter {
             run_id: Some(run.to_string()),
             open_only: false,

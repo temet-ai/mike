@@ -1,3 +1,5 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
@@ -38,7 +40,7 @@ pub(super) async fn candidates_phase(
     idle: &impl Idle,
     written: &mut usize,
 ) -> Option<Stop> {
-    let threads = match persist.threads_for_card_candidates().await {
+    let threads = match persist.launch().threads_for_card_candidates().await {
         Ok(threads) => threads,
         Err(error) => {
             return Some(database_failed(
@@ -92,6 +94,7 @@ async fn build_thread(
         ..KnowledgeQuery::default()
     };
     let rows = persist
+        .knowledge()
         .knowledge_candidate_rows(thread.project_id, &input, CANDIDATE_ROWS, vector.as_ref())
         .await?;
     let contenders = without_own_entries(persist, thread.thread_id, contenders(rows)).await?;
@@ -110,6 +113,7 @@ async fn build_thread(
         .related_per_thread;
     let best = best_of(contenders, &scores, kept);
     persist
+        .launch()
         .replace_thread_card_candidates(thread.thread_id, &best)
         .await?;
     Ok(Built::Written)
@@ -164,6 +168,7 @@ async fn without_own_entries(
         return Ok(contenders);
     }
     let own: HashSet<String> = persist
+        .launch()
         .thread_entry_ids_of(thread_id, &entry_ids)
         .await?
         .into_iter()

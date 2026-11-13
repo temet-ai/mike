@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -132,14 +133,14 @@ pub(crate) async fn list_eval_runs(
         limit,
         offset,
     };
-    paged::<EvalRunRow>(persist.list_eval_runs(&filter).await, limit, offset)
+    paged::<EvalRunRow>(persist.eval().list_eval_runs(&filter).await, limit, offset)
 }
 
 pub(crate) async fn get_eval_run(State(state): State<AppState>, Path(id): Path<i64>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.get_eval_run(id).await {
+    match persist.eval().get_eval_run(id).await {
         Ok(Some(run)) => Json(run).into_response(),
         Ok(None) => error(StatusCode::NOT_FOUND, format!("no eval run with id {id}")),
         Err(e) => error(
@@ -210,7 +211,7 @@ pub(crate) async fn list_eval_run_items(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.eval_run_items_page(id, &filter).await {
+    match persist.eval().eval_run_items_page(id, &filter).await {
         Ok(p) => Json(ItemsPage {
             items: p.items,
             total: p.total,
@@ -239,6 +240,7 @@ pub(crate) async fn list_eval_gates(
     };
     paged::<EvalGateRow>(
         persist
+            .eval()
             .list_eval_gates(q.holdout_batch.as_deref(), limit, offset)
             .await,
         limit,
@@ -250,7 +252,7 @@ pub(crate) async fn get_eval_gate(State(state): State<AppState>, Path(id): Path<
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.get_eval_gate(id).await {
+    match persist.eval().get_eval_gate(id).await {
         Ok(Some(gate)) => Json(gate).into_response(),
         Ok(None) => error(StatusCode::NOT_FOUND, format!("no eval gate with id {id}")),
         Err(e) => error(

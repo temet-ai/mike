@@ -1,4 +1,6 @@
 use chrono::Utc;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use sqlx::PgPool;
 
 use crate::turn_facts::{
@@ -16,10 +18,12 @@ async fn writing_action_effect_rows_uses_a_stable_action_effect_rollup_generatio
     let today = Utc::now().date_naive();
     let first_id = f
         .handle
+        .eval()
         .current_or_claimed_action_effect_rollup_id(today)
         .await?;
     let second_id = f
         .handle
+        .eval()
         .current_or_claimed_action_effect_rollup_id(today)
         .await?;
     assert_eq!(
@@ -46,6 +50,7 @@ async fn writing_action_effect_rows_uses_a_stable_action_effect_rollup_generatio
     );
 
     f.handle
+        .eval()
         .write_action_effect_rows(first_id, Utc::now())
         .await?;
     let rows_after_empty_db: i64 = sqlx::query_scalar(
@@ -95,7 +100,7 @@ async fn real_replied_turn(
     let mut row = sample_row(turn, tf.session_id, Utc::now());
     resolve(&mut row);
     row.text_chars = 20;
-    tf.handle.upsert_turn_facts(&[row]).await?;
+    tf.handle.dossier().upsert_turn_facts(&[row]).await?;
     dev_split(tf, turn).await?;
     gold_reaction_label(tf.handle.pool(), turn, label).await?;
     Ok(turn)
@@ -127,18 +132,29 @@ async fn writing_action_effect_rows_writes_a_real_before_and_after_share_for_a_p
 
     let rollup_id = tf
         .handle
+        .eval()
         .current_or_claimed_action_effect_rollup_id(Utc::now().date_naive())
         .await?;
     let now = crate::seed::database_now(tf.handle.pool()).await?;
-    let written = tf.handle.write_action_effect_rows(rollup_id, now).await?;
+    let written = tf
+        .handle
+        .eval()
+        .write_action_effect_rows(rollup_id, now)
+        .await?;
     assert!(
         written >= 2,
         "expected at least a before and an after row, wrote {written}"
     );
 
-    tf.handle.write_action_effect_rows(rollup_id, now).await?;
+    tf.handle
+        .eval()
+        .write_action_effect_rows(rollup_id, now)
+        .await?;
     assert_eq!(
-        tf.handle.latest_completed_action_effect_day().await?,
+        tf.handle
+            .eval()
+            .latest_completed_action_effect_day()
+            .await?,
         Some(Utc::now().date_naive())
     );
     let rows: Vec<(String, i32, i32)> = sqlx::query_as(
@@ -195,20 +211,30 @@ async fn operator_raw_lesson_has_computed_zero_rows_and_claim_is_not_completion(
     .await?;
     let rollup = tf
         .handle
+        .eval()
         .current_or_claimed_action_effect_rollup_id(Utc::now().date_naive())
         .await?;
-    assert_eq!(tf.handle.latest_completed_action_effect_day().await?, None);
+    assert_eq!(
+        tf.handle
+            .eval()
+            .latest_completed_action_effect_day()
+            .await?,
+        None
+    );
     tf.handle
+        .eval()
         .write_action_effect_rows(rollup, Utc::now())
         .await?;
     let row = tf
         .handle
+        .eval()
         .get_lesson_action(lesson_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("lesson missing"))?;
     assert_eq!((row.n_before, row.n_after), (Some(0), Some(0)));
     assert!(
         tf.handle
+            .eval()
             .list_lesson_actions(None)
             .await?
             .iter()
@@ -252,6 +278,7 @@ async fn lesson_exposure_counts_exact_turn_once_and_keeps_missing_usage_unknown(
     real_replied_turn(&tf, 95_110, 60, "corrected").await?;
     let rows = tf
         .handle
+        .eval()
         .list_lesson_exposures(
             None,
             tf.base - chrono::Duration::seconds(1),
@@ -282,6 +309,7 @@ async fn lesson_exposure_counts_exact_turn_once_and_keeps_missing_usage_unknown(
         .await?;
     let excluded = tf
         .handle
+        .eval()
         .list_lesson_exposures(
             None,
             tf.base - chrono::Duration::seconds(1),

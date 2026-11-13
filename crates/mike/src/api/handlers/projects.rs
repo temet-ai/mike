@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::listings::{ProjectDetailRow, ProjectSelector};
 use crate::store::persistence::rehydrate::{ProjectCountsRow, ProjectListRow, ProjectLocationRow};
 use std::collections::HashMap;
@@ -95,13 +96,13 @@ pub(crate) async fn list_projects(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    let rows = handle.list_projects().await.map_err(|e| {
+    let rows = handle.launch().list_projects().await.map_err(|e| {
         tracing::warn!(error = %e, "list_projects: DB query failed");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     let mut entries: Vec<ProjectListEntry> = rows.into_iter().map(Into::into).collect();
     if query.counts {
-        let counts = handle.list_project_counts().await.map_err(|e| {
+        let counts = handle.launch().list_project_counts().await.map_err(|e| {
             tracing::warn!(error = %e, "list_projects: counts query failed");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
@@ -155,7 +156,7 @@ async fn project_response(
         )
             .into_response();
     };
-    match handle.fetch_project_detail(selector).await {
+    match handle.launch().fetch_project_detail(selector).await {
         Ok(Some(detail)) => Json(ProjectDto::from(detail)).into_response(),
         Ok(None) => (
             StatusCode::NOT_FOUND,

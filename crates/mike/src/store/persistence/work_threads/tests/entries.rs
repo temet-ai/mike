@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -23,12 +24,14 @@ async fn a_brief_is_appended_with_the_next_number_and_links_its_session() -> any
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("brief", "start"))
         .await?;
     let session = Uuid::new_v4();
     let payload = json!({"for": "next session"});
     let outcome = f
         .handle
+        .launch()
         .add_work_thread_entry(
             f.project,
             &EntryInput {
@@ -48,6 +51,7 @@ async fn a_brief_is_appended_with_the_next_number_and_links_its_session() -> any
     assert_eq!(outcome.entry.kind, "brief");
     let detail = f
         .handle
+        .launch()
         .get_work_thread(f.project, "brief", HistoryPage::everything())
         .await?;
     assert_eq!(
@@ -67,20 +71,24 @@ async fn system_kinds_blank_bodies_and_unknown_threads_are_refused() -> anyhow::
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("guarded", "start"))
         .await?;
     let system = f
         .handle
+        .launch()
         .add_work_thread_entry(f.project, &entry("guarded", "state-replaced", "forged"))
         .await;
     assert!(matches!(system, Err(WorkThreadError::Invalid(m)) if m.contains("state-replaced")));
     let blank = f
         .handle
+        .launch()
         .add_work_thread_entry(f.project, &entry("guarded", "note", "  "))
         .await;
     assert!(matches!(blank, Err(WorkThreadError::Invalid(m)) if m.contains("body")));
     let unknown = f
         .handle
+        .launch()
         .add_work_thread_entry(f.project, &entry("ghost", "note", "hello"))
         .await;
     assert!(matches!(unknown, Err(WorkThreadError::NotFound(m)) if m.contains("`ghost`")));

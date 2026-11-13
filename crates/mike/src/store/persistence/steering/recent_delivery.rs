@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct LastFire {
@@ -26,9 +26,9 @@ pub struct SessionNote {
     pub reaction: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn last_fire_for(
-        &self,
+        self,
         session_db_id: i64,
         steerer_id: i64,
     ) -> Result<Option<LastFire>, PersistError> {
@@ -51,7 +51,7 @@ impl PersistHandle {
     }
 
     pub async fn last_delivered_fire_since(
-        &self,
+        self,
         session_db_id: i64,
         steerer_id: i64,
         since: DateTime<Utc>,
@@ -78,7 +78,7 @@ impl PersistHandle {
     }
 
     pub async fn session_notes_since(
-        &self,
+        self,
         session_db_id: i64,
         since: DateTime<Utc>,
         at: DateTime<Utc>,
@@ -120,7 +120,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn declared_tool_names(&self, request_id: i64) -> Result<Vec<String>, PersistError> {
+    pub async fn declared_tool_names(self, request_id: i64) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("declared_tool_names", async move {
             let names = sqlx::query_scalar!(
                 "SELECT tool_name FROM requests.tools WHERE request_id = $1 ORDER BY ord",

@@ -2,6 +2,7 @@ use chrono::Utc;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::consolidation_audit::ConsolidationActionRecord;
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 
 use crate::test_db::TestDb;
 
@@ -49,8 +50,11 @@ async fn delete_consolidation_run_removes_the_row() -> anyhow::Result<()> {
         .connect(&handle_db.database_url)
         .await?;
 
-    let run_id = handle.start_consolidation_run("gc", "schedule").await?;
-    handle.delete_consolidation_run(run_id).await?;
+    let run_id = handle
+        .lessons()
+        .start_consolidation_run("gc", "schedule")
+        .await?;
+    handle.lessons().delete_consolidation_run(run_id).await?;
 
     let still_there: bool =
         sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM memory.consolidation_runs WHERE id = $1)")
@@ -64,6 +68,7 @@ async fn delete_consolidation_run_removes_the_row() -> anyhow::Result<()> {
 
 async fn new_lesson(handle: &PersistHandle, project_id: i64, text: &str) -> anyhow::Result<i64> {
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -82,8 +87,12 @@ async fn run_with(
     handle: &PersistHandle,
     record: &ConsolidationActionRecord,
 ) -> anyhow::Result<()> {
-    let run = handle.start_consolidation_run("session", "manual").await?;
+    let run = handle
+        .lessons()
+        .start_consolidation_run("session", "manual")
+        .await?;
     handle
+        .lessons()
         .record_consolidation_actions(run, std::slice::from_ref(record))
         .await?;
     Ok(())
@@ -189,29 +198,33 @@ async fn nightly_ran_since_ignores_failed_runs_but_honors_completed() -> anyhow:
     let since = Utc::now() - chrono::Duration::minutes(1);
 
     assert!(
-        !handle.nightly_ran_since(since).await?,
+        !handle.lessons().nightly_ran_since(since).await?,
         "no nightly run yet must report false"
     );
 
     let failed_run = handle
+        .lessons()
         .start_consolidation_run("nightly", "schedule")
         .await?;
     handle
+        .lessons()
         .finish_consolidation_run(failed_run, "failed", Some("boom"))
         .await?;
     assert!(
-        !handle.nightly_ran_since(since).await?,
+        !handle.lessons().nightly_ran_since(since).await?,
         "a failed run must not block a retry"
     );
 
     let ok_run = handle
+        .lessons()
         .start_consolidation_run("nightly", "schedule")
         .await?;
     handle
+        .lessons()
         .finish_consolidation_run(ok_run, "completed", None)
         .await?;
     assert!(
-        handle.nightly_ran_since(since).await?,
+        handle.lessons().nightly_ran_since(since).await?,
         "a completed run must satisfy the ran-today gate"
     );
 

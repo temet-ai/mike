@@ -2,16 +2,16 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::{
     ContextItem, MailboxForSessionWithActivity, MailboxMessageRow, MailboxMessageWithActivity,
     ReceiptEvidenceRow, RecipientActivity, StoredMessageRow,
 };
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn fetch_for_session_with_activity(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<MailboxForSessionWithActivity, PersistError> {
         crate::metrics::time_db("mailbox_fetch_for_session_with_activity", async move {
@@ -53,7 +53,7 @@ impl PersistHandle {
     }
 
     async fn fetch_inbox_messages(
-        &self,
+        self,
         recipient_id: i64,
     ) -> Result<Vec<StoredMessageRow>, PersistError> {
         Ok(sqlx::query_as!(
@@ -98,7 +98,7 @@ impl PersistHandle {
     }
 
     async fn fetch_outbox_messages(
-        &self,
+        self,
         sender_id: i64,
     ) -> Result<Vec<StoredMessageRow>, PersistError> {
         Ok(sqlx::query_as!(
@@ -143,7 +143,7 @@ impl PersistHandle {
     }
 
     async fn latest_eligible_turn_at_many(
-        &self,
+        self,
         session_db_ids: &[i64],
     ) -> Result<HashMap<i64, DateTime<Utc>>, PersistError> {
         if session_db_ids.is_empty() {
@@ -172,7 +172,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_recipient_activity(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
     ) -> Result<Option<RecipientActivity>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_recipient_activity", async move {
@@ -193,7 +193,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_message_for_recipient(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         to_session_uuid: uuid::Uuid,
     ) -> Result<Option<MailboxMessageRow>, PersistError> {
@@ -232,7 +232,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_receipt_evidence(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         needle: &str,
         after: chrono::DateTime<chrono::Utc>,
@@ -275,7 +275,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_message_for_sender(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         from_session_uuid: uuid::Uuid,
     ) -> Result<Option<MailboxMessageRow>, PersistError> {

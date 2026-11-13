@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::quoted::{ShownText, WindowTurn, quoted_references};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(super) struct OpenShownRow {
     pub(super) event_id: i64,
@@ -22,9 +22,9 @@ pub(super) struct QuotedPairs {
     pub(super) references: Vec<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(super) async fn open_shown_rows(
-        &self,
+        self,
         batch: i64,
         window_turns: i64,
     ) -> Result<Vec<OpenShownRow>, PersistError> {

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::launch::fleet::events::{EventKind, FleetEvent, NewFleetEvent};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 struct EventRow {
     id: i64,
@@ -29,8 +29,8 @@ fn into_event(row: EventRow) -> Result<FleetEvent, PersistError> {
     })
 }
 
-impl PersistHandle {
-    pub async fn append_fleet_event(&self, event: &NewFleetEvent) -> Result<i64, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn append_fleet_event(self, event: &NewFleetEvent) -> Result<i64, PersistError> {
         let kind = event.payload.kind()?;
         let body = event.payload.body()?;
         crate::metrics::time_db("launch_fleet_events_append", async move {
@@ -50,7 +50,7 @@ impl PersistHandle {
     }
 
     pub async fn fleet_events_since(
-        &self,
+        self,
         run_id: &str,
         after_id: i64,
     ) -> Result<Vec<FleetEvent>, PersistError> {
@@ -80,7 +80,7 @@ impl PersistHandle {
     }
 
     pub async fn fleet_events_for_task(
-        &self,
+        self,
         run_id: &str,
         task: &str,
     ) -> Result<Vec<FleetEvent>, PersistError> {

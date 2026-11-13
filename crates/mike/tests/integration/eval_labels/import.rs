@@ -1,3 +1,4 @@
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::{BTreeSet, HashMap};
 
 use mike::eval::labels::import::fleet_mirror::ImportPlan;
@@ -48,10 +49,11 @@ async fn the_import_writes_its_rows_once_and_a_repeat_writes_nothing() -> anyhow
     };
     let plan = small_plan(&f).await?;
     let turns: Vec<i64> = plan.turns.iter().copied().collect();
-    let resolved = f.handle.resolve_label_turns(&turns).await?;
+    let resolved = f.handle.eval().resolve_label_turns(&turns).await?;
     assert_eq!(resolved.len(), 2);
     let first = f
         .handle
+        .eval()
         .import_fleet_mirror(&plan, &resolved, "test")
         .await?;
     assert!(
@@ -67,6 +69,7 @@ async fn the_import_writes_its_rows_once_and_a_repeat_writes_nothing() -> anyhow
     );
     let again = f
         .handle
+        .eval()
         .import_fleet_mirror(&plan, &resolved, "test")
         .await?;
     assert!(
@@ -97,9 +100,10 @@ async fn a_turn_already_in_holdout_aborts_the_import() -> anyhow::Result<()> {
         .execute(f.handle.pool())
         .await?;
     let turns: Vec<i64> = plan.turns.iter().copied().collect();
-    let resolved = f.handle.resolve_label_turns(&turns).await?;
+    let resolved = f.handle.eval().resolve_label_turns(&turns).await?;
     let outcome = f
         .handle
+        .eval()
         .import_fleet_mirror(&plan, &resolved, "test")
         .await?;
     assert_eq!(outcome, ImportOutcome::TurnInHoldout(vec![first]));
@@ -116,7 +120,7 @@ async fn a_missing_turn_is_not_resolved() -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    let resolved = f.handle.resolve_label_turns(&[987_654_321]).await?;
+    let resolved = f.handle.eval().resolve_label_turns(&[987_654_321]).await?;
     assert!(
         resolved.is_empty(),
         "a nonexistent census id must be reported missing"

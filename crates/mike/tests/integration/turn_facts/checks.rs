@@ -1,4 +1,5 @@
 use chrono::Duration;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::resolution::{build, facts};
 use super::{Fixture, NewTurn, Req, attach, fixture, insert_request, insert_turn};
@@ -64,7 +65,7 @@ async fn failing_cargo_test_result_is_loaded_with_its_error_flag() -> anyhow::Re
     let turn = seed_turn(&f).await?;
     let usage = insert_bash_use(&f, 9101, 0, "toolu_a", "cargo test -p mike").await?;
     insert_result(&f, 9102, usage, true, "Exit code 101\nfailures").await?;
-    let uses = f.handle.load_bash_uses(&[turn]).await?;
+    let uses = f.handle.dossier().load_bash_uses(&[turn]).await?;
     assert_eq!(uses.len(), 1);
     assert_eq!(uses[0].turn_id, turn);
     assert_eq!(uses[0].tool_use_id, "toolu_a");
@@ -86,7 +87,7 @@ async fn use_without_result_is_loaded_with_null_result() -> anyhow::Result<()> {
     };
     let turn = seed_turn(&f).await?;
     insert_bash_use(&f, 9101, 0, "toolu_a", "scripts/lint-rust").await?;
-    let uses = f.handle.load_bash_uses(&[turn]).await?;
+    let uses = f.handle.dossier().load_bash_uses(&[turn]).await?;
     assert_eq!(uses.len(), 1);
     assert_eq!(uses[0].result_content, None);
     assert_eq!(uses[0].result_is_error, None);
@@ -111,7 +112,7 @@ async fn background_check_reads_registry_row() -> anyhow::Result<()> {
     .bind(f.base + Duration::seconds(20))
     .execute(f.handle.pool())
     .await?;
-    let uses = f.handle.load_bash_uses(&[turn]).await?;
+    let uses = f.handle.dossier().load_bash_uses(&[turn]).await?;
     assert_eq!(uses.len(), 1);
     assert!(uses[0].work_item_id.is_some());
     assert_eq!(uses[0].work_item_state.as_deref(), Some("failed"));
@@ -135,10 +136,10 @@ async fn load_bash_uses_stays_inside_the_turns_request_range() -> anyhow::Result
     attach(&f, next, &[9200]).await?;
     insert_bash_use(&f, 9101, 0, "toolu_in", "cargo test").await?;
     insert_bash_use(&f, 9200, 0, "toolu_out", "cargo test").await?;
-    let uses = f.handle.load_bash_uses(&[turn]).await?;
+    let uses = f.handle.dossier().load_bash_uses(&[turn]).await?;
     assert_eq!(uses.len(), 1);
     assert_eq!(uses[0].tool_use_id, "toolu_in");
-    assert!(f.handle.load_bash_uses(&[]).await?.is_empty());
+    assert!(f.handle.dossier().load_bash_uses(&[]).await?.is_empty());
     f.db.cleanup().await?;
     Ok(())
 }

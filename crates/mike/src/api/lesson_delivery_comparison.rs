@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -81,7 +82,7 @@ pub(crate) async fn get_delivery_comparison(
         Ok(window) => window,
         Err(message) => return (StatusCode::BAD_REQUEST, message).into_response(),
     };
-    match persist.compare_lesson_delivery_arms(from, until).await {
+    match persist.lessons().compare_lesson_delivery_arms(from, until).await {
         Ok(rows) => Json(json!({
             "from": from,
             "until": until,

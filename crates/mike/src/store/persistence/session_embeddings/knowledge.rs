@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionKnowledge {
@@ -21,9 +21,9 @@ pub struct SessionLesson {
     pub text: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn upsert_session_knowledge(
-        &self,
+        self,
         session_id: Uuid,
         topics: &[String],
         learnings: &[String],
@@ -55,7 +55,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_knowledge(
-        &self,
+        self,
         session_id: Uuid,
     ) -> Result<Option<SessionKnowledge>, PersistError> {
         crate::metrics::time_db("fetch_session_knowledge", async move {
@@ -75,7 +75,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_knowledge_many(
-        &self,
+        self,
         session_ids: &[Uuid],
     ) -> Result<Vec<SessionKnowledge>, PersistError> {
         crate::metrics::time_db("fetch_session_knowledge_many", async move {
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub async fn lessons_from_sessions(
-        &self,
+        self,
         session_ids: &[Uuid],
     ) -> Result<Vec<SessionLesson>, PersistError> {
         crate::metrics::time_db("lessons_from_sessions", async move {

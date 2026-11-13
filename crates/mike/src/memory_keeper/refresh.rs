@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -11,11 +12,14 @@ pub(crate) async fn refresh(
     persist: &PersistHandle,
     cache: &KeeperCache,
 ) -> Result<bool, WorkThreadError> {
-    let generation = persist.thread_cards_generation().await?;
+    let generation = persist.launch().thread_cards_generation().await?;
     if cache.load().generation == generation && !cache.load().roots.is_empty() {
         return Ok(false);
     }
-    let (rows, roots) = tokio::try_join!(persist.open_thread_cards(), persist.location_roots())?;
+    let (rows, roots) = tokio::try_join!(
+        persist.launch().open_thread_cards(),
+        persist.launch().location_roots()
+    )?;
     cache.store(Arc::new(build(generation, rows, roots)));
     Ok(true)
 }

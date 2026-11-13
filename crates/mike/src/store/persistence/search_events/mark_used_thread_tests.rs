@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::json;
 
 use super::fixture_tests::{Fixture, SEARCH_TOOL};
@@ -31,6 +32,7 @@ async fn mark_used_when_the_session_gets_a_returned_work_thread_marks_it_used() 
 
         fixture
             .handle
+            .knowledge()
             .mark_used_search_references(USED_BATCH)
             .await?;
 
@@ -59,6 +61,7 @@ async fn mark_used_when_the_final_reply_names_a_work_thread_slug_marks_it_only_w
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -85,6 +88,7 @@ async fn mark_used_when_a_work_thread_is_only_read_by_another_slug_marks_nothing
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 

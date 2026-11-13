@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::HashMap;
 
 use chrono::{Duration, Utc};
@@ -98,9 +99,11 @@ pub async fn tag_tick(
         });
     };
     let corrections = persist
+        .knowledge()
         .corrections_needing_tagging(&embedder.embedder_key, TAGGER_VERSION, BATCH)
         .await?;
     let anchors = persist
+        .knowledge()
         .nearest_anchors(&corrections, &embedder.embedder_key)
         .await?;
     let mut hits = hits_for(&anchors, floor.floor);
@@ -118,7 +121,10 @@ pub async fn tag_tick(
         })
         .collect();
     let assigned = rows.iter().filter(|r| r.pattern.is_some()).count();
-    let written = persist.insert_pattern_assignments(&rows).await?;
+    let written = persist
+        .knowledge()
+        .insert_pattern_assignments(&rows)
+        .await?;
     Ok(TagReport {
         corrections: corrections.len(),
         assigned,
@@ -145,12 +151,16 @@ pub async fn group_weekly(
     execute: bool,
 ) -> Result<Vec<NewCandidate>, SemanticError> {
     let rows = persist
+        .knowledge()
         .semantic_floors_in_force(&embedder.embedder_key, config.floor_quantile)
         .await?;
     let Some(corr) = rows.into_iter().find(|r| r.pair == "corr:corr") else {
         return Ok(Vec::new());
     };
-    let residue = persist.pattern_residue(&embedder.embedder_key).await?;
+    let residue = persist
+        .knowledge()
+        .pattern_residue(&embedder.embedder_key)
+        .await?;
     let members: Vec<Member> = residue
         .iter()
         .map(|r| Member {
@@ -182,7 +192,10 @@ pub async fn group_weekly(
         })
         .collect();
     if execute {
-        persist.insert_pattern_candidates(&candidates).await?;
+        persist
+            .knowledge()
+            .insert_pattern_candidates(&candidates)
+            .await?;
     }
     Ok(candidates)
 }

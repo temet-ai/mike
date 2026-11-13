@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use chrono::Utc;
 use tokio::sync::oneshot;
 
@@ -117,7 +118,7 @@ async fn record_batch(persist: &PersistHandle, batch: Vec<QueuedCall>) {
         .zip(&preserved)
         .map(|((q, payloads), preserved)| insert_row(&q.call, payloads, preserved))
         .collect();
-    let recorded = persist.record_remote_control_calls(&rows).await;
+    let recorded = persist.proxy().record_remote_control_calls(&rows).await;
     drop(rows);
     match recorded {
         Ok(ids) => finish_recorded(persist, batch, ids).await,
@@ -171,6 +172,7 @@ async fn warn_on_flapping_status(persist: &PersistHandle, call: &CapturedCall) {
         return;
     };
     let Ok(history) = persist
+        .proxy()
         .fetch_worker_status_history(session_uuid, FLAP_HISTORY_LIMIT)
         .await
     else {
@@ -201,6 +203,7 @@ pub(super) async fn close_stream_row(state: &AppState, call_id: i64) {
         return;
     };
     if let Err(err) = persist
+        .proxy()
         .close_remote_control_stream(call_id, Utc::now())
         .await
     {

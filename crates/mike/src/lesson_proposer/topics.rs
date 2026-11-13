@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 
@@ -125,7 +126,7 @@ pub async fn run_pass(
     limit: i64,
 ) -> TopicPassReport {
     let mut report = TopicPassReport::default();
-    let batch = match persist.untopiced_lesson_batch(limit).await {
+    let batch = match persist.lessons().untopiced_lesson_batch(limit).await {
         Ok(batch) => batch,
         Err(e) => return failed(report, format!("batch: {e}")),
     };
@@ -134,7 +135,7 @@ pub async fn run_pass(
     };
     report.project_id = Some(first.project_id);
     report.batch = batch.len();
-    let existing = match persist.project_topics(first.project_id).await {
+    let existing = match persist.lessons().project_topics(first.project_id).await {
         Ok(existing) => existing,
         Err(e) => return failed(report, format!("topics: {e}")),
     };
@@ -146,7 +147,7 @@ pub async fn run_pass(
         Err(e) => return failed(report, format!("model: {e}")),
     };
     let (ids, topics) = accepted(&batch, answer);
-    match persist.set_lesson_topics(&ids, &topics).await {
+    match persist.lessons().set_lesson_topics(&ids, &topics).await {
         Ok(n) => report.assigned = n,
         Err(e) => return failed(report, format!("write: {e}")),
     }

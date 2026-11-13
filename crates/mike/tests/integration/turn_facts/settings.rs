@@ -1,4 +1,5 @@
 use mike::dossier::worker::build_for_claimed_turns;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::resolution::{facts, message};
 use super::{enable_builder, fixture};
@@ -62,7 +63,7 @@ async fn claimed_turn_build_is_skipped_while_the_toggle_is_off() -> anyhow::Resu
         Some(100),
     )
     .await?;
-    assert!(!f.handle.dossier_builder_enabled().await?);
+    assert!(!f.handle.dossier().dossier_builder_enabled().await?);
     let report = build_for_claimed_turns(&f.handle, &[turn]).await?;
     assert_eq!(report.inserted, 0);
     assert!(facts(&f).await?.is_empty());
@@ -85,10 +86,13 @@ async fn sessions_for_turns_lists_each_session_once() -> anyhow::Result<()> {
     .await?;
     let second = message(&f, 9101, 100, "and then add the docs", Some(200)).await?;
     assert_eq!(
-        f.handle.sessions_for_turns(&[first, second]).await?,
+        f.handle
+            .dossier()
+            .sessions_for_turns(&[first, second])
+            .await?,
         vec![f.session_id]
     );
-    assert!(f.handle.sessions_for_turns(&[]).await?.is_empty());
+    assert!(f.handle.dossier().sessions_for_turns(&[]).await?.is_empty());
     f.db.cleanup().await?;
     Ok(())
 }

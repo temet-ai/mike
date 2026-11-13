@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -22,9 +22,9 @@ pub struct LessonExposureRow {
     pub whole_turn_failed_checks: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_lesson_exposures(
-        &self,
+        self,
         project_path: Option<&str>,
         since: DateTime<Utc>,
         until: DateTime<Utc>,

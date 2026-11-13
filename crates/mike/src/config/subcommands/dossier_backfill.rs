@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
@@ -206,6 +207,7 @@ async fn run_classify_stage(
     emit: &mut impl FnMut(&BackfillLine),
 ) -> Result<(), PersistError> {
     let ids = persist
+        .dossier()
         .backfill_sessions_with_prompts(opts.from, until)
         .await?;
     for chunk in ids.chunks(opts.batch_sessions) {
@@ -223,7 +225,10 @@ async fn turn_sessions_for(
 ) -> Result<Vec<i64>, PersistError> {
     let stage = &opts.stage;
     if stage.includes_ledger() || stage.includes_facts() || stage.includes_entries() {
-        persist.backfill_sessions_with_turns(opts.from, until).await
+        persist
+            .dossier()
+            .backfill_sessions_with_turns(opts.from, until)
+            .await
     } else {
         Ok(Vec::new())
     }
@@ -305,6 +310,7 @@ pub async fn run_backfill(
 async fn refuse_until_lanes_are_clean(persist: &PersistHandle) -> Result<()> {
     let since = parse_time("since", LANE_BACKFILL_SINCE)?;
     let remaining = persist
+        .dossier()
         .count_primary_requests_with_agent_id(since)
         .await
         .context("dossier-backfill: could not count agent-id requests on the primary lane")?;

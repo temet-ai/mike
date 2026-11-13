@@ -1,5 +1,8 @@
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) fn spawn_alter_decision_stamp(
@@ -48,6 +51,7 @@ pub(super) fn spawn_lesson_injection_attribution(
     let db_request_id = request_id.as_u64() as i64;
     crate::observability::spans::spawn_detached(async move {
         if let Err(e) = persist_for_lessons
+            .lessons()
             .record_lesson_injections(
                 db_request_id,
                 &session_id_for_lessons,
@@ -84,6 +88,7 @@ pub(super) fn spawn_mod_lesson_attribution(
     let db_request_id = request_id.as_u64() as i64;
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(e) = persist
+            .lessons()
             .record_mod_lesson_injections(
                 db_request_id,
                 &session_id,
@@ -152,11 +157,13 @@ async fn stamp_steerer_source_sent(
     intervention_uuid: &str,
 ) {
     let sent = persist
+        .steerer()
         .steering_backfill_sent_request_id(intervention_uuid, db_request_id)
         .await;
     log_steerer_sent_stamp_result(request_id, kind, intervention_uuid, sent);
 
     let trigger = persist
+        .steerer()
         .steering_backfill_trigger_request_id(intervention_uuid, db_request_id)
         .await;
     log_steerer_trigger_backfill_result(request_id, kind, intervention_uuid, trigger);
@@ -252,6 +259,7 @@ async fn stamp_mailbox_source_sent(
     message_uuid: uuid::Uuid,
 ) {
     let result = match persist
+        .launch()
         .backfill_mailbox_sent_request_id(message_uuid, db_request_id)
         .await
     {
@@ -263,6 +271,7 @@ async fn stamp_mailbox_source_sent(
                 "mailbox delivery back-fill failed; stamping the message sent without its request so it is not left claimed"
             );
             persist
+                .launch()
                 .stamp_mailbox_sent_without_request(message_uuid)
                 .await
         }

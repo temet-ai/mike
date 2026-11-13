@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -126,7 +128,11 @@ pub fn added_a_worktree(def: &FleetDefinition, coordinator: Uuid, ran: &[Ran]) -
 
 async fn commands(persist: &PersistHandle, run: &str) -> Option<Vec<TreeResultRow>> {
     let since = Utc::now() - Duration::minutes(LOOK_BACK_MINUTES);
-    match persist.tree_results(run, None, since, COMMANDS_READ).await {
+    match persist
+        .fleet()
+        .tree_results(run, None, since, COMMANDS_READ)
+        .await
+    {
         Ok(rows) => Some(rows),
         Err(err) => {
             tracing::warn!(%run, error = %err, "fleet: could not read the seats' commands");
@@ -203,6 +209,7 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
             continue;
         }
         match persist
+            .launch()
             .insert_message(Uuid::new_v4(), notice.to, None, &notice.body)
             .await
         {

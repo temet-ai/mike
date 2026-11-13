@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use serde::{Deserialize, Serialize};
@@ -47,7 +48,7 @@ pub(crate) async fn seat_of(
     run: &str,
     session: Uuid,
 ) -> Option<String> {
-    let rows = persist.fleet_seat_rows(run).await.ok()?;
+    let rows = persist.fleet().fleet_seat_rows(run).await.ok()?;
     rows.into_iter()
         .find(|row| row.session_uuid == Some(session))
         .map(|row| row.seat.unwrap_or_else(|| session.to_string()))

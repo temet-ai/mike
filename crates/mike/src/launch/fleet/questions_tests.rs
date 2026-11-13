@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -131,12 +132,16 @@ fn an_amendment_is_added_once_under_its_mark_and_carried_into_a_regenerated_brie
 }
 
 async fn open_session(persist: &PersistHandle, session: Uuid) -> anyhow::Result<()> {
-    persist.ensure_session_exists(&session.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     Ok(())
 }
 
 async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<String>> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(session)
         .await?
         .inbox
@@ -147,6 +152,7 @@ async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<Str
 
 async fn run_row(persist: &PersistHandle, run: &str) -> anyhow::Result<()> {
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.to_owned(),
             project_path: None,
@@ -185,8 +191,9 @@ async fn a_blocked_question_goes_to_the_reference_seat_once_and_is_listed_for_th
         question: "which file?",
         blocked: true,
     };
-    let blocked = persist.ask_question(&base).await?;
+    let blocked = persist.launch().ask_question(&base).await?;
     persist
+        .launch()
         .ask_question(&AskedQuestion {
             blocked: false,
             question: "no hurry",
@@ -236,6 +243,7 @@ async fn nothing_is_claimed_when_the_fleet_has_no_reference_seat_and_a_question_
     open_session(&persist, reference).await?;
     run_row(&persist, "run-none").await?;
     let asked = persist
+        .launch()
         .ask_question(&AskedQuestion {
             asker,
             to_session: Some(reference),
@@ -254,7 +262,10 @@ async fn nothing_is_claimed_when_the_fleet_has_no_reference_seat_and_a_question_
             .await
             .is_empty()
     );
-    let unclaimed = persist.question_by_uuid(asked.question_uuid).await?;
+    let unclaimed = persist
+        .launch()
+        .question_by_uuid(asked.question_uuid)
+        .await?;
     assert!(unclaimed.is_some_and(|q| q.escalated_at.is_none()));
 
     let on = definition(json!({"reference": {"enabled": true, "session": reference.to_string()}}));
@@ -264,7 +275,10 @@ async fn nothing_is_claimed_when_the_fleet_has_no_reference_seat_and_a_question_
             .is_empty()
     );
     assert!(inbox(&persist, reference).await?.is_empty());
-    let claimed = persist.question_by_uuid(asked.question_uuid).await?;
+    let claimed = persist
+        .launch()
+        .question_by_uuid(asked.question_uuid)
+        .await?;
     assert!(claimed.is_some_and(|q| q.escalated_at.is_some()));
     db.cleanup().await?;
     Ok(())
@@ -281,7 +295,10 @@ async fn notes(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<(i6
         limit: 50,
         offset: 0,
     };
-    let rows = persist.fetch_session_notes(session, filter).await?;
+    let rows = persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await?;
     Ok(rows
         .into_iter()
         .map(|r| (r.data["version"].as_i64().unwrap_or(0), r.body))
@@ -312,7 +329,7 @@ async fn an_answer_that_changes_a_brief_is_a_new_version_that_later_syncs_keep()
     let Some(note) = record_task_part(&persist, (&before, &facts), ("P1", seat)).await else {
         anyhow::bail!("the task part was not recorded");
     };
-    let Some(reference) = persist.note_ref(note).await? else {
+    let Some(reference) = persist.launch().note_ref(note).await? else {
         anyhow::bail!("the task part has no note");
     };
 
@@ -323,7 +340,11 @@ async fn an_answer_that_changes_a_brief_is_a_new_version_that_later_syncs_keep()
     assert_eq!(after_amend.len(), 2);
     assert!(after_amend[1].1.contains(AMENDMENTS_MARK));
     assert!(after_amend[1].1.ends_with("Answer: yes"));
-    let title = persist.note_ref(stored.note).await?.map(|n| n.title);
+    let title = persist
+        .launch()
+        .note_ref(stored.note)
+        .await?
+        .map(|n| n.title);
     assert_eq!(title.as_deref(), Some("Brief, task P1 (version 2)"));
 
     sync(&persist, (&before, &facts), &open).await;
@@ -366,6 +387,7 @@ async fn only_a_part_of_a_brief_can_be_amended() -> anyhow::Result<()> {
     let author = Uuid::from_u128(41);
     open_session(&persist, author).await?;
     let created = persist
+        .launch()
         .create_session_note(
             author,
             crate::store::persistence::session_notes::NewSessionNote {
@@ -378,7 +400,7 @@ async fn only_a_part_of_a_brief_can_be_amended() -> anyhow::Result<()> {
             },
         )
         .await?;
-    let Some(reference) = persist.note_ref(created.note_uuid).await? else {
+    let Some(reference) = persist.launch().note_ref(created.note_uuid).await? else {
         anyhow::bail!("the note was not stored");
     };
     let refused = amend_part(&persist, &reference, "x").await;

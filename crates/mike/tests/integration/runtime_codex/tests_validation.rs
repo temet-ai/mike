@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
@@ -91,7 +92,10 @@ async fn closed_pool_codex_operations_fail_but_auth_exclusion_needs_no_database(
     let generation = Uuid::new_v4();
     let request = input(namespace, delta("A"))?;
     assert!(matches!(
-        handle.capture_codex_receipt(request.clone()).await,
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await,
         Err(PersistError::Database(_))
     ));
     let auth = input(
@@ -99,12 +103,19 @@ async fn closed_pool_codex_operations_fail_but_auth_exclusion_needs_no_database(
         json!({"method":"account/login/start", "params":{"token":"fixture"}}),
     )?;
     assert!(matches!(
-        handle.capture_codex_receipt(auth).await?,
+        handle.runtime().capture_codex_receipt(auth).await?,
         super::CodexCaptureOutcome::Excluded(_)
     ));
-    assert!(handle.runtime_receipt(receipt_id(&request)).await.is_err());
     assert!(
         handle
+            .runtime()
+            .runtime_receipt(receipt_id(&request))
+            .await
+            .is_err()
+    );
+    assert!(
+        handle
+            .runtime()
             .list_runtime_raw_events(RawEventPage {
                 namespace_id: namespace,
                 after_event_id: 0,
@@ -115,6 +126,7 @@ async fn closed_pool_codex_operations_fail_but_auth_exclusion_needs_no_database(
     );
     assert!(
         handle
+            .runtime()
             .list_codex_unclassified_receipts(RawEventPage {
                 namespace_id: namespace,
                 after_event_id: 0,
@@ -136,18 +148,21 @@ async fn closed_projection_mutations_fail(
 ) {
     assert!(
         handle
+            .runtime()
             .begin_codex_projection_generation(namespace, generation)
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .activate_codex_projection_generation(generation)
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .apply_next_codex_projection(generation)
             .await
             .is_err()
@@ -157,24 +172,28 @@ async fn closed_projection_mutations_fail(
 async fn closed_projection_reads_fail(handle: &PersistHandle, namespace: Uuid, generation: Uuid) {
     assert!(
         handle
+            .runtime()
             .codex_projection_generation(generation)
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace)
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .codex_projected_item(generation, &key(namespace))
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .list_codex_items(CodexItemPage {
                 generation_id: generation,
                 thread_id: "thread".into(),
@@ -186,6 +205,7 @@ async fn closed_projection_reads_fail(handle: &PersistHandle, namespace: Uuid, g
     );
     assert!(
         handle
+            .runtime()
             .codex_projection_application(generation, 1)
             .await
             .is_err()
@@ -195,24 +215,28 @@ async fn closed_projection_reads_fail(handle: &PersistHandle, namespace: Uuid, g
 async fn closed_projection_journal_reads_fail(handle: &PersistHandle, generation: Uuid) {
     assert!(
         handle
+            .runtime()
             .list_codex_projection_effects(page(generation))
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .list_codex_usage_observations(page(generation))
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .list_codex_lifecycle_observations(page(generation))
             .await
             .is_err()
     );
     assert!(
         handle
+            .runtime()
             .list_codex_projection_issues(generation, 0, 1)
             .await
             .is_err()

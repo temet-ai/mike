@@ -2,6 +2,7 @@ use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::wire::manifest::ManifestBuilder;
 
 use super::support::{
@@ -142,6 +143,7 @@ async fn drain_mailbox_reminder_unaffected_by_steerer_expiry_logic() -> anyhow::
     let recipient_uuid: uuid::Uuid = session_uuid.parse()?;
     let message_uuid = uuid::Uuid::new_v4();
     let inserted = handle
+        .launch()
         .insert_message(message_uuid, recipient_uuid, None, "hello from a peer")
         .await?;
     assert!(inserted.is_some(), "mailbox insert must resolve recipient");

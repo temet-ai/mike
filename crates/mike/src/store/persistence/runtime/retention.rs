@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct RuntimeRetentionOutcome {
@@ -15,9 +15,9 @@ pub struct RuntimeRetentionOutcome {
     pub legacy_removed: u64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn sweep_runtime_observations(
-        &self,
+        self,
         now: DateTime<Utc>,
         batch: i64,
     ) -> Result<RuntimeRetentionOutcome, PersistError> {
@@ -48,7 +48,7 @@ impl PersistHandle {
     }
 
     async fn sweep_legacy_runtime_observations(
-        &self,
+        self,
         now: DateTime<Utc>,
         batch: i64,
     ) -> Result<u64, PersistError> {

@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::invalid;
 use super::locations::ProjectIdentity;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 const NEAR_MATCH_LIMIT: i64 = 5;
 
@@ -47,9 +47,9 @@ fn numeric_id(selector: &str) -> Option<i64> {
     selector.parse().ok()
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn resolve_knowledge_project(
-        &self,
+        self,
         selector: &str,
     ) -> Result<ProjectIdentity, PersistError> {
         match self.find_knowledge_project(selector).await? {
@@ -59,14 +59,14 @@ impl PersistHandle {
     }
 
     pub(crate) async fn find_knowledge_project(
-        &self,
+        self,
         selector: &str,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
         crate::metrics::time_db("knowledge_resolve_project", self.lookup_project(selector)).await
     }
 
     pub(super) async fn lookup_project(
-        &self,
+        self,
         selector: &str,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
         let mut candidates = sqlx::query_file_as!(
@@ -88,7 +88,7 @@ impl PersistHandle {
         }))
     }
 
-    async fn unknown_project_error(&self, selector: &str) -> PersistError {
+    async fn unknown_project_error(self, selector: &str) -> PersistError {
         let near = sqlx::query_as!(
             Candidate,
             r#"SELECT p.id AS "id!", p.project_uuid AS "project_uuid!",

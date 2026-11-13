@@ -5,8 +5,8 @@ use super::window::SearchWindow;
 use super::{QueryEmbedding, invalid};
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
 use crate::search_ranking::identifiers::query_identifiers;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 const READABLE_KINDS: [&str; 15] = [
     "launch",
@@ -180,16 +180,16 @@ fn with_correction(mut item: Value, corrected: Option<String>) -> Value {
     item
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn search_project_knowledge(
-        &self,
+        self,
         input: &KnowledgeQuery,
     ) -> Result<Value, PersistError> {
         self.search_project_knowledge_hybrid(input, None).await
     }
 
     pub(crate) async fn search_project_knowledge_hybrid(
-        &self,
+        self,
         input: &KnowledgeQuery,
         vector: Option<&QueryEmbedding>,
     ) -> Result<Value, PersistError> {
@@ -199,7 +199,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn search_resolved_knowledge(
-        &self,
+        self,
         project: &super::ProjectIdentity,
         input: &KnowledgeQuery,
         vector: Option<&QueryEmbedding>,
@@ -219,7 +219,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn knowledge_candidate_rows(
-        &self,
+        self,
         project_id: i64,
         input: &KnowledgeQuery,
         count: i64,
@@ -230,7 +230,7 @@ impl PersistHandle {
     }
 
     async fn knowledge_search_rows(
-        &self,
+        self,
         project_id: i64,
         input: &KnowledgeQuery,
         limit: i64,
@@ -265,7 +265,7 @@ impl PersistHandle {
         Ok(rows)
     }
 
-    async fn require_work_thread(&self, project_id: i64, slug: &str) -> Result<(), PersistError> {
+    async fn require_work_thread(self, project_id: i64, slug: &str) -> Result<(), PersistError> {
         let known: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM work.threads WHERE project_id = $1 AND slug = $2)",
         )
@@ -282,7 +282,7 @@ impl PersistHandle {
     }
 
     pub async fn read_project_knowledge(
-        &self,
+        self,
         project: Option<&str>,
         reference: &str,
     ) -> Result<Value, PersistError> {

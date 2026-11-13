@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::path::PathBuf;
 
 use uuid::Uuid;
@@ -74,6 +75,7 @@ async fn seat_thread_binding_survives_a_restart_and_keeps_fork_ancestry() -> any
         Some("thread-A".to_string())
     );
     let binding = restarted
+        .runtime()
         .runtime_thread_by_session(forked)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fork binding missing"))?;

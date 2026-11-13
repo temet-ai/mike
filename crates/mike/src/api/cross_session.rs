@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -85,7 +86,7 @@ pub(crate) async fn get_thresholds(
     };
     let steerer_id = match q.steerer_id {
         Some(id) => id,
-        None => match persist.guard_steerer().await {
+        None => match persist.steerer().guard_steerer().await {
             Ok(Some(guard)) => guard.id,
             _ => {
                 return error(
@@ -96,8 +97,14 @@ pub(crate) async fn get_thresholds(
         },
     };
     let limit = q.limit.unwrap_or(50).clamp(1, MAX_LIMIT);
-    let history = persist.threshold_history(steerer_id, q.cursor, limit).await;
-    let passes = persist.recent_threshold_pass_runs(PASS_RUNS_SHOWN).await;
+    let history = persist
+        .steerer()
+        .threshold_history(steerer_id, q.cursor, limit)
+        .await;
+    let passes = persist
+        .steerer()
+        .recent_threshold_pass_runs(PASS_RUNS_SHOWN)
+        .await;
     match (history, passes) {
         (Ok(rows), Ok(passes)) => {
             let next = (i64::try_from(rows.len()).unwrap_or(0) == limit)
@@ -121,6 +128,7 @@ pub(crate) async fn list_proposals(
     };
     let limit = q.limit.unwrap_or(50).clamp(1, MAX_LIMIT);
     match persist
+        .steerer()
         .list_directive_proposals(q.status.as_deref(), q.cursor, limit)
         .await
     {
@@ -141,7 +149,7 @@ pub(crate) async fn get_proposal(State(state): State<AppState>, Path(id): Path<i
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.fetch_proposal_detail(id).await {
+    match persist.steerer().fetch_proposal_detail(id).await {
         Ok(Some(detail)) => Json(detail).into_response(),
         Ok(None) => error(StatusCode::NOT_FOUND, format!("no directive proposal {id}")),
         Err(e) => error(
@@ -166,12 +174,14 @@ pub(crate) async fn reject_proposal(
         return unavailable();
     };
     match persist
+        .steerer()
         .reject_directive_proposal(id, body.note.as_deref())
         .await
     {
         Ok(true) => {}
         Ok(false) => {
             let status = persist
+                .steerer()
                 .fetch_proposal_detail(id)
                 .await
                 .ok()

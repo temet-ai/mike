@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use serde_json::json;
 use uuid::Uuid;
@@ -15,8 +18,9 @@ async fn acceptance_launch(f: &Fixture, run: &str, session: Uuid) -> anyhow::Res
     launch.session_uuid = Some(session);
     launch.seat = Some("acceptance".to_owned());
     launch.identity = Some(json!({"role": "acceptance"}));
-    let id = f.handle.insert_launch(&launch).await?;
+    let id = f.handle.launch().insert_launch(&launch).await?;
     f.handle
+        .launch()
         .record_launch_opened(id, &LaunchSurfaceRefs::default())
         .await?;
     Ok(id)
@@ -59,9 +63,11 @@ async fn ended_acceptance_notes_retain_launch_authority_and_updated_order() -> a
     let original = seed_legacy_obligation(&f, first, "original", &tags).await?;
     seed_legacy_obligation(&f, replacement, "replacement", &tags).await?;
     f.handle
+        .launch()
         .record_launch_closed(launch, "replaced", Some(true))
         .await?;
     f.handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             session_uuid: first,
             role: Some("worker"),
@@ -79,7 +85,7 @@ async fn ended_acceptance_notes_retain_launch_authority_and_updated_order() -> a
     .bind(original.note_uuid)
     .fetch_one(f.handle.pool())
     .await?;
-    let rows = f.handle.fleet_note_rows(&run).await?;
+    let rows = f.handle.fleet().fleet_note_rows(&run).await?;
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].session_uuid, replacement);
     assert_eq!(rows[1].note_uuid, original.note_uuid);
@@ -102,6 +108,7 @@ async fn tagged_notes_are_project_scoped_and_do_not_inherit_unrelated_authority(
     seed_run(&f.handle, &run).await?;
     let fleet = f
         .handle
+        .fleet()
         .insert_fleet(&new_fleet("tagged", "/tmp/fleet-a"))
         .await?;
     seed_fleet_running(&f.handle, fleet.fleet_uuid, &run).await?;
@@ -119,6 +126,7 @@ async fn tagged_notes_are_project_scoped_and_do_not_inherit_unrelated_authority(
     seed_run(&f.handle, &another_run).await?;
     acceptance_launch(&f, &another_run, same_project).await?;
     f.handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             session_uuid: same_project,
             role: Some("acceptance"),
@@ -132,7 +140,7 @@ async fn tagged_notes_are_project_scoped_and_do_not_inherit_unrelated_authority(
     let included = seed_legacy_obligation(&f, same_project, "recoverable", &tags).await?;
     seed_legacy_obligation(&f, different_project, "wrong project", &tags).await?;
     seed_legacy_obligation(&f, same_project, "wrong fleet", &["fleet:other".into()]).await?;
-    let rows = f.handle.fleet_note_rows(&run).await?;
+    let rows = f.handle.fleet().fleet_note_rows(&run).await?;
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].note_uuid, included.note_uuid);
     assert_eq!(rows[0].session_uuid, same_project);

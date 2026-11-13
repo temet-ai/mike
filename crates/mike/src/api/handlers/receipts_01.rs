@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ReceiptEvidenceDto {
@@ -61,6 +62,7 @@ pub(crate) async fn confirm_message_receipt(
     };
 
     let Some(msg) = handle
+        .launch()
         .fetch_message_for_recipient(msg_uuid, to_uuid)
         .await
         .map_err(|e| failed(&e))?
@@ -73,6 +75,7 @@ pub(crate) async fn confirm_message_receipt(
     };
 
     let uuid_hits = handle
+        .launch()
         .fetch_receipt_evidence(
             to_uuid,
             &msg_uuid.to_string(),
@@ -101,6 +104,7 @@ pub(crate) async fn confirm_message_receipt(
         let needle: String = msg.body.chars().take(RECEIPT_BODY_NEEDLE_LEN).collect();
         if needle.trim().len() >= 16 {
             let body_hits = handle
+                .launch()
                 .fetch_receipt_evidence(to_uuid, &needle, msg.queued_at, RECEIPT_EVIDENCE_LIMIT)
                 .await
                 .map_err(|e| failed(&e))?;

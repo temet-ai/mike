@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(crate) const MEMORY_SOURCE: &str = "claude-memory";
 pub(crate) const SKILLS_SOURCE: &str = "skills";
@@ -69,9 +69,9 @@ pub struct ShownGuidance<'a> {
     pub cited: bool,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn closest_guidance(
-        &self,
+        self,
         project_id: i64,
         query: &str,
         vector: Option<&super::QueryEmbedding>,
@@ -98,7 +98,7 @@ impl PersistHandle {
     }
 
     pub async fn record_proposal_guidance(
-        &self,
+        self,
         verdict_id: i64,
         project_id: i64,
         shown: &[ShownGuidance<'_>],

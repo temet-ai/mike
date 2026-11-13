@@ -1,3 +1,5 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::super::WorkThreadError;
@@ -12,6 +14,7 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
     };
     let duplicate = f
         .handle
+        .knowledge()
         .define_knowledge_project("duplicate", Uuid::new_v4())
         .await?;
     sqlx::query("UPDATE projects.projects SET project_path = '/shared/checkout' WHERE id = $1")
@@ -20,9 +23,11 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
         .await?;
     let canonical = f
         .handle
+        .knowledge()
         .define_knowledge_project("canonical", Uuid::new_v4())
         .await?;
     f.handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: canonical.project_uuid.to_string(),
             machine_uuid: Uuid::new_v4(),
@@ -33,15 +38,18 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
 
     let by_location = f
         .handle
+        .launch()
         .resolve_work_thread_project("/shared/checkout")
         .await?;
     assert_eq!(by_location.map(|p| p.id), Some(canonical.id));
 
     let rival = f
         .handle
+        .knowledge()
         .define_knowledge_project("rival", Uuid::new_v4())
         .await?;
     f.handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: rival.project_uuid.to_string(),
             machine_uuid: Uuid::new_v4(),
@@ -51,6 +59,7 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
         .await?;
     let ambiguous = f
         .handle
+        .launch()
         .resolve_work_thread_project("/shared/checkout")
         .await;
     assert!(
@@ -70,16 +79,19 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
         .await?;
     let resolved = f
         .handle
+        .launch()
         .resolve_work_thread_project("/shared/checkout")
         .await?;
     assert_eq!(resolved.map(|p| p.id), Some(canonical.id));
     let by_uuid = f
         .handle
+        .launch()
         .resolve_work_thread_project(&duplicate.project_uuid.to_string())
         .await?;
     assert_eq!(by_uuid.map(|p| p.id), Some(canonical.id));
     assert!(
         f.handle
+            .launch()
             .resolve_work_thread_project("/nowhere")
             .await?
             .is_none()

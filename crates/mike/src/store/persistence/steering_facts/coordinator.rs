@@ -1,8 +1,8 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_coordinator_for_seats(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<(i64, Option<uuid::Uuid>)>, PersistError> {
         crate::metrics::time_db("fetch_coordinator_for_seats", async move {

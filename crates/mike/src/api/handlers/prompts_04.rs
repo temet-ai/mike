@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct PromptCompositionImportRowResult {
@@ -102,6 +103,7 @@ async fn import_one_composition(
         }
     };
     match handle
+        .proxy()
         .create_composition(
             crate::store::persistence::compositions::NewCompositionParams {
                 prompt_sha256: &entry.prompt_sha256,

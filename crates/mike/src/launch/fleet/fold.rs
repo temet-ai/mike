@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
@@ -263,7 +264,11 @@ pub async fn done_tasks_of(
     let Some(run) = run else {
         return BTreeSet::new();
     };
-    let events = persist.fleet_events_since(run, 0).await.unwrap_or_default();
+    let events = persist
+        .fleet()
+        .fleet_events_since(run, 0)
+        .await
+        .unwrap_or_default();
     fold(&events, DateTime::<Utc>::MAX_UTC).done_tasks(def)
 }
 

@@ -1,3 +1,5 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub(crate) mod patterns;
 
 use axum::Json;
@@ -42,10 +44,12 @@ async fn floors_view(
     quantile: f64,
 ) -> Result<serde_json::Value, Response> {
     let in_force = persist
+        .knowledge()
         .semantic_floors_in_force(key, quantile)
         .await
         .map_err(|e| persist_error(&e))?;
     let monitoring = persist
+        .knowledge()
         .semantic_floors_latest_monitoring(key)
         .await
         .map_err(|e| persist_error(&e))?;
@@ -59,11 +63,13 @@ async fn status_body(
     let handle = state.semantic().load();
     let snapshot = state.embedding_service().current_config();
     let embedders = persist
+        .knowledge()
         .list_semantic_embedders()
         .await
         .map_err(|e| persist_error(&e))?;
     let current = embedders.iter().find(|e| e.status == "current").cloned();
     let counts = persist
+        .knowledge()
         .semantic_item_counts()
         .await
         .map_err(|e| persist_error(&e))?;
@@ -71,6 +77,7 @@ async fn status_body(
         Some(c) => (
             floors_view(persist, &c.embedder_key, handle.config.floor_quantile).await?,
             persist
+                .knowledge()
                 .semantic_backlog(&c.embedder_key)
                 .await
                 .map_err(|e| persist_error(&e))?,
@@ -195,7 +202,7 @@ pub(crate) async fn get_semantic_neighbours(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let closed_at = match persist.locate_turn(turn_id).await {
+    let closed_at = match persist.dossier().locate_turn(turn_id).await {
         Ok(Some(t)) => t.closed_at,
         Ok(None) => {
             return error(
@@ -234,7 +241,7 @@ pub(crate) async fn get_semantic_item(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.get_semantic_item(id).await {
+    match persist.knowledge().get_semantic_item(id).await {
         Ok(Some(item)) => Json(item).into_response(),
         Ok(None) => error(
             StatusCode::NOT_FOUND,

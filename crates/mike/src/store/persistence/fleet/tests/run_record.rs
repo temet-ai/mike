@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
@@ -73,6 +74,7 @@ async fn closed_run() -> anyhow::Result<Option<Run>> {
     seed_run(&f.handle, &run_id).await?;
     let fleet = f
         .handle
+        .fleet()
         .insert_fleet(&new_fleet("record", "/tmp/fleet-a"))
         .await?;
     seed_fleet_running(&f.handle, fleet.fleet_uuid, &run_id).await?;
@@ -91,6 +93,7 @@ async fn closed_run() -> anyhow::Result<Option<Run>> {
     .await?;
     let row = f
         .handle
+        .fleet()
         .find_fleet(&fleet.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| anyhow::anyhow!("the fleet row is gone"))?;
@@ -197,6 +200,7 @@ async fn the_close_writes_one_record_from_the_seeded_capture_rows() -> anyhow::R
     let record = run
         .f
         .handle
+        .fleet()
         .find_run_record(run.row.fleet_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no record was stored"))?;
@@ -257,6 +261,7 @@ async fn a_run_nobody_launched_into_still_gets_an_empty_record() -> anyhow::Resu
     let record = run
         .f
         .handle
+        .fleet()
         .find_run_record(run.row.fleet_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no record was stored"))?;
@@ -274,6 +279,7 @@ async fn a_run_that_does_not_exist_is_refused_and_a_fleet_without_a_record_reads
     assert!(
         run.f
             .handle
+            .fleet()
             .find_run_record(run.row.fleet_uuid)
             .await?
             .is_none()
@@ -286,6 +292,7 @@ async fn a_run_that_does_not_exist_is_refused_and_a_fleet_without_a_record_reads
     assert!(
         run.f
             .handle
+            .fleet()
             .find_run_record(Uuid::new_v4())
             .await?
             .is_none()

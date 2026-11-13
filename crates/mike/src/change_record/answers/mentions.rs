@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -117,6 +118,7 @@ async fn facts(persist: &PersistHandle, repo: &str, text: &str) -> Option<Mentio
         truncated: truncated || capped,
     };
     let events = persist
+        .fleet()
         .latest_change_events(repo, &[], &[ChangeKind::Commit, ChangeKind::Check], 100)
         .await
         .ok()?;

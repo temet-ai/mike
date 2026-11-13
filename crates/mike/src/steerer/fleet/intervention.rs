@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use tracing::{debug, info, warn};
 
 use super::context::{EvalInputs, EvalTarget, FleetCtx, SteererSelection};
@@ -32,7 +34,7 @@ async fn mailbox_pending_override(
         return false;
     }
     match (ctx.persist.as_ref(), session_uuid) {
-        (Some(ph), Some(uuid)) => match ph.has_pending_inbound_mail(uuid).await {
+        (Some(ph), Some(uuid)) => match ph.launch().has_pending_inbound_mail(uuid).await {
             Ok(has_pending) => has_pending,
             Err(e) => {
                 warn!(
@@ -184,6 +186,7 @@ async fn insert_enrolled_intervention(
     intervention_uuid: uuid::Uuid,
 ) -> Option<u64> {
     match ph
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id: fire.steerer.id,
             enrolment_id: Some(enrolment.id),

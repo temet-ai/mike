@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Clone, sqlx::FromRow)]
 pub(crate) struct TurnToolCallMetaRow {
@@ -22,9 +22,9 @@ pub(crate) struct TurnToolCallContentRow {
     pub(crate) result_content_sha256: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn fetch_turn_bounds(
-        &self,
+        self,
         turn_id: i64,
         session_db_id: i64,
     ) -> Result<Option<(i64, i64)>, PersistError> {
@@ -44,7 +44,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_turn_tool_calls_paired(
-        &self,
+        self,
         turn_id: i64,
         session_db_id: i64,
     ) -> Result<Vec<TurnToolCallMetaRow>, PersistError> {
@@ -62,7 +62,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_turn_tool_call_content(
-        &self,
+        self,
         turn_id: i64,
         session_db_id: i64,
         tool_wire_id: &str,

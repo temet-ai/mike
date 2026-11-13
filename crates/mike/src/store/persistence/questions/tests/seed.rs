@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -22,12 +24,16 @@ pub(super) async fn fixture() -> anyhow::Result<Option<Fixture>> {
 
 pub(super) async fn session(handle: &PersistHandle) -> anyhow::Result<Uuid> {
     let uuid = Uuid::new_v4();
-    handle.ensure_session_exists(&uuid.to_string()).await?;
+    handle
+        .launch()
+        .ensure_session_exists(&uuid.to_string())
+        .await?;
     Ok(uuid)
 }
 
 pub(super) async fn named(handle: &PersistHandle, session: Uuid, name: &str) -> anyhow::Result<()> {
     handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             session_uuid: session,
             display_name: Some(name),
@@ -43,6 +49,7 @@ pub(super) async fn named(handle: &PersistHandle, session: Uuid, name: &str) -> 
 
 pub(super) async fn run(handle: &PersistHandle, run_id: &str) -> anyhow::Result<()> {
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.to_owned(),
             project_path: None,

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewCandidate {
@@ -67,9 +67,9 @@ fn member_array(ids: &[i64]) -> String {
     format!("{{{}}}", parts.join(","))
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn insert_pattern_candidates(
-        &self,
+        self,
         rows: &[NewCandidate],
     ) -> Result<Vec<i64>, PersistError> {
         if rows.is_empty() {
@@ -113,7 +113,7 @@ impl PersistHandle {
     }
 
     pub async fn list_pattern_candidates(
-        &self,
+        self,
         status: Option<&str>,
         limit: i64,
         offset: i64,
@@ -174,7 +174,7 @@ impl PersistHandle {
     }
 
     pub async fn name_pattern_candidate(
-        &self,
+        self,
         id: i64,
         slug: &str,
         description: &str,
@@ -236,7 +236,7 @@ impl PersistHandle {
     }
 
     pub async fn dismiss_pattern_candidate(
-        &self,
+        self,
         id: i64,
         note: &str,
     ) -> Result<CandidateDecision, PersistError> {

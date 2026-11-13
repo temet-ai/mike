@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -93,12 +93,12 @@ pub struct DiagnosticOutcome {
     pub evidence_status: EvidenceStatus,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn record_responses_diagnostic(
-        &self,
+        self,
         exchange: &DiagnosticExchange,
         limits: &DiagnosticLimits,
     ) -> Result<DiagnosticOutcome, PersistError> {
-        insert::record(self, exchange, limits).await
+        insert::record(&self, exchange, limits).await
     }
 }

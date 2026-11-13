@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use tokio::sync::watch;
 use uuid::Uuid;
 
@@ -281,7 +282,12 @@ async fn reuse_recorded(
     state: &str,
     commit: &str,
 ) -> bool {
-    match runner.persist.find_tree_check(runner.run, state).await {
+    match runner
+        .persist
+        .fleet()
+        .find_tree_check(runner.run, state)
+        .await
+    {
         Ok(Some(row)) => {
             let verdict = Verdict {
                 row,

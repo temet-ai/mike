@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::{ObservationLimits, RuntimeWriteOutcome, identity_budget, invalid, same_or_conflict};
 use crate::runtime::{ProviderThreadRef, RuntimeNamespace, RuntimeThreadBinding};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 struct ThreadLineage<'a> {
     parent_namespace: Option<Uuid>,
@@ -31,9 +31,9 @@ fn provider_parts(thread: Option<&ProviderThreadRef>) -> (Option<Uuid>, Option<&
     })
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn resolve_unique_codex_session(
-        &self,
+        self,
         thread: &str,
     ) -> Result<Option<Uuid>, PersistError> {
         if thread.is_empty() || thread.len() > 512 {
@@ -56,7 +56,7 @@ impl PersistHandle {
     }
 
     pub async fn register_runtime_namespace(
-        &self,
+        self,
         namespace: &RuntimeNamespace,
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         namespace.validate().map_err(invalid)?;
@@ -100,7 +100,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_namespace(
-        &self,
+        self,
         id: Uuid,
     ) -> Result<Option<RuntimeNamespace>, PersistError> {
         let row = sqlx::query_scalar!(
@@ -114,7 +114,7 @@ impl PersistHandle {
     }
 
     pub async fn bind_runtime_thread(
-        &self,
+        self,
         binding: &RuntimeThreadBinding,
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         binding.validate().map_err(invalid)?;
@@ -195,7 +195,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_thread(
-        &self,
+        self,
         provider: &ProviderThreadRef,
     ) -> Result<Option<RuntimeThreadBinding>, PersistError> {
         provider.validate().map_err(invalid)?;
@@ -211,7 +211,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_thread_by_session(
-        &self,
+        self,
         session_id: Uuid,
     ) -> Result<Option<RuntimeThreadBinding>, PersistError> {
         let row = sqlx::query_scalar!(

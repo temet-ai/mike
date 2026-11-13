@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -67,6 +68,7 @@ pub async fn link_running_sessions(persist: &PersistHandle) -> usize {
     let mut linked = 0;
     for channel in running_channels(home.join(REGISTRY_FOLDER)).await {
         match persist
+            .launch()
             .link_channel_to_session(&channel.cse_id, channel.session_uuid, &channel.cwd)
             .await
         {

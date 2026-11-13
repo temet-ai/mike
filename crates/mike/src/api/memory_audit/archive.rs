@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -69,10 +70,14 @@ pub(crate) async fn list_archived_lessons(
             "`project` is required",
         ));
     };
-    let rows = handle.list_archived_lessons(&project).await.map_err(|e| {
-        tracing::warn!(project = %project, error = %e, "list_archived_lessons: query failed");
-        persist_error_response(e)
-    })?;
+    let rows = handle
+        .lessons()
+        .list_archived_lessons(&project)
+        .await
+        .map_err(|e| {
+            tracing::warn!(project = %project, error = %e, "list_archived_lessons: query failed");
+            persist_error_response(e)
+        })?;
     Ok(Json(
         rows.into_iter().map(ArchivedLessonDto::from).collect(),
     ))
@@ -85,10 +90,14 @@ pub(crate) async fn restore_lesson(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let outcome = handle.restore_lesson(lesson_id).await.map_err(|e| {
-        tracing::warn!(lesson_id, error = %e, "restore_lesson: query failed");
-        persist_error_response(e)
-    })?;
+    let outcome = handle
+        .lessons()
+        .restore_lesson(lesson_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(lesson_id, error = %e, "restore_lesson: query failed");
+            persist_error_response(e)
+        })?;
     match outcome {
         RestoreLessonOutcome::NotFound => {
             Err(lesson_error(StatusCode::NOT_FOUND, "lesson not found"))

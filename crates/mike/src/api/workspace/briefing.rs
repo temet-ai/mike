@@ -1,3 +1,5 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -224,6 +226,7 @@ pub(crate) async fn build_workspace_briefing(
 ) -> Result<(Briefing, Vec<RosterEntryDto>), PersistError> {
     let rows = req
         .handle
+        .proxy()
         .fetch_workspace_roster(req.project_id, RosterScope::Active)
         .await?;
     let mut roster: Vec<RosterEntryDto> = rows
@@ -245,7 +248,11 @@ pub(crate) async fn build_workspace_briefing(
     };
     let fleet_seat =
         crate::launch::seat_fact::is_fleet_seat(req.handle, req.self_session_uuid).await;
-    let identity = req.handle.get_session_goal(req.self_session_uuid).await?;
+    let identity = req
+        .handle
+        .steerer()
+        .get_session_goal(req.self_session_uuid)
+        .await?;
     let identity = identity.as_ref();
     let briefing = build_briefing_parts(BriefingContext {
         project_display: project_path,

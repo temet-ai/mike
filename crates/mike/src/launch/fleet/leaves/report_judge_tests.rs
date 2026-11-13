@@ -3,6 +3,8 @@
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::Utc;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -49,12 +51,16 @@ async fn fixture() -> anyhow::Result<Option<Fixture>> {
         .map(|raw| String::from_utf8_lossy(&raw).trim().to_string())
         .ok_or_else(|| anyhow::anyhow!("no head"))?;
     let seat = Uuid::new_v4();
-    persist.ensure_session_exists(&seat.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&seat.to_string())
+        .await?;
     let mut value = complete();
     value["repo"] = json!(repo);
     let def = parsed(&value);
     let run = format!("fleet-judge-{}", Uuid::new_v4());
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.clone(),
             project_path: Some(repo.clone()),
@@ -64,6 +70,7 @@ async fn fixture() -> anyhow::Result<Option<Fixture>> {
         })
         .await?;
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: repo,
@@ -81,6 +88,7 @@ async fn fixture() -> anyhow::Result<Option<Fixture>> {
         }),
     ] {
         persist
+            .fleet()
             .append_fleet_event(&NewFleetEvent {
                 run_id: run.clone(),
                 task: Some("P1".into()),
@@ -135,6 +143,7 @@ impl Fixture {
     async fn verdicts(&self) -> anyhow::Result<Vec<FleetEvent>> {
         Ok(self
             .persist
+            .fleet()
             .fleet_events_since(&self.run, 0)
             .await?
             .into_iter()
@@ -145,6 +154,7 @@ impl Fixture {
     async fn inbox(&self) -> anyhow::Result<Vec<String>> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(self.seat)
             .await?
             .inbox
@@ -154,7 +164,11 @@ impl Fixture {
     }
 
     async fn status(&self) -> anyhow::Result<FleetStatus> {
-        let events = self.persist.fleet_events_since(&self.run, 0).await?;
+        let events = self
+            .persist
+            .fleet()
+            .fleet_events_since(&self.run, 0)
+            .await?;
         Ok(build_from_record(
             FleetHeader {
                 fleet: self.fleet.to_string(),

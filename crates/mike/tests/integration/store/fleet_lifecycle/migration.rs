@@ -1,4 +1,5 @@
 use super::{fixture, starting, stopping};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 
 #[tokio::test]
 async fn stopping_migration_preserves_existing_rows_and_accepts_new_state() -> anyhow::Result<()> {
@@ -19,7 +20,10 @@ async fn stopping_migration_preserves_existing_rows_and_accepts_new_state() -> a
     .execute(f.handle.pool())
     .await?;
     assert_eq!(
-        f.handle.find_fleet(&before.fleet_uuid.to_string()).await?,
+        f.handle
+            .fleet()
+            .find_fleet(&before.fleet_uuid.to_string())
+            .await?,
         Some(before.clone())
     );
     assert_eq!(stopping(&f.handle, &before).await?.state, "stopping");

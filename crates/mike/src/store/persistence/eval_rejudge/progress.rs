@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct RejudgeWindow {
@@ -33,9 +33,9 @@ impl RejudgeProgress {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn rejudge_progress(
-        &self,
+        self,
         window: &RejudgeWindow,
     ) -> Result<RejudgeProgress, PersistError> {
         crate::metrics::time_db("rejudge_progress", async move {
@@ -52,7 +52,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn rejudge_mean_cost_usd(&self, bundle_id: i64) -> Result<Option<f64>, PersistError> {
+    pub async fn rejudge_mean_cost_usd(self, bundle_id: i64) -> Result<Option<f64>, PersistError> {
         crate::metrics::time_db("rejudge_mean_cost_usd", async move {
             let from_gate = sqlx::query_file_scalar!(
                 "src/store/persistence/eval_rejudge/gate_cost.sql",
@@ -73,7 +73,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn passing_holdout_gate(&self, bundle_id: i64) -> Result<Option<i64>, PersistError> {
+    pub async fn passing_holdout_gate(self, bundle_id: i64) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("passing_holdout_gate", async move {
             Ok(sqlx::query_file_scalar!(
                 "src/store/persistence/eval_rejudge/passing_gate.sql",

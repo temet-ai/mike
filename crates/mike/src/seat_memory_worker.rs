@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -73,7 +74,7 @@ async fn step(persist: &PersistHandle, mark: &mut RefreshMark) {
         *mark = RefreshMark::default();
         return;
     }
-    let generation = match persist.seat_memory_generation().await {
+    let generation = match persist.launch().seat_memory_generation().await {
         Ok(generation) => generation,
         Err(e) => return log_failed("generation read", &e),
     };
@@ -84,7 +85,7 @@ async fn step(persist: &PersistHandle, mark: &mut RefreshMark) {
 }
 
 async fn refresh(persist: &PersistHandle, mark: &mut RefreshMark, generation: i64, now: Instant) {
-    match persist.refresh_seat_memory_items().await {
+    match persist.launch().refresh_seat_memory_items().await {
         Ok(outcome) => {
             mark.record(generation, now);
             log_refreshed(outcome);

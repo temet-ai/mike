@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, planar_unit, seed_project, seed_session};
 use chrono::{DateTime, Duration as ChronoDuration, SubsecRound, Utc};
@@ -23,6 +24,7 @@ async fn refresh_project_centroids_writes_and_skips_up_to_date() -> anyhow::Resu
     let (_p1, u1) = seed_session(&pool, project_a, None, now).await?;
     let (_p2, u2) = seed_session(&pool, project_a, None, now).await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: u1,
             embedding: &planar_unit(0.0),
@@ -33,6 +35,7 @@ async fn refresh_project_centroids_writes_and_skips_up_to_date() -> anyhow::Resu
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: u2,
             embedding: &planar_unit(20.0),
@@ -45,6 +48,7 @@ async fn refresh_project_centroids_writes_and_skips_up_to_date() -> anyhow::Resu
 
     let (_p3, u3) = seed_session(&pool, project_b, None, now).await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: u3,
             embedding: &planar_unit(45.0),
@@ -55,25 +59,32 @@ async fn refresh_project_centroids_writes_and_skips_up_to_date() -> anyhow::Resu
         })
         .await?;
 
-    let written_first = persist.refresh_project_centroids().await?;
+    let written_first = persist.knowledge().refresh_project_centroids().await?;
     assert_eq!(
         written_first, 2,
         "both projects have session vectors and no prior centroid row"
     );
 
-    let status_a = persist.project_centroid_status(project_a).await?;
+    let status_a = persist
+        .knowledge()
+        .project_centroid_status(project_a)
+        .await?;
     assert!(status_a.present);
     assert_eq!(status_a.session_count, Some(2));
-    let status_b = persist.project_centroid_status(project_b).await?;
+    let status_b = persist
+        .knowledge()
+        .project_centroid_status(project_b)
+        .await?;
     assert!(status_b.present);
     assert_eq!(status_b.session_count, Some(1));
 
-    let written_second = persist.refresh_project_centroids().await?;
+    let written_second = persist.knowledge().refresh_project_centroids().await?;
     assert_eq!(written_second, 0, "up-to-date projects must be skipped");
 
     let (_p4, u4) = seed_session(&pool, project_a, None, now).await?;
     let later = now + ChronoDuration::seconds(60);
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: u4,
             embedding: &planar_unit(200.0),
@@ -97,12 +108,15 @@ async fn refresh_project_centroids_writes_and_skips_up_to_date() -> anyhow::Resu
     .await?;
     assert!(new_row_embedded_at > project_a_embedded_at);
 
-    let written_third = persist.refresh_project_centroids().await?;
+    let written_third = persist.knowledge().refresh_project_centroids().await?;
     assert_eq!(
         written_third, 1,
         "only project_a has a newer session vector"
     );
-    let status_a2 = persist.project_centroid_status(project_a).await?;
+    let status_a2 = persist
+        .knowledge()
+        .project_centroid_status(project_a)
+        .await?;
     assert_eq!(status_a2.session_count, Some(3));
 
     pool.close().await;

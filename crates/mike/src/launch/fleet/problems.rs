@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Duration, Utc};
@@ -398,6 +399,7 @@ pub fn overdue_events(ledger: &Ledger, run: &str, now: DateTime<Utc>) -> Vec<New
 async fn append_all(persist: &PersistHandle, events: &[NewFleetEvent]) -> Result<(), String> {
     for new in events {
         persist
+            .fleet()
             .append_fleet_event(new)
             .await
             .map_err(|err| err.to_string())?;
@@ -407,6 +409,7 @@ async fn append_all(persist: &PersistHandle, events: &[NewFleetEvent]) -> Result
 
 async fn ledger(persist: &PersistHandle, run: &str) -> Result<Ledger, String> {
     let events = persist
+        .fleet()
         .fleet_events_since(run, 0)
         .await
         .map_err(|err| err.to_string())?;

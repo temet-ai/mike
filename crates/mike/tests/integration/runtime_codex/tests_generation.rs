@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use uuid::Uuid;
 
 use mike::runtime::codex::TextChannel;
@@ -11,7 +12,11 @@ async fn apply(
     handle: &PersistHandle,
     generation_id: Uuid,
 ) -> anyhow::Result<CodexProjectionApplication> {
-    match handle.apply_next_codex_projection(generation_id).await? {
+    match handle
+        .runtime()
+        .apply_next_codex_projection(generation_id)
+        .await?
+    {
         CodexProjectionApplyOutcome::Applied(application) => Ok(application),
         CodexProjectionApplyOutcome::CaughtUp(_) => anyhow::bail!("expected an application"),
     }
@@ -24,6 +29,7 @@ async fn assert_text(
     expected: &str,
 ) -> anyhow::Result<()> {
     let item = handle
+        .runtime()
         .codex_projected_item(generation_id, &key(namespace_id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing projected item"))?;
@@ -38,17 +44,22 @@ async fn assert_text(
 async fn assert_retired(handle: &PersistHandle, generation_id: Uuid) -> anyhow::Result<()> {
     assert_eq!(
         handle
+            .runtime()
             .codex_projection_generation(generation_id)
             .await?
             .map(|generation| generation.state),
         Some("retired".into())
     );
     assert!(matches!(
-        handle.apply_next_codex_projection(generation_id).await,
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await,
         Err(PersistError::DataInvariant(_))
     ));
     assert!(matches!(
         handle
+            .runtime()
             .activate_codex_projection_generation(generation_id)
             .await,
         Err(PersistError::DataInvariant(_))
@@ -65,11 +76,13 @@ async fn generations_replay_receipts_independently_and_isolate_namespaces() -> a
     foreign_namespace.id = Uuid::new_v4();
     foreign_namespace.durable_key = format!("fixture/{}", foreign_namespace.id);
     handle
+        .runtime()
         .register_runtime_namespace(&foreign_namespace)
         .await?;
     for namespace_id in [namespace.id, namespace.id, foreign_namespace.id] {
         captured(
             handle
+                .runtime()
                 .capture_codex_receipt(input(namespace_id, delta("x"))?)
                 .await?,
         )?;
@@ -83,12 +96,14 @@ async fn generations_replay_receipts_independently_and_isolate_namespaces() -> a
         (foreign_namespace.id, foreign),
     ] {
         handle
+            .runtime()
             .begin_codex_projection_generation(namespace_id, generation_id)
             .await?;
     }
     assert_eq!(apply(&handle, first).await?.capture_sequence, 1);
     assert!(
         handle
+            .runtime()
             .codex_projected_item(replay, &key(namespace.id))
             .await?
             .is_none()
@@ -100,32 +115,42 @@ async fn generations_replay_receipts_independently_and_isolate_namespaces() -> a
     assert_eq!(apply(&handle, first).await?.capture_sequence, 2);
     assert_eq!(
         handle
+            .runtime()
             .codex_projected_item(first, &key(namespace.id))
             .await?,
         handle
+            .runtime()
             .codex_projected_item(replay, &key(namespace.id))
             .await?
     );
     assert_eq!(
-        handle.list_codex_projection_effects(page(first)).await?,
-        handle.list_codex_projection_effects(page(replay)).await?
+        handle
+            .runtime()
+            .list_codex_projection_effects(page(first))
+            .await?,
+        handle
+            .runtime()
+            .list_codex_projection_effects(page(replay))
+            .await?
     );
     assert_eq!(apply(&handle, foreign).await?.capture_sequence, 1);
     assert_text(&handle, foreign, foreign_namespace.id, "x").await?;
     assert!(
         handle
+            .runtime()
             .codex_projected_item(foreign, &key(namespace.id))
             .await?
             .is_none()
     );
     assert!(matches!(
         handle
+            .runtime()
             .begin_codex_projection_generation(foreign_namespace.id, first)
             .await,
         Err(PersistError::DataInvariant(_))
     ));
     assert!(matches!(
-        handle.apply_next_codex_projection(first).await?,
+        handle.runtime().apply_next_codex_projection(first).await?,
         CodexProjectionApplyOutcome::CaughtUp(generation)
             if generation.last_applied_capture_sequence == 2
     ));
@@ -142,16 +167,18 @@ async fn concurrent_generation_application_applies_each_receipt_exactly_once() -
     };
     let receipt = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("once"))?)
             .await?,
     )?;
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let (first, second) = tokio::join!(
-        handle.apply_next_codex_projection(generation_id),
-        handle.apply_next_codex_projection(generation_id),
+        handle.runtime().apply_next_codex_projection(generation_id),
+        handle.runtime().apply_next_codex_projection(generation_id),
     );
     let outcomes = [first?, second?];
     assert_eq!(
@@ -169,6 +196,7 @@ async fn concurrent_generation_application_applies_each_receipt_exactly_once() -
         1
     );
     let application = handle
+        .runtime()
         .codex_projection_application(generation_id, receipt.event_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing application"))?;
@@ -177,17 +205,22 @@ async fn concurrent_generation_application_applies_each_receipt_exactly_once() -
     assert_text(&handle, generation_id, namespace.id, "once").await?;
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_effects(page(generation_id))
             .await?
             .len(),
         1
     );
     assert!(matches!(
-        handle.apply_next_codex_projection(generation_id).await?,
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await?,
         CodexProjectionApplyOutcome::CaughtUp(_)
     ));
     assert_eq!(
         handle
+            .runtime()
             .codex_projection_application(generation_id, receipt.event_id)
             .await?,
         Some(application)
@@ -206,50 +239,62 @@ async fn generation_promotion_requires_catchup_and_preserves_active_head_on_fail
     };
     let active = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, active)
         .await?;
     assert!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace.id)
             .await?
             .is_none()
     );
     assert_eq!(
-        handle.activate_codex_projection_generation(active).await?,
+        handle
+            .runtime()
+            .activate_codex_projection_generation(active)
+            .await?,
         RuntimeWriteOutcome::Inserted
     );
     captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("a"))?)
             .await?,
     )?;
     apply(&handle, active).await?;
     let rebuilding = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, rebuilding)
         .await?;
     apply(&handle, rebuilding).await?;
     captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("b"))?)
             .await?,
     )?;
     let old_head = handle
+        .runtime()
         .active_codex_projection_generation(namespace.id)
         .await?;
     assert!(matches!(
         handle
+            .runtime()
             .activate_codex_projection_generation(rebuilding)
             .await,
         Err(PersistError::DataInvariant(_))
     ));
     assert_eq!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace.id)
             .await?,
         old_head
     );
     let building = handle
+        .runtime()
         .codex_projection_generation(rebuilding)
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing building generation"))?;
@@ -258,11 +303,13 @@ async fn generation_promotion_requires_catchup_and_preserves_active_head_on_fail
     apply(&handle, rebuilding).await?;
     assert_eq!(
         handle
+            .runtime()
             .activate_codex_projection_generation(rebuilding)
             .await?,
         RuntimeWriteOutcome::Inserted
     );
     let new_head = handle
+        .runtime()
         .active_codex_projection_generation(namespace.id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing active generation"))?;
@@ -271,6 +318,7 @@ async fn generation_promotion_requires_catchup_and_preserves_active_head_on_fail
     assert_eq!(new_head.last_applied_capture_sequence, 2);
     assert_eq!(
         handle
+            .runtime()
             .activate_codex_projection_generation(rebuilding)
             .await?,
         RuntimeWriteOutcome::Unchanged
@@ -278,6 +326,7 @@ async fn generation_promotion_requires_catchup_and_preserves_active_head_on_fail
     assert_retired(&handle, active).await?;
     assert_eq!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace.id)
             .await?,
         Some(new_head)
@@ -296,66 +345,83 @@ async fn unknown_generation_versions_reject_reads_writes_and_promotion() -> anyh
     };
     let active = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, active)
         .await?;
-    handle.activate_codex_projection_generation(active).await?;
+    handle
+        .runtime()
+        .activate_codex_projection_generation(active)
+        .await?;
     let receipt = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("v"))?)
             .await?,
     )?;
     let head = handle
+        .runtime()
         .active_codex_projection_generation(namespace.id)
         .await?;
     for (projector, codec) in [(99, 1), (1, 99)] {
         let generation_id = Uuid::new_v4();
         handle
+            .runtime()
             .begin_codex_projection_generation(namespace.id, generation_id)
             .await?;
         sqlx::query("UPDATE runtime.codex_projection_generations SET projector_version = $2, state_codec_version = $3 WHERE generation_id = $1")
             .bind(generation_id).bind(projector).bind(codec).execute(handle.pool()).await?;
         assert!(matches!(
             handle
+                .runtime()
                 .begin_codex_projection_generation(namespace.id, generation_id)
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
-            handle.apply_next_codex_projection(generation_id).await,
+            handle
+                .runtime()
+                .apply_next_codex_projection(generation_id)
+                .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
             handle
+                .runtime()
                 .activate_codex_projection_generation(generation_id)
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
             handle
+                .runtime()
                 .codex_projected_item(generation_id, &key(namespace.id))
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
             handle
+                .runtime()
                 .list_codex_projection_effects(page(generation_id))
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
             handle
+                .runtime()
                 .codex_projection_application(generation_id, receipt.event_id)
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert!(matches!(
             handle
+                .runtime()
                 .list_codex_projection_issues(generation_id, 0, 100)
                 .await,
             Err(PersistError::DataInvariant(_))
         ));
         assert_eq!(
             handle
+                .runtime()
                 .active_codex_projection_generation(namespace.id)
                 .await?,
             head
@@ -381,16 +447,19 @@ async fn unknown_stored_item_codec_rejects_read_and_rolls_back_next_application(
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("a"))?)
             .await?,
     )?;
     apply(&handle, generation_id).await?;
     let second = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("b"))?)
             .await?,
     )?;
@@ -402,22 +471,28 @@ async fn unknown_stored_item_codec_rejects_read_and_rolls_back_next_application(
     .await?;
     assert!(matches!(
         handle
+            .runtime()
             .codex_projected_item(generation_id, &key(namespace.id))
             .await,
         Err(PersistError::DataInvariant(_))
     ));
     assert!(matches!(
-        handle.apply_next_codex_projection(generation_id).await,
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await,
         Err(PersistError::DataInvariant(_))
     ));
     assert!(
         handle
+            .runtime()
             .codex_projection_application(generation_id, second.event_id)
             .await?
             .is_none()
     );
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_effects(page(generation_id))
             .await?
             .len(),
@@ -425,6 +500,7 @@ async fn unknown_stored_item_codec_rejects_read_and_rolls_back_next_application(
     );
     assert_eq!(
         handle
+            .runtime()
             .codex_projection_generation(generation_id)
             .await?
             .map(|generation| generation.last_applied_capture_sequence),

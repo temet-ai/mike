@@ -1,6 +1,7 @@
 use super::*;
 use crate::launch::fleet::definition::{TaskDefinition, WorkerDefinition};
 use crate::launch::fleet::managed_test_support as managed;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 fn red() -> FleetDefinition {
     let mut def = FleetDefinition::default();
@@ -194,6 +195,7 @@ async fn starting_fleet(
     let unique = uuid::Uuid::new_v4();
     let run_id = format!("startup-isolation-{unique}");
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.clone(),
             project_path: Some(def.repo.clone()),
@@ -203,6 +205,7 @@ async fn starting_fleet(
         })
         .await?;
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: format!("startup-isolation-{unique}"),
             project_path: def.repo.clone(),
@@ -314,6 +317,7 @@ async fn cancelled_startup_cannot_complete_a_gate_verdict() -> anyhow::Result<()
         def.gate.command = "sleep 60".into();
         let facts = starting_fleet(&persist, &def).await?;
         persist
+            .fleet()
             .set_fleet_state(facts.fleet.parse()?, "stopping", Some(&facts.run_id), None)
             .await?;
         let target = super::super::gate::Target {
@@ -338,6 +342,7 @@ async fn cancelled_startup_cannot_complete_a_gate_verdict() -> anyhow::Result<()
         );
         assert!(
             persist
+                .fleet()
                 .latest_tree_check(&super::super::gate::ledger(&facts.run_id))
                 .await?
                 .is_none()

@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{Duration, Utc};
 use tracing::debug;
 
@@ -27,7 +28,11 @@ async fn within_interval(
         return false;
     }
     let window = Duration::seconds(i64::try_from(secs).unwrap_or(i64::MAX));
-    match persist.last_fire_for(scope.session_db_id, steerer.id).await {
+    match persist
+        .steerer()
+        .last_fire_for(scope.session_db_id, steerer.id)
+        .await
+    {
         Ok(Some(last)) => last.created_at > Utc::now() - window,
         Ok(None) => false,
         Err(e) => {
@@ -49,6 +54,7 @@ async fn advice_already_given(
     let since = Utc::now() - Duration::hours(hours);
     matches!(
         persist
+            .steerer()
             .last_delivered_fire_since(scope.session_db_id, steerer.id, since)
             .await,
         Ok(Some(_))
@@ -68,6 +74,7 @@ async fn requirement_met(
             };
             let needle = text.to_lowercase();
             persist
+                .steerer()
                 .declared_tool_names(request_id)
                 .await
                 .unwrap_or_default()
@@ -125,7 +132,11 @@ pub(in crate::steerer::fleet) async fn repeats_last_delivery(
     let (Some(persist), Some(scope)) = (ctx.persist.as_ref(), scope) else {
         return false;
     };
-    match persist.last_fire_for(scope.session_db_id, steerer.id).await {
+    match persist
+        .steerer()
+        .last_fire_for(scope.session_db_id, steerer.id)
+        .await
+    {
         Ok(Some(last)) if last.was_delivered() => last
             .payload_text
             .as_deref()

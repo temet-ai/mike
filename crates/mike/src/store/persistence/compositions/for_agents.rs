@@ -1,10 +1,10 @@
 //! The compositions each agent has, newest first (agents' evidence reads them).
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn list_compositions_for_agent(
-        &self,
+        self,
         agent_id: i64,
     ) -> Result<Vec<crate::wire::composition::Composition>, PersistError> {
         let mut by_agent = self.list_compositions_for_agents(&[agent_id]).await?;
@@ -12,7 +12,7 @@ impl PersistHandle {
     }
 
     pub async fn list_compositions_for_agents(
-        &self,
+        self,
         agent_ids: &[i64],
     ) -> Result<
         std::collections::HashMap<i64, Vec<crate::wire::composition::Composition>>,

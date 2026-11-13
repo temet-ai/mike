@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 mod prompt;
 #[cfg(test)]
 mod tests;
@@ -105,6 +106,7 @@ pub(crate) async fn run_tick(
     }
     let idle_since = now - chrono::Duration::seconds(settings.quiet.idle_secs);
     if persist
+        .lessons()
         .has_recent_primary_activity(idle_since)
         .await
         .unwrap_or(true)
@@ -144,6 +146,7 @@ pub(crate) async fn judge_batch(
 ) -> Pass {
     let mut pass = Pass::default();
     let items = match persist
+        .lessons()
         .supplied_items_pending_verdict(
             BATCH,
             now - chrono::Duration::days(LOOKBACK_DAYS),
@@ -213,6 +216,7 @@ async fn store_verdict(
     answer: &Answer,
 ) -> Result<bool, ()> {
     persist
+        .lessons()
         .insert_supply_verdict(&NewVerdict {
             item_id: item.item_id,
             verdict: &answer.verdict,

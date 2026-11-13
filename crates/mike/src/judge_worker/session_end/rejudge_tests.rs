@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::Context;
 use chrono::Utc;
 use serde_json::json;
@@ -12,10 +13,12 @@ use super::super::live::LivePoll;
 async fn session_run(f: &Fixture) -> anyhow::Result<(i64, i64)> {
     let bundle = f
         .persist
+        .eval()
         .create_candidate_bundle("session_judge", "", &json!({}))
         .await?;
     let id = f
         .persist
+        .eval()
         .create_rejudge_run(&NewRejudgeRun {
             window: RejudgeWindow {
                 bundle_id: bundle,
@@ -64,6 +67,7 @@ async fn competing_session_history_owner_prevents_admission() -> anyhow::Result<
     );
     let run = f
         .persist
+        .eval()
         .active_rejudge_run()
         .await?
         .context("queued session run")?;
@@ -82,10 +86,12 @@ async fn cancelled_queued_session_history_does_not_start() -> anyhow::Result<()>
     let (id, bundle) = session_run(&f).await?;
     let run = f
         .persist
+        .eval()
         .active_rejudge_run()
         .await?
         .context("queued session run")?;
     f.persist
+        .eval()
         .finish_rejudge_run(id, RejudgeFinish::Cancelled)
         .await?;
     let embedding = EmbeddingService::new(&EmbeddingConfig::default());

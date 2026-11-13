@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionToolRead {
@@ -10,9 +10,9 @@ pub struct SessionToolRead {
     pub input: Option<serde_json::Value>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn session_tool_reads(
-        &self,
+        self,
         sessions: &[Uuid],
         tools: &[String],
         since: DateTime<Utc>,

@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::BTreeMap;
 
 use axum::Json;
@@ -42,7 +43,7 @@ fn persistence(e: &crate::store::persistence::PersistError) -> Response {
 }
 
 async fn guard_id(persist: &PersistHandle) -> Result<(i64, bool), Response> {
-    match persist.guard_steerer().await {
+    match persist.steerer().guard_steerer().await {
         Ok(Some(row)) => Ok((row.id, row.enabled)),
         Ok(None) => Err(error(
             StatusCode::NOT_FOUND,
@@ -97,7 +98,7 @@ pub(crate) async fn get_guard(State(state): State<AppState>) -> Response {
         until: now,
         question: None,
     };
-    let rows = match persist.guard_metric_rows(&window).await {
+    let rows = match persist.steerer().guard_metric_rows(&window).await {
         Ok(rows) => rows,
         Err(e) => return persistence(&e),
     };
@@ -164,7 +165,7 @@ pub(crate) async fn patch_guard_question(
         Ok(v) => v,
         Err(resp) => return resp,
     };
-    if let Ok(Some(current)) = persist.policy_row(steerer_id, q.code()).await
+    if let Ok(Some(current)) = persist.steerer().policy_row(steerer_id, q.code()).await
         && matches!(current.mode.as_str(), "append" | "wake")
     {
         return error(
@@ -178,6 +179,7 @@ pub(crate) async fn patch_guard_question(
         );
     }
     match persist
+        .steerer()
         .set_question_mode(steerer_id, q.code(), mode.code(), "spa")
         .await
     {
@@ -217,8 +219,8 @@ pub(crate) async fn guard_metrics_view(
         until,
         question: q.question.clone(),
     };
-    let rows = persist.guard_metric_rows(&window).await?;
-    let audit_sessions = persist.guard_audit_sessions(since).await?;
+    let rows = persist.steerer().guard_metric_rows(&window).await?;
+    let audit_sessions = persist.steerer().guard_audit_sessions(since).await?;
     let settings = GuardSettings::load(persist).await;
     Ok(MetricsView {
         since,

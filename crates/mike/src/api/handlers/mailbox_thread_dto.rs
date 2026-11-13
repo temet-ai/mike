@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub(crate) fn thread_summary_dto(
     r: crate::store::persistence::mailbox::ThreadSummaryRow,
@@ -151,7 +152,7 @@ pub(crate) async fn resolve_mailbox_recipient(
             ),
         ));
     }
-    match handle.resolve_session_id_prefix(raw).await {
+    match handle.launch().resolve_session_id_prefix(raw).await {
         Ok(crate::store::persistence::mailbox::SessionIdResolution::Resolved(uuid)) => Ok(uuid),
         Ok(crate::store::persistence::mailbox::SessionIdResolution::Ambiguous(candidates)) => {
             Err(ambiguous_session_id_response(raw, candidates))
@@ -193,6 +194,7 @@ async fn session_id_not_found_response(
     raw: &str,
 ) -> Response {
     if let Err(e) = handle
+        .launch()
         .insert_failed_send(None, raw, "session_not_found", None)
         .await
     {

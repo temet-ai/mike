@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 mod audit;
 mod legacy_send;
@@ -111,7 +113,7 @@ async fn refuse_closed_fleet_seat(
     to: uuid::Uuid,
     audit: bool,
 ) -> Result<(), Response> {
-    let closed = match handle.closed_fleet_seat(to).await {
+    let closed = match handle.launch().closed_fleet_seat(to).await {
         Ok(closed) => closed,
         Err(e) => {
             tracing::warn!(error = %e, %to, "post_session_message: closed-seat lookup failed");
@@ -150,7 +152,7 @@ async fn liveness_for_gate(
     handle: &crate::store::persistence::PersistHandle,
     to_session_uuid: uuid::Uuid,
 ) -> Option<crate::workspace::Liveness> {
-    match handle.fetch_session_liveness(to_session_uuid).await {
+    match handle.proxy().fetch_session_liveness(to_session_uuid).await {
         Ok(l) => l,
         Err(e) => {
             tracing::warn!(

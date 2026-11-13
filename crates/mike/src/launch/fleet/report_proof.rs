@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -156,7 +157,11 @@ pub fn from_rows(rows: &[TreeResultRow], changed: Option<&[ChangedPathRow]>) -> 
 
 pub async fn collect(persist: &PersistHandle, def: &FleetDefinition, run: &str) -> ReportProof {
     let since = Utc::now() - Duration::hours(WINDOW_HOURS);
-    let rows = match persist.tree_results(run, None, since, ROWS_READ).await {
+    let rows = match persist
+        .fleet()
+        .tree_results(run, None, since, ROWS_READ)
+        .await
+    {
         Ok(rows) => rows,
         Err(err) => {
             return ReportProof {
@@ -171,6 +176,7 @@ pub async fn collect(persist: &PersistHandle, def: &FleetDefinition, run: &str) 
     let changed = match earliest {
         Some(at) => {
             persist
+                .fleet()
                 .tree_changed_paths_since(run, at - Duration::microseconds(1))
                 .await
         }

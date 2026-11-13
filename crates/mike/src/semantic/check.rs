@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -56,10 +57,11 @@ pub async fn ensure_embedder(
 ) -> Result<EmbedderRow, SemanticError> {
     let (config, vectors) = embed_checked(embedding, &canary_texts(), allow_remote).await?;
     let seen = CanaryVectors::new(vectors);
-    if let Some(current) = persist.current_semantic_embedder().await?
+    if let Some(current) = persist.knowledge().current_semantic_embedder().await?
         && shape_matches(&current, &config, &seen)
     {
         persist
+            .knowledge()
             .touch_semantic_embedder(current.id, &config.url)
             .await?;
         return Ok(current);
@@ -68,6 +70,7 @@ pub async fn ensure_embedder(
     let now = Utc::now();
     let key = embedder_key(&config.model, dim, config.chunk_max_chars, now);
     persist
+        .knowledge()
         .insert_semantic_embedder(&NewEmbedder {
             embedder_key: &key,
             model: &config.model,
@@ -82,6 +85,7 @@ pub async fn ensure_embedder(
         })
         .await?;
     persist
+        .knowledge()
         .current_semantic_embedder()
         .await?
         .ok_or(SemanticError::NoEmbedder)
@@ -106,10 +110,12 @@ pub async fn verify_copy_window(
     allow_remote: bool,
 ) -> Result<VerifyReport, SemanticError> {
     let current = persist
+        .knowledge()
         .current_semantic_embedder()
         .await?
         .ok_or(SemanticError::NoEmbedder)?;
     let sample = persist
+        .knowledge()
         .semantic_verify_sample(since, &current.model, "verify-v1", VERIFY_SAMPLE)
         .await?;
     let texts: Vec<String> = sample.iter().map(|s| s.chunk_text.clone()).collect();
@@ -125,6 +131,7 @@ pub async fn verify_copy_window(
     let written = if passed && execute {
         let verify = serde_json::json!({ "sample_ids": sample_ids, "min_cosine": min_cosine });
         persist
+            .knowledge()
             .set_semantic_copy_window(current.id, since, &verify)
             .await?
     } else {

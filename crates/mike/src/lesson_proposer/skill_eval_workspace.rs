@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
@@ -108,6 +109,7 @@ pub(super) async fn ensure(
         return Ok(());
     }
     let path = persist
+        .lessons()
         .skill_draft_project_path(draft.project_id)
         .await
         .map_err(|e| EvalError::Deferred(format!("project path: {e}")))?;

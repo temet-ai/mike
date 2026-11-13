@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArmComparisonRow {
@@ -17,10 +17,9 @@ pub struct ArmComparisonRow {
     pub cache_write_tokens: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     #[rustfmt::skip]
-    pub async fn compare_lesson_delivery_arms(
-        &self,
+    pub async fn compare_lesson_delivery_arms(self,
         since: DateTime<Utc>,
         until: DateTime<Utc>,
     ) -> Result<Vec<ArmComparisonRow>, PersistError> {

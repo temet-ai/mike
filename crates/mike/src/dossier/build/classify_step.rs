@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::HashMap;
 
 use crate::store::persistence::prompt_classification::{ReclassifyRow, capture_rule_code};
@@ -33,6 +34,7 @@ pub async fn ensure_classifications(
     session_ids: &[i64],
 ) -> Result<u64, PersistError> {
     let pending = persist
+        .dossier()
         .load_prompts_needing_classification(session_ids, CLASSIFIER_VERSION)
         .await?;
     if pending.is_empty() {

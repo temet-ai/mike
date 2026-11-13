@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use uuid::Uuid;
@@ -50,6 +51,7 @@ fn judge() -> CountingJudge {
 
 async fn queued_pair(handle: &PersistHandle) -> anyhow::Result<(i64, i64, i64)> {
     let project = handle
+        .knowledge()
         .define_knowledge_project("reranked pairs", Uuid::new_v4())
         .await?
         .id;

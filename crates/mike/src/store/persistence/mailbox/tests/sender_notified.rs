@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -16,6 +17,7 @@ async fn fixture() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, String
     let handle = PersistHandle::connect(&db.database_url).await?;
     let run = format!("sender-notified-{}", Uuid::new_v4());
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.clone(),
             project_path: None,
@@ -33,17 +35,21 @@ async fn launch(
     session: Uuid,
     seat: &str,
 ) -> anyhow::Result<i64> {
-    handle.ensure_session_exists(&session.to_string()).await?;
+    handle
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     let mut new = NewLaunch::new("herdr", "/tmp/sender-notified-test");
     new.run_id = Some(run.to_owned());
     new.session_uuid = Some(session);
     new.seat = Some(seat.to_owned());
-    Ok(handle.insert_launch(&new).await?)
+    Ok(handle.launch().insert_launch(&new).await?)
 }
 
 async fn queue_aged(handle: &PersistHandle, recipient: Uuid, sender: Uuid) -> anyhow::Result<Uuid> {
     let message = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message, recipient, Some(sender), "Waiting mail\nFull body")
         .await?
         .ok_or_else(|| anyhow::anyhow!("message to an open recipient was refused"))?;
@@ -91,16 +97,29 @@ async fn tell_inactive_senders_declined_notice_is_not_served_next_tick() -> anyh
     let recipient_launch = launch(&handle, &run, recipient, "worker-P1").await?;
     let message = queue_aged(&handle, recipient, sender).await?;
     handle
+        .launch()
         .record_launch_closed(recipient_launch, "complete", Some(true))
         .await?;
 
-    assert_eq!(handle.tell_inactive_senders(reaper_cutoff()).await?, 0);
+    assert_eq!(
+        handle
+            .launch()
+            .tell_inactive_senders(reaper_cutoff())
+            .await?,
+        0
+    );
     let settled = notified_at(&handle, message).await?;
     assert!(
         settled.is_some(),
         "a declined notice still settles the message"
     );
-    assert_eq!(handle.tell_inactive_senders(reaper_cutoff()).await?, 0);
+    assert_eq!(
+        handle
+            .launch()
+            .tell_inactive_senders(reaper_cutoff())
+            .await?,
+        0
+    );
     assert_eq!(notified_at(&handle, message).await?, settled);
     assert_eq!(notices_to(&handle, sender).await?, 0);
     db.cleanup().await
@@ -116,12 +135,25 @@ async fn tell_inactive_senders_notified_message_is_not_notified_again() -> anyho
     launch(&handle, &run, recipient, "worker-P1").await?;
     let message = queue_aged(&handle, recipient, sender).await?;
 
-    assert_eq!(handle.tell_inactive_senders(reaper_cutoff()).await?, 1);
+    assert_eq!(
+        handle
+            .launch()
+            .tell_inactive_senders(reaper_cutoff())
+            .await?,
+        1
+    );
     let settled = notified_at(&handle, message).await?;
     assert!(settled.is_some());
-    assert_eq!(handle.tell_inactive_senders(reaper_cutoff()).await?, 0);
-    assert!(!handle.tell_sender_not_delivered(message).await?);
+    assert_eq!(
+        handle
+            .launch()
+            .tell_inactive_senders(reaper_cutoff())
+            .await?,
+        0
+    );
+    assert!(!handle.launch().tell_sender_not_delivered(message).await?);
     handle
+        .launch()
         .dead_letter_expired_undelivered(reaper_cutoff(), reaper_cutoff())
         .await?;
     assert_eq!(notified_at(&handle, message).await?, settled);
@@ -141,7 +173,7 @@ async fn backfill_message_with_existing_notice_is_stamped() -> anyhow::Result<()
     let untold = queue_aged(&handle, recipient, sender).await?;
     let notice = Uuid::new_v4();
     handle
-        .insert_message(
+        .launch().insert_message(
             notice,
             sender,
             None,
@@ -163,7 +195,13 @@ async fn backfill_message_with_existing_notice_is_stamped() -> anyhow::Result<()
 
     assert_eq!(notified_at(&handle, told).await?, Some(notice_queued_at));
     assert_eq!(notified_at(&handle, untold).await?, None);
-    assert_eq!(handle.tell_inactive_senders(reaper_cutoff()).await?, 1);
+    assert_eq!(
+        handle
+            .launch()
+            .tell_inactive_senders(reaper_cutoff())
+            .await?,
+        1
+    );
     assert_eq!(notices_to(&handle, sender).await?, 2);
     db.cleanup().await
 }

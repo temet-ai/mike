@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{SemanticWindow, vector_literal};
 
 const TURN_SOURCE_SELECT: &str =
@@ -133,9 +133,9 @@ fn columns(items: &[NewItem]) -> Columns {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn semantic_request_prompts(
-        &self,
+        self,
         ids: &[i64],
     ) -> Result<Vec<(i64, String)>, PersistError> {
         crate::metrics::time_db("semantic_request_prompts", async move {
@@ -152,7 +152,7 @@ impl PersistHandle {
     }
 
     pub async fn turns_needing_semantic_items(
-        &self,
+        self,
         embedder_key: &str,
         builder_version: &str,
         window: &SemanticWindow,
@@ -186,7 +186,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_turn_source(
-        &self,
+        self,
         turn_id: i64,
     ) -> Result<Option<TurnSource>, PersistError> {
         crate::metrics::time_db("semantic_turn_source", async move {
@@ -209,7 +209,7 @@ impl PersistHandle {
     }
 
     pub async fn copy_semantic_prompt_items(
-        &self,
+        self,
         turn_ids: &[i64],
         embedder_key: &str,
         builder_version: &str,
@@ -247,7 +247,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_semantic_items(&self, items: &[NewItem]) -> Result<u64, PersistError> {
+    pub async fn insert_semantic_items(self, items: &[NewItem]) -> Result<u64, PersistError> {
         if items.is_empty() {
             return Ok(0);
         }
@@ -295,7 +295,7 @@ impl PersistHandle {
     }
 
     pub async fn directives_needing_semantic_items(
-        &self,
+        self,
         embedder_key: &str,
         builder_version: &str,
         limit: i64,
@@ -330,10 +330,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_semantic_item(
-        &self,
-        id: i64,
-    ) -> Result<Option<SemanticItemRow>, PersistError> {
+    pub async fn get_semantic_item(self, id: i64) -> Result<Option<SemanticItemRow>, PersistError> {
         crate::metrics::time_db("get_semantic_item", async move {
             Ok(sqlx::query_as!(
                 SemanticItemRow,
@@ -351,7 +348,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn semantic_item_counts(&self) -> Result<Vec<ItemCount>, PersistError> {
+    pub async fn semantic_item_counts(self) -> Result<Vec<ItemCount>, PersistError> {
         crate::metrics::time_db("semantic_item_counts", async move {
             Ok(sqlx::query_as!(
                 ItemCount,
@@ -366,7 +363,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn semantic_backlog(&self, embedder_key: &str) -> Result<i64, PersistError> {
+    pub async fn semantic_backlog(self, embedder_key: &str) -> Result<i64, PersistError> {
         crate::metrics::time_db("semantic_backlog", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT count(*)::bigint AS "count!"

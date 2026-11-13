@@ -1,3 +1,4 @@
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::projection::{
     DELIVERIES, OUTCOME_PROJECTION_VERSION, ProjectionMode, PromoteOutcome, REACTIONS,
     map_legacy_outcome,
@@ -20,6 +21,7 @@ async fn projection_sql_matches_rust_mapping_for_all_pairs() -> anyhow::Result<(
             start += 1;
             let turn = closed_turn(&f, start).await?;
             f.handle
+                .eval()
                 .insert_turn_verdict(verdict(
                     turn,
                     VerdictMode::Live,
@@ -67,6 +69,7 @@ async fn projection_ignores_shadow_verdicts_and_other_bundles() -> anyhow::Resul
     let shadow_turn = closed_turn(&f, 21_001).await?;
     let other_turn = closed_turn(&f, 21_002).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             shadow_turn,
             VerdictMode::Shadow,
@@ -76,6 +79,7 @@ async fn projection_ignores_shadow_verdicts_and_other_bundles() -> anyhow::Resul
         ))
         .await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             other_turn,
             VerdictMode::Live,
@@ -108,6 +112,7 @@ async fn projection_gold_label_wins_and_combines_axes() -> anyhow::Result<()> {
     let b = bundle(&f).await?;
     let turn = closed_turn(&f, 21_101).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             turn,
             VerdictMode::Live,
@@ -143,6 +148,7 @@ async fn projection_snapshots_legacy_label_once_and_is_idempotent() -> anyhow::R
     let turn = closed_turn(&f, 21_201).await?;
     set_legacy(&f, turn, "abandoned").await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             turn,
             VerdictMode::Live,
@@ -225,6 +231,7 @@ async fn promote_rejects_shadow_verdict_and_errs_on_a_missing_one() -> anyhow::R
     let turn = closed_turn(&f, 21_401).await?;
     let shadow = f
         .handle
+        .eval()
         .insert_turn_verdict(verdict(
             turn,
             VerdictMode::Shadow,
@@ -256,6 +263,7 @@ async fn live_insert_and_promote_marks_the_verdict_projected() -> anyhow::Result
     let turn = closed_turn(&f, 21_501).await?;
     let (verdict_id, outcome) = f
         .handle
+        .eval()
         .insert_live_verdict_and_promote(
             verdict(turn, VerdictMode::Live, b, ("corrected", "partial"), 0.9),
             &params(b, ProjectionMode::Apply),
@@ -283,6 +291,7 @@ async fn live_reactions_as_of_prefers_v2_and_falls_back_to_r3() -> anyhow::Resul
     let v2_turn = closed_turn(&f, 21_601).await?;
     let r3_turn = closed_turn(&f, 21_602).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             v2_turn,
             VerdictMode::Live,
@@ -301,8 +310,9 @@ async fn live_reactions_as_of_prefers_v2_and_falls_back_to_r3() -> anyhow::Resul
         bundle_id: None,
         ..verdict(r3_turn, VerdictMode::Live, b, ("corrected", "partial"), 0.9)
     };
-    f.handle.insert_turn_verdict(legacy.clone()).await?;
+    f.handle.eval().insert_turn_verdict(legacy.clone()).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(mike::store::persistence::turn_verdicts::TurnVerdictInsert {
             turn_id: v2_turn,
             ..legacy

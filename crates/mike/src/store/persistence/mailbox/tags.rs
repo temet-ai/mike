@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone)]
 pub(crate) struct TagRow {
@@ -7,8 +7,8 @@ pub(crate) struct TagRow {
     pub(crate) usage_count: i64,
 }
 
-impl PersistHandle {
-    pub(crate) async fn fetch_tags(&self) -> Result<Vec<TagRow>, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub(crate) async fn fetch_tags(self) -> Result<Vec<TagRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_tags", async move {
             let rows = sqlx::query_as!(
                 TagRow,
@@ -26,7 +26,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn attach_tags_to_thread(
-        &self,
+        self,
         thread_id: i64,
         codes: &[String],
     ) -> Result<(), PersistError> {

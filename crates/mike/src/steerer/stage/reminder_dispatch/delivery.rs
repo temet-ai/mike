@@ -3,6 +3,7 @@ use crate::reminders::inject::{InjectBookkeeping, inject_system_reminder};
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistError;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub(in crate::steerer::stage) async fn inject_or_requeue(
     state: &AppState,
@@ -85,7 +86,7 @@ async fn unclaim_mailbox_message_after_failed_inject(
     let Some(persist) = &state.persist else {
         return;
     };
-    if let Err(e) = persist.unclaim_message(*message_uuid).await {
+    if let Err(e) = persist.launch().unclaim_message(*message_uuid).await {
         log_mailbox_unclaim_failed(session_id, *message_uuid, &e);
     }
 }

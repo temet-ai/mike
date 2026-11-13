@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
@@ -61,6 +62,7 @@ async fn shaped_with(
     let assessment = assess(text, topic, 500);
     let row = f
         .handle
+        .lessons()
         .create_lesson_with_shape(write(f, text, topic), &assessment, hold)
         .await?;
     Ok((row.id, assessment))
@@ -98,7 +100,7 @@ async fn a_rule_shaped_lesson_is_recorded_as_needing_nothing_and_stays_claimable
     };
     let (id, assessment) = shaped(&f, "Run scripts/gate lint before committing.", None).await?;
     assert!(assessment.is_rule());
-    let finding = f.handle.shape_finding(id).await?;
+    let finding = f.handle.lessons().shape_finding(id).await?;
     let Some(finding) = finding else {
         anyhow::bail!("a finding row must exist for a checked lesson");
     };
@@ -106,6 +108,7 @@ async fn a_rule_shaped_lesson_is_recorded_as_needing_nothing_and_stays_claimable
     assert_eq!(finding.resolution.as_deref(), Some("none_needed"));
     let claimed = f
         .handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(f.project_id, 10)
         .await?;
     assert!(claimed.iter().any(|l| l.id == id));
@@ -125,18 +128,33 @@ async fn a_flagged_lesson_is_held_back_from_consolidation_idle_discovery_and_inj
 
     let claimed = f
         .handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(f.project_id, 10)
         .await?;
     let ids: Vec<i64> = claimed.iter().map(|l| l.id).collect();
     assert!(ids.contains(&fine));
     assert!(!ids.contains(&flagged), "claimed {ids:?}");
 
-    let injectable = f.handle.list_injectable_lessons(&f.project_path).await?;
+    let injectable = f
+        .handle
+        .lessons()
+        .list_injectable_lessons(&f.project_path)
+        .await?;
     let injectable_ids: Vec<i64> = injectable.iter().map(|l| l.id).collect();
     assert!(injectable_ids.contains(&fine));
     assert!(!injectable_ids.contains(&flagged), "{injectable_ids:?}");
-    assert!(f.handle.lesson_has_open_shape_finding(flagged).await?);
-    assert!(!f.handle.lesson_has_open_shape_finding(fine).await?);
+    assert!(
+        f.handle
+            .lessons()
+            .lesson_has_open_shape_finding(flagged)
+            .await?
+    );
+    assert!(
+        !f.handle
+            .lessons()
+            .lesson_has_open_shape_finding(fine)
+            .await?
+    );
     Ok(())
 }
 
@@ -148,15 +166,20 @@ async fn without_the_proposer_a_flagged_lesson_is_recorded_as_kept_and_not_held(
     };
     let (id, assessment) = shaped_with(&f, &LONG_TEXT.repeat(12), None, false).await?;
     assert_eq!(assessment.shape, Shape::OverLength);
-    let finding = f.handle.shape_finding(id).await?;
+    let finding = f.handle.lessons().shape_finding(id).await?;
     assert_eq!(finding.and_then(|r| r.resolution), Some("kept".to_owned()));
-    assert!(!f.handle.lesson_has_open_shape_finding(id).await?);
+    assert!(!f.handle.lessons().lesson_has_open_shape_finding(id).await?);
     let claimed = f
         .handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(f.project_id, 10)
         .await?;
     assert!(claimed.iter().any(|l| l.id == id));
-    let injectable = f.handle.list_injectable_lessons(&f.project_path).await?;
+    let injectable = f
+        .handle
+        .lessons()
+        .list_injectable_lessons(&f.project_path)
+        .await?;
     assert!(injectable.iter().any(|l| l.id == id));
     Ok(())
 }
@@ -174,10 +197,20 @@ async fn a_hold_left_open_for_two_weeks_is_released() -> anyhow::Result<()> {
     .bind(old)
     .execute(&f.pool)
     .await?;
-    assert!(f.handle.release_stale_shape_findings(14).await? >= 1);
-    assert!(!f.handle.lesson_has_open_shape_finding(old).await?);
-    assert!(f.handle.lesson_has_open_shape_finding(recent).await?);
-    let released = f.handle.shape_finding(old).await?;
+    assert!(f.handle.lessons().release_stale_shape_findings(14).await? >= 1);
+    assert!(
+        !f.handle
+            .lessons()
+            .lesson_has_open_shape_finding(old)
+            .await?
+    );
+    assert!(
+        f.handle
+            .lessons()
+            .lesson_has_open_shape_finding(recent)
+            .await?
+    );
+    let released = f.handle.lessons().shape_finding(old).await?;
     assert_eq!(released.and_then(|r| r.resolution), Some("kept".to_owned()));
     Ok(())
 }
@@ -189,18 +222,33 @@ async fn the_scan_records_a_finding_for_each_unchecked_lesson_once() -> anyhow::
     };
     let inserted = f
         .handle
+        .lessons()
         .create_lesson_with_topic(write(&f, "Satisfied. The work was committed.", None))
         .await?;
-    let unchecked = f.handle.unchecked_lessons_for_shape(100_000).await?;
+    let unchecked = f
+        .handle
+        .lessons()
+        .unchecked_lessons_for_shape(100_000)
+        .await?;
     let Some(found) = unchecked.iter().find(|l| l.id == inserted.id) else {
         anyhow::bail!("the unchecked lesson must be listed");
     };
     let findings = vec![(found.id, assess(&found.text, found.topic.as_deref(), 500))];
-    assert_eq!(f.handle.record_shape_findings(&findings).await?, 1);
-    assert_eq!(f.handle.record_shape_findings(&findings).await?, 0);
-    let again = f.handle.unchecked_lessons_for_shape(100_000).await?;
+    assert_eq!(
+        f.handle.lessons().record_shape_findings(&findings).await?,
+        1
+    );
+    assert_eq!(
+        f.handle.lessons().record_shape_findings(&findings).await?,
+        0
+    );
+    let again = f
+        .handle
+        .lessons()
+        .unchecked_lessons_for_shape(100_000)
+        .await?;
     assert!(!again.iter().any(|l| l.id == inserted.id));
-    let finding = f.handle.shape_finding(inserted.id).await?;
+    let finding = f.handle.lessons().shape_finding(inserted.id).await?;
     assert_eq!(finding.map(|r| r.shape), Some("status".to_owned()));
     Ok(())
 }
@@ -219,6 +267,7 @@ async fn rewriting_archives_the_original_with_its_text_and_links_each_rule_to_it
     ];
     let ids = f
         .handle
+        .lessons()
         .rewrite_lesson_into_rules(&ShapeRewrite {
             lesson_id: original,
             rules: &rules,
@@ -262,14 +311,14 @@ async fn rewriting_archives_the_original_with_its_text_and_links_each_rule_to_it
         );
     }
 
-    let finding = f.handle.shape_finding(original).await?;
+    let finding = f.handle.lessons().shape_finding(original).await?;
     let Some(finding) = finding else {
         anyhow::bail!("the original keeps its finding");
     };
     assert_eq!(finding.resolution.as_deref(), Some("rewritten"));
     assert_eq!(finding.replacement_lesson_id, ids.first().copied());
     for id in &ids {
-        let replacement = f.handle.shape_finding(*id).await?;
+        let replacement = f.handle.lessons().shape_finding(*id).await?;
         assert_eq!(replacement.map(|r| r.shape), Some("rule".to_owned()));
     }
     let (topic, stage): (Option<String>, String) = sqlx::query_as(
@@ -284,6 +333,7 @@ async fn rewriting_archives_the_original_with_its_text_and_links_each_rule_to_it
 
     let claimed = f
         .handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(f.project_id, 10)
         .await?;
     let claimed_ids: Vec<i64> = claimed.iter().map(|l| l.id).collect();
@@ -297,9 +347,10 @@ async fn rewriting_an_already_archived_lesson_writes_nothing() -> anyhow::Result
         return Ok(());
     };
     let (original, _) = shaped(&f, &LONG_TEXT.repeat(12), None).await?;
-    assert!(f.handle.delete_lesson(original).await?);
+    assert!(f.handle.lessons().delete_lesson(original).await?);
     let outcome = f
         .handle
+        .lessons()
         .rewrite_lesson_into_rules(&ShapeRewrite {
             lesson_id: original,
             rules: &[rule("Verify a claim before reporting it.")],
@@ -324,14 +375,14 @@ async fn retiring_a_status_note_archives_it_as_not_a_lesson() -> anyhow::Result<
     )
     .await?;
     assert_eq!(assessment.shape, Shape::Status);
-    assert!(f.handle.retire_lesson_as_not_a_lesson(id).await?);
-    assert!(!f.handle.retire_lesson_as_not_a_lesson(id).await?);
+    assert!(f.handle.lessons().retire_lesson_as_not_a_lesson(id).await?);
+    assert!(!f.handle.lessons().retire_lesson_as_not_a_lesson(id).await?);
     let (stage, reason) = stage_and_reason(&f, id).await?;
     assert_eq!(
         (stage.as_str(), reason.as_deref()),
         ("archived", Some("not_a_lesson"))
     );
-    let finding = f.handle.shape_finding(id).await?;
+    let finding = f.handle.lessons().shape_finding(id).await?;
     assert_eq!(
         finding.and_then(|r| r.resolution),
         Some("not_a_lesson".to_owned())
@@ -345,21 +396,27 @@ async fn three_failures_keep_the_lesson_and_release_it_for_consolidation() -> an
         return Ok(());
     };
     let (id, _) = shaped(&f, &LONG_TEXT.repeat(12), None).await?;
-    let work = f.handle.claim_shape_work(100_000).await?;
+    let work = f.handle.lessons().claim_shape_work(100_000).await?;
     assert!(work.iter().any(|w| w.lesson_id == id));
-    assert!(!f.handle.record_shape_failure(id, "first").await?);
-    let after_first = f.handle.claim_shape_work(100_000).await?;
+    assert!(!f.handle.lessons().record_shape_failure(id, "first").await?);
+    let after_first = f.handle.lessons().claim_shape_work(100_000).await?;
     assert!(
         !after_first.iter().any(|w| w.lesson_id == id),
         "a failed lesson waits out its backoff"
     );
-    assert!(!f.handle.record_shape_failure(id, "second").await?);
-    assert!(f.handle.record_shape_failure(id, "third").await?);
-    let finding = f.handle.shape_finding(id).await?;
+    assert!(
+        !f.handle
+            .lessons()
+            .record_shape_failure(id, "second")
+            .await?
+    );
+    assert!(f.handle.lessons().record_shape_failure(id, "third").await?);
+    let finding = f.handle.lessons().shape_finding(id).await?;
     assert_eq!(finding.and_then(|r| r.resolution), Some("kept".to_owned()));
-    assert!(!f.handle.lesson_has_open_shape_finding(id).await?);
+    assert!(!f.handle.lessons().lesson_has_open_shape_finding(id).await?);
     let claimed = f
         .handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(f.project_id, 10)
         .await?;
     assert!(claimed.iter().any(|l| l.id == id));

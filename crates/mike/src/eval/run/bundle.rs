@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result, ensure};
 
 use super::items::{RunJudge, judge_from_components};
@@ -43,6 +44,7 @@ fn bundle_judge(bundle_id: i64, bundle: Option<&BundleRow>) -> Result<RunJudge> 
 
 pub(crate) async fn load_bundle_judge(persist: &PersistHandle, bundle_id: i64) -> Result<RunJudge> {
     let bundle = persist
+        .eval()
         .get_bundle(bundle_id)
         .await
         .with_context(|| format!("failed to load bundle {bundle_id}"))?;

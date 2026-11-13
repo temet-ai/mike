@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -186,7 +187,11 @@ impl Seeded {
     }
 
     async fn references(&self, input: KnowledgeQuery) -> anyhow::Result<Vec<String>> {
-        let found = self.handle.search_project_knowledge(&input).await?;
+        let found = self
+            .handle
+            .knowledge()
+            .search_project_knowledge(&input)
+            .await?;
         let mut references: Vec<String> = found["items"]
             .as_array()
             .map(|items| {
@@ -201,7 +206,11 @@ impl Seeded {
     }
 
     async fn item(&self, input: KnowledgeQuery, reference: &str) -> anyhow::Result<Value> {
-        let found = self.handle.search_project_knowledge(&input).await?;
+        let found = self
+            .handle
+            .knowledge()
+            .search_project_knowledge(&input)
+            .await?;
         found["items"]
             .as_array()
             .and_then(|items| items.iter().find(|i| i["reference"] == reference).cloned())
@@ -279,7 +288,12 @@ async fn search_with_an_unknown_thread_or_a_bad_date_is_refused_naming_the_input
         thread: Some("no-such-thread".into()),
         ..s.query("note")
     };
-    let Err(refusal) = s.handle.search_project_knowledge(&unknown).await else {
+    let Err(refusal) = s
+        .handle
+        .knowledge()
+        .search_project_knowledge(&unknown)
+        .await
+    else {
         anyhow::bail!("an unknown thread must be refused");
     };
     assert!(
@@ -291,7 +305,7 @@ async fn search_with_an_unknown_thread_or_a_bad_date_is_refused_naming_the_input
         since: Some("11/03/2026".into()),
         ..s.query("note")
     };
-    let Err(refusal) = s.handle.search_project_knowledge(&bad).await else {
+    let Err(refusal) = s.handle.knowledge().search_project_knowledge(&bad).await else {
         anyhow::bail!("a bad date must be refused");
     };
     assert!(refusal.to_string().contains("\"11/03/2026\""), "{refusal}");

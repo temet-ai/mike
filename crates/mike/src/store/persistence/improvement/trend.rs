@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveTime, Utc};
 
+use crate::store::persistence::PersistError;
 use crate::store::persistence::eval_metrics::sql_label_mix::MixWindowRow;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WeeklyShare {
@@ -33,9 +33,9 @@ pub fn weekly_shares(ends: &[DateTime<Utc>], rows: &[MixWindowRow]) -> Vec<Weekl
         .collect()
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_weekly_corrected_share(
-        &self,
+        self,
         now: DateTime<Utc>,
         weeks: i64,
     ) -> Result<Vec<WeeklyShare>, PersistError> {

@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ pub(super) async fn hook(
     payload: &HookPayload,
 ) -> Result<SessionObservation, IngestError> {
     let at = persist
+        .runtime()
         .session_observation_time(session, delivery)
         .await?
         .unwrap_or_else(Utc::now);

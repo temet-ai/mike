@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
@@ -41,13 +42,17 @@ pub(super) async fn run_pass(persist: &PersistHandle) {
 }
 
 async fn attribute_callers(persist: &PersistHandle) {
-    if let Err(error) = persist.attribute_search_callers().await {
+    if let Err(error) = persist.knowledge().attribute_search_callers().await {
         tracing::warn!(error = %error, "search_events: caller attribution failed");
     }
 }
 
 async fn mark_used(persist: &PersistHandle) {
-    match persist.mark_used_search_references(USED_BATCH).await {
+    match persist
+        .knowledge()
+        .mark_used_search_references(USED_BATCH)
+        .await
+    {
         Ok(pass) => report(&pass),
         Err(error) => tracing::warn!(error = %error, "search_events: used-mark pass failed"),
     }

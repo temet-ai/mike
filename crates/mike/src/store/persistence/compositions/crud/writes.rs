@@ -1,7 +1,7 @@
 use serde_json::Value;
 
+use super::super::super::PersistError;
 use super::super::super::agents::find_or_create_agent_in_tx;
-use super::super::super::{PersistError, PersistHandle};
 use super::{
     CompositionRow, DeleteOutcome, NewCompositionParams, OwnedNewComposition,
     PatchCompositionParams,
@@ -24,9 +24,9 @@ async fn resolve_new_composition_agent_id(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn create_composition(
-        &self,
+        self,
         params: NewCompositionParams<'_>,
     ) -> Result<Composition, PersistError> {
         let NewCompositionParams {
@@ -62,7 +62,7 @@ impl PersistHandle {
     }
 
     async fn insert_composition_and_revision(
-        &self,
+        self,
         f: OwnedNewComposition,
     ) -> Result<Composition, PersistError> {
         let mut tx = self.pool.begin().await?;
@@ -180,7 +180,7 @@ impl PersistHandle {
         Ok(())
     }
     pub async fn patch_composition(
-        &self,
+        self,
         id: i64,
         params: PatchCompositionParams<'_>,
     ) -> Result<Option<Composition>, PersistError> {
@@ -286,7 +286,7 @@ impl PersistHandle {
         })
         .await
     }
-    pub(crate) async fn delete_composition(&self, id: i64) -> Result<DeleteOutcome, PersistError> {
+    pub(crate) async fn delete_composition(self, id: i64) -> Result<DeleteOutcome, PersistError> {
         crate::metrics::time_db("delete_composition", async {
             let mut tx = self.pool.begin().await?;
             let referenced: i64 = sqlx::query_scalar!(

@@ -2,6 +2,7 @@ use crate::launch::local_root::{self, RootKey};
 use crate::launch::{LaunchError, backend_for};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::UnsettledFleetLaunch;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::workspace::Liveness;
 
 pub(super) fn key(run: &str, seat: &UnsettledFleetLaunch) -> Option<RootKey> {
@@ -31,7 +32,7 @@ async fn session_ended(persist: &PersistHandle, seat: &UnsettledFleetLaunch) -> 
         return false;
     };
     matches!(
-        persist.fetch_session_liveness(session).await,
+        persist.proxy().fetch_session_liveness(session).await,
         Ok(Some(Liveness::Ended))
     )
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support;
 
 #[tokio::test]

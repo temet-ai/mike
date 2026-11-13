@@ -1,16 +1,16 @@
 use sqlx::PgConnection;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::super::RuntimeWriteOutcome;
 use super::codec::STATE_CODEC_VERSION;
 use super::intake::lock_intake;
 use super::{CodexGeneration, PROJECTOR_VERSION, invariant};
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn begin_codex_projection_generation(
-        &self,
+        self,
         namespace_id: Uuid,
         generation_id: Uuid,
     ) -> Result<CodexGeneration, PersistError> {
@@ -47,7 +47,7 @@ impl PersistHandle {
     }
 
     pub async fn codex_projection_generation(
-        &self,
+        self,
         generation_id: Uuid,
     ) -> Result<Option<CodexGeneration>, PersistError> {
         Ok(sqlx::query_as!(
@@ -62,7 +62,7 @@ impl PersistHandle {
     }
 
     pub async fn active_codex_projection_generation(
-        &self,
+        self,
         namespace_id: Uuid,
     ) -> Result<Option<CodexGeneration>, PersistError> {
         Ok(sqlx::query_as!(
@@ -81,7 +81,7 @@ impl PersistHandle {
     }
 
     pub async fn activate_codex_projection_generation(
-        &self,
+        self,
         generation_id: Uuid,
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         let initial = self

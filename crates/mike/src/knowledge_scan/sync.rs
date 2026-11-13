@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -121,6 +122,7 @@ pub async fn scan_machine(
     };
     report.failed += record_missing_roots(persist, &plan.missing, memo).await?;
     let registered = persist
+        .knowledge()
         .register_knowledge_sources(&source_inputs(plan.present.iter()))
         .await?;
     let mut collected = Vec::new();
@@ -136,6 +138,7 @@ pub async fn scan_machine(
         }
     }
     persist
+        .knowledge()
         .record_knowledge_source_heartbeats(&collected)
         .await?;
     Ok(report)
@@ -156,9 +159,13 @@ async fn record_missing_roots(
     }
     let declared = source_inputs(missing.iter().filter(|(_, spec)| spec.declared));
     if !declared.is_empty() {
-        persist.register_knowledge_sources(&declared).await?;
+        persist
+            .knowledge()
+            .register_knowledge_sources(&declared)
+            .await?;
     }
     let recorded = persist
+        .knowledge()
         .record_knowledge_roots_missing(&source_inputs(missing.iter()))
         .await?;
     Ok(usize::try_from(recorded).unwrap_or(usize::MAX))
@@ -170,7 +177,7 @@ async fn plan_sources(
     claude_home: &Path,
 ) -> Result<Plan, PersistError> {
     let mut plan = Plan::default();
-    for location in persist.locations_on_machine(machine).await? {
+    for location in persist.knowledge().locations_on_machine(machine).await? {
         let mut specs = Vec::from(builtin_specs(&location.root_path, claude_home));
         match declared::read(&location.root_path).await {
             Ok(found) => specs.extend(found.into_iter().map(Spec::from)),
@@ -231,6 +238,7 @@ async fn sync_source(
         Err(error) => {
             memo.submitted.remove(&key);
             persist
+                .knowledge()
                 .record_knowledge_source_failure(source_uuid, &error.to_string())
                 .await?;
             return Err(error.into());
@@ -242,6 +250,7 @@ async fn sync_source(
         return Ok(false);
     }
     let result = persist
+        .knowledge()
         .ingest_knowledge_scan(
             source_uuid,
             &ScanInput {

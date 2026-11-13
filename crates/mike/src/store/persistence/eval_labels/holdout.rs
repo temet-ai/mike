@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 
 use sqlx::{Postgres, Transaction};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::holdout_resplit::{SplitConflictPolicy, resplit_unused_dev, used_dev_turns};
 use super::import::ResolvedTurn;
 use crate::eval::labels::import::holdout::HoldoutPlan;
@@ -98,9 +98,9 @@ fn label_payload(
     serde_json::Value::Array(rows)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn import_holdout(
-        &self,
+        self,
         plan: &HoldoutPlan,
         resolved: &[ResolvedTurn],
         imported_by: &str,
@@ -173,7 +173,7 @@ impl PersistHandle {
     }
 
     pub async fn withdraw_label_batch(
-        &self,
+        self,
         source_key: &str,
         reason: &str,
         withdrawn_by: &str,

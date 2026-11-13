@@ -1,4 +1,5 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, sqlx::FromRow)]
 pub struct ImprovementSummary {
@@ -32,8 +33,8 @@ struct BaseCounts {
     proposals_rejected_7d: i64,
 }
 
-impl PersistHandle {
-    pub async fn improvement_counts(&self) -> Result<ImprovementSummary, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn improvement_counts(self) -> Result<ImprovementSummary, PersistError> {
         crate::metrics::time_db("improvement_counts", async move {
             let base = sqlx::query_as!(
                 BaseCounts,
@@ -88,8 +89,8 @@ impl PersistHandle {
         .await
     }
 
-    async fn guard_counts(&self) -> Result<GuardCounts, PersistError> {
-        let Some(steerer) = self.guard_steerer().await? else {
+    async fn guard_counts(self) -> Result<GuardCounts, PersistError> {
+        let Some(steerer) = self.steerer().guard_steerer().await? else {
             return Ok(GuardCounts::default());
         };
         let counts = sqlx::query!(

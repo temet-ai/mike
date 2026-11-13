@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use uuid::Uuid;
 
 use super::RuntimeWriteOutcome;
@@ -11,26 +12,35 @@ async fn namespace_replay_and_conflicting_durable_scope_are_explicit() -> anyhow
         return Ok(());
     };
     assert_eq!(
-        handle.register_runtime_namespace(&namespace).await?,
+        handle
+            .runtime()
+            .register_runtime_namespace(&namespace)
+            .await?,
         RuntimeWriteOutcome::Unchanged
     );
     let mut changed = namespace.clone();
     changed.id = Uuid::new_v4();
     assert!(matches!(
-        handle.register_runtime_namespace(&changed).await,
+        handle.runtime().register_runtime_namespace(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     changed = namespace.clone();
     changed.runtime = RuntimeKind::Claude;
     assert!(matches!(
-        handle.register_runtime_namespace(&changed).await,
+        handle.runtime().register_runtime_namespace(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     assert_eq!(
-        handle.runtime_namespace(namespace.id).await?,
+        handle.runtime().runtime_namespace(namespace.id).await?,
         Some(namespace)
     );
-    assert!(handle.runtime_namespace(Uuid::new_v4()).await?.is_none());
+    assert!(
+        handle
+            .runtime()
+            .runtime_namespace(Uuid::new_v4())
+            .await?
+            .is_none()
+    );
     handle.pool().close().await;
     db.cleanup().await?;
     Ok(())
@@ -61,34 +71,43 @@ async fn shared_provider_session_has_distinct_child_and_unresolved_fork() -> any
         thread_id: "fork:unresolved".into(),
     });
     assert_eq!(
-        handle.bind_runtime_thread(&descendant).await?,
+        handle.runtime().bind_runtime_thread(&descendant).await?,
         RuntimeWriteOutcome::Inserted
     );
-    assert!(handle.runtime_thread(&parent.provider).await?.is_none());
+    assert!(
+        handle
+            .runtime()
+            .runtime_thread(&parent.provider)
+            .await?
+            .is_none()
+    );
     assert_eq!(
-        handle.bind_runtime_thread(&parent).await?,
+        handle.runtime().bind_runtime_thread(&parent).await?,
         RuntimeWriteOutcome::Inserted
     );
     assert_eq!(
-        handle.bind_runtime_thread(&descendant).await?,
+        handle.runtime().bind_runtime_thread(&descendant).await?,
         RuntimeWriteOutcome::Unchanged
     );
     assert_eq!(
-        handle.runtime_thread_by_session(child).await?,
+        handle.runtime().runtime_thread_by_session(child).await?,
         Some(descendant.clone())
     );
-    assert_eq!(handle.runtime_thread(&parent.provider).await?, Some(parent));
+    assert_eq!(
+        handle.runtime().runtime_thread(&parent.provider).await?,
+        Some(parent)
+    );
     let mut changed = descendant.clone();
     changed.forked_from = None;
     assert!(matches!(
-        handle.bind_runtime_thread(&changed).await,
+        handle.runtime().bind_runtime_thread(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     changed = descendant;
     changed.mike_session_id = seat;
     changed.native_parent = None;
     assert!(matches!(
-        handle.bind_runtime_thread(&changed).await,
+        handle.runtime().bind_runtime_thread(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     handle.pool().close().await;
@@ -102,7 +121,10 @@ async fn provider_thread_id_is_scoped_by_durable_namespace() -> anyhow::Result<(
         return Ok(());
     };
     let second_namespace = namespace();
-    handle.register_runtime_namespace(&second_namespace).await?;
+    handle
+        .runtime()
+        .register_runtime_namespace(&second_namespace)
+        .await?;
     let project =
         test_support::seed_project(handle.pool(), "runtime-scoped-identity-fixture").await?;
     let first_session = Uuid::new_v4();
@@ -117,15 +139,21 @@ async fn provider_thread_id_is_scoped_by_durable_namespace() -> anyhow::Result<(
     let first = binding(first_namespace.id, first_session);
     let second = binding(second_namespace.id, second_session);
     assert_eq!(
-        handle.bind_runtime_thread(&first).await?,
+        handle.runtime().bind_runtime_thread(&first).await?,
         RuntimeWriteOutcome::Inserted
     );
     assert_eq!(
-        handle.bind_runtime_thread(&second).await?,
+        handle.runtime().bind_runtime_thread(&second).await?,
         RuntimeWriteOutcome::Inserted
     );
-    assert_eq!(handle.runtime_thread(&first.provider).await?, Some(first));
-    assert_eq!(handle.runtime_thread(&second.provider).await?, Some(second));
+    assert_eq!(
+        handle.runtime().runtime_thread(&first.provider).await?,
+        Some(first)
+    );
+    assert_eq!(
+        handle.runtime().runtime_thread(&second.provider).await?,
+        Some(second)
+    );
     handle.pool().close().await;
     db.cleanup().await?;
     Ok(())
@@ -138,7 +166,7 @@ async fn thread_binding_missing_session_or_owner_fails_without_writes() -> anyho
     };
     let mut identity = binding(namespace.id, Uuid::new_v4());
     assert!(matches!(
-        handle.bind_runtime_thread(&identity).await,
+        handle.runtime().bind_runtime_thread(&identity).await,
         Err(PersistError::DataInvariant(_))
     ));
     let project =
@@ -152,12 +180,19 @@ async fn thread_binding_missing_session_or_owner_fails_without_writes() -> anyho
     .await?;
     identity.owning_seat_id = Some(Uuid::new_v4());
     assert!(matches!(
-        handle.bind_runtime_thread(&identity).await,
+        handle.runtime().bind_runtime_thread(&identity).await,
         Err(PersistError::DataInvariant(_))
     ));
-    assert!(handle.runtime_thread(&identity.provider).await?.is_none());
     assert!(
         handle
+            .runtime()
+            .runtime_thread(&identity.provider)
+            .await?
+            .is_none()
+    );
+    assert!(
+        handle
+            .runtime()
             .runtime_thread_by_session(identity.mike_session_id)
             .await?
             .is_none()
@@ -188,8 +223,8 @@ async fn deleted_owner_clears_live_fk_and_preserves_historical_binding() -> anyh
     descendant.provider.thread_id = "child:historical-owner".into();
     descendant.owning_seat_id = Some(seat);
     descendant.native_parent = Some(parent.provider.clone());
-    handle.bind_runtime_thread(&parent).await?;
-    handle.bind_runtime_thread(&descendant).await?;
+    handle.runtime().bind_runtime_thread(&parent).await?;
+    handle.runtime().bind_runtime_thread(&descendant).await?;
     sqlx::query!(
         "DELETE FROM sessions.sessions WHERE session_uuid = $1",
         seat
@@ -205,12 +240,18 @@ async fn deleted_owner_clears_live_fk_and_preserves_historical_binding() -> anyh
     .await?;
     assert_eq!(resolved_owner, None);
     assert_eq!(
-        handle.runtime_thread_by_session(child).await?,
+        handle.runtime().runtime_thread_by_session(child).await?,
         Some(descendant.clone())
     );
-    assert!(handle.runtime_thread(&parent.provider).await?.is_none());
+    assert!(
+        handle
+            .runtime()
+            .runtime_thread(&parent.provider)
+            .await?
+            .is_none()
+    );
     assert_eq!(
-        handle.bind_runtime_thread(&descendant).await?,
+        handle.runtime().bind_runtime_thread(&descendant).await?,
         RuntimeWriteOutcome::Unchanged
     );
     handle.pool().close().await;
@@ -230,24 +271,31 @@ async fn unique_codex_thread_mapping_refuses_cross_home_ambiguity() -> anyhow::R
     let first = binding(first_namespace.id, first_session);
     assert!(
         handle
+            .runtime()
             .resolve_unique_codex_session(&first.provider.thread_id)
             .await?
             .is_none()
     );
-    handle.bind_runtime_thread(&first).await?;
+    handle.runtime().bind_runtime_thread(&first).await?;
     assert_eq!(
         handle
+            .runtime()
             .resolve_unique_codex_session(&first.provider.thread_id)
             .await?,
         Some(first_session)
     );
     let second_namespace = namespace();
-    handle.register_runtime_namespace(&second_namespace).await?;
     handle
+        .runtime()
+        .register_runtime_namespace(&second_namespace)
+        .await?;
+    handle
+        .runtime()
         .bind_runtime_thread(&binding(second_namespace.id, second_session))
         .await?;
     assert!(
         handle
+            .runtime()
             .resolve_unique_codex_session(&first.provider.thread_id)
             .await?
             .is_none()

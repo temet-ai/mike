@@ -1,9 +1,9 @@
 use super::ChangeMark;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn injectable_lesson_vectors_fingerprint(
-        &self,
+        self,
     ) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("injectable_lesson_vectors_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
@@ -20,7 +20,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn injectable_lesson_vectors(
-        &self,
+        self,
         model: &str,
     ) -> Result<Vec<(i64, Vec<f32>)>, PersistError> {
         let model = model.to_owned();

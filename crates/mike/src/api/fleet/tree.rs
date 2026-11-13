@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use std::collections::BTreeSet;
@@ -32,6 +33,7 @@ pub(crate) async fn historical_run(
 ) -> Result<(FleetRow, FleetDefinition, String), DefinitionError> {
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
     let row = persist
+        .fleet()
         .find_fleet(key)
         .await?
         .ok_or_else(|| DefinitionError::NotFound(key.to_string()))?;
@@ -124,12 +126,14 @@ pub(crate) async fn get_fleet_results(
     let limit = query.limit.unwrap_or(20).clamp(1, 200);
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
     let rows = persist
+        .fleet()
         .tree_results(&run, query.command.as_deref(), since, limit)
         .await?;
     let earliest = rows.iter().filter_map(|r| r.started_at).min();
     let changed = match earliest {
         Some(at) => {
             persist
+                .fleet()
                 .tree_changed_paths_since(&run, at - Duration::microseconds(1))
                 .await?
         }
@@ -172,7 +176,10 @@ async fn waiting_for_slot(
     if rows.iter().all(|r| r.finished_at.is_some()) {
         return Ok(BTreeSet::new());
     }
-    let open = persist.tree_results(run, None, window, OPEN_READ).await?;
+    let open = persist
+        .fleet()
+        .tree_results(run, None, window, OPEN_READ)
+        .await?;
     Ok(waiting_uses(&open, &def.wrappers, &def.execution))
 }
 

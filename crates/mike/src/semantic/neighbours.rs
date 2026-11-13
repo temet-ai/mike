@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -125,6 +126,7 @@ impl Retriever<'_> {
     ) -> Result<Subject, SemanticError> {
         let mut facets = self
             .persist
+            .knowledge()
             .semantic_subject_facets(turn_id, &embedder.embedder_key)
             .await?;
         if facets.is_empty()
@@ -139,10 +141,15 @@ impl Retriever<'_> {
             builder.ensure_turn_items(turn_id).await?;
             facets = self
                 .persist
+                .knowledge()
                 .semantic_subject_facets(turn_id, &embedder.embedder_key)
                 .await?;
         }
-        let source = self.persist.semantic_turn_source(turn_id).await?;
+        let source = self
+            .persist
+            .knowledge()
+            .semantic_turn_source(turn_id)
+            .await?;
         Ok(Subject {
             facets,
             session_id: source.as_ref().map(|s| s.session_id),
@@ -174,14 +181,18 @@ impl Retriever<'_> {
         Ok(Subject {
             facets,
             session_id: Some(session_id),
-            project_id: self.persist.semantic_session_project(session_id).await?,
+            project_id: self
+                .persist
+                .knowledge()
+                .semantic_session_project(session_id)
+                .await?,
             turn_id: None,
         })
     }
 
     pub async fn neighbours(&self, q: &SemanticQuery) -> Result<NeighbourSet, SemanticError> {
         validate(q, self.live_consumer)?;
-        let Some(embedder) = self.persist.current_semantic_embedder().await? else {
+        let Some(embedder) = self.persist.knowledge().current_semantic_embedder().await? else {
             return Ok(empty(q, "no_embedder", None));
         };
         let subject = match &q.subject {
@@ -217,6 +228,7 @@ impl Retriever<'_> {
         for kind in &q.kinds {
             let rows = self
                 .persist
+                .knowledge()
                 .semantic_candidates(kind.code(), &self.search(q, &embedder, &subject))
                 .await?;
             all.extend(score_rows(*kind, rows, &floors, subject.session_id));

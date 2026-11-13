@@ -3,6 +3,7 @@ use super::check_run::baseline::diagnostics;
 use super::definition::FleetDefinition;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::TreeCheckRow;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Verifier<'a> {
@@ -65,7 +66,7 @@ async fn gather(
         Ok(state) => state,
         Err(why) => return Evidence::Unchecked(why),
     };
-    match persist.find_tree_check(verifier.run, &state).await {
+    match persist.fleet().find_tree_check(verifier.run, &state).await {
         Ok(Some(row)) => judge(def, &row, paths),
         Ok(None) => Evidence::Unchecked(format!(
             "mike runs `{}` at this commit (state {}) in its clean checkout once it lands, and records the verdict against it; fleet_check reads it",

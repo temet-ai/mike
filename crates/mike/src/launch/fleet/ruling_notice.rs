@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::definition::FleetDefinition;
@@ -43,7 +45,11 @@ pub async fn prompt(
     let Some(acceptance) = super::report::acceptance_session(def) else {
         return String::new();
     };
-    let fleet = match persist.find_fleet_header_for_session(acceptance).await {
+    let fleet = match persist
+        .fleet()
+        .find_fleet_header_for_session(acceptance)
+        .await
+    {
         Ok(Some(fleet)) if fleet.run_id.as_deref() == Some(run) => fleet,
         Ok(_) => return String::new(),
         Err(err) => return format!("Executable ruling list is unavailable: {err}"),
@@ -72,6 +78,7 @@ async fn notify(persist: &PersistHandle, note: &SessionNoteRow) -> Result<(), St
         .find_map(|tag| tag.strip_prefix("fleet:"))
         .ok_or("ruling has no fleet")?;
     let row = persist
+        .fleet()
         .find_fleet(fleet)
         .await
         .map_err(|err| err.to_string())?
@@ -84,12 +91,14 @@ async fn notify(persist: &PersistHandle, note: &SessionNoteRow) -> Result<(), St
             continue;
         };
         let closed = persist
+            .launch()
             .closed_fleet_seat(session)
             .await
             .map_err(|err| err.to_string())?;
         let target = closed.map_or(Some(session), |closed| closed.successor);
         if let Some(target) = target {
             persist
+                .launch()
                 .insert_message(Uuid::new_v4(), target, None, &list(&entries, &task))
                 .await
                 .map_err(|err| err.to_string())?;

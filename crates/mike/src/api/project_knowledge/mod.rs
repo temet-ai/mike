@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -40,6 +41,7 @@ pub(crate) async fn locations(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .list_project_locations(query.include_all)
         .await
         .map(Json)
@@ -53,6 +55,7 @@ pub(crate) async fn register_location(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .register_project_location(&input)
         .await
         .map(Json)
@@ -66,6 +69,7 @@ pub(crate) async fn register_source(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .register_knowledge_source(&input)
         .await
         .map(Json)
@@ -80,6 +84,7 @@ pub(crate) async fn scan(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .ingest_knowledge_scan(source, &input)
         .await
         .map(Json)
@@ -164,6 +169,7 @@ pub(crate) async fn lesson_files(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .lesson_files(input.location_uuid)
         .await
         .map(Json)
@@ -177,6 +183,7 @@ pub(crate) async fn import_lesson(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .import_lesson_file(&input)
         .await
         .map(Json)
@@ -196,6 +203,7 @@ pub(crate) async fn acknowledge_lessons(
     state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .acknowledge_lesson_files(input.location_uuid, input.receipts)
         .await
         .map_err(knowledge_error)?;
@@ -215,6 +223,7 @@ pub(crate) async fn define_project(
     let project = state
         .persist()
         .ok_or_else(persist_unavailable_response)?
+        .knowledge()
         .define_knowledge_project(&input.name, input.project_uuid.unwrap_or_else(Uuid::new_v4))
         .await
         .map_err(knowledge_error)?;

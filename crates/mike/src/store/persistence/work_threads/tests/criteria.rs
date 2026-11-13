@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::super::MetaUpdate;
@@ -31,6 +32,7 @@ async fn thread_with_criteria(
         ..MetaUpdate::default()
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &checkpoint)
         .await?;
     Ok(())
@@ -53,6 +55,7 @@ async fn thread_criteria_linked_session_thread_wins_over_a_mentioned_one() -> an
 
     let found = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "please continue thread: crit-named")
         .await?;
 
@@ -76,6 +79,7 @@ async fn thread_criteria_unlinked_session_falls_back_to_the_mentioned_project_th
 
     let second = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "work on #crit-base-two today")
         .await?
         .ok_or_else(|| anyhow::anyhow!("no criteria found for the longer slug"))?;
@@ -84,6 +88,7 @@ async fn thread_criteria_unlinked_session_falls_back_to_the_mentioned_project_th
 
     let base = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "see artifacts/threads/crit-base/worklog.md")
         .await?
         .ok_or_else(|| anyhow::anyhow!("no criteria found for the path mention"))?;
@@ -92,6 +97,7 @@ async fn thread_criteria_unlinked_session_falls_back_to_the_mentioned_project_th
 
     let bare = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "thread: crit-bare")
         .await?;
     assert_eq!(bare, None);
@@ -109,11 +115,13 @@ async fn thread_criteria_without_a_link_or_mention_is_none() -> anyhow::Result<(
 
     let unrelated = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "fix the flaky test")
         .await?;
     assert_eq!(unrelated, None);
     let empty = f
         .handle
+        .launch()
         .fetch_thread_criteria_for_session(session_id, "")
         .await?;
     assert_eq!(empty, None);

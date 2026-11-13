@@ -1,4 +1,5 @@
 use crate::db_helpers;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use chrono::Utc;
 use mike::store::persistence::PersistHandle;
@@ -25,6 +26,7 @@ async fn session_overview_carries_embedding_knowledge_and_related_sessions() -> 
 
     let now = Utc::now();
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -35,6 +37,7 @@ async fn session_overview_carries_embedding_knowledge_and_related_sessions() -> 
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(4.0),
@@ -45,6 +48,7 @@ async fn session_overview_carries_embedding_knowledge_and_related_sessions() -> 
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_knowledge(
             a_uuid,
             &["bug fix".to_string(), "session judge".to_string()],
@@ -132,6 +136,7 @@ async fn create_lesson_with_session_id_returns_related_sessions_and_neighbour_le
 
     let now = Utc::now();
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -142,6 +147,7 @@ async fn create_lesson_with_session_id_returns_related_sessions_and_neighbour_le
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(4.0),

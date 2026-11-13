@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionNeighbour {
@@ -50,8 +50,8 @@ pub struct ProjectGraphEdge {
     pub similarity: f64,
 }
 
-impl PersistHandle {
-    pub async fn refresh_project_centroids(&self) -> Result<usize, PersistError> {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    pub async fn refresh_project_centroids(self) -> Result<usize, PersistError> {
         crate::metrics::time_db("refresh_project_centroids", async move {
             let written = sqlx::query_file_scalar!(
                 "src/store/persistence/session_embeddings/refresh_project_centroids.sql"
@@ -64,7 +64,7 @@ impl PersistHandle {
     }
 
     pub async fn nearest_sessions(
-        &self,
+        self,
         session_id: Uuid,
         k: i64,
         same_project: bool,
@@ -98,7 +98,7 @@ impl PersistHandle {
     }
 
     pub async fn pairwise_session_similarities(
-        &self,
+        self,
         session_ids: &[Uuid],
     ) -> Result<Vec<(Uuid, Uuid, f64)>, PersistError> {
         crate::metrics::time_db("pairwise_session_similarities", async move {
@@ -114,7 +114,7 @@ impl PersistHandle {
     }
 
     pub async fn project_session_graph(
-        &self,
+        self,
         project_id: i64,
         limit: i64,
         min_similarity: f64,
@@ -147,7 +147,7 @@ impl PersistHandle {
     }
 
     pub async fn project_centroid_status(
-        &self,
+        self,
         project_id: i64,
     ) -> Result<ProjectCentroidStatus, PersistError> {
         crate::metrics::time_db("project_centroid_status", async move {
@@ -177,7 +177,7 @@ impl PersistHandle {
     }
 
     pub async fn sibling_projects(
-        &self,
+        self,
         project_id: i64,
         k: i64,
     ) -> Result<Vec<SiblingProject>, PersistError> {
@@ -195,10 +195,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn fetch_project_path(
-        &self,
-        project_id: i64,
-    ) -> Result<Option<String>, PersistError> {
+    pub async fn fetch_project_path(self, project_id: i64) -> Result<Option<String>, PersistError> {
         crate::metrics::time_db("fetch_project_path", async move {
             let project_path = sqlx::query_scalar!(
                 "SELECT project_path FROM projects.projects WHERE id = $1",

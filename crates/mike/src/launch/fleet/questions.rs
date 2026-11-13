@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -49,16 +51,17 @@ pub async fn ask_and_mail(
     note: Option<&NoteRef>,
 ) -> Result<(QuestionRow, bool), PersistError> {
     if let Some(to) = new.to_session
-        && let Some(closed) = persist.closed_fleet_seat(to).await?
+        && let Some(closed) = persist.launch().closed_fleet_seat(to).await?
     {
         return Err(PersistError::DataInvariant(closed.refusal(to)));
     }
-    let row = persist.ask_question(new).await?;
+    let row = persist.launch().ask_question(new).await?;
     record_asked(persist, &row).await;
     let Some(to) = row.to_session else {
         return Ok((row, false));
     };
     let mailed = match persist
+        .launch()
         .insert_message(Uuid::new_v4(), to, Some(row.asker), &asked_mail(&row, note))
         .await
     {
@@ -108,7 +111,7 @@ async fn append(persist: &PersistHandle, event: Option<NewFleetEvent>, what: &st
     let Some(event) = event else {
         return;
     };
-    if let Err(err) = persist.append_fleet_event(&event).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&event).await {
         tracing::warn!(error = %err, what, "fleet: could not record a question event");
     }
 }
@@ -161,7 +164,7 @@ pub async fn blocked_waiting_since(
     run: &str,
     (now, minutes): (DateTime<Utc>, i32),
 ) -> Vec<QuestionRow> {
-    match persist.open_questions_in_run(run).await {
+    match persist.launch().open_questions_in_run(run).await {
         Ok(rows) => rows
             .into_iter()
             .filter(|q| q.blocked && waited_minutes(q, now) >= i64::from(minutes))
@@ -174,7 +177,7 @@ pub async fn blocked_waiting_since(
 }
 
 async fn claim_due(persist: &PersistHandle, run: &str, minutes: i32) -> Vec<QuestionRow> {
-    match persist.escalate_due_questions(run, minutes).await {
+    match persist.launch().escalate_due_questions(run, minutes).await {
         Ok(due) => due,
         Err(err) => {
             tracing::warn!(%run, error = %err, "fleet: could not claim the blocked questions due for the reference seat");
@@ -190,6 +193,7 @@ async fn mail_reference(
 ) -> Option<Uuid> {
     let body = escalation_mail(question, Utc::now());
     match persist
+        .launch()
         .insert_message(Uuid::new_v4(), reference, None, &body)
         .await
     {

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct JudgeAttemptKey<'a> {
@@ -9,9 +9,9 @@ pub struct JudgeAttemptKey<'a> {
     pub rubric_version: i32,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn skip_repeated_digest(
-        &self,
+        self,
         key: &JudgeAttemptKey<'_>,
         digest: &[u8],
         at: DateTime<Utc>,
@@ -36,7 +36,7 @@ impl PersistHandle {
     }
 
     pub async fn record_judged_digest(
-        &self,
+        self,
         key: &JudgeAttemptKey<'_>,
         digest: &[u8],
     ) -> Result<(), PersistError> {

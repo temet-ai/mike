@@ -1,4 +1,6 @@
 use mike::steerer::guard_test_seams::{SeamTurn, arm_draw, evaluate_guard_turn};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -26,7 +28,7 @@ async fn wait_turn(f: &Fixture, start: i64) -> anyhow::Result<i64> {
     let t = insert_turn(f, &NewTurn::closed(start, start, 0, 30)).await?;
     let mut row = crate::turn_facts::sample_row(t, f.session_id, chrono::Utc::now());
     row.session_class = "operator".to_owned();
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(t)
 }
 
@@ -39,6 +41,7 @@ async fn held_back_would_fire_is_live_with_no_intervention_and_gets_a_label_cand
     let server = openrouter().await;
     let steerer = f
         .handle
+        .steerer()
         .guard_steerer()
         .await?
         .map(|g| g.id)
@@ -97,7 +100,11 @@ async fn held_back_would_fire_is_live_with_no_intervention_and_gets_a_label_cand
         .bind(turn_id)
         .execute(f.handle.pool())
         .await?;
-    let candidates = f.handle.guard_label_candidates(steerer, 200, false).await?;
+    let candidates = f
+        .handle
+        .steerer()
+        .guard_label_candidates(steerer, 200, false)
+        .await?;
     assert!(
         candidates.iter().any(|c| c.operator_turn_id == turn_id),
         "held-back rows are labelled"
@@ -144,6 +151,7 @@ async fn a_session_at_its_note_limit_is_still_judged_but_gets_no_guard_note() ->
     let server = openrouter().await;
     let steerer = f
         .handle
+        .steerer()
         .guard_steerer()
         .await?
         .map(|g| g.id)

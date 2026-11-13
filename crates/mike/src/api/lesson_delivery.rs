@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -139,6 +140,7 @@ async fn record_arm(state: &AppState, session: &str, arm: Arm, lessons: &[Delive
     let count = i32::try_from(lessons.len()).unwrap_or(i32::MAX);
     let bytes = i64::try_from(bytes).unwrap_or(i64::MAX);
     if let Err(error) = persist
+        .lessons()
         .record_lesson_delivery(session, arm.as_str(), count, bytes)
         .await
     {

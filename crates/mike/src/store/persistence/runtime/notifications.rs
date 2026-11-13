@@ -1,9 +1,9 @@
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn reconcile_runtime_mail_outbox(&self) -> Result<i64, PersistError> {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
+    pub async fn reconcile_runtime_mail_outbox(self) -> Result<i64, PersistError> {
         Ok(
             sqlx::query_file_scalar!("src/store/persistence/runtime/reconcile_mail.sql")
                 .fetch_one(self.pool())
@@ -12,7 +12,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_mail_notification_state(
-        &self,
+        self,
         message: Uuid,
     ) -> Result<Option<String>, PersistError> {
         Ok(sqlx::query_scalar!(
@@ -25,7 +25,7 @@ impl PersistHandle {
     }
 
     pub async fn reserve_runtime_mail_notification(
-        &self,
+        self,
         session: Uuid,
         message: Uuid,
     ) -> Result<bool, PersistError> {
@@ -45,7 +45,7 @@ impl PersistHandle {
     }
 
     pub async fn finish_runtime_mail_notification(
-        &self,
+        self,
         message: Uuid,
         state: &str,
         detail: Option<&str>,
@@ -67,7 +67,7 @@ impl PersistHandle {
     }
 
     pub async fn pending_runtime_mail(
-        &self,
+        self,
         session: Uuid,
         limit: i64,
     ) -> Result<Vec<Uuid>, PersistError> {

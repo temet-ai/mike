@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -56,17 +57,20 @@ impl CrossSessionSnapshot {
         as_of: DateTime<Utc>,
         settings: CrossSessionSettings,
     ) -> Result<Self, PersistError> {
-        let guard = persist.guard_steerer().await?.map(|g| g.id);
-        let rollup = persist.rollup_as_of(as_of).await?;
+        let guard = persist.steerer().guard_steerer().await?.map(|g| g.id);
+        let rollup = persist.steerer().rollup_as_of(as_of).await?;
         let (rows, thresholds) = match (rollup, guard) {
             (Some(r), Some(g)) => (
-                persist.fetch_calibration_rows(r.id, g).await?,
-                persist.thresholds_in_force(g, as_of).await?,
+                persist.steerer().fetch_calibration_rows(r.id, g).await?,
+                persist.steerer().thresholds_in_force(g, as_of).await?,
             ),
-            (None, Some(g)) => (Vec::new(), persist.thresholds_in_force(g, as_of).await?),
+            (None, Some(g)) => (
+                Vec::new(),
+                persist.steerer().thresholds_in_force(g, as_of).await?,
+            ),
             _ => (Vec::new(), Vec::new()),
         };
-        let fire_thresholds = persist.fire_thresholds_in_force(as_of).await?;
+        let fire_thresholds = persist.steerer().fire_thresholds_in_force(as_of).await?;
         Ok(Self {
             as_of: Some(as_of),
             guard_steerer_id: guard,

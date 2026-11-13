@@ -3,7 +3,7 @@ use serde_json::Value as JsonValue;
 
 use super::channel_touch::{ChannelReading, ChannelTouch, supersedes};
 use super::{CallInsertParams, PATH_HEARTBEAT, RemoteControlCall};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 const BATCH_ATTEMPTS: usize = 3;
 
@@ -133,9 +133,9 @@ impl Transitions {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn record_remote_control_calls(
-        &self,
+        self,
         calls: &[RemoteControlCall<'_>],
     ) -> Result<Vec<i64>, PersistError> {
         let params: Vec<CallInsertParams> = calls.iter().map(CallInsertParams::build).collect();
@@ -164,7 +164,7 @@ impl PersistHandle {
         Ok(ids)
     }
 
-    async fn write_with_retry(&self, batch: &Batch<'_, '_>) -> Result<Vec<i64>, PersistError> {
+    async fn write_with_retry(self, batch: &Batch<'_, '_>) -> Result<Vec<i64>, PersistError> {
         let mut attempt = 1;
         loop {
             match self.write_batch(batch).await {
@@ -178,7 +178,7 @@ impl PersistHandle {
         }
     }
 
-    async fn write_batch(&self, batch: &Batch<'_, '_>) -> Result<Vec<i64>, PersistError> {
+    async fn write_batch(self, batch: &Batch<'_, '_>) -> Result<Vec<i64>, PersistError> {
         let mut tx = self.pool.begin().await?;
         let channel = batch.touch.apply(&mut tx).await?;
         let transitions = Transitions::replay(&channel, batch.params, batch.calls);

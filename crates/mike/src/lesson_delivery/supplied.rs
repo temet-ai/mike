@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -173,6 +174,7 @@ async fn record_lessons(
     lessons: &[SuppliedLesson],
 ) {
     let written = persist
+        .lessons()
         .record_supplied_lessons(request_id, session, lessons)
         .await;
     if let Err(error) = written {
@@ -187,6 +189,7 @@ async fn record_proxy_cards(
     cards: &[CarriedCard],
 ) {
     let written = persist
+        .lessons()
         .record_supplied_cards(request_id, session, cards)
         .await;
     match written {
@@ -206,6 +209,7 @@ async fn retry_cards(
     cards: &[CarriedCard],
 ) {
     let written = persist
+        .lessons()
         .record_supplied_cards(request_id, session, cards)
         .await;
     if let Err(error) = written {

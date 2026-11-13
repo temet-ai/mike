@@ -1,4 +1,5 @@
 use super::sync::{ScanMemo, encode_project_dir, scan_machine};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, LocationInput, ModelKeys, ShownGuidance,
 };
@@ -25,6 +26,7 @@ async fn register(
     root: &Path,
 ) -> anyhow::Result<Uuid> {
     let row = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.into(),
             machine_uuid: machine,
@@ -222,6 +224,7 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
     scan_machine(&handle, machine, home.path(), &mut ScanMemo::default()).await?;
 
     let rows = handle
+        .knowledge()
         .closest_guidance(
             project_id,
             "you claimed the tests pass without running the test suite",
@@ -235,6 +238,7 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
     assert!(rows[0].body.contains("Always run the test suite"));
 
     let skills = handle
+        .knowledge()
         .closest_guidance(project_id, "worktree inside the repository", None, 3)
         .await?;
     assert_eq!(skills.len(), 1);
@@ -242,12 +246,14 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
     assert_eq!(skills[0].display_name(), "worktree-rules");
     assert!(
         handle
+            .knowledge()
             .closest_guidance(project_id, "   ", None, 3)
             .await?
             .is_empty()
     );
     assert!(
         handle
+            .knowledge()
             .closest_guidance(other_id, "worktree inside the repository", None, 3)
             .await?
             .is_empty()
@@ -275,12 +281,14 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
     )?;
     scan_machine(&handle, machine, home.path(), &mut ScanMemo::default()).await?;
     let rows = handle
+        .knowledge()
         .closest_guidance(project_id, "run the test suite", None, 3)
         .await?;
     assert_eq!(rows.len(), 1);
 
     let verdict: i64 = 41;
     handle
+        .knowledge()
         .record_proposal_guidance(
             verdict,
             project_id,
@@ -291,6 +299,7 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
         )
         .await?;
     handle
+        .knowledge()
         .record_proposal_guidance(
             verdict,
             project_id,
@@ -310,6 +319,7 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
     assert_eq!(counts, (1, 1));
 
     let found = handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: "/test/scan-find".into(),
             query: "run the test suite".into(),
@@ -374,6 +384,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         "nomic-embed-text-v1.5".to_owned(),
     );
     let rows = handle
+        .knowledge()
         .closest_guidance(project_id, "anything at all", Some(&vector), 3)
         .await?;
     assert_eq!(rows.len(), 1);
@@ -385,6 +396,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         "nomic-embed-text-v1.5".to_owned(),
     );
     let none = handle
+        .knowledge()
         .closest_guidance(project_id, "zzzz qqqq", Some(&other_model), 3)
         .await?;
     assert!(none.is_empty());
@@ -394,6 +406,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         "all-minilm".to_owned(),
     );
     let every = handle
+        .knowledge()
         .closest_guidance(project_id, "anything at all", Some(&unmeasured), 3)
         .await?;
     assert_eq!(every.len(), 2);

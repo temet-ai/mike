@@ -1,9 +1,9 @@
 use super::ModelKeys;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn knowledge_nearest_first(
-        &self,
+        self,
         project_id: i64,
         keys: &ModelKeys,
     ) -> Result<bool, PersistError> {
@@ -16,7 +16,7 @@ impl PersistHandle {
     }
 
     async fn count_nearest_first(
-        &self,
+        self,
         project_id: i64,
         keys: &ModelKeys,
     ) -> Result<bool, PersistError> {

@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -53,7 +54,7 @@ async fn discover_idle_and_daily_projects_filter_by_stage() -> anyhow::Result<()
     .execute(&pool)
     .await?;
 
-    let idle = handle.discover_idle_projects(3600).await?;
+    let idle = handle.lessons().discover_idle_projects(3600).await?;
     assert!(idle.contains(&idle_proj), "idle project must be discovered");
     assert!(
         !idle.contains(&fresh_proj),
@@ -64,7 +65,7 @@ async fn discover_idle_and_daily_projects_filter_by_stage() -> anyhow::Result<()
         "a daily-only project has no raw/un-embedded lessons → not idle"
     );
 
-    let daily = handle.discover_daily_projects().await?;
+    let daily = handle.lessons().discover_daily_projects().await?;
     assert!(
         daily.contains(&daily_proj),
         "daily project must be discovered"

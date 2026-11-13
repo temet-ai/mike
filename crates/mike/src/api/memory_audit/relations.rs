@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -95,10 +96,14 @@ pub(crate) async fn list_lesson_relations(
         limit: clamp_limit(params.limit),
         offset: clamp_offset(params.offset),
     };
-    let (total_count, rows) = handle.list_relations(&filter).await.map_err(|e| {
-        tracing::warn!(error = %e, "list_lesson_relations: query failed");
-        persist_error_response(e)
-    })?;
+    let (total_count, rows) = handle
+        .lessons()
+        .list_relations(&filter)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "list_lesson_relations: query failed");
+            persist_error_response(e)
+        })?;
     Ok(Json(Paged {
         items: rows.into_iter().map(LessonRelationDto::from).collect(),
         total_count,
@@ -144,6 +149,7 @@ pub(crate) async fn confirm_lesson_relation(
         return Err(persist_unavailable_response());
     };
     let outcome = handle
+        .lessons()
         .confirm_relation(relation_id, "operator")
         .await
         .map_err(|e| {
@@ -163,6 +169,7 @@ pub(crate) async fn reject_lesson_relation(
         return Err(persist_unavailable_response());
     };
     let outcome = handle
+        .lessons()
         .reject_relation(relation_id, "operator")
         .await
         .map_err(|e| {
@@ -182,6 +189,7 @@ pub(crate) async fn list_lesson_relations_for_lesson(
         return Err(persist_unavailable_response());
     };
     let rows = handle
+        .lessons()
         .list_relations_for_lesson(lesson_id)
         .await
         .map_err(|e| {

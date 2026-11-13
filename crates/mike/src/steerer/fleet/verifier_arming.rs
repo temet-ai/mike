@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -14,7 +15,7 @@ async fn fetch_arming_history_or_default(
     ph: &PersistHandle,
     session_db_id: i64,
 ) -> ArmingHistoryRow {
-    match ph.fetch_arming_history(session_db_id).await {
+    match ph.steerer().fetch_arming_history(session_db_id).await {
         Ok(h) => h,
         Err(e) => {
             warn!(
@@ -36,6 +37,7 @@ async fn fetch_prior_fires_digest(
     steerer_id: i64,
 ) -> String {
     let prior_fires = match ph
+        .steerer()
         .fetch_prior_fires_for_session(session_db_id, steerer_id, 10)
         .await
     {

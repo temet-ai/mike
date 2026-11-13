@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::projection::{ProjectionMode, ProjectionParams};
 use mike::store::persistence::session_end::SessionVerdictV3Row;
 
@@ -70,6 +71,7 @@ async fn a_shadow_verdict_is_never_read_by_projection() -> anyhow::Result<()> {
     let before_insert = projected(&f, ending).await?;
     let verdict_id = f
         .handle
+        .eval()
         .insert_session_verdict_v3(&shadow_row(
             ending,
             f.session_id,

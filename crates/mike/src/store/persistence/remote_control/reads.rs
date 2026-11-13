@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone)]
 pub struct ChannelSnapshotRow {
@@ -29,9 +29,9 @@ pub struct WorkerStatusTransitionRow {
     pub call_id: Option<i64>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn fetch_channel_snapshots(
-        &self,
+        self,
         session_uuids: &[Uuid],
     ) -> Result<Vec<ChannelSnapshotRow>, PersistError> {
         crate::metrics::time_db("remote_control_fetch_channel_snapshots", async move {
@@ -84,7 +84,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_worker_status_history(
-        &self,
+        self,
         session_uuid: Uuid,
         limit: i64,
     ) -> Result<Vec<WorkerStatusTransitionRow>, PersistError> {

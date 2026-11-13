@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -112,6 +113,7 @@ pub(super) async fn save(
     let mut definition = row.definition.clone();
     definition["retrospective_job"] = json!(job);
     let saved = persist
+        .fleet()
         .save_fleet_definition(row.fleet_uuid, &definition, &row.missing, row.updated_at)
         .await?;
     Ok(saved.map(|updated_at| row.saved(definition, row.missing.clone(), updated_at)))
@@ -123,7 +125,11 @@ pub(super) async fn stage(
     run: &str,
 ) -> Result<bool, PersistError> {
     for _ in 0..3 {
-        let Some(fresh) = persist.find_fleet(&row.fleet_uuid.to_string()).await? else {
+        let Some(fresh) = persist
+            .fleet()
+            .find_fleet(&row.fleet_uuid.to_string())
+            .await?
+        else {
             return Ok(false);
         };
         let def =
@@ -139,6 +145,7 @@ pub(super) async fn stage(
             return Ok(false);
         }
         let roster = persist
+            .fleet()
             .fleet_seat_rows(run)
             .await?
             .into_iter()

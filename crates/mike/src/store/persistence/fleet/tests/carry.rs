@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::Utc;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -27,6 +30,7 @@ async fn world() -> anyhow::Result<Option<World>> {
     let project_id = seed_project(pool, "/tmp/fleet-a").await?;
     let fleet = f
         .handle
+        .fleet()
         .insert_fleet(&new_fleet("carry-fleet", "/tmp/fleet-a"))
         .await?
         .fleet_uuid;
@@ -57,6 +61,7 @@ async fn write_note(
     };
     Ok(w.f
         .handle
+        .launch()
         .create_session_note(session, note)
         .await?
         .note_uuid)
@@ -83,7 +88,7 @@ async fn a_note_marked_carry_becomes_one_lesson_candidate_for_the_project_and_di
     };
     write_note(&w, w.author, TITLE, &[], &carry_data("db-dev")).await?;
 
-    let queue = w.f.handle.list_lesson_candidates(10).await?;
+    let queue = w.f.handle.lessons().list_lesson_candidates(10).await?;
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0].source, "carry");
     assert_eq!(queue[0].stage, "raw");
@@ -113,11 +118,14 @@ async fn saving_the_same_note_again_neither_adds_a_candidate_nor_moves_a_count()
         body: Some("edited body"),
         ..SessionNoteUpdate::default()
     };
-    w.f.handle.update_session_note(note, again).await?;
+    w.f.handle.launch().update_session_note(note, again).await?;
     let outcome = after_note(&w.f.handle, note, &[], &carry_data("db-dev")).await;
 
     assert_eq!(outcome, CarryOutcome::AlreadyCandidate);
-    assert_eq!(w.f.handle.list_lesson_candidates(10).await?.len(), 1);
+    assert_eq!(
+        w.f.handle.lessons().list_lesson_candidates(10).await?.len(),
+        1
+    );
     assert_eq!(counts(&w).await?, vec![(0, 0)]);
     w.f.db.cleanup().await
 }
@@ -145,10 +153,13 @@ async fn a_later_finding_with_the_tag_moves_the_finding_count_once_however_often
         body: Some("more"),
         ..SessionNoteUpdate::default()
     };
-    w.f.handle.update_session_note(finding, touch).await?;
+    w.f.handle
+        .launch()
+        .update_session_note(finding, touch)
+        .await?;
 
     assert_eq!(counts(&w).await?, vec![(0, 1)]);
-    let queue = w.f.handle.list_lesson_candidates(10).await?;
+    let queue = w.f.handle.lessons().list_lesson_candidates(10).await?;
     assert_eq!(queue[0].carry_later_findings, Some(1));
     w.f.db.cleanup().await
 }
@@ -165,7 +176,10 @@ async fn a_second_carry_note_with_the_same_title_counts_against_the_first_candid
     write_note(&w, other, TITLE, &[], &carry_data("db-dev")).await?;
     write_note(&w, other, TITLE, &[], &carry_data("rust-developer")).await?;
 
-    assert_eq!(w.f.handle.list_lesson_candidates(10).await?.len(), 2);
+    assert_eq!(
+        w.f.handle.lessons().list_lesson_candidates(10).await?.len(),
+        2
+    );
     assert_eq!(counts(&w).await?, vec![(0, 1), (0, 0)]);
     w.f.db.cleanup().await
 }
@@ -177,7 +191,7 @@ async fn an_approved_item_is_read_at_warm_up_and_counted_once_per_run() -> anyho
     };
     let fleet = w.fleet.to_string();
     write_note(&w, w.author, TITLE, &[], &carry_data("db-dev")).await?;
-    let lesson = w.f.handle.list_lesson_candidates(10).await?[0].id;
+    let lesson = w.f.handle.lessons().list_lesson_candidates(10).await?[0].id;
 
     assert!(
         warm_lines(&w.f.handle, &fleet, "run-1", &["db-dev"])
@@ -187,6 +201,7 @@ async fn an_approved_item_is_read_at_warm_up_and_counted_once_per_run() -> anyho
     assert_eq!(counts(&w).await?, vec![(0, 0)]);
 
     w.f.handle
+        .lessons()
         .approve_lesson_candidate(lesson, None, "operator")
         .await?;
     let first = warm_lines(&w.f.handle, &fleet, "run-1", &["db-dev", "db-dev-agent"]).await;
@@ -213,8 +228,9 @@ async fn a_rejected_item_is_not_read_at_warm_up() -> anyhow::Result<()> {
         return Ok(());
     };
     write_note(&w, w.author, TITLE, &[], &carry_data("db-dev")).await?;
-    let lesson = w.f.handle.list_lesson_candidates(10).await?[0].id;
+    let lesson = w.f.handle.lessons().list_lesson_candidates(10).await?[0].id;
     w.f.handle
+        .lessons()
         .reject_lesson_candidate(lesson, "other", None)
         .await?;
 
@@ -252,7 +268,13 @@ async fn a_carry_note_with_no_discipline_to_name_writes_nothing() -> anyhow::Res
     let outcome = after_note(&w.f.handle, note, &[], &json!({"carry": true})).await;
 
     assert_eq!(outcome, CarryOutcome::Skipped);
-    assert!(w.f.handle.list_lesson_candidates(10).await?.is_empty());
+    assert!(
+        w.f.handle
+            .lessons()
+            .list_lesson_candidates(10)
+            .await?
+            .is_empty()
+    );
     assert_eq!(counts(&w).await?, Vec::<(i32, i32)>::new());
     w.f.db.cleanup().await
 }
@@ -284,9 +306,16 @@ async fn a_candidate_from_a_note_is_never_picked_up_by_the_lesson_consolidation(
 
     let claimed =
         w.f.handle
+            .lessons()
             .claim_raw_lessons_for_consolidation(w.project_id, 10)
             .await?;
     assert!(claimed.is_empty());
-    assert!(w.f.handle.discover_idle_projects(0).await?.is_empty());
+    assert!(
+        w.f.handle
+            .lessons()
+            .discover_idle_projects(0)
+            .await?
+            .is_empty()
+    );
     w.f.db.cleanup().await
 }

@@ -1,11 +1,11 @@
+use crate::store::persistence::PersistError;
 use crate::store::persistence::lessons::ChangeMark;
-use crate::store::persistence::{PersistError, PersistHandle};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn lesson_session_projects_fingerprint(
-        &self,
+        self,
     ) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("lesson_session_projects_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
@@ -21,7 +21,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn lesson_session_projects(&self) -> Result<HashMap<String, String>, PersistError> {
+    pub async fn lesson_session_projects(self) -> Result<HashMap<String, String>, PersistError> {
         let rows = sqlx::query!(
             r#"SELECT s.session_uuid::text AS "session_uuid!", p.project_path FROM sessions.sessions s
              JOIN projects.projects p ON p.id = s.project_id WHERE s.location_uuid IS NOT NULL OR s.project_resolution = 'operator'"#,
@@ -35,7 +35,7 @@ impl PersistHandle {
     }
 
     pub async fn resolve_lesson_project(
-        &self,
+        self,
         session: &str,
         path: &str,
     ) -> Result<i64, PersistError> {

@@ -1,5 +1,6 @@
 use mike::config::ProxyConfig;
 use mike::state::AppState;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::steering_evaluations::{EvaluationMode, NewEvaluation};
 use serde_json::Value;
 use tokio::net::TcpListener;
@@ -54,8 +55,13 @@ async fn the_evaluations_route_pages_to_the_end_and_stats_match_the_list() -> an
             trigger_point: Some("turn_end"),
             trigger_request_id: Some(f.request_id),
         };
-        let uuid = f.handle.insert_evaluation_dispatched(&new).await?;
+        let uuid = f
+            .handle
+            .steerer()
+            .insert_evaluation_dispatched(&new)
+            .await?;
         f.handle
+            .steerer()
             .resolve_evaluation(uuid, i == 1, None, None)
             .await?;
     }

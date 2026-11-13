@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct VerdictFollowThrough {
@@ -8,8 +8,8 @@ pub struct VerdictFollowThrough {
     pub moved_to_skill: u64,
 }
 
-impl PersistHandle {
-    pub async fn apply_skill_place_verdicts(&self) -> Result<VerdictFollowThrough, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn apply_skill_place_verdicts(self) -> Result<VerdictFollowThrough, PersistError> {
         crate::metrics::time_db("apply_skill_place_verdicts", async move {
             let placed_as_rule = sqlx::query!(
                 r#"WITH newest AS (

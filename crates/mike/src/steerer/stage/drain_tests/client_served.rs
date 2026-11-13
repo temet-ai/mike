@@ -3,6 +3,7 @@ use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::client_served::mark_mailbox_served;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::wire::manifest::ManifestBuilder;
 
 use super::support::{drain_fixture, user_turn_body};
@@ -14,6 +15,7 @@ async fn queue_mail(
 ) -> anyhow::Result<uuid::Uuid> {
     let message_uuid = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message_uuid, session_uuid.parse()?, None, "mail body")
         .await?;
     state.store.write().await.enqueue_reminder(

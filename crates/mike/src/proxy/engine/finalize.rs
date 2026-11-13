@@ -1,3 +1,5 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::time::Instant;
 
 use axum::response::Response;
@@ -117,6 +119,7 @@ fn spawn_push_carrier_stamp(
     let db_request_id = request_id.as_u64() as i64;
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(error) = persist
+            .proxy()
             .stamp_push_carriers(session_uuid, db_request_id, started_at)
             .await
         {
@@ -172,6 +175,7 @@ async fn confirm_delivered_reminder(
         return;
     };
     let result = persist
+        .steerer()
         .steering_backfill_delivered_request_id(intervention_uuid, db_request_id)
         .await;
     log_delivery_confirm_result(request_id, kind, intervention_uuid, result);

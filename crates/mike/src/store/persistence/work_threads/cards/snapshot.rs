@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::super::WorkThreadError;
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone)]
 pub(crate) struct OpenCardRow {
@@ -28,8 +27,8 @@ pub(crate) struct LocationRoot {
     pub(crate) project_id: i64,
 }
 
-impl PersistHandle {
-    pub(crate) async fn thread_cards_generation(&self) -> Result<i64, WorkThreadError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub(crate) async fn thread_cards_generation(self) -> Result<i64, WorkThreadError> {
         let generation = crate::metrics::time_db("thread_cards_generation", async move {
             sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"
@@ -43,7 +42,7 @@ impl PersistHandle {
         Ok(generation)
     }
 
-    pub(crate) async fn open_thread_cards(&self) -> Result<Vec<OpenCardRow>, WorkThreadError> {
+    pub(crate) async fn open_thread_cards(self) -> Result<Vec<OpenCardRow>, WorkThreadError> {
         let rows = crate::metrics::time_db("open_thread_cards", async move {
             sqlx::query_as!(
                 OpenCardRow,
@@ -90,7 +89,7 @@ impl PersistHandle {
         Ok(rows)
     }
 
-    pub(crate) async fn location_roots(&self) -> Result<Vec<LocationRoot>, WorkThreadError> {
+    pub(crate) async fn location_roots(self) -> Result<Vec<LocationRoot>, WorkThreadError> {
         let rows = crate::metrics::time_db("location_roots", async move {
             sqlx::query_as!(
                 LocationRoot,

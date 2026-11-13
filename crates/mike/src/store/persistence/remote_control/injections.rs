@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -22,9 +22,9 @@ impl PushSource {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn reserve_remote_control_injection(
-        &self,
+        self,
         cse_id: &str,
         session_uuid: Uuid,
         source: &PushSource,
@@ -75,7 +75,7 @@ impl PersistHandle {
     }
 
     pub async fn finish_remote_control_injection(
-        &self,
+        self,
         event_id: Uuid,
         emitted: bool,
     ) -> Result<(), PersistError> {
@@ -102,7 +102,7 @@ impl PersistHandle {
     }
 
     pub async fn ack_remote_control_injections(
-        &self,
+        self,
         cse_id: &str,
         event_ids: &[Uuid],
         observed_at: DateTime<Utc>,
@@ -134,7 +134,7 @@ impl PersistHandle {
     }
 
     pub async fn release_stale_steerer_push(
-        &self,
+        self,
         intervention_uuid: Uuid,
         expected_pushed_at: DateTime<Utc>,
     ) -> Result<bool, PersistError> {
@@ -152,7 +152,7 @@ impl PersistHandle {
     }
 
     pub async fn release_stale_mailbox_push(
-        &self,
+        self,
         event_id: Uuid,
         max_attempts: i32,
     ) -> Result<bool, PersistError> {
@@ -170,7 +170,7 @@ impl PersistHandle {
     }
 
     pub async fn stamp_push_carriers(
-        &self,
+        self,
         session_uuid: Uuid,
         request_id: i64,
         request_started_at: DateTime<Utc>,

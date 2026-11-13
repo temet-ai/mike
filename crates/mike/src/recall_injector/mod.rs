@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod formatter;
 pub(crate) mod parser;
 #[cfg(test)]
@@ -155,6 +156,7 @@ async fn gather_lessons_for_topics(
 ) -> Option<Vec<LessonRow>> {
     let per_topic_limit = i64::try_from(cfg.max_lessons_per_topic).unwrap_or(i64::MAX);
     let rows = match persist
+        .lessons()
         .list_recall_lessons(project_path, topics, per_topic_limit)
         .await
     {

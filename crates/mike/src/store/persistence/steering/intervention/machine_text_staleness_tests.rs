@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::steering::NewIntervention;
 use crate::store::persistence::{PersistHandle, test_support};
 
@@ -56,6 +57,7 @@ async fn seed_intervention(
             .await?;
     let intervention_uuid = uuid::Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id,
             enrolment_id: None,
@@ -102,6 +104,7 @@ async fn assert_prompt_does_not_supersede(human_prompt: &str, label: &str) -> an
     seed_request(&pool, project_id, session_id, human_prompt).await?;
 
     let staleness = handle
+        .steerer()
         .intervention_staleness(intervention_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("seeded intervention must be found"))?;
@@ -191,6 +194,7 @@ async fn genuine_operator_prompt_still_supersedes() -> anyhow::Result<()> {
     .await?;
 
     let staleness = handle
+        .steerer()
         .intervention_staleness(intervention_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("seeded intervention must be found"))?;

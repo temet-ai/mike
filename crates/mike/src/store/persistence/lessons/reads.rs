@@ -1,10 +1,10 @@
 use super::{LessonCandidateRow, LessonRow, SimilarLesson};
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn list_active_lessons(
-        &self,
+        self,
         project_id: i64,
     ) -> Result<Vec<LessonRow>, PersistError> {
         crate::metrics::time_db("list_active_lessons", async move {
@@ -31,7 +31,7 @@ impl PersistHandle {
     }
 
     pub async fn list_lessons_by_topic(
-        &self,
+        self,
         project_id: i64,
         topic: &str,
     ) -> Result<Vec<LessonRow>, PersistError> {
@@ -61,7 +61,7 @@ impl PersistHandle {
     }
 
     pub async fn list_recall_lessons(
-        &self,
+        self,
         project_path: &str,
         topics: &[String],
         per_topic_limit: i64,
@@ -112,7 +112,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_project_ids_for_path(
-        &self,
+        self,
         project_path: &str,
     ) -> Result<Vec<i64>, PersistError> {
         let candidates = project_path_candidates(project_path);
@@ -131,7 +131,7 @@ impl PersistHandle {
     }
 
     pub async fn find_similar_lessons(
-        &self,
+        self,
         project_id: i64,
         query_embedding: &[f32],
         agent_id: Option<i64>,
@@ -190,7 +190,7 @@ impl PersistHandle {
     }
 
     pub async fn list_lesson_candidates(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<LessonCandidateRow>, PersistError> {
         crate::metrics::time_db("list_lesson_candidates", async move {
@@ -207,7 +207,7 @@ impl PersistHandle {
     }
 
     pub async fn get_lesson_candidate(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Option<LessonCandidateRow>, PersistError> {
         crate::metrics::time_db("get_lesson_candidate", async move {

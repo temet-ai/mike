@@ -1,3 +1,5 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use mike::store::persistence::launch::{LaunchOutcome, LaunchSurfaceRefs, NewLaunch};
@@ -14,6 +16,7 @@ async fn held_launch_admission_does_not_block_a_definition_save() -> anyhow::Res
     let row = running(&f.handle, &run).await?;
     let guard = f
         .handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch guard"))?;
@@ -21,8 +24,12 @@ async fn held_launch_admission_does_not_block_a_definition_save() -> anyhow::Res
     definition["goal"] = serde_json::json!("saved while a seat opens");
     let saved = tokio::time::timeout(
         Duration::from_secs(2),
-        f.handle
-            .save_fleet_definition(row.fleet_uuid, &definition, &row.missing, row.updated_at),
+        f.handle.fleet().save_fleet_definition(
+            row.fleet_uuid,
+            &definition,
+            &row.missing,
+            row.updated_at,
+        ),
     )
     .await??;
     assert!(
@@ -42,9 +49,10 @@ async fn held_launch_admission_orders_backend_open_before_stop() -> anyhow::Resu
     let row = running(&f.handle, &run).await?;
     let mut launch = NewLaunch::new("herdr", "/tmp/held-launch");
     launch.run_id = Some(run.clone());
-    let id = f.handle.insert_launch(&launch).await?;
+    let id = f.handle.launch().insert_launch(&launch).await?;
     let guard = f
         .handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch guard"))?;
@@ -66,21 +74,35 @@ async fn held_launch_admission_orders_backend_open_before_stop() -> anyhow::Resu
         .await?;
     let opened_run = f
         .handle
+        .launch()
         .find_run(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("opened run disappeared"))?;
     assert_eq!(opened_run.workspace_ref.as_deref(), Some("held-workspace"));
     assert_eq!(opened_run.tab_ref.as_deref(), Some("held-tab"));
     let stopped = tokio::time::timeout(Duration::from_secs(2), stop).await??;
-    let launches = f.handle.unsettled_fleet_launches(&run).await?;
+    let launches = f.handle.fleet().unsettled_fleet_launches(&run).await?;
     assert_eq!(launches.len(), 1);
     assert!(launches[0].opened);
-    assert!(f.handle.begin_fleet_launch(&run).await.is_err());
-    assert!(f.handle.complete_fleet_run(&stopped, None).await?.is_none());
+    assert!(f.handle.fleet().begin_fleet_launch(&run).await.is_err());
+    assert!(
+        f.handle
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_none()
+    );
     f.handle
+        .fleet()
         .record_fleet_launch_verified_exit(id, &run, "observed exit")
         .await?;
-    assert!(f.handle.complete_fleet_run(&stopped, None).await?.is_some());
+    assert!(
+        f.handle
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_some()
+    );
     f.db.cleanup().await
 }
 
@@ -93,20 +115,28 @@ async fn dropped_open_guard_leaves_pending_reservation_blocking_completion() -> 
     let row = running(&f.handle, &run).await?;
     let mut launch = NewLaunch::new("herdr", "/tmp/pending-open");
     launch.run_id = Some(run.clone());
-    let id = f.handle.insert_launch(&launch).await?;
+    let id = f.handle.launch().insert_launch(&launch).await?;
     let guard = f
         .handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch guard"))?;
     drop(guard);
     let stopped = stopping(&f.handle, &row).await?;
-    assert!(f.handle.complete_fleet_run(&stopped, None).await?.is_none());
-    let pending = f.handle.unsettled_fleet_launches(&run).await?;
+    assert!(
+        f.handle
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_none()
+    );
+    let pending = f.handle.fleet().unsettled_fleet_launches(&run).await?;
     assert_eq!(pending.len(), 1);
     assert!(!pending[0].opened);
     assert_eq!(pending[0].result, "pending");
     f.handle
+        .launch()
         .record_launch_outcome(
             id,
             &LaunchOutcome {
@@ -120,7 +150,13 @@ async fn dropped_open_guard_leaves_pending_reservation_blocking_completion() -> 
             },
         )
         .await?;
-    assert!(f.handle.complete_fleet_run(&stopped, None).await?.is_some());
+    assert!(
+        f.handle
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_some()
+    );
     f.db.cleanup().await
 }
 
@@ -136,9 +172,10 @@ async fn launch_guard_rejects_wrong_launch_run_and_unknown_run_has_no_guard() ->
     running(&f.handle, &other).await?;
     let mut launch = NewLaunch::new("herdr", "/tmp/wrong-run");
     launch.run_id = Some(other.clone());
-    let id = f.handle.insert_launch(&launch).await?;
+    let id = f.handle.launch().insert_launch(&launch).await?;
     let guard = f
         .handle
+        .fleet()
         .begin_fleet_launch(&first)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch guard"))?;
@@ -148,9 +185,10 @@ async fn launch_guard_rejects_wrong_launch_run_and_unknown_run_has_no_guard() ->
             .await
             .is_err()
     );
-    assert!(!f.handle.unsettled_fleet_launches(&other).await?[0].opened);
+    assert!(!f.handle.fleet().unsettled_fleet_launches(&other).await?[0].opened);
     assert!(
         f.handle
+            .fleet()
             .begin_fleet_launch("no-fleet-owner")
             .await?
             .is_none()
@@ -173,6 +211,7 @@ async fn guarded_run_metadata_preserves_closure_and_refuses_another_run() -> any
         tab_ref: None,
     };
     f.handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no guard"))?
@@ -180,6 +219,7 @@ async fn guarded_run_metadata_preserves_closure_and_refuses_another_run() -> any
         .await?;
     assert_eq!(
         f.handle
+            .launch()
             .find_run(&run)
             .await?
             .and_then(|row| row.workspace_ref),
@@ -187,20 +227,22 @@ async fn guarded_run_metadata_preserves_closure_and_refuses_another_run() -> any
     );
     let wrong = f
         .handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no guard"))?;
     metadata.run_id = "other".into();
     assert!(wrong.record_run(&metadata).await.is_err());
     metadata.run_id = run.clone();
-    f.handle.close_run(&run).await?;
-    let closed = f.handle.find_run(&run).await?;
+    f.handle.launch().close_run(&run).await?;
+    let closed = f.handle.launch().find_run(&run).await?;
     let guard = f
         .handle
+        .fleet()
         .begin_fleet_launch(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no guard"))?;
     assert!(guard.record_run(&metadata).await.is_err());
-    assert_eq!(f.handle.find_run(&run).await?, closed);
+    assert_eq!(f.handle.launch().find_run(&run).await?, closed);
     f.db.cleanup().await
 }

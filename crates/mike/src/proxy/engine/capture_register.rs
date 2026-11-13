@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::Value;
 
 use crate::capture;
@@ -197,12 +198,13 @@ fn spawn_mail_consumption(state: &AppState, session_id: &str, request_body: byte
     let persist = persist.clone();
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(e) = persist
+            .launch()
             .consume_mail_carried_by(session, &request_body)
             .await
         {
             tracing::warn!(session_id = %session, error = %e, "marking carried mail consumed failed");
         }
-        if let Err(e) = persist.revive_undelivered_mail(session).await {
+        if let Err(e) = persist.launch().revive_undelivered_mail(session).await {
             tracing::warn!(session_id = %session, error = %e, "reviving undelivered mail failed");
         }
     });

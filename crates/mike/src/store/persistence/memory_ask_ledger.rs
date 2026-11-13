@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 pub const JC03_MIGRATION_VERSION: i64 = 20260924180000;
 
@@ -40,9 +40,9 @@ pub struct AskLedgerEntryRow {
     pub created_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn append_ask_ledger_entry(
-        &self,
+        self,
         entry: &NewAskLedgerEntry<'_>,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("append_ask_ledger_entry", async move {
@@ -67,7 +67,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_ask_ledger(
-        &self,
+        self,
         session_uuid: Uuid,
         limit: i64,
     ) -> Result<Vec<AskLedgerEntryRow>, PersistError> {
@@ -97,7 +97,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_ask_ledger_for_model(
-        &self,
+        self,
         session_uuid: Uuid,
         limit: i64,
     ) -> Result<Vec<AskLedgerEntryRow>, PersistError> {
@@ -131,10 +131,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_ask_ledger_for_model(
-        &self,
-        session_uuid: Uuid,
-    ) -> Result<i64, PersistError> {
+    pub async fn count_ask_ledger_for_model(self, session_uuid: Uuid) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_ask_ledger_for_model", async move {
             let Some(session_db_id) = self.session_row_id(session_uuid).await? else {
                 return Ok(0);
@@ -156,7 +153,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_ask_ledger_inspection(
-        &self,
+        self,
         session_uuid: Uuid,
         limit: i64,
     ) -> Result<Vec<AskLedgerInspectionRow>, PersistError> {
@@ -194,7 +191,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn ledger_builder_since(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
+    pub async fn ledger_builder_since(self) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("ledger_builder_since", async move {
             let installed = sqlx::query_scalar!(
                 "SELECT installed_on FROM _sqlx_migrations WHERE version = $1 AND success",

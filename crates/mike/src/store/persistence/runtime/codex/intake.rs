@@ -2,7 +2,7 @@ use sqlx::PgConnection;
 
 use crate::runtime::RuntimeObservation;
 use crate::runtime::codex::{IntakeResult, ReceiptId, observe};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::super::{RuntimeWriteOutcome, invalid};
 use super::context::CONTEXT_VERSION;
@@ -11,9 +11,9 @@ use super::{
     CodexCaptureOutcome, CodexIntakeContext, CodexReceiptInput, StoredRuntimeReceipt, invariant,
 };
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn capture_codex_receipt(
-        &self,
+        self,
         input: CodexReceiptInput,
     ) -> Result<CodexCaptureOutcome, PersistError> {
         let scope = input.context.scope();

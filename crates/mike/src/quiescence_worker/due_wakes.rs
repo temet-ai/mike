@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 mod decide;
 
 use chrono::Utc;
@@ -77,7 +78,7 @@ async fn facts_for<'r>(ctx: &SweepContext<'_>, row: &'r DueWakeRow, cap: i64) ->
 
 async fn record_holdback_reach(ctx: &SweepContext<'_>) {
     let rows = ok_or_warn(
-        ctx.persist.claim_reach_due(DUE_BATCH).await,
+        ctx.persist.steerer().claim_reach_due(DUE_BATCH).await,
         "due_wakes.claim_reach_due",
     )
     .unwrap_or_default();
@@ -91,7 +92,7 @@ async fn record_holdback_reach(ctx: &SweepContext<'_>) {
         })
         .collect();
     ok_or_warn(
-        ctx.persist.write_reach_at_due(&reach).await,
+        ctx.persist.steerer().write_reach_at_due(&reach).await,
         "due_wakes.holdback_reach",
     );
 }
@@ -105,7 +106,7 @@ struct DuePass {
 
 async fn claim_rows(ctx: &SweepContext<'_>) -> Vec<DueWakeRow> {
     let ids = ok_or_warn(
-        ctx.persist.claim_due_wakes(DUE_BATCH).await,
+        ctx.persist.steerer().claim_due_wakes(DUE_BATCH).await,
         "due_wakes.claim",
     )
     .unwrap_or_default();
@@ -113,7 +114,7 @@ async fn claim_rows(ctx: &SweepContext<'_>) -> Vec<DueWakeRow> {
         return Vec::new();
     }
     ok_or_warn(
-        ctx.persist.fetch_due_wake_context(&ids).await,
+        ctx.persist.steerer().fetch_due_wake_context(&ids).await,
         "due_wakes.fetch_context",
     )
     .unwrap_or_default()
@@ -139,15 +140,18 @@ async fn decide_row(ctx: &SweepContext<'_>, row: &DueWakeRow, cap: i64, pass: &m
 
 async fn write_pass(ctx: &SweepContext<'_>, pass: &DuePass) {
     ok_or_warn(
-        ctx.persist.finalise_wakes(&pass.finals).await,
+        ctx.persist.steerer().finalise_wakes(&pass.finals).await,
         "due_wakes.finalise",
     );
     ok_or_warn(
-        ctx.persist.return_wakes_to_pending(&pass.back).await,
+        ctx.persist
+            .steerer()
+            .return_wakes_to_pending(&pass.back)
+            .await,
         "due_wakes.return_to_pending",
     );
     ok_or_warn(
-        ctx.persist.write_reach_at_due(&pass.reach).await,
+        ctx.persist.steerer().write_reach_at_due(&pass.reach).await,
         "due_wakes.reach_at_due",
     );
 }
@@ -155,13 +159,13 @@ async fn write_pass(ctx: &SweepContext<'_>, pass: &DuePass) {
 pub(super) async fn run_due_wakes(ctx: &SweepContext<'_>, toggle_on: bool) {
     if !toggle_on {
         ok_or_warn(
-            ctx.persist.disable_all_pending_wakes().await,
+            ctx.persist.steerer().disable_all_pending_wakes().await,
             "due_wakes.disable_pending",
         );
         return;
     }
     ok_or_warn(
-        ctx.persist.recover_stale_wakes().await,
+        ctx.persist.steerer().recover_stale_wakes().await,
         "due_wakes.recover_stale",
     );
     record_holdback_reach(ctx).await;

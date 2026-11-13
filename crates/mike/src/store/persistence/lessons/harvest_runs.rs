@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewHarvestRun {
@@ -15,8 +15,8 @@ fn count_column(value: usize) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
 }
 
-impl PersistHandle {
-    pub async fn record_harvest_run(&self, run: NewHarvestRun) -> Result<(), PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn record_harvest_run(self, run: NewHarvestRun) -> Result<(), PersistError> {
         crate::metrics::time_db("record_harvest_run", async move {
             sqlx::query!(
                 "INSERT INTO memory.harvest_runs

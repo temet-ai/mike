@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 mod reply_context;
 mod reply_delivery;
@@ -48,6 +49,7 @@ async fn load_thread(
     .await?;
 
     let identities = match handle
+        .launch()
         .fetch_participant_identities(&summary_row.participant_uuids)
         .await
     {
@@ -81,7 +83,7 @@ async fn fetch_thread_summary_row(
         thread_uuid: Some(thread_uuid),
         ..Default::default()
     };
-    match handle.fetch_thread_summaries(&filter).await {
+    match handle.launch().fetch_thread_summaries(&filter).await {
         Ok(mut rows) => rows.pop().ok_or_else(|| {
             mailbox_error(
                 StatusCode::NOT_FOUND,
@@ -107,7 +109,7 @@ async fn fetch_thread_transcript(
     stale_threshold_minutes: i64,
     thread_uuid: uuid::Uuid,
 ) -> Result<Vec<MailboxMessageDto>, Response> {
-    match handle.fetch_thread_messages(thread_id).await {
+    match handle.launch().fetch_thread_messages(thread_id).await {
         Ok(rows) => Ok(rows
             .into_iter()
             .map(|r| thread_message_dto(r, now, stale_threshold_minutes))
@@ -177,7 +179,7 @@ pub(crate) async fn post_thread_resolve(
             "session persistence is disabled; threads are not available".to_string(),
         ));
     };
-    match handle.mark_thread_resolved(thread_uuid).await {
+    match handle.launch().mark_thread_resolved(thread_uuid).await {
         Ok(crate::store::persistence::mailbox::ResolveThreadOutcome::Resolved(resolved_at)) => {
             Ok(Json(ThreadResolvedResponse {
                 thread_uuid,

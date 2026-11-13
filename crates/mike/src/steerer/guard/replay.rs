@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
@@ -140,7 +141,7 @@ pub async fn replay_gates(req: &ReplayRequest<'_>) -> Result<GatesReport, Persis
     let mut report = GatesReport::default();
     let mut window = req.window.clone();
     loop {
-        let turns = req.persist.guard_replay_turns(&window).await?;
+        let turns = req.persist.steerer().guard_replay_turns(&window).await?;
         let Some(last) = turns.last().map(|t| t.turn_id) else {
             break;
         };
@@ -300,7 +301,11 @@ pub async fn replay_full(
         .iter()
         .map(|l| ((l.turn_id, l.question.clone()), l.positive))
         .collect();
-    let turns = req.persist.guard_replay_turns(&req.window).await?;
+    let turns = req
+        .persist
+        .steerer()
+        .guard_replay_turns(&req.window)
+        .await?;
     let mut tallies = Tallies::default();
     let mut exempt: BTreeMap<String, usize> = BTreeMap::new();
     let mut fired: Vec<(i64, i64)> = Vec::new();
@@ -316,7 +321,11 @@ pub async fn replay_full(
             fired.push((turn.session_id, turn.turn_id));
         }
     }
-    let audit_sessions = req.persist.guard_audit_sessions(req.window.since).await?;
+    let audit_sessions = req
+        .persist
+        .steerer()
+        .guard_audit_sessions(req.window.since)
+        .await?;
     let audit_fire_turns: Vec<i64> = fired
         .iter()
         .filter(|(s, _)| audit_sessions.contains(s))

@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -52,7 +54,10 @@ async fn raise(persist: &PersistHandle, w: &SteererLabelWindow) {
         detail: evidence(w),
     };
     ok_or_warn(
-        persist.apply_alarm_pass(&[], &[firing], i32::MAX).await,
+        persist
+            .eval()
+            .apply_alarm_pass(&[], &[firing], i32::MAX)
+            .await,
         "steerer_demotion.alarm",
     );
 }
@@ -76,7 +81,7 @@ async fn switch_off(persist: &PersistHandle, svc: &SteeringService, w: &SteererL
 pub(crate) async fn run_steerer_demotion(persist: &PersistHandle, svc: &SteeringService) {
     let floor = Utc::now() - chrono::Duration::hours(WINDOW_HOURS);
     let Some(windows) = ok_or_warn(
-        persist.steerer_label_windows(floor).await,
+        persist.steerer().steerer_label_windows(floor).await,
         "steerer_demotion.windows",
     ) else {
         return;

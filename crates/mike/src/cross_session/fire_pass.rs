@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
@@ -82,11 +83,11 @@ pub(super) async fn plan_fire_rows(
     rollup: RollupRef,
     now: DateTime<Utc>,
 ) -> Result<Vec<ThresholdWrite>, PersistError> {
-    let steerers = persist.fire_steerers().await?;
+    let steerers = persist.steerer().fire_steerers().await?;
     if steerers.is_empty() {
         return Ok(Vec::new());
     }
-    let bins = persist.fetch_fire_bins(now).await?;
+    let bins = persist.steerer().fetch_fire_bins(now).await?;
     Ok(plan_fire(snapshot, &steerers, &bins, rollup, now))
 }
 

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EvalGateRow, NewEvalGate};
 
 struct CountedGate {
@@ -37,8 +37,8 @@ fn split_total(rows: Vec<CountedGate>) -> (Vec<EvalGateRow>, i64) {
     (gates, total)
 }
 
-impl PersistHandle {
-    pub async fn insert_eval_gate(&self, gate: &NewEvalGate<'_>) -> Result<i64, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn insert_eval_gate(self, gate: &NewEvalGate<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_eval_gate", async move {
             Ok(sqlx::query_scalar!(
                 r#"INSERT INTO eval.gates (candidate_run_id, baseline_run_id, noise_run_id,
@@ -60,7 +60,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_holdout_gates(&self, holdout_batch: &str) -> Result<i64, PersistError> {
+    pub async fn count_holdout_gates(self, holdout_batch: &str) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_holdout_gates", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT count(DISTINCT r.bundle_id) AS "count!"
@@ -76,7 +76,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_eval_gate(&self, id: i64) -> Result<Option<EvalGateRow>, PersistError> {
+    pub async fn get_eval_gate(self, id: i64) -> Result<Option<EvalGateRow>, PersistError> {
         crate::metrics::time_db("get_eval_gate", async move {
             Ok(sqlx::query_as!(
                 EvalGateRow,
@@ -92,7 +92,7 @@ impl PersistHandle {
     }
 
     pub async fn list_eval_gates(
-        &self,
+        self,
         holdout_batch: Option<&str>,
         limit: i64,
         offset: i64,

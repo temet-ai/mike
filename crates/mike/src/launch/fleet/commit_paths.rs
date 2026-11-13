@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use uuid::Uuid;
 
 use super::checks::normal;
@@ -72,7 +73,7 @@ pub(super) async fn record_paths(
         return None;
     }
     let identity = persist.session_identity_by_uuid(session).await.ok()??;
-    let open = persist.open_changes(&def.repo).await.ok()?;
+    let open = persist.fleet().open_changes(&def.repo).await.ok()?;
     let mut paths: Vec<String> = open
         .into_iter()
         .filter(|o| o.session_id == Some(identity.id))

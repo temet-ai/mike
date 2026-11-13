@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptToClassify {
@@ -16,9 +16,9 @@ pub struct FinalText {
     pub text: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_prompts_needing_classification(
-        &self,
+        self,
         session_ids: &[i64],
         classifier_version: &str,
     ) -> Result<Vec<PromptToClassify>, PersistError> {
@@ -50,7 +50,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn load_final_texts(&self, turn_ids: &[i64]) -> Result<Vec<FinalText>, PersistError> {
+    pub async fn load_final_texts(self, turn_ids: &[i64]) -> Result<Vec<FinalText>, PersistError> {
         if turn_ids.is_empty() {
             return Ok(Vec::new());
         }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StatementCounters {
@@ -24,9 +24,9 @@ pub(crate) struct StatementStatsReading {
     pub(crate) statements: Vec<StatementCounters>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::state_repo::StateDb<'_> {
     pub(crate) async fn read_statement_stats(
-        &self,
+        self,
     ) -> Result<Option<StatementStatsReading>, PersistError> {
         crate::metrics::time_db("db_cost_read_snapshot", async move {
             let present = sqlx::query_scalar!(
@@ -73,7 +73,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn read_statement_texts(
-        &self,
+        self,
         queryids: &[i64],
     ) -> Result<HashMap<i64, String>, PersistError> {
         if queryids.is_empty() {
@@ -100,7 +100,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn count_requests_between(
-        &self,
+        self,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
     ) -> Result<i64, PersistError> {

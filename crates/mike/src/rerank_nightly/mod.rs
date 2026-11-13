@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 mod candidates;
 pub(crate) mod first_ten;
 pub(crate) mod grade;
@@ -154,7 +155,11 @@ async fn grade_phase(
     idle: &impl Idle,
     graded: &mut usize,
 ) -> Option<Stop> {
-    let events = match persist.ungraded_search_events(GRADE_BATCH).await {
+    let events = match persist
+        .knowledge()
+        .ungraded_search_events(GRADE_BATCH)
+        .await
+    {
         Ok(events) => events,
         Err(error) => {
             tracing::warn!(%error, "rerank_nightly: could not list ungraded searches");

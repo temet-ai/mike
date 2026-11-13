@@ -1,5 +1,5 @@
 use super::ModelKeys;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
@@ -25,10 +25,10 @@ pub(crate) struct KnowledgeEmbeddingSource {
     pub body: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     #[cfg(test)]
     pub(crate) async fn pending_knowledge_embeddings(
-        &self,
+        self,
         model: &str,
     ) -> Result<Vec<KnowledgeEmbeddingSource>, PersistError> {
         self.pending_knowledge_embeddings_limited(model, PENDING_BATCH)
@@ -36,7 +36,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn pending_knowledge_embeddings_limited(
-        &self,
+        self,
         model: &str,
         limit: i64,
     ) -> Result<Vec<KnowledgeEmbeddingSource>, PersistError> {
@@ -50,7 +50,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn save_knowledge_embeddings(
-        &self,
+        self,
         source: &KnowledgeEmbeddingSource,
         model: &str,
         chunks: Value,
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fail_knowledge_embedding(
-        &self,
+        self,
         source: &KnowledgeEmbeddingSource,
         model: &str,
         error: &str,
@@ -131,7 +131,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn knowledge_embedding_url_candidates(
-        &self,
+        self,
     ) -> Result<Vec<String>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT url AS "url!" FROM (
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn rekey_knowledge_embeddings(
-        &self,
+        self,
         legacy_keys: &[String],
         key: &str,
     ) -> Result<u64, PersistError> {
@@ -163,7 +163,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn knowledge_embedding_state_counts(
-        &self,
+        self,
         keys: &ModelKeys,
     ) -> Result<KnowledgeStateCounts, PersistError> {
         let counts = sqlx::query!(
@@ -201,7 +201,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn knowledge_embedding_health(
-        &self,
+        self,
         project: Option<i64>,
         keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
@@ -213,7 +213,7 @@ impl PersistHandle {
     }
 
     async fn count_embedding_health(
-        &self,
+        self,
         project: Option<i64>,
         keys: &ModelKeys,
     ) -> Result<Value, PersistError> {

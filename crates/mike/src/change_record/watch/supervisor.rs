@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::Arc;
@@ -77,6 +78,7 @@ impl Supervisor {
     pub async fn tick(&mut self, shutdown: &CancellationToken) -> Duration {
         match self
             .persist
+            .fleet()
             .checkouts_with_working_sessions(worked_within())
             .await
         {

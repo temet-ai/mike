@@ -1,7 +1,7 @@
 use serde::Serialize;
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{Disagreement, EvalRunItemRow, RunItemWrite, RunItemsFilter};
 
 const ITEM_COLUMNS: &str = "SELECT i.run_id, i.operator_turn_id, i.reaction_label_id,
@@ -201,8 +201,8 @@ pub struct RunItemsPage {
     pub reviewed: i64,
 }
 
-impl PersistHandle {
-    pub async fn upsert_eval_run_item(&self, item: &RunItemWrite<'_>) -> Result<(), PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn upsert_eval_run_item(self, item: &RunItemWrite<'_>) -> Result<(), PersistError> {
         crate::metrics::time_db("upsert_eval_run_item", async move {
             sqlx::query!(
                 "INSERT INTO eval.run_items (run_id, operator_turn_id, reaction_label_id,
@@ -232,7 +232,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_run_items_page(
-        &self,
+        self,
         run_id: i64,
         f: &RunItemsFilter,
     ) -> Result<RunItemsPage, PersistError> {
@@ -252,7 +252,7 @@ impl PersistHandle {
     }
 
     pub async fn list_eval_run_items(
-        &self,
+        self,
         run_id: i64,
         f: &RunItemsFilter,
     ) -> Result<(Vec<EvalRunItemRow>, i64), PersistError> {
@@ -261,7 +261,7 @@ impl PersistHandle {
     }
 
     pub async fn all_eval_run_items(
-        &self,
+        self,
         run_id: i64,
     ) -> Result<Vec<EvalRunItemRow>, PersistError> {
         let filter = RunItemsFilter {

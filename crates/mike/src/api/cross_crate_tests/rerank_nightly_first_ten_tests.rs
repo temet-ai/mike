@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/rerank_nightly/first_ten_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -55,6 +56,7 @@ async fn unused_search(
 ) -> anyhow::Result<i64> {
     let id = harness
         .handle
+        .knowledge()
         .record_search_event(&NewSearchEvent {
             session,
             tool: "search_project_knowledge",
@@ -159,6 +161,7 @@ async fn grade_relevant_only(harness: &Harness, events: &[i64]) -> anyhow::Resul
     for event in events {
         harness
             .handle
+            .knowledge()
             .insert_search_grade(&NewGrade {
                 event_id: *event,
                 candidates: &candidates,

@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChannelLinkCounts {
@@ -6,8 +6,8 @@ pub struct ChannelLinkCounts {
     pub linked: i64,
 }
 
-impl PersistHandle {
-    pub async fn recent_channel_link_counts(&self) -> Result<ChannelLinkCounts, PersistError> {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
+    pub async fn recent_channel_link_counts(self) -> Result<ChannelLinkCounts, PersistError> {
         crate::metrics::time_db("remote_control_recent_channel_link_counts", async move {
             let row = sqlx::query!(
                 r#"SELECT count(*) AS "channels!", count(local_session_uuid) AS "linked!"

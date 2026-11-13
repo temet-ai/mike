@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::PersistHandle;
@@ -17,6 +18,7 @@ async fn run_upsert_keeps_recorded_tab_and_close_is_idempotent() -> anyhow::Resu
     let run_id = format!("run-a-{}", Uuid::new_v4());
 
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.clone(),
             project_path: Some("/tmp/run-a".to_owned()),
@@ -26,6 +28,7 @@ async fn run_upsert_keeps_recorded_tab_and_close_is_idempotent() -> anyhow::Resu
         })
         .await?;
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.clone(),
             project_path: None,
@@ -35,6 +38,7 @@ async fn run_upsert_keeps_recorded_tab_and_close_is_idempotent() -> anyhow::Resu
         })
         .await?;
     let run = handle
+        .launch()
         .find_run(&run_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("run-a missing"))?;
@@ -44,28 +48,33 @@ async fn run_upsert_keeps_recorded_tab_and_close_is_idempotent() -> anyhow::Resu
 
     let mut new = NewLaunch::new("herdr", "/tmp/run-a");
     new.run_id = Some(run_id.clone());
-    handle.insert_launch(&new).await?;
+    handle.launch().insert_launch(&new).await?;
     let mut dangling = NewLaunch::new("herdr", "/tmp/run-a");
     dangling.run_id = Some("run-never-recorded".to_owned());
     assert!(
-        handle.insert_launch(&dangling).await.is_err(),
+        handle.launch().insert_launch(&dangling).await.is_err(),
         "a launch must not reference a run that was never recorded"
     );
 
-    handle.close_run(&run_id).await?;
+    handle.launch().close_run(&run_id).await?;
     let closed_at = handle
+        .launch()
         .find_run(&run_id)
         .await?
         .and_then(|r| r.closed_at)
         .ok_or_else(|| anyhow::anyhow!("run-a not closed"))?;
-    handle.close_run(&run_id).await?;
-    let again = handle.find_run(&run_id).await?.and_then(|r| r.closed_at);
+    handle.launch().close_run(&run_id).await?;
+    let again = handle
+        .launch()
+        .find_run(&run_id)
+        .await?
+        .and_then(|r| r.closed_at);
     assert_eq!(
         again,
         Some(closed_at),
         "a repeated close keeps the first close time"
     );
-    assert!(handle.close_run("run-unknown").await.is_err());
+    assert!(handle.launch().close_run("run-unknown").await.is_err());
 
     Ok(())
 }
@@ -78,7 +87,13 @@ async fn latest_backend_validation_returns_newest_with_full_report() -> anyhow::
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
-    assert!(handle.latest_backend_validation("herdr").await?.is_none());
+    assert!(
+        handle
+            .launch()
+            .latest_backend_validation("herdr")
+            .await?
+            .is_none()
+    );
 
     let checks = serde_json::json!([
         {"name": "binary", "passed": true, "detail": "herdr 0.9.2", "remedy": null},
@@ -95,9 +110,10 @@ async fn latest_backend_validation_returns_newest_with_full_report() -> anyhow::
         finished_at: earlier,
         source: "setup".to_owned(),
     };
-    handle.insert_backend_validation(&base).await?;
+    handle.launch().insert_backend_validation(&base).await?;
     let now = Utc::now();
     let newest_id = handle
+        .launch()
         .insert_backend_validation(&NewBackendValidation {
             passed: true,
             started_at: now,
@@ -108,6 +124,7 @@ async fn latest_backend_validation_returns_newest_with_full_report() -> anyhow::
         .await?;
 
     let latest = handle
+        .launch()
         .latest_backend_validation("herdr")
         .await?
         .ok_or_else(|| anyhow::anyhow!("no validation stored"))?;
@@ -115,14 +132,24 @@ async fn latest_backend_validation_returns_newest_with_full_report() -> anyhow::
     assert!(latest.passed);
     assert_eq!(latest.source, "doctor");
     assert_eq!(latest.checks, checks);
-    assert!(handle.latest_backend_validation("tmux").await?.is_none());
+    assert!(
+        handle
+            .launch()
+            .latest_backend_validation("tmux")
+            .await?
+            .is_none()
+    );
 
     let bad_source = NewBackendValidation {
         source: "cron".to_owned(),
         ..base
     };
     assert!(
-        handle.insert_backend_validation(&bad_source).await.is_err(),
+        handle
+            .launch()
+            .insert_backend_validation(&bad_source)
+            .await
+            .is_err(),
         "a source outside the CHECK set must be refused"
     );
 

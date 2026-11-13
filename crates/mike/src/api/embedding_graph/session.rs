@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -103,7 +104,7 @@ async fn resolve_embedding_status(
     id: &str,
     embedding_available: bool,
 ) -> Result<(EmbeddingStatusDto, String, bool), Response> {
-    let status = handle.session_embedding_status(session_uuid).await.map_err(|e| {
+    let status = handle.knowledge().session_embedding_status(session_uuid).await.map_err(|e| {
         tracing::warn!(session_id = %id, error = %e, "get_session_embedding_graph: embedding status fetch failed");
         persist_error_response(e)
     })?;
@@ -141,7 +142,11 @@ async fn fetch_centre_topics(
     session_uuid: Uuid,
     id: &str,
 ) -> Vec<String> {
-    match handle.fetch_session_knowledge(session_uuid).await {
+    match handle
+        .knowledge()
+        .fetch_session_knowledge(session_uuid)
+        .await
+    {
         Ok(Some(k)) => k.topics,
         Ok(None) => Vec::new(),
         Err(e) => {
@@ -174,7 +179,7 @@ async fn build_neighbour_graph(
     } = req;
 
     let neighbours = handle
-        .nearest_sessions(session_uuid, k, same_project, min_similarity)
+        .knowledge().nearest_sessions(session_uuid, k, same_project, min_similarity)
         .await
         .map_err(|e| {
             tracing::warn!(session_id = %id, error = %e, "get_session_embedding_graph: nearest_sessions failed");
@@ -208,7 +213,7 @@ async fn build_neighbour_graph(
     if neighbours.len() > 1 {
         let neighbour_ids: Vec<Uuid> = neighbours.iter().map(|n| n.session_id).collect();
         let pairwise = handle
-            .pairwise_session_similarities(&neighbour_ids)
+            .knowledge().pairwise_session_similarities(&neighbour_ids)
             .await
             .map_err(|e| {
                 tracing::warn!(session_id = %id, error = %e, "get_session_embedding_graph: pairwise similarities failed");

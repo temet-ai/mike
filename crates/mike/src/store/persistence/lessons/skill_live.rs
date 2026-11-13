@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::skill_drafts::{DraftTarget, PreviousDraft};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -111,9 +111,9 @@ pub struct RetiredSkill {
     pub shipped: Option<PreviousDraft>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn upsert_skill_live_outcomes(
-        &self,
+        self,
         outcomes: &[SkillLiveOutcome],
     ) -> Result<u64, PersistError> {
         let payload = serde_json::to_value(outcomes)
@@ -162,7 +162,7 @@ impl PersistHandle {
     }
 
     pub async fn retired_skill_evidence(
-        &self,
+        self,
         target: &DraftTarget,
     ) -> Result<Option<RetiredSkill>, PersistError> {
         let Some(numbers) = self.latest_retirement(target).await? else {
@@ -173,7 +173,7 @@ impl PersistHandle {
     }
 
     async fn latest_retirement(
-        &self,
+        self,
         target: &DraftTarget,
     ) -> Result<Option<RetiredNumbers>, PersistError> {
         crate::metrics::time_db("latest_skill_retirement", async move {
@@ -216,7 +216,7 @@ impl PersistHandle {
     }
 
     async fn shipped_skill_draft(
-        &self,
+        self,
         target: &DraftTarget,
     ) -> Result<Option<PreviousDraft>, PersistError> {
         crate::metrics::time_db("shipped_skill_draft", async move {

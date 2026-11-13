@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -73,7 +74,7 @@ pub(crate) async fn list_session_lessons(
     let Ok(uuid) = uuid::Uuid::parse_str(&session_uuid) else {
         return Err(lesson_error(StatusCode::NOT_FOUND, "unknown session"));
     };
-    let rows = handle.session_lessons(uuid).await.map_err(|e| {
+    let rows = handle.lessons().session_lessons(uuid).await.map_err(|e| {
         tracing::warn!(session_id = %session_uuid, error = %e, "list_session_lessons: query failed");
         persist_error_response(e)
     })?;

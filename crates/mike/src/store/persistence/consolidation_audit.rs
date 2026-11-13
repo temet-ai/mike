@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value as JsonValue;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 pub struct ConsolidationActionRecord {
     pub lesson_id: i64,
@@ -22,9 +22,9 @@ pub struct ConsolidationActionRecord {
     pub rank_detail: Option<JsonValue>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn start_consolidation_run(
-        &self,
+        self,
         kind: &str,
         trigger: &str,
     ) -> Result<i64, PersistError> {
@@ -48,8 +48,7 @@ impl PersistHandle {
     }
 
     #[rustfmt::skip]
-    pub async fn finish_consolidation_run(
-        &self,
+    pub async fn finish_consolidation_run(self,
         run_id: i64,
         status: &str,
         error: Option<&str>,
@@ -74,7 +73,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn delete_consolidation_run(&self, run_id: i64) -> Result<(), PersistError> {
+    pub async fn delete_consolidation_run(self, run_id: i64) -> Result<(), PersistError> {
         crate::metrics::time_db("delete_consolidation_run", async move {
             sqlx::query!(
                 "DELETE FROM memory.consolidation_runs WHERE id = $1",
@@ -87,7 +86,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn nightly_ran_since(&self, since: DateTime<Utc>) -> Result<bool, PersistError> {
+    pub async fn nightly_ran_since(self, since: DateTime<Utc>) -> Result<bool, PersistError> {
         crate::metrics::time_db("nightly_ran_since", async move {
             let ran = sqlx::query_scalar!(
                 r#"SELECT EXISTS (
@@ -109,7 +108,7 @@ impl PersistHandle {
     }
 
     pub async fn record_consolidation_actions(
-        &self,
+        self,
         run_id: i64,
         records: &[ConsolidationActionRecord],
     ) -> Result<(), PersistError> {

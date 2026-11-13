@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 const DRAIN_RELOAD_LIMIT: i64 = 256;
 
@@ -20,6 +21,7 @@ pub(super) async fn queue_mail_from_the_record(
         return;
     }
     let rows = match persist
+        .launch()
         .fetch_mail_for_drain(session, DRAIN_RELOAD_LIMIT)
         .await
     {

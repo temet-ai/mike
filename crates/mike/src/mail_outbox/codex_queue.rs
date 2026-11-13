@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -32,6 +33,7 @@ pub(crate) async fn observe_local_codex(
         return;
     }
     if let Err(error) = persist
+        .runtime()
         .register_runtime_notification_target(session, thread, &home.to_string_lossy())
         .await
     {
@@ -66,13 +68,18 @@ async fn prepare_job(
     message: Uuid,
 ) -> anyhow::Result<Option<QueueJob>> {
     if persist
+        .runtime()
         .runtime_mail_notification_state(message)
         .await?
         .is_some()
     {
         return Ok(None);
     }
-    let Some(target) = persist.runtime_notification_target(session).await? else {
+    let Some(target) = persist
+        .runtime()
+        .runtime_notification_target(session)
+        .await?
+    else {
         return Ok(None);
     };
     let thread = target.thread_id;
@@ -83,6 +90,7 @@ async fn prepare_job(
         return Ok(None);
     }
     if !persist
+        .runtime()
         .reserve_runtime_mail_notification(session, message)
         .await?
     {
@@ -99,7 +107,7 @@ async fn prepare_job(
 impl QueueJob {
     pub(super) async fn run(self, persist: PersistHandle) {
         let state = self.queue().await;
-        let result = persist.finish_runtime_mail_notification(self.message, state, Some("Mailbox notification only; recipient acceptance and reading remain unconfirmed")).await;
+        let result = persist.runtime().finish_runtime_mail_notification(self.message, state, Some("Mailbox notification only; recipient acceptance and reading remain unconfirmed")).await;
         log_attempted(self.session, self.message, state);
         if let Err(error) = result {
             log_unrecorded(self.message, &error);

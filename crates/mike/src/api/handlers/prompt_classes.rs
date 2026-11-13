@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 pub(crate) const PROMPT_CLASSES_DEFAULT_LIMIT: i64 = 50;
 pub(crate) const PROMPT_CLASSES_MAX_LIMIT: i64 = 500;
@@ -151,6 +152,7 @@ pub(crate) async fn list_prompt_classes(
         .clamp(1, PROMPT_CLASSES_MAX_LIMIT);
     let offset = params.offset.unwrap_or(0).max(0);
     let rows = handle
+        .proxy()
         .list_prompt_classes(
             window_start,
             window_end,
@@ -200,6 +202,7 @@ pub(crate) async fn prompt_class_detail_response(
         project_path: params.project_path_filter(),
     };
     let Some(header) = handle
+        .proxy()
         .get_prompt_class_detail(lane, persona, window_start, window_end, scope)
         .await
         .map_err(map_composition_persist_error)?
@@ -215,6 +218,7 @@ pub(crate) async fn prompt_class_detail_response(
         .clamp(1, PROMPT_CLASS_OBSERVATIONS_MAX_LIMIT);
     let obs_offset = params.offset.unwrap_or(0).max(0);
     let observation_rows = handle
+        .proxy()
         .list_prompt_class_observations(lane, persona, obs_limit, obs_offset, scope)
         .await
         .map_err(map_composition_persist_error)?;

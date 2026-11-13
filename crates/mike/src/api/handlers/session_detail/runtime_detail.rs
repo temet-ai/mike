@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use axum::http::StatusCode;
 use serde::Serialize;
 use uuid::Uuid;
@@ -29,8 +30,8 @@ pub(super) async fn attach(
     let ids = [session];
     let limit = limit.clamp(1, 100);
     let (observation, items) = tokio::join!(
-        handle.session_observations(&ids),
-        handle.list_runtime_items(
+        handle.runtime().session_observations(&ids),
+        handle.runtime().list_runtime_items(
             session,
             limit as i64 + 1,
             i64::try_from(offset).unwrap_or(i64::MAX)

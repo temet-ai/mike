@@ -1,3 +1,5 @@
+use mike::store::persistence::eval_repo::EvalPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictJudgement, VerdictMode, VerdictShape,
 };
@@ -51,6 +53,7 @@ async fn relapse_evaluation_carries_semantic_key_only_in_record_mode() -> anyhow
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -145,6 +148,7 @@ async fn seed_arm_row(
 
 async fn seed_scored_reaction(f: &Fixture, turn: i64, reaction: &str) -> anyhow::Result<()> {
     f.handle
+        .eval()
         .insert_turn_verdict(TurnVerdictInsert {
             turn_id: turn,
             mode: VerdictMode::Live,

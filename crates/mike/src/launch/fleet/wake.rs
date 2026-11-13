@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -23,13 +26,18 @@ pub(super) async fn pass(
         let Ok(Some(db_id)) = persist.resolve_session_db_id(&session.to_string()).await else {
             continue;
         };
-        let Ok(counts) = persist.fetch_inbox_counts(db_id).await else {
+        let Ok(counts) = persist.launch().fetch_inbox_counts(db_id).await else {
             continue;
         };
         if counts.unconsumed == 0 {
             continue;
         }
-        let last = persist.session_last_request_at(db_id).await.ok().flatten();
+        let last = persist
+            .steerer()
+            .session_last_request_at(db_id)
+            .await
+            .ok()
+            .flatten();
         if !silent(last, now) {
             continue;
         }
@@ -114,7 +122,7 @@ async fn record(
         before_sha: None,
         after_sha: None,
     };
-    if let Err(err) = persist.insert_change_events(&[event]).await {
+    if let Err(err) = persist.fleet().insert_change_events(&[event]).await {
         tracing::warn!(%run, error = %err, "mike could not record a seat wake in the change record");
     }
 }

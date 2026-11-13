@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -213,7 +214,7 @@ async fn load_shadow_config(
     bundle_id: i64,
 ) -> Option<SessionJudgeV3Config> {
     let row = ok_or_warn(
-        persist.get_bundle(bundle_id).await,
+        persist.eval().get_bundle(bundle_id).await,
         "session_end_shadow.read_bundle",
     )??;
     ok_or_warn(
@@ -260,7 +261,7 @@ impl ShadowPoll<'_> {
                     Some(self.bundle_id),
                 );
                 let stored = ok_or_warn(
-                    self.persist.insert_session_verdict_v3(&row).await,
+                    self.persist.eval().insert_session_verdict_v3(&row).await,
                     "session_end_shadow.store_verdict",
                 );
                 self.record(c.session_db_id, &shadow_key, stored.is_none())
@@ -280,6 +281,7 @@ impl ShadowPoll<'_> {
     async fn record(&self, session_db_id: i64, shadow_key: &str, failed: bool) {
         ok_or_warn(
             self.persist
+                .eval()
                 .record_judge_attempt(
                     session_db_id,
                     shadow_key,
@@ -307,7 +309,10 @@ impl ShadowPoll<'_> {
             limit: pool_size,
         };
         let Some(candidates) = ok_or_warn(
-            self.persist.fetch_sessions_needing_shadow(&selection).await,
+            self.persist
+                .eval()
+                .fetch_sessions_needing_shadow(&selection)
+                .await,
             "session_end_shadow.selection",
         ) else {
             return 0;

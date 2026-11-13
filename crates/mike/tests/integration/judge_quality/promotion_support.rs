@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::operator_turns::projection::{ProjectionMode, ProjectionParams};
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictCallUsage, VerdictJudgement, VerdictMode, VerdictShape,
@@ -33,7 +34,7 @@ pub(crate) async fn facts(
     if next_state == "resolved" {
         crate::turn_facts::resolve(&mut row);
     }
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(())
 }
 

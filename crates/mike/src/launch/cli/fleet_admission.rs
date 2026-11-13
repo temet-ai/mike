@@ -1,6 +1,7 @@
 use crate::launch::fleet::owned_execution::{self, RunFence};
 use crate::launch::{LaunchError, OpenRequest, Surface};
 use crate::store::persistence::fleet::FleetLaunchAdmission;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch::LaunchSurfaceRefs;
 
 use super::super::runner::Runner;
@@ -31,6 +32,7 @@ pub(super) async fn admit(
         return Err(LaunchError::Refused(format!("fleet run {run} is stopping")));
     }
     let durable = persist
+        .fleet()
         .begin_fleet_launch(run)
         .await
         .map_err(|error| LaunchError::Refused(error.to_string()))?;

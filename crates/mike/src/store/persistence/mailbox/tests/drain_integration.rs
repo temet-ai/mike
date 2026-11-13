@@ -1,4 +1,5 @@
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use super::support::{drain_primary_turn, seed_session};
 
@@ -19,6 +20,7 @@ async fn drain_never_injects_a_dead_lettered_mailbox_row_regardless_of_redeliver
         let to_uuid = seed_session(&pool, "proj-drain-drops-dead-lettered").await?;
         let msg = uuid::Uuid::new_v4();
         handle
+            .launch()
             .insert_message(
                 msg,
                 to_uuid,

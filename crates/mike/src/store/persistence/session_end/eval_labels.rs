@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct SessionEndLabelItem {
@@ -14,9 +14,9 @@ pub struct SessionEndLabelItem {
     pub session_uuid: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn load_session_end_label_set(
-        &self,
+        self,
         labels_as_of: DateTime<Utc>,
         split: &str,
         tiers: &[String],
@@ -36,7 +36,7 @@ impl PersistHandle {
     }
 
     pub async fn load_session_end_labels_by_source(
-        &self,
+        self,
         labels_as_of: DateTime<Utc>,
         tiers: &[String],
         source: Option<&str>,
@@ -71,7 +71,7 @@ impl PersistHandle {
     }
 
     pub async fn refresh_session_end_run(
-        &self,
+        self,
         run_id: i64,
         status: &str,
         report: Option<&serde_json::Value>,
@@ -91,7 +91,7 @@ impl PersistHandle {
     }
 
     pub async fn all_session_end_items(
-        &self,
+        self,
         run_id: i64,
     ) -> Result<Vec<super::SessionEndItemRow>, PersistError> {
         Ok(self.list_session_end_items(run_id, i64::MAX, 0).await?.0)

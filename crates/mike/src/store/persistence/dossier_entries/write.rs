@@ -1,9 +1,9 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EntryClose, NewDossierEntry};
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn insert_dossier_entries(
-        &self,
+        self,
         entries: &[NewDossierEntry],
     ) -> Result<u64, PersistError> {
         if entries.is_empty() {
@@ -22,7 +22,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn close_dossier_entries(&self, closes: &[EntryClose]) -> Result<u64, PersistError> {
+    pub async fn close_dossier_entries(self, closes: &[EntryClose]) -> Result<u64, PersistError> {
         if closes.is_empty() {
             return Ok(0);
         }
@@ -39,7 +39,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn supersede_directives(&self, session_ids: &[i64]) -> Result<u64, PersistError> {
+    pub async fn supersede_directives(self, session_ids: &[i64]) -> Result<u64, PersistError> {
         if session_ids.is_empty() {
             return Ok(0);
         }
@@ -66,9 +66,9 @@ pub struct EntryCountRow {
     pub entries: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn count_dossier_entries_since(
-        &self,
+        self,
         since: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<EntryCountRow>, PersistError> {
         crate::metrics::time_db("count_dossier_entries_since", async move {

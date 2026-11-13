@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use super::fixture;
@@ -21,6 +24,7 @@ async fn seat_rows_list_opened_launches_oldest_first_with_role_and_context() -> 
     let coordinator_sid = seed_session(pool, project_id, coordinator).await?;
     seed_session(pool, project_id, worker).await?;
     f.handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             session_uuid: coordinator,
             display_name: None,
@@ -55,7 +59,7 @@ async fn seat_rows_list_opened_launches_oldest_first_with_role_and_context() -> 
 
     let last_at = seed_coordinator_traffic(pool, coordinator_sid, project_id, base).await?;
 
-    let rows = f.handle.fleet_seat_rows(&run_id).await?;
+    let rows = f.handle.fleet().fleet_seat_rows(&run_id).await?;
     let seats: Vec<_> = rows.iter().map(|r| r.seat.as_deref()).collect();
     assert_eq!(
         seats,
@@ -87,6 +91,7 @@ async fn seat_rows_list_opened_launches_oldest_first_with_role_and_context() -> 
 
     assert!(
         f.handle
+            .fleet()
             .fleet_seat_rows("run-with-no-launches")
             .await?
             .is_empty()
@@ -103,10 +108,11 @@ async fn seat_rows_carry_the_close_time_of_a_closed_launch() -> anyhow::Result<(
     seed_run(&f.handle, &run_id).await?;
     let launch = seed_launch(&f.handle, &run_id, "observer", None, true).await?;
     f.handle
+        .launch()
         .record_launch_closed(launch, "seat retired", Some(true))
         .await?;
 
-    let rows = f.handle.fleet_seat_rows(&run_id).await?;
+    let rows = f.handle.fleet().fleet_seat_rows(&run_id).await?;
     assert_eq!(rows.len(), 1);
     assert!(rows[0].closed_at.is_some());
     assert_eq!(rows[0].session_uuid, None);

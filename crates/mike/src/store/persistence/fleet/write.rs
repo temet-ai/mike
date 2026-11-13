@@ -2,11 +2,11 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::{FleetRow, NewFleet};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn ensure_fleet_comms_thread(
-        &self,
+        self,
         fleet_uuid: Uuid,
     ) -> Result<Option<Uuid>, PersistError> {
         crate::metrics::time_db("launch_ensure_fleet_comms_thread", async move {
@@ -21,7 +21,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_fleet(&self, new: &NewFleet) -> Result<FleetRow, PersistError> {
+    pub async fn insert_fleet(self, new: &NewFleet) -> Result<FleetRow, PersistError> {
         crate::metrics::time_db("launch_insert_fleet", async move {
             let row = sqlx::query_file_as!(
                 FleetRow,
@@ -41,7 +41,7 @@ impl PersistHandle {
     }
 
     pub async fn save_fleet_definition(
-        &self,
+        self,
         fleet_uuid: Uuid,
         definition: &serde_json::Value,
         missing: &serde_json::Value,
@@ -64,7 +64,7 @@ impl PersistHandle {
     }
 
     pub async fn set_fleet_state(
-        &self,
+        self,
         fleet_uuid: Uuid,
         state: &str,
         run_id: Option<&str>,

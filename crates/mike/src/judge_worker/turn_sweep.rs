@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
@@ -328,6 +329,7 @@ async fn stamp_and_log(
         usage: verdict_usage(judged.usage),
     };
     match persist
+        .eval()
         .insert_live_legacy_verdict_and_stamp(insert, LegacyStamp { outcome_code })
         .await
     {

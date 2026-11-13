@@ -1,12 +1,14 @@
 use super::vector_repair::EmbeddingWork;
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::store::persistence::lessons::NewLessonWrite;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistHandle, test_support};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn seed(handle: &PersistHandle, project: i64, text: &str) -> anyhow::Result<i64> {
     Ok(handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project,
             kind: "convention",
@@ -65,6 +67,7 @@ async fn vector_repair_fills_legacy_and_wrong_model_without_promoting_or_repeati
     )
     .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(outdated, &vec![0.5; 768], "old-model")
         .await?;
     let server = MockServer::start().await;
@@ -73,6 +76,7 @@ async fn vector_repair_fills_legacy_and_wrong_model_without_promoting_or_repeati
     work.repair(&handle, &service(&server)).await;
     assert!(
         handle
+            .lessons()
             .pending_lesson_vector_repairs("repair-model", 0, 16)
             .await?
             .is_empty()
@@ -109,6 +113,7 @@ async fn vector_repair_failure_retains_candidate_and_recovers_after_cursor_wrap(
     )
     .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(id, &vec![0.5; 768], "old-model")
         .await?;
     let server = MockServer::start().await;
@@ -118,6 +123,7 @@ async fn vector_repair_failure_retains_candidate_and_recovers_after_cursor_wrap(
     work.repair(&handle, &embedding).await;
     assert_eq!(
         handle
+            .lessons()
             .pending_lesson_vector_repairs("repair-model", 0, 16)
             .await?[0]
             .0,
@@ -129,12 +135,14 @@ async fn vector_repair_failure_retains_candidate_and_recovers_after_cursor_wrap(
     work.repair(&handle, &embedding).await;
     assert!(
         handle
+            .lessons()
             .pending_lesson_vector_repairs("repair-model", 0, 16)
             .await?
             .is_empty()
     );
     assert!(
         !handle
+            .lessons()
             .write_repaired_lesson_vector(
                 id,
                 "concurrently edited text",
@@ -146,6 +154,7 @@ async fn vector_repair_failure_retains_candidate_and_recovers_after_cursor_wrap(
     sqlx::query("UPDATE memory.lessons SET stage_id = s.id FROM memory.lesson_stages s WHERE memory.lessons.id = $1 AND s.code = 'raw'").bind(id).execute(handle.pool()).await?;
     assert!(
         !handle
+            .lessons()
             .write_repaired_lesson_vector(
                 id,
                 "Operator correction must remain retriable after provider failure",
@@ -175,6 +184,7 @@ async fn vector_repair_excludes_expired_archived_and_unapproved_lessons() -> any
     )
     .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(expired, &vec![0.5; 768], "old-model")
         .await?;
     sqlx::query("UPDATE memory.lessons SET expires_at = NOW() - interval '1 day' WHERE id = $1")
@@ -182,13 +192,18 @@ async fn vector_repair_excludes_expired_archived_and_unapproved_lessons() -> any
         .execute(handle.pool())
         .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(archived, &vec![0.5; 768], "old-model")
         .await?;
-    handle.archive_lesson(archived, "expired", None).await?;
+    handle
+        .lessons()
+        .archive_lesson(archived, "expired", None)
+        .await?;
     sqlx::query("UPDATE memory.lessons SET source_id = s.id FROM memory.lesson_sources s WHERE memory.lessons.id = $1 AND s.code = 'judge'")
         .bind(unapproved).execute(handle.pool()).await?;
     assert!(
         handle
+            .lessons()
             .pending_lesson_vector_repairs("repair-model", 0, 16)
             .await?
             .is_empty()
@@ -198,6 +213,7 @@ async fn vector_repair_excludes_expired_archived_and_unapproved_lessons() -> any
     work.repair(&handle, &service(&server)).await;
     assert!(
         handle
+            .lessons()
             .claim_raw_lessons_for_consolidation(project, 50)
             .await?
             .iter()

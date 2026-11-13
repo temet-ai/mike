@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use chrono::{DateTime, Duration, Utc};
@@ -62,6 +63,7 @@ pub fn queue_of(def: &FleetDefinition, rows: &[TreeResultRow]) -> SlotQueue {
 pub async fn slot_queue(persist: &PersistHandle, def: &FleetDefinition, run: &str) -> SlotQueue {
     let since = Utc::now() - Duration::hours(QUEUE_WINDOW_HOURS);
     match persist
+        .fleet()
         .tree_results(run, None, since, QUEUE_ROWS_READ)
         .await
     {

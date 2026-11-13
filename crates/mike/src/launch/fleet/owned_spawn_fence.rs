@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use sqlx::{PgConnection, Postgres, Transaction};
 use uuid::Uuid;
 
@@ -40,6 +41,7 @@ impl Identity {
     async fn lock_inner(&self) -> Result<SpawnFence, String> {
         let (transaction, locked) = self
             .persist
+            .fleet()
             .begin_fleet_spawn_fence(self.fleet)
             .await
             .map_err(|error| error.to_string())?;
@@ -57,7 +59,12 @@ impl Identity {
     }
 
     async fn activity(&self) -> Activity {
-        let row = match self.persist.find_fleet(&self.fleet.to_string()).await {
+        let row = match self
+            .persist
+            .fleet()
+            .find_fleet(&self.fleet.to_string())
+            .await
+        {
             Ok(row) => row,
             Err(error) => return Activity::Unknown(error.to_string()),
         };

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::sync::OnceLock;
 
 use dashmap::DashSet;
@@ -38,7 +39,7 @@ async fn append(persist: &PersistHandle, run: &str, payload: EventPayload) {
         session_uuid: None,
         payload,
     };
-    if let Err(err) = persist.append_fleet_event(&event).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&event).await {
         tracing::warn!(error = %err, run, "fleet: could not record a check event");
     }
 }
@@ -97,7 +98,7 @@ pub(in crate::launch::fleet) fn unfinished(
 
 pub(in crate::launch::fleet) async fn settle_interrupted(persist: &PersistHandle, run: &str) {
     let run = super::base_run(run);
-    let Ok(events) = persist.fleet_events_since(run, 0).await else {
+    let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return;
     };
     for receipt in unfinished(&events) {

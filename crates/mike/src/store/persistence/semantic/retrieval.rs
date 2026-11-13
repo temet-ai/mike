@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnchorVector {
@@ -66,9 +66,9 @@ pub struct CandidateRow {
     pub corrected_turn_id: Option<i64>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn semantic_turns_with_items(
-        &self,
+        self,
         embedder_key: &str,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
@@ -103,7 +103,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_anchors(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Vec<AnchorVector>, PersistError> {
         crate::metrics::time_db("semantic_anchors", async move {
@@ -124,7 +124,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_tagger_backtest_cases(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Vec<TaggerBacktestCase>, PersistError> {
         crate::metrics::time_db("semantic_tagger_backtest_cases", async move {
@@ -149,7 +149,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_session_project(
-        &self,
+        self,
         session_id: i64,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("semantic_session_project", async move {
@@ -165,7 +165,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_subject_facets(
-        &self,
+        self,
         turn_id: i64,
         embedder_key: &str,
     ) -> Result<Vec<FacetVector>, PersistError> {
@@ -198,7 +198,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_candidates(
-        &self,
+        self,
         kind: &str,
         s: &CandidateSearch<'_>,
     ) -> Result<Vec<CandidateRow>, PersistError> {

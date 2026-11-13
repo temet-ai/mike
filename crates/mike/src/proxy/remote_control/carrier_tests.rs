@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::sync::Arc;
 
 use chrono::{Duration, Utc};
@@ -72,6 +73,7 @@ async fn first_request_after_the_ack_is_stamped_as_the_carrier() -> anyhow::Resu
     let later = insert_request(&handle, session).await?;
     assert_eq!(
         handle
+            .proxy()
             .stamp_push_carriers(session, carrier, Utc::now())
             .await?,
         1
@@ -82,6 +84,7 @@ async fn first_request_after_the_ack_is_stamped_as_the_carrier() -> anyhow::Resu
     );
     assert_eq!(
         handle
+            .proxy()
             .stamp_push_carriers(session, later, Utc::now())
             .await?,
         0
@@ -107,6 +110,7 @@ async fn a_request_that_started_before_the_ack_is_not_the_carrier() -> anyhow::R
     let started_before_ack = Utc::now() - Duration::seconds(5);
     assert_eq!(
         handle
+            .proxy()
             .stamp_push_carriers(
                 session,
                 insert_request(&handle, session).await?,
@@ -135,6 +139,7 @@ async fn an_ack_older_than_the_window_is_never_stamped() -> anyhow::Result<()> {
 
     assert_eq!(
         handle
+            .proxy()
             .stamp_push_carriers(session, insert_request(&handle, session).await?, Utc::now())
             .await?,
         0

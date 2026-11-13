@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use serde::Serialize;
 
@@ -43,10 +45,12 @@ impl DriftRun<'_> {
         let key = &self.embedder.embedder_key;
         let sums = self
             .persist
+            .knowledge()
             .daily_drift_sums(stream, key, day_start(day))
             .await?;
         let prior = self
             .persist
+            .knowledge()
             .prior_drift_distances(
                 stream,
                 key,
@@ -68,6 +72,7 @@ impl DriftRun<'_> {
         });
         if self.write {
             self.persist
+                .knowledge()
                 .insert_drift_row(&NewDriftRow {
                     day,
                     stream,
@@ -120,6 +125,7 @@ impl DriftRun<'_> {
             })
             .collect();
         self.persist
+            .eval()
             .apply_alarm_pass(
                 &[AlarmKind::EmbeddingDrift],
                 &firings,

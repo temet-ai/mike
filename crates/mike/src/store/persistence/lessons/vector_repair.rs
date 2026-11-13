@@ -1,9 +1,9 @@
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn pending_lesson_vector_repairs(
-        &self,
+        self,
         model: &str,
         after_id: i64,
         limit: i64,
@@ -32,7 +32,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn write_repaired_lesson_vector(
-        &self,
+        self,
         id: i64,
         expected_text: &str,
         vector: &[f32],

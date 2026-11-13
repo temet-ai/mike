@@ -4,7 +4,7 @@ mod candidates_tests;
 
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CandidateWindow {
@@ -15,8 +15,8 @@ pub struct CandidateWindow {
 
 const BACKSTOP_MAX_ATTEMPTS: i32 = 10;
 
-impl PersistHandle {
-    pub async fn dossier_builder_enabled(&self) -> Result<bool, PersistError> {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
+    pub async fn dossier_builder_enabled(self) -> Result<bool, PersistError> {
         crate::metrics::time_db("dossier_builder_enabled", async move {
             let enabled = sqlx::query_scalar!(
                 "SELECT enabled FROM config.feature_toggles WHERE key = 'dossier_builder'"
@@ -28,7 +28,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn sessions_for_turns(&self, turn_ids: &[i64]) -> Result<Vec<i64>, PersistError> {
+    pub async fn sessions_for_turns(self, turn_ids: &[i64]) -> Result<Vec<i64>, PersistError> {
         if turn_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -47,7 +47,7 @@ impl PersistHandle {
     }
 
     pub async fn find_turn_facts_candidates(
-        &self,
+        self,
         builder_version: &str,
         window: CandidateWindow,
     ) -> Result<Vec<i64>, PersistError> {

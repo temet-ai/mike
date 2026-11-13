@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct PromptClassVersionModelDto {
@@ -67,6 +68,7 @@ async fn prompt_class_versions_response(
         ));
     };
     let Some(rows) = handle
+        .proxy()
         .get_prompt_class_versions(lane, persona)
         .await
         .map_err(map_composition_persist_error)?

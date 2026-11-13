@@ -3,7 +3,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::PersistError;
-use super::PersistHandle;
 use crate::work_items::ledger::{GitOutputRow, WorkItemRow};
 use crate::work_items::ledger_cache::{ActivityRow, GitDeltaRow, ScopeRow, SessionReads};
 
@@ -135,9 +134,9 @@ async fn reads(
     })
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn work_item_scope(
-        &self,
+        self,
         window_hours: i32,
         named: Option<&[Uuid]>,
     ) -> Result<Vec<ScopeRow>, PersistError> {
@@ -145,7 +144,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn work_item_reads(
-        &self,
+        self,
         after: &[(i64, DateTime<Utc>)],
     ) -> Result<SessionReads, PersistError> {
         if after.is_empty() {

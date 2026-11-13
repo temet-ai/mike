@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 pub const PATH_HEARTBEAT: &str = "/worker/heartbeat";
 pub const PATH_DELIVERY: &str = "/worker/events/delivery";
@@ -103,9 +103,9 @@ impl RollupTimes {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn record_remote_control_call(
-        &self,
+        self,
         call: RemoteControlCall<'_>,
     ) -> Result<i64, PersistError> {
         let cse_id = call.cse_id;
@@ -120,7 +120,7 @@ impl PersistHandle {
             })
     }
 
-    async fn renew_lease_on_heartbeat(&self, cse_id: &str) {
+    async fn renew_lease_on_heartbeat(self, cse_id: &str) {
         let renewed = crate::metrics::time_db("remote_control_renew_lease_on_heartbeat", async {
             sqlx::query_file!(
                 "src/store/persistence/remote_control/renew_lease_on_heartbeat.sql",
@@ -138,7 +138,7 @@ impl PersistHandle {
     }
 
     pub async fn close_remote_control_stream(
-        &self,
+        self,
         call_id: i64,
         closed_at: DateTime<Utc>,
     ) -> Result<(), PersistError> {

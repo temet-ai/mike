@@ -1,5 +1,6 @@
 use chrono::NaiveDate;
 use mike::store::persistence::lessons::skill_review_writes::{InstallReport, ReportedInstall};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use uuid::Uuid;
 
 use super::skill_drafts::{Fixture, fixture};
@@ -28,6 +29,7 @@ async fn report_install(
         retired_reason: retired.then(|| "unloaded".to_owned()),
     }];
     fx.handle
+        .lessons()
         .record_skill_installs(InstallReport {
             machine_uuid: Uuid::from_u128(7),
             machine_name: "test-machine",
@@ -63,7 +65,11 @@ async fn lesson_in_a_live_installed_skill_is_withheld_and_a_newer_one_is_not() -
         .daily_lesson("Commit migrations with their code.")
         .await?;
 
-    let withheld = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let withheld = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(withheld.contains(&covered), "withheld: {withheld:?}");
     assert!(!withheld.contains(&newer), "withheld: {withheld:?}");
     fx.finish().await
@@ -75,18 +81,30 @@ async fn lesson_whose_skill_is_retired_or_missing_is_not_withheld() -> anyhow::R
         return Ok(());
     };
     let lesson = fx.daily_lesson("Run migrate-check first.").await?;
-    let none_installed = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let none_installed = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(
         !none_installed.contains(&lesson),
         "withheld: {none_installed:?}"
     );
 
     report_install(&fx, "database-migrations", lesson, true).await?;
-    let retired = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let retired = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(!retired.contains(&lesson), "withheld: {retired:?}");
 
     report_install(&fx, "another-topic", lesson, false).await?;
-    let other_folder = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let other_folder = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(
         !other_folder.contains(&lesson),
         "withheld: {other_folder:?}"
@@ -108,7 +126,11 @@ async fn placement_decides_whether_an_installed_skill_carries_the_lesson() -> an
     place(&fx, rule, "rule").await?;
     report_install(&fx, "database-migrations", rule, false).await?;
 
-    let withheld = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let withheld = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(withheld.contains(&in_skill), "withheld: {withheld:?}");
     assert!(!withheld.contains(&memory), "withheld: {withheld:?}");
     assert!(withheld.contains(&rule), "withheld: {withheld:?}");
@@ -122,7 +144,11 @@ async fn rule_placed_topic_lesson_stays_withheld_without_any_install() -> anyhow
     };
     let rule = fx.daily_lesson("Never edit an applied migration.").await?;
     place(&fx, rule, "rule").await?;
-    let withheld = fx.handle.list_topic_lessons_withheld_from_content().await?;
+    let withheld = fx
+        .handle
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     assert!(withheld.contains(&rule), "withheld: {withheld:?}");
     fx.finish().await
 }

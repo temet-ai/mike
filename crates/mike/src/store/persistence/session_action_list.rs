@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug)]
 pub struct SessionActionRow {
@@ -19,9 +19,9 @@ pub struct SessionActionCounts {
     pub failed_commands: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn fetch_session_action_list(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<SessionActionRow>, PersistError> {
         crate::metrics::time_db("fetch_session_action_list", async {
@@ -49,7 +49,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_action_list_recent(
-        &self,
+        self,
         session_db_id: i64,
         limit: i64,
     ) -> Result<Vec<SessionActionRow>, PersistError> {
@@ -87,7 +87,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_action_counts(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<SessionActionCounts, PersistError> {
         crate::metrics::time_db("fetch_session_action_counts", async {

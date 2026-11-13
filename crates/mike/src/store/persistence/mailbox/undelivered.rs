@@ -1,6 +1,6 @@
 use sqlx::{Executor, Postgres};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(super) async fn tell_listed_senders<'e>(
     executor: impl Executor<'e, Database = Postgres>,
@@ -18,16 +18,16 @@ pub(super) async fn tell_listed_senders<'e>(
     Ok(notified.unsigned_abs())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn tell_sender_not_delivered(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         Ok(self.tell_senders_not_delivered(&[message_uuid]).await? > 0)
     }
 
     pub(crate) async fn tell_senders_not_delivered(
-        &self,
+        self,
         messages: &[uuid::Uuid],
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db(
@@ -38,7 +38,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn tell_inactive_senders(
-        &self,
+        self,
         cutoff: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db("mailbox_tell_inactive_senders", async move {
@@ -57,7 +57,7 @@ impl PersistHandle {
     }
 
     pub async fn revive_undelivered_mail(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
     ) -> Result<Vec<uuid::Uuid>, PersistError> {
         crate::metrics::time_db("mailbox_revive_undelivered", async move {

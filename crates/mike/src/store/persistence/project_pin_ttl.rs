@@ -1,8 +1,8 @@
+use super::PersistError;
 use super::meta;
-use super::{PersistError, PersistHandle};
 
-impl PersistHandle {
-    pub async fn pin_session(&self, session_id: &str) -> Result<(), PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub async fn pin_session(self, session_id: &str) -> Result<(), PersistError> {
         crate::metrics::time_db("pin_session", async move {
             let db_id = self.ensure_session_exists(session_id).await?;
             sqlx::query!(
@@ -18,7 +18,7 @@ impl PersistHandle {
         })
         .await
     }
-    pub async fn unpin_session(&self, session_db_id: i64) -> Result<(), PersistError> {
+    pub async fn unpin_session(self, session_db_id: i64) -> Result<(), PersistError> {
         crate::metrics::time_db("unpin_session", async move {
             sqlx::query!(
                 "UPDATE sessions.sessions
@@ -33,7 +33,7 @@ impl PersistHandle {
         .await
     }
     pub async fn set_session_ttl(
-        &self,
+        self,
         session_id: &str,
         ttl: Option<std::time::Duration>,
     ) -> Result<(), PersistError> {
@@ -61,7 +61,7 @@ impl PersistHandle {
         })
         .await
     }
-    pub async fn pin_project(&self, project_path: &str) -> Result<(), PersistError> {
+    pub async fn pin_project(self, project_path: &str) -> Result<(), PersistError> {
         let project_path = project_path.to_owned();
         let display_name = crate::extract::request::project_display_name(
             crate::extract::request::compute_project_root(&project_path),
@@ -84,7 +84,7 @@ impl PersistHandle {
         })
         .await
     }
-    pub async fn unpin_project(&self, project_path: &str) -> Result<(), PersistError> {
+    pub async fn unpin_project(self, project_path: &str) -> Result<(), PersistError> {
         let project_path = project_path.to_owned();
         crate::metrics::time_db("unpin_project", async move {
             sqlx::query!(
@@ -100,7 +100,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn set_project_custom_name(
-        &self,
+        self,
         project_path: &str,
         custom_name: Option<&str>,
     ) -> Result<bool, PersistError> {
@@ -120,7 +120,7 @@ impl PersistHandle {
         .await
     }
     pub async fn set_project_ttl(
-        &self,
+        self,
         project_path: &str,
         ttl: Option<std::time::Duration>,
     ) -> Result<(), PersistError> {
@@ -149,7 +149,7 @@ impl PersistHandle {
         .await
     }
     pub async fn effective_ttl_for_session(
-        &self,
+        self,
         session_db_id: i64,
         default_ttl: std::time::Duration,
     ) -> Result<std::time::Duration, PersistError> {
@@ -173,7 +173,7 @@ impl PersistHandle {
     }
     #[cfg(any(test, feature = "test-seams"))]
     pub async fn effective_pinned_for_session(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("effective_pinned_for_session", async move {
@@ -190,12 +190,12 @@ impl PersistHandle {
         })
         .await
     }
-    pub async fn ensure_session_exists(&self, session_id: &str) -> Result<i64, PersistError> {
+    pub async fn ensure_session_exists(self, session_id: &str) -> Result<i64, PersistError> {
         self.cached_session_or_ensure(session_id, self.insert_or_find_session(session_id))
             .await
     }
 
-    async fn insert_or_find_session(&self, session_id: &str) -> Result<i64, PersistError> {
+    async fn insert_or_find_session(self, session_id: &str) -> Result<i64, PersistError> {
         crate::metrics::time_db("ensure_session_exists", async move {
             super::id_resolvers::resolve_session_id(&self.pool, session_id, None, None).await
         })

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::{Value, json};
 
 use super::fixture_tests::{Fixture, SEARCH_TOOL};
@@ -24,6 +25,7 @@ async fn shown_search(fixture: &Fixture, entries: Value) -> anyhow::Result<i64> 
 async fn mark(fixture: &Fixture) -> anyhow::Result<()> {
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
     Ok(())

@@ -1,4 +1,4 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct RejudgeCandidate {
@@ -41,9 +41,9 @@ pub struct ShadowSelection<'a> {
     pub limit: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn fetch_sessions_needing_v3(
-        &self,
+        self,
         q: &V3Selection<'_>,
     ) -> Result<Vec<V3Candidate>, PersistError> {
         crate::metrics::time_db("fetch_sessions_needing_v3", async move {
@@ -63,7 +63,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_sessions_needing_shadow(
-        &self,
+        self,
         q: &ShadowSelection<'_>,
     ) -> Result<Vec<V3Candidate>, PersistError> {
         crate::metrics::time_db("fetch_sessions_needing_shadow", async move {
@@ -83,7 +83,7 @@ impl PersistHandle {
     }
 
     pub async fn session_rejudge_candidates(
-        &self,
+        self,
         w: &SessionRejudgeWindow<'_>,
         limit: i64,
     ) -> Result<Vec<RejudgeCandidate>, PersistError> {
@@ -103,7 +103,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn session_v3_mean_cost(&self, bundle_id: i64) -> Result<Option<f64>, PersistError> {
+    pub async fn session_v3_mean_cost(self, bundle_id: i64) -> Result<Option<f64>, PersistError> {
         crate::metrics::time_db("session_v3_mean_cost", async move {
             Ok(sqlx::query_scalar!(
                 r#"WITH recent AS (
@@ -121,7 +121,7 @@ impl PersistHandle {
     }
 
     pub async fn session_rejudge_calls_today(
-        &self,
+        self,
         w: &SessionRejudgeWindow<'_>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("session_rejudge_calls_today", async move {

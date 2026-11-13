@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use serde::Serialize;
 
 use crate::settings::cross_session::CrossSessionSettings;
@@ -40,16 +41,16 @@ pub async fn run_proposer_pass(
     let p = params(settings, rollup_id);
     let mut report = ProposerReport::default();
     if settings.source_enabled("repeated_directive") {
-        report.repeated_directive = persist.propose_repeated_directives(&p).await?;
+        report.repeated_directive = persist.steerer().propose_repeated_directives(&p).await?;
     }
     if settings.source_enabled("confirmed_handback") {
-        report.confirmed_handback = persist.propose_confirmed_handbacks(&p).await?;
+        report.confirmed_handback = persist.steerer().propose_confirmed_handbacks(&p).await?;
     }
     for unavailable in ["recurring_failure_tag", "recurring_pattern"] {
         if settings.source_enabled(unavailable) {
             report.sources_unavailable.push(unavailable.to_owned());
         }
     }
-    report.operator_rollups = persist.roll_up_operator_scope(&p).await?;
+    report.operator_rollups = persist.steerer().roll_up_operator_scope(&p).await?;
     Ok(report)
 }

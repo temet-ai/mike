@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReplayWindow {
@@ -24,9 +24,9 @@ pub struct GuardReplayTurn {
     pub tail: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn guard_replay_turns(
-        &self,
+        self,
         w: &ReplayWindow,
     ) -> Result<Vec<GuardReplayTurn>, PersistError> {
         crate::metrics::time_db("guard_replay_turns", async move {

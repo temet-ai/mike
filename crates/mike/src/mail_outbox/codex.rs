@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -31,7 +32,12 @@ impl SeatRpc for LiveSeat {
         if !self.live() {
             return None;
         }
-        match self.persist.find_launch_by_session(self.session).await {
+        match self
+            .persist
+            .launch()
+            .find_launch_by_session(self.session)
+            .await
+        {
             Ok(row) => row.map(|launch| launch.id),
             Err(error) => {
                 tracing::warn!(error = %error, session_id = %self.session, "mail outbox could not read the seat's launch");

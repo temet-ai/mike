@@ -1,3 +1,5 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::BTreeMap;
 
 use super::grade::rerank_all;
@@ -23,7 +25,11 @@ pub(super) async fn pairs_phase(
     idle: &impl Idle,
     found: &mut usize,
 ) -> Option<Stop> {
-    let projects = match persist.list_project_ids_with_embedded_lessons().await {
+    let projects = match persist
+        .lessons()
+        .list_project_ids_with_embedded_lessons()
+        .await
+    {
         Ok(projects) => projects,
         Err(error) => {
             return Some(database_failed(
@@ -55,6 +61,7 @@ async fn project_pairs(
     threshold: f64,
 ) -> Result<Result<usize, Stop>, PersistError> {
     let mut pairs = persist
+        .lessons()
         .find_candidate_relation_pairs(project_id, threshold)
         .await?;
     pairs.truncate(PAIRS_PER_PROJECT);
@@ -78,7 +85,10 @@ async fn project_pairs(
             distance: pair.distance,
         })
         .collect();
-    Ok(Ok(persist.upsert_lesson_pair_candidates(&kept).await?))
+    Ok(Ok(persist
+        .knowledge()
+        .upsert_lesson_pair_candidates(&kept)
+        .await?))
 }
 
 async fn score_pairs(

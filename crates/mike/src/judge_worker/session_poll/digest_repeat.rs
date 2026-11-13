@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use sha2::{Digest, Sha256};
 
 use crate::store::persistence::SessionForJudgment;
@@ -29,6 +30,7 @@ pub(super) async fn is_repeat(
 ) -> bool {
     match ctx
         .persist
+        .eval()
         .skip_repeated_digest(&key(ctx, session), digest, at)
         .await
     {
@@ -51,6 +53,7 @@ pub(super) async fn remember(
 ) {
     if let Err(e) = ctx
         .persist
+        .eval()
         .record_judged_digest(&key(ctx, session), digest)
         .await
     {

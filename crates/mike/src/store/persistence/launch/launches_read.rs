@@ -2,7 +2,7 @@ use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use super::{LaunchListFilter, LaunchRow};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 fn list_launches_builder(filter: &LaunchListFilter) -> QueryBuilder<Postgres> {
     let mut builder = QueryBuilder::new(include_str!("list_launches_select.sql"));
@@ -27,9 +27,9 @@ fn list_launches_builder(filter: &LaunchListFilter) -> QueryBuilder<Postgres> {
     builder
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn find_launch_by_session(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<LaunchRow>, PersistError> {
         crate::metrics::time_db("launch_find_launch_by_session", async move {
@@ -46,7 +46,7 @@ impl PersistHandle {
     }
 
     pub async fn list_launches(
-        &self,
+        self,
         filter: &LaunchListFilter,
     ) -> Result<Vec<LaunchRow>, PersistError> {
         crate::metrics::time_db("launch_list_launches", async move {
@@ -59,7 +59,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_open_launches(&self, backend: &str) -> Result<i64, PersistError> {
+    pub async fn count_open_launches(self, backend: &str) -> Result<i64, PersistError> {
         crate::metrics::time_db("launch_count_open_launches", async move {
             let count = sqlx::query_file_scalar!(
                 "src/store/persistence/launch/count_open_launches.sql",
@@ -73,7 +73,7 @@ impl PersistHandle {
     }
 
     pub async fn session_has_remote_control_channel(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("launch_session_has_remote_control_channel", async move {
@@ -89,7 +89,7 @@ impl PersistHandle {
     }
 
     pub async fn session_prompt_turn_seen(
-        &self,
+        self,
         session_uuid: Uuid,
         since: chrono::DateTime<chrono::Utc>,
         prompt_prefix: &str,

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde::Serialize;
 
 use crate::store::persistence::PersistHandle;
@@ -24,7 +25,10 @@ pub async fn floor_set(
     key: &str,
     quantile: f64,
 ) -> Result<FloorSet, SemanticError> {
-    let rows = persist.semantic_floors_in_force(key, quantile).await?;
+    let rows = persist
+        .knowledge()
+        .semantic_floors_in_force(key, quantile)
+        .await?;
     Ok(FloorSet {
         by_pair: rows
             .into_iter()
@@ -53,6 +57,7 @@ impl FloorRun<'_> {
     async fn one(&self, pair: &str, first_for_key: bool) -> Result<FloorLine, SemanticError> {
         let stats = self
             .persist
+            .knowledge()
             .compute_semantic_floor(&FloorSample {
                 embedder_key: &self.embedder.embedder_key,
                 pair,
@@ -74,6 +79,7 @@ impl FloorRun<'_> {
             });
             Some(
                 self.persist
+                    .knowledge()
                     .insert_semantic_floor(&NewFloor {
                         embedder_key: &self.embedder.embedder_key,
                         pair,
@@ -100,6 +106,7 @@ impl FloorRun<'_> {
     pub async fn compute_all(&self) -> Result<Vec<FloorLine>, SemanticError> {
         let first = !self
             .persist
+            .knowledge()
             .semantic_key_has_floors(&self.embedder.embedder_key)
             .await?;
         let mut lines = Vec::new();
@@ -130,7 +137,7 @@ pub async fn promote(
     persist: &PersistHandle,
     p: &Promote<'_>,
 ) -> Result<PromoteResult, SemanticError> {
-    let Some(row) = persist.get_semantic_floor(p.from_id).await? else {
+    let Some(row) = persist.knowledge().get_semantic_floor(p.from_id).await? else {
         return Ok(PromoteResult::NotMonitoring);
     };
     if row.status != "monitoring" || row.pair != p.pair {
@@ -154,6 +161,7 @@ pub async fn promote(
         floor: Some(row.floor),
     };
     let id = persist
+        .knowledge()
         .insert_semantic_floor(&NewFloor {
             embedder_key: &row.embedder_key,
             pair: &row.pair,

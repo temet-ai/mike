@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -39,6 +40,7 @@ async fn location(
     project: i64,
 ) -> anyhow::Result<Uuid> {
     handle
+        .knowledge()
         .add_checkout_location(machine, "host", root, project)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the location is free"))
@@ -62,7 +64,10 @@ async fn a_checkout_finds_the_project_of_its_remote_on_another_machine() -> anyh
     let project = seed_project(handle.pool(), "/mnt/data/projects/tether").await?;
     let (omit, mac) = (Uuid::new_v4(), Uuid::new_v4());
     let elsewhere = location(&handle, omit, "/mnt/data/projects/tether", project).await?;
-    handle.set_location_origin(elsewhere, REMOTE).await?;
+    handle
+        .knowledge()
+        .set_location_origin(elsewhere, REMOTE)
+        .await?;
 
     let tmp = tempfile::tempdir()?;
     let checkout = repo(tmp.path(), "tether")?;
@@ -72,9 +77,12 @@ async fn a_checkout_finds_the_project_of_its_remote_on_another_machine() -> anyh
         place_folder(&handle, mac, "mac", &inside).await?,
         Some(project)
     );
-    assert_eq!(handle.locations_on_machine(mac).await?.len(), 1);
+    assert_eq!(handle.knowledge().locations_on_machine(mac).await?.len(), 1);
     assert_eq!(
-        handle.project_id_enclosing(mac, &inside).await?,
+        handle
+            .knowledge()
+            .project_id_enclosing(mac, &inside)
+            .await?,
         Some(project)
     );
 
@@ -91,7 +99,7 @@ async fn a_remote_on_two_projects_places_nothing() -> anyhow::Result<()> {
     for name in ["/one", "/two"] {
         let project = seed_project(handle.pool(), name).await?;
         let at = location(&handle, Uuid::new_v4(), name, project).await?;
-        handle.set_location_origin(at, REMOTE).await?;
+        handle.knowledge().set_location_origin(at, REMOTE).await?;
     }
     let tmp = tempfile::tempdir()?;
     let checkout = repo(tmp.path(), "tether")?;
@@ -100,7 +108,13 @@ async fn a_remote_on_two_projects_places_nothing() -> anyhow::Result<()> {
         place_folder(&handle, machine, "mac", &checkout.to_string_lossy()).await?,
         None
     );
-    assert!(handle.locations_on_machine(machine).await?.is_empty());
+    assert!(
+        handle
+            .knowledge()
+            .locations_on_machine(machine)
+            .await?
+            .is_empty()
+    );
 
     db.cleanup().await
 }
@@ -121,7 +135,14 @@ async fn a_repository_no_project_holds_gets_one_project_across_machines() -> any
 
     assert!(first.is_some());
     assert_eq!(first, second);
-    assert_eq!(handle.project_ids_for_origin(REMOTE).await?.len(), 1);
+    assert_eq!(
+        handle
+            .knowledge()
+            .project_ids_for_origin(REMOTE)
+            .await?
+            .len(),
+        1
+    );
 
     db.cleanup().await
 }

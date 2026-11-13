@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use axum::Json;
@@ -180,6 +182,7 @@ async fn guard_estimate(
 ) -> Result<EffectEstimate, PersistError> {
     let now = Utc::now();
     let rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, Some(question.code()), now)
         .await?;
     let turns: Vec<i64> = rows
@@ -188,6 +191,7 @@ async fn guard_estimate(
         .filter_map(|r| r.scored_turn_id)
         .collect();
     let ends: HashMap<i64, String> = persist
+        .eval()
         .session_end_labels_for_turns(&turns, now)
         .await?
         .into_iter()
@@ -285,7 +289,11 @@ pub(crate) async fn list_actions(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let lessons = match persist.list_lesson_actions(q.project.as_deref()).await {
+    let lessons = match persist
+        .eval()
+        .list_lesson_actions(q.project.as_deref())
+        .await
+    {
         Ok(rows) => rows,
         Err(e) => {
             return error(
@@ -296,7 +304,7 @@ pub(crate) async fn list_actions(
     };
     let mut items = lesson_items(&lessons);
     if q.project.is_none() {
-        let guard_questions = match persist.list_guard_question_actions().await {
+        let guard_questions = match persist.eval().list_guard_question_actions().await {
             Ok(rows) => rows,
             Err(e) => {
                 return error(
@@ -305,12 +313,19 @@ pub(crate) async fn list_actions(
                 );
             }
         };
-        let steerer_id = persist.guard_steerer().await.ok().flatten().map(|r| r.id);
+        let steerer_id = persist
+            .steerer()
+            .guard_steerer()
+            .await
+            .ok()
+            .flatten()
+            .map(|r| r.id);
         items.extend(guard_items(persist, steerer_id, &guard_questions).await);
     }
     let exposures = if q.include_exposures {
         let until = Utc::now();
         match persist
+            .eval()
             .list_lesson_exposures(
                 q.project.as_deref(),
                 until - chrono::Duration::days(7),

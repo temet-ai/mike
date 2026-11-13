@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProposalProjectRow {
@@ -48,8 +48,8 @@ impl PlacementDecision {
     }
 }
 
-impl PersistHandle {
-    pub async fn list_proposal_projects(&self) -> Result<Vec<ProposalProjectRow>, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn list_proposal_projects(self) -> Result<Vec<ProposalProjectRow>, PersistError> {
         crate::metrics::time_db("list_proposal_projects", async move {
             Ok(sqlx::query_as!(
                 ProposalProjectRow,
@@ -72,7 +72,7 @@ impl PersistHandle {
     }
 
     pub async fn list_placement_proposals(
-        &self,
+        self,
         project_uuid: Uuid,
     ) -> Result<Vec<PlacementProposalRow>, PersistError> {
         crate::metrics::time_db("list_placement_proposals", async move {
@@ -103,7 +103,7 @@ impl PersistHandle {
     }
 
     pub async fn set_placement_decision(
-        &self,
+        self,
         lesson_id: i64,
         decision: PlacementDecision,
     ) -> Result<bool, PersistError> {

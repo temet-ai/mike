@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -158,6 +160,7 @@ async fn record_launch(
     started: &Result<(), String>,
 ) {
     let launch_id = persist
+        .launch()
         .find_launch_by_session(seat.session)
         .await
         .ok()
@@ -176,13 +179,14 @@ async fn record_launch(
         session_uuid: Some(seat.session),
         payload,
     };
-    if let Err(err) = persist.append_fleet_event(&event).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&event).await {
         tracing::warn!(error = %err, run = run_id, "fleet: a seat launch event could not be recorded");
     }
 }
 
 async fn admitted_run(persist: &PersistHandle, run: &str) -> Result<(), String> {
     let recorded = persist
+        .fleet()
         .fleet_run_admission(run)
         .await
         .map_err(|error| error.to_string())?;
@@ -240,6 +244,7 @@ async fn wait_until_open(persist: &PersistHandle, session: Uuid) -> Result<(), S
     let deadline = tokio::time::Instant::now() + OPEN_WAIT;
     loop {
         let row = persist
+            .launch()
             .find_launch_by_session(session)
             .await
             .map_err(|e| e.to_string())?;
@@ -310,7 +315,7 @@ async fn save_once(
     patch: &Value,
     still: &impl Fn(&Value) -> bool,
 ) -> Saved {
-    let row = match persist.find_fleet(&fleet.to_string()).await {
+    let row = match persist.fleet().find_fleet(&fleet.to_string()).await {
         Ok(Some(row)) if matches!(row.state.as_str(), "starting" | "running") => row,
         Ok(_) => return Saved::Closed,
         Err(err) => return Saved::Failed(err.to_string()),
@@ -321,6 +326,7 @@ async fn save_once(
     let mut definition = row.definition.clone();
     merge(&mut definition, patch);
     match persist
+        .fleet()
         .save_fleet_definition(fleet, &definition, &row.missing, row.updated_at)
         .await
     {

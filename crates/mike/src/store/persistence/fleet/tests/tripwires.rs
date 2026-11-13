@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -41,6 +43,7 @@ async fn closed_launch(
 ) -> anyhow::Result<i64> {
     let id = seed_launch(handle, run, seat, Some(session), true).await?;
     handle
+        .launch()
         .record_launch_closed(id, "complete", Some(true))
         .await?;
     Ok(id)
@@ -71,6 +74,7 @@ async fn attempts(
 
 async fn ids(handle: &PersistHandle, run: &str, base: DateTime<Utc>) -> anyhow::Result<Vec<i64>> {
     Ok(handle
+        .fleet()
         .fleet_closed_mail_attempts(run, base - Duration::hours(1), base + Duration::hours(1))
         .await?
         .into_iter()
@@ -103,6 +107,7 @@ async fn closed_mail_reason_and_inclusive_time_window_return_only_matching_attem
     .await?;
     let rows = f
         .handle
+        .fleet()
         .fleet_closed_mail_attempts(&pair.run, since, until)
         .await?;
     assert_eq!(
@@ -118,6 +123,7 @@ async fn closed_mail_reason_and_inclusive_time_window_return_only_matching_attem
     }
     assert!(
         f.handle
+            .fleet()
             .fleet_closed_mail_attempts(&pair.run, until, since)
             .await?
             .is_empty()
@@ -206,11 +212,13 @@ async fn closed_mail_latest_launch_reopen_or_other_run_excludes_historical_membe
     .await?;
     assert!(ids(&f.handle, &pair.run, base).await?.is_empty());
     f.handle
+        .launch()
         .record_launch_closed(reopened, "complete", Some(true))
         .await?;
     assert_eq!(ids(&f.handle, &pair.run, base).await?, wanted);
     let rows = f
         .handle
+        .fleet()
         .fleet_closed_mail_attempts(
             &pair.run,
             base - Duration::seconds(1),
@@ -263,13 +271,14 @@ async fn closed_mail_told_marker_survives_reconnect_and_excludes_only_its_run_an
     .await?;
     let marker = format!("closed-mail:{}", inserted[1]);
     f.handle
+        .fleet()
         .mark_told("unrelated-run", std::slice::from_ref(&marker))
         .await?;
     assert_eq!(
         ids(&f.handle, &pair.run, base).await?,
         vec![inserted[1], inserted[0]]
     );
-    f.handle.mark_told(&pair.run, &[marker]).await?;
+    f.handle.fleet().mark_told(&pair.run, &[marker]).await?;
     let reconnected = PersistHandle::connect(&f.db.database_url).await?;
     assert_eq!(ids(&reconnected, &pair.run, base).await?, vec![inserted[0]]);
     reconnected.pool().close().await;
@@ -303,7 +312,7 @@ async fn closed_mail_limit_keeps_newest_200_and_exposes_remaining_attempts_after
     assert_eq!(first.len(), 200);
     assert_eq!(first, inserted[..200]);
     let marked: Vec<_> = first.iter().map(|id| format!("closed-mail:{id}")).collect();
-    f.handle.mark_told(&pair.run, &marked).await?;
+    f.handle.fleet().mark_told(&pair.run, &marked).await?;
     let expected: Vec<_> = inserted[200..].iter().copied().chain(older).collect();
     assert_eq!(ids(&f.handle, &pair.run, base).await?, expected);
     f.db.cleanup().await

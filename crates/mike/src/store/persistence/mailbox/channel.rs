@@ -1,10 +1,10 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::ClaimedChannelMessageRow;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn claim_channel_messages(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         limit: i64,
     ) -> Result<Vec<ClaimedChannelMessageRow>, PersistError> {
@@ -94,7 +94,7 @@ impl PersistHandle {
     }
 
     pub async fn release_channel_messages(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         message_uuids: Vec<uuid::Uuid>,
     ) -> Result<u64, PersistError> {

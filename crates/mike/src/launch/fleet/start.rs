@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
@@ -43,7 +44,7 @@ async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
     let Some(persist) = state.persist() else {
         return;
     };
-    let Ok(Some(row)) = persist.find_fleet(&fleet.to_string()).await else {
+    let Ok(Some(row)) = persist.fleet().find_fleet(&fleet.to_string()).await else {
         return;
     };
     if row.state != "starting" {
@@ -51,6 +52,7 @@ async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
     }
     let report = json!({"problem": problem});
     if let Err(err) = persist
+        .fleet()
         .transition_fleet_state(&row, "failed", None, Some(&report))
         .await
     {
@@ -101,7 +103,7 @@ async fn record_control_and_brief_notes(
 }
 
 async fn ensure_starting(persist: &PersistHandle, fleet: Uuid, run: &str) -> Result<(), String> {
-    if matches!(persist.find_fleet(&fleet.to_string()).await, Ok(Some(row)) if row.state == "starting" && row.run_id.as_deref() == Some(run))
+    if matches!(persist.fleet().find_fleet(&fleet.to_string()).await, Ok(Some(row)) if row.state == "starting" && row.run_id.as_deref() == Some(run))
     {
         Ok(())
     } else {
@@ -110,7 +112,7 @@ async fn ensure_starting(persist: &PersistHandle, fleet: Uuid, run: &str) -> Res
 }
 
 async fn open_comms_thread(persist: &PersistHandle, fleet: Uuid) {
-    if let Err(err) = persist.ensure_fleet_comms_thread(fleet).await {
+    if let Err(err) = persist.fleet().ensure_fleet_comms_thread(fleet).await {
         tracing::warn!(%fleet, error = %err, "mike could not open the fleet's comms thread; seat mail stays unthreaded");
     }
 }
@@ -121,6 +123,7 @@ async fn prepare(
     fleet: Uuid,
 ) -> Result<(FleetDefinition, FleetFacts), String> {
     let row = persist
+        .fleet()
         .find_fleet(&fleet.to_string())
         .await
         .map_err(|e| e.to_string())?
@@ -136,6 +139,7 @@ async fn prepare(
         return Err("this fleet run has already been stopped".into());
     }
     persist
+        .fleet()
         .initialize_fleet_run(&row, &run_record(state, &def, &run_id, None))
         .await
         .map_err(|error| error.to_string())?
@@ -223,6 +227,7 @@ async fn record(
     report: Vec<Value>,
 ) -> Result<FleetRow, String> {
     let fresh = persist
+        .fleet()
         .find_fleet(&fleet.to_string())
         .await
         .map_err(|error| error.to_string())?
@@ -231,6 +236,7 @@ async fn record(
         return Err("fleet startup was cancelled before its launch was recorded".into());
     }
     persist
+        .fleet()
         .transition_fleet_state(&fresh, state, None, Some(&Value::Array(report)))
         .await
         .map_err(|error| error.to_string())?
@@ -301,6 +307,7 @@ async fn admitted_status_pane(
         return Err("status pane refused: fleet stop was requested".into());
     }
     let held = persist
+        .fleet()
         .begin_fleet_launch(&facts.run_id)
         .await
         .map_err(|error| error.to_string())?

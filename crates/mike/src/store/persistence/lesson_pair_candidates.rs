@@ -1,5 +1,5 @@
+use super::PersistError;
 use super::lesson_relations::CandidateLessonPair;
-use super::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct NewPairCandidate {
@@ -9,9 +9,9 @@ pub(crate) struct NewPairCandidate {
     pub(crate) distance: f64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn upsert_lesson_pair_candidates(
-        &self,
+        self,
         pairs: &[NewPairCandidate],
     ) -> Result<usize, PersistError> {
         if pairs.is_empty() {
@@ -43,7 +43,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn unjudged_lesson_pairs(
-        &self,
+        self,
         project_ids: &[i64],
         limit: i64,
     ) -> Result<Vec<CandidateLessonPair>, PersistError> {
@@ -78,7 +78,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn mark_lesson_pairs_judged(
-        &self,
+        self,
         pairs: &[(i64, i64)],
     ) -> Result<usize, PersistError> {
         if pairs.is_empty() {

@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 
 use crate::settings::SettingsOverlay;
@@ -72,6 +73,7 @@ impl SessionNotes {
         at: DateTime<Utc>,
     ) -> Self {
         let notes = match persist
+            .steerer()
             .session_notes_since(session_db_id, at - limits.look_back(), at, NOTES_READ)
             .await
         {

@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
@@ -65,6 +66,7 @@ async fn a_publication_moves_the_pointer_and_retires_the_old_bundle_together() -
     let new = bundle(&persist, "candidate", "new").await?;
     set_pointer(&persist, old).await?;
     let outcome = persist
+        .eval()
         .publish_live_pointer(request(old, new, None), &CancellationToken::new())
         .await?;
     assert_eq!(outcome, PublishOutcome::Published);
@@ -86,6 +88,7 @@ async fn a_cancelled_publication_leaves_the_old_pointer_and_bundle() -> anyhow::
     let cancel = CancellationToken::new();
     cancel.cancel();
     let outcome = persist
+        .eval()
         .publish_live_pointer(request(old, new, None), &cancel)
         .await?;
     assert_eq!(outcome, PublishOutcome::Cancelled);
@@ -124,14 +127,17 @@ async fn a_worker_whose_lease_lapsed_cannot_overwrite_a_newer_publication() -> a
         timeout,
     };
     let published = persist
+        .eval()
         .publish_live_pointer(request(first, newer, Some(claim(fast))), &cancel)
         .await?;
     assert_eq!(published, PublishOutcome::Published);
     let lapsed = persist
+        .eval()
         .publish_live_pointer(request(first, stale, Some(claim(slow))), &cancel)
         .await?;
     assert_eq!(lapsed, PublishOutcome::LeaseLapsed);
     let moved = persist
+        .eval()
         .publish_live_pointer(request(first, stale, Some(claim(fast))), &cancel)
         .await?;
     assert_eq!(moved, PublishOutcome::PointerMoved { current: newer });

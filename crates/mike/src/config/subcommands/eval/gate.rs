@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result};
 
 use super::args_runs::EvalGateArgs;
@@ -27,10 +28,11 @@ fn gate_item(row: &EvalRunItemRow) -> GateItem {
 
 async fn load_run(persist: &PersistHandle, id: i64) -> Result<(EvalRunRow, GateRun)> {
     let run = persist
+        .eval()
         .get_eval_run(id)
         .await?
         .with_context(|| format!("no eval run {id}"))?;
-    let items = persist.all_eval_run_items(id).await?;
+    let items = persist.eval().all_eval_run_items(id).await?;
     let gate_run = GateRun {
         run_id: run.id,
         status: run.status.clone(),
@@ -51,6 +53,7 @@ pub(super) async fn record_gate_on_bundle(
     gate_id: i64,
 ) -> Result<()> {
     let bundle = persist
+        .eval()
         .get_bundle(candidate.bundle_id)
         .await?
         .with_context(|| format!("bundle {} is gone", candidate.bundle_id))?;
@@ -58,6 +61,7 @@ pub(super) async fn record_gate_on_bundle(
         .with_detail("eval_gate", serde_json::json!(gate_id))
         .to_setting_json(&crate::change_log::current_build());
     persist
+        .eval()
         .set_bundle_status(&StatusChange {
             id: bundle.id,
             status: &bundle.status,
@@ -102,7 +106,7 @@ pub(super) async fn gate(args: EvalGateArgs, cli: CliOverrides) -> Result<i32> {
         None => None,
     };
     let prior = match candidate.holdout_batch.as_deref() {
-        Some(batch) => persist.count_holdout_gates(batch).await?,
+        Some(batch) => persist.eval().count_holdout_gates(batch).await?,
         None => 0,
     };
     let rule = if args.rule == "e-slice" {
@@ -130,7 +134,7 @@ pub(super) async fn gate(args: EvalGateArgs, cli: CliOverrides) -> Result<i32> {
             report: decision.report.clone(),
             override_reason: args.override_reason.as_deref(),
         };
-        Some(persist.insert_eval_gate(&gate).await?)
+        Some(persist.eval().insert_eval_gate(&gate).await?)
     } else {
         None
     };

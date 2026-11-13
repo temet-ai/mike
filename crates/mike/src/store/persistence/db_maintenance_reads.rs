@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct DatabaseMaintenance {
@@ -43,9 +43,9 @@ pub(crate) struct IoUsage {
     pub(crate) stats_reset: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::state_repo::StateDb<'_> {
     pub(crate) async fn read_database_maintenance(
-        &self,
+        self,
     ) -> Result<DatabaseMaintenance, PersistError> {
         crate::metrics::time_db("db_cost_read_maintenance", async {
             let tables = sqlx::query_as!(

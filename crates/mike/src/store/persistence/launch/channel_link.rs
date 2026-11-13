@@ -1,11 +1,11 @@
 use uuid::Uuid;
 
 use super::LinkOutcome;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn link_channel_to_session(
-        &self,
+        self,
         cse_id: &str,
         session_uuid: Uuid,
         cwd: &str,

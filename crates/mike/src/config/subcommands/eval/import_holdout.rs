@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::BTreeSet;
 
 use anyhow::{Result, bail};
@@ -11,7 +12,7 @@ pub(super) async fn holdout(args: HoldoutImportArgs, cli: CliOverrides) -> Resul
     let plan = plan(&args.dir, &args.batch).map_err(anyhow::Error::msg)?;
     let persist = super::connect(cli, args.execute).await?;
     let turns: Vec<i64> = plan.turns.iter().copied().collect();
-    let resolved = persist.resolve_label_turns(&turns).await?;
+    let resolved = persist.eval().resolve_label_turns(&turns).await?;
     let found: BTreeSet<i64> = resolved.iter().map(|r| r.turn_id).collect();
     let missing: Vec<i64> = plan
         .turns
@@ -38,6 +39,7 @@ pub(super) async fn holdout(args: HoldoutImportArgs, cli: CliOverrides) -> Resul
     let imported_by = std::env::var("USER").unwrap_or_else(|_| "mike".to_owned());
     let policy = conflict_policy(&args);
     match persist
+        .eval()
         .import_holdout(&plan, &resolved, &imported_by, policy)
         .await?
     {

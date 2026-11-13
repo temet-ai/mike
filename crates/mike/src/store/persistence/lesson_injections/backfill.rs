@@ -1,4 +1,4 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 pub struct LessonInjectionBackfillCandidate {
     pub request_id: i64,
@@ -23,10 +23,9 @@ pub struct BackfillInsertRow {
     pub persona: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     #[rustfmt::skip]
-    pub async fn list_lesson_injection_backfill_candidates(
-        &self,
+    pub async fn list_lesson_injection_backfill_candidates(self,
         from: i64,
         to: Option<i64>,
     ) -> Result<Vec<LessonInjectionBackfillCandidate>, PersistError> {
@@ -70,7 +69,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_all_lessons_for_backfill_matching(
-        &self,
+        self,
     ) -> Result<Vec<LessonKindTextRow>, PersistError> {
         crate::metrics::time_db("list_all_lessons_for_backfill_matching", async move {
             let rows = sqlx::query_as!(
@@ -87,8 +86,7 @@ impl PersistHandle {
     }
 
     #[rustfmt::skip]
-    pub async fn insert_backfilled_lesson_injections(
-        &self,
+    pub async fn insert_backfilled_lesson_injections(self,
         rows: &[BackfillInsertRow],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {

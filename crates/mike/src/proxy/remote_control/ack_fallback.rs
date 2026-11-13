@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::time::Duration;
 
 use uuid::Uuid;
@@ -32,6 +33,7 @@ pub(super) async fn release_if_unacked(
         return false;
     };
     match handle
+        .proxy()
         .release_stale_mailbox_push(event_id, MAILBOX_MAX_PUSH_ATTEMPTS)
         .await
     {

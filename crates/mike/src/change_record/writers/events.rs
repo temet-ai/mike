@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -139,6 +140,7 @@ pub async fn record_note(
     let text = format!("{}\n{}", facts.title, facts.body);
     let paths = merged_paths(first, &text, &author.checkout).await;
     let ids = persist
+        .fleet()
         .insert_change_events(&[note_event(&author, facts, paths)])
         .await?;
     Ok(ids.first().copied())
@@ -197,7 +199,7 @@ pub async fn record_mail(
         before_sha: None,
         after_sha: None,
     };
-    let ids = persist.insert_change_events(&[event]).await?;
+    let ids = persist.fleet().insert_change_events(&[event]).await?;
     Ok(ids.first().copied())
 }
 
@@ -231,7 +233,7 @@ pub async fn record_check(
         before_sha: None,
         after_sha: Some(facts.commit),
     };
-    let ids = persist.insert_change_events(&[event]).await?;
+    let ids = persist.fleet().insert_change_events(&[event]).await?;
     Ok(ids.first().copied())
 }
 

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
@@ -48,6 +49,7 @@ async fn status_by_session(state: &AppState, session: Uuid) -> Result<Loaded<Byt
         return Err(DefinitionError::NotFound(session.to_string()).into_response());
     }
     let row = persist
+        .fleet()
         .find_fleet_for_session(session)
         .await
         .map_err(|e| DefinitionError::from(e).into_response())?
@@ -68,6 +70,7 @@ async fn listed(
 ) -> Result<Loaded<Bytes>, Response> {
     let rows = persistence(state)
         .map_err(IntoResponse::into_response)?
+        .fleet()
         .list_fleet_headers(project_path, limit)
         .await
         .map_err(|e| DefinitionError::from(e).into_response())?;

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -306,6 +307,7 @@ where
 {
     for _ in 0..SAVE_ATTEMPTS {
         let row = persist
+            .fleet()
             .find_fleet(&fleet.to_string())
             .await
             .map_err(|e| e.to_string())?
@@ -318,6 +320,7 @@ where
         let mut definition = row.definition.clone();
         merge(&mut definition, &patch);
         let saved = persist
+            .fleet()
             .save_fleet_definition(fleet, &definition, &row.missing, row.updated_at)
             .await
             .map_err(|e| e.to_string())?;
@@ -329,7 +332,7 @@ where
 }
 
 async fn finished_tasks(persist: &PersistHandle, fleet: Uuid) -> BTreeSet<String> {
-    let Ok(Some(row)) = persist.find_fleet(&fleet.to_string()).await else {
+    let Ok(Some(row)) = persist.fleet().find_fleet(&fleet.to_string()).await else {
         return BTreeSet::new();
     };
     let (Some(run), Ok(def)) = (
@@ -338,7 +341,11 @@ async fn finished_tasks(persist: &PersistHandle, fleet: Uuid) -> BTreeSet<String
     ) else {
         return BTreeSet::new();
     };
-    let events = persist.fleet_events_since(run, 0).await.unwrap_or_default();
+    let events = persist
+        .fleet()
+        .fleet_events_since(run, 0)
+        .await
+        .unwrap_or_default();
     super::fold::fold(&events, DateTime::<Utc>::MAX_UTC).done_tasks(&def)
 }
 
@@ -387,7 +394,7 @@ pub fn owner_question(
 async fn ask_owners(persist: &PersistHandle, fleet: Uuid, by: &str, p: &Proposal, answer: &Answer) {
     let (Some(proposal), Ok(Some(row))) = (
         answer.proposal.as_deref(),
-        persist.find_fleet(&fleet.to_string()).await,
+        persist.fleet().find_fleet(&fleet.to_string()).await,
     ) else {
         return;
     };

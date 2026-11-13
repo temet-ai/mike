@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use super::{FleetHeaderRow, FleetRow};
 use crate::store::models::RowChangedTable;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::feed_memo::{Memo, Scope};
-use crate::store::persistence::{PersistError, PersistHandle};
 
 /// The fleet each session belongs to, memoised until the change feed reports a
 /// change to fleets, launches or the session (held in the handle's memo slot).
@@ -18,9 +18,9 @@ impl Default for FleetSessionMemo {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn find_fleet_for_session(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<FleetRow>, PersistError> {
         let fleets = self.memo::<FleetSessionMemo>();
@@ -39,7 +39,7 @@ impl PersistHandle {
     }
 
     pub async fn find_fleet_header_for_session(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<FleetHeaderRow>, PersistError> {
         let fleets = self.memo::<FleetSessionMemo>();
@@ -73,7 +73,7 @@ impl PersistHandle {
     }
 
     async fn read_fleet_for_session(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<FleetRow>, PersistError> {
         crate::metrics::time_db("launch_find_fleet_for_session", async move {

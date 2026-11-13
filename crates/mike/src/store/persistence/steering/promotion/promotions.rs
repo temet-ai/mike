@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct PromotionRow {
@@ -21,9 +21,9 @@ pub struct PromotionRow {
     pub change_log_id: Option<i64>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn question_promotions(
-        &self,
+        self,
         steerer_id: i64,
     ) -> Result<Vec<PromotionRow>, PersistError> {
         crate::metrics::time_db("question_promotions", async move {

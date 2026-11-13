@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::collections::BTreeMap;
 
 use chrono::Utc;
@@ -19,7 +20,10 @@ pub(super) async fn database()
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let namespace = namespace();
-    handle.register_runtime_namespace(&namespace).await?;
+    handle
+        .runtime()
+        .register_runtime_namespace(&namespace)
+        .await?;
     Ok(Some((db, handle, namespace)))
 }
 
@@ -102,9 +106,15 @@ async fn closed_pool_all_runtime_operations_return_database_errors() -> anyhow::
     let binding = binding(namespace.id, Uuid::new_v4());
     let observation = observation(namespace.id)?;
     let writes = [
-        handle.register_runtime_namespace(&namespace).await,
-        handle.bind_runtime_thread(&binding).await,
-        handle.append_runtime_observation(&observation).await,
+        handle
+            .runtime()
+            .register_runtime_namespace(&namespace)
+            .await,
+        handle.runtime().bind_runtime_thread(&binding).await,
+        handle
+            .runtime()
+            .append_runtime_observation(&observation)
+            .await,
     ];
     assert!(
         writes
@@ -112,21 +122,23 @@ async fn closed_pool_all_runtime_operations_return_database_errors() -> anyhow::
             .all(|value| matches!(value, Err(PersistError::Database(_))))
     );
     assert!(matches!(
-        handle.runtime_namespace(namespace.id).await,
+        handle.runtime().runtime_namespace(namespace.id).await,
         Err(PersistError::Database(_))
     ));
     assert!(matches!(
-        handle.runtime_thread(&binding.provider).await,
+        handle.runtime().runtime_thread(&binding.provider).await,
         Err(PersistError::Database(_))
     ));
     assert!(matches!(
         handle
+            .runtime()
             .runtime_thread_by_session(binding.mike_session_id)
             .await,
         Err(PersistError::Database(_))
     ));
     assert!(matches!(
         handle
+            .runtime()
             .runtime_observation(namespace.id, observation.envelope.ingestion_id)
             .await,
         Err(PersistError::Database(_))

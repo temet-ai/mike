@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -61,7 +62,7 @@ pub(crate) async fn review_draft(
         }
     };
     changed(
-        persist.set_skill_draft_review(id, review).await,
+        persist.lessons().set_skill_draft_review(id, review).await,
         "skill draft",
     )
 }
@@ -88,7 +89,7 @@ pub(crate) async fn edit_draft(
         );
     }
     changed(
-        persist.edit_skill_draft(id, &body.skill_md).await,
+        persist.lessons().edit_skill_draft(id, &body.skill_md).await,
         "skill draft",
     )
 }
@@ -113,6 +114,7 @@ pub(crate) async fn set_policy(
     }
     changed(
         persist
+            .lessons()
             .set_skill_policy(body.project, &body.mode, "skills page")
             .await,
         "project",
@@ -136,6 +138,7 @@ pub(crate) async fn retire_folder(
     };
     changed(
         persist
+            .lessons()
             .retire_skill_folder(body.project, &body.folder)
             .await,
         "project",
@@ -153,6 +156,7 @@ pub(crate) async fn restore_folder(
     };
     changed(
         persist
+            .lessons()
             .restore_skill_folder(body.project, &body.folder)
             .await,
         "retired skill",

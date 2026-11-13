@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::mailbox::ReloadedMailboxRow;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -162,6 +163,7 @@ fn log_mailbox_reload_enqueued(enqueued: usize) {
 
 async fn fetch_all_unclaimed_mailbox_rows(persist: &PersistHandle) -> Vec<ReloadedMailboxRow> {
     match persist
+        .launch()
         .fetch_all_pending_unclaimed(MAILBOX_RELOAD_LIMIT)
         .await
     {
@@ -179,6 +181,7 @@ async fn fetch_all_unclaimed_mailbox_rows(persist: &PersistHandle) -> Vec<Reload
 async fn fetch_all_stale_claimed_mailbox_rows(persist: &PersistHandle) -> Vec<ReloadedMailboxRow> {
     let cutoff = chrono::Utc::now() - MAILBOX_STALE_CLAIM_AFTER;
     match persist
+        .launch()
         .fetch_all_stale_claimed(cutoff, MAILBOX_RELOAD_LIMIT)
         .await
     {
@@ -195,6 +198,7 @@ async fn fetch_all_stale_claimed_mailbox_rows(persist: &PersistHandle) -> Vec<Re
 
 async fn fetch_all_redelivery_mailbox_rows(persist: &PersistHandle) -> Vec<ReloadedMailboxRow> {
     match persist
+        .launch()
         .fetch_all_pending_redelivery(MAILBOX_RELOAD_LIMIT)
         .await
     {
@@ -295,6 +299,7 @@ async fn fetch_unclaimed_mailbox_rows_for(
     session_uuid: uuid::Uuid,
 ) -> Vec<ReloadedMailboxRow> {
     match persist
+        .launch()
         .fetch_pending_unclaimed(session_uuid, MAILBOX_RELOAD_LIMIT)
         .await
     {
@@ -316,6 +321,7 @@ async fn fetch_stale_claimed_mailbox_rows_for(
 ) -> Vec<ReloadedMailboxRow> {
     let cutoff = chrono::Utc::now() - MAILBOX_STALE_CLAIM_AFTER;
     match persist
+        .launch()
         .fetch_stale_claimed(session_uuid, cutoff, MAILBOX_RELOAD_LIMIT)
         .await
     {
@@ -336,6 +342,7 @@ async fn fetch_redelivery_mailbox_rows_for(
     session_uuid: uuid::Uuid,
 ) -> Vec<ReloadedMailboxRow> {
     match persist
+        .launch()
         .fetch_pending_redelivery(session_uuid, MAILBOX_RELOAD_LIMIT)
         .await
     {

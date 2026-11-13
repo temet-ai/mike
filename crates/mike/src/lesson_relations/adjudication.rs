@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::evidence::{EvidenceBundle, EvidenceBundleParams};
@@ -246,6 +247,7 @@ pub(super) async fn run_rule_based_pair(
 
     if !dry_run {
         persist
+            .lessons()
             .insert_lesson_relation(&LessonRelationDraft {
                 from_lesson_id,
                 to_lesson_id,

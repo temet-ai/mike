@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use uuid::Uuid;
 
 use super::ingest::IngestError;
@@ -32,17 +33,20 @@ async fn resolve_with_parent(
     if thread.is_empty() || thread.len() > 512 || thread.contains('\0') {
         return Err(IngestError::BadInput("invalid provider thread id".into()));
     }
-    persist.register_runtime_namespace(namespace).await?;
+    persist
+        .runtime()
+        .register_runtime_namespace(namespace)
+        .await?;
     let provider = ProviderThreadRef {
         namespace_id: namespace.id,
         thread_id: thread.to_owned(),
     };
-    if let Some(binding) = persist.runtime_thread(&provider).await? {
+    if let Some(binding) = persist.runtime().runtime_thread(&provider).await? {
         return Ok(binding.mike_session_id);
     }
     let mut session =
         Uuid::parse_str(thread).unwrap_or_else(|_| Uuid::new_v5(&namespace.id, thread.as_bytes()));
-    if let Some(binding) = persist.runtime_thread_by_session(session).await? {
+    if let Some(binding) = persist.runtime().runtime_thread_by_session(session).await? {
         if binding.provider == provider {
             return Ok(binding.mike_session_id);
         }
@@ -50,6 +54,7 @@ async fn resolve_with_parent(
     }
     persist.ensure_runtime_session(session).await?;
     persist
+        .runtime()
         .bind_runtime_thread(&RuntimeThreadBinding {
             mike_session_id: session,
             provider,

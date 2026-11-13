@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -49,6 +50,7 @@ async fn fixture() -> anyhow::Result<Fixture> {
 async fn read(fx: &Fixture, reference: &str) -> anyhow::Result<Value> {
     Ok(fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.project), reference)
         .await?)
 }
@@ -56,6 +58,7 @@ async fn read(fx: &Fixture, reference: &str) -> anyhow::Result<Value> {
 async fn read_error(fx: &Fixture, reference: &str) -> anyhow::Result<String> {
     match fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.project), reference)
         .await
     {
@@ -144,6 +147,7 @@ async fn read_project_knowledge_prefix_of_another_projects_item_is_not_found_in_
     assert!(message.contains("in this project"), "{message}");
     assert!(
         fx.handle
+            .knowledge()
             .read_project_knowledge(None, "99aa0000")
             .await
             .is_ok(),

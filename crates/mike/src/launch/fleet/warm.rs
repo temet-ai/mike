@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -116,6 +117,7 @@ async fn loaded(state: &AppState, persist: &PersistHandle, session: Uuid) -> Res
     let mut progress = Progress::default();
     loop {
         let row = persist
+            .launch()
             .find_launch_by_session(session)
             .await
             .map_err(|e| e.to_string())?;
@@ -230,6 +232,7 @@ async fn record(
         claude_args: seat::claude_args(def, plan),
     };
     persist
+        .launch()
         .insert_template(&new)
         .await
         .map(|_| ())
@@ -310,6 +313,7 @@ pub async fn succeed_reference(
 pub async fn retire(persist: &PersistHandle, def: &FleetDefinition, run_id: &str) {
     for discipline in def.workers.keys() {
         if let Err(err) = persist
+            .launch()
             .close_template(&template_name(run_id, discipline))
             .await
         {

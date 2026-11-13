@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) async fn run_gc(persist: &PersistHandle) {
@@ -7,14 +8,18 @@ pub(super) async fn run_gc(persist: &PersistHandle) {
         return;
     };
 
-    match persist.gc_expired_lessons(run_id).await {
+    match persist.lessons().gc_expired_lessons(run_id).await {
         Ok((archived, deleted)) => handle_gc_success(persist, run_id, archived, deleted).await,
         Err(e) => handle_gc_failure(persist, run_id, &e).await,
     }
 }
 
 async fn open_gc_run(persist: &PersistHandle) -> Option<i64> {
-    match persist.start_consolidation_run("gc", "schedule").await {
+    match persist
+        .lessons()
+        .start_consolidation_run("gc", "schedule")
+        .await
+    {
         Ok(id) => Some(id),
         Err(e) => {
             log_open_run_failed(&e);
@@ -41,6 +46,7 @@ async fn handle_gc_success(persist: &PersistHandle, run_id: i64, archived: u64, 
 async fn close_nonempty_gc_run(persist: &PersistHandle, run_id: i64, archived: u64, deleted: u64) {
     log_gc_touched(archived, deleted);
     if let Err(e) = persist
+        .lessons()
         .finish_consolidation_run(run_id, "completed", None)
         .await
     {
@@ -62,7 +68,7 @@ fn log_close_run_failed(run_id: i64, e: &PersistError) {
 
 async fn discard_empty_gc_run(persist: &PersistHandle, run_id: i64) {
     log_gc_found_nothing();
-    if let Err(e) = persist.delete_consolidation_run(run_id).await {
+    if let Err(e) = persist.lessons().delete_consolidation_run(run_id).await {
         log_discard_run_failed(run_id, &e);
     }
 }
@@ -82,6 +88,7 @@ fn log_discard_run_failed(run_id: i64, e: &PersistError) {
 async fn handle_gc_failure(persist: &PersistHandle, run_id: i64, e: &PersistError) {
     log_gc_failed(e);
     if let Err(finish_err) = persist
+        .lessons()
         .finish_consolidation_run(run_id, "failed", Some(&e.to_string()))
         .await
     {

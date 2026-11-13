@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Postgres, QueryBuilder};
 
 use crate::change_record::{ChangeEvent, ChangeKind, ChangeQuery, NewChangeEvent};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 const PATH_SEPARATOR: &str = "\u{1f}";
 
@@ -85,9 +85,9 @@ impl TryFrom<ChangeEventRow> for ChangeEvent {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn insert_change_events(
-        &self,
+        self,
         events: &[NewChangeEvent],
     ) -> Result<Vec<i64>, PersistError> {
         if events.is_empty() {
@@ -142,7 +142,7 @@ impl PersistHandle {
     }
 
     pub async fn change_events_after(
-        &self,
+        self,
         query: &ChangeQuery,
     ) -> Result<Vec<ChangeEvent>, PersistError> {
         let kinds: Vec<String> = query.kinds.iter().map(|k| k.as_str().to_owned()).collect();
@@ -157,7 +157,7 @@ impl PersistHandle {
     }
 
     pub async fn latest_change_events(
-        &self,
+        self,
         checkout: &str,
         path_prefixes: &[String],
         kinds: &[ChangeKind],
@@ -193,7 +193,7 @@ impl PersistHandle {
     }
 
     pub async fn update_change_author(
-        &self,
+        self,
         event_id: i64,
         session: Option<i64>,
         kind: ChangeKind,

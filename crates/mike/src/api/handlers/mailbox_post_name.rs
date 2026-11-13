@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub(crate) async fn resolve_name_addressed_recipient(
     handle: &crate::store::persistence::PersistHandle,
@@ -19,6 +21,7 @@ pub(crate) async fn resolve_name_addressed_recipient(
             .map_err(|e| *e)?;
 
     match handle
+        .launch()
         .resolve_name_recipient(sender_project_id, name, from_session_uuid)
         .await
     {
@@ -62,7 +65,11 @@ async fn resolve_name_sender_project(
             format!("from_session_id is not a valid UUID: {from_raw}"),
         ))
     })?;
-    match handle.resolve_session_core(from_session_uuid).await {
+    match handle
+        .launch()
+        .resolve_session_core(from_session_uuid)
+        .await
+    {
         Ok(Some((_, project_id))) => Ok((from_session_uuid, project_id)),
         Ok(None) => Err(Box::new(mailbox_error(
             StatusCode::NOT_FOUND,
@@ -126,7 +133,7 @@ pub(crate) async fn resolve_fleet_addressed_recipient(
             format!("from_session_id is not a valid UUID: {from_raw}"),
         )
     })?;
-    match handle.resolve_fleet_target(from, to).await {
+    match handle.launch().resolve_fleet_target(from, to).await {
         Ok(Some(FleetTarget::Seat { session, .. })) => Ok(session),
         Ok(Some(FleetTarget::Seats(_)) | None) => Err(mailbox_error(
             StatusCode::BAD_REQUEST,
@@ -149,7 +156,7 @@ pub(crate) async fn tail_for_sender(
     if !crate::launch::seat_fact::is_fleet_seat(handle, from).await {
         return None;
     }
-    let row = handle.find_fleet_for_session(from).await.ok()??;
+    let row = handle.fleet().find_fleet_for_session(from).await.ok()??;
     let run = row.run_id.as_deref()?;
     let definition = crate::launch::fleet::FleetDefinition::from_value(&row.definition).ok()?;
     crate::api::changes::since_you_last_looked(state, &definition, run, from).await

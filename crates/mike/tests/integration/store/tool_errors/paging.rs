@@ -1,5 +1,6 @@
 use super::fixtures::{seed_project, seed_request, seed_session};
 use super::isolated_handle;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::keyset::KeysetCursor;
@@ -44,7 +45,10 @@ async fn walk(handle: &PersistHandle, order: SortOrder) -> anyhow::Result<Vec<Ve
     let mut pages = Vec::new();
     let mut cursor = None;
     loop {
-        let page = handle.list_tool_uses(&filter(order, cursor, 0)).await?;
+        let page = handle
+            .launch()
+            .list_tool_uses(&filter(order, cursor, 0))
+            .await?;
         assert_eq!(page.total.count, 5);
         assert!(!page.total.capped);
         pages.push(page.rows.into_iter().map(|r| r.wire_tool_use_id).collect());
@@ -80,6 +84,7 @@ async fn list_tool_uses_cursor_walks_every_row_once_in_both_orders() -> anyhow::
     );
 
     let by_offset = handle
+        .launch()
         .list_tool_uses(&filter(SortOrder::Desc, None, 2))
         .await?;
     let ids: Vec<String> = by_offset
@@ -103,7 +108,7 @@ async fn list_tool_uses_unparseable_session_matches_nothing() -> anyhow::Result<
 
     let mut unknown = filter(SortOrder::Desc, None, 0);
     unknown.session_id = Some("not-a-uuid".to_owned());
-    let page = handle.list_tool_uses(&unknown).await?;
+    let page = handle.launch().list_tool_uses(&unknown).await?;
     assert!(page.rows.is_empty());
     assert_eq!(page.total.count, 0);
     assert_eq!(page.next_cursor, None);

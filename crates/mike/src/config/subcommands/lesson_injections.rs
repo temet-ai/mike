@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use anyhow::{Context, Result};
 
 use super::BackfillLessonInjectionsArgs;
@@ -28,10 +29,12 @@ pub(super) async fn backfill_lesson_injections(
         .context("backfill-lesson-injections: could not connect to the target database")?;
 
     let candidates = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(args.from, args.to)
         .await
         .context("backfill-lesson-injections: failed to list candidate requests")?;
     let lessons = handle
+        .lessons()
         .list_all_lessons_for_backfill_matching()
         .await
         .context("backfill-lesson-injections: failed to list lessons")?;
@@ -69,6 +72,7 @@ pub(super) async fn backfill_lesson_injections(
         0
     } else {
         handle
+            .lessons()
             .insert_backfilled_lesson_injections(&scan.insert_rows)
             .await
             .context("backfill-lesson-injections: failed to insert reconstructed links")?

@@ -1,3 +1,4 @@
+use crate::store::persistence::state_repo::StatePersist as _;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -32,7 +33,7 @@ fn counters_of(rows: Vec<StatementCounters>) -> HashMap<i64, Counters> {
 }
 
 pub(crate) async fn read_snapshot(persist: &PersistHandle) -> Result<Reading, PersistError> {
-    Ok(match persist.read_statement_stats().await? {
+    Ok(match persist.state().read_statement_stats().await? {
         None => Reading::Missing,
         Some(reading) => Reading::Taken(Snapshot {
             taken_at: reading.taken_at,
@@ -46,7 +47,7 @@ pub(crate) async fn read_texts(
     persist: &PersistHandle,
     queryids: &[i64],
 ) -> Result<HashMap<i64, String>, PersistError> {
-    persist.read_statement_texts(queryids).await
+    persist.state().read_statement_texts(queryids).await
 }
 
 pub(crate) async fn count_requests(
@@ -54,7 +55,7 @@ pub(crate) async fn count_requests(
     from: DateTime<Utc>,
     to: DateTime<Utc>,
 ) -> Result<i64, PersistError> {
-    persist.count_requests_between(from, to).await
+    persist.state().count_requests_between(from, to).await
 }
 
 #[cfg(test)]

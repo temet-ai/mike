@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillReview {
@@ -39,9 +39,9 @@ pub struct InstallReport<'a> {
     pub installs: &'a [ReportedInstall],
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn set_skill_draft_review(
-        &self,
+        self,
         id: i64,
         review: SkillReview,
     ) -> Result<bool, PersistError> {
@@ -61,7 +61,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn edit_skill_draft(&self, id: i64, skill_md: &str) -> Result<bool, PersistError> {
+    pub async fn edit_skill_draft(self, id: i64, skill_md: &str) -> Result<bool, PersistError> {
         crate::metrics::time_db("edit_skill_draft", async move {
             let result = sqlx::query!(
                 "UPDATE memory.skill_drafts
@@ -80,7 +80,7 @@ impl PersistHandle {
     }
 
     pub async fn set_skill_policy(
-        &self,
+        self,
         project_uuid: Uuid,
         mode: &str,
         changed_by: &str,
@@ -104,7 +104,7 @@ impl PersistHandle {
     }
 
     pub async fn retire_skill_folder(
-        &self,
+        self,
         project_uuid: Uuid,
         folder: &str,
     ) -> Result<bool, PersistError> {
@@ -125,7 +125,7 @@ impl PersistHandle {
     }
 
     pub async fn restore_skill_folder(
-        &self,
+        self,
         project_uuid: Uuid,
         folder: &str,
     ) -> Result<bool, PersistError> {
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub async fn record_skill_installs(
-        &self,
+        self,
         report: InstallReport<'_>,
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db("record_skill_installs", async move {

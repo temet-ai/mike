@@ -1,5 +1,6 @@
 use crate::analysis::embeddings::prefixes_for;
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::ModelKeys;
 use crate::store::persistence::{PersistError, PersistHandle};
 use sha2::{Digest, Sha256};
@@ -75,10 +76,14 @@ pub(crate) async fn rekey_url_keyed_rows(
     persist: &PersistHandle,
     service: &EmbeddingService,
 ) -> Result<u64, PersistError> {
-    let stored = persist.knowledge_embedding_url_candidates().await?;
+    let stored = persist
+        .knowledge()
+        .knowledge_embedding_url_candidates()
+        .await?;
     let keys = model_keys(service).accepted();
     let target = keys.last().cloned().unwrap_or_else(|| model_key(service));
     persist
+        .knowledge()
         .rekey_knowledge_embeddings(&url_v1_keys(stored, service), &target)
         .await
 }

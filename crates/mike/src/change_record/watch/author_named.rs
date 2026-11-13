@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
 use uuid::Uuid;
@@ -59,6 +60,7 @@ pub async fn named_shell(
     window: Window,
 ) -> Result<Option<Authorship>, PersistError> {
     let calls = persist
+        .fleet()
         .shell_calls_naming_path(root, (relative, absolute), window.from, window.to)
         .await?;
     Ok(from_named_calls(&calls))
@@ -73,6 +75,7 @@ pub async fn owner_among(
     for identity in persist.session_identities(candidates).await? {
         let def = if is_fleet_seat(persist, identity.uuid).await {
             persist
+                .fleet()
                 .find_fleet_for_session(identity.uuid)
                 .await?
                 .and_then(|row| FleetDefinition::from_value(&row.definition).ok())

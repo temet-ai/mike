@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct AgentDto {
@@ -381,6 +382,7 @@ async fn fetch_agent_compositions_with_usage(
     agent_id: i64,
 ) -> Result<Vec<PromptCompositionDto>, AgentDetailError> {
     let compositions = handle
+        .proxy()
         .list_compositions_for_agent(agent_id)
         .await
         .map_err(map_agent_persist_error)?;

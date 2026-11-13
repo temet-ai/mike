@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::Utc;
@@ -56,7 +58,11 @@ async fn newest_commit(persist: &PersistHandle, session: Uuid, task: &str) -> Op
         limit: COMMIT_NOTES_READ,
         offset: 0,
     };
-    let rows = persist.fetch_session_notes(session, filter).await.ok()?;
+    let rows = persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await
+        .ok()?;
     let notes: Vec<_> = rows.into_iter().map(|r| (r.data, r.created_at)).collect();
     newest_commit_of(&notes, task)
 }
@@ -74,6 +80,7 @@ async fn check_word(
         return CHECK_RECORD_OFF.to_string();
     }
     match persist
+        .fleet()
         .latest_change_events(checkout, &[], &[ChangeKind::Check], CHECKS_READ)
         .await
     {
@@ -190,7 +197,7 @@ pub(crate) fn verdict_events(
 
 pub(crate) async fn append_all(persist: &PersistHandle, events: Vec<NewFleetEvent>, what: &str) {
     for event in events {
-        if let Err(err) = persist.append_fleet_event(&event).await {
+        if let Err(err) = persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(error = %err, what, "fleet: could not record a fleet event");
         }
     }
@@ -204,7 +211,7 @@ async fn tell_acceptance(
 ) -> bool {
     match acceptance_session(def) {
         Some(to) => persist
-            .insert_message(Uuid::new_v4(), to, Some(from), shown)
+            .launch().insert_message(Uuid::new_v4(), to, Some(from), shown)
             .await
             .map_err(|err| tracing::warn!(error = %err, "fleet report: could not mail the acceptance seat"))
             .is_ok(),
@@ -319,6 +326,7 @@ pub(crate) async fn report_slice(
         task_tag(&req.task),
     ];
     let note = persist
+        .launch()
         .create_session_note(
             session,
             NewSessionNote {

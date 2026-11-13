@@ -30,6 +30,7 @@ async fn repository(h: &Harness, repo: &Path) -> anyhow::Result<(Uuid, String)> 
     let sha = commit(repo, "stable\n").await?;
     let fleet = h
         .persist
+        .fleet()
         .find_fleet("report")
         .await?
         .ok_or_else(|| anyhow::anyhow!("fleet missing"))?;
@@ -38,6 +39,7 @@ async fn repository(h: &Harness, repo: &Path) -> anyhow::Result<(Uuid, String)> 
     definition["branch"] = json!("main");
     definition["check"] = json!({"command": "true"});
     h.persist
+        .fleet()
         .save_fleet_definition(fleet.fleet_uuid, &definition, &json!([]), fleet.updated_at)
         .await?
         .ok_or_else(|| anyhow::anyhow!("definition not saved"))?;
@@ -57,11 +59,13 @@ async fn rule(h: &Harness, fleet: Uuid, data: &Value) -> anyhow::Result<Uuid> {
     };
     assert!(
         h.persist
+            .launch()
             .create_session_note(id(WORKER), note)
             .await
             .is_err()
     );
     Ok(h.persist
+        .launch()
         .create_session_note(id(ACCEPTANCE), note)
         .await?
         .note_uuid)

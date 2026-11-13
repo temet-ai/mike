@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
@@ -164,6 +165,7 @@ impl AnchorImport<'_> {
             .collect();
         let prompts: HashMap<i64, String> = self
             .persist
+            .knowledge()
             .semantic_request_prompts(&ids)
             .await?
             .into_iter()
@@ -212,7 +214,11 @@ impl AnchorImport<'_> {
                         ..anchor(i, (*t).clone(), self.embedder, &plan.file_sha256)
                     })
                     .collect();
-                written += self.persist.insert_semantic_items(&items).await?;
+                written += self
+                    .persist
+                    .knowledge()
+                    .insert_semantic_items(&items)
+                    .await?;
             }
         }
         Ok(ImportReport {

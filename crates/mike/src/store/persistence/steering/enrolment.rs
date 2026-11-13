@@ -1,9 +1,9 @@
 use super::{EnrolmentRow, SessionEnrolmentRow};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn fetch_session_enrolments(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Vec<SessionEnrolmentRow>, PersistError> {
         let rows = sqlx::query_as!(
@@ -32,7 +32,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn enrol_auto_steerers(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db("enrol_auto_steerers", async move {
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_enrolment(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         steerer_id: i64,
         mode_code: &str,
@@ -92,7 +92,7 @@ impl PersistHandle {
         .await
     }
 
-    pub(crate) async fn delete_enrolment(&self, enrolment_id: i64) -> Result<bool, PersistError> {
+    pub(crate) async fn delete_enrolment(self, enrolment_id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("delete_enrolment", async move {
             let result = sqlx::query!(
                 "UPDATE steering.enrolments
@@ -109,7 +109,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_active_enrolments_for_session(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Vec<EnrolmentRow>, PersistError> {
         crate::metrics::time_db("list_active_enrolments_for_session", async move {
@@ -141,7 +141,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn count_active_enrolments_all(
-        &self,
+        self,
     ) -> Result<std::collections::HashMap<i64, i64>, PersistError> {
         crate::metrics::time_db("count_active_enrolments_all", async move {
             let rows = sqlx::query!(

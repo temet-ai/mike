@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::band::band_stats;
 use super::shift::shift_stats;
 use super::types::{AlarmKind, AlarmThresholds, BacktestRow};
@@ -15,9 +15,9 @@ struct JudgeHour {
     verdicts: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     async fn backtest_label_mix(
-        &self,
+        self,
         steps: &[DateTime<Utc>],
         t: &AlarmThresholds,
     ) -> Result<Vec<BacktestRow>, PersistError> {
@@ -43,7 +43,7 @@ impl PersistHandle {
     }
 
     async fn backtest_label_band(
-        &self,
+        self,
         steps: &[DateTime<Utc>],
         t: &AlarmThresholds,
     ) -> Result<Vec<BacktestRow>, PersistError> {
@@ -67,7 +67,7 @@ impl PersistHandle {
     }
 
     async fn backtest_judge(
-        &self,
+        self,
         kind: AlarmKind,
         steps: &[DateTime<Utc>],
         t: &AlarmThresholds,
@@ -98,7 +98,7 @@ impl PersistHandle {
     }
 
     async fn backtest_refusals(
-        &self,
+        self,
         steps: &[DateTime<Utc>],
         t: &AlarmThresholds,
     ) -> Result<Vec<BacktestRow>, PersistError> {
@@ -117,7 +117,7 @@ impl PersistHandle {
     }
 
     async fn backtest_gold(
-        &self,
+        self,
         steps: &[DateTime<Utc>],
     ) -> Result<Vec<BacktestRow>, PersistError> {
         let rows = self.eval_gold_by_agent_many(steps).await?;
@@ -133,7 +133,7 @@ impl PersistHandle {
     }
 
     pub async fn backtest_eval_alarms(
-        &self,
+        self,
         kind: AlarmKind,
         steps: &[DateTime<Utc>],
         t: &AlarmThresholds,

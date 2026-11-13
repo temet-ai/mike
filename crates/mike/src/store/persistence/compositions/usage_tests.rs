@@ -1,4 +1,5 @@
 //! Composition usage stats, over compositions this crate creates.
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::compositions::NewCompositionParams;
@@ -46,6 +47,7 @@ async fn composition_usage_stats_returns_totals_and_recent_in_one_round_trip() -
     );
     let blocks = serde_json::json!([{ "type": "text", "text": "hello" }]);
     let composition = handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &sha,
             label: "usage-stats-test",
@@ -133,6 +135,7 @@ async fn count_applied_24h_counts_only_override_applied_requests_per_composition
     );
     let blocks = serde_json::json!([{ "type": "text", "text": "hello" }]);
     let composition = handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &sha,
             label: "applied-count-test",

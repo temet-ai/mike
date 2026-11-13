@@ -1,6 +1,7 @@
 use mike::lesson_proposer::skill_eval::EVALUATOR_VERSION;
 use mike::store::persistence::lessons::skill_draft_eval::ListingWindow;
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use mike::store::test_support;
 use serde_json::{Value, json};
 
@@ -99,6 +100,7 @@ async fn listing_bodies_are_the_newest_carrying_request_of_each_session_of_the_p
     };
     let found = fx
         .handle
+        .lessons()
         .recent_skill_listing_bodies(fx.project_id, MARKER.as_bytes(), narrow)
         .await?;
     let ids: Vec<i64> = found.iter().map(|b| b.request_id).collect();
@@ -110,6 +112,7 @@ async fn listing_bodies_are_the_newest_carrying_request_of_each_session_of_the_p
 
     let everything = fx
         .handle
+        .lessons()
         .recent_skill_listing_bodies(fx.project_id, MARKER.as_bytes(), WIDE)
         .await?;
     assert_eq!(everything.first().map(|b| b.request_id), Some(huge));
@@ -121,6 +124,7 @@ async fn listing_bodies_are_the_newest_carrying_request_of_each_session_of_the_p
     };
     assert_eq!(
         fx.handle
+            .lessons()
             .recent_skill_listing_bodies(fx.project_id, MARKER.as_bytes(), limited)
             .await?
             .len(),
@@ -136,6 +140,7 @@ async fn a_project_without_captured_requests_has_no_listing_bodies() -> anyhow::
     };
     let found = fx
         .handle
+        .lessons()
         .recent_skill_listing_bodies(fx.project_id, MARKER.as_bytes(), WIDE)
         .await?;
     assert!(found.is_empty());
@@ -155,6 +160,7 @@ async fn rejected_draft(fx: &Fixture, watermark: i64, eval: Option<Value>) -> an
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target, &[1, 2], &empty))
         .await?;
     sqlx::query(
@@ -207,6 +213,7 @@ async fn drafts_rejected_by_an_older_evaluator_go_back_to_the_queue_once() -> an
 
     let requeued = fx
         .handle
+        .lessons()
         .requeue_skill_drafts_before_evaluator(EVALUATOR_VERSION)
         .await?;
     assert_eq!(requeued, 2);
@@ -227,6 +234,7 @@ async fn drafts_rejected_by_an_older_evaluator_go_back_to_the_queue_once() -> an
 
     assert_eq!(
         fx.handle
+            .lessons()
             .requeue_skill_drafts_before_evaluator(EVALUATOR_VERSION)
             .await?,
         0,

@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::time::Instant;
 
 use chrono::Utc;
@@ -83,7 +84,7 @@ pub(super) async fn load_config(
     bundle_id: i64,
 ) -> Option<SessionJudgeV3Config> {
     let row = ok_or_warn(
-        persist.get_bundle(bundle_id).await,
+        persist.eval().get_bundle(bundle_id).await,
         "session_judge_v3.read_bundle",
     )??;
     if row.status != "live" && row.status != "live_ungated" {
@@ -147,6 +148,7 @@ impl LivePoll<'_> {
     ) {
         ok_or_warn(
             self.persist
+                .eval()
                 .record_judge_attempt(
                     session_db_id,
                     &cfg.model,
@@ -204,7 +206,10 @@ impl LivePoll<'_> {
             as_of: AsOf::knowledge(Utc::now()),
         };
         let previous_end_turn = ok_or_warn(
-            self.persist.session_end_for_session(c.session_db_id).await,
+            self.persist
+                .eval()
+                .session_end_for_session(c.session_db_id)
+                .await,
             "session_judge_v3.previous_end",
         )
         .flatten()
@@ -217,7 +222,7 @@ impl LivePoll<'_> {
         breaker.record(true, Instant::now());
         let row = verdict_row(&judged, cfg, c.session_db_id, "live", Some(self.bundle_id));
         let stored = ok_or_warn(
-            self.persist.insert_session_verdict_v3(&row).await,
+            self.persist.eval().insert_session_verdict_v3(&row).await,
             "session_judge_v3.store_verdict",
         );
         self.record(c.session_db_id, cfg, stored.is_none()).await;
@@ -243,7 +248,10 @@ impl LivePoll<'_> {
             limit: self.batch,
         };
         let Some(candidates) = ok_or_warn(
-            self.persist.fetch_sessions_needing_v3(&selection).await,
+            self.persist
+                .eval()
+                .fetch_sessions_needing_v3(&selection)
+                .await,
             "session_judge_v3.selection",
         ) else {
             return 0;

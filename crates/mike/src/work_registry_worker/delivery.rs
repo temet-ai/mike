@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Utc};
 
 use super::{
@@ -131,6 +132,7 @@ pub(super) async fn settle(
     reason: &str,
 ) -> Result<(), PersistError> {
     persist
+        .launch()
         .settle_work_item_attention(recorded.id, disposition, reason)
         .await
 }
@@ -139,12 +141,17 @@ pub(super) async fn rescan(
     persist: &PersistHandle,
     session_db_id: i64,
 ) -> Result<(), PersistError> {
-    persist.backfill_work_items(session_db_id).await?;
-    for job in persist.open_background_jobs(session_db_id).await? {
+    persist.launch().backfill_work_items(session_db_id).await?;
+    for job in persist.launch().open_background_jobs(session_db_id).await? {
         let Some((ended, at)) = read_end(&job.output_path).await else {
             continue;
         };
-        if persist.close_job_from_its_output(job.id, ended, at).await? > 0 {
+        if persist
+            .launch()
+            .close_job_from_its_output(job.id, ended, at)
+            .await?
+            > 0
+        {
             tracing::info!(
                 session_db_id,
                 output = %job.output_path,
@@ -179,6 +186,7 @@ pub(super) async fn mail(
 ) -> AttentionRecord {
     let body = format!("[mike work registry] {}", item.message);
     let outcome = persist
+        .launch()
         .deliver_work_item_attention(recorded.id, attention_message_uuid(recorded.id), &body)
         .await;
     let failure = match outcome {
@@ -252,6 +260,7 @@ fn log_given_up(session_uuid: &str, item: &Attention) {
 
 async fn record_failed_attempt(persist: &PersistHandle, id: i64, failure: &str) {
     if let Err(e) = persist
+        .launch()
         .note_work_item_attention_delivery_failed(id, MAX_DELIVERY_ATTEMPTS, failure)
         .await
     {

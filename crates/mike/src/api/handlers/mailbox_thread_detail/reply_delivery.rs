@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -18,6 +19,7 @@ pub(super) async fn deliver_post_only(
 ) -> Result<(StatusCode, Json<ThreadDeliveriesResponse>), Response> {
     let post_message_uuid = uuid::Uuid::new_v4();
     if let Err(e) = handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid: post_message_uuid,
@@ -130,7 +132,7 @@ async fn resolve_recipient_id_for_reply(
     handle: &PersistHandle,
     to_uuid: uuid::Uuid,
 ) -> Result<i64, FailedDeliveryDto> {
-    match handle.resolve_session_core(to_uuid).await {
+    match handle.launch().resolve_session_core(to_uuid).await {
         Ok(Some((id, _))) => Ok(id),
         Ok(None) => Err(FailedDeliveryDto {
             to_session_uuid: to_uuid,
@@ -155,6 +157,7 @@ async fn insert_reply_message(
 ) -> Result<(uuid::Uuid, chrono::DateTime<chrono::Utc>), FailedDeliveryDto> {
     let message_uuid = uuid::Uuid::new_v4();
     match handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid,
@@ -216,7 +219,7 @@ async fn enqueue_reply_reminder(
 }
 
 async fn touch_thread_best_effort(handle: &PersistHandle, thread_id: i64, thread_uuid: uuid::Uuid) {
-    if let Err(e) = handle.touch_thread(thread_id).await {
+    if let Err(e) = handle.launch().touch_thread(thread_id).await {
         tracing::warn!(error = %e, %thread_uuid, "post_thread_message: touch_thread failed");
     }
 }

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProposerParams<'a> {
@@ -67,9 +67,9 @@ fn distinct_count(mut ids: Vec<i64>) -> u64 {
     u64::try_from(ids.len()).unwrap_or(0)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn propose_repeated_directives(
-        &self,
+        self,
         p: &ProposerParams<'_>,
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db("propose_repeated_directives", async move {
@@ -91,7 +91,7 @@ impl PersistHandle {
     }
 
     pub async fn propose_confirmed_handbacks(
-        &self,
+        self,
         p: &ProposerParams<'_>,
     ) -> Result<u64, PersistError> {
         crate::metrics::time_db("propose_confirmed_handbacks", async move {
@@ -112,10 +112,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn roll_up_operator_scope(
-        &self,
-        p: &ProposerParams<'_>,
-    ) -> Result<u64, PersistError> {
+    pub async fn roll_up_operator_scope(self, p: &ProposerParams<'_>) -> Result<u64, PersistError> {
         crate::metrics::time_db("roll_up_operator_scope", async move {
             let ids = sqlx::query_file_scalar!(
                 "src/store/persistence/cross_session/operator_rollup.sql",
@@ -132,7 +129,7 @@ impl PersistHandle {
     }
 
     pub async fn list_directive_proposals(
-        &self,
+        self,
         status: Option<&str>,
         before_id: Option<i64>,
         limit: i64,
@@ -167,7 +164,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_proposal_detail(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<ProposalDetail>, PersistError> {
         crate::metrics::time_db("fetch_proposal_detail", async move {
@@ -200,7 +197,7 @@ impl PersistHandle {
     }
 
     pub async fn reject_directive_proposal(
-        &self,
+        self,
         id: i64,
         note: Option<&str>,
     ) -> Result<bool, PersistError> {

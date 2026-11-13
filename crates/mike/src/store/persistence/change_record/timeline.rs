@@ -4,10 +4,10 @@ use chrono::{Duration, Utc};
 
 use super::open_memo::Watermark;
 use crate::change_record::{OpenChange, WorkingCheckout};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn open_changes(&self, checkout: &str) -> Result<Vec<OpenChange>, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn open_changes(self, checkout: &str) -> Result<Vec<OpenChange>, PersistError> {
         let revision = self.memo::<super::open_memo::OpenChangesMemo>().revision();
         let newest = self.newest_change_event(checkout).await?;
         let at = Watermark { newest, revision };
@@ -23,7 +23,7 @@ impl PersistHandle {
         Ok(Arc::unwrap_or_clone(rows))
     }
 
-    async fn newest_change_event(&self, checkout: &str) -> Result<Option<i64>, PersistError> {
+    async fn newest_change_event(self, checkout: &str) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("change_record_newest_event", async move {
             let newest = sqlx::query_file_scalar!(
                 "src/store/persistence/change_record/newest_change_event.sql",
@@ -36,7 +36,7 @@ impl PersistHandle {
         .await
     }
 
-    async fn compute_open_changes(&self, checkout: &str) -> Result<Vec<OpenChange>, PersistError> {
+    async fn compute_open_changes(self, checkout: &str) -> Result<Vec<OpenChange>, PersistError> {
         crate::metrics::time_db("change_record_open_changes", async move {
             let rows = sqlx::query_file_as!(
                 OpenChange,
@@ -51,7 +51,7 @@ impl PersistHandle {
     }
 
     pub async fn checkouts_with_working_sessions(
-        &self,
+        self,
         within: Duration,
     ) -> Result<Vec<WorkingCheckout>, PersistError> {
         let since = Utc::now() - within;

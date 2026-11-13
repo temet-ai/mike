@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArmWrite {
@@ -18,8 +18,8 @@ pub struct AnchorFire {
     pub delivered: bool,
 }
 
-impl PersistHandle {
-    pub async fn record_arm(&self, w: &ArmWrite) -> Result<bool, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn record_arm(self, w: &ArmWrite) -> Result<bool, PersistError> {
         crate::metrics::time_db("record_arm", async move {
             let r = sqlx::query!(
                 "UPDATE steering.evaluations
@@ -39,7 +39,7 @@ impl PersistHandle {
     }
 
     pub async fn anchor_history(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         anchor_turn_id: i64,
@@ -65,7 +65,7 @@ impl PersistHandle {
     }
 
     pub async fn same_change_fires(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         session_id: i64,

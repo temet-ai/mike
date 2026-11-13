@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::TurnFactsRow;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct UpsertOutcome {
@@ -16,9 +16,9 @@ pub struct OpenedByRow {
     pub opened_by: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn upsert_turn_facts(
-        &self,
+        self,
         rows: &[TurnFactsRow],
     ) -> Result<UpsertOutcome, PersistError> {
         if rows.is_empty() {
@@ -46,7 +46,7 @@ impl PersistHandle {
     }
 
     pub async fn stamp_turn_facts_built_at(
-        &self,
+        self,
         turn_ids: &[i64],
         built_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, PersistError> {
@@ -74,7 +74,7 @@ impl PersistHandle {
     }
 
     pub async fn fill_operator_turn_opened_by(
-        &self,
+        self,
         rows: &[OpenedByRow],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {

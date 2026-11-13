@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::SourceInput;
 use super::invalid;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 fn require_source(touched: u64) -> Result<(), PersistError> {
     if touched == 0 {
@@ -12,9 +12,9 @@ fn require_source(touched: u64) -> Result<(), PersistError> {
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn record_knowledge_source_heartbeats(
-        &self,
+        self,
         sources: &[Uuid],
     ) -> Result<u64, PersistError> {
         if sources.is_empty() {
@@ -32,7 +32,7 @@ impl PersistHandle {
     }
 
     pub async fn record_knowledge_source_failure(
-        &self,
+        self,
         source: Uuid,
         error: &str,
     ) -> Result<(), PersistError> {
@@ -53,7 +53,7 @@ impl PersistHandle {
     }
 
     pub async fn record_knowledge_roots_missing(
-        &self,
+        self,
         roots: &[SourceInput],
     ) -> Result<u64, PersistError> {
         if roots.is_empty() {
@@ -85,7 +85,7 @@ impl PersistHandle {
     }
 
     pub async fn record_lesson_file_conflicts(
-        &self,
+        self,
         location: Uuid,
         lessons: &[Uuid],
     ) -> Result<u64, PersistError> {
@@ -116,7 +116,7 @@ impl PersistHandle {
         Ok(recorded)
     }
 
-    pub async fn knowledge_project_health(&self, project: &str) -> Result<Value, PersistError> {
+    pub async fn knowledge_project_health(self, project: &str) -> Result<Value, PersistError> {
         let identity = self.resolve_knowledge_project(project).await?;
         Ok(sqlx::query_file_scalar!(
             "src/store/persistence/project_knowledge/health.sql",

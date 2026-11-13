@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct CompositionUsageSampleDto {
@@ -37,6 +38,7 @@ pub(crate) async fn get_composition_stats(
     };
     parse_prompt_sha256_path(&sha)?;
     let composition = handle
+        .proxy()
         .fetch_composition_by_prompt_sha256(&sha)
         .await
         .map_err(map_composition_persist_error)?;

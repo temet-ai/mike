@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
@@ -56,7 +57,7 @@ async fn project_id(handle: &PersistHandle, selector: Option<&str>) -> Result<i6
             "project is required: give the project UUID or a registered path (list_project_locations shows both)",
         )
     })?;
-    match handle.resolve_work_thread_project(selector).await {
+    match handle.launch().resolve_work_thread_project(selector).await {
         Ok(Some(project)) => Ok(project.id),
         Ok(None) => placed_folder(handle, selector).await?.ok_or_else(|| {
             refuse(
@@ -114,6 +115,7 @@ pub(crate) async fn list_threads(
         offset,
     };
     let list = handle
+        .launch()
         .list_work_threads(project, filter)
         .await
         .map_err(thread_error)?;
@@ -142,6 +144,7 @@ pub(crate) async fn get_thread(
         before_ord: query.history_before,
     };
     let detail = handle
+        .launch()
         .get_work_thread(project, &slug, page)
         .await
         .map_err(thread_error)?;
@@ -163,6 +166,7 @@ pub(crate) async fn export_thread(
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let project = project_id(handle, query.project.as_deref()).await?;
     let detail = handle
+        .launch()
         .get_work_thread(project, &slug, HistoryPage::everything())
         .await
         .map_err(thread_error)?;
@@ -246,6 +250,7 @@ pub(crate) async fn checkpoint_thread(
         meta: body.meta.as_update(),
     };
     let outcome = handle
+        .launch()
         .checkpoint_work_thread(project, &input)
         .await
         .map_err(thread_error)?;
@@ -282,6 +287,7 @@ pub(crate) async fn add_entry(
         data: body.data.as_ref(),
     };
     let outcome = handle
+        .launch()
         .add_work_thread_entry(project, &input)
         .await
         .map_err(thread_error)?;
@@ -305,6 +311,7 @@ pub(crate) async fn patch_thread(
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let project = project_id(handle, body.project.as_deref()).await?;
     let identity = handle
+        .launch()
         .update_work_thread_meta(project, &slug, &body.meta.as_update())
         .await
         .map_err(thread_error)?;

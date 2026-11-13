@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -170,7 +171,7 @@ async fn cadences_for(ctx: &WatchContext, kind: Pass) -> Vec<Cadence> {
         Pass::Event => vec![Cadence::Event],
         Pass::Regular => {
             let mut due = vec![Cadence::Event, Cadence::Regular];
-            match ctx.persist.last_wright_daily_pass().await {
+            match ctx.persist.web().last_wright_daily_pass().await {
                 Ok(last) if daily_pass_due(last, Utc::now()) => due.push(Cadence::Daily),
                 Ok(_) => {}
                 Err(e) => tracing::warn!(error = %e, "wright: cannot read the last daily pass"),
@@ -204,7 +205,7 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
         .into_iter()
         .map(|cadence| cadence.code().to_owned())
         .collect();
-    let checks = match ctx.persist.enabled_wright_checks(&cadences).await {
+    let checks = match ctx.persist.web().enabled_wright_checks(&cadences).await {
         Ok(checks) => checks,
         Err(e) => return tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
     };

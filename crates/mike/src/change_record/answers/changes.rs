@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 
@@ -65,6 +66,7 @@ pub(super) async fn changes_limited(
     limit: i64,
 ) -> Result<ChangesAnswer, AnswerError> {
     let place = persist
+        .fleet()
         .change_place(caller.session_id, &caller.checkout)
         .await?;
     let Some(prefixes) = prefixes_for(persist, caller, scope).await? else {
@@ -81,7 +83,7 @@ pub(super) async fn changes_limited(
         kinds: Vec::new(),
         limit: limit + 1,
     };
-    let mut rows = persist.change_events_after(&query).await?;
+    let mut rows = persist.fleet().change_events_after(&query).await?;
     let more = rows.len() as i64 > limit;
     rows.truncate(limit as usize);
     let names = names_for(persist, &rows).await?;
@@ -89,6 +91,7 @@ pub(super) async fn changes_limited(
     let moved_to = rows.last().map_or(place, |last| last.id.max(place));
     if moved_to > place {
         persist
+            .fleet()
             .move_change_place(caller.session_id, &caller.checkout, moved_to)
             .await?;
     }
@@ -114,6 +117,7 @@ async fn start_after(
         Since::Time(from) => id_before_time(persist, caller, *from).await,
         Since::Commit(sha) => {
             let commits = persist
+                .fleet()
                 .latest_change_events(&caller.checkout, &[], &[ChangeKind::Commit], HISTORY_READ)
                 .await?;
             commits
@@ -131,6 +135,7 @@ async fn id_before_time(
     from: DateTime<Utc>,
 ) -> Result<Option<i64>, AnswerError> {
     let recent = persist
+        .fleet()
         .latest_change_events(&caller.checkout, &[], &[], HISTORY_READ)
         .await?;
     Ok(recent
@@ -163,6 +168,7 @@ async fn prefixes_for(
 
 async fn own_paths(persist: &PersistHandle, caller: &Caller) -> Result<Vec<String>, AnswerError> {
     let recent = persist
+        .fleet()
         .latest_change_events(&caller.checkout, &[], &OWN_KINDS, HISTORY_READ)
         .await?;
     Ok(paths_of_session(&recent, caller.session_id))
@@ -178,7 +184,10 @@ fn paths_of_session(events: &[ChangeEvent], session: i64) -> Vec<String> {
 
 async fn read_paths(persist: &PersistHandle, caller: &Caller) -> Result<Vec<String>, AnswerError> {
     let since = Utc::now() - Duration::days(READ_WINDOW_DAYS);
-    let seen = persist.paths_seen_by(caller.session_id, since).await?;
+    let seen = persist
+        .fleet()
+        .paths_seen_by(caller.session_id, since)
+        .await?;
     let root = format!("{}/", caller.checkout.trim_end_matches('/'));
     Ok(seen
         .into_iter()

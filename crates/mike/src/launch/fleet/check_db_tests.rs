@@ -3,6 +3,8 @@
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -16,6 +18,7 @@ use crate::store::persistence::test_support::acquire_ephemeral_db;
 
 async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<String>> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(session)
         .await?
         .inbox
@@ -38,7 +41,10 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         Uuid::from_u128(13),
     ];
     for session in sessions {
-        persist.ensure_session_exists(&session.to_string()).await?;
+        persist
+            .launch()
+            .ensure_session_exists(&session.to_string())
+            .await?;
     }
     let mut value = complete();
     for (task, seat, session) in [
@@ -51,6 +57,7 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
     }
     let def = parsed(&value);
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: "fleet-mail-1".to_owned(),
             project_path: Some("/tmp/check-mail".to_owned()),
@@ -60,9 +67,11 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         })
         .await?;
     let id = persist
+        .fleet()
         .begin_tree_check("fleet-mail-1", "state-a", "make check", "db-dev-P1")
         .await?;
     persist
+        .fleet()
         .finish_tree_check(
             id,
             Some(1),
@@ -75,9 +84,10 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         "frontend-developer-P2",
         "frontend-developer-P10",
     ] {
-        persist.add_tree_check_asker(id, seat).await?;
+        persist.fleet().add_tree_check_asker(id, seat).await?;
     }
     let row = persist
+        .fleet()
         .latest_tree_check("fleet-mail-1")
         .await?
         .ok_or_else(|| anyhow::anyhow!("the finished check should be recorded"))?;
@@ -89,6 +99,7 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
     };
     for (task, session) in ["P1", "P2", "P10"].into_iter().zip(sessions) {
         persist
+            .fleet()
             .append_fleet_event(&NewFleetEvent {
                 run_id: "fleet-mail-1".to_owned(),
                 task: Some(task.to_owned()),

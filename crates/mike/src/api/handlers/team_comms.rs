@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Serialize)]
 pub(crate) struct TeamDispatchDto {
@@ -52,7 +53,7 @@ async fn resolve_team_comms_session(
     handle: &crate::store::persistence::PersistHandle,
     session_uuid: uuid::Uuid,
 ) -> Result<i64, Response> {
-    match handle.resolve_session_core(session_uuid).await {
+    match handle.launch().resolve_session_core(session_uuid).await {
         Ok(Some((id, _))) => Ok(id),
         Ok(None) => Err((StatusCode::NOT_FOUND, "unknown session").into_response()),
         Err(e) => {
@@ -78,7 +79,7 @@ async fn fetch_team_comms_rows(
     Response,
 > {
     let dispatches = handle
-        .fetch_team_comms_dispatches(session_db_id)
+        .launch().fetch_team_comms_dispatches(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, session_id = %session_uuid, "get_session_team_comms: dispatches fetch failed");
@@ -89,7 +90,7 @@ async fn fetch_team_comms_rows(
             )
         })?;
     let messages = handle
-        .fetch_team_comms_messages(session_db_id)
+        .launch().fetch_team_comms_messages(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, session_id = %session_uuid, "get_session_team_comms: messages fetch failed");

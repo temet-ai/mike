@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::json;
 
 use super::fixture_tests::{Fixture, SEARCH_TOOL};
@@ -15,7 +16,11 @@ async fn attribute_callers_gives_an_unattributed_search_the_session_and_request_
         .await?;
     let event = fixture.record(None, "disk full", &["lesson:a"]).await?;
 
-    let attributed = fixture.handle.attribute_search_callers().await?;
+    let attributed = fixture
+        .handle
+        .knowledge()
+        .attribute_search_callers()
+        .await?;
 
     assert_eq!(attributed, 1);
     let session = fixture.session_row().await?;
@@ -46,6 +51,7 @@ async fn attribute_callers_reaches_a_matched_search_behind_a_full_batch_of_unmat
 
     let attributed = fixture
         .handle
+        .knowledge()
         .attribute_search_callers_within(1, 86_400.0)
         .await?;
 
@@ -67,7 +73,11 @@ async fn attribute_callers_leaves_a_search_with_no_matching_tool_call_unattribut
         .await?;
     let event = fixture.record(None, "disk full", &["lesson:a"]).await?;
 
-    fixture.handle.attribute_search_callers().await?;
+    fixture
+        .handle
+        .knowledge()
+        .attribute_search_callers()
+        .await?;
 
     assert_eq!(fixture.event(event).await?, (None, None));
     fixture.cleanup().await
@@ -89,7 +99,11 @@ async fn attribute_callers_does_not_touch_a_search_that_already_has_a_session() 
         .await?;
     let before = fixture.event(event).await?;
 
-    let attributed = fixture.handle.attribute_search_callers().await?;
+    let attributed = fixture
+        .handle
+        .knowledge()
+        .attribute_search_callers()
+        .await?;
 
     assert_eq!(attributed, 0);
     assert_eq!(fixture.event(event).await?, before);

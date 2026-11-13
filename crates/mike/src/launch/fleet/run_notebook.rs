@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -52,7 +53,11 @@ fn say_not_filed(run: &str, err: &dyn std::fmt::Debug) {
 
 async fn own_notebook(persist: &PersistHandle, repo: &str, run: &str) -> Option<Uuid> {
     let own = own_session(run);
-    if let Err(err) = persist.ensure_session_exists(&own.to_string()).await {
+    if let Err(err) = persist
+        .launch()
+        .ensure_session_exists(&own.to_string())
+        .await
+    {
         say_not_opened(run, &err);
         return None;
     }
@@ -79,7 +84,7 @@ pub(super) async fn exists(persist: &PersistHandle, session: Uuid, tags: &[Strin
         limit: NOTES_READ,
         offset: 0,
     };
-    match persist.fetch_session_notes(session, filter).await {
+    match persist.launch().fetch_session_notes(session, filter).await {
         Ok(rows) => rows
             .iter()
             .any(|row| tags.iter().all(|tag| row.tags.contains(tag))),
@@ -99,7 +104,7 @@ pub(super) async fn write_once(persist: &PersistHandle, session: Uuid, note: Run
         tags: Some(note.tags.as_slice()),
         data: Some(&note.data),
     };
-    match persist.create_session_note(session, stored).await {
+    match persist.launch().create_session_note(session, stored).await {
         Ok(_) => true,
         Err(err) => {
             say_not_written(&note.title, &err);

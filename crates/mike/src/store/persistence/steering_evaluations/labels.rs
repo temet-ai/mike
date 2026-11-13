@@ -1,9 +1,9 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::EvaluationLabel;
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn apply_evaluation_labels(
-        &self,
+        self,
         labels: &[EvaluationLabel],
     ) -> Result<u64, PersistError> {
         if labels.is_empty() {

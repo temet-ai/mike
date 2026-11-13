@@ -4,7 +4,7 @@ async fn fetch_steerer_project_scope(
     handle: &crate::store::persistence::PersistHandle,
     steerer_id: i64,
 ) -> Result<Option<i64>, (StatusCode, Json<SteererErrorBody>)> {
-    match handle.fetch_steerer_by_id(steerer_id).await {
+    match handle.steerer().fetch_steerer_by_id(steerer_id).await {
         Ok(Some(row)) => Ok(row.project_id),
         Ok(None) => Err(steerer_error_response(
             StatusCode::NOT_FOUND,
@@ -25,7 +25,7 @@ async fn check_session_matches_project(
     session_uuid: uuid::Uuid,
     steerer_project_id: i64,
 ) -> Result<(), (StatusCode, Json<SteererErrorBody>)> {
-    match handle.get_session_project_id(session_uuid).await {
+    match handle.steerer().get_session_project_id(session_uuid).await {
         Ok(Some(session_project_id)) => {
             if session_project_id != steerer_project_id {
                 return Err(steerer_error_response(

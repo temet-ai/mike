@@ -1,5 +1,6 @@
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::NewLaunch;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use super::support::{drain_primary_turn, seed_session};
 
@@ -34,13 +35,15 @@ async fn mail_written_only_to_the_database_is_injected_on_the_next_primary_turn_
     let to = seed_session(&pool, "proj-drain-reads-the-record").await?;
     let (mail, brief) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
     handle
+        .launch()
         .insert_message(mail, to, None, "written by another mike process")
         .await?;
     let mut launch = NewLaunch::new("herdr", "/tmp/drain-reads-the-record");
     launch.session_uuid = Some(to);
     launch.brief_note_uuid = Some(brief);
-    handle.insert_launch(&launch).await?;
+    handle.launch().insert_launch(&launch).await?;
     handle
+        .launch()
         .insert_message(brief, to, None, "the launch brief")
         .await?;
 

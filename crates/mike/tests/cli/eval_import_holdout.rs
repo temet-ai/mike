@@ -1,6 +1,7 @@
 use mike::eval::labels::import::holdout::plan;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::eval_labels::{HoldoutOutcome, SplitConflictPolicy};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::test_support::{self, TestDbHandle};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -104,9 +105,10 @@ async fn import_holdout_dry_run_writes_nothing_and_twice_is_a_no_op() -> anyhow:
     let p = plan(e.dir.path(), "b1").map_err(anyhow::Error::msg)?;
     assert_eq!(p.rows.len(), 15);
     assert_eq!(label_count(&e.handle).await?, 0);
-    let resolved = e.handle.resolve_label_turns(&e.turns).await?;
+    let resolved = e.handle.eval().resolve_label_turns(&e.turns).await?;
     let first = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::Refuse)
         .await?;
     assert!(
@@ -115,6 +117,7 @@ async fn import_holdout_dry_run_writes_nothing_and_twice_is_a_no_op() -> anyhow:
     );
     let second = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::Refuse)
         .await?;
     assert!(
@@ -141,9 +144,10 @@ async fn import_holdout_aborts_on_a_dev_split_turn() -> anyhow::Result<()> {
     };
     mark_dev(&e.handle, e.turns[0]).await?;
     let p = plan(e.dir.path(), "b2").map_err(anyhow::Error::msg)?;
-    let resolved = e.handle.resolve_label_turns(&e.turns).await?;
+    let resolved = e.handle.eval().resolve_label_turns(&e.turns).await?;
     let outcome = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::Refuse)
         .await?;
     assert_eq!(outcome, HoldoutOutcome::DevSplitConflict(vec![e.turns[0]]));
@@ -159,9 +163,10 @@ async fn import_holdout_drop_split_conflicts_lists_dropped_turns() -> anyhow::Re
     };
     mark_dev(&e.handle, e.turns[0]).await?;
     let p = plan(e.dir.path(), "b3").map_err(anyhow::Error::msg)?;
-    let resolved = e.handle.resolve_label_turns(&e.turns).await?;
+    let resolved = e.handle.eval().resolve_label_turns(&e.turns).await?;
     let outcome = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::Drop)
         .await?;
     let HoldoutOutcome::Written {
@@ -223,9 +228,10 @@ async fn import_holdout_resplits_a_dev_turn_no_run_used() -> anyhow::Result<()> 
     };
     mark_dev(&e.handle, e.turns[0]).await?;
     let p = plan(e.dir.path(), "b4").map_err(anyhow::Error::msg)?;
-    let resolved = e.handle.resolve_label_turns(&e.turns).await?;
+    let resolved = e.handle.eval().resolve_label_turns(&e.turns).await?;
     let outcome = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::ResplitUnusedDev)
         .await?;
     assert!(
@@ -252,9 +258,10 @@ async fn import_holdout_refuses_to_resplit_a_turn_an_eval_run_used() -> anyhow::
     mark_dev(&e.handle, e.turns[0]).await?;
     mark_used_by_run(&e.handle, e.turns[0]).await?;
     let p = plan(e.dir.path(), "b5").map_err(anyhow::Error::msg)?;
-    let resolved = e.handle.resolve_label_turns(&e.turns).await?;
+    let resolved = e.handle.eval().resolve_label_turns(&e.turns).await?;
     let outcome = e
         .handle
+        .eval()
         .import_holdout(&p, &resolved, "test", SplitConflictPolicy::ResplitUnusedDev)
         .await?;
     assert_eq!(outcome, HoldoutOutcome::DevLabelsInUse(vec![e.turns[0]]));

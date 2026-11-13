@@ -185,6 +185,7 @@ async fn recall_route_text_is_the_text_the_injector_appends() -> anyhow::Result<
     let project_id =
         crate::store::persistence::test_support::seed_project(handle.pool(), &project_path).await?;
     handle
+        .lessons()
         .create_lesson_with_topic(crate::store::persistence::lessons::NewLessonWrite {
             project_id,
             kind: "convention",

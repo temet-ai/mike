@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub(crate) async fn get_tags(
     State(state): State<AppState>,
@@ -10,7 +11,7 @@ pub(crate) async fn get_tags(
             "session persistence is disabled; tags are not available".to_string(),
         ));
     };
-    match handle.fetch_tags().await {
+    match handle.launch().fetch_tags().await {
         Ok(rows) => Ok(Json(TagListResponse {
             tags: rows
                 .into_iter()

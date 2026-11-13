@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
@@ -112,7 +113,12 @@ async fn merge_project(
     moves: &[TopicMove],
     report: &mut PurposeReport,
 ) {
-    match deps.persist.retopic_skill_lessons(project_id, moves).await {
+    match deps
+        .persist
+        .lessons()
+        .retopic_skill_lessons(project_id, moves)
+        .await
+    {
         Ok(moved) => {
             report.merged_topics += moves.len() as u64;
             report.moved_lessons += moved;
@@ -124,7 +130,7 @@ async fn merge_project(
 
 pub(super) async fn run_pass(deps: &ProposerDeps<'_>) -> PurposeReport {
     let mut report = PurposeReport::default();
-    let purposes = match deps.persist.skill_purposes().await {
+    let purposes = match deps.persist.lessons().skill_purposes().await {
         Ok(purposes) => purposes,
         Err(error) => {
             log_read_failed(&error);

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn fetch_team_comms_dispatches(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<TeamCommsDispatchRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_team_comms_dispatches", async move {
@@ -40,7 +40,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_team_comms_messages(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<TeamCommsMessageRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_team_comms_messages", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::json;
 
 use super::brief_notes::fleet_tag;
@@ -13,7 +14,7 @@ pub(super) const CLOSE_TAG: &str = "close";
 const PASSED: &str = "passed";
 
 async fn stop_requested_by(persist: &PersistHandle, run: &str) -> Option<String> {
-    let events = persist.fleet_events_since(run, 0).await.ok()?;
+    let events = persist.fleet().fleet_events_since(run, 0).await.ok()?;
     events
         .iter()
         .rev()

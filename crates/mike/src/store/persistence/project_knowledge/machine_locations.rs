@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub(crate) struct MachineLocation {
@@ -8,9 +8,9 @@ pub(crate) struct MachineLocation {
     pub root_path: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn project_roots_on_machine(
-        &self,
+        self,
         project_id: i64,
         machine: Uuid,
     ) -> Result<Vec<String>, PersistError> {
@@ -27,7 +27,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn locations_on_machine(
-        &self,
+        self,
         machine: Uuid,
     ) -> Result<Vec<MachineLocation>, PersistError> {
         Ok(sqlx::query_as!(

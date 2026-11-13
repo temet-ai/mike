@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -112,7 +113,7 @@ pub(in crate::launch::fleet) async fn pass(
     _def: &FleetDefinition,
     run: &str,
 ) {
-    let Ok(events) = persist.fleet_events_since(run, 0).await else {
+    let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return;
     };
     if !Ledger::from_events(&events)
@@ -128,7 +129,7 @@ pub(in crate::launch::fleet) async fn pass(
     let solver = ModelSolver(model);
     let new = decisions_for(&events, run, Utc::now(), &solver, &[]).await;
     for event in new {
-        if let Err(err) = persist.append_fleet_event(&event).await {
+        if let Err(err) = persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(run, error = %err, "problem pass could not record an event");
             return;
         }

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use serde::Serialize;
@@ -52,7 +53,11 @@ async fn report_of(
         limit: REPORTS_READ,
         offset: 0,
     };
-    let rows = persist.fetch_session_notes(worker, filter).await.ok()?;
+    let rows = persist
+        .launch()
+        .fetch_session_notes(worker, filter)
+        .await
+        .ok()?;
     rows.into_iter().find(|row| row.note_uuid == note)
 }
 
@@ -102,6 +107,7 @@ pub(crate) async fn record_verdict(
     let regression_obligations =
         record_regressions(persist, acceptance, &fleet, &def, &req).await?;
     let note = persist
+        .launch()
         .create_session_note(
             acceptance,
             NewSessionNote {
@@ -160,6 +166,7 @@ async fn record_regressions(
             task_tag(&regression.task),
         ];
         let note = persist
+            .launch()
             .create_session_note(
                 acceptance,
                 NewSessionNote {
@@ -198,7 +205,7 @@ async fn mail_verdict(
     let Some(worker) = worker else {
         return (None, None);
     };
-    let closed = match persist.closed_fleet_seat(worker).await {
+    let closed = match persist.launch().closed_fleet_seat(worker).await {
         Ok(closed) => closed,
         Err(err) => {
             tracing::warn!(error = %err, "fleet verdict: could not verify the task seat's state");
@@ -226,6 +233,7 @@ async fn send_verdict(
     shown: &str,
 ) -> Option<Uuid> {
     match persist
+        .launch()
         .insert_message(Uuid::new_v4(), to, Some(acceptance), shown)
         .await
     {
@@ -254,10 +262,14 @@ mod delivery_tests {
         let persist = PersistHandle::connect(&db.database_url).await?;
         let (acceptance, worker) = (Uuid::new_v4(), Uuid::new_v4());
         for session in [acceptance, worker] {
-            persist.ensure_session_exists(&session.to_string()).await?;
+            persist
+                .launch()
+                .ensure_session_exists(&session.to_string())
+                .await?;
         }
         let run = format!("verdict-mail-{}", Uuid::new_v4());
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: None,
@@ -269,12 +281,13 @@ mod delivery_tests {
         let mut launch = NewLaunch::new("herdr", "/tmp/verdict-mail");
         launch.run_id = Some(run);
         launch.session_uuid = Some(worker);
-        let launch = persist.insert_launch(&launch).await?;
+        let launch = persist.launch().insert_launch(&launch).await?;
         assert_eq!(
             mail_verdict(&persist, Some(worker), acceptance, "pass").await,
             (Some(worker), None)
         );
         persist
+            .launch()
             .record_launch_closed(launch, "complete", Some(true))
             .await?;
         assert_eq!(
@@ -291,6 +304,7 @@ mod delivery_tests {
         );
         assert_eq!(
             persist
+                .launch()
                 .fetch_for_session_with_activity(worker)
                 .await?
                 .inbox

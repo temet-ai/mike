@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SessionFleetRow {
@@ -11,9 +11,9 @@ pub(crate) struct SessionFleetRow {
     pub(crate) oldest_last_seen: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub(crate) async fn fetch_session_fleet_membership(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<SessionFleetRow, PersistError> {
         crate::metrics::time_db("fleet_fetch_session_membership", async move {

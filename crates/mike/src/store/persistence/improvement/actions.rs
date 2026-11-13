@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct LessonActionRow {
@@ -34,9 +34,9 @@ pub struct GuardQuestionActionRow {
     pub window_end_treated: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_lesson_actions(
-        &self,
+        self,
         project_path: Option<&str>,
     ) -> Result<Vec<LessonActionRow>, PersistError> {
         crate::metrics::time_db("list_lesson_actions", async move {
@@ -65,7 +65,7 @@ impl PersistHandle {
     }
 
     pub async fn get_lesson_action(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Option<LessonActionRow>, PersistError> {
         crate::metrics::time_db("get_lesson_action", async move {
@@ -82,7 +82,7 @@ impl PersistHandle {
     }
 
     pub async fn list_guard_question_actions(
-        &self,
+        self,
     ) -> Result<Vec<GuardQuestionActionRow>, PersistError> {
         crate::metrics::time_db("list_guard_question_actions", async move {
             let rows = sqlx::query_file_as!(

@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
@@ -22,6 +23,7 @@ pub(super) async fn resolve_identity(
                 .map_err(|error| error.to_string())?
         }
         (None, Some(thread)) => persist
+            .runtime()
             .resolve_unique_codex_session(thread)
             .await
             .map_err(|error| error.to_string())?,
@@ -101,6 +103,7 @@ pub(super) async fn record(
     };
     use crate::store::persistence::runtime::ObservationApplyOutcome;
     match persist
+        .runtime()
         .apply_session_observation(&observation)
         .await
         .map_err(|error| error.to_string())?

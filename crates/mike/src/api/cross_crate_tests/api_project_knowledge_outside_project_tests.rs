@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/project_knowledge/outside_project_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::{Value, json};
 
@@ -18,6 +19,7 @@ async fn seed(harness: &Harness) -> anyhow::Result<Seeded> {
     let sentinel = seed_unassigned_document(harness).await?;
     let rows = harness
         .handle
+        .knowledge()
         .knowledge_candidate_rows(
             sentinel.id,
             &KnowledgeQuery {

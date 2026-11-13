@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 
@@ -37,6 +38,7 @@ pub async fn reach_at(
     live: bool,
 ) -> Reach {
     let rows = persist
+        .steerer()
         .channel_reach_rows(session_db_id, session_uuid)
         .await;
     let stream = rows.ok().map(|rows| rows.iter().any(|r| stream_open(r, t)));

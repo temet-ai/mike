@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::time::Instant;
 
 use chrono::Duration;
@@ -18,7 +19,7 @@ const SETTLE_MINUTES: i64 = 30;
 
 async fn active_run(poll: &LivePoll<'_>) -> Option<RejudgeRunRow> {
     let run = ok_or_warn(
-        poll.persist.active_rejudge_run().await,
+        poll.persist.eval().active_rejudge_run().await,
         "session_rejudge.active_run",
     )??;
     (run.role == "session_judge" && run.bundle_id == poll.bundle_id).then_some(run)
@@ -50,7 +51,7 @@ async fn judge_one(
             breaker.record(true, Instant::now());
             let row = verdict_row(&j, cfg, c.session_db_id, "live", Some(poll.bundle_id));
             let stored = ok_or_warn(
-                poll.persist.insert_session_verdict_v3(&row).await,
+                poll.persist.eval().insert_session_verdict_v3(&row).await,
                 "session_rejudge.store_verdict",
             );
             poll.record(c.session_db_id, cfg, stored.is_none()).await;
@@ -84,12 +85,16 @@ async fn claim_candidates(
     cap: i64,
 ) -> Option<(i64, Vec<RejudgeCandidate>)> {
     let today = ok_or_warn(
-        poll.persist.session_rejudge_calls_today(window).await,
+        poll.persist
+            .eval()
+            .session_rejudge_calls_today(window)
+            .await,
         "session_rejudge.calls_today",
     )?;
     let size = claim_size(cap.min(i64::from(run.daily_call_cap)) - today);
     let candidates = ok_or_warn(
         poll.persist
+            .eval()
             .session_rejudge_candidates(window, size.max(1))
             .await,
         "session_rejudge.claim",
@@ -119,7 +124,7 @@ async fn started(poll: &LivePoll<'_>, run: &RejudgeRunRow) -> bool {
     run.status == "running"
         || (run.status == "queued"
             && ok_or_warn(
-                poll.persist.start_rejudge_run(run.id).await,
+                poll.persist.eval().start_rejudge_run(run.id).await,
                 "session_rejudge.start_run",
             )
             .unwrap_or(false))
@@ -146,6 +151,7 @@ async fn drain_owned_run(
     if candidates.is_empty() {
         ok_or_warn(
             poll.persist
+                .eval()
                 .finish_rejudge_run(run.id, RejudgeFinish::Done)
                 .await,
             "session_rejudge.finish_run",

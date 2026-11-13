@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -69,6 +70,7 @@ pub(super) fn persistence(state: &AppState) -> Result<&PersistHandle, Definition
 
 pub(super) async fn load(persist: &PersistHandle, key: &str) -> Result<FleetRow, DefinitionError> {
     persist
+        .fleet()
         .find_fleet(key)
         .await?
         .ok_or_else(|| DefinitionError::NotFound(key.to_string()))
@@ -86,6 +88,7 @@ async fn launch(
         });
     }
     let started = persist
+        .fleet()
         .transition_fleet_state(row, STATE_STARTING, None, None)
         .await?;
     if started.is_none() {
@@ -114,6 +117,7 @@ pub(crate) async fn create_fleet(
     let (definition, parsed) = parse_new(Some(requested))?;
     let persist = persistence(&state)?;
     let row = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: body.slug,
             project_path: body.project_path,
@@ -212,12 +216,14 @@ pub(crate) async fn patch_fleet(
         Move::Stay => {}
         Move::BackToDraft => {
             persist
+                .fleet()
                 .transition_fleet_state(&saved.row, STATE_DRAFT, None, None)
                 .await?
                 .ok_or_else(|| DefinitionError::Changed(saved.row.slug.clone()))?;
         }
         Move::MarkReady => {
             let ready = persist
+                .fleet()
                 .transition_fleet_state(&saved.row, STATE_READY, None, None)
                 .await?
                 .ok_or_else(|| DefinitionError::Changed(saved.row.slug.clone()))?;

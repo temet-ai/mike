@@ -1,5 +1,7 @@
 use crate::change_record::{ChangeKind, NewChangeEvent};
 use crate::store::persistence::SENTINEL_PROJECT_PATH;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::Utc;
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -37,7 +39,7 @@ impl Harness {
             before_sha: None,
             after_sha: sha.map(str::to_string),
         };
-        self.persist.insert_change_events(&[event]).await?;
+        self.persist.fleet().insert_change_events(&[event]).await?;
         Ok(())
     }
 }
@@ -118,6 +120,7 @@ async fn cross_task_regression_is_required_before_original_pass() -> anyhow::Res
     );
     let fleet = h
         .persist
+        .fleet()
         .find_fleet("report")
         .await?
         .ok_or_else(|| anyhow::anyhow!("no fleet"))?;
@@ -132,6 +135,7 @@ async fn cross_task_regression_is_required_before_original_pass() -> anyhow::Res
     };
     let rows = h
         .persist
+        .launch()
         .fetch_session_notes(id(ACCEPTANCE), filter)
         .await?;
     assert_eq!(rows.len(), 1);
@@ -153,6 +157,7 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
     };
     let fleet = h
         .persist
+        .fleet()
         .find_fleet("report")
         .await?
         .ok_or_else(|| anyhow::anyhow!("no fleet"))?;
@@ -173,11 +178,15 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
         data: Some(&invalid),
     };
     assert!(matches!(
-        h.persist.create_session_note(id(ACCEPTANCE), note).await,
+        h.persist
+            .launch()
+            .create_session_note(id(ACCEPTANCE), note)
+            .await,
         Err(crate::store::persistence::PersistError::InvalidAcceptanceObligation(_))
     ));
     let row = h
         .persist
+        .launch()
         .create_session_note(
             id(ACCEPTANCE),
             NewSessionNote {
@@ -188,6 +197,7 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
         .await?;
     let result = h
         .persist
+        .launch()
         .update_session_note(
             row.note_uuid,
             crate::store::persistence::session_notes::SessionNoteUpdate {
@@ -211,6 +221,7 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
     };
     let rows = h
         .persist
+        .launch()
         .fetch_session_notes(id(ACCEPTANCE), filter)
         .await?;
     assert_eq!(rows.len(), 1);

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -219,10 +220,14 @@ pub(crate) async fn list_consolidation_runs(
         limit: clamp_limit(params.limit),
         offset: clamp_offset(params.offset),
     };
-    let (total_count, rows) = handle.list_consolidation_runs(&filter).await.map_err(|e| {
-        tracing::warn!(error = %e, "list_consolidation_runs: query failed");
-        persist_error_response(e)
-    })?;
+    let (total_count, rows) = handle
+        .lessons()
+        .list_consolidation_runs(&filter)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "list_consolidation_runs: query failed");
+            persist_error_response(e)
+        })?;
     Ok(Json(Paged {
         items: rows.into_iter().map(ConsolidationRunDto::from).collect(),
         total_count,
@@ -238,10 +243,14 @@ pub(crate) async fn get_consolidation_run(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let found = handle.get_consolidation_run(run_id).await.map_err(|e| {
-        tracing::warn!(run_id, error = %e, "get_consolidation_run: query failed");
-        persist_error_response(e)
-    })?;
+    let found = handle
+        .lessons()
+        .get_consolidation_run(run_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(run_id, error = %e, "get_consolidation_run: query failed");
+            persist_error_response(e)
+        })?;
     let Some((run, actions)) = found else {
         return Err(lesson_error(
             StatusCode::NOT_FOUND,
@@ -291,6 +300,7 @@ pub(crate) async fn list_consolidation_decisions(
         offset: clamp_offset(params.offset),
     };
     let (total_count, rows) = handle
+        .lessons()
         .list_consolidation_decisions(&filter)
         .await
         .map_err(|e| {
@@ -312,10 +322,14 @@ pub(crate) async fn get_lesson_history(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let history = handle.get_lesson_history(lesson_id).await.map_err(|e| {
-        tracing::warn!(lesson_id, error = %e, "get_lesson_history: query failed");
-        persist_error_response(e)
-    })?;
+    let history = handle
+        .lessons()
+        .get_lesson_history(lesson_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(lesson_id, error = %e, "get_lesson_history: query failed");
+            persist_error_response(e)
+        })?;
     let Some(history) = history else {
         return Err(lesson_error(StatusCode::NOT_FOUND, "lesson not found"));
     };
@@ -333,7 +347,7 @@ pub(crate) async fn list_session_memory_actions(
         return Err(lesson_error(StatusCode::NOT_FOUND, "unknown session"));
     };
     let rows = handle
-        .list_session_memory_actions(uuid)
+        .lessons().list_session_memory_actions(uuid)
         .await
         .map_err(|e| {
             tracing::warn!(session_id = %session_uuid, error = %e, "list_session_memory_actions: query failed");

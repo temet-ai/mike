@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct StreamWindow {
@@ -29,9 +29,9 @@ pub struct StreamRow {
     pub has_agent_id: bool,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_prompt_streams(
-        &self,
+        self,
         session_ids: &[i64],
         window: StreamWindow,
         source: StreamSource,

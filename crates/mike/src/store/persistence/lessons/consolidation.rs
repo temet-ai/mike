@@ -1,10 +1,10 @@
 use super::LessonRow;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn claim_raw_lessons_for_consolidation(
-        &self,
+        self,
         project_id: i64,
         batch_size: i64,
     ) -> Result<Vec<LessonRow>, PersistError> {
@@ -42,8 +42,7 @@ impl PersistHandle {
     }
 
     #[rustfmt::skip]
-    pub async fn promote_lesson_to_daily(
-        &self,
+    pub async fn promote_lesson_to_daily(self,
         id: i64,
         embedding: &[f32],
         model: &str,
@@ -74,7 +73,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn promote_daily_to_long_term(
-        &self,
+        self,
         project_id: i64,
         run_id: i64,
     ) -> Result<u64, PersistError> {

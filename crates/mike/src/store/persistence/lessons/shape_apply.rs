@@ -2,8 +2,8 @@ use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 use sqlx::PgConnection;
 
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 pub const SHAPE_DETECTOR_VERSION: &str = "lesson-shape-v1";
 
@@ -188,9 +188,9 @@ async fn move_evidence(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn rewrite_lesson_into_rules(
-        &self,
+        self,
         rewrite: &ShapeRewrite<'_>,
     ) -> Result<Option<Vec<i64>>, PersistError> {
         let payload = rules_payload(rewrite.rules);
@@ -216,10 +216,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn retire_lesson_as_not_a_lesson(
-        &self,
-        lesson_id: i64,
-    ) -> Result<bool, PersistError> {
+    pub async fn retire_lesson_as_not_a_lesson(self, lesson_id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("retire_lesson_as_not_a_lesson", async move {
             let mut tx = self.pool.begin().await?;
             let archived = archive_lesson(&mut tx, lesson_id, "not_a_lesson").await?;

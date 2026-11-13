@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::{Value, json};
 
 use super::item_header;
@@ -162,6 +163,7 @@ async fn plain(
     report: RerankReport,
 ) -> Result<Searched, PersistError> {
     let page = handle
+        .knowledge()
         .search_resolved_knowledge(project, input, vector)
         .await?;
     Ok((page, report, Passages::new()))
@@ -210,7 +212,11 @@ async fn passages_for(
         .filter_map(|row| row["reference"].as_str())
         .map(str::to_owned)
         .collect();
-    match handle.knowledge_rerank_passages(&references, vector).await {
+    match handle
+        .knowledge()
+        .knowledge_rerank_passages(&references, vector)
+        .await
+    {
         Ok(passages) => passages,
         Err(error) => {
             tracing::warn!(error = %error, "knowledge rerank: passage lookup failed; ranking on titles");

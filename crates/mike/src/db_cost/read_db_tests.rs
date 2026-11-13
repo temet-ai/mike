@@ -1,3 +1,4 @@
+use crate::store::persistence::state_repo::StatePersist as _;
 use chrono::{Duration, TimeZone};
 
 use super::*;
@@ -73,7 +74,7 @@ async fn maintenance_reports_cumulative_counters_and_reset_boundaries() -> anyho
     let Some(persist) = shared_handle().await? else {
         return Ok(());
     };
-    let reading = persist.read_database_maintenance().await?;
+    let reading = persist.state().read_database_maintenance().await?;
     assert!(!reading.tables.is_empty());
     assert!(!reading.largest_indexes.is_empty());
     assert!(!reading.cluster_io.is_empty());

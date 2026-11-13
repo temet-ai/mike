@@ -1,5 +1,6 @@
 use mike::store::persistence::lessons::NewLessonWrite;
 use mike::store::persistence::lessons::placement::{PlacementWrite, TopicMove};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::skill_drafts::{Fixture, draft, fixture};
@@ -22,6 +23,7 @@ async fn lesson(
 ) -> anyhow::Result<i64> {
     let row = fx
         .handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: fx.project_id,
             kind: "convention",
@@ -47,7 +49,12 @@ async fn lesson(
             covered_by: None,
             reason: "test",
         };
-        assert!(fx.handle.set_lesson_placement(row.id, write).await?);
+        assert!(
+            fx.handle
+                .lessons()
+                .set_lesson_placement(row.id, write)
+                .await?
+        );
     }
     Ok(row.id)
 }
@@ -71,6 +78,7 @@ async fn unplaced_lessons_come_oldest_first_and_a_placement_is_written_once() ->
 
     let ids: Vec<i64> = fx
         .handle
+        .lessons()
         .unplaced_lessons(10)
         .await?
         .into_iter()
@@ -84,13 +92,23 @@ async fn unplaced_lessons_come_oldest_first_and_a_placement_is_written_once() ->
         covered_by: Some("rules/migrations.md"),
         reason: "tied to files",
     };
-    assert!(fx.handle.set_lesson_placement(first, write).await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .set_lesson_placement(first, write)
+            .await?
+    );
     let again = PlacementWrite {
         home: "skill",
         covered_by: None,
         reason: "changed my mind",
     };
-    assert!(!fx.handle.set_lesson_placement(first, again).await?);
+    assert!(
+        !fx.handle
+            .lessons()
+            .set_lesson_placement(first, again)
+            .await?
+    );
     let stored: (String, Option<String>, Option<String>) = sqlx::query_as(
         "SELECT lp.code, l.placement_covered_by, l.placement_reason
            FROM memory.lessons l JOIN memory.lesson_placements lp ON lp.id = l.placement_id
@@ -121,8 +139,8 @@ async fn an_unknown_home_places_nothing() -> anyhow::Result<()> {
         covered_by: None,
         reason: "x",
     };
-    assert!(!fx.handle.set_lesson_placement(id, write).await?);
-    assert_eq!(fx.handle.unplaced_lessons(10).await?.len(), 1);
+    assert!(!fx.handle.lessons().set_lesson_placement(id, write).await?);
+    assert_eq!(fx.handle.lessons().unplaced_lessons(10).await?.len(), 1);
     fx.finish().await
 }
 
@@ -133,24 +151,42 @@ async fn a_failing_lesson_is_withheld_for_a_wait_and_after_three_failures_for_go
         return Ok(());
     };
     let id = lesson(&fx, "Run migrate-check first.", "migrations", None, None).await?;
-    assert_eq!(fx.handle.record_placement_failure(id, "boom").await?, 1);
-    assert!(fx.handle.unplaced_lessons(10).await?.is_empty());
+    assert_eq!(
+        fx.handle
+            .lessons()
+            .record_placement_failure(id, "boom")
+            .await?,
+        1
+    );
+    assert!(fx.handle.lessons().unplaced_lessons(10).await?.is_empty());
 
     sqlx::query(
         "UPDATE memory.lesson_placement_failures SET last_failed_at = now() - interval '3 hours'",
     )
     .execute(fx.handle.pool())
     .await?;
-    assert_eq!(fx.handle.unplaced_lessons(10).await?.len(), 1);
+    assert_eq!(fx.handle.lessons().unplaced_lessons(10).await?.len(), 1);
 
-    assert_eq!(fx.handle.record_placement_failure(id, "boom").await?, 2);
-    assert_eq!(fx.handle.record_placement_failure(id, "boom").await?, 3);
+    assert_eq!(
+        fx.handle
+            .lessons()
+            .record_placement_failure(id, "boom")
+            .await?,
+        2
+    );
+    assert_eq!(
+        fx.handle
+            .lessons()
+            .record_placement_failure(id, "boom")
+            .await?,
+        3
+    );
     sqlx::query(
         "UPDATE memory.lesson_placement_failures SET last_failed_at = now() - interval '100 days'",
     )
     .execute(fx.handle.pool())
     .await?;
-    assert!(fx.handle.unplaced_lessons(10).await?.is_empty());
+    assert!(fx.handle.lessons().unplaced_lessons(10).await?.is_empty());
     fx.finish().await
 }
 
@@ -177,7 +213,11 @@ async fn only_skill_placed_and_unplaced_lessons_make_a_draft_target() -> anyhow:
     .await?;
     let unplaced = lesson(&fx, "The DB is on omit.", "migrations", None, None).await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "one unplaced lesson among others placed elsewhere is not enough"
     );
 
@@ -191,6 +231,7 @@ async fn only_skill_placed_and_unplaced_lessons_make_a_draft_target() -> anyhow:
     .await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("an unplaced and a skill lesson must be a target"))?;
@@ -205,12 +246,14 @@ async fn only_skill_placed_and_unplaced_lessons_make_a_draft_target() -> anyhow:
     .await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("three eligible lessons must be a target"))?;
     assert_eq!(target.lesson_watermark, b);
     let ids: Vec<i64> = fx
         .handle
+        .lessons()
         .skill_draft_lessons(&target)
         .await?
         .into_iter()
@@ -229,6 +272,7 @@ async fn placing_an_unplaced_lesson_elsewhere_takes_it_out_of_the_draft() -> any
     let second = lesson(&fx, "Restart with start-proxy.sh.", "deploy", None, None).await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("two unplaced lessons must be a target"))?;
@@ -239,10 +283,22 @@ async fn placing_an_unplaced_lesson_elsewhere_takes_it_out_of_the_draft() -> any
         covered_by: None,
         reason: "a fact",
     };
-    assert!(fx.handle.set_lesson_placement(second, write).await?);
-    assert!(fx.handle.next_skill_draft_target().await?.is_none());
+    assert!(
+        fx.handle
+            .lessons()
+            .set_lesson_placement(second, write)
+            .await?
+    );
+    assert!(
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none()
+    );
     let ids: Vec<i64> = fx
         .handle
+        .lessons()
         .skill_draft_lessons(&target)
         .await?
         .into_iter()
@@ -278,6 +334,7 @@ async fn the_agent_is_named_only_when_one_agent_owns_every_lesson_of_the_topic()
     .await?;
     let single = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("target"))?;
@@ -294,11 +351,19 @@ async fn the_agent_is_named_only_when_one_agent_owns_every_lesson_of_the_topic()
     .await?;
     let shared = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("target"))?;
     assert_eq!((shared.folder.as_str(), shared.agent_id), ("deploy", None));
-    assert_eq!(fx.handle.skill_draft_lessons(&shared).await?.len(), 3);
+    assert_eq!(
+        fx.handle
+            .lessons()
+            .skill_draft_lessons(&shared)
+            .await?
+            .len(),
+        3
+    );
     fx.finish().await
 }
 
@@ -324,7 +389,13 @@ async fn agent_scoped_lessons_not_placed_as_skills_make_no_agent_skill() -> anyh
         Some(rust),
     )
     .await?;
-    assert!(fx.handle.next_skill_draft_target().await?.is_none());
+    assert!(
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none()
+    );
     fx.finish().await
 }
 
@@ -367,7 +438,7 @@ async fn a_draft_remembers_its_topic_and_a_shipped_topic_is_marked() -> anyhow::
     .await?;
     lesson(&fx, "Not a skill.", "other", Some("memory"), None).await?;
 
-    let before = fx.handle.skill_purposes().await?;
+    let before = fx.handle.lessons().skill_purposes().await?;
     let seen: Vec<(String, i64, bool)> = before
         .iter()
         .map(|p| (p.topic.clone(), p.lessons, p.shipped))
@@ -382,12 +453,14 @@ async fn a_draft_remembers_its_topic_and_a_shipped_topic_is_marked() -> anyhow::
 
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("target"))?;
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target, &[1, 2], &empty))
         .await?;
     let topic: Option<String> =
@@ -401,7 +474,7 @@ async fn a_draft_remembers_its_topic_and_a_shipped_topic_is_marked() -> anyhow::
         .bind(id)
         .execute(fx.handle.pool())
         .await?;
-    let after = fx.handle.skill_purposes().await?;
+    let after = fx.handle.lessons().skill_purposes().await?;
     let shipped: Vec<&str> = after
         .iter()
         .filter(|p| p.shipped)
@@ -426,11 +499,15 @@ async fn retopic_moves_only_skill_placed_lessons_of_the_named_topic() -> anyhow:
     .await?;
     let stays = lesson(&fx, "A fact.", "proxy-deploy-steps", Some("memory"), None).await?;
     assert_eq!(
-        fx.handle.retopic_skill_lessons(fx.project_id, &[]).await?,
+        fx.handle
+            .lessons()
+            .retopic_skill_lessons(fx.project_id, &[])
+            .await?,
         0
     );
     let changed = fx
         .handle
+        .lessons()
         .retopic_skill_lessons(
             fx.project_id,
             &[TopicMove {

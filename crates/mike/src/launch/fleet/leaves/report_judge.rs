@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::{
@@ -40,6 +42,7 @@ pub async fn judge_report(
     floor: Outcome,
 ) -> Result<(), LeafError> {
     let events = persist
+        .fleet()
         .fleet_events_since(&report.run, 0)
         .await
         .unwrap_or_default();
@@ -159,7 +162,7 @@ async fn open_problem_on_repeated_fails(
 
 async fn record(persist: &PersistHandle, report: &ReportToJudge, answer: &JudgeAnswer) {
     for event in verdict_events(&report.run, &report.task, None, report.note, answer) {
-        if let Err(err) = persist.append_fleet_event(&event).await {
+        if let Err(err) = persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(error = %err, task = %report.task, "fleet judge: could not record a verdict");
         }
     }
@@ -168,6 +171,7 @@ async fn record(persist: &PersistHandle, report: &ReportToJudge, answer: &JudgeA
 
 pub async fn tell_seat(persist: &PersistHandle, seat: Uuid, body: &str) {
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), seat, None, body)
         .await
     {
@@ -308,6 +312,7 @@ async fn open_obligations(
     report: &ReportToJudge,
 ) -> Vec<String> {
     let rows = persist
+        .fleet()
         .fleet_note_rows(&report.run)
         .await
         .unwrap_or_default();

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -83,7 +84,7 @@ async fn discipline_of(
     if named.is_some() {
         return Ok(named);
     }
-    if let Some(agent) = persist.carry_seat_agent(facts.session_uuid).await? {
+    if let Some(agent) = persist.fleet().carry_seat_agent(facts.session_uuid).await? {
         return Ok(Some(agent));
     }
     Ok(facts.role.clone())
@@ -100,10 +101,16 @@ async fn settle(
     if !carries && wanted.is_empty() {
         return Ok(CarryOutcome::Skipped);
     }
-    if carries && persist.carry_own_candidate(note_uuid).await?.is_some() {
+    if carries
+        && persist
+            .fleet()
+            .carry_own_candidate(note_uuid)
+            .await?
+            .is_some()
+    {
         return Ok(CarryOutcome::AlreadyCandidate);
     }
-    let Some(facts) = persist.carry_note_facts(note_uuid).await? else {
+    let Some(facts) = persist.fleet().carry_note_facts(note_uuid).await? else {
         return Ok(CarryOutcome::Skipped);
     };
     let discipline = if carries {
@@ -116,6 +123,7 @@ async fn settle(
         wanted.push(own_tag.clone());
     }
     let counted = persist
+        .fleet()
         .carry_count_findings((note_uuid, &facts), &wanted, discipline.as_deref())
         .await?;
     if counted > 0 {
@@ -132,6 +140,7 @@ async fn settle(
         tag: &own_tag,
     };
     let created = persist
+        .fleet()
         .carry_create_candidate((note_uuid, &facts), &new)
         .await?;
     Ok(created.map_or(CarryOutcome::Skipped, CarryOutcome::Candidate))
@@ -192,7 +201,11 @@ pub async fn warm_lines(
         return Vec::new();
     };
     let names: Vec<String> = disciplines.iter().map(|d| d.to_string()).collect();
-    match persist.carried_for_warmup(fleet, run_id, &names).await {
+    match persist
+        .fleet()
+        .carried_for_warmup(fleet, run_id, &names)
+        .await
+    {
         Ok(lines) => lines,
         Err(err) => {
             tracing::warn!(error = %err, run = %run_id, "carry: the carried lessons could not be read for a template");

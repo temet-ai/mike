@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -51,6 +53,7 @@ pub(crate) async fn heartbeat(
     };
 
     let counts = handle
+        .launch()
         .fetch_inbox_counts(renewed.session_id)
         .await
         .map_err(persist_error_response)?;
@@ -87,6 +90,7 @@ pub(crate) async fn get_wake_pending(
     };
 
     let session_uuid = handle
+        .proxy()
         .find_live_session_by_pid(query.pid)
         .await
         .map_err(persist_error_response)?;

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub(crate) mod hook;
 mod parser;
 
@@ -92,6 +93,7 @@ async fn write_harvested_lesson(
     result: &mut HarvestResult,
 ) {
     match persist
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id: ctx.project_id,
             kind: &tag.kind,

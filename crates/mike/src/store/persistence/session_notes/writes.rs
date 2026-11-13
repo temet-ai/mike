@@ -1,9 +1,9 @@
 use super::{NewSessionNote, SessionNoteRow, SessionNoteUpdate};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn create_session_note(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         note: NewSessionNote<'_>,
     ) -> Result<SessionNoteRow, PersistError> {
@@ -41,7 +41,7 @@ impl PersistHandle {
     }
 
     pub async fn update_session_note(
-        &self,
+        self,
         note_uuid: uuid::Uuid,
         update: SessionNoteUpdate<'_>,
     ) -> Result<Option<SessionNoteRow>, PersistError> {
@@ -82,12 +82,12 @@ impl PersistHandle {
         .await
     }
 
-    async fn carry_after_write(&self, row: &SessionNoteRow) {
-        crate::launch::fleet::carry::after_note(self, row.note_uuid, &row.tags, &row.data).await;
-        crate::launch::fleet::ruling_notice::after_note(self, row).await;
+    async fn carry_after_write(self, row: &SessionNoteRow) {
+        crate::launch::fleet::carry::after_note(&self, row.note_uuid, &row.tags, &row.data).await;
+        crate::launch::fleet::ruling_notice::after_note(&self, row).await;
     }
 
-    pub async fn delete_session_note(&self, note_uuid: uuid::Uuid) -> Result<bool, PersistError> {
+    pub async fn delete_session_note(self, note_uuid: uuid::Uuid) -> Result<bool, PersistError> {
         crate::metrics::time_db("session_notes_delete", async move {
             let mut transaction = self.pool.begin().await?;
             super::obligation::protect_delete(&mut transaction, note_uuid).await?;

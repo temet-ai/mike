@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::test_support;
 
 const PROJECT: &str = "w-opened-by-readers";
@@ -127,9 +128,14 @@ async fn recall_reads_skip_machine_rows() -> anyhow::Result<()> {
     };
     add_chunk(fx.handle.pool(), fx.machine).await?;
     add_chunk(fx.handle.pool(), fx.operator).await?;
-    let project = fx.handle.resolve_knowledge_project(PROJECT).await?;
+    let project = fx
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(PROJECT)
+        .await?;
     let fts = fx
         .handle
+        .knowledge()
         .recall_turns_by_fts(&project, "zebra", 10, None)
         .await?;
     let ids: Vec<i64> = fts.iter().map(|row| row.turn_id).collect();
@@ -137,6 +143,7 @@ async fn recall_reads_skip_machine_rows() -> anyhow::Result<()> {
     let vector = format!("[{}]", vec!["0.1"; 768].join(","));
     let semantic = fx
         .handle
+        .knowledge()
         .recall_turns_by_embedding(&project, "test-model", &vector, 10, None)
         .await?;
     let semantic_ids: Vec<i64> = semantic.iter().flatten().map(|row| row.turn_id).collect();
@@ -160,7 +167,11 @@ async fn project_knowledge_search_skips_machine_turns() -> anyhow::Result<()> {
         offset: None,
         ..Default::default()
     };
-    let found = fx.handle.search_project_knowledge(&query).await?;
+    let found = fx
+        .handle
+        .knowledge()
+        .search_project_knowledge(&query)
+        .await?;
     let references: Vec<String> = found["items"]
         .as_array()
         .into_iter()
@@ -197,8 +208,16 @@ async fn recall_by_file_skips_machine_rows() -> anyhow::Result<()> {
     let file = "src/zebra_needle.rs";
     add_file_touch(fx.handle.pool(), fx.machine, file).await?;
     add_file_touch(fx.handle.pool(), fx.operator, file).await?;
-    let project = fx.handle.resolve_knowledge_project(PROJECT).await?;
-    let rows = fx.handle.recall_turns_by_file(&project, file, 10).await?;
+    let project = fx
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(PROJECT)
+        .await?;
+    let rows = fx
+        .handle
+        .knowledge()
+        .recall_turns_by_file(&project, file, 10)
+        .await?;
     let ids: Vec<i64> = rows.iter().map(|row| row.turn_id).collect();
     assert_eq!(
         ids,

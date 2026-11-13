@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug)]
 pub(crate) struct ClosedMailAttempt {
@@ -12,9 +12,9 @@ pub(crate) struct ClosedMailAttempt {
     pub attempted_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub(crate) async fn fleet_closed_mail_attempts(
-        &self,
+        self,
         run: &str,
         since: DateTime<Utc>,
         until: DateTime<Utc>,

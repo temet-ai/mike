@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use super::{FleetHeaderRow, FleetRow};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn find_fleet(&self, key: &str) -> Result<Option<FleetRow>, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn find_fleet(self, key: &str) -> Result<Option<FleetRow>, PersistError> {
         crate::metrics::time_db("launch_find_fleet", async move {
             let row = match Uuid::parse_str(key) {
                 Ok(fleet_uuid) => {
@@ -31,7 +31,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn find_fleet_by_run(&self, run_id: &str) -> Result<Option<FleetRow>, PersistError> {
+    pub async fn find_fleet_by_run(self, run_id: &str) -> Result<Option<FleetRow>, PersistError> {
         crate::metrics::time_db("launch_find_fleet_by_run", async move {
             let row = sqlx::query_file_as!(
                 FleetRow,
@@ -46,7 +46,7 @@ impl PersistHandle {
     }
 
     pub async fn list_fleets_in_states(
-        &self,
+        self,
         states: &[&str],
     ) -> Result<Vec<FleetRow>, PersistError> {
         let states: Vec<String> = states.iter().map(|s| (*s).to_owned()).collect();
@@ -64,7 +64,7 @@ impl PersistHandle {
     }
 
     pub async fn list_fleet_headers(
-        &self,
+        self,
         project_path: Option<&str>,
         limit: i64,
     ) -> Result<Vec<FleetHeaderRow>, PersistError> {

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use mike::filter::{FilterAction, FilterKind, FilterRule, RuleSource};
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::test_db::TestDb;
 
@@ -36,7 +37,7 @@ async fn insert_filter_rule_does_not_inherit_updated_at_as_created_at() -> anyho
         title: None,
     };
 
-    handle.insert_filter_rule(&rule).await?;
+    handle.proxy().insert_filter_rule(&rule).await?;
 
     #[derive(sqlx::FromRow)]
     struct Timestamps {
@@ -99,7 +100,7 @@ async fn insert_filter_rule_does_not_seed_composition_row() -> anyhow::Result<()
         style_override: false,
         title: None,
     };
-    handle.insert_filter_rule(&rule).await?;
+    handle.proxy().insert_filter_rule(&rule).await?;
 
     let overrides_after: i64 =
         sqlx::query_scalar!("SELECT COUNT(*)::BIGINT FROM overrides.overrides")

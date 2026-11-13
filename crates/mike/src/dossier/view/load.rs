@@ -2,7 +2,9 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::dossier_entries::{
     DIRECTIVES_VERSION, DossierEntryRow, PROMISES_VERSION,
 };
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use crate::store::persistence::dossier_view::{GoalsRow, OpenTextRow};
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::steering::SessionNote;
 
 use super::types::{AsOf, AsOfMode, DossierError, DossierInputs, Exclusion, Needs};
@@ -21,9 +23,15 @@ async fn entries(
         return Ok(Vec::new());
     }
     let rows = match as_of.mode {
-        AsOfMode::Knowledge => persist.list_entries_as_of(session_db_id, as_of.at).await?,
+        AsOfMode::Knowledge => {
+            persist
+                .dossier()
+                .list_entries_as_of(session_db_id, as_of.at)
+                .await?
+        }
         AsOfMode::Reconstructed => {
             persist
+                .dossier()
                 .list_entries_reconstructed(session_db_id, as_of.at, &current_extractor_versions())
                 .await?
         }
@@ -40,7 +48,10 @@ async fn goals(
     if !wanted {
         return Ok(None);
     }
-    let row = persist.fetch_session_goals_row(session_db_id).await?;
+    let row = persist
+        .dossier()
+        .fetch_session_goals_row(session_db_id)
+        .await?;
     Ok(row.filter(|g| g.updated_at <= as_of.at))
 }
 
@@ -52,7 +63,10 @@ async fn open_turn(
     let Some(turn_id) = turn else {
         return Ok(None);
     };
-    let rows = persist.fetch_open_turn_text(turn_id, as_of.at).await?;
+    let rows = persist
+        .dossier()
+        .fetch_open_turn_text(turn_id, as_of.at)
+        .await?;
     Ok(Some((turn_id, rows)))
 }
 
@@ -68,6 +82,7 @@ async fn notes_oldest_first(
         return Ok(Vec::new());
     };
     let mut notes = persist
+        .steerer()
         .session_notes_since(session_db_id, as_of.at - window, as_of.at, NOTES_READ)
         .await?;
     notes.reverse();
@@ -108,6 +123,7 @@ async fn attach_live_verdicts(
 ) -> Result<(), DossierError> {
     let reconstructed = matches!(inputs.as_of.mode, AsOfMode::Reconstructed);
     let rows = persist
+        .dossier()
         .fetch_live_verdicts_as_of(inputs.session.session_db_id, inputs.as_of.at, reconstructed)
         .await?;
     inputs.reactions = super::corrections::reactions_from_verdicts(rows);
@@ -126,26 +142,42 @@ pub async fn load(
     needs: Needs,
 ) -> Result<DossierInputs, DossierError> {
     let session = persist
+        .dossier()
         .fetch_session_header(session_db_id)
         .await?
         .ok_or(DossierError::UnknownSession(session_db_id))?;
     let stream_fut = async {
         if needs.stream {
-            Ok::<_, DossierError>(persist.fetch_stream_as_of(session_db_id, as_of.at).await?)
+            Ok::<_, DossierError>(
+                persist
+                    .dossier()
+                    .fetch_stream_as_of(session_db_id, as_of.at)
+                    .await?,
+            )
         } else {
             Ok(Vec::new())
         }
     };
     let turns_fut = async {
         if needs.turns {
-            Ok::<_, DossierError>(persist.fetch_turns_as_of(session_db_id, as_of.at).await?)
+            Ok::<_, DossierError>(
+                persist
+                    .dossier()
+                    .fetch_turns_as_of(session_db_id, as_of.at)
+                    .await?,
+            )
         } else {
             Ok(Vec::new())
         }
     };
     let ledger_fut = async {
         if needs.ledger {
-            Ok::<_, DossierError>(persist.fetch_ledger_as_of(session_db_id, as_of.at).await?)
+            Ok::<_, DossierError>(
+                persist
+                    .dossier()
+                    .fetch_ledger_as_of(session_db_id, as_of.at)
+                    .await?,
+            )
         } else {
             Ok(Vec::new())
         }

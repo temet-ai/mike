@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Serialize)]
 pub(crate) struct StatsResponse {
@@ -10,7 +11,7 @@ pub(crate) struct StatsResponse {
 
 pub(crate) async fn stats(State(state): State<AppState>) -> Json<StatsResponse> {
     let project_count: Option<i64> = if let Some(persist) = state.persist() {
-        match persist.count_projects().await {
+        match persist.launch().count_projects().await {
             Ok(n) => Some(n),
             Err(e) => {
                 tracing::warn!(error = %e, "stats: failed to count projects");

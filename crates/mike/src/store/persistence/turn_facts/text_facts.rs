@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextFacts {
@@ -19,8 +19,8 @@ pub struct StopFacts {
     pub close_cause: String,
 }
 
-impl PersistHandle {
-    pub async fn load_text_facts(&self, turn_ids: &[i64]) -> Result<Vec<TextFacts>, PersistError> {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
+    pub async fn load_text_facts(self, turn_ids: &[i64]) -> Result<Vec<TextFacts>, PersistError> {
         if turn_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -36,10 +36,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn refresh_final_assistant_text(
-        &self,
-        turn_ids: &[i64],
-    ) -> Result<u64, PersistError> {
+    pub async fn refresh_final_assistant_text(self, turn_ids: &[i64]) -> Result<u64, PersistError> {
         if turn_ids.is_empty() {
             return Ok(0);
         }
@@ -70,7 +67,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn load_stop_facts(&self, turn_ids: &[i64]) -> Result<Vec<StopFacts>, PersistError> {
+    pub async fn load_stop_facts(self, turn_ids: &[i64]) -> Result<Vec<StopFacts>, PersistError> {
         if turn_ids.is_empty() {
             return Ok(Vec::new());
         }

@@ -1,16 +1,16 @@
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub struct FleetStateLock {
     pub state: String,
     pub run_id: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub(crate) async fn begin_fleet_spawn_fence(
-        &self,
+        self,
         fleet_uuid: Uuid,
     ) -> Result<(Transaction<'static, Postgres>, Option<FleetStateLock>), PersistError> {
         crate::metrics::time_db("begin_fleet_spawn_fence", async move {

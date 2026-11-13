@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 impl From<&crate::store::persistence::steering::SteererRow> for SteererDto {
     fn from(r: &crate::store::persistence::steering::SteererRow) -> Self {
@@ -169,7 +171,7 @@ pub(crate) async fn resolve_steerer_project_id(
     let Some(path) = project_path else {
         return Ok(None);
     };
-    match handle.get_project_ids_for_path(path).await {
+    match handle.lessons().get_project_ids_for_path(path).await {
         Ok(ids) if ids.is_empty() => Err(steerer_error_response(
             StatusCode::BAD_REQUEST,
             "unknown project_path",
@@ -200,6 +202,7 @@ pub(crate) async fn list_steerers(
     let project_filter_ids: Vec<i64> = match params.project.as_deref() {
         Some(path) => match state.persist() {
             Some(handle) => handle
+                .lessons()
                 .get_project_ids_for_path(path)
                 .await
                 .unwrap_or_default(),
@@ -210,6 +213,7 @@ pub(crate) async fn list_steerers(
 
     let active_enrolment_counts: std::collections::HashMap<i64, i64> = match state.persist() {
         Some(handle) => handle
+            .steerer()
             .count_active_enrolments_all()
             .await
             .unwrap_or_else(|e| {
@@ -277,7 +281,7 @@ pub(crate) async fn get_steerer(
             "session persistence is disabled; steerer lookup is not available",
         ));
     };
-    match handle.fetch_steerer_by_id(id).await {
+    match handle.steerer().fetch_steerer_by_id(id).await {
         Ok(Some(row)) => Ok(Json(SteererDto::from(&row))),
         Ok(None) => Err(steerer_error_response(
             StatusCode::NOT_FOUND,

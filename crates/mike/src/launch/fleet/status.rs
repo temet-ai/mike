@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Utc};
 
 use super::checks::Missing;
@@ -227,10 +228,12 @@ pub async fn assemble(
     let (seat_rows, note_rows) = match &row.run_id {
         Some(run) => (
             persist
+                .fleet()
                 .fleet_seat_rows(run)
                 .await
                 .map_err(|e| e.to_string())?,
             persist
+                .fleet()
                 .fleet_note_rows(run)
                 .await
                 .map_err(|e| e.to_string())?,
@@ -273,6 +276,7 @@ pub async fn assemble(
     };
     let recorded = match &row.run_id {
         Some(run) => persist
+            .fleet()
             .fleet_events_since(run, 0)
             .await
             .map_err(|e| e.to_string())?,

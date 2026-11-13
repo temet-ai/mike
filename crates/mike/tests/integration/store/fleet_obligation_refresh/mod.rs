@@ -1,3 +1,5 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 mod promotion;
 mod support;
 
@@ -26,11 +28,13 @@ async fn existing_obligation_accepted_after_final_refreshes_without_rewriting_ve
     assert_eq!(accepted.status, pending.status);
     assert!(
         f.persist
+            .launch()
             .session_note_belongs_to(f.acceptance, accepted.note_uuid)
             .await?
     );
     assert!(
         !f.persist
+            .launch()
             .session_note_belongs_to(f.worker, accepted.note_uuid)
             .await?
     );
@@ -38,6 +42,7 @@ async fn existing_obligation_accepted_after_final_refreshes_without_rewriting_ve
     f.unchanged_verdict(&verdict).await?;
     let body = "Additional detail keeps the complete previous observation available";
     f.persist
+        .launch()
         .update_session_note(
             accepted.note_uuid,
             SessionNoteUpdate {
@@ -114,7 +119,7 @@ async fn new_and_superseding_obligations_require_final_verdict_covering_their_cr
             .iter()
             .any(|entry| entry.note_id == successor.note_uuid)
     );
-    let notes = f.persist.fleet_note_rows(&f.run).await?;
+    let notes = f.persist.fleet().fleet_note_rows(&f.run).await?;
     let retained = notes
         .iter()
         .find(|note| note.note_uuid == original.note_uuid)
@@ -143,6 +148,7 @@ async fn valid_obligation_rejects_identity_scope_and_marker_changes_without_losi
         mike::launch::fleet::merge(&mut changed, &patch);
         let error = f
             .persist
+            .launch()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {
@@ -159,6 +165,7 @@ async fn valid_obligation_rejects_identity_scope_and_marker_changes_without_losi
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     let removed = f
         .persist
+        .launch()
         .update_session_note(
             note.note_uuid,
             SessionNoteUpdate {
@@ -171,7 +178,7 @@ async fn valid_obligation_rejects_identity_scope_and_marker_changes_without_losi
         removed,
         Err(PersistError::InvalidAcceptanceObligation(_))
     ));
-    let rows = f.persist.fleet_note_rows(&f.run).await?;
+    let rows = f.persist.fleet().fleet_note_rows(&f.run).await?;
     let unchanged = rows
         .iter()
         .find(|row| row.note_uuid == note.note_uuid)
@@ -207,6 +214,7 @@ async fn equivalent_scope_aliases_and_order_keep_existing_obligation_freshness()
     tags.push("extra-observation-tag".into());
     let updated = f
         .persist
+        .launch()
         .update_session_note(
             note.note_uuid,
             SessionNoteUpdate {
@@ -246,6 +254,7 @@ async fn malformed_legacy_obligation_can_be_retired_without_rewriting_its_conten
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     let retired = f
         .persist
+        .launch()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {
@@ -261,6 +270,7 @@ async fn malformed_legacy_obligation_can_be_retired_without_rewriting_its_conten
     assert_eq!(retired.created_at, original.created_at);
     assert!(
         f.persist
+            .launch()
             .session_note_belongs_to(f.acceptance, retired.note_uuid)
             .await?
     );
@@ -292,6 +302,7 @@ async fn malformed_legacy_observation_can_be_repaired_without_changing_identity(
     assert!(invalid.obligations[0].issue.is_some());
     let repaired = f
         .persist
+        .launch()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {

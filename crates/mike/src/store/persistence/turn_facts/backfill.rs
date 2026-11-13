@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn backfill_sessions_with_prompts(
-        &self,
+        self,
         from: DateTime<Utc>,
         until: DateTime<Utc>,
     ) -> Result<Vec<i64>, PersistError> {
@@ -28,7 +28,7 @@ impl PersistHandle {
     }
 
     pub async fn backfill_sessions_with_turns(
-        &self,
+        self,
         from: DateTime<Utc>,
         until: DateTime<Utc>,
     ) -> Result<Vec<i64>, PersistError> {
@@ -49,7 +49,7 @@ impl PersistHandle {
     }
 
     pub async fn count_primary_requests_with_agent_id(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_primary_requests_with_agent_id", async move {

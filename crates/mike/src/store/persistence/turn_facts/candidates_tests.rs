@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
 
@@ -57,6 +58,7 @@ fn window() -> CandidateWindow {
 
 async fn candidates(handle: &PersistHandle) -> anyhow::Result<Vec<i64>> {
     Ok(handle
+        .dossier()
         .find_turn_facts_candidates("turn-facts-test", window())
         .await?)
 }
@@ -155,6 +157,7 @@ async fn stamp_turn_facts_built_at_clears_backstop_attempt() -> anyhow::Result<(
     assert_eq!(candidates(&handle).await?, vec![session]);
 
     handle
+        .dossier()
         .stamp_turn_facts_built_at(&[turn], Utc::now())
         .await?;
 

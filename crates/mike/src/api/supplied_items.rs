@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -75,12 +76,14 @@ pub(crate) async fn list_supplied_items(
     let rows = match (query.request_id, query.session_id.as_deref()) {
         (Some(request_id), _) => {
             persist
+                .lessons()
                 .supplied_items_for_request(request_id, limit + 1, offset)
                 .await
         }
         (None, Some(session)) => match Uuid::parse_str(session) {
             Ok(session) => {
                 persist
+                    .lessons()
                     .supplied_items_for_session(session, limit + 1, offset)
                     .await
             }
@@ -122,7 +125,7 @@ pub(crate) async fn supply_figures(
     };
     let days = query.days.unwrap_or(7).clamp(1, MAX_DAYS);
     let since = Utc::now() - Duration::days(days);
-    match persist.supply_figures(since).await {
+    match persist.lessons().supply_figures(since).await {
         Ok(rows) => Json(figures_answer(since, days, &rows)).into_response(),
         Err(error) => failed(error),
     }
@@ -165,7 +168,7 @@ pub(crate) async fn hand_check_sample(
         .size
         .unwrap_or(DEFAULT_SAMPLE)
         .clamp(MIN_SAMPLE, MAX_SAMPLE);
-    match persist.supply_hand_sample(week, size).await {
+    match persist.lessons().supply_hand_sample(week, size).await {
         Ok(rows) => Json(sample_answer(week, size, &rows)).into_response(),
         Err(error) => failed(error),
     }
@@ -227,6 +230,7 @@ pub(crate) async fn post_hand_check(
         );
     }
     match persist
+        .lessons()
         .set_supply_hand_verdict(id, &body.verdict, body.checked_by.trim())
         .await
     {

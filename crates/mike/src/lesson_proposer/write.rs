@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::Value;
 
 use crate::lesson_shape::assess;
@@ -73,6 +74,7 @@ pub async fn record_low_confidence_evidence(
 ) -> Result<(), PersistError> {
     let empty = Value::Array(Vec::new());
     persist
+        .lessons()
         .record_evidence(EvidenceWrite {
             verdict_id: candidate.verdict_id,
             operator_turn_id: candidate.operator_turn_id,
@@ -93,12 +95,18 @@ pub async fn decide_and_write(
     decision: &Decision<'_>,
 ) -> Result<WriteOutcome, PersistError> {
     if decision.candidate.confidence < settings.min_confidence {
-        persist.record_evidence(decision.evidence(None)).await?;
+        persist
+            .lessons()
+            .record_evidence(decision.evidence(None))
+            .await?;
         return Ok(WriteOutcome::EvidenceOnly);
     }
 
     let Some(rule) = decision.accepted_rule() else {
-        persist.record_evidence(decision.evidence(None)).await?;
+        persist
+            .lessons()
+            .record_evidence(decision.evidence(None))
+            .await?;
         return Ok(WriteOutcome::EvidenceOnly);
     };
 
@@ -128,7 +136,7 @@ async fn discard(
     );
     let mut evidence = decision.evidence(None);
     evidence.reason = &reason;
-    persist.record_evidence(evidence).await?;
+    persist.lessons().record_evidence(evidence).await?;
     Ok(WriteOutcome::EvidenceOnly)
 }
 
@@ -146,6 +154,7 @@ async fn skip(
     };
     let candidate = decision.candidate;
     persist
+        .lessons()
         .record_skipped_duplicate(
             NewSkippedDuplicate {
                 project_id: candidate.project_id,
@@ -190,6 +199,7 @@ async fn create(
         reason: &v.placement.reason,
     });
     let lesson_id = persist
+        .lessons()
         .create_candidate_lesson(
             NewCandidateLesson {
                 project_id: candidate.project_id,
@@ -222,14 +232,22 @@ async fn maybe_promote(
     if settings.auto_promote_min_evidence <= 0 {
         return Ok(false);
     }
-    if persist.lesson_has_open_shape_finding(lesson_id).await? {
+    if persist
+        .lessons()
+        .lesson_has_open_shape_finding(lesson_id)
+        .await?
+    {
         return Ok(false);
     }
-    let count = persist.count_promotion_evidence(lesson_id).await?;
+    let count = persist
+        .lessons()
+        .count_promotion_evidence(lesson_id)
+        .await?;
     if count < settings.auto_promote_min_evidence {
         return Ok(false);
     }
     match persist
+        .lessons()
         .approve_lesson_candidate(lesson_id, None, "judge")
         .await
     {

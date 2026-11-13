@@ -6,6 +6,7 @@ use crate::analysis::EmbeddingService;
 use crate::api::rerank_search::RerankReport;
 use crate::embed_worker::knowledge::{model_key, model_keys, valid_vector};
 use crate::state::AppState;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
 use crate::store::persistence::{PersistError, PersistHandle};
 use axum::response::Response;
@@ -95,6 +96,7 @@ async fn search_stage(
         return Ok((page, Some(report), passages));
     }
     let page = handle
+        .knowledge()
         .search_resolved_knowledge(project, input, vector)
         .await?;
     Ok((page, None, Passages::new()))
@@ -116,12 +118,13 @@ async fn retrieve_with(
     let key = model_key(&service);
     let (vector, fallback) = embed_for(&service, &key, &input.query).await;
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(&input.project)
         .await
         .map_err(knowledge_error)?;
     let searching = search_stage(state, handle, &project, (input, vector.as_ref()), rerank);
     let keys = model_keys(&service);
-    let counting = handle.knowledge_coverage(project.id, &keys);
+    let counting = handle.knowledge().knowledge_coverage(project.id, &keys);
     let (searched, coverage) = tokio::join!(searching, counting);
     let (mut answer, report, passages) = searched.map_err(knowledge_error)?;
     let coverage = coverage.map_err(knowledge_error)?;

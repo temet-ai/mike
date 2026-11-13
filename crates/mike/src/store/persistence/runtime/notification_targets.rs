@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use super::ObservationLimits;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct RuntimeNotificationTarget {
@@ -9,9 +9,9 @@ pub struct RuntimeNotificationTarget {
     pub runtime_home: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn register_runtime_notification_target(
-        &self,
+        self,
         session: Uuid,
         thread: &str,
         home: &str,
@@ -51,7 +51,7 @@ impl PersistHandle {
     }
 
     pub async fn runtime_notification_target(
-        &self,
+        self,
         session: Uuid,
     ) -> Result<Option<RuntimeNotificationTarget>, PersistError> {
         Ok(sqlx::query_as!(

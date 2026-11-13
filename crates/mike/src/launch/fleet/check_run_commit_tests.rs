@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
@@ -19,10 +21,12 @@ async fn each_new_commit_is_checked_without_an_ask_and_the_committer_gets_the_ve
         };
         let persist = PersistHandle::connect(&db.database_url).await?;
         persist
+            .launch()
             .ensure_session_exists(&Uuid::from_u128(SEAT_SESSION).to_string())
             .await?;
         let run = "fleet-queue-proof";
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.to_owned(),
                 project_path: Some("/tmp/queue-proof".to_owned()),
@@ -32,6 +36,7 @@ async fn each_new_commit_is_checked_without_an_ask_and_the_committer_gets_the_ve
             })
             .await?;
         persist
+            .fleet()
             .append_fleet_event(&NewFleetEvent {
                 run_id: run.to_owned(),
                 task: Some("M".to_owned()),
@@ -54,6 +59,7 @@ async fn each_new_commit_is_checked_without_an_ask_and_the_committer_gets_the_ve
         tracker.close();
         tracker.wait().await;
         let passed = persist
+            .fleet()
             .latest_tree_check(run)
             .await?
             .ok_or_else(|| anyhow::anyhow!("no check was recorded"))?;

@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
@@ -111,6 +112,7 @@ async fn finish(
         ..Default::default()
     };
     let outcome = persist
+        .runtime()
         .record_responses_diagnostic(&diagnostic, &limits)
         .await
         .map_err(|e| e.to_string())?;

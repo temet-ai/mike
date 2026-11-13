@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BashUseRecord {
@@ -17,9 +17,9 @@ pub struct BashUseRecord {
     pub work_item_finished_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_bash_uses(
-        &self,
+        self,
         turn_ids: &[i64],
     ) -> Result<Vec<BashUseRecord>, PersistError> {
         if turn_ids.is_empty() {

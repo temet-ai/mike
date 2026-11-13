@@ -1,4 +1,5 @@
 use mike::store::persistence::lessons::placement_proposals::PlacementDecision;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use uuid::Uuid;
 
 use super::skill_drafts::{Fixture, fixture};
@@ -28,7 +29,7 @@ async fn project_uuid(fx: &Fixture) -> anyhow::Result<Uuid> {
 }
 
 async fn undecided(fx: &Fixture, project: Uuid) -> anyhow::Result<i64> {
-    let projects = fx.handle.list_proposal_projects().await?;
+    let projects = fx.handle.lessons().list_proposal_projects().await?;
     let row = projects
         .iter()
         .find(|p| p.project_uuid == project)
@@ -52,7 +53,11 @@ async fn rule_and_agent_lessons_list_as_proposals_and_skill_lessons_do_not() -> 
     place(&fx, agent, "agent").await?;
     let project = project_uuid(&fx).await?;
 
-    let rows = fx.handle.list_placement_proposals(project).await?;
+    let rows = fx
+        .handle
+        .lessons()
+        .list_placement_proposals(project)
+        .await?;
     let ids: Vec<i64> = rows.iter().map(|r| r.lesson_id).collect();
     assert_eq!(ids, vec![rule, agent]);
     assert!(!ids.contains(&skill));
@@ -74,23 +79,34 @@ async fn decision_is_stored_replaced_and_cleared() -> anyhow::Result<()> {
 
     assert!(
         fx.handle
+            .lessons()
             .set_placement_decision(rule, PlacementDecision::Accepted)
             .await?
     );
     assert_eq!(undecided(&fx, project).await?, 0);
-    let rows = fx.handle.list_placement_proposals(project).await?;
+    let rows = fx
+        .handle
+        .lessons()
+        .list_placement_proposals(project)
+        .await?;
     assert_eq!(rows[0].decision.as_deref(), Some("accepted"));
 
     assert!(
         fx.handle
+            .lessons()
             .set_placement_decision(rule, PlacementDecision::Declined)
             .await?
     );
-    let rows = fx.handle.list_placement_proposals(project).await?;
+    let rows = fx
+        .handle
+        .lessons()
+        .list_placement_proposals(project)
+        .await?;
     assert_eq!(rows[0].decision.as_deref(), Some("declined"));
 
     assert!(
         fx.handle
+            .lessons()
             .set_placement_decision(rule, PlacementDecision::Cleared)
             .await?
     );
@@ -110,11 +126,13 @@ async fn deciding_a_lesson_that_is_not_a_proposal_finds_nothing() -> anyhow::Res
 
     assert!(
         !fx.handle
+            .lessons()
             .set_placement_decision(skill, PlacementDecision::Accepted)
             .await?
     );
     assert!(
         !fx.handle
+            .lessons()
             .set_placement_decision(i64::MAX, PlacementDecision::Declined)
             .await?
     );

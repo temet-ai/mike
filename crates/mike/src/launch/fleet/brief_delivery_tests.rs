@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use std::time::Duration;
 
@@ -248,10 +250,12 @@ async fn booted(
     let persist = PersistHandle::connect(&db.database_url).await?;
     for n in [1u128, 2, 3, 11] {
         persist
+            .launch()
             .ensure_session_exists(&Uuid::from_u128(n).to_string())
             .await?;
     }
     persist
+        .launch()
         .upsert_run(&crate::store::persistence::launch::NewRun {
             run_id: run.to_string(),
             project_path: Some("/srv/project".into()),
@@ -262,6 +266,7 @@ async fn booted(
         .await?;
     let definition: Value = serde_json::to_value(definition(as_notes))?;
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: "delivery".into(),
             project_path: "/srv/project".into(),

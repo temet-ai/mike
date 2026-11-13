@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 mod dto;
 mod parse;
 
@@ -56,7 +57,7 @@ impl FilterService {
 
         {
             let _guard = service.write_lock.lock().await;
-            let db_rules = service.persist.list_filter_rules().await?;
+            let db_rules = service.persist.proxy().list_filter_rules().await?;
             service.rebuild_arcswap(db_rules);
         }
 
@@ -92,8 +93,12 @@ impl FilterService {
         {
             let _guard = self.write_lock.lock().await;
 
-            let (minted_id, minted_sort_order) =
-                self.persist.insert_filter_rule(&rule).await.map_err(|e| {
+            let (minted_id, minted_sort_order) = self
+                .persist
+                .proxy()
+                .insert_filter_rule(&rule)
+                .await
+                .map_err(|e| {
                     tracing::error!(error = %e, "filter rule insert failed");
                     FilterServiceError::Persistence(e)
                 })?;
@@ -131,7 +136,7 @@ impl FilterService {
             updated.updated_at = Utc::now();
             updated.validate().map_err(FilterServiceError::Validation)?;
 
-            match self.persist.update_filter_rule(&updated).await {
+            match self.persist.proxy().update_filter_rule(&updated).await {
                 Ok(true) => {}
                 Ok(false) => return Err(FilterServiceError::NotFound),
                 Err(e) => {
@@ -166,7 +171,7 @@ impl FilterService {
     pub async fn delete(&self, id: i64) -> Result<(), FilterServiceError> {
         let _guard = self.write_lock.lock().await;
 
-        match self.persist.delete_filter_rule(id).await {
+        match self.persist.proxy().delete_filter_rule(id).await {
             Ok(true) => {}
             Ok(false) => return Err(FilterServiceError::NotFound),
             Err(e) => {
@@ -175,7 +180,7 @@ impl FilterService {
             }
         }
 
-        let db_rules = self.persist.list_filter_rules().await?;
+        let db_rules = self.persist.proxy().list_filter_rules().await?;
         self.rebuild_arcswap(db_rules);
 
         Ok(())
@@ -227,6 +232,7 @@ impl FilterService {
     async fn latest_anchor_probe_request_id(&self, rule: &FilterRule) -> Option<u64> {
         let request_id = match self
             .persist
+            .proxy()
             .fetch_latest_primary_first_request_id(rule.project_path.as_deref())
             .await
         {

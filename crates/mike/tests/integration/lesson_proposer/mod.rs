@@ -1,3 +1,4 @@
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 mod api_tests;
 mod placement_tests;
 mod relate_flow_tests;
@@ -43,6 +44,7 @@ pub(crate) async fn seed_corrected_turn_with_confidence(
     resolve(&mut facts);
     facts.next_genuine_request_id = Some(base_id + 1);
     f.handle
+        .dossier()
         .upsert_turn_facts(std::slice::from_ref(&facts))
         .await?;
 

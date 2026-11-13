@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::ThresholdRow;
 
 pub const FIRE_STEERERS: [&str; 2] = ["verifier", "monitor-over-sleep"];
@@ -27,8 +27,8 @@ fn fire_steerer_names() -> Vec<String> {
     FIRE_STEERERS.iter().map(|n| (*n).to_owned()).collect()
 }
 
-impl PersistHandle {
-    pub async fn fire_steerers(&self) -> Result<Vec<FireSteerer>, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn fire_steerers(self) -> Result<Vec<FireSteerer>, PersistError> {
         crate::metrics::time_db("fire_steerers", async move {
             let names = fire_steerer_names();
             Ok(sqlx::query_as!(
@@ -47,7 +47,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_fire_bins(
-        &self,
+        self,
         window_end: DateTime<Utc>,
     ) -> Result<Vec<FireBinRow>, PersistError> {
         crate::metrics::time_db("fetch_fire_bins", async move {
@@ -77,7 +77,7 @@ impl PersistHandle {
     }
 
     pub async fn fire_thresholds_in_force(
-        &self,
+        self,
         as_of: DateTime<Utc>,
     ) -> Result<Vec<ThresholdRow>, PersistError> {
         crate::metrics::time_db("fire_thresholds_in_force", async move {

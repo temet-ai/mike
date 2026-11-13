@@ -5,7 +5,6 @@ use uuid::Uuid;
 use super::lock::{NewLogEntry, insert_log, link_session, require_thread, touch_thread};
 use super::validate::{first_line, kind, non_blank, slug};
 use super::{HistoryEntry, WorkThreadError};
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EntryInput<'a> {
@@ -23,9 +22,9 @@ pub struct EntryOutcome {
     pub entry: HistoryEntry,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn add_work_thread_entry(
-        &self,
+        self,
         project_id: i64,
         input: &EntryInput<'_>,
     ) -> Result<EntryOutcome, WorkThreadError> {

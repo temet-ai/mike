@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
@@ -37,6 +39,7 @@ pub(super) async fn seed(handle: &PersistHandle) -> anyhow::Result<(Uuid, Uuid)>
             .await?;
     let intervention_uuid = Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id,
             enrolment_id: None,
@@ -169,6 +172,7 @@ async fn second_steerer_push_within_wake_interval_falls_back_to_queue() -> anyho
             .await?;
     let second_uuid = Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id: second_steerer_id,
             enrolment_id: None,
@@ -243,6 +247,7 @@ async fn mailbox_push_is_not_subject_to_the_steerer_wake_interval() -> anyhow::R
 
     let message_uuid = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message_uuid, session, None, "hi")
         .await?;
     let mailbox_reminder = SystemReminder {
@@ -292,6 +297,7 @@ async fn mailbox_push_is_skipped_when_the_channel_listener_is_live() -> anyhow::
 
     let message_uuid = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message_uuid, session, None, "hi via channel")
         .await?;
     let mailbox_reminder = SystemReminder {

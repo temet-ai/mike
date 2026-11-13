@@ -2,6 +2,7 @@ use super::knowledge::{model_key, model_keys, sweep_if_leader};
 use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows, unversioned_v2_key};
 use super::knowledge_tests::{breaker, embedding_server, scan, source, vector};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistHandle, semantic::NewEmbedder, test_support::acquire_ephemeral_db,
 };
@@ -77,6 +78,7 @@ async fn record_urls(handle: &PersistHandle) -> anyhow::Result<()> {
     .execute(handle.pool())
     .await?;
     handle
+        .knowledge()
         .insert_semantic_embedder(&NewEmbedder {
             embedder_key: "test-embedder",
             model: MODEL,
@@ -176,6 +178,7 @@ async fn machine_handle(url: &str) -> anyhow::Result<PersistHandle> {
 async fn sweep_runs_only_on_the_machine_holding_the_lease() -> anyhow::Result<()> {
     let (db, seed) = fresh_db().await?;
     let project = seed
+        .knowledge()
         .define_knowledge_project("Leased", Uuid::new_v4())
         .await?;
     let location = source(&seed, &project.project_uuid.to_string()).await?;
@@ -187,12 +190,18 @@ async fn sweep_runs_only_on_the_machine_holding_the_lease() -> anyhow::Result<()
 
     assert!(!sweep_if_leader(&second, &disabled(&service), &mut breaker()).await?);
     assert!(sweep_if_leader(&first, &service, &mut breaker()).await?);
-    let health = seed.knowledge_embedding_health(None, &key).await?;
+    let health = seed
+        .knowledge()
+        .knowledge_embedding_health(None, &key)
+        .await?;
     assert_eq!(health["ready"], 1);
 
     scan(&seed, location, 1, "Second revision needing a vector").await?;
     assert!(!sweep_if_leader(&second, &service, &mut breaker()).await?);
-    let health = seed.knowledge_embedding_health(None, &key).await?;
+    let health = seed
+        .knowledge()
+        .knowledge_embedding_health(None, &key)
+        .await?;
     assert_eq!(health["pending"], 1);
 
     sqlx::query(
@@ -203,7 +212,10 @@ async fn sweep_runs_only_on_the_machine_holding_the_lease() -> anyhow::Result<()
     .await?;
     let takeover = machine_handle(&db.database_url).await?;
     assert!(sweep_if_leader(&takeover, &service, &mut breaker()).await?);
-    let health = seed.knowledge_embedding_health(None, &key).await?;
+    let health = seed
+        .knowledge()
+        .knowledge_embedding_health(None, &key)
+        .await?;
     assert_eq!(health["pending"], 0);
     db.cleanup().await?;
     Ok(())

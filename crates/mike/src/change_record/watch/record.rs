@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
@@ -287,6 +288,7 @@ pub async fn name(
         ),
     };
     persist
+        .fleet()
         .update_change_author(id, who.session(), kind, &who.detail())
         .await?;
     Ok(again)

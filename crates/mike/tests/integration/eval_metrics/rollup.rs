@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use mike::eval_metrics::EVAL_ROLLUP_SQL_VERSION;
 use mike::store::persistence::eval_metrics::RollupRequest;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::improvement::effect::ACTION_EFFECT_SQL_VERSION;
 
 use super::{rollup_count, set_setting};
@@ -22,8 +23,10 @@ async fn rollup_same_day_twice_writes_one_rollup() -> anyhow::Result<()> {
     };
     let (a, b) = tokio::join!(
         f.handle
+            .eval()
             .run_eval_rollup(request(true, EVAL_ROLLUP_SQL_VERSION)),
         f.handle
+            .eval()
             .run_eval_rollup(request(true, EVAL_ROLLUP_SQL_VERSION)),
     );
     let (a, b) = (a?, b?);
@@ -37,8 +40,14 @@ async fn rollup_new_sql_version_rerolls_day() -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    f.handle.run_eval_rollup(request(true, "v-a")).await?;
-    f.handle.run_eval_rollup(request(true, "v-b")).await?;
+    f.handle
+        .eval()
+        .run_eval_rollup(request(true, "v-a"))
+        .await?;
+    f.handle
+        .eval()
+        .run_eval_rollup(request(true, "v-b"))
+        .await?;
     assert_eq!(rollup_count(&f).await?, 2);
     Ok(())
 }
@@ -50,6 +59,7 @@ async fn rollup_dry_run_writes_nothing() -> anyhow::Result<()> {
     };
     let report = f
         .handle
+        .eval()
         .run_eval_rollup(request(false, EVAL_ROLLUP_SQL_VERSION))
         .await?;
     assert!(!report.executed);

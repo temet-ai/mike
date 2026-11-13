@@ -1,4 +1,5 @@
 use crate::db_helpers;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::harness::{judge_response, start_proxy_with_state};
 use super::seed::{count_lessons, planar_unit, seed_closed_turn, seed_project, seed_session};
@@ -34,6 +35,7 @@ async fn seed_neighbour_and_target(
     .execute(pool)
     .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -44,6 +46,7 @@ async fn seed_neighbour_and_target(
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_knowledge(
             a_uuid,
             &["mailbox".to_string()],
@@ -69,6 +72,7 @@ async fn seed_neighbour_and_target(
     )
     .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(3.0),
@@ -108,6 +112,7 @@ async fn assert_knowledge_written_not_lessons(
     lessons_before: i64,
 ) -> anyhow::Result<()> {
     let knowledge = persist
+        .knowledge()
         .fetch_session_knowledge(b_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session B must have a session_knowledge row"))?;

@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, planar_unit, seed_project, seed_session};
 use anyhow::Context;
@@ -55,6 +56,7 @@ async fn seed_graph_fixture(
         (d_uuid, 180.0),
     ] {
         persist
+            .knowledge()
             .upsert_session_embedding(SessionEmbeddingWrite {
                 session_id: uuid,
                 embedding: &planar_unit(angle),
@@ -95,6 +97,7 @@ async fn project_session_graph_returns_undirected_deduplicated_edges() -> anyhow
     let uuids = seed_graph_fixture(&pool, &persist, project_id, now).await?;
 
     let (nodes, edges) = persist
+        .knowledge()
         .project_session_graph(project_id, 10, 0.0, 1)
         .await?;
 

@@ -3,6 +3,8 @@
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -122,6 +124,7 @@ async fn a_named_untracked_directory_of_eight_files_is_committed() -> anyhow::Re
 
 async fn mails_to_acceptance(persist: &PersistHandle) -> anyhow::Result<usize> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(Uuid::from_u128(2))
         .await?
         .inbox
@@ -138,8 +141,12 @@ async fn a_commit_after_a_verdict_on_the_task_mails_acceptance_once_and_one_with
     let persist = PersistHandle::connect(&db.database_url).await?;
     let (dir, repo) = scratch_repo().await?;
     let session = Uuid::from_u128(31);
-    persist.ensure_session_exists(&session.to_string()).await?;
     persist
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
+    persist
+        .launch()
         .ensure_session_exists(&Uuid::from_u128(2).to_string())
         .await?;
     let mut value = serde_json::to_value(scratch_def(&repo))?;
@@ -157,6 +164,7 @@ async fn a_commit_after_a_verdict_on_the_task_mails_acceptance_once_and_one_with
 
     let data = json!({"verdict": "PASS", "tasks": ["M"]});
     persist
+        .launch()
         .create_session_note(
             Uuid::from_u128(2),
             NewSessionNote {
@@ -191,6 +199,7 @@ async fn a_commit_asked_while_the_shared_check_runs_lands_at_once_and_says_no_ch
     value["check"] = json!({"command": "sleep 600", "paths": ["mine"]});
     let def = FleetDefinition::from_value(&value).map_err(anyhow::Error::msg)?;
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: "fleet-running-check".to_owned(),
             project_path: Some("/tmp/running-check".to_owned()),
@@ -202,6 +211,7 @@ async fn a_commit_asked_while_the_shared_check_runs_lands_at_once_and_says_no_ch
     std::fs::write(dir.path().join("mine/a.txt"), "two\n")?;
     let state = state_for(&def, "HEAD").await.map_err(anyhow::Error::msg)?;
     persist
+        .fleet()
         .begin_tree_check("fleet-running-check", &state, "sleep 600", "db-dev-M")
         .await?;
     let verifier = Verifier {
@@ -264,6 +274,7 @@ async fn a_commit_whose_content_already_passed_the_check_is_proven_whatever_a_pe
     value["execution"] = json!({"operations": {"check": {"command": "true", "purpose": "fixture", "inputs": ["mine", "theirs"], "cache_key": "fixture-v1"}}});
     let def = FleetDefinition::from_value(&value).map_err(anyhow::Error::msg)?;
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: "fleet-proven".to_owned(),
             project_path: Some("/tmp/proven".to_owned()),
@@ -279,9 +290,11 @@ async fn a_commit_whose_content_already_passed_the_check_is_proven_whatever_a_pe
     )?;
     let state = state_with(&repo, &def, "mine/a.txt").await?;
     let id = persist
+        .fleet()
         .begin_tree_check("fleet-proven", &state, "true", "mike")
         .await?;
     persist
+        .fleet()
         .finish_tree_check(id, Some(0), "", Some(&state))
         .await?;
     let verifier = Verifier {
@@ -314,7 +327,10 @@ async fn recorded_edits(
     repo: &str,
     paths: &[&str],
 ) -> anyhow::Result<()> {
-    persist.ensure_session_exists(&session.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     let identity = persist
         .session_identity_by_uuid(session)
         .await?
@@ -333,7 +349,7 @@ async fn recorded_edits(
         before_sha: None,
         after_sha: None,
     };
-    persist.insert_change_events(&[event]).await?;
+    persist.fleet().insert_change_events(&[event]).await?;
     Ok(())
 }
 
@@ -422,7 +438,10 @@ async fn a_legacy_source_only_event_does_not_establish_execution_policy() -> any
     let mut value = serde_json::to_value(scratch_def(&repo))?;
     value["check"] = json!({"command": "true", "paths": ["mine"]});
     let def = FleetDefinition::from_value(&value).map_err(anyhow::Error::msg)?;
-    persist.ensure_session_exists(&session.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     let identity = persist
         .session_identity_by_uuid(session)
         .await?
@@ -432,7 +451,7 @@ async fn a_legacy_source_only_event_does_not_establish_execution_policy() -> any
         .ok_or_else(|| anyhow::anyhow!("rev-parse"))?;
     let head = String::from_utf8_lossy(&head).trim().to_string();
     persist
-        .insert_change_events(&[crate::change_record::NewChangeEvent {
+        .fleet().insert_change_events(&[crate::change_record::NewChangeEvent {
             project_id: identity.project_id,
             checkout: repo.clone(),
             at: chrono::Utc::now(),
@@ -448,6 +467,7 @@ async fn a_legacy_source_only_event_does_not_establish_execution_policy() -> any
         }])
         .await?;
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: "fleet-no-tree-check".into(),
             project_path: Some(repo.clone()),
@@ -469,7 +489,10 @@ async fn a_legacy_source_only_event_does_not_establish_execution_policy() -> any
         "{}",
         landed.verified
     );
-    let events = persist.fleet_events_since("fleet-no-tree-check", 0).await?;
+    let events = persist
+        .fleet()
+        .fleet_events_since("fleet-no-tree-check", 0)
+        .await?;
     assert!(
         events.iter().any(|event| {
             event.kind == crate::launch::fleet::events::EventKind::CommitLanded

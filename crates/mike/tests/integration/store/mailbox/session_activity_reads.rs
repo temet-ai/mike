@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 
 use mike::store::persistence::PersistHandle;
 
@@ -30,10 +31,14 @@ async fn fetch_for_session_inbox_rows_carry_recipient_activity_with_eligible_lan
     seed_request_at(&pool, to_id, project_id, "subagent", subagent_at).await?;
 
     handle
+        .launch()
         .insert_message(uuid::Uuid::new_v4(), to_uuid, None, "hello")
         .await?;
 
-    let result = handle.fetch_for_session_with_activity(to_uuid).await?;
+    let result = handle
+        .launch()
+        .fetch_for_session_with_activity(to_uuid)
+        .await?;
     assert_eq!(result.inbox.len(), 1);
     let row = &result.inbox[0];
     let close = |got: Option<DateTime<Utc>>, want: DateTime<Utc>| {
@@ -99,14 +104,19 @@ async fn fetch_for_session_outbox_rows_carry_per_recipient_activity() -> anyhow:
 
     let msg_to_active = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(msg_to_active, active_uuid, Some(sender_uuid), "to active")
         .await?;
     let msg_to_quiet = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(msg_to_quiet, quiet_uuid, Some(sender_uuid), "to quiet")
         .await?;
 
-    let result = handle.fetch_for_session_with_activity(sender_uuid).await?;
+    let result = handle
+        .launch()
+        .fetch_for_session_with_activity(sender_uuid)
+        .await?;
     assert_eq!(result.outbox.len(), 2);
     let active_row = result
         .outbox
@@ -151,6 +161,7 @@ async fn fetch_recipient_activity_returns_timestamps_or_none() -> anyhow::Result
     seed_request_at(&pool, active_id, active_project, "subagent", subagent_at).await?;
 
     let activity = handle
+        .launch()
         .fetch_recipient_activity(active_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("expected Some for a known session"))?;
@@ -166,6 +177,7 @@ async fn fetch_recipient_activity_returns_timestamps_or_none() -> anyhow::Result
     )
     .await?;
     let silent_activity = handle
+        .launch()
         .fetch_recipient_activity(silent_uuid)
         .await?
         .ok_or_else(|| anyhow::anyhow!("expected Some for a known but silent session"))?;
@@ -173,6 +185,7 @@ async fn fetch_recipient_activity_returns_timestamps_or_none() -> anyhow::Result
     assert!(silent_activity.last_eligible_turn_at.is_none());
 
     let unknown = handle
+        .launch()
         .fetch_recipient_activity(uuid::Uuid::new_v4())
         .await?;
     assert!(unknown.is_none(), "an unknown session must return None");

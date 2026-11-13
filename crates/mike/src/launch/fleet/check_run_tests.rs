@@ -3,6 +3,8 @@
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 
 use crate::launch::fleet::managed_test_support as managed;
@@ -58,6 +60,7 @@ fn seated() -> crate::launch::fleet::seated::Seated {
 
 async fn seat_m(persist: &PersistHandle, run: &str) -> anyhow::Result<()> {
     persist
+        .fleet()
         .append_fleet_event(&NewFleetEvent {
             run_id: run.to_string(),
             task: Some("M".to_string()),
@@ -271,6 +274,7 @@ async fn results(persist: &PersistHandle) -> anyhow::Result<Vec<String>> {
         offset: 0,
     };
     Ok(persist
+        .launch()
         .fetch_session_notes(Uuid::from_u128(SEAT_SESSION), filter)
         .await?
         .into_iter()
@@ -280,6 +284,7 @@ async fn results(persist: &PersistHandle) -> anyhow::Result<Vec<String>> {
 
 async fn inbox(persist: &PersistHandle) -> anyhow::Result<Vec<String>> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(Uuid::from_u128(SEAT_SESSION))
         .await?
         .inbox
@@ -300,6 +305,7 @@ async fn queued_check(
     tracker.close();
     tracker.wait().await;
     persist
+        .fleet()
         .latest_tree_check(run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no check was recorded"))

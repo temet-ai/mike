@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn record_sibling_wait(
-        &self,
+        self,
         session: Uuid,
         seconds: i32,
         waited_for: &str,

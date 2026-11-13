@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use serde_json::{Value, json};
 
 use super::super::test_support;
@@ -69,6 +70,7 @@ async fn swap_copies_the_live_bundle_with_only_the_model_changed_and_retires_it(
     let live = insert_bundle(&persist, "live", &components, Some(promoted)).await?;
 
     let swap = persist
+        .eval()
         .swap_live_bundle_model(request(live, "codex/gpt-6-sol"))
         .await?
         .ok_or_else(|| anyhow::anyhow!("expected a swap"))?;
@@ -101,6 +103,7 @@ async fn swap_stamps_promoted_at_when_the_live_bundle_had_none() -> anyhow::Resu
     let persist = PersistHandle::connect(&db.database_url).await?;
     let live = insert_bundle(&persist, "live_ungated", &json!({"model": "a"}), None).await?;
     let swap = persist
+        .eval()
         .swap_live_bundle_model(request(live, "b"))
         .await?
         .ok_or_else(|| anyhow::anyhow!("expected a swap"))?;
@@ -123,6 +126,7 @@ async fn swap_does_nothing_for_the_same_model_or_a_retired_bundle() -> anyhow::R
     let live = insert_bundle(&persist, "live", &json!({"model": "a"}), None).await?;
     assert!(
         persist
+            .eval()
             .swap_live_bundle_model(request(live, "a"))
             .await?
             .is_none()
@@ -130,12 +134,14 @@ async fn swap_does_nothing_for_the_same_model_or_a_retired_bundle() -> anyhow::R
     let retired = insert_bundle(&persist, "retired", &json!({"model": "a"}), None).await?;
     assert!(
         persist
+            .eval()
             .swap_live_bundle_model(request(retired, "b"))
             .await?
             .is_none()
     );
     assert!(
         persist
+            .eval()
             .swap_live_bundle_model(request(-1, "b"))
             .await?
             .is_none()
@@ -152,9 +158,9 @@ async fn retire_bundle_retires_only_a_live_bundle_once() -> anyhow::Result<()> {
     let persist = PersistHandle::connect(&db.database_url).await?;
     let previous = insert_bundle(&persist, "live", &json!({"model": "a"}), None).await?;
     let next = insert_bundle(&persist, "live_ungated", &json!({"model": "b"}), None).await?;
-    assert!(persist.retire_bundle(previous, next, SOURCE).await?);
-    assert!(!persist.retire_bundle(previous, next, SOURCE).await?);
-    assert!(!persist.retire_bundle(next, next, SOURCE).await?);
+    assert!(persist.eval().retire_bundle(previous, next, SOURCE).await?);
+    assert!(!persist.eval().retire_bundle(previous, next, SOURCE).await?);
+    assert!(!persist.eval().retire_bundle(next, next, SOURCE).await?);
     let old = observe(&persist, previous).await?;
     assert_eq!(old.status, "retired");
     assert_eq!(old.superseded_by_id, Some(next));

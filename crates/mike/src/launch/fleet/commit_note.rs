@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -145,7 +146,11 @@ async fn verdict_recorded(persist: &PersistHandle, acceptance: Uuid, task: &str)
         limit: VERDICTS_READ,
         offset: 0,
     };
-    match persist.fetch_session_notes(acceptance, filter).await {
+    match persist
+        .launch()
+        .fetch_session_notes(acceptance, filter)
+        .await
+    {
         Ok(notes) => notes.iter().any(|n| holds_verdict(&n.data, task)),
         Err(err) => {
             tracing::warn!(error = %err, "fleet: could not read the acceptance seat's verdicts");
@@ -169,6 +174,7 @@ pub async fn tell_acceptance(
         return;
     }
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), seats.acceptance, None, &body)
         .await
     {
@@ -199,7 +205,7 @@ pub(super) async fn store(persist: &PersistHandle, session: Uuid, note: &Draft) 
         tags: Some(&note.tags),
         data: Some(&note.data),
     };
-    if let Err(err) = persist.create_session_note(session, new).await {
+    if let Err(err) = persist.launch().create_session_note(session, new).await {
         tracing::warn!(session_id = %session, error = %err, "fleet: could not write a result note for a seat");
     }
 }

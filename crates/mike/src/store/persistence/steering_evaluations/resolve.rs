@@ -1,4 +1,4 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EvaluationVerdict, UNRECORDED_ABSTENTION};
 
 fn verdict_columns(
@@ -19,9 +19,9 @@ fn verdict_columns(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn resolve_evaluation(
-        &self,
+        self,
         evaluation_uuid: uuid::Uuid,
         fired: bool,
         intervention_uuid: Option<uuid::Uuid>,

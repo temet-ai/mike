@@ -3,6 +3,7 @@ use crate::change_record::ChangeKind;
 use crate::change_record::answers::{Caller, tail};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::change_record::test_seed::{self, CHECKOUT};
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::test_support;
 
 #[tokio::test]
@@ -25,15 +26,15 @@ async fn feed_lists_every_author_newest_first_and_leaves_the_place_alone() -> an
 
     let mut seen = test_seed::event(project, ChangeKind::Edit, &["src/seen.rs"]);
     seen.session_id = Some(other);
-    handle.insert_change_events(&[seen]).await?;
+    handle.fleet().insert_change_events(&[seen]).await?;
     assert!(tail(&handle, &caller).await?.is_empty());
-    let place = handle.change_place(me, CHECKOUT).await?;
+    let place = handle.fleet().change_place(me, CHECKOUT).await?;
 
     let mut mine = test_seed::event(project, ChangeKind::Edit, &["src/mine.rs"]);
     mine.session_id = Some(me);
     let unknown = test_seed::event(project, ChangeKind::ShellChange, &["src/by_hand.rs"]);
-    handle.insert_change_events(&[mine]).await?;
-    handle.insert_change_events(&[unknown]).await?;
+    handle.fleet().insert_change_events(&[mine]).await?;
+    handle.fleet().insert_change_events(&[unknown]).await?;
 
     let answer = feed(&handle, CHECKOUT, 10).await?;
     let paths: Vec<&str> = answer
@@ -54,7 +55,7 @@ async fn feed_lists_every_author_newest_first_and_leaves_the_place_alone() -> an
         .map(|i| i.uuid);
     assert_eq!(own.and_then(|l| l.session), me_uuid);
     assert_eq!(answer.lines.first().and_then(|l| l.session), None);
-    assert_eq!(handle.change_place(me, CHECKOUT).await?, place);
+    assert_eq!(handle.fleet().change_place(me, CHECKOUT).await?, place);
 
     let limited = feed(&handle, CHECKOUT, 1).await?;
     assert_eq!(limited.lines.len(), 1);

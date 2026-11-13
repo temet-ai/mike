@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
 use chrono::{DateTime, Duration, Utc};
@@ -162,11 +163,13 @@ pub async fn ask(
 ) -> Result<ReuseAnswer, String> {
     let since = Utc::now() - Duration::hours(WINDOW_HOURS);
     let rows = persist
+        .fleet()
         .tree_results(run, None, since, ROWS_READ)
         .await
         .map_err(|e| e.to_string())?;
     let changed = match rows.iter().filter_map(|r| r.started_at).min() {
         Some(earliest) => persist
+            .fleet()
             .tree_changed_paths_since(run, earliest - Duration::microseconds(1))
             .await
             .map_err(|e| e.to_string())?,

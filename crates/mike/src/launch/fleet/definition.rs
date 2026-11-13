@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
@@ -342,7 +343,11 @@ pub async fn task_session(
     run: &str,
     task: &str,
 ) -> Option<uuid::Uuid> {
-    let events = persist.fleet_events_for_task(run, task).await.ok()?;
+    let events = persist
+        .fleet()
+        .fleet_events_for_task(run, task)
+        .await
+        .ok()?;
     super::fold::fold(&events, DateTime::<Utc>::MAX_UTC).seat_of(task)
 }
 
@@ -373,7 +378,7 @@ pub async fn task_sessions(
     run: &str,
     def: &FleetDefinition,
 ) -> BTreeMap<String, uuid::Uuid> {
-    let Ok(events) = persist.fleet_events_since(run, 0).await else {
+    let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return BTreeMap::new();
     };
     let folded = super::fold::fold(&events, DateTime::<Utc>::MAX_UTC);

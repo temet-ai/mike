@@ -1,5 +1,7 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 use mike::store::persistence::test_support;
 use mike::store::persistence::{LessonRelationDraft, RelationDecisionOutcome};
@@ -9,7 +11,7 @@ use crate::test_db::TestDb;
 
 async fn seed_two_lessons(handle: &PersistHandle, project_id: i64) -> anyhow::Result<(i64, i64)> {
     let older = handle
-        .create_lesson_with_topic(NewLessonWrite {
+        .lessons().create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
             text: "Cross-session mailbox delivery can land in SUBAGENT requests, not the main loop.",
@@ -21,7 +23,7 @@ async fn seed_two_lessons(handle: &PersistHandle, project_id: i64) -> anyhow::Re
         })
         .await?;
     let newer = handle
-        .create_lesson_with_topic(NewLessonWrite {
+        .lessons().create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
             text: "RESOLVED: mailbox delivery landing on SUBAGENT requests is FIXED. Root cause: extract_turn_origin.",
@@ -63,13 +65,19 @@ async fn confirm_and_reject_relation_missing_id_return_not_found() -> anyhow::Re
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
 
-    let confirm_outcome = handle.confirm_relation(999_999_999, "operator").await?;
+    let confirm_outcome = handle
+        .lessons()
+        .confirm_relation(999_999_999, "operator")
+        .await?;
     assert!(
         matches!(confirm_outcome, RelationDecisionOutcome::NotFound),
         "confirming a nonexistent relation id must report NotFound"
     );
 
-    let reject_outcome = handle.reject_relation(999_999_999, "operator").await?;
+    let reject_outcome = handle
+        .lessons()
+        .reject_relation(999_999_999, "operator")
+        .await?;
     assert!(
         matches!(reject_outcome, RelationDecisionOutcome::NotFound),
         "rejecting a nonexistent relation id must report NotFound"
@@ -98,16 +106,23 @@ async fn confirm_relation_twice_returns_wrong_status_on_the_second_call() -> any
     let (older_id, newer_id) = seed_two_lessons(&handle, project_id).await?;
 
     let relation_id = handle
+        .lessons()
         .insert_lesson_relation(&draft(newer_id, older_id))
         .await?;
 
-    let first = handle.confirm_relation(relation_id, "operator").await?;
+    let first = handle
+        .lessons()
+        .confirm_relation(relation_id, "operator")
+        .await?;
     assert!(
         matches!(first, RelationDecisionOutcome::Decided(_)),
         "first confirm must succeed on a proposed relation"
     );
 
-    let second = handle.confirm_relation(relation_id, "operator").await?;
+    let second = handle
+        .lessons()
+        .confirm_relation(relation_id, "operator")
+        .await?;
     assert!(
         matches!(second, RelationDecisionOutcome::WrongStatus(ref s) if s == "confirmed"),
         "re-confirming an already-confirmed relation must report WrongStatus(\"confirmed\"), got {second:?}"
@@ -134,7 +149,10 @@ async fn confirmed_supersedes_excludes_only_the_older_lesson_from_injection() ->
     let project_id = test_support::seed_project(&pool, &project_path).await?;
     let (older_id, newer_id) = seed_two_lessons(&handle, project_id).await?;
 
-    let before = handle.list_injectable_lessons(&project_path).await?;
+    let before = handle
+        .lessons()
+        .list_injectable_lessons(&project_path)
+        .await?;
     assert_eq!(
         before.len(),
         2,
@@ -142,20 +160,30 @@ async fn confirmed_supersedes_excludes_only_the_older_lesson_from_injection() ->
     );
 
     let relation_id = handle
+        .lessons()
         .insert_lesson_relation(&draft(newer_id, older_id))
         .await?;
 
-    let while_proposed = handle.list_injectable_lessons(&project_path).await?;
+    let while_proposed = handle
+        .lessons()
+        .list_injectable_lessons(&project_path)
+        .await?;
     assert_eq!(
         while_proposed.len(),
         2,
         "a merely-proposed (not confirmed) relation must not exclude anything yet"
     );
 
-    let outcome = handle.confirm_relation(relation_id, "operator").await?;
+    let outcome = handle
+        .lessons()
+        .confirm_relation(relation_id, "operator")
+        .await?;
     assert!(matches!(outcome, RelationDecisionOutcome::Decided(_)));
 
-    let after = handle.list_injectable_lessons(&project_path).await?;
+    let after = handle
+        .lessons()
+        .list_injectable_lessons(&project_path)
+        .await?;
     let after_ids: Vec<i64> = after.iter().map(|r| r.id).collect();
     assert!(
         !after_ids.contains(&older_id),
@@ -201,6 +229,7 @@ async fn confirmed_supersedes_excludes_only_the_older_lesson_from_injection() ->
 
 async fn lesson(handle: &PersistHandle, project_id: i64, text: &str) -> anyhow::Result<i64> {
     Ok(handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -272,6 +301,7 @@ async fn found_in_search(
             .fetch_one(pool)
             .await?;
     let found = handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: project_uuid.to_string(),
             query: query.into(),
@@ -331,7 +361,7 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
     supply_in_sessions(&pool, project_id, followed, &followed_record).await?;
     supply_in_sessions(&pool, project_id, unproven, &["ignored"; 3]).await?;
 
-    let outcome = handle.lesson_outcome(ignored).await?;
+    let outcome = handle.lessons().lesson_outcome(ignored).await?;
     assert_eq!(
         (
             outcome.judged,
@@ -343,9 +373,9 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
         "the outcome record counts each judged session once by verdict"
     );
 
-    let retired_now = handle.retire_lessons_by_outcome(10, 0.15).await?;
+    let retired_now = handle.lessons().retire_lessons_by_outcome(10, 0.15).await?;
     let first_reason = retired(&pool, ignored).await?.1;
-    handle.retire_lessons_by_outcome(10, 0.15).await?;
+    handle.lessons().retire_lessons_by_outcome(10, 0.15).await?;
     let (kind, reason, by) = retired(&pool, ignored).await?;
     assert_eq!(
         reason, first_reason,
@@ -369,6 +399,7 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
     assert!(retired_now >= 1, "the run retires the ignored lesson");
 
     let supplied: Vec<i64> = handle
+        .lessons()
         .list_injectable_lessons(&project_path)
         .await?
         .iter()
@@ -422,11 +453,11 @@ async fn adjudicated_contradiction_supersedes_only_the_older_lesson() -> anyhow:
         adjudicator_agrees: Some(false),
         ..draft(contested_new, contested_old)
     };
-    let relation = handle.insert_lesson_relation(&agreed).await?;
-    handle.insert_lesson_relation(&disputed).await?;
+    let relation = handle.lessons().insert_lesson_relation(&agreed).await?;
+    handle.lessons().insert_lesson_relation(&disputed).await?;
 
-    let first = handle.supersede_contradicted_lessons().await?;
-    let second = handle.supersede_contradicted_lessons().await?;
+    let first = handle.lessons().supersede_contradicted_lessons().await?;
+    let second = handle.lessons().supersede_contradicted_lessons().await?;
     assert!(first >= 1);
     assert_eq!(second, 0, "a second run retires nothing new");
 
@@ -456,6 +487,7 @@ async fn adjudicated_contradiction_supersedes_only_the_older_lesson() -> anyhow:
     assert_eq!(status, "confirmed");
 
     let supplied: Vec<i64> = handle
+        .lessons()
         .list_injectable_lessons(&project_path)
         .await?
         .iter()

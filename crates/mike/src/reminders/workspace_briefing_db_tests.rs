@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
@@ -65,6 +66,7 @@ async fn roster_rows_for_session(
         return Ok(Vec::new());
     };
     let roster = persist
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::All)
         .await?;
     Ok(roster

@@ -1,3 +1,4 @@
+use mike::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::session_flow::{FlowAvailability, FlowComponent};
@@ -48,6 +49,7 @@ async fn result_carrier_scope_preserves_emitter_identity_without_peer_expansion(
     );
     let unavailable = f
         .handle
+        .web()
         .fetch_session_flow(peer, FlowComponent::Results, 10, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("peer missing"))?;

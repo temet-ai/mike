@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -90,6 +91,7 @@ pub async fn plan_rejudge(
         return Err(RejudgeError::EmptyWindow { since, until });
     }
     let gate_id = persist
+        .eval()
         .passing_holdout_gate(bundle_id)
         .await?
         .ok_or(RejudgeError::Ungated(bundle_id))?;
@@ -98,8 +100,8 @@ pub async fn plan_rejudge(
         since,
         until,
     };
-    let progress = persist.rejudge_progress(&window).await?;
-    let mean_cost_usd = persist.rejudge_mean_cost_usd(bundle_id).await?;
+    let progress = persist.eval().rejudge_progress(&window).await?;
+    let mean_cost_usd = persist.eval().rejudge_mean_cost_usd(bundle_id).await?;
     let daily_cap = daily_cap(overlay, override_cap);
     let estimated_calls = progress.remaining;
     Ok(RejudgePlan {
@@ -128,14 +130,15 @@ pub async fn start_rejudge(
         created_by,
         role: "turn_judge",
     };
-    Ok(persist.create_rejudge_run(&run).await?)
+    Ok(persist.eval().create_rejudge_run(&run).await?)
 }
 
 pub async fn cancel_active(persist: &PersistHandle) -> Result<Option<RejudgeRunRow>, RejudgeError> {
-    let Some(run) = persist.active_rejudge_run().await? else {
+    let Some(run) = persist.eval().active_rejudge_run().await? else {
         return Ok(None);
     };
     persist
+        .eval()
         .finish_rejudge_run(run.id, RejudgeFinish::Cancelled)
         .await?;
     Ok(Some(run))
@@ -151,7 +154,7 @@ pub struct SessionRejudgePlan {
 }
 
 async fn turn_rejudge_done(persist: &PersistHandle) -> Result<bool, RejudgeError> {
-    let runs = persist.list_rejudge_runs().await?;
+    let runs = persist.eval().list_rejudge_runs().await?;
     Ok(runs
         .iter()
         .any(|r| r.role == "turn_judge" && r.status == "done"))
@@ -172,6 +175,7 @@ pub async fn plan_session_rejudge(
         return Err(RejudgeError::TurnRejudgeNotDone);
     }
     let model = persist
+        .eval()
         .get_bundle(bundle_id)
         .await?
         .and_then(|b| {
@@ -189,6 +193,7 @@ pub async fn plan_session_rejudge(
     };
     let eligible = i64::try_from(
         persist
+            .eval()
             .session_rejudge_candidates(&window, 1_000_000)
             .await?
             .len(),
@@ -199,7 +204,7 @@ pub async fn plan_session_rejudge(
             i32::try_from(overlay.session_judge_rejudge_daily_call_cap).unwrap_or(200)
         })
         .max(1);
-    let mean = persist.session_v3_mean_cost(bundle_id).await?;
+    let mean = persist.eval().session_v3_mean_cost(bundle_id).await?;
     Ok(SessionRejudgePlan {
         window: RejudgeWindow {
             bundle_id,
@@ -226,7 +231,7 @@ pub async fn start_session_rejudge(
         created_by,
         role: "session_judge",
     };
-    Ok(persist.create_rejudge_run(&run).await?)
+    Ok(persist.eval().create_rejudge_run(&run).await?)
 }
 
 #[cfg(test)]

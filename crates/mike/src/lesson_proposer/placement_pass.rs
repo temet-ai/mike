@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde::Serialize;
 
 use super::maintenance::{self, Reservation};
@@ -40,7 +41,12 @@ fn log_adjustments(lesson_id: i64, notes: &[String]) {
 
 pub(super) async fn run_pass(deps: &ProposerDeps<'_>) -> PlacementReport {
     let mut report = PlacementReport::default();
-    let work = match deps.persist.unplaced_lessons(PLACEMENTS_PER_TICK).await {
+    let work = match deps
+        .persist
+        .lessons()
+        .unplaced_lessons(PLACEMENTS_PER_TICK)
+        .await
+    {
         Ok(work) => work,
         Err(error) => {
             tracing::warn!(%error, "lesson_proposer: placement pass could not read unplaced lessons");
@@ -125,7 +131,12 @@ async fn store(
         covered_by: resolved.covered_by.as_deref(),
         reason: &resolved.reason,
     };
-    match deps.persist.set_lesson_placement(lesson.id, write).await {
+    match deps
+        .persist
+        .lessons()
+        .set_lesson_placement(lesson.id, write)
+        .await
+    {
         Ok(_) => {
             report.placed += 1;
             Handled::Placed
@@ -144,6 +155,7 @@ async fn failed(
     report.failed += 1;
     if let Err(error) = deps
         .persist
+        .lessons()
         .record_placement_failure(lesson_id, message)
         .await
     {

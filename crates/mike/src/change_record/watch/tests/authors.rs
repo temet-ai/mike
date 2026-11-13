@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
 
@@ -79,10 +80,10 @@ async fn an_edit_and_a_shell_change_are_each_recorded_once_with_their_session() 
     assert_eq!(by_shell[0].kind, ChangeKind::ShellChange);
     assert_eq!(by_shell[0].session_id, Some(shell));
 
-    let place = db.persist.change_place(reader, &repo.root).await?;
+    let place = db.persist.fleet().change_place(reader, &repo.root).await?;
     let mut asked = ChangeQuery::everything_after(repo.root.clone(), place, 100);
     asked.exclude_session = Some(reader);
-    let first = db.persist.change_events_after(&asked).await?;
+    let first = db.persist.fleet().change_events_after(&asked).await?;
     assert_eq!(
         first.len(),
         2,
@@ -90,10 +91,17 @@ async fn an_edit_and_a_shell_change_are_each_recorded_once_with_their_session() 
     );
     let last = first.iter().map(|e| e.id).max().unwrap_or(place);
     db.persist
+        .fleet()
         .move_change_place(reader, &repo.root, last)
         .await?;
-    asked.after_id = db.persist.change_place(reader, &repo.root).await?;
-    assert!(db.persist.change_events_after(&asked).await?.is_empty());
+    asked.after_id = db.persist.fleet().change_place(reader, &repo.root).await?;
+    assert!(
+        db.persist
+            .fleet()
+            .change_events_after(&asked)
+            .await?
+            .is_empty()
+    );
     stop(running, db).await
 }
 

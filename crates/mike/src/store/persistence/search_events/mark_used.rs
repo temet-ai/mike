@@ -1,5 +1,5 @@
 use super::open_shown::quoted_pairs;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(crate) const USED_BATCH: i64 = 250;
 pub(crate) const WINDOW_TURNS: i64 = 6;
@@ -12,9 +12,9 @@ pub(crate) struct UsedPass {
     pub(crate) finalised: u64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn mark_used_search_references(
-        &self,
+        self,
         batch: i64,
     ) -> Result<UsedPass, PersistError> {
         self.mark_used_within(batch, WINDOW_TURNS, MAX_OPEN_SECS)
@@ -22,7 +22,7 @@ impl PersistHandle {
     }
 
     pub(super) async fn mark_used_within(
-        &self,
+        self,
         batch: i64,
         window_turns: i64,
         max_open_secs: f64,

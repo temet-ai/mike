@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -133,7 +134,7 @@ pub(crate) async fn list_session_evaluations(
         before_id: query.before_id,
         limit: limit + 1,
     };
-    let (mut rows, total_count) = match persist.list_session_evaluations(&filter).await {
+    let (mut rows, total_count) = match persist.steerer().list_session_evaluations(&filter).await {
         Ok(page) => page,
         Err(e) => {
             return error(
@@ -144,6 +145,7 @@ pub(crate) async fn list_session_evaluations(
     };
     let total_count = if rows.is_empty() && query.before_id.is_some() {
         persist
+            .steerer()
             .count_session_evaluations(&filter)
             .await
             .unwrap_or(total_count)
@@ -183,7 +185,7 @@ pub(crate) async fn get_evaluation_stats(
         since: Some(since),
         until: query.until,
     };
-    match persist.evaluation_stats(&filter).await {
+    match persist.steerer().evaluation_stats(&filter).await {
         Ok(rows) => Json(EvaluationStatsPage {
             since,
             until: query.until,

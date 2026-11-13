@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -52,16 +53,21 @@ pub async fn reconcile(
     let Some(run) = &fresh.run_id else {
         return Ok(false);
     };
-    let seats = persist.unsettled_fleet_launches(run).await?;
+    let seats = persist.fleet().unsettled_fleet_launches(run).await?;
     for seat in seats.iter().filter(|seat| seat.opened) {
         if matches!(seat_exit::observe(persist, run, seat).await, Ok(Some(true))) {
             persist
+                .fleet()
                 .record_fleet_launch_verified_exit(seat.id, run, EXITED)
                 .await?;
             seat_exit::forget(run, seat);
         }
     }
-    if !persist.unsettled_fleet_launches(run).await?.is_empty()
+    if !persist
+        .fleet()
+        .unsettled_fleet_launches(run)
+        .await?
+        .is_empty()
         || left_unchecked(state, persist, &fresh).await
     {
         return Ok(false);
@@ -153,7 +159,11 @@ pub async fn stop(
     let mut report = settled_report(persist, &stopped, seats).await?;
     if report.managed.settled() {
         let remaining = match stopped.run_id.as_deref() {
-            Some(run) => !persist.unsettled_fleet_launches(run).await?.is_empty(),
+            Some(run) => !persist
+                .fleet()
+                .unsettled_fleet_launches(run)
+                .await?
+                .is_empty(),
             None => false,
         };
         if !remaining {
@@ -184,7 +194,7 @@ async fn stop_run(
     settle_unrun(persist, run).await?;
     abandon_expired(persist, run).await?;
     let mut seats = Vec::new();
-    for seat in persist.unsettled_fleet_launches(run).await? {
+    for seat in persist.fleet().unsettled_fleet_launches(run).await? {
         seats.push(stop_seat(state, persist, run, &seat).await);
     }
     Ok(seats)
@@ -199,6 +209,7 @@ async fn settle_unrun(persist: &PersistHandle, run: &str) -> Result<(), PersistE
                 owner.detail.as_deref().unwrap_or("receipt blocked")
             );
             let abandoned = persist
+                .fleet()
                 .abandon_unrun_fleet_check(receipt, run, &note)
                 .await?;
             tracing::warn!(%run, receipt, abandoned, "fleet stop: settled a command receipt that no process is running");
@@ -211,6 +222,7 @@ async fn settle_unrun(persist: &PersistHandle, run: &str) -> Result<(), PersistE
 async fn abandon_expired(persist: &PersistHandle, run: &str) -> Result<(), PersistError> {
     let note = "\nAbandoned at fleet stop: no finish was recorded within the 7200 s limit every managed command runs under, so no process on any machine can still be running it (the mike that started it most likely restarted). Its result is unknown.\n";
     let abandoned = persist
+        .fleet()
         .abandon_expired_fleet_checks(run, ABANDON_AFTER_SECONDS, note)
         .await?;
     if !abandoned.is_empty() {
@@ -247,6 +259,7 @@ async fn request_stop(persist: &PersistHandle, row: &FleetRow) -> Result<FleetRo
             )));
         }
         if let Some(stopped) = persist
+            .fleet()
             .transition_fleet_state(&fresh, STOPPING, None, None)
             .await?
         {
@@ -276,13 +289,18 @@ async fn record_stop_requested(persist: &PersistHandle, row: &FleetRow) {
     let Some(run) = row.run_id.as_deref() else {
         return;
     };
-    if let Err(err) = persist.append_fleet_event(&stop_requested_event(run)).await {
+    if let Err(err) = persist
+        .fleet()
+        .append_fleet_event(&stop_requested_event(run))
+        .await
+    {
         tracing::warn!(error = %err, %run, "fleet: could not record the stop request");
     }
 }
 
 async fn current(persist: &PersistHandle, row: &FleetRow) -> Result<FleetRow, PersistError> {
     let fresh = persist
+        .fleet()
         .find_fleet(&row.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| {
@@ -327,6 +345,7 @@ async fn stop_seat(
     }
     if report.process_exited == Some(true) {
         if let Err(error) = persist
+            .fleet()
             .record_fleet_launch_verified_exit(seat.id, run, STOPPED)
             .await
         {
@@ -352,6 +371,7 @@ async fn close_if_never_started(
         return false;
     }
     match persist
+        .fleet()
         .close_never_started_fleet_launch(seat.id, run, NEVER_STARTED, START_GRACE_SECONDS)
         .await
     {
@@ -389,7 +409,7 @@ async fn recorded_done_report(
     row: &FleetRow,
 ) -> Result<StopReport, PersistError> {
     let unresolved = match row.run_id.as_deref() {
-        Some(run) => persist.unsettled_fleet_launches(run).await?,
+        Some(run) => persist.fleet().unsettled_fleet_launches(run).await?,
         None => Vec::new(),
     };
     let seats = unresolved.into_iter().map(|seat| SeatStop {
@@ -430,6 +450,7 @@ async fn settled_report(
             })
             .collect();
         managed.pending_receipts = persist
+            .fleet()
             .pending_fleet_commands(run)
             .await?
             .into_iter()
@@ -457,7 +478,7 @@ async fn finish_stop(persist: &PersistHandle, row: &FleetRow) -> Result<FleetRow
         None => false,
     };
     let staged = current(persist, &fresh).await?;
-    let Some(done) = persist.complete_fleet_run(&staged, None).await? else {
+    let Some(done) = persist.fleet().complete_fleet_run(&staged, None).await? else {
         return current(persist, &staged).await;
     };
     if let Some(run) = done.run_id.as_deref() {

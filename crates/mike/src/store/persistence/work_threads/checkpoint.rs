@@ -9,7 +9,6 @@ use super::meta::{MetaUpdate, apply_meta};
 use super::reads::identity_by_id;
 use super::validate::{contribution, first_line, invalid, non_blank, relative_paths, slug, tldr};
 use super::{ThreadIdentity, ThreadState, WorkThreadError};
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StateFields<'a> {
@@ -155,9 +154,9 @@ async fn write_state(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn checkpoint_work_thread(
-        &self,
+        self,
         project_id: i64,
         input: &CheckpointInput<'_>,
     ) -> Result<CheckpointOutcome, WorkThreadError> {

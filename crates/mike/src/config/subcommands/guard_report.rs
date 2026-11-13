@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
@@ -84,6 +85,7 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
 
 async fn guard_steerer(persist: &PersistHandle) -> Result<(i64, serde_json::Value)> {
     let row = persist
+        .steerer()
         .guard_steerer()
         .await?
         .context("the turn-guard steerer row is not seeded; run the migrations first")?;
@@ -99,7 +101,11 @@ async fn replay_request<'a>(
     let (_, config) = guard_steerer(persist).await?;
     let turn_ids: Vec<i64> = turns.map(read_json).transpose()?.unwrap_or_default();
     let overlay = crate::settings::apply_db_rows_to_overlay(persist.fetch_settings().await?);
-    let pattern = persist.verifier_pattern().await?.unwrap_or_default();
+    let pattern = persist
+        .steerer()
+        .verifier_pattern()
+        .await?
+        .unwrap_or_default();
     let window = ReplayWindow {
         since,
         until: until.unwrap_or_else(Utc::now),
@@ -217,7 +223,10 @@ async fn mode(args: GuardModeArgs, cli: CliOverrides) -> Result<()> {
     let mode = writable_mode(&args.mode).map_err(anyhow::Error::msg)?;
     let persist = super::eval::connect(cli, true).await?;
     let (steerer_id, _) = guard_steerer(&persist).await?;
-    if let Some(current) = persist.policy_row(steerer_id, question.code()).await?
+    if let Some(current) = persist
+        .steerer()
+        .policy_row(steerer_id, question.code())
+        .await?
         && matches!(current.mode.as_str(), "append" | "wake")
     {
         bail!(
@@ -227,6 +236,7 @@ async fn mode(args: GuardModeArgs, cli: CliOverrides) -> Result<()> {
         );
     }
     let row = persist
+        .steerer()
         .set_question_mode(steerer_id, question.code(), mode.code(), "cli")
         .await?;
     println!("{} -> {} ({})", row.question, row.mode, row.updated_at);

@@ -2,6 +2,7 @@ use chrono::{Duration, Utc};
 use mike::analysis::{EmbeddingConfig, EmbeddingService};
 use mike::semantic::SemanticConfig;
 use mike::semantic::builder::Builder;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -78,7 +79,7 @@ pub(crate) async fn facts(f: &Fixture, turn: i64, next_turn: Option<i64>) -> any
     crate::turn_facts::resolve(&mut row);
     row.next_genuine_turn_id = next_turn;
     row.next_genuine_at = Some(f.base + Duration::seconds(30));
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(())
 }
 

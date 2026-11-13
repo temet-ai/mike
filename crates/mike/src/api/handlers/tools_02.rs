@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 pub(crate) const TOOL_ERRORS_DEFAULT_LIMIT: usize = 100;
 pub(crate) const TOOL_ERRORS_MAX_LIMIT: usize = 500;
@@ -94,19 +95,24 @@ pub(crate) async fn get_request_tool_results(
     };
     let request_id_i64 = id as i64;
 
-    let exists = handle.request_exists(request_id_i64).await.map_err(|e| {
-        tracing::warn!(
-            request_id = id,
-            error = %e,
-            "get_request_tool_results: existence check failed"
-        );
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let exists = handle
+        .steerer()
+        .request_exists(request_id_i64)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                request_id = id,
+                error = %e,
+                "get_request_tool_results: existence check failed"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     if !exists {
         return Err(StatusCode::NOT_FOUND);
     }
 
     let rows = handle
+        .steerer()
         .fetch_tool_results_for_request(request_id_i64)
         .await
         .map_err(|e| {
@@ -146,19 +152,24 @@ pub(crate) async fn get_request_tool_calls(
     };
     let request_id_i64 = id as i64;
 
-    let exists = handle.request_exists(request_id_i64).await.map_err(|e| {
-        tracing::warn!(
-            request_id = id,
-            error = %e,
-            "get_request_tool_calls: existence check failed"
-        );
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let exists = handle
+        .steerer()
+        .request_exists(request_id_i64)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                request_id = id,
+                error = %e,
+                "get_request_tool_calls: existence check failed"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     if !exists {
         return Err(StatusCode::NOT_FOUND);
     }
 
     let rows = handle
+        .steerer()
         .fetch_request_tool_calls_paired(request_id_i64)
         .await
         .map_err(|e| {
@@ -245,7 +256,11 @@ pub(crate) async fn get_turn_tool_calls(
         }
     };
 
-    match handle.fetch_turn_bounds(turn_id, session_db_id).await {
+    match handle
+        .steerer()
+        .fetch_turn_bounds(turn_id, session_db_id)
+        .await
+    {
         Ok(Some(_)) => {}
         Ok(None) => {
             return Err((StatusCode::NOT_FOUND, "unknown turn").into_response());
@@ -266,6 +281,7 @@ pub(crate) async fn get_turn_tool_calls(
     };
 
     let rows = handle
+        .steerer()
         .fetch_turn_tool_calls_paired(turn_id, session_db_id)
         .await
         .map_err(|e| {

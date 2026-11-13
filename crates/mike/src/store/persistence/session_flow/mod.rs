@@ -15,7 +15,7 @@ mod rows;
 mod status;
 mod tools;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 use chrono::{DateTime, Utc};
 pub use enums::*;
 pub use rows::*;
@@ -44,9 +44,9 @@ struct Admission {
     flow_producer: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub async fn fetch_session_flow(
-        &self,
+        self,
         session: Uuid,
         component: FlowComponent,
         limit: u16,

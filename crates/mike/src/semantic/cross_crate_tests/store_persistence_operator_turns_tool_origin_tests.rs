@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/store/persistence/operator_turns/tool_origin_tests.rs by the crate split: it reaches the knowledge
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use crate::store::models::RequestStatus;
 use crate::store::persistence::PersistHandle;
@@ -215,8 +216,12 @@ async fn backfill_reclassifies_tool_written_turns_once_and_recall_skips_them() -
         "a second run changes nothing"
     );
 
-    let project = handle.resolve_knowledge_project(seeded.project).await?;
+    let project = handle
+        .knowledge()
+        .resolve_knowledge_project(seeded.project)
+        .await?;
     let recalled: Vec<i64> = handle
+        .knowledge()
         .recall_turns_by_fts(&project, "zebra", 20, None)
         .await?
         .iter()

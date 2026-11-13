@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 pub mod directives;
 pub mod ledger;
 pub mod promises;
@@ -61,13 +62,20 @@ pub async fn link_ledger_step(
     }
     match since {
         Some(since) => {
-            let candidates = persist.load_ledger_candidates(session_ids, since).await?;
+            let candidates = persist
+                .dossier()
+                .load_ledger_candidates(session_ids, since)
+                .await?;
             let rows = ledger::plan_builder_rows(&candidates);
-            report.ledger_rows_inserted = persist.insert_builder_ledger_rows(&rows).await?;
+            report.ledger_rows_inserted =
+                persist.dossier().insert_builder_ledger_rows(&rows).await?;
         }
         None => warn_missing_go_live(),
     }
-    report.ledger_rows_linked = persist.link_ask_ledger_to_turns(session_ids).await?;
+    report.ledger_rows_linked = persist
+        .dossier()
+        .link_ask_ledger_to_turns(session_ids)
+        .await?;
     Ok(report)
 }
 
@@ -80,21 +88,28 @@ pub async fn run_entries_step(
     if session_ids.is_empty() {
         return Ok(report);
     }
-    let directive_sources = persist.load_directive_sources(session_ids).await?;
+    let directive_sources = persist
+        .dossier()
+        .load_directive_sources(session_ids)
+        .await?;
     let directives = directives::entries_for(&directive_sources);
-    report.entries_written += persist.insert_dossier_entries(&directives).await?;
-    report.closes_written += persist.supersede_directives(session_ids).await?;
-    let promise_sources = persist.load_promise_sources(session_ids).await?;
+    report.entries_written += persist
+        .dossier()
+        .insert_dossier_entries(&directives)
+        .await?;
+    report.closes_written += persist.dossier().supersede_directives(session_ids).await?;
+    let promise_sources = persist.dossier().load_promise_sources(session_ids).await?;
     if !promise_sources.is_empty() {
-        let backing = persist.load_backing_items(session_ids).await?;
-        let registry_first = persist.work_registry_first_launch().await?;
+        let backing = persist.dossier().load_backing_items(session_ids).await?;
+        let registry_first = persist.dossier().work_registry_first_launch().await?;
         let promises = promises::open_entries(&promise_sources, &backing, registry_first);
-        report.entries_written += persist.insert_dossier_entries(&promises).await?;
+        report.entries_written += persist.dossier().insert_dossier_entries(&promises).await?;
     }
     let closes = persist
+        .dossier()
         .promise_close_candidates(session_ids, settle.num_minutes())
         .await?;
-    report.closes_written += persist.close_dossier_entries(&closes).await?;
+    report.closes_written += persist.dossier().close_dossier_entries(&closes).await?;
     Ok(report)
 }
 
@@ -103,7 +118,7 @@ pub async fn run_after_build(
     session_ids: &[i64],
     settle: Duration,
 ) -> Result<EntriesReport, PersistError> {
-    let since = persist.ledger_builder_since().await?;
+    let since = persist.dossier().ledger_builder_since().await?;
     let mut report = link_ledger_step(persist, session_ids, since).await?;
     if entries_enabled(persist).await? {
         let entries = run_entries_step(persist, session_ids, settle).await?;
@@ -121,10 +136,14 @@ pub async fn plan_entries_step(
     if session_ids.is_empty() {
         return Ok(report);
     }
-    let directive_sources = persist.load_directive_sources(session_ids).await?;
+    let directive_sources = persist
+        .dossier()
+        .load_directive_sources(session_ids)
+        .await?;
     let directive_count = directives::entries_for(&directive_sources).len();
-    let promise_sources = persist.load_promise_sources(session_ids).await?;
+    let promise_sources = persist.dossier().load_promise_sources(session_ids).await?;
     let closes = persist
+        .dossier()
         .promise_close_candidates(session_ids, settle.num_minutes())
         .await?;
     report.entries_written = u64::try_from(directive_count + promise_sources.len()).unwrap_or(0);

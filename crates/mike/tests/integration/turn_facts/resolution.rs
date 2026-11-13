@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use mike::dossier::build::{BuildConfig, BuildReport, build_sessions};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::turn_facts::TurnFactsRow;
 
 use super::{
@@ -19,7 +20,10 @@ pub(crate) async fn build(f: &Fixture) -> anyhow::Result<BuildReport> {
 }
 
 pub(crate) async fn facts(f: &Fixture) -> anyhow::Result<Vec<TurnFactsRow>> {
-    Ok(f.handle.load_existing_turn_facts(&[f.session_id]).await?)
+    Ok(f.handle
+        .dossier()
+        .load_existing_turn_facts(&[f.session_id])
+        .await?)
 }
 
 pub(crate) async fn message(

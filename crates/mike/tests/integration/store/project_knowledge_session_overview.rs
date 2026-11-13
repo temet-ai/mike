@@ -1,4 +1,5 @@
 use super::knowledge_search_fixture::{Fixture, Session, query, references};
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 use mike::store::test_support::seed_project;
 use serde_json::{Value, json};
@@ -190,6 +191,7 @@ async fn read_project_knowledge_opens_a_session_overview_with_topics_learnings_a
 
     let read = fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.path), &reference)
         .await?;
 
@@ -225,6 +227,7 @@ async fn read_project_knowledge_completes_a_session_reference_given_by_its_first
 
     let read = fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.path), &short)
         .await?;
 
@@ -244,6 +247,7 @@ async fn read_project_knowledge_with_a_bare_session_uuid_still_opens_the_learnin
 
     let read = fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.path), &session.uuid.to_string())
         .await?;
 
@@ -276,6 +280,7 @@ async fn read_project_knowledge_rejects_a_session_reference_without_an_overview_
     ] {
         assert!(
             fx.handle
+                .knowledge()
                 .read_project_knowledge(project, &reference)
                 .await
                 .is_err(),

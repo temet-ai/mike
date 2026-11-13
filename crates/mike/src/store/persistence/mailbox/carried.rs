@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(crate) fn request_carries(request_body: &[u8], text: &str) -> bool {
     let escaped = json_escaped(text);
@@ -18,9 +18,9 @@ fn json_escaped(text: &str) -> String {
         .unwrap_or_else(|| text.to_string())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn consume_mail_carried_by(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         request_body: &[u8],
     ) -> Result<Vec<uuid::Uuid>, PersistError> {

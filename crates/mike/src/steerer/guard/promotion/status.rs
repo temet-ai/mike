@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, Utc};
@@ -70,6 +72,7 @@ async fn effect(
         .filter_map(|r| r.scored_turn_id)
         .collect();
     let ends: HashMap<i64, String> = persist
+        .eval()
         .session_end_labels_for_turns(&turns, now)
         .await
         .unwrap_or_default()
@@ -90,6 +93,7 @@ async fn verifier_block(
         return Value::Null;
     };
     match persist
+        .steerer()
         .fetch_verifier_pairs(verifier, req.steerer_id, since)
         .await
     {
@@ -123,6 +127,7 @@ async fn one(
         gates.insert((*target).to_owned(), gate);
     }
     let rows = persist
+        .steerer()
         .fetch_arm_rows(req.steerer_id, Some(question.code()), req.now)
         .await?;
     let append_passes = gates
@@ -146,8 +151,11 @@ pub async fn questions_status(
     persist: &PersistHandle,
     req: &StatusRequest,
 ) -> Result<Value, PersistError> {
-    let policies = persist.policy_rows(req.steerer_id).await?;
-    let promotions = persist.question_promotions(req.steerer_id).await?;
+    let policies = persist.steerer().policy_rows(req.steerer_id).await?;
+    let promotions = persist
+        .steerer()
+        .question_promotions(req.steerer_id)
+        .await?;
     let settings = GuardSettings::load(persist).await;
     let mut questions = Vec::with_capacity(policies.len());
     for p in &policies {

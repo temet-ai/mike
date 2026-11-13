@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::ops::ControlFlow;
 use std::time::Instant;
 
@@ -62,7 +63,7 @@ pub(crate) async fn load_live_bundle(
     bundle_id: i64,
 ) -> Option<LiveBundle> {
     let Some(row) = ok_or_warn(
-        persist.get_bundle(bundle_id).await,
+        persist.eval().get_bundle(bundle_id).await,
         "live_judge.read_bundle",
     )?
     else {
@@ -106,7 +107,7 @@ pub(crate) async fn mark_bundle_live(
     source_json: &'static str,
 ) {
     let gate = ok_or_warn(
-        persist.passing_holdout_gate(bundle_id).await,
+        persist.eval().passing_holdout_gate(bundle_id).await,
         "live_bundle.holdout_gate",
     )
     .flatten();
@@ -122,7 +123,7 @@ pub(crate) async fn mark_bundle_live(
         source_json,
     };
     ok_or_warn(
-        persist.set_bundle_status(&change).await,
+        persist.eval().set_bundle_status(&change).await,
         "live_bundle.mark_live",
     );
 }
@@ -219,6 +220,7 @@ async fn store_verdict(
     let Some((verdict_id, outcome)) = ok_or_warn(
         judge
             .persist
+            .eval()
             .insert_live_verdict_and_promote(insert, &params)
             .await,
         "live_judge.store_verdict",
@@ -291,6 +293,7 @@ async fn judge_fresh(
     let row = ok_or_warn(
         judge
             .persist
+            .eval()
             .eligible_judge_turn_context(judge.bundle.id, turn_id)
             .await,
         "live_judge.refresh_context",

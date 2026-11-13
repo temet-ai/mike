@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::borrow::Cow;
 use std::time::Duration;
 
@@ -126,7 +127,12 @@ pub(in crate::launch::fleet) async fn unchecked_at_close(
 
 async fn close_verdict(runner: &Runner<'_>, full: &FleetDefinition, commit: &str) -> Option<bool> {
     let ledger = super::ledger_for(full, runner.run);
-    match runner.persist.find_tree_check(&ledger, commit).await {
+    match runner
+        .persist
+        .fleet()
+        .find_tree_check(&ledger, commit)
+        .await
+    {
         Ok(Some(row)) if row.command == full.gate.command => Some(row.passed()),
         Ok(_) => None,
         Err(err) => {
@@ -158,6 +164,7 @@ async fn held_back(runner: &Runner<'_>, full: &FleetDefinition, commit: &str) ->
     let ledger = super::ledger_for(full, runner.run);
     let latest = runner
         .persist
+        .fleet()
         .latest_tree_check(&ledger)
         .await
         .ok()

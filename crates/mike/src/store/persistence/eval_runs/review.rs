@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+use super::super::PersistError;
 use super::super::eval_labels::EvalLabelRow;
-use super::super::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct EvalReviewContext {
@@ -30,8 +30,8 @@ pub struct EvalReviewLabels {
     pub reviews: Vec<EvalLabelRow>,
 }
 
-impl PersistHandle {
-    pub async fn eval_run_has_item(&self, run_id: i64, turn_id: i64) -> Result<bool, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn eval_run_has_item(self, run_id: i64, turn_id: i64) -> Result<bool, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM eval.run_items
                                WHERE run_id = $1 AND operator_turn_id = $2) AS "has_item!""#,
@@ -43,7 +43,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_review_context(
-        &self,
+        self,
         turn_id: i64,
     ) -> Result<Option<EvalReviewContext>, PersistError> {
         crate::metrics::time_db("eval_review_context", async move {
@@ -71,7 +71,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_review_labels(
-        &self,
+        self,
         run_id: i64,
         turn_id: i64,
     ) -> Result<EvalReviewLabels, PersistError> {

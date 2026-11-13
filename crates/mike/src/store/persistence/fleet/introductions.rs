@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SlowCommandRow {
@@ -15,9 +15,9 @@ pub struct SlowCommandRow {
     pub command: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn slow_commands(
-        &self,
+        self,
         run_id: &str,
         since: DateTime<Utc>,
         slow_seconds: f64,
@@ -38,7 +38,7 @@ impl PersistHandle {
     }
 
     pub async fn record_introductions(
-        &self,
+        self,
         run_id: &str,
         pairs: &[(i64, i64)],
     ) -> Result<Vec<i64>, PersistError> {

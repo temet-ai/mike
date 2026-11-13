@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use chrono::{DateTime, Utc};
 
 use crate::dossier::render::render;
@@ -135,6 +136,7 @@ pub async fn judge_session_v3(
     subject: &SessionSubject,
 ) -> Result<SessionJudgementV3, SessionJudgeFailure> {
     let facts = persist
+        .eval()
         .fetch_session_end_facts(&[subject.session_db_id], subject.as_of.at)
         .await
         .map_err(|e| SessionJudgeFailure::Facts(e.to_string()))?

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -103,7 +104,7 @@ impl SemanticWorker {
         let snapshot = self.embedding.current_config();
         let changed = state.last_snapshot.as_ref() != Some(&snapshot_key(&snapshot));
         let due = changed || state.breaker_was_open || older_than(state.last_check, 24);
-        if !due && let Some(row) = self.persist.current_semantic_embedder().await? {
+        if !due && let Some(row) = self.persist.knowledge().current_semantic_embedder().await? {
             return Ok(row);
         }
         let row =
@@ -121,8 +122,16 @@ impl SemanticWorker {
         last_attempt: Option<DateTime<Utc>>,
     ) -> Result<bool, SemanticError> {
         let key = &embedder.embedder_key;
-        let has_floors = self.persist.semantic_key_has_floors(key).await?;
-        let last_computed = self.persist.semantic_floors_last_computed_at(key).await?;
+        let has_floors = self
+            .persist
+            .knowledge()
+            .semantic_key_has_floors(key)
+            .await?;
+        let last_computed = self
+            .persist
+            .knowledge()
+            .semantic_floors_last_computed_at(key)
+            .await?;
         Ok(floors_due(has_floors, last_computed, last_attempt))
     }
 

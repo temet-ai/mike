@@ -1,4 +1,5 @@
 use mike::semantic::SemanticError;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::semantic::NewItem;
 
 use super::support::{build_all, closed_turn, embedder, embedding_stub, facts, service};
@@ -15,7 +16,13 @@ async fn egress_blocked_status_when_url_is_remote() -> anyhow::Result<()> {
         matches!(result, Err(SemanticError::EgressBlocked)),
         "{result:?}"
     );
-    assert!(f.handle.current_semantic_embedder().await?.is_none());
+    assert!(
+        f.handle
+            .knowledge()
+            .current_semantic_embedder()
+            .await?
+            .is_none()
+    );
     Ok(())
 }
 
@@ -76,6 +83,12 @@ async fn semantic_anchor_without_origin_is_rejected_by_check() -> anyhow::Result
         data: serde_json::json!({}),
         ..NewItem::default()
     };
-    assert!(f.handle.insert_semantic_items(&[anchor]).await.is_err());
+    assert!(
+        f.handle
+            .knowledge()
+            .insert_semantic_items(&[anchor])
+            .await
+            .is_err()
+    );
     Ok(())
 }

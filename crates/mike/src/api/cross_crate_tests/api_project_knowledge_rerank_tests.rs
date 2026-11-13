@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/project_knowledge/rerank_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use std::time::Duration;
 
@@ -32,10 +33,12 @@ fn document(path: &str, title: &str) -> DocumentInput {
 pub(crate) async fn seed_project_with_documents(harness: &Harness) -> anyhow::Result<String> {
     let handle = &harness.handle;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Rerank", Uuid::new_v4())
         .await?;
     let project_uuid = project.project_uuid.to_string();
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project_uuid.clone(),
             machine_uuid: Uuid::new_v4(),
@@ -44,6 +47,7 @@ pub(crate) async fn seed_project_with_documents(harness: &Harness) -> anyhow::Re
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: "artifacts".into(),
@@ -51,6 +55,7 @@ pub(crate) async fn seed_project_with_documents(harness: &Harness) -> anyhow::Re
         })
         .await?;
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             serde_json::from_value(source["source_uuid"].clone())?,
             &ScanInput {

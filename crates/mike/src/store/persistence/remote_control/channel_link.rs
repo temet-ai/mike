@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn link_channel_from_request_body(
-        &self,
+        self,
         cse_id: &str,
         session_uuid: Uuid,
     ) -> Result<(), PersistError> {

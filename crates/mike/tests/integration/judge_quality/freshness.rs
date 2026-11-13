@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use mike::store::persistence::eval_rejudge::RejudgeWindow;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::projection::ProjectionMode;
 use mike::store::persistence::operator_turns::{LiveClaim, LiveFailure};
 use mike::store::persistence::turn_verdicts::VerdictMode;
@@ -17,7 +18,7 @@ async fn changed_followup_reclaims_and_reprojects_without_losing_history() -> an
     facts(&f, turn, "genuine", "resolved").await?;
     let mut old = verdict(turn, VerdictMode::Live, b, ("corrected", "partial"), 0.9);
     old.next_genuine_request_id = Some(2);
-    let old_id = f.handle.insert_turn_verdict(old).await?;
+    let old_id = f.handle.eval().insert_turn_verdict(old).await?;
     let p = params(b, ProjectionMode::Apply);
     f.handle.project_turn_outcomes(&[turn], &p).await?;
     assert_eq!(projected(&f, turn).await?.live_verdict_id, Some(old_id));
@@ -42,7 +43,10 @@ async fn changed_followup_reclaims_and_reprojects_without_losing_history() -> an
         until: Utc::now() + Duration::hours(1),
     };
     assert_eq!(
-        f.handle.claim_rejudge_candidates(&window, 10).await?,
+        f.handle
+            .eval()
+            .claim_rejudge_candidates(&window, 10)
+            .await?,
         vec![turn]
     );
     f.handle.reproject_final_turns(&p, 7).await?;
@@ -62,7 +66,11 @@ async fn changed_followup_reclaims_and_reprojects_without_losing_history() -> an
     assert!(f.handle.claim_live_candidates(claim).await?.is_empty());
     let mut fresh = verdict(turn, VerdictMode::Live, b, ("accepted", "shipped"), 0.9);
     fresh.next_genuine_request_id = Some(3);
-    let (fresh_id, _) = f.handle.insert_live_verdict_and_promote(fresh, &p).await?;
+    let (fresh_id, _) = f
+        .handle
+        .eval()
+        .insert_live_verdict_and_promote(fresh, &p)
+        .await?;
     assert_eq!(projected(&f, turn).await?.live_verdict_id, Some(fresh_id));
     assert!(!f.handle.mark_live_judge_failed(failure).await?);
     assert!(f.handle.claim_live_candidates(claim).await?.is_empty());
@@ -86,6 +94,7 @@ async fn reclassified_machine_turn_resets_existing_judge_projection() -> anyhow:
     facts(&f, turn, "genuine", "none_session_settled").await?;
     let p = params(b, ProjectionMode::Apply);
     f.handle
+        .eval()
         .insert_live_verdict_and_promote(
             verdict(turn, VerdictMode::Live, b, ("no_response", "shipped"), 0.9),
             &p,

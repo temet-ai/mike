@@ -1,3 +1,6 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 #[path = "proposals_queue_tests.rs"]
 mod queue;
 #[path = "write_time_tests.rs"]
@@ -101,7 +104,7 @@ async fn seed_turn_facts(
         session_class: "operator".to_owned(),
         session_class_rule: "test".to_owned(),
     };
-    handle.upsert_turn_facts(&[row]).await?;
+    handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(())
 }
 
@@ -161,6 +164,7 @@ async fn seed_verdict(
     )
     .await?;
     let verdict_id = handle
+        .eval()
         .insert_turn_verdict(TurnVerdictInsert {
             turn_id,
             mode: VerdictMode::Live,
@@ -243,6 +247,7 @@ async fn create_test_lesson(fx: &Fixture, text: &str) -> anyhow::Result<i64> {
     let embedding = unit_embedding();
     let lesson_id = fx
         .handle
+        .lessons()
         .create_candidate_lesson(
             NewCandidateLesson {
                 project_id: fx.project_id,
@@ -275,7 +280,11 @@ async fn selects_a_resolved_corrected_verdict_regardless_of_confidence() -> anyh
         return Ok(());
     };
     let since = Utc::now() - chrono::Duration::days(1);
-    let candidates = fx.handle.select_correction_candidates(since, 10).await?;
+    let candidates = fx
+        .handle
+        .lessons()
+        .select_correction_candidates(since, 10)
+        .await?;
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].verdict_id, fx.verdict_id);
     assert_eq!(
@@ -293,7 +302,11 @@ async fn selects_a_verdict_below_the_confidence_floor_for_downstream_gating() ->
         return Ok(());
     };
     let since = Utc::now() - chrono::Duration::days(1);
-    let candidates = fx.handle.select_correction_candidates(since, 10).await?;
+    let candidates = fx
+        .handle
+        .lessons()
+        .select_correction_candidates(since, 10)
+        .await?;
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].verdict_id, fx.verdict_id);
     fx.db.cleanup().await?;
@@ -306,7 +319,11 @@ async fn excludes_a_verdict_with_no_resolved_correction() -> anyhow::Result<()> 
         return Ok(());
     };
     let since = Utc::now() - chrono::Duration::days(1);
-    let candidates = fx.handle.select_correction_candidates(since, 10).await?;
+    let candidates = fx
+        .handle
+        .lessons()
+        .select_correction_candidates(since, 10)
+        .await?;
     assert!(candidates.is_empty());
     fx.db.cleanup().await?;
     Ok(())
@@ -318,6 +335,7 @@ async fn a_verdict_already_evidenced_is_not_reselected() -> anyhow::Result<()> {
         return Ok(());
     };
     fx.handle
+        .lessons()
         .record_evidence(no_evidence(
             fx.verdict_id,
             fx.turn_id,
@@ -325,7 +343,11 @@ async fn a_verdict_already_evidenced_is_not_reselected() -> anyhow::Result<()> {
         ))
         .await?;
     let since = Utc::now() - chrono::Duration::days(1);
-    let candidates = fx.handle.select_correction_candidates(since, 10).await?;
+    let candidates = fx
+        .handle
+        .lessons()
+        .select_correction_candidates(since, 10)
+        .await?;
     assert!(candidates.is_empty());
     fx.db.cleanup().await?;
     Ok(())
@@ -348,7 +370,10 @@ async fn creates_a_raw_candidate_lesson_with_its_evidence() -> anyhow::Result<()
     .await?;
     assert_eq!(stage, "raw");
     assert_eq!(source, "judge");
-    assert_eq!(fx.handle.count_lesson_evidence(lesson_id).await?, 1);
+    assert_eq!(
+        fx.handle.lessons().count_lesson_evidence(lesson_id).await?,
+        1
+    );
     fx.db.cleanup().await?;
     Ok(())
 }
@@ -360,10 +385,12 @@ async fn finds_an_active_lesson_as_a_neighbour_within_the_distance() -> anyhow::
     };
     let lesson_id = create_test_lesson(&fx, "always handle the empty list case").await?;
     fx.handle
+        .lessons()
         .approve_lesson_candidate(lesson_id, None, "operator")
         .await?;
     let found = fx
         .handle
+        .lessons()
         .find_lesson_neighbours(fx.project_id, &unit_embedding(), 0.25, 5)
         .await?;
     assert_eq!(found.len(), 1);
@@ -374,6 +401,7 @@ async fn finds_an_active_lesson_as_a_neighbour_within_the_distance() -> anyhow::
     far[1] = 1.0;
     let none = fx
         .handle
+        .lessons()
         .find_lesson_neighbours(fx.project_id, &far, 0.25, 5)
         .await?;
     assert!(none.is_empty());
@@ -388,6 +416,7 @@ async fn approve_promotes_a_raw_candidate_to_daily_and_logs_the_decision() -> an
     };
     let lesson_id = create_test_lesson(&fx, "always handle the empty list case").await?;
     fx.handle
+        .lessons()
         .approve_lesson_candidate(lesson_id, Some("handle empty lists explicitly"), "operator")
         .await?;
     let (stage, text): (String, String) = sqlx::query_as(
@@ -409,6 +438,7 @@ async fn approve_promotes_a_raw_candidate_to_daily_and_logs_the_decision() -> an
     assert_eq!(count, 1);
     let again = fx
         .handle
+        .lessons()
         .approve_lesson_candidate(lesson_id, None, "operator")
         .await;
     assert!(matches!(again, Err(ProposalError::NotPending)));
@@ -423,6 +453,7 @@ async fn reject_archives_with_the_operator_reason() -> anyhow::Result<()> {
     };
     let lesson_id = create_test_lesson(&fx, "task-specific, not a rule").await?;
     fx.handle
+        .lessons()
         .reject_lesson_candidate(lesson_id, "not_a_correction", Some("one-off typo"))
         .await?;
     let (stage, reason): (String, Option<String>) = sqlx::query_as(
@@ -446,7 +477,10 @@ async fn auto_promote_fires_once_evidence_reaches_the_threshold() -> anyhow::Res
         return Ok(());
     };
     let lesson_id = create_test_lesson(&fx, "always handle the empty list case").await?;
-    assert_eq!(fx.handle.count_lesson_evidence(lesson_id).await?, 1);
+    assert_eq!(
+        fx.handle.lessons().count_lesson_evidence(lesson_id).await?,
+        1
+    );
     let second = seed_verdict(
         &fx.handle,
         OTHER_SESSION,
@@ -457,16 +491,18 @@ async fn auto_promote_fires_once_evidence_reaches_the_threshold() -> anyhow::Res
     )
     .await?;
     fx.handle
+        .lessons()
         .reinforce_lesson(
             lesson_id,
             no_evidence(second.verdict_id, second.turn_id, &serde_json::json!([])),
         )
         .await?;
-    let evidence_count = fx.handle.count_lesson_evidence(lesson_id).await?;
+    let evidence_count = fx.handle.lessons().count_lesson_evidence(lesson_id).await?;
     assert_eq!(evidence_count, 2);
     const AUTO_PROMOTE_MIN_EVIDENCE: i64 = 2;
     if evidence_count >= AUTO_PROMOTE_MIN_EVIDENCE {
         fx.handle
+            .lessons()
             .approve_lesson_candidate(lesson_id, None, "judge")
             .await?;
     }

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::adjudication::{run_adjudicated_pair, run_rule_based_pair};
@@ -100,6 +101,7 @@ pub(super) async fn detect_one_pair(
 
     if !dry_run {
         persist
+            .lessons()
             .insert_lesson_relation(&LessonRelationDraft {
                 from_lesson_id: proposal.from_lesson_id,
                 to_lesson_id: proposal.to_lesson_id,
@@ -158,6 +160,7 @@ async fn insert_artifact_reference(
 
     if !dry_run {
         persist
+            .lessons()
             .insert_lesson_relation(&LessonRelationDraft {
                 from_lesson_id: citation.from_lesson_id,
                 to_lesson_id: citation.to_lesson_id,

@@ -4,7 +4,7 @@ use sqlx::PgConnection;
 
 use super::{observation_budget, observation_write};
 use crate::runtime::SessionObservation;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObservationApplyOutcome {
@@ -16,9 +16,9 @@ pub enum ObservationApplyOutcome {
 
 pub use super::identity_budget::ObservationLimits;
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn apply_session_observation(
-        &self,
+        self,
         observation: &SessionObservation,
     ) -> Result<ObservationApplyOutcome, PersistError> {
         self.apply_session_observation_with_limits(observation, &ObservationLimits::default())
@@ -26,7 +26,7 @@ impl PersistHandle {
     }
 
     pub async fn apply_session_observation_with_limits(
-        &self,
+        self,
         observation: &SessionObservation,
         limits: &ObservationLimits,
     ) -> Result<ObservationApplyOutcome, PersistError> {

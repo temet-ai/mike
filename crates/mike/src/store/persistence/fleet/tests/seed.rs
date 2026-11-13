@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 use sqlx::PgPool;
@@ -13,6 +14,7 @@ pub(super) fn micros_now() -> anyhow::Result<DateTime<Utc>> {
 
 pub(super) async fn seed_run(handle: &PersistHandle, run_id: &str) -> anyhow::Result<()> {
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.to_owned(),
             project_path: Some("/tmp/fleet-a".to_owned()),
@@ -54,13 +56,13 @@ pub(super) async fn seed_launch(
     new.agent = Some(format!("{seat}-agent"));
     new.model = Some("opus".to_owned());
     new.session_uuid = session_uuid;
-    let id = handle.insert_launch(&new).await?;
+    let id = handle.launch().insert_launch(&new).await?;
     if opened {
         let surface = LaunchSurfaceRefs {
             surface_ref: Some(format!("pane-{seat}")),
             ..LaunchSurfaceRefs::default()
         };
-        handle.record_launch_opened(id, &surface).await?;
+        handle.launch().record_launch_opened(id, &surface).await?;
     }
     Ok(id)
 }

@@ -5,7 +5,7 @@ use sqlx::PgConnection;
 use super::shape::insert_shape_finding;
 use super::{LessonInsertRow, NewLessonWrite};
 use crate::lesson_shape::Assessment;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(sqlx::FromRow)]
 struct InsertedRow {
@@ -72,9 +72,9 @@ async fn fetch_inserted(
     .await
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn create_lesson_with_topic(
-        &self,
+        self,
         new: NewLessonWrite<'_>,
     ) -> Result<LessonInsertRow, PersistError> {
         crate::metrics::time_db("create_lesson", async move {
@@ -85,7 +85,7 @@ impl PersistHandle {
     }
 
     pub async fn create_lesson_with_shape(
-        &self,
+        self,
         new: NewLessonWrite<'_>,
         assessment: &Assessment,
         hold: bool,
@@ -101,7 +101,7 @@ impl PersistHandle {
     }
 
     pub async fn create_harvested_lesson(
-        &self,
+        self,
         new: NewLessonWrite<'_>,
     ) -> Result<Option<LessonInsertRow>, PersistError> {
         crate::metrics::time_db("create_harvested_lesson", async move {
@@ -165,7 +165,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn delete_lesson(&self, id: i64) -> Result<bool, PersistError> {
+    pub async fn delete_lesson(self, id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("delete_lesson", async move {
             let result = sqlx::query!(
                 "UPDATE memory.lessons l
@@ -189,7 +189,7 @@ impl PersistHandle {
 
     #[allow(dead_code)]
     pub async fn archive_lesson(
-        &self,
+        self,
         id: i64,
         reason: &str,
         duplicate_of_id: Option<i64>,

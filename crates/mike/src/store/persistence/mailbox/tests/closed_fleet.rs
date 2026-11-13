@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use serde_json::json;
 use uuid::Uuid;
@@ -17,12 +19,15 @@ async fn launch(
     session: Uuid,
     seat: &str,
 ) -> anyhow::Result<i64> {
-    handle.ensure_session_exists(&session.to_string()).await?;
+    handle
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     let mut new = NewLaunch::new("herdr", "/tmp/closed-mail-test");
     new.run_id = Some(run.to_owned());
     new.session_uuid = Some(session);
     new.seat = Some(seat.to_owned());
-    Ok(handle.insert_launch(&new).await?)
+    Ok(handle.launch().insert_launch(&new).await?)
 }
 
 #[tokio::test]
@@ -40,6 +45,7 @@ async fn closed_fleet_seat_refuses_raw_mail_and_questions_and_routes_task_to_suc
         "tasks": {"P1": {"seat": "worker-P1", "session": successor.to_string(), "files": ["src/owned.rs"]}}}),
     )?;
     let fleet = handle
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: "/tmp/closed-mail-test".into(),
@@ -52,14 +58,17 @@ async fn closed_fleet_seat_refuses_raw_mail_and_questions_and_routes_task_to_suc
     let pending = Uuid::new_v4();
     assert!(
         handle
+            .launch()
             .insert_message(pending, old, Some(sender), "before closure\nFull body")
             .await?
             .is_some()
     );
     handle
+        .launch()
         .record_launch_closed(old_launch, "complete", Some(true))
         .await?;
     let closed = handle
+        .launch()
         .closed_fleet_seat(old)
         .await?
         .ok_or_else(|| anyhow::anyhow!("closed seat not detected"))?;
@@ -69,20 +78,23 @@ async fn closed_fleet_seat_refuses_raw_mail_and_questions_and_routes_task_to_suc
     for from in [Some(sender), None] {
         assert!(
             handle
+                .launch()
                 .insert_message(Uuid::new_v4(), old, from, "must not queue")
                 .await?
                 .is_none()
         );
         assert_closed_audits(&handle, sender, old, 1).await?;
     }
-    assert!(!handle.tell_sender_not_delivered(pending).await?);
+    assert!(!handle.launch().tell_sender_not_delivered(pending).await?);
     age_message(&handle, pending).await?;
     let cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
     handle
+        .launch()
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert!(
         handle
+            .launch()
             .fetch_for_session_with_activity(sender)
             .await?
             .inbox
@@ -103,10 +115,19 @@ async fn closed_fleet_seat_refuses_raw_mail_and_questions_and_routes_task_to_suc
     )
     .await;
     assert!(asked.is_err_and(|err| err.to_string().contains("closed")));
-    assert!(handle.open_questions_in_run(&run).await?.is_empty());
+    assert!(
+        handle
+            .launch()
+            .open_questions_in_run(&run)
+            .await?
+            .is_empty()
+    );
     for address in ["task:P1", "owner:src/owned.rs"] {
         assert_eq!(
-            handle.resolve_fleet_target(sender, address).await?,
+            handle
+                .launch()
+                .resolve_fleet_target(sender, address)
+                .await?,
             Some(FleetTarget::Seat {
                 session: successor,
                 task: Some("P1".into())
@@ -114,6 +135,7 @@ async fn closed_fleet_seat_refuses_raw_mail_and_questions_and_routes_task_to_suc
         );
     }
     let delivered = handle
+        .launch()
         .insert_message(Uuid::new_v4(), successor, Some(sender), "successor")
         .await?;
     assert!(delivered.is_some());
@@ -133,6 +155,7 @@ async fn undelivered_open_seat_notice_names_task_and_first_line_once() -> anyhow
         json!({"tasks": {"P1": {"seat": "worker-P1", "session": recipient.to_string()}}}),
     )?;
     let fleet = handle
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: "/tmp/closed-mail-test".into(),
@@ -144,6 +167,7 @@ async fn undelivered_open_seat_notice_names_task_and_first_line_once() -> anyhow
     seed_fleet_running(&handle, fleet.fleet_uuid, &run).await?;
     let message = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(
             message,
             recipient,
@@ -153,13 +177,18 @@ async fn undelivered_open_seat_notice_names_task_and_first_line_once() -> anyhow
         .await?;
     age_message(&handle, message).await?;
     let cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
-    assert_eq!(handle.tell_inactive_senders(cutoff).await?, 1);
-    assert_eq!(handle.tell_inactive_senders(cutoff).await?, 0);
+    assert_eq!(handle.launch().tell_inactive_senders(cutoff).await?, 1);
+    assert_eq!(handle.launch().tell_inactive_senders(cutoff).await?, 0);
     handle
+        .launch()
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
-    assert!(!handle.tell_sender_not_delivered(message).await?);
-    let inbox = handle.fetch_for_session_with_activity(sender).await?.inbox;
+    assert!(!handle.launch().tell_sender_not_delivered(message).await?);
+    let inbox = handle
+        .launch()
+        .fetch_for_session_with_activity(sender)
+        .await?
+        .inbox;
     assert_eq!(inbox.len(), 1);
     for expected in [
         "task P1",
@@ -185,6 +214,7 @@ async fn fixture() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, String
     let handle = PersistHandle::connect(&db.database_url).await?;
     let run = format!("closed-mail-{}", Uuid::new_v4());
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.clone(),
             project_path: None,
@@ -210,6 +240,7 @@ async fn a_seat_resumed_after_its_launch_closed_is_open_again() -> anyhow::Resul
         "tasks": {"P1": {"seat": "worker-P1", "session": worker.to_string(), "files": ["src/a.rs"]}}
     }))?;
     let fleet = handle
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: "/tmp/closed-mail-test".into(),
@@ -221,13 +252,15 @@ async fn a_seat_resumed_after_its_launch_closed_is_open_again() -> anyhow::Resul
     seed_fleet_running(&handle, fleet.fleet_uuid, &run).await?;
     for closed in [lead_launch, worker_launch] {
         handle
+            .launch()
             .record_launch_closed(closed, "process exited", Some(true))
             .await?;
     }
-    let refused = handle.closed_fleet_seat(worker).await?;
+    let refused = handle.launch().closed_fleet_seat(worker).await?;
     assert_eq!(refused.as_ref().and_then(|seat| seat.coordinator), None);
     assert!(
         handle
+            .launch()
             .insert_message(Uuid::new_v4(), lead, Some(sender), "before resume")
             .await?
             .is_none()
@@ -236,14 +269,15 @@ async fn a_seat_resumed_after_its_launch_closed_is_open_again() -> anyhow::Resul
         .bind(lead)
         .execute(handle.pool())
         .await?;
-    assert_eq!(handle.closed_fleet_seat(lead).await?, None);
+    assert_eq!(handle.launch().closed_fleet_seat(lead).await?, None);
     assert!(
         handle
+            .launch()
             .insert_message(Uuid::new_v4(), lead, Some(sender), "after resume")
             .await?
             .is_some()
     );
-    let routed = handle.closed_fleet_seat(worker).await?;
+    let routed = handle.launch().closed_fleet_seat(worker).await?;
     assert_eq!(routed.and_then(|seat| seat.coordinator), Some(lead));
     db.cleanup().await?;
     Ok(())
@@ -295,14 +329,17 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
     launch(&handle, &run, sender, "coordinator").await?;
     let old = launch(&handle, &run, recipient, "worker").await?;
     handle
+        .launch()
         .record_launch_closed(old, "complete", Some(true))
         .await?;
     let recipient_id = handle
+        .launch()
         .resolve_session_core(recipient)
         .await?
         .ok_or_else(|| anyhow::anyhow!("recipient missing"))?
         .0;
     let thread = handle
+        .launch()
         .create_thread(Uuid::new_v4(), "guarded thread", None, None)
         .await?;
     let items = vec![crate::store::persistence::mailbox::ContextItem {
@@ -313,6 +350,7 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
     for (attempt, context) in [&[][..], items.as_slice()].into_iter().enumerate() {
         assert!(
             handle
+                .launch()
                 .insert_message_with_context(
                     Uuid::new_v4(),
                     recipient,
@@ -327,6 +365,7 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
         let id = Uuid::new_v4();
         assert!(
             handle
+                .launch()
                 .insert_threaded_message_with_context(
                     crate::store::persistence::mailbox::ThreadedMessageInsert {
                         message_uuid: id,
@@ -341,12 +380,25 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
                 .await?
                 .is_none()
         );
-        assert!(handle.fetch_message_core_by_uuid(id).await?.is_none());
+        assert!(
+            handle
+                .launch()
+                .fetch_message_core_by_uuid(id)
+                .await?
+                .is_none()
+        );
         assert_closed_audits(&handle, sender, recipient, attempt + 1).await?;
     }
-    assert!(handle.fetch_thread_messages(thread.id).await?.is_empty());
     assert!(
         handle
+            .launch()
+            .fetch_thread_messages(thread.id)
+            .await?
+            .is_empty()
+    );
+    assert!(
+        handle
+            .launch()
             .insert_threaded_message_with_context(
                 crate::store::persistence::mailbox::ThreadedMessageInsert {
                     message_uuid: Uuid::new_v4(),
@@ -365,6 +417,7 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
     launch(&handle, &run, recipient, "worker-reopened").await?;
     assert!(
         handle
+            .launch()
             .insert_message_with_context(
                 Uuid::new_v4(),
                 recipient,

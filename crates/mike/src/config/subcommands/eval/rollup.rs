@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result};
 use chrono::{Duration, NaiveDate, Utc};
 
@@ -23,6 +24,7 @@ pub(super) async fn rollup(args: EvalRollupArgs, cli: CliOverrides) -> Result<()
     };
     for day in days(&args) {
         let report = persist
+            .eval()
             .run_eval_rollup(RollupRequest {
                 for_day: day,
                 mode,
@@ -51,6 +53,7 @@ pub(super) async fn rollup(args: EvalRollupArgs, cli: CliOverrides) -> Result<()
         }
         if args.verbose && !report.executed {
             let rows = persist
+                .eval()
                 .eval_rates_adhoc(Family::Accuracy, None, crate::eval_metrics::day_start(day))
                 .await?;
             print_rows(&rows, false)?;
@@ -115,6 +118,7 @@ pub(super) async fn rates(args: EvalRatesArgs, cli: CliOverrides) -> Result<()> 
     let rows = if adhoc {
         let end = args.to.unwrap_or_else(Utc::now);
         persist
+            .eval()
             .eval_rates_adhoc(family(&args.family), args.from, end)
             .await?
     } else {
@@ -127,7 +131,7 @@ pub(super) async fn rates(args: EvalRatesArgs, cli: CliOverrides) -> Result<()> 
             limit: 1_000,
             ..RatesFilter::default()
         };
-        persist.list_eval_rates(&filter).await?.0
+        persist.eval().list_eval_rates(&filter).await?.0
     };
     let kept: Vec<EvalRateRow> = rows.into_iter().filter(|r| keep(r, &args)).collect();
     print_rows(&kept, args.json)

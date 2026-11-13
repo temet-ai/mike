@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -159,7 +160,7 @@ pub(crate) async fn get_eval_rates(
         return unavailable();
     };
     let filter = rates_filter(query, limit, offset);
-    let rollup = match persist.newest_eval_rollup().await {
+    let rollup = match persist.eval().newest_eval_rollup().await {
         Ok(rollup) => rollup,
         Err(e) => {
             return error(
@@ -168,7 +169,7 @@ pub(crate) async fn get_eval_rates(
             );
         }
     };
-    match persist.list_eval_rates(&filter).await {
+    match persist.eval().list_eval_rates(&filter).await {
         Ok((rows, total)) => Json(RatesPage {
             rollup,
             total,
@@ -221,7 +222,7 @@ pub(crate) async fn list_eval_alarms(
         limit,
         offset,
     };
-    match persist.list_eval_alarms(&filter).await {
+    match persist.eval().list_eval_alarms(&filter).await {
         Ok((alarms, total)) => Json(AlarmsPage {
             total,
             limit,
@@ -252,6 +253,7 @@ pub(crate) async fn acknowledge_eval_alarm(
         return unavailable();
     };
     match persist
+        .eval()
         .acknowledge_eval_alarm(id, &body.note, body.replace_note)
         .await
     {

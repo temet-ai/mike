@@ -1,15 +1,15 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::rollup::{Family, RollupCtx};
 use super::types::EvalRateRow;
 use super::{
     sql_accuracy, sql_base_rate, sql_guard_calibration, sql_label_mix, sql_steer_calibration,
 };
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn eval_rates_adhoc(
-        &self,
+        self,
         family: Family,
         window_start: Option<DateTime<Utc>>,
         window_end: DateTime<Utc>,

@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SeatMemoryRefresh {
@@ -7,8 +7,8 @@ pub struct SeatMemoryRefresh {
     pub removed: i64,
 }
 
-impl PersistHandle {
-    pub async fn seat_memory_generation(&self) -> Result<i64, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub async fn seat_memory_generation(self) -> Result<i64, PersistError> {
         crate::metrics::time_db("seat_memory_generation", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"
@@ -22,7 +22,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn refresh_seat_memory_items(&self) -> Result<SeatMemoryRefresh, PersistError> {
+    pub async fn refresh_seat_memory_items(self) -> Result<SeatMemoryRefresh, PersistError> {
         crate::metrics::time_db("refresh_seat_memory_items", async move {
             let row = sqlx::query_file!("src/store/persistence/seat_memory/refresh.sql")
                 .fetch_one(self.pool())

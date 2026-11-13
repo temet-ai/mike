@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
@@ -100,8 +101,13 @@ impl Seated {
     }
 
     pub async fn of_run(persist: &PersistHandle, run: &str, def: &FleetDefinition) -> Self {
-        let events = persist.fleet_events_since(run, 0).await.unwrap_or_default();
+        let events = persist
+            .fleet()
+            .fleet_events_since(run, 0)
+            .await
+            .unwrap_or_default();
         let launches = persist
+            .fleet()
             .unsettled_fleet_launches(run)
             .await
             .unwrap_or_default();

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use bytes::Bytes;
 use chrono::Utc;
 use serde_json::json;
@@ -85,25 +86,33 @@ async fn a_running_job_with_an_output_file_is_listed_and_closed_once() -> anyhow
     )
     .await?;
 
-    let open = handle.open_background_jobs(session).await?;
+    let open = handle.launch().open_background_jobs(session).await?;
     assert_eq!(open.len(), 1, "only a bash job with an output file is read");
     assert_eq!(open[0].output_path, "/tmp/x/job1.output");
 
     let at = Utc::now() - chrono::Duration::minutes(5);
     assert_eq!(
         handle
+            .launch()
             .close_job_from_its_output(open[0].id, KILLED, at)
             .await?,
         1
     );
     assert_eq!(
         handle
+            .launch()
             .close_job_from_its_output(open[0].id, KILLED, at)
             .await?,
         0,
         "a job that is no longer running is left as it is"
     );
-    assert!(handle.open_background_jobs(session).await?.is_empty());
+    assert!(
+        handle
+            .launch()
+            .open_background_jobs(session)
+            .await?
+            .is_empty()
+    );
     let (state, summary): (String, Option<String>) =
         sqlx::query_as("SELECT state, summary FROM agents.work_items WHERE id = $1")
             .bind(open[0].id)
@@ -112,7 +121,7 @@ async fn a_running_job_with_an_output_file_is_listed_and_closed_once() -> anyhow
     assert_eq!(state, "killed");
     assert!(summary.is_some_and(|s| s.contains("output file")));
 
-    assert!(handle.open_background_jobs(-1).await?.is_empty());
+    assert!(handle.launch().open_background_jobs(-1).await?.is_empty());
     db.cleanup().await?;
     Ok(())
 }

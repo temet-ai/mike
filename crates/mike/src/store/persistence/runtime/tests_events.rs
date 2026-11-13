@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -30,10 +31,11 @@ async fn events_raw_payloads_and_future_metadata_roundtrip_without_requests() ->
         envelope.ingestion_id = Uuid::new_v4();
         let event = RuntimeObservation::new(envelope.clone(), raw)?;
         assert_eq!(
-            handle.append_runtime_observation(&event).await?,
+            handle.runtime().append_runtime_observation(&event).await?,
             RuntimeWriteOutcome::Inserted
         );
         let restored = handle
+            .runtime()
             .runtime_observation(namespace.id, envelope.ingestion_id)
             .await?;
         assert_eq!(restored, Some(event));
@@ -54,26 +56,27 @@ async fn event_replay_is_idempotent_and_changed_bytes_or_metadata_conflict() -> 
     };
     let event = observation(namespace.id)?;
     assert_eq!(
-        handle.append_runtime_observation(&event).await?,
+        handle.runtime().append_runtime_observation(&event).await?,
         RuntimeWriteOutcome::Inserted
     );
     assert_eq!(
-        handle.append_runtime_observation(&event).await?,
+        handle.runtime().append_runtime_observation(&event).await?,
         RuntimeWriteOutcome::Unchanged
     );
     let mut changed = event.clone();
     changed.raw_payload.push(b' ');
     assert!(matches!(
-        handle.append_runtime_observation(&changed).await,
+        handle.runtime().append_runtime_observation(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     changed = event.clone();
     changed.envelope.source.completeness = "complete".into();
     assert!(matches!(
-        handle.append_runtime_observation(&changed).await,
+        handle.runtime().append_runtime_observation(&changed).await,
         Err(PersistError::DataInvariant(_))
     ));
     let persisted = handle
+        .runtime()
         .runtime_observation(namespace.id, event.envelope.ingestion_id)
         .await?;
     assert_eq!(persisted, Some(event));
@@ -91,17 +94,20 @@ async fn identical_item_ids_remain_distinct_observations_and_namespaces() -> any
     let mut second = first.clone();
     second.envelope.ingestion_id = Uuid::new_v4();
     second.envelope.source_cursor = Some("next-update".into());
-    handle.append_runtime_observation(&first).await?;
+    handle.runtime().append_runtime_observation(&first).await?;
     assert_eq!(
-        handle.append_runtime_observation(&second).await?,
+        handle.runtime().append_runtime_observation(&second).await?,
         RuntimeWriteOutcome::Inserted
     );
     let second_namespace = namespace();
-    handle.register_runtime_namespace(&second_namespace).await?;
+    handle
+        .runtime()
+        .register_runtime_namespace(&second_namespace)
+        .await?;
     let mut scoped = first.clone();
     scoped.envelope.namespace_id = second_namespace.id;
     assert_eq!(
-        handle.append_runtime_observation(&scoped).await?,
+        handle.runtime().append_runtime_observation(&scoped).await?,
         RuntimeWriteOutcome::Inserted
     );
     let count: i64 =
@@ -122,8 +128,8 @@ async fn concurrent_identical_event_replays_insert_once() -> anyhow::Result<()> 
     };
     let event = observation(namespace.id)?;
     let (first, second) = tokio::join!(
-        handle.append_runtime_observation(&event),
-        handle.append_runtime_observation(&event),
+        handle.runtime().append_runtime_observation(&event),
+        handle.runtime().append_runtime_observation(&event),
     );
     let outcomes = [first?, second?];
     assert!(outcomes.contains(&RuntimeWriteOutcome::Inserted));
@@ -140,17 +146,18 @@ async fn observation_missing_namespace_and_invalid_projection_fail() -> anyhow::
     };
     let missing = observation(Uuid::new_v4())?;
     assert!(matches!(
-        handle.append_runtime_observation(&missing).await,
+        handle.runtime().append_runtime_observation(&missing).await,
         Err(PersistError::Database(_))
     ));
     let mut invalid = observation(namespace.id)?;
     invalid.parsed_payload = None;
     assert!(matches!(
-        handle.append_runtime_observation(&invalid).await,
+        handle.runtime().append_runtime_observation(&invalid).await,
         Err(PersistError::DataInvariant(_))
     ));
     assert!(
         handle
+            .runtime()
             .runtime_observation(namespace.id, invalid.envelope.ingestion_id)
             .await?
             .is_none()

@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 use mike::store::test_support::{TestDb, TestDbHandle, seed_project, seed_session_turns};
 use serde_json::Value;
@@ -125,6 +126,7 @@ impl Fixture {
     pub async fn search(&self, query: KnowledgeQuery) -> anyhow::Result<Vec<Value>> {
         let found = self
             .handle
+            .knowledge()
             .search_project_knowledge(&KnowledgeQuery {
                 project: self.path.clone(),
                 ..query

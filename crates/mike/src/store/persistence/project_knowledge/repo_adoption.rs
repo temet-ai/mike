@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use super::locations::upsert_location;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub(crate) struct RepoLocationAdoption<'a> {
     pub(crate) session: Uuid,
@@ -16,9 +16,9 @@ pub(crate) struct MachineLocationRoot {
     pub(crate) project_id: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn machine_location_roots(
-        &self,
+        self,
         machine: Uuid,
     ) -> Result<Vec<MachineLocationRoot>, PersistError> {
         Ok(sqlx::query_as!(
@@ -33,10 +33,7 @@ impl PersistHandle {
         .await?)
     }
 
-    pub(crate) async fn project_id_for_path(
-        &self,
-        path: &str,
-    ) -> Result<Option<i64>, PersistError> {
+    pub(crate) async fn project_id_for_path(self, path: &str) -> Result<Option<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT COALESCE(merged_into_id, id) AS "project_id!" FROM projects.projects
              WHERE project_path = rtrim($1, '/')"#,
@@ -47,7 +44,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn adopt_repo_location(
-        &self,
+        self,
         adoption: &RepoLocationAdoption<'_>,
     ) -> Result<Option<Uuid>, PersistError> {
         let unbound = sqlx::query_scalar!(
@@ -70,7 +67,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn add_checkout_location(
-        &self,
+        self,
         machine: Uuid,
         machine_name: &str,
         checkout_root: &str,
@@ -91,7 +88,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn set_location_origin(
-        &self,
+        self,
         location: Uuid,
         origin: &str,
     ) -> Result<(), PersistError> {
@@ -107,7 +104,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn project_ids_for_origin(
-        &self,
+        self,
         origin: &str,
     ) -> Result<Vec<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
@@ -121,7 +118,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn project_id_enclosing(
-        &self,
+        self,
         machine: Uuid,
         path: &str,
     ) -> Result<Option<i64>, PersistError> {

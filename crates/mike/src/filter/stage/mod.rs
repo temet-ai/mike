@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 #[cfg(test)]
 mod decline_tests;
 #[cfg(test)]
@@ -128,7 +129,11 @@ async fn was_filtered_before(ctx: &StageContext<'_>) -> bool {
     else {
         return false;
     };
-    match persist.session_system_prompt_is_filtered(session).await {
+    match persist
+        .proxy()
+        .session_system_prompt_is_filtered(session)
+        .await
+    {
         Ok(filtered) => filtered,
         Err(err) => {
             tracing::warn!(session_id = %ctx.session_id, error = %err, "filter: could not read whether this session's system prompt was rewritten before the restart");

@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
@@ -16,6 +18,7 @@ pub(in crate::launch::fleet) async fn running_fleet(
     run: &str,
 ) -> anyhow::Result<Uuid> {
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.into(),
             project_path: Some(def.repo.clone()),
@@ -25,6 +28,7 @@ pub(in crate::launch::fleet) async fn running_fleet(
         })
         .await?;
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: format!("managed-test-{}", Uuid::new_v4()),
             project_path: def.repo.clone(),

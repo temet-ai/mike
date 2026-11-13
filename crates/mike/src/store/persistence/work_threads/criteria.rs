@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ThreadCriteria {
@@ -67,9 +67,9 @@ fn non_empty(text: Option<String>) -> Option<String> {
     text.filter(|t| !t.trim().is_empty())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn fetch_thread_criteria_for_session(
-        &self,
+        self,
         session_db_id: i64,
         accumulated_ask: &str,
     ) -> Result<Option<ThreadCriteria>, PersistError> {
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     async fn linked_thread_criteria(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<ThreadCriteria>, PersistError> {
         let row = sqlx::query!(
@@ -119,7 +119,7 @@ impl PersistHandle {
     }
 
     async fn project_threads_with_criteria(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<SlugCriteria>, PersistError> {
         let rows = sqlx::query!(

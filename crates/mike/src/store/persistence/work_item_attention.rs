@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use super::PersistError;
-use super::PersistHandle;
 use crate::work_items::attention::Attention;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,9 +166,9 @@ async fn setting_text(pool: &PgPool, key: &str) -> Result<Option<String>, Persis
     Ok(value.and_then(|v| v.as_str().map(str::to_string)))
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn record_work_item_attentions(
-        &self,
+        self,
         items: &[(i64, &Attention)],
     ) -> Result<Vec<(AttentionKey, AttentionRecord)>, PersistError> {
         if items.is_empty() {
@@ -184,7 +183,7 @@ impl PersistHandle {
 
     #[cfg(test)]
     pub(crate) async fn record_work_item_attention(
-        &self,
+        self,
         session_db_id: i64,
         item: &Attention,
     ) -> Result<Option<AttentionRecord>, PersistError> {
@@ -195,7 +194,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn deliver_work_item_attention(
-        &self,
+        self,
         id: i64,
         message_uuid: uuid::Uuid,
         body: &str,
@@ -204,7 +203,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn note_work_item_attention_delivery_failed(
-        &self,
+        self,
         id: i64,
         give_up_after: i32,
         failure: &str,
@@ -213,7 +212,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn settle_work_item_attention(
-        &self,
+        self,
         id: i64,
         disposition: &str,
         reason: &str,
@@ -221,7 +220,7 @@ impl PersistHandle {
         settle_attention(&self.pool, id, disposition, reason).await
     }
 
-    pub(crate) async fn setting_text(&self, key: &str) -> Result<Option<String>, PersistError> {
+    pub(crate) async fn setting_text(self, key: &str) -> Result<Option<String>, PersistError> {
         setting_text(&self.pool, key).await
     }
 }

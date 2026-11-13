@@ -1,5 +1,6 @@
 use super::ProposerDeps;
 use crate::store::persistence::lessons::maintenance_budget::{MaintenancePass, RefusalReason};
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub(super) enum Reservation {
     Reserved,
@@ -13,7 +14,12 @@ pub(super) async fn reserve(deps: &ProposerDeps<'_>, pass: MaintenancePass) -> R
         return Reservation::Refused;
     }
     let cap = deps.settings.maintenance_max_per_day;
-    match deps.persist.reserve_lesson_maintenance_call(cap).await {
+    match deps
+        .persist
+        .lessons()
+        .reserve_lesson_maintenance_call(cap)
+        .await
+    {
         Ok(true) => Reservation::Reserved,
         Ok(false) => {
             note_refusal(deps, pass, RefusalReason::DailyBudget).await;
@@ -34,6 +40,7 @@ pub(super) async fn note_refusal(
     let cap = deps.settings.maintenance_max_per_day;
     match deps
         .persist
+        .lessons()
         .record_maintenance_refusal(pass, reason, cap)
         .await
     {

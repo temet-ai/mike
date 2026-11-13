@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -35,6 +36,7 @@ async fn mark_used_when_the_session_reads_a_returned_reference_marks_it_used() -
 
     let pass = fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -55,6 +57,7 @@ async fn mark_used_when_the_session_opens_a_returned_turn_marks_it_used() -> any
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -73,6 +76,7 @@ async fn mark_used_when_a_read_names_a_reference_that_was_not_returned_leaves_it
 
     let pass = fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -92,6 +96,7 @@ async fn mark_used_when_the_read_is_in_the_same_request_as_the_search_leaves_it_
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -112,6 +117,7 @@ async fn mark_used_when_the_final_reply_names_a_reference_marks_it_used() -> any
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -130,6 +136,7 @@ async fn mark_used_when_the_next_five_turns_have_closed_finalises_the_event() ->
 
     let pass = fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -148,6 +155,7 @@ async fn mark_used_when_the_read_comes_after_the_window_closed_leaves_it_unused(
     let event = search_in_request(&fixture, 1, "cache rules", &["lesson:a"]).await?;
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
     assert!(fixture.used(event).await?.1);
@@ -157,6 +165,7 @@ async fn mark_used_when_the_read_comes_after_the_window_closed_leaves_it_unused(
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -171,6 +180,7 @@ async fn mark_used_when_fewer_turns_follow_keeps_the_event_open_for_a_later_read
     let event = search_in_request(&fixture, 1, "cache rules", &["lesson:a"]).await?;
     let first = fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
     assert_eq!(first.finalised, 0);
@@ -180,6 +190,7 @@ async fn mark_used_when_fewer_turns_follow_keeps_the_event_open_for_a_later_read
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -197,6 +208,7 @@ async fn mark_used_when_an_open_event_is_older_than_the_limit_finalises_it() -> 
 
     let pass = fixture
         .handle
+        .knowledge()
         .mark_used_within(USED_BATCH, WINDOW_TURNS, -1.0)
         .await?;
 
@@ -274,6 +286,7 @@ async fn mark_used_when_the_session_opens_the_session_a_returned_turn_came_from_
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -298,6 +311,7 @@ async fn mark_used_when_a_later_call_names_the_source_session_in_session_id_mark
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -327,6 +341,7 @@ async fn mark_used_when_the_session_opens_the_session_of_a_returned_verdict_mark
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -357,6 +372,7 @@ async fn mark_used_when_a_call_names_an_unrelated_session_marks_nothing() -> any
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -393,6 +409,7 @@ async fn mark_used_when_a_call_names_the_calling_session_marks_nothing() -> anyh
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -414,6 +431,7 @@ async fn mark_used_when_a_read_names_the_bare_id_or_an_eight_character_prefix_ma
 
         fixture
             .handle
+            .knowledge()
             .mark_used_search_references(USED_BATCH)
             .await?;
 
@@ -435,6 +453,7 @@ async fn mark_used_when_a_read_names_a_prefix_shorter_than_eight_characters_mark
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 
@@ -466,6 +485,7 @@ async fn mark_used_when_another_session_reads_the_reference_leaves_it_unused() -
 
     fixture
         .handle
+        .knowledge()
         .mark_used_search_references(USED_BATCH)
         .await?;
 

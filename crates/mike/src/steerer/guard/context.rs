@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Utc};
 
 use super::gates::{PhraseGates, phrase_gates};
@@ -115,6 +116,7 @@ pub async fn load_context(req: &ContextRequest<'_>) -> Result<TurnContext, Dossi
     let facts = inputs.steering_facts.take();
     let last_tool = req
         .persist
+        .steerer()
         .last_tool_of_turn(req.turn_id)
         .await
         .ok()

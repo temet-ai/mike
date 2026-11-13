@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::LabelSetItem;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,9 +12,9 @@ pub struct LabelSetFilter {
     pub holdout_batch: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn load_eval_label_set(
-        &self,
+        self,
         f: &LabelSetFilter,
     ) -> Result<Vec<LabelSetItem>, PersistError> {
         crate::metrics::time_db("load_eval_label_set", async move {

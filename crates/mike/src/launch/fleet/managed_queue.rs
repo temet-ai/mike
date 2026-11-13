@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -147,7 +148,12 @@ pub(super) fn executing(context: &Context) {
         return;
     };
     context.tracker.spawn(async move {
-        if let Err(err) = identity.persist.mark_tree_check_executing(receipt).await {
+        if let Err(err) = identity
+            .persist
+            .fleet()
+            .mark_tree_check_executing(receipt)
+            .await
+        {
             tracing::warn!(receipt, error = %err, "fleet: execution start was not recorded");
         }
     });
@@ -245,7 +251,7 @@ pub(super) fn measured(command: &str) -> Option<Duration> {
 }
 
 pub(super) async fn measure(persist: &PersistHandle, command: &str) -> Option<Duration> {
-    match persist.measured_tree_check_seconds(command).await {
+    match persist.fleet().measured_tree_check_seconds(command).await {
         Ok(Some(seconds)) if seconds.is_finite() && seconds > 0.0 => {
             let duration = Duration::from_secs_f64(seconds);
             measurements().insert(command.trim().to_string(), duration);

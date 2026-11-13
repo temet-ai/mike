@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::change_record::{SeenPath, ShellRun, ToolCallNaming};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EditCall {
@@ -34,9 +34,9 @@ pub struct NamedShellCall {
     pub finished: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn shell_calls_naming_path(
-        &self,
+        self,
         checkout: &str,
         (relative, absolute): (&str, &str),
         from: DateTime<Utc>,
@@ -60,7 +60,7 @@ impl PersistHandle {
     }
 
     pub async fn paths_seen_by(
-        &self,
+        self,
         session: i64,
         since: DateTime<Utc>,
     ) -> Result<Vec<SeenPath>, PersistError> {
@@ -79,7 +79,7 @@ impl PersistHandle {
     }
 
     pub async fn tool_calls_naming_path(
-        &self,
+        self,
         path: &str,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
@@ -100,7 +100,7 @@ impl PersistHandle {
     }
 
     pub async fn shell_commands_running(
-        &self,
+        self,
         checkout: &str,
         from: DateTime<Utc>,
         to: DateTime<Utc>,

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GateWindow<'a> {
@@ -51,8 +51,8 @@ pub struct VerifierPairs {
     pub guard_usd: f64,
 }
 
-impl PersistHandle {
-    pub async fn fetch_gate_counts(&self, w: &GateWindow<'_>) -> Result<GateCounts, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn fetch_gate_counts(self, w: &GateWindow<'_>) -> Result<GateCounts, PersistError> {
         crate::metrics::time_db("fetch_gate_counts", async move {
             Ok(match w.bundle_id {
                 Some(bundle_id) => {
@@ -86,7 +86,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_live_precision_window(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         n: i64,
@@ -120,7 +120,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_verifier_pairs(
-        &self,
+        self,
         verifier_id: i64,
         guard_id: i64,
         since: DateTime<Utc>,
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_wake_counts(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         from: DateTime<Utc>,

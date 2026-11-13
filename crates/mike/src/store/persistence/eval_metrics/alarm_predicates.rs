@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 pub(crate) const GOLD_BY_AGENT_PATTERN: &str =
     r#"(curl|wget|xh|http)\s[^\n]*(localhost|127\.0\.0\.1|\[::1\])[^\s'"]*/api/eval/labels"#;
@@ -40,9 +40,9 @@ pub fn budget_setting_keys() -> Vec<String> {
     keys
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn eval_refusals_at(
-        &self,
+        self,
         at: DateTime<Utc>,
         min_refused: i64,
         min_share: f64,
@@ -54,7 +54,7 @@ impl PersistHandle {
     }
 
     pub(super) async fn eval_refusals_many(
-        &self,
+        self,
         ats: &[DateTime<Utc>],
         min_refused: i64,
         min_share: f64,
@@ -88,7 +88,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_ungated_changes(
-        &self,
+        self,
         roles: &[String],
         grace_hours: i64,
     ) -> Result<Vec<SubjectDetail>, PersistError> {
@@ -116,7 +116,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_gold_by_agent_at(
-        &self,
+        self,
         at: DateTime<Utc>,
     ) -> Result<Vec<SubjectDetail>, PersistError> {
         let rows = self.eval_gold_by_agent_many(&[at]).await?;
@@ -124,7 +124,7 @@ impl PersistHandle {
     }
 
     pub(super) async fn eval_gold_by_agent_many(
-        &self,
+        self,
         ats: &[DateTime<Utc>],
     ) -> Result<Vec<(DateTime<Utc>, SubjectDetail)>, PersistError> {
         crate::metrics::time_db("eval_alarm_gold_label_by_agent", async move {
@@ -151,7 +151,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn eval_last_judge_verdict_at(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
+    pub async fn eval_last_judge_verdict_at(self) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("eval_alarm_judge_verdict_count", async move {
             Ok(sqlx::query_scalar!(
                 "SELECT max(classified_at) FROM memory.operator_turns
@@ -164,7 +164,7 @@ impl PersistHandle {
     }
 
     pub async fn eval_judge_call_outcomes(
-        &self,
+        self,
         hours: i64,
     ) -> Result<serde_json::Value, PersistError> {
         let hours = i32::try_from(hours).unwrap_or(i32::MAX);

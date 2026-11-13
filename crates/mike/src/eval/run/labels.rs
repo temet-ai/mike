@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 
@@ -37,7 +38,7 @@ pub(crate) async fn load(
     filter: LabelSetFilter,
     limit: Option<usize>,
 ) -> anyhow::Result<LoadedSet> {
-    let mut items = persist.load_eval_label_set(&filter).await?;
+    let mut items = persist.eval().load_eval_label_set(&filter).await?;
     if let Some(limit) = limit {
         items.truncate(limit);
     }

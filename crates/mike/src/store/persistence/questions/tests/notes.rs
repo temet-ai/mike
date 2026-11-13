@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -16,6 +17,7 @@ async fn a_question_about_a_note_is_listed_with_the_note_and_survives_its_deleti
     let tags = vec!["fleet:f1".to_owned(), "task:T5".to_owned()];
     let note = f
         .handle
+        .launch()
         .create_session_note(
             author,
             NewSessionNote {
@@ -29,7 +31,7 @@ async fn a_question_about_a_note_is_listed_with_the_note_and_survives_its_deleti
         )
         .await?;
 
-    let reference = f.handle.note_ref(note.note_uuid).await?;
+    let reference = f.handle.launch().note_ref(note.note_uuid).await?;
     let Some(reference) = reference else {
         anyhow::bail!("the note was not found");
     };
@@ -37,25 +39,38 @@ async fn a_question_about_a_note_is_listed_with_the_note_and_survives_its_deleti
     assert_eq!(reference.title, "Brief, task T5 (version 3)");
     assert_eq!(reference.version, Some(3));
     assert_eq!(reference.tags, tags);
-    assert!(f.handle.note_ref(Uuid::new_v4()).await?.is_none());
+    assert!(f.handle.launch().note_ref(Uuid::new_v4()).await?.is_none());
 
     let asked = f
         .handle
+        .launch()
         .ask_question(&AskedQuestion {
             about_note: Some(note.note_uuid),
             ..question(asker, author, "is the file list right?")
         })
         .await?;
-    let about = f.handle.questions_about_note(note.note_uuid).await?;
+    let about = f
+        .handle
+        .launch()
+        .questions_about_note(note.note_uuid)
+        .await?;
     assert_eq!(about.len(), 1);
     assert_eq!(about[0].question_uuid, asked.question_uuid);
     assert_eq!(about[0].about_note, Some(note.note_uuid));
 
-    f.handle.delete_session_note(note.note_uuid).await?;
-    let kept = f.handle.question_by_uuid(asked.question_uuid).await?;
+    f.handle
+        .launch()
+        .delete_session_note(note.note_uuid)
+        .await?;
+    let kept = f
+        .handle
+        .launch()
+        .question_by_uuid(asked.question_uuid)
+        .await?;
     assert!(kept.is_some_and(|q| q.about_note.is_none()));
     assert!(
         f.handle
+            .launch()
             .questions_about_note(note.note_uuid)
             .await?
             .is_empty()

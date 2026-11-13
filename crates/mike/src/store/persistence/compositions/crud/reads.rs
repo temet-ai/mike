@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 use super::{CompositionRevision, CompositionRevisionRow, CompositionRow};
 use crate::compose_prompt::PromptClassKey;
 use crate::wire::composition::{Composition, CompositionMode};
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn load_prompt_compositions(
-        &self,
+        self,
     ) -> Result<HashMap<PromptClassKey, Composition>, PersistError> {
         crate::metrics::time_db("load_prompt_compositions", async {
             let rows = sqlx::query_as!(
@@ -50,7 +50,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_composition_by_id(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<Composition>, PersistError> {
         crate::metrics::time_db("fetch_composition_by_id", async {
@@ -77,7 +77,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_composition_by_prompt_sha256(
-        &self,
+        self,
         prompt_sha256: &str,
     ) -> Result<Option<Composition>, PersistError> {
         crate::metrics::time_db("fetch_composition_by_prompt_sha256", async {
@@ -106,7 +106,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn list_composition_revisions(
-        &self,
+        self,
         composition_id: i64,
     ) -> Result<Vec<CompositionRevision>, PersistError> {
         crate::metrics::time_db("list_composition_revisions", async {

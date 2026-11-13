@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/project_knowledge/wide_pools_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -21,10 +22,12 @@ pub(super) async fn seed_unassigned_document(harness: &Harness) -> anyhow::Resul
     let handle = &harness.handle;
     seed_project(handle.pool(), SENTINEL_PROJECT_PATH).await?;
     let sentinel = handle
+        .knowledge()
         .find_knowledge_project(SENTINEL_PROJECT_PATH)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the (no project) project is missing"))?;
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: sentinel.project_uuid.to_string(),
             machine_uuid: Uuid::new_v4(),
@@ -33,6 +36,7 @@ pub(super) async fn seed_unassigned_document(harness: &Harness) -> anyhow::Resul
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: "artifacts".into(),
@@ -41,6 +45,7 @@ pub(super) async fn seed_unassigned_document(harness: &Harness) -> anyhow::Resul
         .await?;
     let body = "Delta explains how the cache stays warm".to_owned();
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             serde_json::from_value(source["source_uuid"].clone())?,
             &ScanInput {
@@ -83,15 +88,21 @@ async fn candidate_rows_with_the_no_project_setting_on_equal_the_sequential_merg
     let harness = Harness::boot().await?;
     let project = seed_project_with_documents(&harness).await?;
     let sentinel = seed_unassigned_document(&harness).await?;
-    let identity = harness.handle.resolve_knowledge_project(&project).await?;
+    let identity = harness
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(&project)
+        .await?;
     let input = query(&project);
 
     let own = harness
         .handle
+        .knowledge()
         .knowledge_candidate_rows(identity.id, &input, WANTED, None)
         .await?;
     let mut extra = harness
         .handle
+        .knowledge()
         .knowledge_candidate_rows(sentinel.id, &input, WANTED, None)
         .await?;
     extra.iter_mut().for_each(mark_outside_project);
@@ -125,7 +136,11 @@ async fn candidate_rows_with_the_no_project_setting_off_query_only_the_callers_p
         .state
         .rerank_service()
         .apply_setting("rerank.search_no_project", &json!(false));
-    let identity = harness.handle.resolve_knowledge_project(&project).await?;
+    let identity = harness
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(&project)
+        .await?;
     let input = query(&project);
     let pool = Pool {
         project: &identity,
@@ -138,7 +153,15 @@ async fn candidate_rows_with_the_no_project_setting_off_query_only_the_callers_p
     let rows = candidate_rows(&harness.state, &harness.handle, pool).await?;
 
     assert_eq!(references(&rows).len(), 3);
-    assert_eq!(harness.handle.knowledge_memos().counts_fetched().2, 0);
+    assert_eq!(
+        harness
+            .handle
+            .knowledge()
+            .knowledge_memos()
+            .counts_fetched()
+            .2,
+        0
+    );
     harness.cleanup().await
 }
 
@@ -148,7 +171,11 @@ async fn candidate_rows_for_several_searches_look_the_no_project_project_up_once
     let harness = Harness::boot().await?;
     let project = seed_project_with_documents(&harness).await?;
     seed_unassigned_document(&harness).await?;
-    let identity = harness.handle.resolve_knowledge_project(&project).await?;
+    let identity = harness
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(&project)
+        .await?;
     let input = query(&project);
 
     for _ in 0..3 {
@@ -162,6 +189,14 @@ async fn candidate_rows_for_several_searches_look_the_no_project_project_up_once
         candidate_rows(&harness.state, &harness.handle, pool).await?;
     }
 
-    assert_eq!(harness.handle.knowledge_memos().counts_fetched().2, 1);
+    assert_eq!(
+        harness
+            .handle
+            .knowledge()
+            .knowledge_memos()
+            .counts_fetched()
+            .2,
+        1
+    );
     harness.cleanup().await
 }

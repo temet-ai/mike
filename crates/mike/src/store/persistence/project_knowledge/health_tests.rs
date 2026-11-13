@@ -1,5 +1,7 @@
 use super::tests::document;
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{
     PersistHandle,
     lessons::NewLessonWrite,
@@ -10,6 +12,7 @@ use uuid::Uuid;
 
 async fn location(handle: &PersistHandle, project: &str, root: &str) -> anyhow::Result<Uuid> {
     let row = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.into(),
             machine_uuid: Uuid::new_v4(),
@@ -22,6 +25,7 @@ async fn location(handle: &PersistHandle, project: &str, root: &str) -> anyhow::
 
 async fn source(handle: &PersistHandle, location: Uuid, name: &str) -> anyhow::Result<Uuid> {
     let row = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: location,
             name: name.into(),
@@ -43,6 +47,7 @@ fn entry(health: &Value, location: Uuid) -> anyhow::Result<&Value> {
 
 async fn new_lesson(handle: &PersistHandle, project: i64, text: &str) -> anyhow::Result<Uuid> {
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project,
             kind: "warning",
@@ -79,15 +84,20 @@ async fn source_health_reports_fresh_silent_and_failed_locations() -> anyhow::Re
         generation: 0,
         documents: vec![document("Notebook evidence", "accepted")],
     };
-    handle.ingest_knowledge_scan(fresh_source, &scan).await?;
+    handle
+        .knowledge()
+        .ingest_knowledge_scan(fresh_source, &scan)
+        .await?;
     assert_eq!(
         handle
+            .knowledge()
             .record_knowledge_source_heartbeats(&[fresh_source, silent_source])
             .await?,
         2
     );
     assert_eq!(
         handle
+            .knowledge()
             .record_knowledge_source_heartbeats(&[fresh_source])
             .await?,
         0
@@ -101,10 +111,14 @@ async fn source_health_reports_fresh_silent_and_failed_locations() -> anyhow::Re
     .await?;
     let error = format!("malformed document design.md\n{}", "x".repeat(4000));
     handle
+        .knowledge()
         .record_knowledge_source_failure(failed_source, &error)
         .await?;
 
-    let health = handle.knowledge_project_health("/test/health-a").await?;
+    let health = handle
+        .knowledge()
+        .knowledge_project_health("/test/health-a")
+        .await?;
     assert_eq!(health["locations"].as_array().map(Vec::len), Some(4));
     assert!(health["as_of"].is_string());
     assert!(entry(&health, outsider).is_err());
@@ -143,9 +157,11 @@ async fn source_health_keeps_a_failure_after_a_later_successful_scan() -> anyhow
     let loc = location(&handle, "/test/health-retry", "/work/retry").await?;
     let src = source(&handle, loc, "artifacts").await?;
     handle
+        .knowledge()
         .record_knowledge_source_failure(src, "root missing")
         .await?;
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             src,
             &ScanInput {
@@ -155,6 +171,7 @@ async fn source_health_keeps_a_failure_after_a_later_successful_scan() -> anyhow
         )
         .await?;
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-retry")
         .await?;
     let row = &entry(&health, loc)?["sources"][0];
@@ -176,24 +193,28 @@ async fn source_health_rejects_unknown_sources_and_empty_failures() -> anyhow::R
     let src = source(&handle, loc, "artifacts").await?;
     assert_eq!(
         handle
+            .knowledge()
             .record_knowledge_source_heartbeats(&[Uuid::new_v4()])
             .await?,
         0
     );
     assert!(
         handle
+            .knowledge()
             .record_knowledge_source_failure(Uuid::new_v4(), "boom")
             .await
             .is_err()
     );
     assert!(
         handle
+            .knowledge()
             .record_knowledge_source_failure(src, "  \n")
             .await
             .is_err()
     );
     assert!(
         handle
+            .knowledge()
             .knowledge_project_health("/test/no-such-project")
             .await
             .is_err()
@@ -225,6 +246,7 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
     let foreign_lesson = new_lesson(&handle, other, "Another project's rule").await?;
 
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-lessons")
         .await?;
     assert_eq!(
@@ -237,6 +259,7 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
     );
 
     handle
+        .knowledge()
         .acknowledge_lesson_files(
             a,
             json!([{"lesson_uuid": first, "version": 1}, {"lesson_uuid": second, "version": 1}]),
@@ -244,11 +267,13 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
         .await?;
     assert_eq!(
         handle
+            .knowledge()
             .record_lesson_file_conflicts(b, &[first, first])
             .await?,
         1
     );
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-lessons")
         .await?;
     assert_eq!(
@@ -262,27 +287,32 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
 
     assert!(
         handle
+            .knowledge()
             .record_lesson_file_conflicts(b, &[foreign_lesson])
             .await
             .is_err()
     );
     assert!(
         handle
+            .knowledge()
             .record_lesson_file_conflicts(foreign, &[first])
             .await
             .is_err()
     );
     assert!(
         handle
+            .knowledge()
             .record_lesson_file_conflicts(Uuid::new_v4(), &[first])
             .await
             .is_err()
     );
 
     handle
+        .knowledge()
         .acknowledge_lesson_files(b, json!([{"lesson_uuid": second, "version": 1}]))
         .await?;
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-lessons")
         .await?;
     assert_eq!(
@@ -291,9 +321,11 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
     );
 
     handle
+        .knowledge()
         .acknowledge_lesson_files(b, json!([{"lesson_uuid": first, "version": 1}]))
         .await?;
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-lessons")
         .await?;
     assert_eq!(
@@ -326,9 +358,22 @@ async fn missing_root_is_recorded_once_and_ignored_for_unregistered_sources() ->
             root_path: "/roots/never-registered".into(),
         },
     ];
-    assert_eq!(handle.record_knowledge_roots_missing(&roots).await?, 1);
-    assert_eq!(handle.record_knowledge_roots_missing(&roots).await?, 0);
+    assert_eq!(
+        handle
+            .knowledge()
+            .record_knowledge_roots_missing(&roots)
+            .await?,
+        1
+    );
+    assert_eq!(
+        handle
+            .knowledge()
+            .record_knowledge_roots_missing(&roots)
+            .await?,
+        0
+    );
     let health = handle
+        .knowledge()
         .knowledge_project_health("/test/health-missing")
         .await?;
     let sources = entry(&health, loc)?["sources"]
@@ -348,6 +393,7 @@ async fn missing_root_is_recorded_once_and_ignored_for_unregistered_sources() ->
 
 async fn freshness_of(handle: &PersistHandle, project: &str) -> anyhow::Result<(Value, Value)> {
     let found = handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: project.into(),
             ..KnowledgeQuery::default()
@@ -359,6 +405,7 @@ async fn freshness_of(handle: &PersistHandle, project: &str) -> anyhow::Result<(
         .ok_or_else(|| anyhow::anyhow!("no indexed document for {project}"))?;
     let reference = item["reference"].as_str().unwrap_or_default().to_owned();
     let read = handle
+        .knowledge()
         .read_project_knowledge(Some(project), &reference)
         .await?;
     Ok((
@@ -378,6 +425,7 @@ async fn search_and_read_report_freshness_from_the_source_scan_state() -> anyhow
     let loc = location(&handle, project, "/work/freshness").await?;
     let src = source(&handle, loc, "docs").await?;
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             src,
             &ScanInput {
@@ -410,6 +458,7 @@ async fn search_and_read_report_freshness_from_the_source_scan_state() -> anyhow
     }
 
     handle
+        .knowledge()
         .record_knowledge_source_failure(src, "root vanished")
         .await?;
     let (searched, read) = freshness_of(&handle, project).await?;

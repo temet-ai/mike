@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct FilterRuleEnvelope {
@@ -110,6 +111,7 @@ pub(crate) async fn list_filter_rules(State(state): State<AppState>) -> Json<Vec
 
     let firing_stats = match state.persist() {
         Some(handle) => handle
+            .proxy()
             .fetch_filter_rule_firing_stats_all()
             .await
             .unwrap_or_else(|e| {
@@ -239,7 +241,7 @@ pub(crate) async fn patch_filter_rule(
             let mut dto = FilterRuleDto::from(&envelope.rule);
             let stats = match state.persist() {
                 Some(handle) => handle
-                    .fetch_filter_rule_firing_stats(id)
+                    .proxy().fetch_filter_rule_firing_stats(id)
                     .await
                     .unwrap_or_else(|e| {
                         tracing::warn!(

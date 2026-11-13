@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -208,7 +209,7 @@ impl Watch {
     }
 
     async fn insert(&self, events: &[crate::change_record::NewChangeEvent]) -> Option<Vec<i64>> {
-        match self.persist.insert_change_events(events).await {
+        match self.persist.fleet().insert_change_events(events).await {
             Ok(ids) => {
                 self.stats
                     .events_recorded

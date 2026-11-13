@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct DueWakeRow {
@@ -42,8 +42,8 @@ pub struct WakeFinal {
     pub expire: bool,
 }
 
-impl PersistHandle {
-    pub async fn claim_due_wakes(&self, limit: i64) -> Result<Vec<i64>, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn claim_due_wakes(self, limit: i64) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("claim_due_wakes", async move {
             Ok(sqlx::query_scalar!(
                 r#"WITH due AS (
@@ -67,7 +67,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn recover_stale_wakes(&self) -> Result<Vec<i64>, PersistError> {
+    pub async fn recover_stale_wakes(self) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("recover_stale_wakes", async move {
             Ok(sqlx::query_scalar!(
                 r#"UPDATE steering.interventions
@@ -82,7 +82,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn disable_all_pending_wakes(&self) -> Result<Vec<i64>, PersistError> {
+    pub async fn disable_all_pending_wakes(self) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("disable_all_pending_wakes", async move {
             Ok(sqlx::query_scalar!(
                 r#"UPDATE steering.interventions
@@ -97,7 +97,7 @@ impl PersistHandle {
     }
 
     pub async fn disable_pending_for_question(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
     ) -> Result<Vec<i64>, PersistError> {
@@ -119,7 +119,7 @@ impl PersistHandle {
     }
 
     pub async fn reject_pending_wake(
-        &self,
+        self,
         evaluation: uuid::Uuid,
     ) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("reject_pending_wake", async move {
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_due_wake_context(
-        &self,
+        self,
         ids: &[i64],
     ) -> Result<Vec<DueWakeRow>, PersistError> {
         if ids.is_empty() {
@@ -158,7 +158,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn claim_reach_due(&self, limit: i64) -> Result<Vec<ReachDueRow>, PersistError> {
+    pub async fn claim_reach_due(self, limit: i64) -> Result<Vec<ReachDueRow>, PersistError> {
         crate::metrics::time_db("claim_reach_due", async move {
             Ok(sqlx::query_file_as!(
                 ReachDueRow,
@@ -171,7 +171,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn finalise_wakes(&self, finals: &[WakeFinal]) -> Result<u64, PersistError> {
+    pub async fn finalise_wakes(self, finals: &[WakeFinal]) -> Result<u64, PersistError> {
         if finals.is_empty() {
             return Ok(0);
         }
@@ -197,7 +197,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn return_wakes_to_pending(&self, ids: &[i64]) -> Result<u64, PersistError> {
+    pub async fn return_wakes_to_pending(self, ids: &[i64]) -> Result<u64, PersistError> {
         if ids.is_empty() {
             return Ok(0);
         }
@@ -216,7 +216,7 @@ impl PersistHandle {
     }
 
     pub async fn write_reach_at_due(
-        &self,
+        self,
         rows: &[(i64, &'static str)],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {

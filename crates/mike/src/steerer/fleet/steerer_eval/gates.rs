@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use tracing::{debug, warn};
@@ -96,7 +97,11 @@ pub(super) async fn already_fired_for_turn(
     let (Some(turn_id), Some(ph)) = (eval_inputs.judged_turn_id, ctx.persist.as_ref()) else {
         return false;
     };
-    match ph.has_intervention_for_turn(steerer.id, turn_id).await {
+    match ph
+        .steerer()
+        .has_intervention_for_turn(steerer.id, turn_id)
+        .await
+    {
         Ok(true) => {
             log_already_fired_for_turn(target, steerer.id, turn_id);
             true

@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -126,6 +128,7 @@ impl BundleResolver {
             .collect();
         let compositions = self
             .persist
+            .proxy()
             .list_compositions_for_agents(&agent_ids)
             .await?;
         for steerer in &registry.steerers {
@@ -164,6 +167,7 @@ impl BundleResolver {
         let build = crate::change_log::current_build();
         let ensured = self
             .persist
+            .eval()
             .ensure_bundles(
                 &rows,
                 BuildOrigin {

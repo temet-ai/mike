@@ -1,9 +1,9 @@
 use super::types::{QuestionRow, STATE_OPEN, SettleKind, SettleOutcome, SettledQuestion};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn settle_question(
-        &self,
+        self,
         settled: &SettledQuestion<'_>,
     ) -> Result<SettleOutcome, PersistError> {
         let answer = settled.answer.map(str::trim).filter(|a| !a.is_empty());

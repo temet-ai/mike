@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::deliver_launch_briefs;
@@ -57,7 +58,7 @@ impl Env {
         new.brief_mode = Some(mode.to_string());
         new.brief_text = Some(text.to_string());
         new.brief_note_uuid = Some(note);
-        self.persist.insert_launch(&new).await?;
+        self.persist.launch().insert_launch(&new).await?;
         Ok(note)
     }
 
@@ -203,7 +204,11 @@ async fn the_mike_channel_never_claims_brief_mail() -> anyhow::Result<()> {
         .await?;
     env.register(session).await?;
     env.persist.mail_launch_briefs(session).await?;
-    let claimed = env.persist.claim_channel_messages(session, 10).await?;
+    let claimed = env
+        .persist
+        .launch()
+        .claim_channel_messages(session, 10)
+        .await?;
     assert!(
         claimed.is_empty(),
         "Claude Code treats channel messages as untrusted, so a brief must not go that way"
@@ -250,13 +255,13 @@ async fn acknowledging_the_brief_mail_marks_the_launch_as_read() -> anyhow::Resu
     let note = env.launch(session, "note", "Read me.").await?;
     env.register(session).await?;
     env.persist.mail_launch_briefs(session).await?;
-    let unread = env.persist.find_launch_by_session(session).await?;
+    let unread = env.persist.launch().find_launch_by_session(session).await?;
     assert_eq!(unread.and_then(|r| r.brief_read_at), None);
 
     mark_delivered(&env, note).await?;
-    env.persist.ack_message(session, note).await?;
+    env.persist.launch().ack_message(session, note).await?;
 
-    let read = env.persist.find_launch_by_session(session).await?;
+    let read = env.persist.launch().find_launch_by_session(session).await?;
     assert!(read.and_then(|r| r.brief_read_at).is_some());
     env.cleanup().await
 }
@@ -274,7 +279,7 @@ async fn launch_elsewhere(env: &Env, session: Uuid, text: &str) -> anyhow::Resul
     new.brief_mode = Some("note".to_string());
     new.brief_text = Some(text.to_string());
     new.brief_note_uuid = Some(note);
-    other_machine.insert_launch(&new).await?;
+    other_machine.launch().insert_launch(&new).await?;
     Ok(note)
 }
 
@@ -353,14 +358,14 @@ async fn claimable_briefs_after_a_released_claim_offer_the_brief_again() -> anyh
         uuids(&env.persist.claimable_launch_briefs(session).await?),
         vec![first]
     );
-    assert!(env.persist.claim_message(first).await?);
+    assert!(env.persist.launch().claim_message(first).await?);
     assert!(
         env.persist
             .claimable_launch_briefs(session)
             .await?
             .is_empty()
     );
-    assert!(env.persist.unclaim_message(first).await?);
+    assert!(env.persist.launch().unclaim_message(first).await?);
     assert_eq!(
         uuids(&env.persist.claimable_launch_briefs(session).await?),
         vec![first],

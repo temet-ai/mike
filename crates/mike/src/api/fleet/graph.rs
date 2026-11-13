@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::HashMap;
 
 use axum::Json;
@@ -185,6 +186,7 @@ pub(crate) async fn get_fleet_graph(
         .unwrap_or(super::DEFAULT_WINDOW_HOURS);
 
     let node_rows = handle
+        .fleet()
         .fetch_fleet_nodes(project_id, window_hours)
         .await
         .map_err(persist_error_response)?;
@@ -195,6 +197,7 @@ pub(crate) async fn get_fleet_graph(
         .collect();
 
     let message_edges = handle
+        .fleet()
         .fetch_fleet_message_edges(&session_ids)
         .await
         .map_err(persist_error_response)?;

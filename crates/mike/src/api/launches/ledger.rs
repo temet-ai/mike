@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -62,7 +63,7 @@ pub(crate) async fn hello(State(state): State<AppState>) -> Json<LedgerHello> {
 
 pub(crate) async fn upsert_run(State(state): State<AppState>, Json(run): Json<NewRun>) -> Response {
     match state.persist() {
-        Some(h) => done(h.upsert_run(&run).await),
+        Some(h) => done(h.launch().upsert_run(&run).await),
         None => unavailable(),
     }
 }
@@ -74,7 +75,7 @@ pub(crate) async fn find_run(
     let Some(h) = state.persist() else {
         return unavailable();
     };
-    match h.find_run(&query.run).await {
+    match h.launch().find_run(&query.run).await {
         Ok(Some(row)) => Json(row).into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(e) => failed(&e),
@@ -88,7 +89,7 @@ pub(crate) async fn insert_launch(
     let Some(h) = state.persist() else {
         return unavailable();
     };
-    match h.insert_launch(&new).await {
+    match h.launch().insert_launch(&new).await {
         Ok(id) => (StatusCode::CREATED, Json(LaunchId { id })).into_response(),
         Err(e) => failed(&e),
     }
@@ -100,7 +101,7 @@ pub(crate) async fn record_opened(
     Json(refs): Json<LaunchSurfaceRefs>,
 ) -> Response {
     match state.persist() {
-        Some(h) => done(h.record_launch_opened(id, &refs).await),
+        Some(h) => done(h.launch().record_launch_opened(id, &refs).await),
         None => unavailable(),
     }
 }
@@ -111,7 +112,7 @@ pub(crate) async fn record_outcome(
     Json(outcome): Json<LaunchOutcome>,
 ) -> Response {
     match state.persist() {
-        Some(h) => done(h.record_launch_outcome(id, &outcome).await),
+        Some(h) => done(h.launch().record_launch_outcome(id, &outcome).await),
         None => unavailable(),
     }
 }
@@ -123,7 +124,8 @@ pub(crate) async fn record_closed(
 ) -> Response {
     match state.persist() {
         Some(h) => done(
-            h.record_launch_closed(id, &body.reason, body.process_exited)
+            h.launch()
+                .record_launch_closed(id, &body.reason, body.process_exited)
                 .await,
         ),
         None => unavailable(),
@@ -137,7 +139,7 @@ pub(crate) async fn channel_present(
     let Some(h) = state.persist() else {
         return unavailable();
     };
-    match h.session_has_remote_control_channel(session).await {
+    match h.launch().session_has_remote_control_channel(session).await {
         Ok(present) => Json(ChannelPresent { present }).into_response(),
         Err(e) => failed(&e),
     }
@@ -152,6 +154,7 @@ pub(crate) async fn link_channel(
         return unavailable();
     };
     match h
+        .launch()
         .link_channel_to_session(&body.cse_id, session, &body.cwd)
         .await
     {
@@ -169,6 +172,7 @@ pub(crate) async fn prompt_turn_seen(
         return unavailable();
     };
     match h
+        .launch()
         .session_prompt_turn_seen(session, query.since, &query.prefix)
         .await
     {

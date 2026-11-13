@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone)]
 pub(crate) struct FleetEdgeRow {
@@ -11,9 +11,9 @@ pub(crate) struct FleetEdgeRow {
     pub(crate) count: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub(crate) async fn fetch_fleet_message_edges(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<FleetEdgeRow>, PersistError> {
         crate::metrics::time_db("fleet_fetch_message_edges", async move {

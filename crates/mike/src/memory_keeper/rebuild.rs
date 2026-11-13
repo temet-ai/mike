@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 
 use super::cards::render;
@@ -34,6 +35,7 @@ async fn rebuild_batch(
         .map(|dirty| (dirty.thread_id, *dirty))
         .collect();
     let cards: Vec<NewCard> = persist
+        .launch()
         .work_thread_card_inputs(&ids)
         .await?
         .iter()
@@ -43,7 +45,7 @@ async fn rebuild_batch(
                 .map(|dirty| render(inputs).into_new_card(*dirty))
         })
         .collect();
-    let written = persist.write_work_thread_cards(&cards).await?;
+    let written = persist.launch().write_work_thread_cards(&cards).await?;
     Ok(PassReport {
         rebuilt: cards.len(),
         written,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::skill_drafts::DraftLesson;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalDraft {
@@ -64,8 +64,8 @@ pub struct ListingBody {
     pub body: Vec<u8>,
 }
 
-impl PersistHandle {
-    pub async fn claim_skill_draft_for_eval(&self) -> Result<Option<EvalDraft>, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn claim_skill_draft_for_eval(self) -> Result<Option<EvalDraft>, PersistError> {
         crate::metrics::time_db("claim_skill_draft_for_eval", async move {
             let row = sqlx::query!(
                 r#"UPDATE memory.skill_drafts d
@@ -103,7 +103,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_agent_scope(
-        &self,
+        self,
         agent_id: i64,
     ) -> Result<Option<AgentScope>, PersistError> {
         crate::metrics::time_db("skill_draft_agent_scope", async move {
@@ -125,7 +125,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_lessons_by_id(
-        &self,
+        self,
         ids: &[i64],
     ) -> Result<Vec<DraftLesson>, PersistError> {
         crate::metrics::time_db("skill_draft_lessons_by_id", async move {
@@ -154,7 +154,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_siblings(
-        &self,
+        self,
         project_id: i64,
         folder: &str,
         limit: i64,
@@ -189,7 +189,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_replaced(
-        &self,
+        self,
         project_id: i64,
         folders: &[String],
         draft_id: i64,
@@ -220,7 +220,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_project_path(
-        &self,
+        self,
         project_id: i64,
     ) -> Result<Option<String>, PersistError> {
         crate::metrics::time_db("skill_draft_project_path", async move {
@@ -236,7 +236,7 @@ impl PersistHandle {
     }
 
     pub async fn save_skill_draft_progress(
-        &self,
+        self,
         id: i64,
         progress: &Value,
     ) -> Result<bool, PersistError> {
@@ -256,7 +256,7 @@ impl PersistHandle {
     }
 
     pub async fn finish_skill_draft_eval(
-        &self,
+        self,
         id: i64,
         accepted: bool,
         eval: &Value,
@@ -286,7 +286,7 @@ impl PersistHandle {
     }
 
     pub async fn fail_skill_draft_eval(
-        &self,
+        self,
         id: i64,
         error: &str,
         max_attempts: i32,
@@ -328,7 +328,7 @@ impl PersistHandle {
     }
 
     pub async fn requeue_skill_drafts_before_evaluator(
-        &self,
+        self,
         evaluator_version: i32,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("requeue_skill_drafts_before_evaluator", async move {
@@ -357,7 +357,7 @@ impl PersistHandle {
     }
 
     pub async fn recent_skill_listing_bodies(
-        &self,
+        self,
         project_id: i64,
         marker: &[u8],
         window: ListingWindow,

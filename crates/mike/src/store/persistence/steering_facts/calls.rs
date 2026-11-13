@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{CallRow, FactKey, PersistedSteeringFacts, StaleFactTurn};
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -40,8 +40,8 @@ fn stale_query(f: &StaleFilter, version: i16) -> QueryBuilder<Postgres> {
     qb
 }
 
-impl PersistHandle {
-    pub async fn steering_call_rows(&self, keys: &[FactKey]) -> Result<Vec<CallRow>, PersistError> {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
+    pub async fn steering_call_rows(self, keys: &[FactKey]) -> Result<Vec<CallRow>, PersistError> {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
@@ -61,7 +61,7 @@ impl PersistHandle {
     }
 
     pub async fn persisted_steering_facts(
-        &self,
+        self,
         turn_id: i64,
     ) -> Result<Option<PersistedSteeringFacts>, PersistError> {
         crate::metrics::time_db("persisted_steering_facts", async move {
@@ -81,7 +81,7 @@ impl PersistHandle {
     }
 
     pub async fn stale_steering_fact_turns(
-        &self,
+        self,
         f: &StaleFilter,
         version: i16,
     ) -> Result<Vec<StaleFactTurn>, PersistError> {

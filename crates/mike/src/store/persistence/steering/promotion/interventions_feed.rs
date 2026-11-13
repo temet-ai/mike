@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct InterventionFeedRow {
@@ -24,9 +24,9 @@ pub struct InterventionFeedRow {
     pub outcome_reaction: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn guard_interventions_feed(
-        &self,
+        self,
         steerer_id: i64,
         limit: i64,
         offset: i64,

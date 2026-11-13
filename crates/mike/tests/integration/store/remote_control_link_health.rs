@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use mike::store::persistence::remote_control::ChannelLinkCounts;
 use mike::store::test_support::TestDb;
 
@@ -32,7 +33,7 @@ async fn recent_channel_link_counts_counts_settled_channels_of_the_last_day() ->
     channel(&handle, 60 * 30, false).await?;
 
     assert_eq!(
-        handle.recent_channel_link_counts().await?,
+        handle.proxy().recent_channel_link_counts().await?,
         ChannelLinkCounts {
             channels: 3,
             linked: 2
@@ -41,6 +42,6 @@ async fn recent_channel_link_counts_counts_settled_channels_of_the_last_day() ->
     );
 
     handle.pool().close().await;
-    assert!(handle.recent_channel_link_counts().await.is_err());
+    assert!(handle.proxy().recent_channel_link_counts().await.is_err());
     db.cleanup().await
 }

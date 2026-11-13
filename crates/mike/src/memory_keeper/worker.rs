@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -85,13 +86,18 @@ impl Keeper {
         persist: &PersistHandle,
         sweep: bool,
     ) -> Result<PassReport, WorkThreadError> {
-        let generation = persist.thread_card_sources_generation().await?;
+        let generation = persist.launch().thread_card_sources_generation().await?;
         let mut dirty = Vec::new();
         if self.generation != Some(generation) {
-            dirty.extend(persist.thread_cards_behind_their_threads().await?);
+            dirty.extend(persist.launch().thread_cards_behind_their_threads().await?);
         }
         if sweep {
-            dirty.extend(persist.thread_cards_behind_their_busy_sources().await?);
+            dirty.extend(
+                persist
+                    .launch()
+                    .thread_cards_behind_their_busy_sources()
+                    .await?,
+            );
         }
         let report = rebuild(persist, &merge(dirty)).await?;
         self.generation = Some(generation);

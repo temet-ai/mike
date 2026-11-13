@@ -9,7 +9,6 @@ use super::{
     ASK_CAP, CardAsk, CardEntry, CardInputs, CardNote, CardPromise, CardRelated, DECISION_CAP,
     NOTE_CAP, PROMISE_CAP, RECENT_DAYS,
 };
-use crate::store::persistence::PersistHandle;
 
 async fn log_entries(pool: &PgPool, thread_ids: &[i64]) -> Result<Vec<CardEntry>, sqlx::Error> {
     sqlx::query_as!(
@@ -214,9 +213,9 @@ impl Gathered {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn work_thread_card_inputs(
-        &self,
+        self,
         thread_ids: &[i64],
     ) -> Result<Vec<CardInputs>, WorkThreadError> {
         let pool = self.pool();

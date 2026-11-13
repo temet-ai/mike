@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -49,7 +51,7 @@ pub(crate) async fn list_pattern_assignments(
         limit,
         offset,
     };
-    match persist.list_pattern_assignments(&filter).await {
+    match persist.knowledge().list_pattern_assignments(&filter).await {
         Ok((rows, total)) => {
             Json(json!({ "assignments": rows, "total": total, "limit": limit, "offset": offset }))
                 .into_response()
@@ -86,6 +88,7 @@ pub(crate) async fn list_pattern_candidates(
     };
     let (limit, offset) = page(q.limit, q.offset);
     match persist
+        .knowledge()
         .list_pattern_candidates(q.status.as_deref(), limit, offset)
         .await
     {
@@ -153,6 +156,7 @@ pub(crate) async fn name_pattern_candidate(
         );
     }
     match persist
+        .knowledge()
         .name_pattern_candidate(id, &body.pattern, body.description.trim(), BUILDER_VERSION)
         .await
     {
@@ -174,7 +178,11 @@ pub(crate) async fn dismiss_pattern_candidate(
         return unavailable();
     };
     let note = body.and_then(|Json(b)| b.note).unwrap_or_default();
-    match persist.dismiss_pattern_candidate(id, &note).await {
+    match persist
+        .knowledge()
+        .dismiss_pattern_candidate(id, &note)
+        .await
+    {
         Ok(d) => decision_response(id, d),
         Err(e) => persist_error(&e),
     }
@@ -195,6 +203,7 @@ pub(crate) async fn get_embedding_drift(
         return unavailable();
     };
     let rows = match persist
+        .knowledge()
         .list_drift_rows(q.stream.as_deref(), q.from, q.to)
         .await
     {
@@ -202,6 +211,7 @@ pub(crate) async fn get_embedding_drift(
         Err(e) => return persist_error(&e),
     };
     let alarms = persist
+        .eval()
         .list_eval_alarms(&crate::store::persistence::eval_metrics::AlarmsFilter {
             state: crate::store::persistence::eval_metrics::AlarmState::All,
             kind: Some("embedding_drift".to_owned()),

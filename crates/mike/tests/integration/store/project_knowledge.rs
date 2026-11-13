@@ -1,5 +1,8 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use mike::store::persistence::project_knowledge::{
     DocumentInput, KnowledgeQuery, LessonImport, LocationInput, ScanInput, SourceInput,
 };
@@ -26,6 +29,7 @@ fn document(body: &str, status: &str) -> DocumentInput {
 
 async fn location(handle: &PersistHandle, project: &str) -> anyhow::Result<Uuid> {
     let row = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.into(),
             machine_uuid: Uuid::new_v4(),
@@ -43,6 +47,7 @@ async fn assert_later_generations_supersede_then_delete(
     reference: &str,
 ) -> anyhow::Result<()> {
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             source,
             &ScanInput {
@@ -52,17 +57,19 @@ async fn assert_later_generations_supersede_then_delete(
         )
         .await?;
     assert!(
-        handle.search_project_knowledge(search).await?["items"]
+        handle.knowledge().search_project_knowledge(search).await?["items"]
             .as_array()
             .is_some_and(Vec::is_empty)
     );
     assert_eq!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&search.project), reference)
             .await?["body"],
         "Notebook identity evidence"
     );
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             source,
             &ScanInput {
@@ -73,6 +80,7 @@ async fn assert_later_generations_supersede_then_delete(
         .await?;
     assert_eq!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&search.project), reference)
             .await?["deleted"],
         true
@@ -96,9 +104,9 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
     seed_project(handle.pool(), &project_b).await?;
     let desktop = location(&handle, &project_a).await?;
     let mac = location(&handle, &project_a).await?;
-    assert_eq!(handle.project_for_location(mac).await?.id, a);
+    assert_eq!(handle.knowledge().project_for_location(mac).await?.id, a);
     location(&handle, &project_b).await?;
-    let project = handle.project_for_location(desktop).await?;
+    let project = handle.knowledge().project_for_location(desktop).await?;
     let machine: Uuid =
         sqlx::query_scalar("SELECT machine_uuid FROM projects.locations WHERE location_uuid = $1")
             .bind(desktop)
@@ -106,6 +114,7 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
             .await?;
     assert!(
         handle
+            .knowledge()
             .register_project_location(&LocationInput {
                 project: project_b.clone(),
                 machine_uuid: machine,
@@ -116,6 +125,7 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
             .is_err()
     );
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: desktop,
             name: "artifacts".into(),
@@ -127,25 +137,36 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
         generation: 0,
         documents: vec![document("Notebook identity evidence", "accepted")],
     };
-    handle.ingest_knowledge_scan(source, &scan).await?;
-    assert!(handle.ingest_knowledge_scan(source, &scan).await.is_err());
+    handle
+        .knowledge()
+        .ingest_knowledge_scan(source, &scan)
+        .await?;
+    assert!(
+        handle
+            .knowledge()
+            .ingest_knowledge_scan(source, &scan)
+            .await
+            .is_err()
+    );
     let search = mike::store::persistence::project_knowledge::KnowledgeQuery {
         project: project.project_uuid.to_string(),
         query: "notebook".into(),
         ..Default::default()
     };
-    let result = handle.search_project_knowledge(&search).await?;
+    let result = handle.knowledge().search_project_knowledge(&search).await?;
     let reference = result["items"][0]["reference"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing result"))?;
     assert_eq!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&search.project), reference)
             .await?["body"],
         "Notebook identity evidence"
     );
     assert!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&project_b), reference)
             .await
             .is_err()
@@ -174,6 +195,7 @@ async fn assert_lesson_file_round_trip(
     target: i64,
 ) -> anyhow::Result<()> {
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: target,
             kind: "warning",
@@ -185,11 +207,12 @@ async fn assert_lesson_file_round_trip(
             request_id: None,
         })
         .await?;
-    let files = handle.lesson_files(loc).await?;
+    let files = handle.knowledge().lesson_files(loc).await?;
     let mut payload = files["lessons"][0]["payload"].clone();
     assert_eq!(payload["lesson_uuid"], lesson.uuid.to_string());
     payload["body"] = json!("Keep all evidence and revisions");
     let changed = handle
+        .knowledge()
         .import_lesson_file(&LessonImport {
             location_uuid: loc,
             expected_version: 1,
@@ -199,6 +222,7 @@ async fn assert_lesson_file_round_trip(
     assert_eq!(changed["version"], 2);
     assert!(
         handle
+            .knowledge()
             .import_lesson_file(&LessonImport {
                 location_uuid: loc,
                 expected_version: 1,
@@ -207,9 +231,9 @@ async fn assert_lesson_file_round_trip(
             .await
             .is_err()
     );
-    handle.delete_lesson(lesson.id).await?;
+    handle.lessons().delete_lesson(lesson.id).await?;
     assert_eq!(
-        handle.lesson_files(loc).await?["lessons"][0]["payload"]["stage"],
+        handle.knowledge().lesson_files(loc).await?["lessons"][0]["payload"]["stage"],
         "archived"
     );
     sqlx::query("DELETE FROM memory.lessons WHERE id = $1")
@@ -217,7 +241,7 @@ async fn assert_lesson_file_round_trip(
         .execute(handle.pool())
         .await?;
     assert_eq!(
-        handle.lesson_files(loc).await?["lessons"][0]["payload"]["deleted"],
+        handle.knowledge().lesson_files(loc).await?["lessons"][0]["payload"]["deleted"],
         true
     );
 
@@ -243,16 +267,21 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     .await?;
     let loc = location(&handle, "/test/lesson-target").await?;
     let note = seed_notebook(&handle, session).await?;
-    handle.bind_session_location(session, loc).await?;
+    handle
+        .knowledge()
+        .bind_session_location(session, loc)
+        .await?;
     let note_ref = format!("note:{}", note);
     assert!(
         handle
+            .knowledge()
             .read_project_knowledge(Some("/test/lesson-origin"), &note_ref)
             .await
             .is_err()
     );
     assert_eq!(
         handle
+            .knowledge()
             .read_project_knowledge(Some("/test/lesson-target"), &note_ref)
             .await?["body"],
         "Notebook evidence"
@@ -265,12 +294,14 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     assert_eq!(actual, target);
     assert_eq!(
         handle
+            .knowledge()
             .resolve_lesson_project(&session.to_string(), "/remote/other-path")
             .await?,
         target
     );
     assert_eq!(
         handle
+            .knowledge()
             .lesson_session_projects()
             .await?
             .get(&session.to_string())
@@ -318,7 +349,10 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
             ..MetaUpdate::default()
         },
     };
-    handle.checkpoint_work_thread(project, &checkpoint).await?;
+    handle
+        .launch()
+        .checkpoint_work_thread(project, &checkpoint)
+        .await?;
 
     for term in [
         "zeppelin",
@@ -328,6 +362,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
         "narwhal",
     ] {
         let found = handle
+            .knowledge()
             .search_project_knowledge(&KnowledgeQuery {
                 project: path.clone(),
                 query: term.into(),
@@ -342,6 +377,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
         assert_eq!(items[0]["title"], "Harbour rebuild");
     }
     let elsewhere = handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: other_path.clone(),
             query: "zeppelin".into(),
@@ -352,6 +388,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
     assert!(elsewhere["items"].as_array().is_some_and(Vec::is_empty));
 
     let read = handle
+        .knowledge()
         .read_project_knowledge(Some(&path), &format!("work_thread:{slug}"))
         .await?;
     assert_eq!(read["slug"], slug);
@@ -369,12 +406,14 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
     assert_eq!(read["acceptance_criteria"], "1. The lighthouse is gone");
     assert!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&other_path), &format!("work_thread:{slug}"))
             .await
             .is_err()
     );
     assert!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&path), "work_thread:no-such-thread")
             .await
             .is_err()

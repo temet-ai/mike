@@ -1,3 +1,6 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{SubsecRound, Utc};
 use uuid::Uuid;
 
@@ -46,6 +49,7 @@ async fn seed_steerer_intervention(handle: &PersistHandle) -> anyhow::Result<(Uu
             .await?;
     let intervention_uuid = Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(crate::store::persistence::steering::NewIntervention {
             steerer_id,
             enrolment_id: None,
@@ -82,6 +86,7 @@ async fn seed(handle: &PersistHandle) -> anyhow::Result<(Uuid, Uuid)> {
         .await?;
     let message = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message, session, None, "test envelope")
         .await?;
     sqlx::query("INSERT INTO remote_control.channels(cse_id, local_session_uuid) VALUES ('cse_injection',$1)")
@@ -102,6 +107,7 @@ async fn reservation_prevents_turn_drain_and_failed_emission_releases_it() -> an
     };
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(
                 "cse_injection",
                 Uuid::new_v4(),
@@ -114,16 +120,18 @@ async fn reservation_prevents_turn_drain_and_failed_emission_releases_it() -> an
     );
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection("cse_injection", session, &source, event, b"frame")
             .await?
             .is_some()
     );
     assert!(
-        !handle.claim_message(message).await?,
+        !handle.launch().claim_message(message).await?,
         "turn drain cannot claim a queued frame too"
     );
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(
                 "cse_injection",
                 session,
@@ -134,9 +142,12 @@ async fn reservation_prevents_turn_drain_and_failed_emission_releases_it() -> an
             .await?
             .is_none()
     );
-    handle.finish_remote_control_injection(event, false).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, false)
+        .await?;
     assert!(
-        handle.claim_message(message).await?,
+        handle.launch().claim_message(message).await?,
         "failed emission must restore fallback"
     );
     let failed: bool = sqlx::query_scalar("SELECT failed_at IS NOT NULL AND emitted_at IS NULL FROM remote_control.injections WHERE event_id=$1")
@@ -160,19 +171,26 @@ async fn ack_before_completion_write_is_idempotent_and_stops_redelivery() -> any
     };
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection("cse_injection", session, &source, event, b"frame")
             .await?
             .is_some()
     );
     let call = handle
+        .proxy()
         .record_remote_control_call(call_at("cse_injection", "POST", "/worker/events/delivery"))
         .await?;
     let received = Utc::now();
     handle
+        .proxy()
         .ack_remote_control_injections("cse_injection", &[event], received, call)
         .await?;
-    handle.finish_remote_control_injection(event, true).await?;
     handle
+        .proxy()
+        .finish_remote_control_injection(event, true)
+        .await?;
+    handle
+        .proxy()
         .ack_remote_control_injections(
             "cse_injection",
             &[event],
@@ -181,21 +199,24 @@ async fn ack_before_completion_write_is_idempotent_and_stops_redelivery() -> any
         )
         .await?;
     let row = handle
+        .launch()
         .fetch_message_for_recipient(message, session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("message missing"))?;
     assert_eq!(row.consumed_at, Some(received.trunc_subsecs(6)));
     assert_eq!(row.delivery_attempts, 1);
     assert!(row.sent_request_id.is_none());
-    assert!(!handle.claim_message(message).await?);
+    assert!(!handle.launch().claim_message(message).await?);
     assert!(
         handle
+            .launch()
             .fetch_pending_redelivery(session, 10)
             .await?
             .is_empty()
     );
     assert!(
         handle
+            .launch()
             .bump_redelivery_attempt(message, 5, 30, 300)
             .await?
             .is_none()
@@ -216,6 +237,7 @@ async fn reserve_steerer_injection_stamps_pushed_at_and_blocks_double_push() -> 
     let event = Uuid::new_v4();
 
     let reserved_at = handle
+        .proxy()
         .reserve_remote_control_injection("cse_injection", session, &source, event, b"frame")
         .await?;
     assert!(
@@ -245,6 +267,7 @@ async fn reserve_steerer_injection_stamps_pushed_at_and_blocks_double_push() -> 
 
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(
                 "cse_injection",
                 session,
@@ -272,12 +295,16 @@ async fn finish_steerer_injection_failed_emission_clears_pushed_at() -> anyhow::
     let event = Uuid::new_v4();
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection("cse_injection", session, &source, event, b"frame")
             .await?
             .is_some()
     );
 
-    handle.finish_remote_control_injection(event, false).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, false)
+        .await?;
 
     let pushed: bool = sqlx::query_scalar(
         "SELECT pushed_at IS NOT NULL FROM steering.interventions WHERE uuid=$1",
@@ -292,6 +319,7 @@ async fn finish_steerer_injection_failed_emission_clears_pushed_at() -> anyhow::
 
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(
                 "cse_injection",
                 session,
@@ -319,16 +347,22 @@ async fn ack_steering_interventions_stamps_acked_at() -> anyhow::Result<()> {
     let event = Uuid::new_v4();
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection("cse_injection", session, &source, event, b"frame")
             .await?
             .is_some()
     );
-    handle.finish_remote_control_injection(event, true).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, true)
+        .await?;
 
     let call = handle
+        .proxy()
         .record_remote_control_call(call_at("cse_injection", "POST", "/worker/events/delivery"))
         .await?;
     handle
+        .proxy()
         .ack_remote_control_injections("cse_injection", &[event], Utc::now(), call)
         .await?;
 
@@ -363,6 +397,7 @@ async fn reserve_unclaimed_injection_for_lesson_source_has_no_owning_row() -> an
 
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(
                 "cse_injection",
                 session,

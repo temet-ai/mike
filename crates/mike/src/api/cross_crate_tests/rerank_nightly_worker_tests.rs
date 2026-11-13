@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/rerank_nightly/worker_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -50,7 +51,12 @@ pub(super) fn tuning_on(harness: &Harness) {
 }
 
 async fn project_id(harness: &Harness, project: &str) -> anyhow::Result<i64> {
-    Ok(harness.handle.resolve_knowledge_project(project).await?.id)
+    Ok(harness
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(project)
+        .await?
+        .id)
 }
 
 pub(super) async fn seed_events(
@@ -73,6 +79,7 @@ pub(super) async fn seed_events(
     for _ in 0..count {
         let id = harness
             .handle
+            .knowledge()
             .record_search_event(&NewSearchEvent {
                 session: Some(session),
                 tool: "search_project_knowledge",
@@ -107,6 +114,7 @@ pub(super) async fn seeded_documents(harness: &Harness) -> anyhow::Result<(i64, 
     let project = seed_project_with_documents(harness).await?;
     let page = harness
         .handle
+        .knowledge()
         .search_project_knowledge(
             &crate::store::persistence::project_knowledge::KnowledgeQuery {
                 project: project.clone(),
@@ -285,6 +293,7 @@ async fn grade_synthetic(harness: &Harness, events: &[i64]) -> anyhow::Result<()
     for event in events {
         harness
             .handle
+            .knowledge()
             .insert_search_grade(&NewGrade {
                 event_id: *event,
                 candidates: &candidates,

@@ -1,9 +1,9 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 use super::{judge, rehydrate};
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub(crate) async fn fetch_workflow_runs(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<rehydrate::WorkflowRunRow>, PersistError> {
         crate::metrics::time_db(
@@ -13,7 +13,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_workflow_agents(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<rehydrate::WorkflowAgentRow>, PersistError> {
         crate::metrics::time_db(
@@ -24,7 +24,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_sessions_needing_judgment(
-        &self,
+        self,
         query: &judge::NeedsJudgmentQuery<'_>,
     ) -> Result<Vec<judge::SessionForJudgment>, PersistError> {
         crate::metrics::time_db(
@@ -34,7 +34,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_judge_digest(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<judge::JudgeDigestRow>, PersistError> {
         crate::metrics::time_db(
@@ -44,7 +44,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn insert_session_verdict(
-        &self,
+        self,
         params: judge::SessionVerdictInsert<'_>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db(
@@ -54,7 +54,7 @@ impl PersistHandle {
         .await
     }
     pub async fn record_judge_attempt(
-        &self,
+        self,
         session_db_id: i64,
         judge_model: &str,
         rubric_version: i32,
@@ -75,7 +75,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_session_quality(
-        &self,
+        self,
         session_id: &str,
     ) -> Result<Option<judge::SessionQualityRow>, PersistError> {
         crate::metrics::time_db(

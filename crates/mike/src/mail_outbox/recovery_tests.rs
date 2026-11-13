@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::Stage;
@@ -112,14 +113,19 @@ async fn mail_outbox_mirrors_claude_to_codex_and_codex_to_claude_mail_once() -> 
     };
     let pool = persist.pool();
     let (claude, codex) = (Uuid::new_v4(), Uuid::new_v4());
-    persist.ensure_session_exists(&claude.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&claude.to_string())
+        .await?;
     let home = tempfile::tempdir()?;
     bind_seat_thread(&persist, home.path(), codex, "thread-1", None).await?;
     let (to_codex, to_claude) = (Uuid::new_v4(), Uuid::new_v4());
     persist
+        .launch()
         .insert_message(to_codex, codex, Some(claude), "from claude")
         .await?;
     persist
+        .launch()
         .insert_message(to_claude, claude, Some(codex), "from codex")
         .await?;
 
@@ -196,10 +202,17 @@ async fn mail_outbox_unrelated_claude_to_claude_mail_is_not_mirrored() -> anyhow
         return Ok(());
     };
     let (a, b) = (Uuid::new_v4(), Uuid::new_v4());
-    persist.ensure_session_exists(&a.to_string()).await?;
-    persist.ensure_session_exists(&b.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&a.to_string())
+        .await?;
+    persist
+        .launch()
+        .ensure_session_exists(&b.to_string())
+        .await?;
     let message = Uuid::new_v4();
     persist
+        .launch()
         .insert_message(message, b, Some(a), "claude to claude")
         .await?;
     mirror_codex_mail(persist.pool(), 1_000).await?;

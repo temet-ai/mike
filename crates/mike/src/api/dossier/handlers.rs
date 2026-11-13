@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -50,6 +51,7 @@ async fn turn_closed_at(
     turn_id: i64,
 ) -> Result<DateTime<Utc>, Response> {
     let located = persist
+        .dossier()
         .locate_turn(turn_id)
         .await
         .map_err(|e| error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -187,12 +189,12 @@ pub(crate) async fn get_turn_facts(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let located = match persist.locate_turn(turn_id).await {
+    let located = match persist.dossier().locate_turn(turn_id).await {
         Ok(Some(located)) => located,
         Ok(None) => return error(StatusCode::NOT_FOUND, format!("unknown turn {turn_id}")),
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     };
-    let facts = match persist.fetch_turn_facts_by_id(turn_id).await {
+    let facts = match persist.dossier().fetch_turn_facts_by_id(turn_id).await {
         Ok(facts) => facts,
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     };

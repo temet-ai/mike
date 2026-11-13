@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -62,8 +63,12 @@ async fn next_recorded(h: &mut Harness) -> anyhow::Result<i64> {
 async fn bind_session(h: &Harness, session: uuid::Uuid) -> anyhow::Result<()> {
     let namespace = crate::launch::codex::namespace_for(h.home.path());
     h.persist.ensure_runtime_session(session).await?;
-    h.persist.register_runtime_namespace(&namespace).await?;
     h.persist
+        .runtime()
+        .register_runtime_namespace(&namespace)
+        .await?;
+    h.persist
+        .runtime()
         .bind_runtime_thread(&crate::runtime::RuntimeThreadBinding {
             mike_session_id: session,
             provider: crate::runtime::ProviderThreadRef {

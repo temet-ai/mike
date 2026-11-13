@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EvalRunRow, NewEvalRun, RunsFilter};
 
 const LIST_SELECT: &str =
@@ -41,8 +41,8 @@ fn list_runs_query(f: &RunsFilter) -> QueryBuilder<Postgres> {
     qb
 }
 
-impl PersistHandle {
-    pub async fn create_eval_run(&self, run: &NewEvalRun<'_>) -> Result<i64, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn create_eval_run(self, run: &NewEvalRun<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("create_eval_run", async move {
             Ok(sqlx::query_scalar!(
                 r#"INSERT INTO eval.runs (purpose, bundle_id, rubric_version, input_builder_version,
@@ -72,7 +72,7 @@ impl PersistHandle {
     }
 
     pub async fn refresh_eval_run(
-        &self,
+        self,
         run_id: i64,
         status: &str,
         report: Option<&serde_json::Value>,
@@ -110,7 +110,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_eval_run(&self, id: i64) -> Result<Option<EvalRunRow>, PersistError> {
+    pub async fn get_eval_run(self, id: i64) -> Result<Option<EvalRunRow>, PersistError> {
         crate::metrics::time_db("get_eval_run", async move {
             Ok(sqlx::query_as!(
                 EvalRunRow,
@@ -128,7 +128,7 @@ impl PersistHandle {
     }
 
     pub async fn list_eval_runs(
-        &self,
+        self,
         f: &RunsFilter,
     ) -> Result<(Vec<EvalRunRow>, i64), PersistError> {
         crate::metrics::time_db("list_eval_runs", async move {
@@ -142,7 +142,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn eval_spend_today_usd(&self) -> Result<f64, PersistError> {
+    pub async fn eval_spend_today_usd(self) -> Result<f64, PersistError> {
         crate::metrics::time_db("eval_spend_today_usd", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT coalesce(sum(cost_usd), 0)::float8 AS "spend!" FROM llm.calls
@@ -155,7 +155,7 @@ impl PersistHandle {
     }
 
     pub async fn find_resolver_bundle(
-        &self,
+        self,
         role: &str,
         components: &serde_json::Value,
     ) -> Result<Option<i64>, PersistError> {

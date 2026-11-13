@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::{AckOutcome, InsertedMessage, RedeliveryOutcome, SessionIdResolution};
 
@@ -17,9 +17,9 @@ fn uuid_prefix_bounds(prefix: &str) -> Option<(uuid::Uuid, uuid::Uuid)> {
     Some((first, last))
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn insert_message(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         to_session_uuid: uuid::Uuid,
         from_session_uuid: Option<uuid::Uuid>,
@@ -36,7 +36,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn resolve_role_recipients(
-        &self,
+        self,
         project_id: i64,
         role: &str,
         sender_session_uuid: uuid::Uuid,
@@ -49,7 +49,7 @@ impl PersistHandle {
     }
 
     pub async fn resolve_name_recipient(
-        &self,
+        self,
         project_id: i64,
         name: &str,
         sender_session_uuid: uuid::Uuid,
@@ -68,7 +68,7 @@ impl PersistHandle {
     }
 
     async fn recipients_labelled(
-        &self,
+        self,
         project_id: i64,
         label: &str,
         value: &str,
@@ -86,7 +86,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn resolve_session_id_prefix(
-        &self,
+        self,
         prefix: &str,
     ) -> Result<SessionIdResolution, PersistError> {
         crate::metrics::time_db("mailbox_resolve_session_id_prefix", async move {
@@ -110,7 +110,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn claim_message(&self, message_uuid: uuid::Uuid) -> Result<bool, PersistError> {
+    pub async fn claim_message(self, message_uuid: uuid::Uuid) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_claim_message", async move {
             let rows = sqlx::query!(
                 "UPDATE mailbox.messages
@@ -129,7 +129,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn unclaim_message(&self, message_uuid: uuid::Uuid) -> Result<bool, PersistError> {
+    pub async fn unclaim_message(self, message_uuid: uuid::Uuid) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_unclaim_message", async move {
             let rows = sqlx::query!(
                 "UPDATE mailbox.messages
@@ -152,7 +152,7 @@ impl PersistHandle {
     }
 
     pub async fn backfill_mailbox_sent_request_id(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         request_id: i64,
     ) -> Result<bool, PersistError> {
@@ -176,7 +176,7 @@ impl PersistHandle {
     }
 
     pub async fn stamp_mailbox_sent_without_request(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_stamp_sent_without_request", async move {
@@ -198,7 +198,7 @@ impl PersistHandle {
     }
 
     pub async fn consume_client_claimed(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_consume_client_claimed", async move {
@@ -221,7 +221,7 @@ impl PersistHandle {
     }
 
     pub async fn bump_redelivery_attempt(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         max_attempts: i32,
         backoff_base_secs: i64,
@@ -283,7 +283,7 @@ impl PersistHandle {
     }
 
     pub async fn ack_message(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         message_uuid: uuid::Uuid,
     ) -> Result<AckOutcome, PersistError> {

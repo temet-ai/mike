@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/project_knowledge/rerank_cache_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::Value;
 
@@ -146,15 +147,29 @@ async fn knowledge_search_two_searches_inside_the_lifetime_run_the_coverage_coun
     let (_, first) = harness.get(&search_route(&project)).await?;
     let (_, second) = harness.get(&search_route(&project)).await?;
 
-    assert_eq!(harness.handle.knowledge_memos().counts_fetched().1, 1);
+    assert_eq!(
+        harness
+            .handle
+            .knowledge()
+            .knowledge_memos()
+            .counts_fetched()
+            .1,
+        1
+    );
     assert_eq!(
         first["embedding"]["coverage"],
         second["embedding"]["coverage"]
     );
-    let id = harness.handle.resolve_knowledge_project(&project).await?.id;
+    let id = harness
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(&project)
+        .await?
+        .id;
     let key = crate::embed_worker::knowledge::model_keys(&harness.state.embedding_service());
     let direct = harness
         .handle
+        .knowledge()
         .knowledge_embedding_health(Some(id), &key)
         .await?;
     assert_eq!(first["embedding"]["coverage"], direct);

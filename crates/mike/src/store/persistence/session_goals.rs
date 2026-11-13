@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone)]
 pub struct SessionGoal {
@@ -20,9 +20,9 @@ pub struct SetSessionIdentity<'a> {
     pub set_by: &'a str,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn set_session_goal(
-        &self,
+        self,
         identity: SetSessionIdentity<'_>,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("set_session_goal", async move {
@@ -63,7 +63,7 @@ impl PersistHandle {
     }
 
     pub async fn get_session_goal(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<SessionGoal>, PersistError> {
         crate::metrics::time_db("get_session_goal", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -63,7 +64,7 @@ pub(crate) async fn get_turn_steering_facts(
             "session persistence is disabled; steering facts are not available".to_owned(),
         );
     };
-    let turn = match persist.locate_turn(turn_id).await {
+    let turn = match persist.dossier().locate_turn(turn_id).await {
         Ok(Some(turn)) if turn.session_uuid == session_uuid => turn,
         Ok(_) => {
             return error(
@@ -79,7 +80,7 @@ pub(crate) async fn get_turn_steering_facts(
         Err(e) => return persistence_error(&e),
     };
     let persisted = if turn.closed_at.is_some() {
-        match persist.persisted_steering_facts(turn_id).await {
+        match persist.dossier().persisted_steering_facts(turn_id).await {
             Ok(row) => row,
             Err(e) => return persistence_error(&e),
         }

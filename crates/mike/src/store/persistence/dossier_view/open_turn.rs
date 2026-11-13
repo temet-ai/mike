@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::OpenTextRow;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_open_turn_text(
-        &self,
+        self,
         turn_id: i64,
         at: DateTime<Utc>,
     ) -> Result<Vec<OpenTextRow>, PersistError> {

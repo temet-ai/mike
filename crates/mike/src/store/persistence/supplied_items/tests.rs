@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::{Duration, Utc};
 use uuid::Uuid;
 
@@ -111,6 +112,7 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
     ];
     assert_eq!(
         f.handle
+            .lessons()
             .record_supplied_lessons(first, f.session, &lessons)
             .await?,
         2
@@ -118,6 +120,7 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
     let cards = [card("aaaaaaaaaaaa", false), card("bbbbbbbbbbbb", true)];
     assert_eq!(
         f.handle
+            .lessons()
             .record_supplied_cards(first, f.session, &cards)
             .await?,
         2
@@ -125,6 +128,7 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
 
     let again = f
         .handle
+        .lessons()
         .record_supplied_lessons(second, f.session, &lessons)
         .await?;
     assert_eq!(
@@ -133,6 +137,7 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
     );
     let again = f
         .handle
+        .lessons()
         .record_supplied_cards(second, f.session, &cards)
         .await?;
     assert_eq!(
@@ -141,13 +146,18 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
     );
     assert_eq!(
         f.handle
+            .lessons()
             .record_supplied_cards(second, f.session, &cards)
             .await?,
         0,
         "a retry for the same request writes nothing twice"
     );
 
-    let items = f.handle.supplied_items_for_request(first, 10, 0).await?;
+    let items = f
+        .handle
+        .lessons()
+        .supplied_items_for_request(first, 10, 0)
+        .await?;
     assert_eq!(items.len(), 4);
     let tether = items
         .iter()
@@ -166,6 +176,7 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
 
     let by_session = f
         .handle
+        .lessons()
         .supplied_items_for_session(f.session, 10, 0)
         .await?;
     assert_eq!(by_session.len(), 6);
@@ -180,17 +191,20 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
         lesson(f.lessons[1], "proxy", None),
     ];
     f.handle
+        .lessons()
         .record_supplied_lessons(f.requests[0], f.session, &lessons)
         .await?;
     let now = Utc::now() + Duration::hours(1);
     let pending = f
         .handle
+        .lessons()
         .supplied_items_pending_verdict(10, now - Duration::days(14), now)
         .await?;
     assert_eq!(pending.len(), 2);
     for (item, verdict) in pending.iter().zip(["used", "ignored"]) {
         assert!(
             f.handle
+                .lessons()
                 .insert_supply_verdict(&NewVerdict {
                     item_id: item.item_id,
                     verdict,
@@ -204,12 +218,14 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
     }
     let left = f
         .handle
+        .lessons()
         .supplied_items_pending_verdict(10, now - Duration::days(14), now)
         .await?;
     assert!(left.is_empty());
 
     let figures = f
         .handle
+        .lessons()
         .supply_figures(Utc::now() - Duration::days(1))
         .await?;
     let row = figures
@@ -220,7 +236,7 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
     assert!(row.bytes_ignored >= "Never stash in a shared tree".len() as i64);
 
     let week = Utc::now() - Duration::days(1);
-    let sample = f.handle.supply_hand_sample(week, 200).await?;
+    let sample = f.handle.lessons().supply_hand_sample(week, 200).await?;
     let mine = sample
         .iter()
         .find(|r| r.supplied_item_id == pending[0].item_id)
@@ -228,10 +244,11 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
     assert_eq!(mine.hand_verdict, None);
     assert!(
         f.handle
+            .lessons()
             .set_supply_hand_verdict(pending[0].item_id, "used", "dawid")
             .await?
     );
-    let sample = f.handle.supply_hand_sample(week, 200).await?;
+    let sample = f.handle.lessons().supply_hand_sample(week, 200).await?;
     let checked = sample
         .iter()
         .find(|r| r.supplied_item_id == pending[0].item_id)

@@ -5,7 +5,6 @@ use super::{
     HistoryEntry, LinkedSession, ThreadDetail, ThreadIdentity, ThreadList, ThreadListRow,
     ThreadState, WorkThreadError,
 };
-use crate::store::persistence::PersistHandle;
 
 pub(super) async fn identity_by_id(
     pool: &PgPool,
@@ -110,9 +109,9 @@ impl Default for ListFilter<'_> {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn get_work_thread(
-        &self,
+        self,
         project_id: i64,
         thread_slug: &str,
         page: HistoryPage,
@@ -148,7 +147,7 @@ impl PersistHandle {
     }
 
     pub async fn list_work_threads(
-        &self,
+        self,
         project_id: i64,
         filter: ListFilter<'_>,
     ) -> Result<ThreadList, WorkThreadError> {
@@ -164,7 +163,7 @@ impl PersistHandle {
     }
 
     async fn list_threads_with_status(
-        &self,
+        self,
         project_id: i64,
         statuses: &[String],
         filter: ListFilter<'_>,
@@ -197,7 +196,7 @@ impl PersistHandle {
     }
 
     async fn list_threads_any_status(
-        &self,
+        self,
         project_id: i64,
         filter: ListFilter<'_>,
     ) -> Result<(Vec<ThreadListRow>, i64), WorkThreadError> {
@@ -226,7 +225,7 @@ impl PersistHandle {
     }
 
     async fn work_thread_state(
-        &self,
+        self,
         thread_id: i64,
     ) -> Result<Option<ThreadState>, WorkThreadError> {
         Ok(sqlx::query_as!(
@@ -239,10 +238,7 @@ impl PersistHandle {
         .await?)
     }
 
-    async fn work_thread_criteria(
-        &self,
-        thread_id: i64,
-    ) -> Result<Option<String>, WorkThreadError> {
+    async fn work_thread_criteria(self, thread_id: i64) -> Result<Option<String>, WorkThreadError> {
         let text: Option<Option<String>> = sqlx::query_scalar!(
             "SELECT criteria_text FROM work.thread_acceptance_criteria WHERE thread_id = $1",
             thread_id,
@@ -253,7 +249,7 @@ impl PersistHandle {
     }
 
     async fn work_thread_dependencies(
-        &self,
+        self,
         thread_id: i64,
         forward: bool,
     ) -> Result<Vec<String>, WorkThreadError> {
@@ -278,7 +274,7 @@ impl PersistHandle {
     }
 
     async fn work_thread_sessions(
-        &self,
+        self,
         thread_id: i64,
     ) -> Result<Vec<LinkedSession>, WorkThreadError> {
         Ok(sqlx::query_as!(
@@ -293,7 +289,7 @@ impl PersistHandle {
     }
 
     async fn work_thread_history(
-        &self,
+        self,
         thread_id: i64,
         page: HistoryPage,
     ) -> Result<(Vec<HistoryEntry>, i64, Option<i32>), WorkThreadError> {

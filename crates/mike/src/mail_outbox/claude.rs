@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use async_trait::async_trait;
 use uuid::Uuid;
 
@@ -15,7 +16,12 @@ const MAILBOX_OWNS: &str = "Claude mail is delivered by the mailbox itself (requ
 #[async_trait]
 impl Recipient for ClaudeRecipient {
     async fn generation(&self) -> Option<i64> {
-        match self.persist.find_launch_by_session(self.session).await {
+        match self
+            .persist
+            .launch()
+            .find_launch_by_session(self.session)
+            .await
+        {
             Ok(row) => Some(row.map_or(0, |launch| launch.id)),
             Err(error) => {
                 tracing::warn!(error = %error, session_id = %self.session, "mail outbox could not read the session's launch");

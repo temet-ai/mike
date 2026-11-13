@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TreeCheckRow {
@@ -29,9 +29,9 @@ impl TreeCheckRow {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn begin_tree_check(
-        &self,
+        self,
         run_id: &str,
         state: &str,
         command: &str,
@@ -53,7 +53,7 @@ impl PersistHandle {
     }
 
     pub async fn finish_tree_check(
-        &self,
+        self,
         id: i64,
         exit_code: Option<i32>,
         output: &str,
@@ -75,7 +75,7 @@ impl PersistHandle {
     }
 
     pub async fn abandon_expired_fleet_checks(
-        &self,
+        self,
         run_id: &str,
         older_than_seconds: f64,
         note: &str,
@@ -94,7 +94,7 @@ impl PersistHandle {
     }
 
     pub async fn abandon_unrun_fleet_check(
-        &self,
+        self,
         receipt: i64,
         run_id: &str,
         note: &str,
@@ -111,7 +111,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn mark_tree_check_executing(&self, id: i64) -> Result<(), PersistError> {
+    pub async fn mark_tree_check_executing(self, id: i64) -> Result<(), PersistError> {
         crate::metrics::time_db("launch_mark_tree_check_executing", async move {
             sqlx::query_file!(
                 "src/store/persistence/fleet/mark_tree_check_executing.sql",
@@ -125,7 +125,7 @@ impl PersistHandle {
     }
 
     pub async fn measured_tree_check_seconds(
-        &self,
+        self,
         command: &str,
     ) -> Result<Option<f64>, PersistError> {
         crate::metrics::time_db("launch_measured_tree_check_seconds", async move {
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn find_tree_check(
-        &self,
+        self,
         run_id: &str,
         state: &str,
     ) -> Result<Option<TreeCheckRow>, PersistError> {
@@ -159,7 +159,7 @@ impl PersistHandle {
     }
 
     pub async fn latest_tree_check(
-        &self,
+        self,
         run_id: &str,
     ) -> Result<Option<TreeCheckRow>, PersistError> {
         crate::metrics::time_db("launch_latest_tree_check", async move {
@@ -175,7 +175,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn add_tree_check_asker(&self, id: i64, seat: &str) -> Result<(), PersistError> {
+    pub async fn add_tree_check_asker(self, id: i64, seat: &str) -> Result<(), PersistError> {
         crate::metrics::time_db("launch_add_tree_check_asker", async move {
             sqlx::query_file!(
                 "src/store/persistence/fleet/add_tree_check_asker.sql",
@@ -189,7 +189,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn add_tree_check_told(&self, id: i64, seat: &str) -> Result<bool, PersistError> {
+    pub async fn add_tree_check_told(self, id: i64, seat: &str) -> Result<bool, PersistError> {
         crate::metrics::time_db("launch_add_tree_check_told", async move {
             let done = sqlx::query_file!(
                 "src/store/persistence/fleet/add_tree_check_told.sql",

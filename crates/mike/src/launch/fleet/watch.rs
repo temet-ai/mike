@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -113,7 +114,7 @@ async fn record(persist: &PersistHandle, run: &str, changes: &[NewTreeChange]) {
     if changes.is_empty() {
         return;
     }
-    if let Err(err) = persist.insert_tree_changes(run, changes).await {
+    if let Err(err) = persist.fleet().insert_tree_changes(run, changes).await {
         tracing::warn!(%run, error = %err, "fleet: could not record changes in the checkout");
     }
 }

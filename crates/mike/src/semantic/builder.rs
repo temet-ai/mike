@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -106,7 +107,11 @@ impl Builder<'_> {
                 ..p.item
             })
             .collect();
-        Ok(self.persist.insert_semantic_items(&items).await?)
+        Ok(self
+            .persist
+            .knowledge()
+            .insert_semantic_items(&items)
+            .await?)
     }
 
     async fn copy_prompts(&self, turns: &[TurnSource]) -> Result<HashSet<i64>, SemanticError> {
@@ -116,6 +121,7 @@ impl Builder<'_> {
         let ids: Vec<i64> = turns.iter().map(|t| t.turn_id).collect();
         let copied = self
             .persist
+            .knowledge()
             .copy_semantic_prompt_items(
                 &ids,
                 &self.embedder.embedder_key,
@@ -149,6 +155,7 @@ impl Builder<'_> {
     pub async fn build_batch(&self, window: &SemanticWindow) -> Result<BuildReport, SemanticError> {
         let turns = self
             .persist
+            .knowledge()
             .turns_needing_semantic_items(&self.embedder.embedder_key, BUILDER_VERSION, window)
             .await?;
         self.build_turns(&turns).await
@@ -157,6 +164,7 @@ impl Builder<'_> {
     pub async fn build_directives(&self, limit: i64) -> Result<u64, SemanticError> {
         let rows = self
             .persist
+            .knowledge()
             .directives_needing_semantic_items(&self.embedder.embedder_key, BUILDER_VERSION, limit)
             .await?;
         let planned: Vec<Planned> = rows
@@ -171,7 +179,12 @@ impl Builder<'_> {
     }
 
     pub async fn ensure_turn_items(&self, turn_id: i64) -> Result<BuildReport, SemanticError> {
-        let Some(turn) = self.persist.semantic_turn_source(turn_id).await? else {
+        let Some(turn) = self
+            .persist
+            .knowledge()
+            .semantic_turn_source(turn_id)
+            .await?
+        else {
             return Ok(BuildReport::default());
         };
         let timeout = Duration::from_millis(self.config.inline_timeout_ms);

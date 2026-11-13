@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
@@ -51,6 +52,7 @@ pub(super) fn gate(args: &EvalGateArgs) -> Result<i32> {
 async fn record_from_database(fleet: uuid::Uuid, cli: CliOverrides) -> Result<Value> {
     let persist = super::connect(cli, false).await?;
     persist
+        .fleet()
         .find_run_record(fleet)
         .await?
         .with_context(|| format!("fleet {fleet} has no run record"))

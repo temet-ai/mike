@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
@@ -140,6 +141,7 @@ pub(super) async fn load(
     seed: i64,
 ) -> Result<RealSkills, PersistError> {
     let bodies = persist
+        .lessons()
         .recent_skill_listing_bodies(project_id, LISTING_MARKER.as_bytes(), WINDOW)
         .await?;
     Ok(gather(&bodies, own_name, seed))

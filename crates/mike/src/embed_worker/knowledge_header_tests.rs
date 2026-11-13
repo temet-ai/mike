@@ -1,6 +1,8 @@
 use super::knowledge_tests::{scan, source};
 use crate::api::project_knowledge::item_header;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::project_knowledge::{
     KnowledgeEmbeddingSource, KnowledgeQuery, LocationInput, ProjectIdentity, SourceInput,
 };
@@ -50,6 +52,7 @@ async fn named_source(
     name: &str,
 ) -> anyhow::Result<Uuid> {
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.project_uuid.to_string(),
             machine_uuid: Uuid::new_v4(),
@@ -58,6 +61,7 @@ async fn named_source(
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: name.into(),
@@ -74,6 +78,7 @@ async fn seed_work_thread(
 ) -> anyhow::Result<String> {
     let slug = format!("header-{}", Uuid::new_v4().simple());
     handle
+        .launch()
         .checkpoint_work_thread(
             project,
             &CheckpointInput {
@@ -198,6 +203,7 @@ async fn seeded() -> anyhow::Result<Seeded> {
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Headers", Uuid::new_v4())
         .await?;
     let (session_id, session_uuid) = session(
@@ -226,7 +232,11 @@ async fn seeded() -> anyhow::Result<Seeded> {
 }
 
 async fn pending(seeded: &Seeded) -> anyhow::Result<Vec<KnowledgeEmbeddingSource>> {
-    Ok(seeded.handle.pending_knowledge_embeddings("no-key").await?)
+    Ok(seeded
+        .handle
+        .knowledge()
+        .pending_knowledge_embeddings("no-key")
+        .await?)
 }
 
 fn header_of<'a>(sources: &'a [KnowledgeEmbeddingSource], kind: &str) -> Vec<&'a str> {
@@ -244,6 +254,7 @@ async fn item_for(
     let words: Vec<&str> = source.body.split_whitespace().rev().take(6).collect();
     let found = seeded
         .handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: seeded.project.project_uuid.to_string(),
             query: words.join(" "),

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -55,7 +56,7 @@ async fn released_at_is_set(handle: &PersistHandle, session: Uuid) -> anyhow::Re
 async fn launch_for(handle: &PersistHandle, session: Uuid) -> anyhow::Result<i64> {
     let mut new = NewLaunch::new("herdr", PROJECT);
     new.session_uuid = Some(session);
-    Ok(handle.insert_launch(&new).await?)
+    Ok(handle.launch().insert_launch(&new).await?)
 }
 
 #[tokio::test]
@@ -71,6 +72,7 @@ async fn record_launch_closed_releases_the_session_registration() -> anyhow::Res
 
     assert_eq!(
         f.handle
+            .launch()
             .resolve_role_recipients(project_id, "worker", sender)
             .await?,
         vec![seat]
@@ -78,12 +80,14 @@ async fn record_launch_closed_releases_the_session_registration() -> anyhow::Res
     assert!(!released_at_is_set(&f.handle, seat).await?);
 
     f.handle
+        .launch()
         .record_launch_closed(launch, "seat retired", Some(true))
         .await?;
 
     assert!(released_at_is_set(&f.handle, seat).await?);
     assert!(
         f.handle
+            .launch()
             .resolve_role_recipients(project_id, "worker", sender)
             .await?
             .is_empty()
@@ -105,11 +109,13 @@ async fn record_launch_closed_leaves_other_registrations_live() -> anyhow::Resul
     let launch = launch_for(&f.handle, closed_seat).await?;
 
     f.handle
+        .launch()
         .record_launch_closed(launch, "seat retired", None)
         .await?;
 
     assert_eq!(
         f.handle
+            .launch()
             .resolve_role_recipients(project_id, "worker", sender)
             .await?,
         vec![other_seat]
@@ -125,11 +131,13 @@ async fn record_launch_closed_without_a_registration_still_closes() -> anyhow::R
     let launch = launch_for(&f.handle, Uuid::new_v4()).await?;
 
     f.handle
+        .launch()
         .record_launch_closed(launch, "seat retired", Some(true))
         .await?;
 
     let missing = f
         .handle
+        .launch()
         .record_launch_closed(launch + 1_000_000, "seat retired", None)
         .await;
     assert!(missing.is_err());

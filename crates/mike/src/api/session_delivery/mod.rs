@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 mod assemble;
 pub(crate) mod dto;
 mod profile;
@@ -37,7 +38,7 @@ pub(crate) async fn get_session_delivery(
         .collect();
     let recall_tools: Vec<String> = RECALL_TOOLS.iter().map(|tool| (*tool).to_owned()).collect();
     let rows = handle
-        .session_delivery(session, &toggle_keys, &recall_tools)
+        .web().session_delivery(session, &toggle_keys, &recall_tools)
         .await
         .map_err(|error| {
             tracing::warn!(session_id = %session, error = %error, "get_session_delivery: DB query failed");

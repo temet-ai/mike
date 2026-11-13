@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{
     make_pool_and_persist, one_hot, seed_chunk, seed_project, seed_session, seed_turn,
@@ -35,6 +36,7 @@ async fn list_sessions_needing_embedding_detects_missing_and_stale_sessions() ->
     let t_s1 = now - ChronoDuration::seconds(295);
     seed_chunk(&pool, s_turn, 0, &one_hot(1, 1.0), t_s1).await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: s_uuid,
             embedding: &one_hot(1, 1.0),
@@ -52,6 +54,7 @@ async fn list_sessions_needing_embedding_detects_missing_and_stale_sessions() ->
     let t_o1 = now - ChronoDuration::seconds(290);
     seed_chunk(&pool, o_turn, 0, &one_hot(2, 1.0), t_o1).await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: o_uuid,
             embedding: &one_hot(2, 1.0),
@@ -69,6 +72,7 @@ async fn list_sessions_needing_embedding_detects_missing_and_stale_sessions() ->
     let t_u1 = now - ChronoDuration::seconds(290);
     seed_chunk(&pool, u_turn, 0, &one_hot(3, 1.0), t_u1).await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: u_uuid,
             embedding: &one_hot(3, 1.0),
@@ -82,7 +86,10 @@ async fn list_sessions_needing_embedding_detects_missing_and_stale_sessions() ->
     let (z_pk, _z_uuid) = seed_session(&pool, project_id, Some("Z"), now).await?;
     set_session_overview(&pool, z_pk, "z has no chunks yet", now).await?;
 
-    let all = persist.list_sessions_needing_embedding(10).await?;
+    let all = persist
+        .knowledge()
+        .list_sessions_needing_embedding(10)
+        .await?;
     let ids: Vec<Uuid> = all.iter().map(|c| c.session_id).collect();
     assert_eq!(
         ids,
@@ -113,7 +120,10 @@ async fn list_sessions_needing_embedding_detects_missing_and_stale_sessions() ->
          overview signal is what makes it stale"
     );
 
-    let limited = persist.list_sessions_needing_embedding(2).await?;
+    let limited = persist
+        .knowledge()
+        .list_sessions_needing_embedding(2)
+        .await?;
     let limited_ids: Vec<Uuid> = limited.iter().map(|c| c.session_id).collect();
     assert_eq!(limited_ids, vec![m_uuid, s_uuid]);
 

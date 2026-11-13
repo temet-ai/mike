@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 #[derive(Debug, Default, Deserialize)]
 pub(crate) struct LessonsListParams {
@@ -15,7 +17,7 @@ pub(crate) async fn fetch_lessons_for_project(
     order: SortOrder,
     topic: Option<&str>,
 ) -> Result<Vec<LessonDto>, crate::store::persistence::PersistError> {
-    let mut rows = handle.list_active_lessons(project.id).await?;
+    let mut rows = handle.lessons().list_active_lessons(project.id).await?;
     if let Some(want) = topic {
         rows.retain(|r| r.topic.as_deref() == Some(want));
     }
@@ -52,6 +54,7 @@ pub(crate) async fn list_lessons(
         ));
     };
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(&project_path)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
@@ -82,7 +85,7 @@ pub(crate) async fn delete_lesson(
             "`id` must be an integer — see `memory.lessons.id`",
         )
     })?;
-    let deleted = handle.delete_lesson(parsed).await.map_err(|e| {
+    let deleted = handle.lessons().delete_lesson(parsed).await.map_err(|e| {
         tracing::warn!(lesson_id = %id, error = %e, "delete_lesson: query failed");
         persist_error_response(e)
     })?;

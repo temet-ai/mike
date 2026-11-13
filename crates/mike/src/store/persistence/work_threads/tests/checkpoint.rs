@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::super::reads::HistoryPage;
@@ -14,6 +15,7 @@ async fn first_checkpoint_creates_the_thread_with_state_history_and_session_link
     let files = vec!["crates/mike/src/main.rs".to_owned()];
     let outcome = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -38,6 +40,7 @@ async fn first_checkpoint_creates_the_thread_with_state_history_and_session_link
 
     let detail = f
         .handle
+        .launch()
         .get_work_thread(f.project, "motion", HistoryPage::default())
         .await?;
     let state = detail
@@ -64,6 +67,7 @@ async fn second_checkpoint_replaces_the_state_and_keeps_the_old_one_in_the_histo
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -78,6 +82,7 @@ async fn second_checkpoint_replaces_the_state_and_keeps_the_old_one_in_the_histo
         .await?;
     let second = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -95,6 +100,7 @@ async fn second_checkpoint_replaces_the_state_and_keeps_the_old_one_in_the_histo
 
     let detail = f
         .handle
+        .launch()
         .get_work_thread(f.project, "motion", HistoryPage::everything())
         .await?;
     let state = detail
@@ -123,6 +129,7 @@ async fn checkpoint_of_an_unknown_thread_without_a_title_names_the_slug() -> any
     };
     let refused = f
         .handle
+        .launch()
         .checkpoint_work_thread(f.project, &input("ghost", "nothing"))
         .await;
     let Err(WorkThreadError::Invalid(message)) = refused else {
@@ -143,6 +150,7 @@ async fn tldr_over_600_characters_is_refused_with_its_length() -> anyhow::Result
     let long = "x".repeat(612);
     let refused = f
         .handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("long", &long))
         .await;
     let Err(WorkThreadError::Invalid(message)) = refused else {
@@ -152,7 +160,12 @@ async fn tldr_over_600_characters_is_refused_with_its_length() -> anyhow::Result
         message.contains("612") && message.contains("12 too many"),
         "{message}"
     );
-    assert!(!f.handle.work_thread_exists(f.project, "long").await?);
+    assert!(
+        !f.handle
+            .launch()
+            .work_thread_exists(f.project, "long")
+            .await?
+    );
     Ok(())
 }
 
@@ -167,6 +180,7 @@ async fn an_absolute_file_path_is_refused_with_its_position() -> anyhow::Result<
     ];
     let refused = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -194,10 +208,12 @@ async fn a_refused_checkpoint_changes_nothing() -> anyhow::Result<()> {
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("steady", "first"))
         .await?;
     let refused = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -212,6 +228,7 @@ async fn a_refused_checkpoint_changes_nothing() -> anyhow::Result<()> {
     assert!(matches!(refused, Err(WorkThreadError::Invalid(_))));
     let detail = f
         .handle
+        .launch()
         .get_work_thread(f.project, "steady", HistoryPage::everything())
         .await?;
     assert_eq!(detail.state.map(|s| s.tldr).as_deref(), Some("first"));

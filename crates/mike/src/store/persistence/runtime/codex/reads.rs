@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::runtime::RuntimeObservation;
 use crate::runtime::codex::ReceiptId;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::super::invalid;
 use super::context::CONTEXT_VERSION;
@@ -100,16 +100,16 @@ pub(super) async fn receipt_by_ingestion<'e>(
     row.map(TryInto::try_into).transpose()
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn runtime_receipt(
-        &self,
+        self,
         receipt: ReceiptId,
     ) -> Result<Option<StoredRuntimeReceipt>, PersistError> {
         receipt_by_ingestion(&self.pool, receipt).await
     }
 
     pub async fn list_runtime_raw_events(
-        &self,
+        self,
         page: RawEventPage,
     ) -> Result<Vec<StoredRuntimeReceipt>, PersistError> {
         validate_raw_page(&page)?;
@@ -126,7 +126,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_unclassified_receipts(
-        &self,
+        self,
         page: RawEventPage,
     ) -> Result<Vec<StoredRuntimeReceipt>, PersistError> {
         validate_raw_page(&page)?;

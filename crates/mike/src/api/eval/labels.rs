@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::BTreeMap;
 
 use axum::Json;
@@ -58,7 +59,7 @@ pub(crate) async fn get_vocabulary(State(state): State<AppState>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.eval_vocabulary().await {
+    match persist.eval().eval_vocabulary().await {
         Ok(rows) => Json(json!({ "axes": group_vocabulary(rows) })).into_response(),
         Err(e) => error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
@@ -101,14 +102,25 @@ async fn verdict_for(
 ) -> Option<serde_json::Value> {
     if let Some(turn_id) = params.turn_id {
         let kind = params.subject_kind.as_deref().unwrap_or("turn");
-        return persist.verdict_now(kind, turn_id).await.ok().flatten();
+        return persist
+            .eval()
+            .verdict_now(kind, turn_id)
+            .await
+            .ok()
+            .flatten();
     }
     let session = params.session?;
     if params.subject_kind.as_deref() != Some("session_end") {
         return None;
     }
-    let ending = persist.session_ending_turn(session).await.ok().flatten()?;
+    let ending = persist
+        .eval()
+        .session_ending_turn(session)
+        .await
+        .ok()
+        .flatten()?;
     persist
+        .eval()
         .verdict_now("session_end", ending)
         .await
         .ok()
@@ -147,7 +159,7 @@ pub(crate) async fn list_eval_labels(
         before_id: params.before_id,
         limit: limit + 1,
     };
-    let mut rows = match persist.list_labels(&query).await {
+    let mut rows = match persist.eval().list_labels(&query).await {
         Ok(rows) => rows,
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     };
@@ -247,7 +259,7 @@ async fn check_review_run(persist: &PersistHandle, body: &GoldBody) -> Result<()
             "eval_run_id applies to a turn label only",
         )));
     };
-    match persist.eval_run_has_item(run_id, turn_id).await {
+    match persist.eval().eval_run_has_item(run_id, turn_id).await {
         Ok(true) => Ok(()),
         Ok(false) => Err(Box::new(error(
             StatusCode::BAD_REQUEST,
@@ -271,7 +283,7 @@ pub(crate) async fn post_gold_labels(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let vocab = match persist.eval_vocabulary().await {
+    let vocab = match persist.eval().eval_vocabulary().await {
         Ok(v) => v,
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     };
@@ -294,7 +306,7 @@ pub(crate) async fn post_gold_labels(
         context: body.context.as_deref().unwrap_or("spa"),
         eval_run_id: body.eval_run_id,
     };
-    match persist.write_gold_labels(&write).await {
+    match persist.eval().write_gold_labels(&write).await {
         Ok(labels) => {
             super::projection::project_after_gold(&state, persist, &labels).await;
             (StatusCode::CREATED, Json(json!({ "labels": labels }))).into_response()
@@ -321,7 +333,11 @@ pub(crate) async fn withdraw_label(
         return unavailable();
     };
     let note = body.and_then(|Json(b)| b.note);
-    match persist.withdraw_label(id, &origin, note.as_deref()).await {
+    match persist
+        .eval()
+        .withdraw_label(id, &origin, note.as_deref())
+        .await
+    {
         Ok(label) => {
             super::projection::project_after_gold(&state, persist, std::slice::from_ref(&label))
                 .await;
@@ -345,6 +361,7 @@ pub(crate) async fn confirm_label(
     };
     let note = body.and_then(|Json(b)| b.note);
     match persist
+        .eval()
         .confirm_relayed_label(id, &origin, note.as_deref())
         .await
     {
@@ -361,7 +378,7 @@ pub(crate) async fn list_import_batches(State(state): State<AppState>) -> Respon
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.import_batches().await {
+    match persist.eval().import_batches().await {
         Ok(batches) => Json(json!({ "batches": batches })).into_response(),
         Err(e) => error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }

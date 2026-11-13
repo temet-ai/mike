@@ -1,5 +1,6 @@
 use super::knowledge::{model_keys, sweep};
 use super::knowledge_tests::{breaker, embedding_server, source};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistHandle, project_knowledge::KnowledgeQuery, test_support::acquire_ephemeral_db,
 };
@@ -30,6 +31,7 @@ async fn scan_titles(
         })
         .collect();
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             source,
             &serde_json::from_value(json!({"generation": 0, "documents": documents}))?,
@@ -65,6 +67,7 @@ async fn other_project(handle: &PersistHandle, documents: usize) -> anyhow::Resu
         return Ok(titles);
     }
     let other = handle
+        .knowledge()
         .define_knowledge_project("Other", Uuid::new_v4())
         .await?;
     let other_source = source(handle, &other.project_uuid.to_string()).await?;
@@ -160,6 +163,7 @@ async fn fixture_with_lesson(
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Floor", Uuid::new_v4())
         .await?;
     let source_uuid = source(&handle, &project.project_uuid.to_string()).await?;
@@ -205,6 +209,7 @@ async fn titles_for_kind(
     };
     let found = fixture
         .handle
+        .knowledge()
         .search_project_knowledge_hybrid(&input, Some(&fixture.embedding))
         .await?;
     let mut titles: Vec<String> = found["items"]

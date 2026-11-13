@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::Utc;
 use mike_codex::{NotificationObservation, SessionPhase, ThreadUsage, observe_notification};
 use serde_json::Value;
@@ -108,7 +109,12 @@ impl ManagedObservation {
 
     async fn persist(&mut self, observation: SessionObservation) {
         use crate::store::persistence::runtime::ObservationApplyOutcome;
-        match self.persist.apply_session_observation(&observation).await {
+        match self
+            .persist
+            .runtime()
+            .apply_session_observation(&observation)
+            .await
+        {
             Ok(ObservationApplyOutcome::Applied | ObservationApplyOutcome::Replayed) => {}
             other => {
                 self.incomplete = true;

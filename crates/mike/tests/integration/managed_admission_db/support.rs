@@ -1,3 +1,5 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 use std::time::Duration;
 
@@ -32,6 +34,7 @@ impl Harness {
         let repo = tempfile::tempdir()?;
         let run = format!("managed-db-{}", Uuid::new_v4());
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: Some(repo.path().display().to_string()),
@@ -41,6 +44,7 @@ impl Harness {
             })
             .await?;
         let fleet = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: run.clone(),
                 project_path: repo.path().display().to_string(),
@@ -72,6 +76,7 @@ impl Harness {
 
     pub(super) async fn stop_other(&self) -> anyhow::Result<FleetRow> {
         self.other
+            .fleet()
             .transition_fleet_state(&self.fleet, "stopping", Some(&self.run), None)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture exact-run stop CAS lost"))

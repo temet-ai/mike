@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use uuid::Uuid;
 
 use super::tests::document;
@@ -26,9 +27,11 @@ async fn seeded() -> anyhow::Result<Seeded> {
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Passages", Uuid::new_v4())
         .await?;
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.project_uuid.to_string(),
             machine_uuid: Uuid::new_v4(),
@@ -37,6 +40,7 @@ async fn seeded() -> anyhow::Result<Seeded> {
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: "artifacts".into(),
@@ -44,6 +48,7 @@ async fn seeded() -> anyhow::Result<Seeded> {
         })
         .await?;
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             serde_json::from_value(source["source_uuid"].clone())?,
             &ScanInput {
@@ -53,6 +58,7 @@ async fn seeded() -> anyhow::Result<Seeded> {
         )
         .await?;
     let found = handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: project.project_uuid.to_string(),
             query: "cache".into(),
@@ -124,6 +130,7 @@ async fn rerank_passages_with_a_query_vector_returns_the_nearest_chunk() -> anyh
 
     let passages = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(
             std::slice::from_ref(&seeded.reference),
             Some(&query_vector(5, MODEL)),
@@ -149,6 +156,7 @@ async fn rerank_passages_without_a_query_vector_returns_the_first_chunk() -> any
 
     let passages = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(std::slice::from_ref(&seeded.reference), None)
         .await?;
 
@@ -166,6 +174,7 @@ async fn rerank_passages_for_another_embedding_model_returns_nothing() -> anyhow
 
     let passages = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(
             std::slice::from_ref(&seeded.reference),
             Some(&query_vector(0, MODEL)),
@@ -194,6 +203,7 @@ async fn rerank_passages_with_unparseable_or_unembedded_references_returns_nothi
 
     let passages = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(&references, Some(&query_vector(0, MODEL)))
         .await?;
 
@@ -258,10 +268,12 @@ async fn rerank_passages_for_a_turn_returns_its_chunk_nearest_the_query() -> any
 
     let near = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(std::slice::from_ref(&turn), Some(&query_vector(5, MODEL)))
         .await?;
     let first = seeded
         .handle
+        .knowledge()
         .knowledge_rerank_passages(std::slice::from_ref(&turn), None)
         .await?;
 

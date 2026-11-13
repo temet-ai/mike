@@ -2,7 +2,9 @@ use mike::launch::fleet::FleetDefinition;
 use mike::launch::fleet::test_seams::gate_failures;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_notes::{NewSessionNote, SessionNoteRow};
 use mike::store::persistence::test_support::{
     TestDbHandle, acquire_ephemeral_db, seed_fleet_running, seed_project, seed_two_sessions,
@@ -91,6 +93,7 @@ impl Fixture {
         }
         let run = format!("late-gate-{}", Uuid::new_v4());
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: Some(repo.path().display().to_string()),
@@ -108,6 +111,7 @@ impl Fixture {
             }
         })).map_err(anyhow::Error::msg)?;
         let row = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: run.clone(),
                 project_path: def.repo.clone(),
@@ -148,8 +152,9 @@ impl Fixture {
         launch.run_id = Some(self.run.clone());
         launch.session_uuid = Some(session);
         launch.seat = Some(seat.into());
-        let id = self.persist.insert_launch(&launch).await?;
+        let id = self.persist.launch().insert_launch(&launch).await?;
         self.persist
+            .launch()
             .record_launch_opened(id, &LaunchSurfaceRefs::default())
             .await?;
         Ok(id)
@@ -166,6 +171,7 @@ impl Fixture {
                           "check": "passed", "evidence": ["artifacts/scenario.log"]});
         Ok(self
             .persist
+            .launch()
             .create_session_note(
                 session,
                 NewSessionNote {
@@ -186,6 +192,7 @@ impl Fixture {
             current.tasks.entry("A".into()).or_default().session = Some(self.successor.to_string());
             anyhow::ensure!(
                 self.persist
+                    .fleet()
                     .save_fleet_definition(
                         self.row.fleet_uuid,
                         &serde_json::to_value(current)?,
@@ -197,6 +204,7 @@ impl Fixture {
             );
         }
         self.persist
+            .launch()
             .record_launch_closed(self.old_launch, "bounded task handed off", Some(true))
             .await?;
         Ok(())
@@ -206,9 +214,11 @@ impl Fixture {
         let ledger = mike::launch::fleet::gate::ledger(&self.run);
         let check = self
             .persist
+            .fleet()
             .begin_tree_check(&ledger, &self.checked, &self.def.gate.command, "mike")
             .await?;
         self.persist
+            .fleet()
             .finish_tree_check(check, Some(101), output, Some(&self.checked))
             .await?;
         gate_failures::deliver(
@@ -225,6 +235,7 @@ impl Fixture {
     pub async fn inbox(&self, session: Uuid) -> anyhow::Result<String> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(session)
             .await?
             .inbox
@@ -237,6 +248,7 @@ impl Fixture {
     pub async fn still_closed(&self) -> anyhow::Result<()> {
         let launch = self
             .persist
+            .launch()
             .find_launch_by_session(self.old)
             .await?
             .ok_or_else(|| anyhow::anyhow!("old launch disappeared"))?;

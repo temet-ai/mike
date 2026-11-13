@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
@@ -66,7 +67,7 @@ impl SteeringService {
 
         {
             let _guard = service.write_lock.lock().await;
-            let rows = service.persist.list_steerers().await?;
+            let rows = service.persist.steerer().list_steerers().await?;
             service.rebuild_arcswap(rows);
         }
 
@@ -94,12 +95,13 @@ impl SteeringService {
             }
         };
 
-        let rows = self.persist.list_steerers().await?;
+        let rows = self.persist.steerer().list_steerers().await?;
         self.rebuild_arcswap(rows);
         self.republish(id).await;
 
         let row = self
             .persist
+            .steerer()
             .fetch_steerer_by_id(id)
             .await?
             .ok_or(SteeringServiceError::NotFound)?;
@@ -132,6 +134,7 @@ impl SteeringService {
     ) -> Result<i64, SteeringServiceError> {
         let (id, _uuid) = self
             .persist
+            .steerer()
             .insert_steerer(
                 agent_id,
                 crate::store::persistence::steering::SteererFields {
@@ -170,6 +173,7 @@ impl SteeringService {
     ) -> Result<i64, SteeringServiceError> {
         let (id, _uuid, bootstrapped_agent_id) = self
             .persist
+            .steerer()
             .insert_steerer_with_bootstrapped_agent(
                 crate::store::persistence::steering::SteererFields {
                     name,
@@ -215,6 +219,7 @@ impl SteeringService {
 
         match self
             .persist
+            .steerer()
             .update_steerer(
                 crate::store::persistence::steering::SteererUpdate {
                     id,
@@ -244,12 +249,13 @@ impl SteeringService {
             }
         }
 
-        let rows = self.persist.list_steerers().await?;
+        let rows = self.persist.steerer().list_steerers().await?;
         self.rebuild_arcswap(rows);
         self.republish(id).await;
 
         let row = self
             .persist
+            .steerer()
             .fetch_steerer_by_id(id)
             .await?
             .ok_or(SteeringServiceError::NotFound)?;
@@ -273,7 +279,12 @@ impl SteeringService {
         let source_json = source.to_setting_json(&current_build());
         let _guard = self.write_lock.lock().await;
 
-        match self.persist.delete_steerer(id, Some(&source_json)).await {
+        match self
+            .persist
+            .steerer()
+            .delete_steerer(id, Some(&source_json))
+            .await
+        {
             Ok(true) => {}
             Ok(false) => return Err(SteeringServiceError::NotFound),
             Err(e) => {
@@ -282,7 +293,7 @@ impl SteeringService {
             }
         }
 
-        let rows = self.persist.list_steerers().await?;
+        let rows = self.persist.steerer().list_steerers().await?;
         self.rebuild_arcswap(rows);
         self.republish(id).await;
 
@@ -298,9 +309,10 @@ impl SteeringService {
         let source_json = source.to_setting_json(&current_build());
         let _guard = self.write_lock.lock().await;
         self.persist
+            .steerer()
             .set_steerer_enabled_preserving_config(id, enabled, &source_json)
             .await?;
-        let rows = self.persist.list_steerers().await?;
+        let rows = self.persist.steerer().list_steerers().await?;
         self.rebuild_arcswap(rows);
         self.republish(id).await;
         Ok(())
@@ -327,7 +339,7 @@ impl SteeringService {
         enrolled_by: &str,
     ) -> Result<i64, SteeringServiceError> {
         self.persist
-            .insert_enrolment(
+            .steerer().insert_enrolment(
                 session_uuid,
                 steerer_id,
                 mode_code,
@@ -346,6 +358,7 @@ impl SteeringService {
         enrolment_id: i64,
     ) -> Result<bool, SteeringServiceError> {
         self.persist
+            .steerer()
             .delete_enrolment(enrolment_id)
             .await
             .map_err(|e| {

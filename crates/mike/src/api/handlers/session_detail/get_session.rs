@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::eval_repo::EvalPersist as _;
 
 struct SessionHeader {
     session_db_id: i64,
@@ -123,7 +124,7 @@ async fn fetch_session_aggregations(
         handle.fetch_session_prompt_roster(session_db_id),
         handle.fetch_session_model_breakdown(session_db_id),
         handle.fetch_session_token_usage(session_db_id),
-        handle.fetch_session_quality(id),
+        handle.eval().fetch_session_quality(id),
         super::loaded_mods::fetch_loaded_mods(handle, id),
     );
 

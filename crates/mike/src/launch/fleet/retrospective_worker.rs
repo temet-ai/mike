@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
@@ -41,7 +43,7 @@ async fn tick(state: &AppState, persist: &PersistHandle, breaker: &mut CircuitBr
     if breaker.should_skip(Instant::now()) {
         return;
     }
-    let rows = match persist.pending_fleet_retrospectives().await {
+    let rows = match persist.fleet().pending_fleet_retrospectives().await {
         Ok(rows) => rows,
         Err(err) => {
             tracing::warn!(error = %err, "fleet retrospective queue could not be read");
@@ -118,7 +120,7 @@ async fn process(
     if job.phase == Phase::Cleanup {
         return cleanup(persist, row, job).await;
     }
-    let launch = persist.find_launch_by_session(job.session).await?;
+    let launch = persist.launch().find_launch_by_session(job.session).await?;
     if launch.is_some() {
         observe(
             &mut job,
@@ -208,7 +210,7 @@ async fn cleanup(
 ) -> Result<(), PersistError> {
     let def =
         FleetDefinition::from_value(&job.source_definition).map_err(PersistError::DataInvariant)?;
-    if let Some(launch) = persist.find_launch_by_session(job.session).await?
+    if let Some(launch) = persist.launch().find_launch_by_session(job.session).await?
         && !safe_to_cleanup(&launch, crate::workspace_reaper::is_process_alive)
     {
         job.phase = Phase::Blocked;
@@ -217,7 +219,7 @@ async fn cleanup(
         save(persist, row, &job).await?;
         return Ok(());
     }
-    persist.close_run(&job.run_id).await?;
+    persist.launch().close_run(&job.run_id).await?;
     super::cleanup::after_close(persist, row, &def, &job.source_run).await;
     job.phase = if job.problem.is_some() {
         Phase::Failed
@@ -241,13 +243,14 @@ async fn write_blocker(
     job: &Job,
     def: &FleetDefinition,
 ) -> Result<Option<String>, PersistError> {
-    let fleets = persist.fleet_checkout_users().await?;
+    let fleets = persist.fleet().fleet_checkout_users().await?;
     if let Some(other) = super::cleanup::other_user_of(&def.repo, row.fleet_uuid, &fleets) {
         return Ok(Some(format!(
             "write-capable retrospective waits for fleet {other} to release its checkout"
         )));
     }
     let launches = persist
+        .launch()
         .list_launches(&LaunchListFilter {
             run_id: Some(job.source_run.clone()),
             open_only: false,

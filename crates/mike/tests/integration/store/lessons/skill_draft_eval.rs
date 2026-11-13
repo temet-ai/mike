@@ -1,6 +1,7 @@
 use mike::lesson_proposer::skill_author::build_input;
 use mike::lesson_proposer::skill_eval::EVALUATOR_VERSION;
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::{Value, json};
 
 use super::skill_drafts::{Fixture, draft, fixture};
@@ -27,7 +28,7 @@ pub(super) async fn insert(
     let empty = json!([]);
     let mut new = draft(&target, &[1, 2], &empty);
     new.description = description;
-    Ok(fx.handle.insert_skill_draft(new).await?)
+    Ok(fx.handle.lessons().insert_skill_draft(new).await?)
 }
 
 async fn status_of(fx: &Fixture, id: i64) -> anyhow::Result<String> {
@@ -61,6 +62,7 @@ async fn claim_takes_the_draft_being_evaluated_before_the_oldest_waiting_one() -
 
     let claimed = fx
         .handle
+        .lessons()
         .claim_skill_draft_for_eval()
         .await?
         .ok_or_else(|| anyhow::anyhow!("a waiting draft must be claimed"))?;
@@ -70,6 +72,7 @@ async fn claim_takes_the_draft_being_evaluated_before_the_oldest_waiting_one() -
 
     let again = fx
         .handle
+        .lessons()
         .claim_skill_draft_for_eval()
         .await?
         .ok_or_else(|| anyhow::anyhow!("the draft being evaluated must be claimed again"))?;
@@ -85,12 +88,18 @@ async fn progress_is_saved_returned_on_the_next_claim_and_cleared_by_the_result(
         return Ok(());
     };
     let id = insert(&fx, "first", 10, "one").await?;
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
 
     let progress = json!({"trigger": [], "prompts": [], "models": ["m"]});
-    assert!(fx.handle.save_skill_draft_progress(id, &progress).await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .save_skill_draft_progress(id, &progress)
+            .await?
+    );
     let claimed = fx
         .handle
+        .lessons()
         .claim_skill_draft_for_eval()
         .await?
         .ok_or_else(|| anyhow::anyhow!("claim"))?;
@@ -99,6 +108,7 @@ async fn progress_is_saved_returned_on_the_next_claim_and_cleared_by_the_result(
     let eval = json!({"verdict": {"accepted": true}});
     assert!(
         fx.handle
+            .lessons()
             .finish_skill_draft_eval(id, true, &eval, None)
             .await?
     );
@@ -116,12 +126,24 @@ async fn progress_is_saved_returned_on_the_next_claim_and_cleared_by_the_result(
 
     assert!(
         !fx.handle
+            .lessons()
             .finish_skill_draft_eval(id, false, &eval, None)
             .await?,
         "a decided draft must not be decided twice"
     );
-    assert!(!fx.handle.save_skill_draft_progress(id, &progress).await?);
-    assert!(fx.handle.claim_skill_draft_for_eval().await?.is_none());
+    assert!(
+        !fx.handle
+            .lessons()
+            .save_skill_draft_progress(id, &progress)
+            .await?
+    );
+    assert!(
+        fx.handle
+            .lessons()
+            .claim_skill_draft_for_eval()
+            .await?
+            .is_none()
+    );
     fx.finish().await
 }
 
@@ -131,35 +153,44 @@ async fn a_failing_draft_waits_then_is_rejected_on_the_third_failure() -> anyhow
         return Ok(());
     };
     let id = insert(&fx, "first", 10, "one").await?;
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     fx.handle
+        .lessons()
         .save_skill_draft_progress(id, &json!({"trigger": []}))
         .await?;
 
     let first = fx
         .handle
+        .lessons()
         .fail_skill_draft_eval(id, "model: 502", 3, EVALUATOR_VERSION)
         .await?
         .ok_or_else(|| anyhow::anyhow!("failure recorded"))?;
     assert_eq!((first.attempts, first.rejected), (1, false));
     assert!(
-        fx.handle.claim_skill_draft_for_eval().await?.is_none(),
+        fx.handle
+            .lessons()
+            .claim_skill_draft_for_eval()
+            .await?
+            .is_none(),
         "a draft that just failed must wait"
     );
 
     age_eval_failures(&fx, 3).await?;
     let retried = fx
         .handle
+        .lessons()
         .claim_skill_draft_for_eval()
         .await?
         .ok_or_else(|| anyhow::anyhow!("retry after the wait"))?;
     assert_eq!(retried.eval_progress, Some(json!({"trigger": []})));
 
     fx.handle
+        .lessons()
         .fail_skill_draft_eval(id, "model: 502", 3, EVALUATOR_VERSION)
         .await?;
     let third = fx
         .handle
+        .lessons()
         .fail_skill_draft_eval(id, "model: 503", 3, EVALUATOR_VERSION)
         .await?
         .ok_or_else(|| anyhow::anyhow!("third failure recorded"))?;
@@ -180,7 +211,13 @@ async fn a_failing_draft_waits_then_is_rejected_on_the_third_failure() -> anyhow
     );
     assert!(progress.is_none());
     age_eval_failures(&fx, 1000).await?;
-    assert!(fx.handle.claim_skill_draft_for_eval().await?.is_none());
+    assert!(
+        fx.handle
+            .lessons()
+            .claim_skill_draft_for_eval()
+            .await?
+            .is_none()
+    );
     fx.finish().await
 }
 
@@ -205,6 +242,7 @@ async fn siblings_are_the_other_live_drafts_of_the_project_accepted_first() -> a
 
     let siblings = fx
         .handle
+        .lessons()
         .skill_draft_siblings(fx.project_id, "own", 5)
         .await?;
     let names: Vec<&str> = siblings.iter().map(|s| s.folder.as_str()).collect();
@@ -213,6 +251,7 @@ async fn siblings_are_the_other_live_drafts_of_the_project_accepted_first() -> a
     assert!(!names.contains(&"own") && !names.contains(&"dropped"));
     assert_eq!(
         fx.handle
+            .lessons()
             .skill_draft_siblings(fx.project_id, "own", 1)
             .await?
             .len(),
@@ -242,6 +281,7 @@ async fn the_replaced_draft_is_the_newest_older_accepted_one_in_the_drafts_own_f
     let own = vec!["topic-agent".to_owned(), "topic".to_owned()];
     let replaced = fx
         .handle
+        .lessons()
         .skill_draft_replaced(fx.project_id, &own, waiting)
         .await?;
     assert_eq!(
@@ -251,6 +291,7 @@ async fn the_replaced_draft_is_the_newest_older_accepted_one_in_the_drafts_own_f
     let exact = vec!["topic-agent".to_owned()];
     let replaced = fx
         .handle
+        .lessons()
         .skill_draft_replaced(fx.project_id, &exact, waiting)
         .await?;
     assert_eq!(
@@ -259,6 +300,7 @@ async fn the_replaced_draft_is_the_newest_older_accepted_one_in_the_drafts_own_f
     );
     assert!(
         fx.handle
+            .lessons()
             .skill_draft_replaced(fx.project_id, &exact, old)
             .await?
             .is_none()
@@ -269,6 +311,7 @@ async fn the_replaced_draft_is_the_newest_older_accepted_one_in_the_drafts_own_f
         .await?;
     let replaced = fx
         .handle
+        .lessons()
         .skill_draft_replaced(fx.project_id, &exact, waiting)
         .await?;
     assert_eq!(
@@ -300,12 +343,17 @@ async fn a_rejected_drafts_evaluation_reaches_the_next_author_input_up_to_three_
     for revision in 1..=3 {
         let target = fx
             .handle
+            .lessons()
             .next_skill_draft_target()
             .await?
             .ok_or_else(|| anyhow::anyhow!("revision {revision} must be offered"))?;
         assert_eq!(target.lesson_watermark, b);
-        let previous = fx.handle.previous_rejected_skill_draft(&target).await?;
-        let lessons = fx.handle.skill_draft_lessons(&target).await?;
+        let previous = fx
+            .handle
+            .lessons()
+            .previous_rejected_skill_draft(&target)
+            .await?;
+        let lessons = fx.handle.lessons().skill_draft_lessons(&target).await?;
         last_input = build_input(&target, &lessons, previous.as_ref(), None);
         assert_eq!(
             previous.is_some(),
@@ -315,14 +363,20 @@ async fn a_rejected_drafts_evaluation_reaches_the_next_author_input_up_to_three_
         let empty = json!([]);
         let id = fx
             .handle
+            .lessons()
             .insert_skill_draft(draft(&target, &[a, b], &empty))
             .await?;
         assert!(
-            fx.handle.next_skill_draft_target().await?.is_none(),
+            fx.handle
+                .lessons()
+                .next_skill_draft_target()
+                .await?
+                .is_none(),
             "a draft that is not decided yet holds the topic"
         );
-        fx.handle.claim_skill_draft_for_eval().await?;
+        fx.handle.lessons().claim_skill_draft_for_eval().await?;
         fx.handle
+            .lessons()
             .finish_skill_draft_eval(id, false, &eval, None)
             .await?;
     }
@@ -331,7 +385,11 @@ async fn a_rejected_drafts_evaluation_reaches_the_next_author_input_up_to_three_
     assert!(last_input.contains("Rejected because the draft's trigger score 0.55 is below 0.80."));
     assert!(last_input.contains("The reviewer's decision was approve: Faithful to the lessons."));
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "three rejected drafts at one watermark must stop the topic"
     );
 
@@ -339,10 +397,15 @@ async fn a_rejected_drafts_evaluation_reaches_the_next_author_input_up_to_three_
         .await?;
     let reopened = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("a new lesson must reopen the topic"))?;
-    let previous = fx.handle.previous_rejected_skill_draft(&reopened).await?;
+    let previous = fx
+        .handle
+        .lessons()
+        .previous_rejected_skill_draft(&reopened)
+        .await?;
     assert_eq!(previous.map(|p| p.revision), Some(3));
     fx.finish().await
 }
@@ -355,6 +418,7 @@ async fn an_accepted_or_waiting_draft_is_not_a_previous_draft() -> anyhow::Resul
     let target = target_for(&fx, "first", 10);
     assert!(
         fx.handle
+            .lessons()
             .previous_rejected_skill_draft(&target)
             .await?
             .is_none()
@@ -362,16 +426,19 @@ async fn an_accepted_or_waiting_draft_is_not_a_previous_draft() -> anyhow::Resul
     let id = insert(&fx, "first", 10, "one").await?;
     assert!(
         fx.handle
+            .lessons()
             .previous_rejected_skill_draft(&target)
             .await?
             .is_none()
     );
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     fx.handle
+        .lessons()
         .finish_skill_draft_eval(id, true, &json!({"verdict": {"accepted": true}}), None)
         .await?;
     assert!(
         fx.handle
+            .lessons()
             .previous_rejected_skill_draft(&target)
             .await?
             .is_none()
@@ -386,12 +453,16 @@ async fn the_project_path_of_a_draft_is_looked_up_by_project_id() -> anyhow::Res
     };
     assert_eq!(
         fx.handle
+            .lessons()
             .skill_draft_project_path(fx.project_id)
             .await?
             .as_deref(),
         Some("/tmp/skill-drafts")
     );
-    assert_eq!(fx.handle.skill_draft_project_path(-1).await?, None);
+    assert_eq!(
+        fx.handle.lessons().skill_draft_project_path(-1).await?,
+        None
+    );
     fx.db.cleanup().await
 }
 
@@ -402,34 +473,51 @@ async fn eval_queries_on_a_closed_pool_are_err() -> anyhow::Result<()> {
     };
     let target = target_for(&fx, "first", 10);
     fx.handle.pool().close().await;
-    assert!(fx.handle.skill_draft_project_path(1).await.is_err());
-    assert!(fx.handle.claim_skill_draft_for_eval().await.is_err());
     assert!(
         fx.handle
+            .lessons()
+            .skill_draft_project_path(1)
+            .await
+            .is_err()
+    );
+    assert!(
+        fx.handle
+            .lessons()
+            .claim_skill_draft_for_eval()
+            .await
+            .is_err()
+    );
+    assert!(
+        fx.handle
+            .lessons()
             .skill_draft_siblings(fx.project_id, "x", 5)
             .await
             .is_err()
     );
     assert!(
         fx.handle
+            .lessons()
             .save_skill_draft_progress(1, &json!({}))
             .await
             .is_err()
     );
     assert!(
         fx.handle
+            .lessons()
             .finish_skill_draft_eval(1, true, &json!({}), None)
             .await
             .is_err()
     );
     assert!(
         fx.handle
+            .lessons()
             .fail_skill_draft_eval(1, "x", 3, EVALUATOR_VERSION)
             .await
             .is_err()
     );
     assert!(
         fx.handle
+            .lessons()
             .previous_rejected_skill_draft(&target)
             .await
             .is_err()

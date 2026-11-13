@@ -337,7 +337,13 @@ async fn identical_gate_in_another_fleet_is_busy_without_joining_its_receipt() -
                 |why| why.contains("another fleet's gate") && why.contains("not queued")
             )
         );
-        assert!(persist.latest_tree_check(&ledger(&run)).await?.is_none());
+        assert!(
+            persist
+                .fleet()
+                .latest_tree_check(&ledger(&run))
+                .await?
+                .is_none()
+        );
         assert!(!waiting().contains_key(&slot));
         db.cleanup().await?;
         Ok(())
@@ -356,6 +362,7 @@ async fn interrupted_gate_receipt_is_not_reported_as_never_run() -> anyhow::Resu
         let persist = PersistHandle::connect(&db.database_url).await?;
         let ledger = ledger(&format!("interrupted-gate-{}", Uuid::new_v4()));
         let id = persist
+            .fleet()
             .begin_tree_check(&ledger, "commit", "true", "acceptance")
             .await?;
         let status = current_status(&persist, &ledger, "/missing-flight-slot").await;

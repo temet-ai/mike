@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::sync::Arc;
 
 use super::service::SettingsService;
@@ -136,7 +137,7 @@ impl SettingsService {
             },
             source_json: &source_json,
         };
-        match self.persist.swap_live_bundle_model(request).await {
+        match self.persist.eval().swap_live_bundle_model(request).await {
             Ok(swap) => swap,
             Err(e) => {
                 log_swap_failed(&e, key, live_bundle_id);
@@ -157,6 +158,7 @@ impl SettingsService {
         let source_json = source.clone().to_setting_json(&current_build());
         let outcome = self
             .persist
+            .eval()
             .retire_bundle(previous, next, &source_json)
             .await;
         log_retire_outcome(outcome, previous, next);

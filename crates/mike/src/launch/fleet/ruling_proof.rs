@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -122,6 +124,7 @@ async fn read(
     proof.state = Some(state);
     proof.ledger = Some(ledger.clone());
     match persist
+        .fleet()
         .latest_tree_check(&ledger)
         .await
         .map_err(|err| err.to_string())?
@@ -184,6 +187,7 @@ async fn notes(
     (kind, tag): (&str, &str),
 ) -> Option<Vec<(serde_json::Value, DateTime<Utc>)>> {
     let rows = persist
+        .launch()
         .fetch_session_notes(
             session,
             SessionNoteFilter {

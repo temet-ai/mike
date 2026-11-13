@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
@@ -283,6 +284,7 @@ async fn current_status(persist: &PersistHandle, run: &str) -> Result<Option<Out
         return Ok(Some(running));
     }
     if let Some(row) = persist
+        .fleet()
         .latest_tree_check(run)
         .await
         .map_err(|e| e.to_string())?
@@ -316,6 +318,7 @@ async fn reused(
     seat: Option<&str>,
 ) -> Result<Option<TreeCheckRow>, String> {
     let Some(row) = persist
+        .fleet()
         .find_tree_check(run, state)
         .await
         .map_err(|e| e.to_string())?
@@ -324,6 +327,7 @@ async fn reused(
     };
     if let Some(seat) = seat {
         persist
+            .fleet()
             .add_tree_check_asker(row.id, seat)
             .await
             .map_err(|e| e.to_string())?;
@@ -423,6 +427,7 @@ pub(super) async fn join_or_start(
         Some((id, theirs, done)) if theirs == state => {
             runner
                 .persist
+                .fleet()
                 .add_tree_check_asker(id, seat)
                 .await
                 .map_err(|e| e.to_string())?;

@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use super::FleetRow;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetCheckoutUser {
@@ -11,8 +11,8 @@ pub struct FleetCheckoutUser {
     pub repo: String,
 }
 
-impl PersistHandle {
-    pub async fn fleet_checkout_users(&self) -> Result<Vec<FleetCheckoutUser>, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn fleet_checkout_users(self) -> Result<Vec<FleetCheckoutUser>, PersistError> {
         crate::metrics::time_db("launch_fleet_checkout_users", async move {
             Ok(sqlx::query_file_as!(
                 FleetCheckoutUser,
@@ -24,7 +24,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn pending_fleet_retrospectives(&self) -> Result<Vec<FleetRow>, PersistError> {
+    pub async fn pending_fleet_retrospectives(self) -> Result<Vec<FleetRow>, PersistError> {
         crate::metrics::time_db("launch_pending_fleet_retrospectives", async move {
             Ok(sqlx::query_file_as!(
                 FleetRow,

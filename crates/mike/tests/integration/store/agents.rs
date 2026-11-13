@@ -1,5 +1,6 @@
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::compositions::{NewCompositionParams, PatchCompositionParams};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use mike::wire::composition::CompositionMode;
 
 use crate::test_db::TestDb;
@@ -24,6 +25,7 @@ async fn list_agents_with_evidence_counts_linked_compositions() -> anyhow::Resul
     let sha_c = format!("c{}", &sha_a[1..]);
 
     let comp_a = handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &sha_a,
             label: "linked-a",
@@ -38,6 +40,7 @@ async fn list_agents_with_evidence_counts_linked_compositions() -> anyhow::Resul
         .ok_or_else(|| anyhow::anyhow!("linked composition agent_id missing"))?;
 
     let unlinked = handle
+        .proxy()
         .create_composition(NewCompositionParams {
             prompt_sha256: &sha_c,
             label: "unlinked-comp",
@@ -48,6 +51,7 @@ async fn list_agents_with_evidence_counts_linked_compositions() -> anyhow::Resul
         })
         .await?;
     let repointed = handle
+        .proxy()
         .patch_composition(
             unlinked.id,
             PatchCompositionParams {
@@ -92,7 +96,10 @@ async fn list_agents_with_evidence_counts_linked_compositions() -> anyhow::Resul
         "agent with no compositions must COALESCE to composition_count = 0"
     );
 
-    let comps = handle.list_compositions_for_agent(linked_agent_id).await?;
+    let comps = handle
+        .proxy()
+        .list_compositions_for_agent(linked_agent_id)
+        .await?;
     assert_eq!(
         comps.len(),
         2,

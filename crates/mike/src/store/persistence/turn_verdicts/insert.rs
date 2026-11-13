@@ -1,4 +1,4 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{LegacyStamp, TurnVerdictInsert, VerdictShape};
 
 struct ShapeBinds<'a> {
@@ -122,8 +122,8 @@ where
     Ok(row.map(|row| (row.id, row.projected)))
 }
 
-impl PersistHandle {
-    pub async fn insert_turn_verdict(&self, v: TurnVerdictInsert<'_>) -> Result<i64, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn insert_turn_verdict(self, v: TurnVerdictInsert<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_turn_verdict", async move {
             let id = insert_row(&self.pool, &v, false).await?;
             id.ok_or(PersistError::TurnNotFound(v.turn_id))
@@ -132,7 +132,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_live_legacy_verdict_and_stamp(
-        &self,
+        self,
         v: TurnVerdictInsert<'_>,
         stamp: LegacyStamp<'_>,
     ) -> Result<(i64, bool), PersistError> {

@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::Result;
 
 use super::WithdrawBatchArgs;
@@ -7,6 +8,7 @@ pub(super) async fn withdraw_batch(args: WithdrawBatchArgs, cli: CliOverrides) -
     let persist = super::connect(cli, args.execute).await?;
     let by = std::env::var("USER").unwrap_or_else(|_| "mike".to_owned());
     let report = persist
+        .eval()
         .withdraw_label_batch(&args.batch, &args.reason, &by, args.execute)
         .await?;
     match (report.executed, report.labels) {

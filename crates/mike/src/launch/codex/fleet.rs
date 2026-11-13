@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
@@ -42,7 +43,7 @@ pub async fn begin(
         Err(error) => failed(error.to_string()),
     };
     if let Some(id) = launch_id
-        && let Err(error) = persist.record_launch_outcome(id, &outcome).await
+        && let Err(error) = persist.launch().record_launch_outcome(id, &outcome).await
     {
         tracing::warn!(error = %error, launch_id = id, "codex seat launch outcome not recorded");
     }
@@ -116,7 +117,7 @@ async fn record_attempt(
     new.proxy_env = false;
     new.identity = Some(launch.identity.clone());
     new.backend_reason = Some(CODEX_BACKEND_REASON.into());
-    match persist.insert_launch(&new).await {
+    match persist.launch().insert_launch(&new).await {
         Ok(id) => Some(id),
         Err(error) => {
             tracing::warn!(error = %error, session_id = %launch.session, "codex seat launch not recorded");
@@ -138,7 +139,7 @@ async fn opened(
             pid: seat.pid().and_then(|p| i32::try_from(p).ok()),
             actual_placement: Some("headless".into()),
         };
-        if let Err(error) = persist.record_launch_opened(id, &surface).await {
+        if let Err(error) = persist.launch().record_launch_opened(id, &surface).await {
             tracing::warn!(error = %error, launch_id = id, "codex seat open not recorded");
         }
     }

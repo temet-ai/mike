@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use tracing::warn;
@@ -25,6 +26,7 @@ async fn enrolment_for(
 ) -> Result<Option<EnrolmentRow>, ()> {
     match deps
         .persist
+        .steerer()
         .list_active_enrolments_for_session(row.session_uuid)
         .await
     {

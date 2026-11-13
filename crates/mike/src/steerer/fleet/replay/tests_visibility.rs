@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 
 use super::ReplayItem;
@@ -141,11 +142,16 @@ async fn as_of_visibility_follows_stream_block_write_time() -> anyhow::Result<()
         return Ok(());
     };
     let timeline = build_timeline(&s).await?;
-    let trigger = s.handle.fetch_replay_trigger(s.request_id).await?;
+    let trigger = s
+        .handle
+        .steerer()
+        .fetch_replay_trigger(s.request_id)
+        .await?;
     assert_eq!(trigger.trigger_at, timeline.completed);
 
     let rows = s
         .handle
+        .steerer()
         .fetch_session_action_list_as_of(s.session_db_id, trigger.trigger_at)
         .await?;
     let listed = sorted(rows.iter().map(|r| r.tool_name.clone()).collect());
@@ -161,17 +167,20 @@ async fn as_of_visibility_follows_stream_block_write_time() -> anyhow::Result<()
 
     let recent = s
         .handle
+        .steerer()
         .fetch_session_action_list_recent_as_of(s.session_db_id, trigger.trigger_at, 100)
         .await?;
     assert_eq!(recent.len(), 4);
     let counts = s
         .handle
+        .steerer()
         .fetch_session_action_counts_as_of(s.session_db_id, trigger.trigger_at)
         .await?;
     assert_eq!(counts.total, 4);
 
     let trajectory = s
         .handle
+        .steerer()
         .fetch_turn_tool_calls_as_of(s.turn_id, s.session_db_id, trigger.trigger_at)
         .await?;
     let ids = sorted(trajectory.iter().map(|c| c.tool_id.clone()).collect());

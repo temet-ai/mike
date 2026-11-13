@@ -2,6 +2,7 @@ use super::knowledge::{model_keys, sweep};
 use super::knowledge_key::{keys_for, previous_key_for};
 use super::knowledge_tests::{breaker, scan, source, vector};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ModelKeys, ProjectIdentity};
 use crate::store::persistence::{PersistHandle, test_support::acquire_ephemeral_db};
 use serde_json::{Value, json};
@@ -60,6 +61,7 @@ async fn seeded() -> anyhow::Result<Seeded> {
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Versions", Uuid::new_v4())
         .await?;
     Ok(Seeded {
@@ -115,6 +117,7 @@ async fn found_by_meaning(seeded: &Seeded, keys: ModelKeys, model: &str) -> anyh
     };
     let found = seeded
         .handle
+        .knowledge()
         .search_project_knowledge_hybrid(&query, Some(&embedding))
         .await?;
     Ok(found["items"].as_array().map_or(0, Vec::len))
@@ -197,6 +200,7 @@ async fn search_by_meaning_still_returns_a_source_embedded_under_the_previous_ke
     );
     let health = seeded
         .handle
+        .knowledge()
         .knowledge_embedding_health(Some(seeded.project.id), &keys)
         .await?;
     assert_eq!(
@@ -205,6 +209,7 @@ async fn search_by_meaning_still_returns_a_source_embedded_under_the_previous_ke
     );
     let counts = seeded
         .handle
+        .knowledge()
         .knowledge_embedding_state_counts(&keys)
         .await?;
     assert_eq!((counts.ready, counts.current_version), (1, 0));
@@ -227,6 +232,7 @@ async fn sweep_embeds_a_previous_key_source_again_and_its_key_becomes_current() 
     assert_eq!(
         seeded
             .handle
+            .knowledge()
             .pending_knowledge_embeddings(keys.current())
             .await?
             .len(),
@@ -243,6 +249,7 @@ async fn sweep_embeds_a_previous_key_source_again_and_its_key_becomes_current() 
     assert_eq!(stored, [keys.current().to_owned()]);
     let health = seeded
         .handle
+        .knowledge()
         .knowledge_embedding_health(Some(seeded.project.id), &keys)
         .await?;
     assert_eq!(
@@ -252,6 +259,7 @@ async fn sweep_embeds_a_previous_key_source_again_and_its_key_becomes_current() 
     assert!(
         seeded
             .handle
+            .knowledge()
             .pending_knowledge_embeddings(keys.current())
             .await?
             .is_empty()

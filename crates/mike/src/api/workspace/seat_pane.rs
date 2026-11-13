@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use uuid::Uuid;
@@ -17,7 +18,7 @@ pub(crate) fn close_later(state: &AppState, session: Uuid) {
         let Some(persist) = state.persist() else {
             return;
         };
-        let seat = match persist.find_launch_by_session(session).await {
+        let seat = match persist.launch().find_launch_by_session(session).await {
             Ok(Some(launch)) => is_open_run_seat(
                 launch.run_id.as_deref(),
                 launch.seat.as_deref(),

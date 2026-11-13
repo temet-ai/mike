@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -40,7 +41,7 @@ pub async fn author_of(
         return Ok(None);
     };
     let fleet = if is_fleet_seat(persist, session).await {
-        persist.find_fleet_for_session(session).await?
+        persist.fleet().find_fleet_for_session(session).await?
     } else {
         None
     };

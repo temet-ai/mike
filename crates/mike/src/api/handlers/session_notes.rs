@@ -1,5 +1,6 @@
 use super::*;
 use crate::api::changes::{WithTail, note_answer_tail};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 const NOTES_DEFAULT_LIMIT: usize = 100;
 const NOTES_MAX_LIMIT: usize = 500;
@@ -126,7 +127,11 @@ pub(crate) async fn post_session_note(
         tags: body.tags.as_deref(),
         data: body.data.as_ref(),
     };
-    match handle.create_session_note(session_uuid, new_note).await {
+    match handle
+        .launch()
+        .create_session_note(session_uuid, new_note)
+        .await
+    {
         Ok(row) => {
             record_note_in_change_record(&state, handle, session_uuid, &row);
             Ok(Json(with_tail(&state, session_uuid, row).await))
@@ -181,6 +186,7 @@ pub(crate) async fn get_session_notes(
         offset: query.offset.unwrap_or(0) as i64,
     };
     let rows = handle
+        .launch()
         .fetch_session_notes(session_uuid, filter)
         .await
         .map_err(persist_error_response)?;
@@ -221,7 +227,7 @@ pub(crate) async fn patch_session_note(
         tags: body.tags.as_deref(),
         data: body.data.as_ref(),
     };
-    match handle.update_session_note(note_uuid, update).await {
+    match handle.launch().update_session_note(note_uuid, update).await {
         Ok(Some(row)) => {
             record_note_in_change_record(&state, handle, session_uuid, &row);
             Ok(Json(with_tail(&state, session_uuid, row).await))
@@ -277,7 +283,7 @@ pub(crate) async fn delete_session_note(
         return Err(persist_unavailable_response());
     };
     require_note_owner(handle, session_uuid, note_uuid).await?;
-    match handle.delete_session_note(note_uuid).await {
+    match handle.launch().delete_session_note(note_uuid).await {
         Ok(true) => Ok(StatusCode::NO_CONTENT),
         Ok(false) => Err((StatusCode::NOT_FOUND, "no note with that id").into_response()),
         Err(crate::store::persistence::PersistError::InvalidAcceptanceObligation(issue)) => {
@@ -292,7 +298,7 @@ async fn require_note_owner(
     session: uuid::Uuid,
     note: uuid::Uuid,
 ) -> Result<(), Response> {
-    match handle.session_note_belongs_to(session, note).await {
+    match handle.launch().session_note_belongs_to(session, note).await {
         Ok(true) => Ok(()),
         Ok(false) => Err((
             StatusCode::NOT_FOUND,
@@ -377,6 +383,7 @@ pub(crate) async fn get_project_notes(
     let filter = project_note_filter(&query, limit, offset, order);
 
     let (total_count, rows) = handle
+        .launch()
         .fetch_project_notes(project_id, filter)
         .await
         .map_err(persist_error_response)?;

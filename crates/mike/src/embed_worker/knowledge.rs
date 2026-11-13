@@ -4,6 +4,7 @@ use super::knowledge_report::{KnowledgeSweepReport, SweepTally, publish};
 use super::knowledge_settings::KnowledgeSweepSettings;
 use crate::analysis::{EmbeddingService, embeddings::chunk_text};
 use crate::circuit_breaker::CircuitBreaker;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistError, PersistHandle, project_knowledge::KnowledgeEmbeddingSource,
 };
@@ -40,6 +41,7 @@ async fn sweep_rounds(
     let started = Instant::now();
     while started.elapsed() < settings.budget {
         let sources = persist
+            .knowledge()
             .pending_knowledge_embeddings_limited(model, settings.batch_sources)
             .await?;
         tally.read(sources.len());
@@ -79,6 +81,7 @@ async fn record_outcome(
         Err(error) => {
             breaker.record(!error.starts_with("[transient]"), Instant::now());
             persist
+                .knowledge()
                 .fail_knowledge_embedding(source, model, &error)
                 .await?;
             tally.failed();
@@ -115,6 +118,7 @@ async fn embed_source(
         }
     }
     persist
+        .knowledge()
         .save_knowledge_embeddings(source, model, json!(records))
         .await
         .map_err(|e| format!("[transient] {e}"))

@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 
 use super::PersistError;
-use super::PersistHandle;
 use crate::work_items::output_end::Ended;
 
 pub(crate) struct OpenJob {
@@ -9,9 +8,9 @@ pub(crate) struct OpenJob {
     pub output_path: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn open_background_jobs(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<OpenJob>, PersistError> {
         crate::metrics::time_db("work_items_open_jobs", async move {
@@ -33,7 +32,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn close_job_from_its_output(
-        &self,
+        self,
         id: i64,
         ended: Ended,
         finished_at: DateTime<Utc>,

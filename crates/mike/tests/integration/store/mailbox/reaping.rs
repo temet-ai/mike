@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 
 use mike::store::persistence::PersistHandle;
 
@@ -22,11 +23,13 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
 
     let pending_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(pending_msg, to_uuid, None, "still pending")
         .await?;
 
     let consumed_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(
             consumed_msg,
             to_uuid,
@@ -43,6 +46,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
 
     let dead_lettered_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(dead_lettered_msg, to_uuid, None, "already reaped")
         .await?;
     sqlx::query!(
@@ -52,7 +56,10 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     .execute(&pool)
     .await?;
 
-    let unclaimed = handle.fetch_pending_unclaimed(to_uuid, 100).await?;
+    let unclaimed = handle
+        .launch()
+        .fetch_pending_unclaimed(to_uuid, 100)
+        .await?;
     let unclaimed_uuids: Vec<_> = unclaimed.iter().map(|r| r.row.message_uuid).collect();
     assert_eq!(
         unclaimed_uuids,
@@ -60,7 +67,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
         "fetch_pending_unclaimed must return only the genuinely pending row"
     );
 
-    let all_unclaimed = handle.fetch_all_pending_unclaimed(100).await?;
+    let all_unclaimed = handle.launch().fetch_all_pending_unclaimed(100).await?;
     assert!(
         all_unclaimed
             .iter()
@@ -69,13 +76,13 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     );
 
     assert!(
-        handle.has_pending_inbound_mail(to_uuid).await?,
+        handle.launch().has_pending_inbound_mail(to_uuid).await?,
         "the genuinely pending row still counts"
     );
 
-    handle.claim_message(pending_msg).await?;
+    handle.launch().claim_message(pending_msg).await?;
     assert!(
-        !handle.has_pending_inbound_mail(to_uuid).await?,
+        !handle.launch().has_pending_inbound_mail(to_uuid).await?,
         "consumed/dead-lettered rows must never count as pending inbound mail"
     );
 
@@ -101,6 +108,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
 
     let expired_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(expired_msg, to_uuid, None, "stranded past the TTL")
         .await?;
     sqlx::query!(
@@ -112,11 +120,13 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
 
     let too_recent_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(too_recent_msg, to_uuid, None, "queued moments ago")
         .await?;
 
     let already_consumed_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(already_consumed_msg, to_uuid, None, "already consumed")
         .await?;
     sqlx::query!(
@@ -128,6 +138,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
 
     let already_dead_lettered_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(
             already_dead_lettered_msg,
             to_uuid,
@@ -144,6 +155,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
 
     let cutoff = Utc::now() - chrono::Duration::minutes(60);
     let outcome = handle
+        .launch()
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert_eq!(
@@ -214,6 +226,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
 
     let fresh_stranded_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(
             fresh_stranded_msg,
             to_uuid,
@@ -224,6 +237,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
 
     let already_consumed_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(already_consumed_msg, to_uuid, None, "already consumed")
         .await?;
     sqlx::query!(
@@ -235,6 +249,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
 
     let far_future_cutoff = Utc::now() + chrono::Duration::days(3650);
     let outcome = handle
+        .launch()
         .dead_letter_expired_undelivered(far_future_cutoff, far_future_cutoff)
         .await?;
     assert_eq!(
@@ -285,6 +300,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
 
     let busy_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(busy_msg, busy_uuid, None, "queued for a busy recipient")
         .await?;
     sqlx::query!(
@@ -304,6 +320,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
 
     let silent_msg = uuid::Uuid::new_v4();
     handle
+        .launch()
         .insert_message(
             silent_msg,
             silent_uuid,
@@ -320,6 +337,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
 
     let cutoff = Utc::now() - chrono::Duration::minutes(60);
     let outcome = handle
+        .launch()
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert_eq!(

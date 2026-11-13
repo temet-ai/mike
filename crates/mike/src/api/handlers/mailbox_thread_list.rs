@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 use crate::api::poll_answers::{Loaded, MAILBOX_THREADS, Poll, answer_json, json_bytes};
 
@@ -17,7 +19,7 @@ async fn thread_list(
     state: &AppState,
     filter: crate::store::persistence::mailbox::ThreadSummaryFilter,
 ) -> Result<(ThreadListResponse, Vec<uuid::Uuid>), Response> {
-    match handle.fetch_thread_summaries(&filter).await {
+    match handle.launch().fetch_thread_summaries(&filter).await {
         Ok(rows) => {
             let participants = collect_participant_uuids(&rows);
             let list = project_thread_list(handle, state, rows, &participants).await;
@@ -42,7 +44,11 @@ async fn project_thread_list(
 ) -> ThreadListResponse {
     let now = chrono::Utc::now();
     let stale_threshold_minutes = state.config().mailbox_stale_minutes;
-    let identities = match handle.fetch_participant_identities(participant_uuids).await {
+    let identities = match handle
+        .launch()
+        .fetch_participant_identities(participant_uuids)
+        .await
+    {
         Ok(id_rows) => build_identity_index(id_rows),
         Err(e) => {
             tracing::warn!(error = %e, "respond_thread_list: identity fetch failed");
@@ -141,7 +147,7 @@ async fn load_thread_list(
     params: ListThreadsParams,
 ) -> Result<Loaded<Bytes>, Response> {
     let project_ids = match params.project.as_deref() {
-        Some(path) => match handle.get_project_ids_for_path(path).await {
+        Some(path) => match handle.lessons().get_project_ids_for_path(path).await {
             Ok(ids) => Some(ids),
             Err(e) => {
                 tracing::warn!(error = %e, project = path, "list_threads: project_path resolution failed");

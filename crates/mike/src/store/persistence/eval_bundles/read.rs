@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{BUNDLE_COLUMNS, BundleRow};
 
 #[derive(Debug, Clone, Default)]
@@ -38,8 +38,8 @@ fn push_bundle_filter(query_builder: &mut QueryBuilder<Postgres>, query: &Bundle
     }
 }
 
-impl PersistHandle {
-    pub async fn get_bundle(&self, id: i64) -> Result<Option<BundleRow>, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn get_bundle(self, id: i64) -> Result<Option<BundleRow>, PersistError> {
         crate::metrics::time_db("get_bundle", async move {
             let row = sqlx::query_file_as!(
                 BundleRow,
@@ -53,7 +53,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_bundles(&self, query: &BundleQuery) -> Result<Vec<BundleRow>, PersistError> {
+    pub async fn list_bundles(self, query: &BundleQuery) -> Result<Vec<BundleRow>, PersistError> {
         crate::metrics::time_db("list_bundles", async move {
             let mut builder = QueryBuilder::<Postgres>::new("SELECT ");
             builder.push(BUNDLE_COLUMNS).push(" FROM eval.bundles");

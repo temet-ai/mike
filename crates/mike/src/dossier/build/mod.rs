@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 pub mod assemble;
 pub mod checks;
 pub mod classify_step;
@@ -86,6 +87,7 @@ pub async fn plan_sessions(
         return Ok(plan);
     }
     let pending = persist
+        .dossier()
         .load_prompts_needing_classification(session_ids, CLASSIFIER_VERSION)
         .await?;
     plan.pending_classifications = pending.len() as u64;
@@ -93,7 +95,12 @@ pub async fn plan_sessions(
     plan.opened_by = classify_step::derive_opened_by(&loaded.streams, &mut loaded.turns);
     let mut fresh = load_step::load_fresh(persist, &loaded, session_ids).await?;
     let stale = load_step::settled_stale_final_texts(&loaded, &fresh, now - cfg.settle);
-    if persist.refresh_final_assistant_text(&stale).await? > 0 {
+    if persist
+        .dossier()
+        .refresh_final_assistant_text(&stale)
+        .await?
+        > 0
+    {
         fresh = load_step::load_fresh(persist, &loaded, session_ids).await?;
     }
     for session_id in session_ids {
@@ -128,9 +135,10 @@ pub async fn classify_stage(
 ) -> Result<ClassifyOutcome, PersistError> {
     if !execute {
         let pending = persist
+            .dossier()
             .load_prompts_needing_classification(session_ids, CLASSIFIER_VERSION)
             .await?;
-        let turns = persist.load_turn_records(session_ids).await?;
+        let turns = persist.dossier().load_turn_records(session_ids).await?;
         return Ok(ClassifyOutcome {
             classified: pending.len() as u64,
             opened_by: turns.iter().filter(|turn| turn.opened_by.is_none()).count() as u64,
@@ -139,7 +147,10 @@ pub async fn classify_stage(
     let classified = classify_step::ensure_classifications(persist, session_ids).await?;
     let (streams, mut turns) = load_step::load_streams_and_turns(persist, session_ids, now).await?;
     let rows = classify_step::derive_opened_by(&streams, &mut turns);
-    let opened_by = persist.fill_operator_turn_opened_by(&rows).await?;
+    let opened_by = persist
+        .dossier()
+        .fill_operator_turn_opened_by(&rows)
+        .await?;
     Ok(ClassifyOutcome {
         classified,
         opened_by,
@@ -159,16 +170,18 @@ pub async fn build_sessions(
     report.classified = classify_step::ensure_classifications(persist, session_ids).await?;
     let plan = plan_sessions(persist, session_ids, now, cfg).await?;
     report.opened_by_filled = persist
+        .dossier()
         .fill_operator_turn_opened_by(&plan.opened_by)
         .await?;
     report.skipped_stale = plan.skipped_stale;
     for chunk in plan.rows.chunks(UPSERT_CHUNK) {
-        let outcome = persist.upsert_turn_facts(chunk).await?;
+        let outcome = persist.dossier().upsert_turn_facts(chunk).await?;
         report.inserted += outcome.inserted;
         report.updated += outcome.updated;
         report.reclassified += outcome.reclassified;
     }
     report.stamped = persist
+        .dossier()
         .stamp_turn_facts_built_at(&plan.unchanged_turn_ids, now)
         .await?;
     report.entries =

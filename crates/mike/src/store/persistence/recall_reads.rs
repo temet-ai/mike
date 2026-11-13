@@ -1,6 +1,6 @@
+use super::PersistError;
 use super::project_knowledge::ProjectIdentity;
 use super::recall_embedding::{by_embedding_query, set_recall_timeouts, set_vector_scan_limits};
-use super::{PersistError, PersistHandle};
 use sqlx::{Postgres, QueryBuilder};
 
 #[derive(sqlx::FromRow)]
@@ -182,9 +182,9 @@ fn by_fts_query(
     query
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn newest_turn_of_session(
-        &self,
+        self,
         session_uuid: &str,
     ) -> Result<Option<i64>, PersistError> {
         let Ok(session) = uuid::Uuid::parse_str(session_uuid.trim()) else {
@@ -204,7 +204,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn recall_turns_by_file(
-        &self,
+        self,
         project: &ProjectIdentity,
         file: &str,
         limit: i64,
@@ -220,7 +220,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn recall_turns_by_embedding(
-        &self,
+        self,
         project: &ProjectIdentity,
         embedding_model: &str,
         query_vec_literal: &str,
@@ -247,7 +247,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn recall_turns_by_fts(
-        &self,
+        self,
         project: &ProjectIdentity,
         query: &str,
         limit: i64,

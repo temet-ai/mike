@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::{Value, json};
 
 use crate::store::persistence::fleet::{
@@ -233,7 +234,7 @@ async fn measured_document(
         git_read: GIT_READ,
         git_write: GIT_WRITE,
     };
-    let measures = persist.run_measures(run_id, patterns).await?;
+    let measures = persist.fleet().run_measures(run_id, patterns).await?;
     let mut document = summarise(&measures);
     let timings = super::build_timing::read_run(&super::seat_settings::timings_dir(&def), run_id);
     super::build_waits::add_to_record(&mut document, super::build_waits::build_waits(&timings));
@@ -247,6 +248,7 @@ pub async fn write(
 ) -> Result<bool, PersistError> {
     let document = measured_document(persist, row, run_id).await?;
     persist
+        .fleet()
         .insert_run_record(row.fleet_uuid, run_id, &document)
         .await
 }
@@ -258,6 +260,7 @@ pub async fn recompute(
 ) -> Result<bool, PersistError> {
     let document = measured_document(persist, row, run_id).await?;
     persist
+        .fleet()
         .replace_run_record(row.fleet_uuid, run_id, &document)
         .await
 }

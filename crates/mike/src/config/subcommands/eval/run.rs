@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
@@ -131,6 +132,7 @@ async fn label_options(
         return Ok((options, None));
     };
     let run = persist
+        .eval()
         .get_eval_run(reference)
         .await?
         .with_context(|| format!("no eval run {reference}"))?;
@@ -142,10 +144,12 @@ async fn label_options(
 
 async fn frozen_judge(persist: &PersistHandle, run_id: i64) -> Result<RunJudge> {
     let run = persist
+        .eval()
         .get_eval_run(run_id)
         .await?
         .with_context(|| format!("no eval run {run_id}"))?;
     let bundle = persist
+        .eval()
         .get_bundle(run.bundle_id)
         .await?
         .with_context(|| format!("run {run_id}'s bundle {} is gone", run.bundle_id))?;

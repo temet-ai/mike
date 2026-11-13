@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FloorRow {
@@ -56,9 +56,9 @@ pub struct FloorSample<'a> {
     pub model: &'a str,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn semantic_floors_in_force(
-        &self,
+        self,
         embedder_key: &str,
         quantile: f64,
     ) -> Result<Vec<FloorRow>, PersistError> {
@@ -81,7 +81,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_floors_latest_monitoring(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Vec<FloorRow>, PersistError> {
         crate::metrics::time_db("semantic_floors_latest_monitoring", async move {
@@ -101,7 +101,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_semantic_floor(&self, id: i64) -> Result<Option<FloorRow>, PersistError> {
+    pub async fn get_semantic_floor(self, id: i64) -> Result<Option<FloorRow>, PersistError> {
         crate::metrics::time_db("get_semantic_floor", async move {
             Ok(sqlx::query_as!(
                 FloorRow,
@@ -117,7 +117,7 @@ impl PersistHandle {
     }
 
     pub async fn compute_semantic_floor(
-        &self,
+        self,
         s: &FloorSample<'_>,
     ) -> Result<FloorStats, PersistError> {
         let (a, b) = s
@@ -151,7 +151,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_semantic_floor(&self, f: &NewFloor<'_>) -> Result<i64, PersistError> {
+    pub async fn insert_semantic_floor(self, f: &NewFloor<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_semantic_floor", async move {
             let st = f.stats;
             Ok(sqlx::query_scalar!(
@@ -181,7 +181,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_floors_last_computed_at(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("semantic_floors_last_computed_at", async move {
@@ -195,7 +195,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn semantic_key_has_floors(&self, embedder_key: &str) -> Result<bool, PersistError> {
+    pub async fn semantic_key_has_floors(self, embedder_key: &str) -> Result<bool, PersistError> {
         crate::metrics::time_db("semantic_key_has_floors", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT EXISTS (

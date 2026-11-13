@@ -1,5 +1,7 @@
 //! Moved from crates/mike/src/api/fleet/report_http_tests.rs by the crate split: it reaches the serve
 //! crate, so it is tested from there.
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use crate::store::persistence::test_support::seed_fleet_running;
 use chrono::Utc;
@@ -92,9 +94,13 @@ impl Harness {
         let repo_path = repo.path().to_string_lossy().to_string();
         let persist = PersistHandle::connect(&db.database_url).await?;
         for n in [ACCEPTANCE, 2, 3, WORKER, OTHER] {
-            persist.ensure_session_exists(&id(n).to_string()).await?;
+            persist
+                .launch()
+                .ensure_session_exists(&id(n).to_string())
+                .await?;
         }
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: RUN.into(),
                 project_path: Some(SENTINEL_PROJECT_PATH.into()),
@@ -104,6 +110,7 @@ impl Harness {
             })
             .await?;
         let fleet = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: "report".into(),
                 project_path: SENTINEL_PROJECT_PATH.into(),
@@ -119,6 +126,7 @@ impl Harness {
             (None, ACCEPTANCE),
         ] {
             persist
+                .fleet()
                 .append_fleet_event(&NewFleetEvent {
                     run_id: RUN.into(),
                     task: task.map(str::to_string),
@@ -163,6 +171,7 @@ impl Harness {
     async fn inbox(&self, session: u128) -> anyhow::Result<Vec<String>> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(id(session))
             .await?
             .inbox
@@ -175,6 +184,7 @@ impl Harness {
         let tags = vec!["commit".to_string(), "P1".to_string()];
         let data = json!({"task": "P1", "sha": sha});
         self.persist
+            .launch()
             .create_session_note(
                 id(WORKER),
                 NewSessionNote {
@@ -191,7 +201,7 @@ impl Harness {
     }
 
     async fn state_of(&self, task: &str) -> anyhow::Result<String> {
-        let rows = self.persist.fleet_note_rows(RUN).await?;
+        let rows = self.persist.fleet().fleet_note_rows(RUN).await?;
         let notes: Vec<NoteFacts> = rows.into_iter().map(note_facts).collect();
         let header = FleetHeader {
             fleet: String::new(),

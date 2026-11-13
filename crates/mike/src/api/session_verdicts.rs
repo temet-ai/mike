@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -78,13 +79,14 @@ pub(crate) async fn get_session_verdicts(
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let offset = query.offset.unwrap_or(0).max(0);
     let (verdicts, total) = match persist
+        .eval()
         .session_verdict_history(session_db_id, mode, limit, offset)
         .await
     {
         Ok(page) => page,
         Err(e) => return persistence_error(&e),
     };
-    let end = match persist.session_end_for_session(session_db_id).await {
+    let end = match persist.eval().session_end_for_session(session_db_id).await {
         Ok(end) => end,
         Err(e) => return persistence_error(&e),
     };

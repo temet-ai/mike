@@ -2,9 +2,10 @@ use super::dedupe::Embedded;
 use super::relate::{self, NewLessonContext, WriteTimeVerdict};
 use super::{ProposerDeps, ProposerReport, WriteOutcome, embedding_for_rule, guidance, write};
 use crate::store::persistence::lessons::proposals::queue::SavedProposal;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub(super) async fn retry_pending(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {
-    let pending = match deps.persist.pending_lesson_proposals(40).await {
+    let pending = match deps.persist.lessons().pending_lesson_proposals(40).await {
         Ok(pending) => pending,
         Err(error) => {
             tracing::warn!(%error, "lesson_proposer: failed to load pending proposals");
@@ -36,6 +37,7 @@ async fn related_verdict(
 ) -> Result<WriteTimeVerdict, String> {
     let neighbours = deps
         .persist
+        .lessons()
         .find_lesson_neighbours(
             saved.candidate.project_id,
             &embedded.vector,
@@ -52,6 +54,7 @@ async fn related_verdict(
         .await;
     let reserved = deps
         .persist
+        .lessons()
         .reserve_lesson_proposer_call(daily_limit)
         .await
         .map_err(|e| e.to_string())?;
@@ -90,6 +93,7 @@ pub(super) async fn apply_saved(
     saved: &SavedProposal,
 ) -> Result<WriteOutcome, String> {
     deps.persist
+        .lessons()
         .touch_lesson_proposal(saved.candidate.verdict_id)
         .await
         .map_err(|e| e.to_string())?;

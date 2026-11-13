@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use serde_json::Value;
 
 use super::{ModelKeys, ProjectIdentity};
-use crate::store::persistence::{PersistError, PersistHandle, SENTINEL_PROJECT_PATH};
+use crate::store::persistence::{PersistError, SENTINEL_PROJECT_PATH};
 
 pub(super) const COVERAGE_LIFETIME: Duration = Duration::from_secs(60);
 pub(super) const NEAREST_FIRST_LIFETIME: Duration = Duration::from_secs(10 * 60);
@@ -101,9 +101,9 @@ impl Default for KnowledgeMemos {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn knowledge_coverage(
-        &self,
+        self,
         project_id: i64,
         keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
@@ -115,12 +115,12 @@ impl PersistHandle {
             .await
     }
 
-    pub(super) fn forget_knowledge_coverage(&self) {
+    pub(super) fn forget_knowledge_coverage(self) {
         self.knowledge_memos().coverage.clear();
     }
 
     pub(crate) async fn no_project_knowledge_project(
-        &self,
+        self,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
         let memos = self.knowledge_memos();
         let memo = &memos.no_project;
@@ -139,7 +139,7 @@ impl PersistHandle {
         Ok(found)
     }
 
-    pub(crate) fn knowledge_memos(&self) -> std::sync::Arc<KnowledgeMemos> {
+    pub(crate) fn knowledge_memos(self) -> std::sync::Arc<KnowledgeMemos> {
         self.memo::<KnowledgeMemos>()
     }
 }

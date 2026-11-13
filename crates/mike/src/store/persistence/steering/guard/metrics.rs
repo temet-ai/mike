@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GuardMetricsWindow {
@@ -35,9 +35,9 @@ pub struct GuardMetricRow {
     pub superseded: bool,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn guard_metric_rows(
-        &self,
+        self,
         w: &GuardMetricsWindow,
     ) -> Result<Vec<GuardMetricRow>, PersistError> {
         crate::metrics::time_db("guard_metric_rows", async move {
@@ -71,7 +71,7 @@ impl PersistHandle {
     }
 
     pub async fn guard_audit_sessions(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<Vec<i64>, PersistError> {
         crate::metrics::time_db("guard_audit_sessions", async move {

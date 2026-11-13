@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
@@ -263,7 +265,11 @@ async fn leave_operator_note(
         tags: Some(&tags),
         data: None,
     };
-    if let Err(err) = persist.create_session_note(coordinator, note).await {
+    if let Err(err) = persist
+        .launch()
+        .create_session_note(coordinator, note)
+        .await
+    {
         tracing::warn!(error = %err, "fleet: could not leave the operator the note about the folders kept");
     }
 }
@@ -279,7 +285,7 @@ async fn offer_kept(persist: &PersistHandle, row: &FleetRow, def: &FleetDefiniti
 
 async fn record_seats_closed(persist: &PersistHandle, def: &FleetDefinition, run: &str) {
     use super::events::EventKind;
-    let Ok(events) = persist.fleet_events_since(run, 0).await else {
+    let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return;
     };
     let _ = def;
@@ -306,7 +312,7 @@ async fn record_seats_closed(persist: &PersistHandle, def: &FleetDefinition, run
                 reason: "the run closed".to_string(),
             }),
         };
-        if let Err(err) = persist.append_fleet_event(&event).await {
+        if let Err(err) = persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(error = %err, run, "fleet: a seat close could not be recorded");
         }
     }
@@ -319,7 +325,7 @@ pub(super) async fn after_close(
     run: &str,
 ) {
     record_seats_closed(persist, def, run).await;
-    let fleets = match persist.fleet_checkout_users().await {
+    let fleets = match persist.fleet().fleet_checkout_users().await {
         Ok(fleets) => fleets,
         Err(err) => {
             offer_kept(

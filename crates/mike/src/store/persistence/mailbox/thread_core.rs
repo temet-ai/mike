@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::thread_types::{MessageCore, ResolveThreadOutcome, ThreadCore};
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn resolve_session_core(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<(i64, i64)>, PersistError> {
         crate::metrics::time_db("mailbox_resolve_session_core", async move {
@@ -23,7 +23,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_thread_core_by_uuid(
-        &self,
+        self,
         thread_uuid: uuid::Uuid,
     ) -> Result<Option<ThreadCore>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_thread_core_by_uuid", async move {
@@ -40,7 +40,7 @@ impl PersistHandle {
     }
 
     pub(super) async fn fetch_thread_core_by_id(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<ThreadCore>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_thread_core_by_id", async move {
@@ -57,7 +57,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_message_core_by_uuid(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
     ) -> Result<Option<MessageCore>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_message_core_by_uuid", async move {
@@ -74,7 +74,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn create_thread(
-        &self,
+        self,
         thread_uuid: uuid::Uuid,
         subject: &str,
         project_id: Option<i64>,
@@ -102,7 +102,7 @@ impl PersistHandle {
     }
 
     pub(super) async fn adopt_message_into_thread(
-        &self,
+        self,
         message_id: i64,
         thread_id: i64,
     ) -> Result<(), PersistError> {
@@ -119,7 +119,7 @@ impl PersistHandle {
         .await
     }
 
-    pub(crate) async fn touch_thread(&self, thread_id: i64) -> Result<(), PersistError> {
+    pub(crate) async fn touch_thread(self, thread_id: i64) -> Result<(), PersistError> {
         crate::metrics::time_db("mailbox_touch_thread", async move {
             sqlx::query!(
                 "UPDATE mailbox.threads SET last_message_at = now() WHERE id = $1",
@@ -133,7 +133,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn mark_thread_resolved(
-        &self,
+        self,
         thread_uuid: uuid::Uuid,
     ) -> Result<ResolveThreadOutcome, PersistError> {
         crate::metrics::time_db("mailbox_mark_thread_resolved", async move {

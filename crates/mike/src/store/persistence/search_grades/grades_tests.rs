@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{Duration, Utc};
 use serde_json::json;
 
@@ -65,7 +66,11 @@ async fn ungraded_search_events_returns_every_finalised_event_with_a_session() -
     let replay = fixture.record(None, "replay query", &["lesson:a"]).await?;
     finalise(&fixture, replay, &[]).await?;
 
-    let events = fixture.handle.ungraded_search_events(100).await?;
+    let events = fixture
+        .handle
+        .knowledge()
+        .ungraded_search_events(100)
+        .await?;
 
     let ids: Vec<i64> = events.iter().map(|e| e.event_id).collect();
     assert!(ids.contains(&ready));
@@ -95,17 +100,24 @@ async fn insert_search_grade_removes_the_event_from_the_ungraded_list_and_ignore
 
     fixture
         .handle
+        .knowledge()
         .insert_search_grade(&grade(event, &candidates, &used))
         .await?;
     fixture
         .handle
+        .knowledge()
         .insert_search_grade(&grade(event, &candidates, &used))
         .await?;
 
-    let ungraded = fixture.handle.ungraded_search_events(100).await?;
+    let ungraded = fixture
+        .handle
+        .knowledge()
+        .ungraded_search_events(100)
+        .await?;
     assert!(ungraded.iter().all(|e| e.event_id != event));
     let stored = fixture
         .handle
+        .knowledge()
         .search_grades_since(Utc::now() - Duration::hours(1))
         .await?;
     assert_eq!(stored.iter().filter(|g| g.event_id == event).count(), 1);
@@ -126,6 +138,7 @@ async fn search_grades_since_leaves_out_older_grades() -> anyhow::Result<()> {
     for event in [old, new] {
         fixture
             .handle
+            .knowledge()
             .insert_search_grade(&grade(event, &candidates, &used))
             .await?;
     }
@@ -136,6 +149,7 @@ async fn search_grades_since_leaves_out_older_grades() -> anyhow::Result<()> {
 
     let stored = fixture
         .handle
+        .knowledge()
         .search_grades_since(Utc::now() - Duration::days(14))
         .await?;
 
@@ -154,6 +168,7 @@ async fn insert_search_tuning_runs_writes_every_row_and_marks_the_window_tuned()
 
     let written = fixture
         .handle
+        .knowledge()
         .insert_search_tuning_runs(
             TuningOutcome::Changed,
             &[run(&key, true), run(&key, false)],
@@ -166,12 +181,14 @@ async fn insert_search_tuning_runs_writes_every_row_and_marks_the_window_tuned()
     assert!(
         fixture
             .handle
+            .knowledge()
             .search_tuned_since(ran_at - Duration::minutes(1))
             .await?
     );
     assert!(
         !fixture
             .handle
+            .knowledge()
             .search_tuned_since(ran_at + Duration::hours(1))
             .await?
     );

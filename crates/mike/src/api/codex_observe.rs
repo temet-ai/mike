@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
@@ -127,8 +128,13 @@ pub(crate) async fn list_observed(
             .into_response();
     }
     let sessions = match selected {
-        Some(session) => persist.session_observations(&[session]).await,
-        None => persist.list_runtime_sessions("codex", limit, offset).await,
+        Some(session) => persist.runtime().session_observations(&[session]).await,
+        None => {
+            persist
+                .runtime()
+                .list_runtime_sessions("codex", limit, offset)
+                .await
+        }
     };
     let sessions = match sessions {
         Ok(rows) => rows,
@@ -137,7 +143,11 @@ pub(crate) async fn list_observed(
         }
     };
     let items = match selected {
-        Some(session) => match persist.list_runtime_items(session, limit, offset).await {
+        Some(session) => match persist
+            .runtime()
+            .list_runtime_items(session, limit, offset)
+            .await
+        {
             Ok(rows) => rows,
             Err(error) => {
                 return (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response();

@@ -1,9 +1,12 @@
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -15,7 +18,7 @@ async fn resolved_turn(f: &Fixture, start: i64) -> anyhow::Result<i64> {
     let turn = insert_turn(f, &NewTurn::closed(start, start, 0, 30)).await?;
     let mut row = crate::turn_facts::sample_row(turn, f.session_id, chrono::Utc::now());
     crate::turn_facts::resolve(&mut row);
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(turn)
 }
 
@@ -100,14 +103,22 @@ async fn label_candidates_admit_live_pass_rows_only_when_setting_is_on() -> anyh
     )
     .await?;
 
-    let off = f.handle.guard_label_candidates(id, 200, false).await?;
+    let off = f
+        .handle
+        .steerer()
+        .guard_label_candidates(id, 200, false)
+        .await?;
     let off_ids: Vec<uuid::Uuid> = off.iter().map(|c| c.uuid).collect();
     assert!(
         !off_ids.contains(&pass) && !off_ids.contains(&fired) && !off_ids.contains(&treated),
         "label_live_passes off admits no live row: {off_ids:?}"
     );
 
-    let on = f.handle.guard_label_candidates(id, 200, true).await?;
+    let on = f
+        .handle
+        .steerer()
+        .guard_label_candidates(id, 200, true)
+        .await?;
     let on_ids: Vec<uuid::Uuid> = on.iter().map(|c| c.uuid).collect();
     assert!(on_ids.contains(&pass), "an untreated live pass is admitted");
     assert!(

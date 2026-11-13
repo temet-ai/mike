@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
+use super::PersistError;
 use super::rehydrate;
-use super::{PersistError, PersistHandle};
 
 pub(crate) enum ProjectSelector<'a> {
     Uuid(Uuid),
@@ -25,9 +25,9 @@ pub(crate) struct SessionListFilters<'a> {
     pub(crate) project: Option<&'a str>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn list_requests_paginated(
-        &self,
+        self,
         offset: usize,
         limit: usize,
         prompt_sha256: Option<&str>,
@@ -59,7 +59,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_sessions_paginated_with_search(
-        &self,
+        self,
         offset: usize,
         limit: usize,
         search: Option<&str>,
@@ -84,7 +84,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_sessions_by_ids(
-        &self,
+        self,
         ids: &[uuid::Uuid],
     ) -> Result<Vec<rehydrate::SessionSummaryRow>, PersistError> {
         crate::metrics::time_db(
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_sessions_paginated_filtered(
-        &self,
+        self,
         offset: usize,
         limit: usize,
         filters: &SessionListFilters<'_>,
@@ -124,7 +124,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_session_request_ids_asc(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<rehydrate::SessionRequestIdRow>, PersistError> {
         crate::metrics::time_db(
@@ -135,13 +135,13 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_projects(
-        &self,
+        self,
     ) -> Result<Vec<rehydrate::ProjectListRow>, PersistError> {
         crate::metrics::time_db("list_projects", rehydrate::list_projects(&self.pool)).await
     }
 
     pub(crate) async fn list_project_counts(
-        &self,
+        self,
     ) -> Result<Vec<rehydrate::ProjectCountsRow>, PersistError> {
         crate::metrics::time_db(
             "list_project_counts",
@@ -151,7 +151,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_project_detail(
-        &self,
+        self,
         selector: ProjectSelector<'_>,
     ) -> Result<Option<ProjectDetailRow>, PersistError> {
         let project_id = match selector {
@@ -173,12 +173,12 @@ impl PersistHandle {
         .await
     }
 
-    pub(crate) async fn count_projects(&self) -> Result<i64, PersistError> {
+    pub(crate) async fn count_projects(self) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_projects", rehydrate::count_projects(&self.pool)).await
     }
 
     pub(crate) async fn fetch_session_head(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<rehydrate::SessionHeadRow>, PersistError> {
         crate::metrics::time_db(
@@ -189,7 +189,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_session_prompt_kind_counts(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Vec<rehydrate::PromptKindCountRow>, PersistError> {
         crate::metrics::time_db(

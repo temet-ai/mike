@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DriftSums {
@@ -45,9 +45,9 @@ pub struct DriftRow {
     pub computed_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn daily_drift_sums(
-        &self,
+        self,
         stream: &str,
         embedder_key: &str,
         day_start: DateTime<Utc>,
@@ -91,7 +91,7 @@ impl PersistHandle {
     }
 
     pub async fn prior_drift_distances(
-        &self,
+        self,
         stream: &str,
         embedder_key: &str,
         drift_version: &str,
@@ -118,7 +118,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_drift_row(&self, r: &NewDriftRow<'_>) -> Result<Option<i64>, PersistError> {
+    pub async fn insert_drift_row(self, r: &NewDriftRow<'_>) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("insert_drift_row", async move {
             Ok(sqlx::query_scalar!(
                 "INSERT INTO eval.embedding_drift
@@ -147,7 +147,7 @@ impl PersistHandle {
     }
 
     pub async fn list_drift_rows(
-        &self,
+        self,
         stream: Option<&str>,
         from: Option<NaiveDate>,
         to: Option<NaiveDate>,

@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::HashSet;
 use std::ops::ControlFlow;
 use std::sync::Arc;
@@ -111,7 +112,7 @@ impl BuilderLoop {
         if turns.is_empty() || !self.enabled() {
             return;
         }
-        match self.deps.persist.sessions_for_turns(&turns).await {
+        match self.deps.persist.dossier().sessions_for_turns(&turns).await {
             Ok(sessions) => self.build_in_batches(&sessions).await,
             Err(e) => tracing::warn!(error = %e, "dossier builder: session lookup failed"),
         }
@@ -131,6 +132,7 @@ impl BuilderLoop {
         match self
             .deps
             .persist
+            .dossier()
             .find_turn_facts_candidates(BUILDER_VERSION, window)
             .await
         {
@@ -183,10 +185,10 @@ pub async fn build_for_claimed_turns(
     persist: &PersistHandle,
     turn_ids: &[i64],
 ) -> Result<BuildReport, PersistError> {
-    if turn_ids.is_empty() || !persist.dossier_builder_enabled().await? {
+    if turn_ids.is_empty() || !persist.dossier().dossier_builder_enabled().await? {
         return Ok(BuildReport::default());
     }
-    let sessions = persist.sessions_for_turns(turn_ids).await?;
+    let sessions = persist.dossier().sessions_for_turns(turn_ids).await?;
     build_sessions_now(persist, &sessions).await
 }
 
@@ -194,7 +196,7 @@ pub async fn build_for_sessions(
     persist: &PersistHandle,
     session_ids: &[i64],
 ) -> Result<BuildReport, PersistError> {
-    if session_ids.is_empty() || !persist.dossier_builder_enabled().await? {
+    if session_ids.is_empty() || !persist.dossier().dossier_builder_enabled().await? {
         return Ok(BuildReport::default());
     }
     build_sessions_now(persist, session_ids).await

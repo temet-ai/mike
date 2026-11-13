@@ -1,10 +1,10 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::MailboxMessageRow;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn fetch_mail_for_drain(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         limit: i64,
     ) -> Result<Vec<MailboxMessageRow>, PersistError> {

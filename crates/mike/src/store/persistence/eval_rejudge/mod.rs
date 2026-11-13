@@ -3,9 +3,9 @@ mod progress;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::judge_claim::ClaimScope;
 use crate::store::persistence::operator_turns::projection::OUTCOME_PROJECTION_VERSION;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 pub use progress::{RejudgeProgress, RejudgeWindow};
 
@@ -67,8 +67,8 @@ fn is_unique_violation(e: &sqlx::Error) -> bool {
         .is_some_and(|code| code == "23505")
 }
 
-impl PersistHandle {
-    pub async fn create_rejudge_run(&self, run: &NewRejudgeRun<'_>) -> Result<i64, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn create_rejudge_run(self, run: &NewRejudgeRun<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("create_rejudge_run", async move {
             let mut tx = self.pool.begin().await?;
             let inserted = sqlx::query_file_scalar!(
@@ -109,7 +109,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn active_rejudge_run(&self) -> Result<Option<RejudgeRunRow>, PersistError> {
+    pub async fn active_rejudge_run(self) -> Result<Option<RejudgeRunRow>, PersistError> {
         crate::metrics::time_db("active_rejudge_run", async move {
             Ok(sqlx::query_file_as!(
                 RejudgeRunRow,
@@ -121,7 +121,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_rejudge_runs(&self) -> Result<Vec<RejudgeRunRow>, PersistError> {
+    pub async fn list_rejudge_runs(self) -> Result<Vec<RejudgeRunRow>, PersistError> {
         crate::metrics::time_db("list_rejudge_runs", async move {
             Ok(sqlx::query_file_as!(
                 RejudgeRunRow,
@@ -133,7 +133,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_rejudge_run(&self, id: i64) -> Result<Option<RejudgeRunRow>, PersistError> {
+    pub async fn get_rejudge_run(self, id: i64) -> Result<Option<RejudgeRunRow>, PersistError> {
         crate::metrics::time_db("get_rejudge_run", async move {
             Ok(sqlx::query_file_as!(
                 RejudgeRunRow,
@@ -146,7 +146,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn start_rejudge_run(&self, id: i64) -> Result<bool, PersistError> {
+    pub async fn start_rejudge_run(self, id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("start_rejudge_run", async move {
             let r = sqlx::query!(
                 "UPDATE eval.rejudge_runs
@@ -162,7 +162,7 @@ impl PersistHandle {
     }
 
     pub async fn finish_rejudge_run(
-        &self,
+        self,
         id: i64,
         finish: RejudgeFinish,
     ) -> Result<bool, PersistError> {
@@ -182,7 +182,7 @@ impl PersistHandle {
     }
 
     pub async fn rejudge_ineligible_turn_ids(
-        &self,
+        self,
         window: &RejudgeWindow,
         after_id: i64,
         limit: i64,
@@ -203,7 +203,7 @@ impl PersistHandle {
     }
 
     pub async fn claim_rejudge_candidates(
-        &self,
+        self,
         window: &RejudgeWindow,
         limit: i64,
     ) -> Result<Vec<i64>, PersistError> {

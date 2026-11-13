@@ -1,5 +1,6 @@
 use super::{LaunchOutcome, LaunchSurfaceRefs, NewLaunch};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 fn missing_launch(id: i64, step: &str) -> PersistError {
     PersistError::DataInvariant(format!(
@@ -7,8 +8,8 @@ fn missing_launch(id: i64, step: &str) -> PersistError {
     ))
 }
 
-impl PersistHandle {
-    pub async fn insert_launch(&self, new: &NewLaunch) -> Result<i64, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub async fn insert_launch(self, new: &NewLaunch) -> Result<i64, PersistError> {
         crate::metrics::time_db("launch_insert_launch", async move {
             let claude_args = serde_json::Value::from(new.claude_args.clone());
             let id = sqlx::query_file_scalar!(
@@ -46,7 +47,7 @@ impl PersistHandle {
     }
 
     pub async fn record_launch_opened(
-        &self,
+        self,
         id: i64,
         surface: &LaunchSurfaceRefs,
     ) -> Result<(), PersistError> {
@@ -68,7 +69,7 @@ impl PersistHandle {
     }
 
     pub async fn record_launch_outcome(
-        &self,
+        self,
         id: i64,
         outcome: &LaunchOutcome,
     ) -> Result<(), PersistError> {
@@ -95,7 +96,7 @@ impl PersistHandle {
     }
 
     pub async fn record_launch_closed(
-        &self,
+        self,
         id: i64,
         reason: &str,
         process_exited: Option<bool>,
@@ -109,6 +110,7 @@ impl PersistHandle {
             let run_id = run_id.ok_or_else(|| missing_launch(id, "close"))?;
             if let Some(run_id) = run_id.filter(|run| run.starts_with("fleet-")) {
                 return self
+                    .fleet()
                     .record_fleet_launch_closure(id, &run_id, reason, process_exited)
                     .await;
             }

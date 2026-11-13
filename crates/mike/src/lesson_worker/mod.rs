@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 mod action_record;
 mod gc;
 mod nightly;
@@ -238,7 +239,7 @@ async fn run_nightly_if_due(
         log_local_midnight_unresolved(trigger);
         return;
     };
-    match persist.nightly_ran_since(since).await {
+    match persist.lessons().nightly_ran_since(since).await {
         Ok(false) => {
             nightly::run_nightly_consolidation(persist, max_lessons_per_project, trigger).await;
         }

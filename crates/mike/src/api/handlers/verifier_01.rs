@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct VerifierRateDto {
@@ -30,6 +31,7 @@ pub(crate) async fn get_verifier_rate(
         return Err(persist_unavailable_response());
     };
     let rows = handle
+        .steerer()
         .fetch_verifier_rate(params.project.as_deref())
         .await
         .map_err(|e| {

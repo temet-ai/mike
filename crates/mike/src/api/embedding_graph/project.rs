@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -72,7 +73,7 @@ pub(crate) async fn get_project_embedding_graph(
         return Err(bad_request("`min_similarity` must be between 0.0 and 1.0"));
     }
 
-    let Some(project_path) = handle.fetch_project_path(id).await.map_err(|e| {
+    let Some(project_path) = handle.knowledge().fetch_project_path(id).await.map_err(|e| {
         tracing::warn!(project_id = id, error = %e, "get_project_embedding_graph: fetch_project_path failed");
         persist_error_response(e)
     })?
@@ -80,7 +81,7 @@ pub(crate) async fn get_project_embedding_graph(
         return Err((StatusCode::NOT_FOUND, "unknown project").into_response());
     };
 
-    let centroid_status = handle.project_centroid_status(id).await.map_err(|e| {
+    let centroid_status = handle.knowledge().project_centroid_status(id).await.map_err(|e| {
         tracing::warn!(project_id = id, error = %e, "get_project_embedding_graph: centroid status fetch failed");
         persist_error_response(e)
     })?;
@@ -103,7 +104,7 @@ pub(crate) async fn get_project_embedding_graph(
 
     const PER_NODE_K: i64 = 3;
     let (node_rows, edge_rows) = handle
-        .project_session_graph(id, limit, min_similarity, PER_NODE_K)
+        .knowledge().project_session_graph(id, limit, min_similarity, PER_NODE_K)
         .await
         .map_err(|e| {
             tracing::warn!(project_id = id, error = %e, "get_project_embedding_graph: project_session_graph failed");
@@ -132,7 +133,7 @@ pub(crate) async fn get_project_embedding_graph(
         .collect();
 
     const SIBLING_K: i64 = 5;
-    let siblings = handle.sibling_projects(id, SIBLING_K).await.map_err(|e| {
+    let siblings = handle.knowledge().sibling_projects(id, SIBLING_K).await.map_err(|e| {
         tracing::warn!(project_id = id, error = %e, "get_project_embedding_graph: sibling_projects failed");
         persist_error_response(e)
     })?;

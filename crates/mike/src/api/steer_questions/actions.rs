@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -156,6 +157,7 @@ pub(crate) async fn patch_question(
     };
     let (decided_via, _) = via(&headers);
     match persist
+        .steerer()
         .set_holdback_pct(steerer_id, question.code(), body.holdback_pct, decided_via)
         .await
     {
@@ -207,6 +209,7 @@ pub(crate) async fn label_evaluation(
         Err(e) => return persistence_error(&e),
     };
     let label_id = match persist
+        .steerer()
         .label_steer_evaluation(uuid, &body.label, body.note.as_deref(), holdout)
         .await
     {
@@ -220,7 +223,11 @@ pub(crate) async fn label_evaluation(
         }
     };
     let cancelled = if body.label == "wrong" {
-        persist.reject_pending_wake(uuid).await.unwrap_or_default()
+        persist
+            .steerer()
+            .reject_pending_wake(uuid)
+            .await
+            .unwrap_or_default()
     } else {
         Vec::new()
     };

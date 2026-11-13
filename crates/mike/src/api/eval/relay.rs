@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -43,6 +44,7 @@ async fn verified_relayer(
     claimed: Option<uuid::Uuid>,
 ) -> (Option<String>, bool) {
     let callers = persist
+        .eval()
         .recent_relay_callers(quote)
         .await
         .unwrap_or_default();
@@ -81,6 +83,7 @@ async fn validated(
     }
     let subject = subject_of(body).map_err(|m| error(StatusCode::BAD_REQUEST, m))?;
     let vocab = persist
+        .eval()
         .eval_vocabulary()
         .await
         .map_err(|e| error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -103,7 +106,7 @@ async fn quote_turn(
     session: uuid::Uuid,
     quote: &str,
 ) -> Result<i64, Response> {
-    match persist.find_quote_turn(session, quote).await {
+    match persist.eval().find_quote_turn(session, quote).await {
         Ok(Some(turn)) => Ok(turn),
         Ok(None) => Err(error(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -148,7 +151,7 @@ pub(crate) async fn post_relay_label(
             .await
             .unwrap_or(30),
     };
-    match persist.write_relayed_label(&write).await {
+    match persist.eval().write_relayed_label(&write).await {
         Ok(label) => (
             StatusCode::CREATED,
             Json(json!({

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::{Duration, Utc};
 
 use crate::store::persistence::PersistHandle;
@@ -22,6 +23,7 @@ pub async fn select_candidates(
 ) -> Result<Vec<CorrectionCandidate>, crate::store::persistence::PersistError> {
     let since = Utc::now() - Duration::days(CANDIDATE_LOOKBACK_DAYS);
     persist
+        .lessons()
         .select_correction_candidates(since, fetch_limit(settings.max_per_day))
         .await
 }

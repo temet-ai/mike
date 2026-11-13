@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LessonEvidenceRow {
@@ -73,9 +73,9 @@ fn annotate_similar(similar: &mut Value, origins: &HashMap<i64, EvidenceOrigin>)
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     async fn evidence_origins(
-        &self,
+        self,
         turn_ids: &[i64],
     ) -> Result<HashMap<i64, EvidenceOrigin>, PersistError> {
         if turn_ids.is_empty() {
@@ -96,7 +96,7 @@ impl PersistHandle {
     }
 
     pub async fn list_lesson_evidence(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Vec<LessonEvidenceRow>, PersistError> {
         crate::metrics::time_db("list_lesson_evidence", async move {
@@ -121,7 +121,7 @@ impl PersistHandle {
     }
 
     pub async fn lesson_injection_stats(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<LessonInjectionSummary, PersistError> {
         crate::metrics::time_db("lesson_injection_stats", async move {
@@ -141,7 +141,7 @@ impl PersistHandle {
     }
 
     pub async fn lesson_went_live_at(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("lesson_went_live_at", async move {

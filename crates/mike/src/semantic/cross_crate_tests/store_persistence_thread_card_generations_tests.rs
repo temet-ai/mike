@@ -1,5 +1,7 @@
 //! Moved from crates/mike/src/store/persistence/thread_card_generations_tests.rs by the crate split: it reaches the knowledge
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -21,10 +23,12 @@ async fn fixture() -> anyhow::Result<Option<Fixture>> {
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("card generation tests", Uuid::new_v4())
         .await?
         .id;
     let outcome = handle
+        .launch()
         .checkpoint_work_thread(
             project,
             &CheckpointInput {

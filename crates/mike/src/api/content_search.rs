@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -133,6 +134,7 @@ async fn resolve_project(
         return Ok(None);
     };
     handle
+        .knowledge()
         .resolve_knowledge_project(selector)
         .await
         .map(|project| Some(project.id))

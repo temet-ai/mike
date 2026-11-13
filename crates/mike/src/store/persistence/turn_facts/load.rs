@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use super::TurnFactsRow;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnRecord {
@@ -30,9 +30,9 @@ pub struct SessionRecord {
     pub launches: serde_json::Value,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_turn_records(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<TurnRecord>, PersistError> {
         crate::metrics::time_db("load_turn_records", async move {
@@ -56,7 +56,7 @@ impl PersistHandle {
     }
 
     pub async fn load_session_records(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<SessionRecord>, PersistError> {
         crate::metrics::time_db("load_session_records", async move {
@@ -72,7 +72,7 @@ impl PersistHandle {
     }
 
     pub async fn load_existing_turn_facts(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<TurnFactsRow>, PersistError> {
         crate::metrics::time_db("load_existing_turn_facts", async move {
@@ -88,7 +88,7 @@ impl PersistHandle {
     }
 
     pub async fn load_max_request_ids(
-        &self,
+        self,
         turn_ids: &[i64],
     ) -> Result<Vec<(i64, i64)>, PersistError> {
         crate::metrics::time_db("load_max_request_ids", async move {

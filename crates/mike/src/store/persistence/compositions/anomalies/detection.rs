@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 use super::types::{AnomalyClassification, AnomalyGroup, AnomalyObservation, AnomalyRow};
 
 fn anomaly_group_from_row(row: AnomalyRow) -> Result<AnomalyGroup, PersistError> {
@@ -81,9 +81,9 @@ fn anomaly_group_from_row(row: AnomalyRow) -> Result<AnomalyGroup, PersistError>
     })
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn list_anomalies_windowed(
-        &self,
+        self,
         date_from: Option<DateTime<Utc>>,
         date_to: Option<DateTime<Utc>>,
         limit: i64,

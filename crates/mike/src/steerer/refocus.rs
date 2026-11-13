@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 pub(crate) async fn resolve_verdict_system_prompt(
     persist: Option<&crate::store::persistence::PersistHandle>,
     agent_id: i64,
@@ -26,7 +27,7 @@ pub(crate) async fn resolve_composition_block2_text(
     subsystem: &str,
     default: impl Fn() -> String,
 ) -> String {
-    match ph.list_compositions_for_agent(agent_id).await {
+    match ph.proxy().list_compositions_for_agent(agent_id).await {
         Ok(compositions) => {
             if compositions.is_empty() {
                 log_no_compositions(agent_id, subsystem);

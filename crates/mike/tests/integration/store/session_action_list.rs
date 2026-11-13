@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::test_support::{self, TestDb};
 
 async fn shared_handle() -> anyhow::Result<Option<PersistHandle>> {
@@ -71,7 +72,7 @@ async fn fetch_session_action_list_empty_for_unknown_session() -> anyhow::Result
         return Ok(());
     };
 
-    let rows = handle.fetch_session_action_list(-1).await?;
+    let rows = handle.steerer().fetch_session_action_list(-1).await?;
 
     assert!(rows.is_empty());
     handle.pool().close().await;
@@ -94,7 +95,10 @@ async fn fetch_session_action_list_returns_every_row_unbounded() -> anyhow::Resu
         return Ok(());
     };
 
-    let rows = handle.fetch_session_action_list(session_db_id).await?;
+    let rows = handle
+        .steerer()
+        .fetch_session_action_list(session_db_id)
+        .await?;
 
     assert_eq!(rows.len(), 40, "every call returned, no row-count cap");
     assert_eq!(rows[0].file_path.as_deref(), Some("/src/file_0.rs"));
@@ -121,7 +125,10 @@ async fn fetch_session_action_list_projects_bash_command_only_for_bash() -> anyh
         return Ok(());
     };
 
-    let rows = handle.fetch_session_action_list(session_db_id).await?;
+    let rows = handle
+        .steerer()
+        .fetch_session_action_list(session_db_id)
+        .await?;
 
     assert_eq!(rows.len(), 2);
     assert_eq!(
@@ -156,7 +163,10 @@ async fn fetch_session_action_list_carries_error_outcome() -> anyhow::Result<()>
     .execute(handle.pool())
     .await?;
 
-    let rows = handle.fetch_session_action_list(session_db_id).await?;
+    let rows = handle
+        .steerer()
+        .fetch_session_action_list(session_db_id)
+        .await?;
 
     assert_eq!(rows.len(), 1);
     assert!(rows[0].has_result);

@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -420,7 +422,11 @@ async fn gather(persist: &PersistHandle, input: &FloorInput<'_>, done: &DoneWhen
     };
     let (mut touched, added) = commit_files(&input.def.repo, input.sha).await;
     let since = input.since - Duration::microseconds(1);
-    if let Ok(rows) = persist.tree_changed_paths_since(input.run, since).await {
+    if let Ok(rows) = persist
+        .fleet()
+        .tree_changed_paths_since(input.run, since)
+        .await
+    {
         touched.extend(rows.into_iter().map(|row| row.path));
     }
     Evidence {
@@ -433,7 +439,7 @@ async fn gather(persist: &PersistHandle, input: &FloorInput<'_>, done: &DoneWhen
 
 async fn record(persist: &PersistHandle, input: &FloorInput<'_>, outcome: &Outcome) {
     let new = event(input.run, input.task, input.seat, outcome);
-    if let Err(err) = persist.append_fleet_event(&new).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&new).await {
         tracing::warn!(error = %err, task = input.task, "fleet floor: could not record the floor event");
     }
 }
@@ -443,6 +449,7 @@ async fn answer(persist: &PersistHandle, input: &FloorInput<'_>, outcome: &Outco
         return;
     };
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), input.seat, None, &text)
         .await
     {

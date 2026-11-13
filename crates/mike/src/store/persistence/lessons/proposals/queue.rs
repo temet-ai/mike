@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use super::CorrectionCandidate;
 use crate::lesson_proposer::prompt::ProposedLesson;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SavedProposal {
@@ -15,9 +15,9 @@ pub(crate) struct SavedProposal {
     pub generation_id: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn has_recent_primary_activity(
-        &self,
+        self,
         since: chrono::DateTime<chrono::Utc>,
     ) -> Result<bool, PersistError> {
         Ok(sqlx::query_scalar!(
@@ -33,8 +33,8 @@ impl PersistHandle {
     }
 
     pub(crate) async fn lock_lesson_proposer(
-        &self,
-    ) -> Result<Option<sqlx::Transaction<'_, sqlx::Postgres>>, PersistError> {
+        self,
+    ) -> Result<Option<sqlx::Transaction<'static, sqlx::Postgres>>, PersistError> {
         let mut tx = self.pool.begin().await?;
         let locked: bool =
             sqlx::query_scalar!(r#"SELECT pg_try_advisory_xact_lock(739104721) AS "locked!""#)
@@ -43,10 +43,7 @@ impl PersistHandle {
         if locked { Ok(Some(tx)) } else { Ok(None) }
     }
 
-    pub(crate) async fn reserve_lesson_proposer_call(
-        &self,
-        cap: i64,
-    ) -> Result<bool, PersistError> {
+    pub(crate) async fn reserve_lesson_proposer_call(self, cap: i64) -> Result<bool, PersistError> {
         if cap <= 0 {
             return Ok(false);
         }
@@ -65,7 +62,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn save_lesson_proposal(
-        &self,
+        self,
         saved: &SavedProposal,
     ) -> Result<(), PersistError> {
         sqlx::query!(
@@ -86,7 +83,7 @@ impl PersistHandle {
         Ok(())
     }
 
-    async fn reject_obsolete_lesson_proposals(&self) -> Result<(), PersistError> {
+    async fn reject_obsolete_lesson_proposals(self) -> Result<(), PersistError> {
         let mut tx = self.pool.begin().await?;
         sqlx::query!(
             "UPDATE memory.lesson_proposal_jobs j SET status = 'rejected', updated_at = NOW()
@@ -106,7 +103,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn pending_lesson_proposals(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<SavedProposal>, PersistError> {
         self.reject_obsolete_lesson_proposals().await?;
@@ -124,7 +121,7 @@ impl PersistHandle {
         Ok(rows.into_iter().map(|row| row.0).collect())
     }
 
-    pub(crate) async fn touch_lesson_proposal(&self, verdict_id: i64) -> Result<(), PersistError> {
+    pub(crate) async fn touch_lesson_proposal(self, verdict_id: i64) -> Result<(), PersistError> {
         sqlx::query!(
             "UPDATE memory.lesson_proposal_jobs SET updated_at = NOW(),
                 retry_count = least(retry_count + 1, 16),

@@ -1,5 +1,7 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::lessons::NewLessonWrite;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub(crate) async fn create_lesson(
     State(state): State<AppState>,
@@ -10,6 +12,7 @@ pub(crate) async fn create_lesson(
     };
     validate_lesson_create_shape(&body).map_err(|e| *e)?;
     if let Some(project) = handle
+        .knowledge()
         .find_knowledge_project(&body.project_path)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?
@@ -23,6 +26,7 @@ pub(crate) async fn create_lesson(
         Some(declared) => {
             ensure_lesson_exists(handle, declared).await?;
             let heads = handle
+                .lessons()
                 .live_replacements_of(declared)
                 .await
                 .unwrap_or_default();
@@ -48,6 +52,7 @@ pub(crate) async fn create_lesson(
     let hold = state.feature_toggle_overlay.load().judge_lessons;
     let assessment = crate::lesson_shape::assess(&body.text, body.topic.as_deref(), max_chars);
     let row = handle
+        .lessons()
         .create_lesson_with_shape(
             NewLessonWrite {
                 project_id,
@@ -171,6 +176,7 @@ async fn near_lessons(
         }
     };
     let neighbours = handle
+        .lessons()
         .find_lesson_neighbours(
             project_id,
             &vector,
@@ -234,10 +240,14 @@ async fn ensure_lesson_exists(
     handle: &crate::store::persistence::PersistHandle,
     lesson_id: i64,
 ) -> Result<(), Response> {
-    let exists = handle.lesson_exists(lesson_id).await.map_err(|e| {
-        tracing::warn!(error = %e, "create_lesson: supersedes existence check failed");
-        persist_error_response(e)
-    })?;
+    let exists = handle
+        .lessons()
+        .lesson_exists(lesson_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "create_lesson: supersedes existence check failed");
+            persist_error_response(e)
+        })?;
     if exists {
         Ok(())
     } else {
@@ -309,6 +319,7 @@ async fn insert_supersedes_relation(
     supersedes_id: i64,
 ) -> Result<(), Response> {
     handle
+        .lessons()
         .insert_lesson_relation(
             &crate::store::persistence::lesson_relations::LessonRelationDraft {
                 from_lesson_id: lesson_id,
@@ -348,6 +359,7 @@ async fn fetch_related_and_neighbours(
         return Ok((Vec::new(), Vec::new()));
     };
     let neighbours = handle
+        .knowledge()
         .nearest_sessions(session_uuid, 5, false, 0.0)
         .await
         .map_err(|e| {
@@ -367,6 +379,7 @@ async fn fetch_related_and_neighbours(
         Vec::new()
     } else {
         handle
+            .knowledge()
             .lessons_from_sessions(&neighbour_ids)
             .await
             .map_err(|e| {

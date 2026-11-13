@@ -4,6 +4,7 @@ use crate::steerer::guard::live_decision::{DeliveryPlan, LiveDecision};
 use crate::steerer::inject::build_steering_block_with;
 use crate::steerer::registry::Steerer;
 use crate::store::models::{ProxyEvent, ReminderSource, SystemReminder};
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::steering::NewIntervention;
 
 fn plan_of(fire: &LiveFire) -> Option<DeliveryPlan> {
@@ -29,6 +30,7 @@ async fn insert(
     let scope = window.scope()?;
     let verdict_json = serde_json::json!({"question": fire.question, "decision": fire.decision});
     let id = persist
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id: steerer.id,
             enrolment_id: Some(enrolment.id),

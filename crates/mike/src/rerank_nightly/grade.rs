@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::Value;
 
 use super::first_ten::{Scored, first_ten_references, grade_first_ten, turn_query};
@@ -35,6 +36,7 @@ pub(super) async fn grade_event(
         ..KnowledgeQuery::default()
     };
     let mut rows = persist
+        .knowledge()
         .knowledge_candidate_rows(event.project_id, &input, CANDIDATE_ROWS, vector.as_ref())
         .await?;
     rows.truncate(usize::try_from(CANDIDATE_ROWS).unwrap_or(usize::MAX));
@@ -60,6 +62,7 @@ pub(super) async fn grade_event(
     .await;
     let first_ten = serde_json::to_value(&first.results).unwrap_or(Value::Array(Vec::new()));
     persist
+        .knowledge()
         .insert_search_grade(&NewGrade {
             event_id: event.event_id,
             candidates: &stored,

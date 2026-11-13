@@ -1,3 +1,5 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::Context;
 use chrono::Utc;
 
@@ -68,7 +70,7 @@ async fn seed(handle: &PersistHandle, n: i64) -> anyhow::Result<()> {
     .fetch_all(pool)
     .await?;
     let rows: Vec<TurnFactsRow> = turns.iter().map(|(t, s)| facts(*t, *s)).collect();
-    handle.upsert_turn_facts(&rows).await?;
+    handle.dossier().upsert_turn_facts(&rows).await?;
     sqlx::query(
         "INSERT INTO eval.turn_splits (operator_turn_id, split, split_reason)
          SELECT t.id, 'dev', 'hash' FROM memory.operator_turns t WHERE t.id = ANY($1)",
@@ -187,7 +189,7 @@ async fn eval_run_completes_with_one_item_per_label() -> anyhow::Result<()> {
         anyhow::bail!("expected a finished run, got {outcome:?}");
     };
     assert_eq!(status, "complete");
-    let items = handle.all_eval_run_items(run_id).await?;
+    let items = handle.eval().all_eval_run_items(run_id).await?;
     assert_eq!(items.len(), 30);
     assert!(items.iter().all(|i| i.outcome == "judged"));
     db.cleanup().await?;
@@ -215,6 +217,7 @@ async fn eval_run_selected_bundle_keeps_its_id_in_run_and_verdict() -> anyhow::R
     components["reasoning_effort"] = serde_json::json!("high");
     components["max_output_tokens"] = serde_json::json!(987);
     let bundle_id = handle
+        .eval()
         .create_candidate_bundle("turn_judge", "", &components)
         .await?;
     let mut req = request(&handle).await?;
@@ -224,12 +227,17 @@ async fn eval_run_selected_bundle_keeps_its_id_in_run_and_verdict() -> anyhow::R
         anyhow::bail!("expected a finished run");
     };
     assert_eq!(status, "complete");
-    let run = handle.get_eval_run(run_id).await?.context("missing run")?;
+    let run = handle
+        .eval()
+        .get_eval_run(run_id)
+        .await?
+        .context("missing run")?;
     assert_eq!(run.bundle_id, bundle_id);
     assert_eq!(run.model, "selected-model");
-    let items = handle.all_eval_run_items(run_id).await?;
+    let items = handle.eval().all_eval_run_items(run_id).await?;
     assert_eq!(items.len(), 1);
     let (verdicts, count) = handle
+        .eval()
         .list_turn_verdicts_for_turn(items[0].operator_turn_id, None, 10, 0)
         .await?;
     assert_eq!(count, 1);
@@ -265,6 +273,7 @@ async fn eval_run_selected_bundle_rejects_different_judge_even_on_dry_run() -> a
     let mut components = judge().components();
     components["model"] = serde_json::json!("selected-model");
     let bundle_id = handle
+        .eval()
         .create_candidate_bundle("turn_judge", "", &components)
         .await?;
     let mut req = request(&handle).await?;
@@ -306,7 +315,7 @@ async fn eval_run_pauses_at_its_budget_and_resume_completes_the_same_run() -> an
         anyhow::bail!("expected a paused run");
     };
     assert_eq!(status, "paused_budget");
-    assert_eq!(handle.all_eval_run_items(run_id).await?.len(), 5);
+    assert_eq!(handle.eval().all_eval_run_items(run_id).await?.len(), 5);
     sqlx::query("UPDATE eval.runs SET max_usd = 10 WHERE id = $1")
         .bind(run_id)
         .execute(handle.pool())
@@ -323,7 +332,7 @@ async fn eval_run_pauses_at_its_budget_and_resume_completes_the_same_run() -> an
         anyhow::bail!("expected the resumed run to finish");
     };
     assert_eq!(status, "complete");
-    assert_eq!(handle.all_eval_run_items(run_id).await?.len(), 30);
+    assert_eq!(handle.eval().all_eval_run_items(run_id).await?.len(), 30);
     db.cleanup().await?;
     Ok(())
 }

@@ -4,8 +4,8 @@ use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+use crate::store::persistence::PersistError;
 use crate::store::persistence::change_log::{NewChange, append_change_in};
-use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LeaseClaim<'a> {
@@ -35,9 +35,9 @@ fn pointer_of(value: &Value) -> i64 {
     value.as_i64().unwrap_or(0)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn publish_live_pointer(
-        &self,
+        self,
         req: PublishRequest<'_>,
         cancel: &CancellationToken,
     ) -> Result<PublishOutcome, PersistError> {

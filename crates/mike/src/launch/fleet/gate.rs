@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -313,6 +315,7 @@ async fn current_status(
         return Ok(running);
     }
     if let Some(row) = persist
+        .fleet()
         .latest_tree_check(ledger)
         .await
         .map_err(|err| err.to_string())?
@@ -336,6 +339,7 @@ async fn obtain(
     completion::blocked(&ledger)?;
     let slot = admission::key(&target.slot).to_string_lossy().into_owned();
     if let Some(row) = persist
+        .fleet()
         .find_tree_check(&ledger, &target.commit)
         .await
         .map_err(|e| e.to_string())?
@@ -442,6 +446,7 @@ async fn tell_waiting(
         .filter(|session| Some(*session) != acceptance)
     {
         if let Err(err) = persist
+            .launch()
             .insert_message(Uuid::new_v4(), session, None, &body)
             .await
         {

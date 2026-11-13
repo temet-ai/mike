@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, SubsecRound, Utc};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use serde_json::Value;
 
 use mike::store::persistence::PersistHandle;
@@ -142,12 +143,12 @@ async fn record_remote_control_calls_with_a_channel_open_burst_matches_sequentia
     let one_by_one = channel_open_burst(&sequential, &inputs);
     let mut sequential_ids = Vec::new();
     for call in one_by_one.iter().cloned() {
-        sequential_ids.push(handle.record_remote_control_call(call).await?);
+        sequential_ids.push(handle.proxy().record_remote_control_call(call).await?);
     }
 
     let batched = unique("cse_batched");
     let burst = channel_open_burst(&batched, &inputs);
-    let batched_ids = handle.record_remote_control_calls(&burst).await?;
+    let batched_ids = handle.proxy().record_remote_control_calls(&burst).await?;
 
     assert_eq!(batched_ids.len(), burst.len());
     assert!(batched_ids.windows(2).all(|pair| pair[0] < pair[1]));
@@ -174,7 +175,7 @@ async fn record_remote_control_calls_with_two_channels_refuses_the_batch() -> an
         call_at(&first, "POST", "/worker/events"),
         call_at(&second, "POST", "/worker/events"),
     ];
-    let Err(error) = handle.record_remote_control_calls(&mixed).await else {
+    let Err(error) = handle.proxy().record_remote_control_calls(&mixed).await else {
         anyhow::bail!("a batch holding two channels was recorded");
     };
     assert!(error.to_string().contains(&second), "{error}");
@@ -194,7 +195,13 @@ async fn record_remote_control_calls_with_no_calls_records_nothing() -> anyhow::
     let Some(handle) = shared_handle().await? else {
         return Ok(());
     };
-    assert!(handle.record_remote_control_calls(&[]).await?.is_empty());
+    assert!(
+        handle
+            .proxy()
+            .record_remote_control_calls(&[])
+            .await?
+            .is_empty()
+    );
     handle.pool().close().await;
     Ok(())
 }

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 
+use super::PersistError;
 use super::acceptance_criteria::{AcceptanceCriteriaMap, AcceptanceCriterionRow};
 use super::memory_ask_ledger::AskLedgerEntryRow;
 use super::session_action_list::{SessionActionCounts, SessionActionRow};
 use super::turn_tool_call_reads::TurnToolCallMetaRow;
-use super::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ReplayTrigger {
@@ -70,9 +70,9 @@ pub struct PriorFireRow {
     pub created_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn fetch_replay_trigger(
-        &self,
+        self,
         trigger_request_id: i64,
     ) -> Result<ReplayTrigger, PersistError> {
         crate::metrics::time_db("fetch_replay_trigger", async {
@@ -100,7 +100,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_replay_eval_text_blocks(
-        &self,
+        self,
         trigger_request_id: i64,
     ) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("fetch_replay_eval_text_blocks", async {
@@ -121,7 +121,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_replay_trigger_tool_uses(
-        &self,
+        self,
         trigger_request_id: i64,
     ) -> Result<Vec<ReplayToolUse>, PersistError> {
         crate::metrics::time_db("fetch_replay_trigger_tool_uses", async {
@@ -141,7 +141,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_ask_ledger_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
         limit: i64,
@@ -171,7 +171,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_turn_tool_calls_as_of(
-        &self,
+        self,
         turn_id: i64,
         session_db_id: i64,
         as_of: DateTime<Utc>,
@@ -192,7 +192,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_action_list_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<Vec<SessionActionRow>, PersistError> {
@@ -211,7 +211,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_action_list_recent_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
         limit: i64,
@@ -232,7 +232,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_action_counts_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<SessionActionCounts, PersistError> {
@@ -251,7 +251,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_prior_verifier_fires_as_of(
-        &self,
+        self,
         session_db_id: i64,
         steerer_id: i64,
         as_of: DateTime<Utc>,
@@ -284,7 +284,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_open_turn_prompt_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<Option<String>, PersistError> {
@@ -308,7 +308,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_acceptance_criteria_as_of(
-        &self,
+        self,
         session_db_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<Option<AcceptanceCriteriaMap>, PersistError> {

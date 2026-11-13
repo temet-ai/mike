@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::runtime::codex::ItemKey;
 use crate::runtime::validate_text;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::super::invalid;
 use super::generation::check_versions;
@@ -69,11 +69,8 @@ impl TryFrom<ApplicationRow> for CodexProjectionApplication {
     }
 }
 
-impl PersistHandle {
-    async fn validate_codex_generation_read(
-        &self,
-        generation_id: Uuid,
-    ) -> Result<(), PersistError> {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
+    async fn validate_codex_generation_read(self, generation_id: Uuid) -> Result<(), PersistError> {
         let generation = self
             .codex_projection_generation(generation_id)
             .await?
@@ -82,7 +79,7 @@ impl PersistHandle {
     }
 
     pub async fn codex_projected_item(
-        &self,
+        self,
         generation_id: Uuid,
         key: &ItemKey,
     ) -> Result<Option<CodexStoredItem>, PersistError> {
@@ -102,7 +99,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_items(
-        &self,
+        self,
         page: CodexItemPage,
     ) -> Result<Vec<CodexStoredItem>, PersistError> {
         validate_page(page.limit)?;
@@ -128,7 +125,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_projection_effects(
-        &self,
+        self,
         page: CodexEffectPage,
     ) -> Result<Vec<CodexProjectionEffect>, PersistError> {
         validate_page(page.limit)?;
@@ -141,7 +138,7 @@ impl PersistHandle {
     }
 
     async fn fetch_codex_effect_rows(
-        &self,
+        self,
         page: CodexEffectPage,
     ) -> Result<Vec<EffectRow>, PersistError> {
         let (after_sequence, after_ordinal) = page.after.unwrap_or(FIRST_EFFECT_CURSOR);
@@ -178,7 +175,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_usage_observations(
-        &self,
+        self,
         mut page: CodexEffectPage,
     ) -> Result<Vec<CodexProjectionEffect>, PersistError> {
         page.kind = Some("usage".into());
@@ -186,7 +183,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_lifecycle_observations(
-        &self,
+        self,
         mut page: CodexEffectPage,
     ) -> Result<Vec<CodexProjectionEffect>, PersistError> {
         page.kind = Some("lifecycle".into());
@@ -194,7 +191,7 @@ impl PersistHandle {
     }
 
     pub async fn codex_projection_application(
-        &self,
+        self,
         generation_id: Uuid,
         event_id: i64,
     ) -> Result<Option<CodexProjectionApplication>, PersistError> {
@@ -213,7 +210,7 @@ impl PersistHandle {
     }
 
     pub async fn list_codex_projection_issues(
-        &self,
+        self,
         generation_id: Uuid,
         after_sequence: i64,
         limit: i64,

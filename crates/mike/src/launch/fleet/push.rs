@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 pub const PUSH_ATTEMPTS: usize = 4;
@@ -193,6 +194,7 @@ pub async fn tell_coordinator(
         def.branch, def.repo
     );
     match persist
+        .launch()
         .insert_message(uuid::Uuid::new_v4(), seats.coordinator, None, &body)
         .await
     {

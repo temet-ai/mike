@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -176,11 +178,15 @@ async fn notes_of(
         limit: 50,
         offset: 0,
     };
-    Ok(persist.fetch_session_notes(session, filter).await?)
+    Ok(persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await?)
 }
 
 async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<String>> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(session)
         .await?
         .inbox
@@ -191,7 +197,10 @@ async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<Str
 
 async fn registered_seats(persist: &PersistHandle, sessions: &[Uuid]) -> anyhow::Result<()> {
     for session in sessions {
-        persist.ensure_session_exists(&session.to_string()).await?;
+        persist
+            .launch()
+            .ensure_session_exists(&session.to_string())
+            .await?;
     }
     Ok(())
 }
@@ -358,11 +367,17 @@ async fn a_brief_note_is_an_event_in_the_change_record_only_while_the_toggle_is_
     let everything = ChangeQuery::everything_after("/srv/project", 0, 50);
 
     ensure_run_part(&persist, &def, &facts, Duration::ZERO).await;
-    assert!(persist.change_events_after(&everything).await?.is_empty());
+    assert!(
+        persist
+            .fleet()
+            .change_events_after(&everything)
+            .await?
+            .is_empty()
+    );
 
     persist.upsert_feature_toggle("change_record", true).await?;
     record_task_part(&persist, (&def, &facts), ("P1", seat)).await;
-    let events = persist.change_events_after(&everything).await?;
+    let events = persist.fleet().change_events_after(&everything).await?;
     assert_eq!(events.len(), 1, "{events:?}");
     assert_eq!(events[0].kind, ChangeKind::Brief);
     assert_eq!(events[0].task.as_deref(), Some("P1"));

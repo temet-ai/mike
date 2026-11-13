@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 
@@ -36,12 +37,12 @@ fn print_plan(plan: &RejudgePlan) -> Result<()> {
 }
 
 async fn status(persist: &crate::store::persistence::PersistHandle) -> Result<()> {
-    let runs = persist.list_rejudge_runs().await?;
+    let runs = persist.eval().list_rejudge_runs().await?;
     let Some(run) = runs.into_iter().next() else {
         println!("no re-judge run has been started");
         return Ok(());
     };
-    let progress = persist.rejudge_progress(&run.window()).await?;
+    let progress = persist.eval().rejudge_progress(&run.window()).await?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({ "run": run, "progress": progress }))?

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -40,7 +41,7 @@ pub struct MineAnswer {
 }
 
 pub async fn mine(persist: &PersistHandle, caller: &Caller) -> Result<MineAnswer, AnswerError> {
-    let open = persist.open_changes(&caller.checkout).await?;
+    let open = persist.fleet().open_changes(&caller.checkout).await?;
     let mut uncommitted: Vec<MinePath> = open
         .iter()
         .filter(|o| o.session_id == Some(caller.session_id))
@@ -70,6 +71,7 @@ async fn evidence_on(
     }
     let prefixes: Vec<String> = uncommitted.iter().map(|p| p.path.clone()).collect();
     let events = persist
+        .fleet()
         .latest_change_events(
             &caller.checkout,
             &prefixes,
@@ -87,12 +89,14 @@ pub async fn check_after_last_change(
     checkout: &str,
 ) -> Result<CheckAfterLastChange, AnswerError> {
     let changes = persist
+        .fleet()
         .latest_change_events(checkout, &[], &CHANGE_KINDS, RECENT_EVENTS)
         .await?;
     let last_change = changes
         .into_iter()
         .find(|e| e.session_id == Some(session_id));
     let checks = persist
+        .fleet()
         .latest_change_events(checkout, &[], &[ChangeKind::Check], CHECK_EVENTS)
         .await?;
     Ok(judge(last_change.as_ref(), checks.first()))
@@ -200,7 +204,10 @@ mod tests {
         theirs.session_id = Some(other);
         let mut check = test_seed::event(project, ChangeKind::Check, &["src/a.rs"]);
         check.detail = serde_json::json!({"passed": false});
-        handle.insert_change_events(&[mine_edit, theirs]).await?;
+        handle
+            .fleet()
+            .insert_change_events(&[mine_edit, theirs])
+            .await?;
         let caller = Caller {
             session_id: me,
             checkout: CHECKOUT.to_owned(),
@@ -211,7 +218,7 @@ mod tests {
         let paths: Vec<&str> = before.uncommitted.iter().map(|p| p.path.as_str()).collect();
         assert_eq!(paths, vec!["src/a.rs"]);
         assert!(!before.check.ran, "{before:?}");
-        handle.insert_change_events(&[check]).await?;
+        handle.fleet().insert_change_events(&[check]).await?;
         let after = mine(&handle, &caller).await?;
         assert!(after.check.ran, "{after:?}");
         assert_eq!(after.check.verdict, Some(CheckVerdict::Failed));

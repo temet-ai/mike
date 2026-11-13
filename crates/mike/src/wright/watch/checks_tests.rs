@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -170,6 +171,7 @@ async fn page_client_errors_reads_what_the_page_reported() -> anyhow::Result<()>
     let db = Db::boot().await?;
     for n in 0..3 {
         db.handle
+            .web()
             .insert_wright_client_error(&crate::store::persistence::wright::NewClientError {
                 route: "/threads".to_owned(),
                 kind: "load".to_owned(),
@@ -240,7 +242,7 @@ async fn checks_read_through_a_read_only_transaction() -> anyhow::Result<()> {
 #[tokio::test]
 async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::Result<()> {
     let db = Db::boot().await?;
-    let checks = db.handle.list_wright_checks().await?;
+    let checks = db.handle.web().list_wright_checks().await?;
     let names: Vec<&str> = checks.iter().map(|c| c.name.as_str()).collect();
     assert_eq!(
         names,
@@ -294,12 +296,12 @@ async fn changed_params_change_what_a_stored_check_reports() -> anyhow::Result<(
             .await?;
     }
     assert_eq!(db.findings("mcp_tool_errors").await?, Vec::new());
-    let Some(row) = db.handle.wright_check("mcp_tool_errors").await? else {
+    let Some(row) = db.handle.web().wright_check("mcp_tool_errors").await? else {
         anyhow::bail!("the seed must hold mcp_tool_errors");
     };
     let mut changed = crate::store::persistence::wright::NewCheck::from(row);
     changed.params = json!({"window_hours": 24, "min_failures": 2, "min_sessions": 3});
-    db.handle.replace_wright_check(&changed).await?;
+    db.handle.web().replace_wright_check(&changed).await?;
     assert_eq!(db.findings("mcp_tool_errors").await?.len(), 1);
     db.cleanup().await
 }

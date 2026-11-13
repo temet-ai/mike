@@ -3,7 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SkillProjectRow {
@@ -43,8 +43,8 @@ pub struct SkillFolderRow {
     pub live_use: Option<Value>,
 }
 
-impl PersistHandle {
-    pub async fn list_skill_projects(&self) -> Result<Vec<SkillProjectRow>, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn list_skill_projects(self) -> Result<Vec<SkillProjectRow>, PersistError> {
         crate::metrics::time_db("list_skill_projects", async move {
             Ok(sqlx::query_as!(
                 SkillProjectRow,
@@ -106,7 +106,7 @@ impl PersistHandle {
     }
 
     pub async fn list_project_skill_folders(
-        &self,
+        self,
         project_uuid: Uuid,
     ) -> Result<Vec<SkillFolderRow>, PersistError> {
         crate::metrics::time_db("list_project_skill_folders", async move {
@@ -194,7 +194,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_project_mode(
-        &self,
+        self,
         project_uuid: Uuid,
     ) -> Result<Option<(String, bool)>, PersistError> {
         crate::metrics::time_db("skill_project_mode", async move {

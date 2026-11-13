@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use uuid::Uuid;
 
 use super::brief_notes::{as_notes, run_tags, task_part, task_tags};
@@ -90,7 +91,7 @@ async fn task_part_for(
 }
 
 pub async fn first_message(persist: &PersistHandle, run: &str, seat: &str) -> Option<String> {
-    let row = persist.find_fleet_by_run(run).await.ok()??;
+    let row = persist.fleet().find_fleet_by_run(run).await.ok()??;
     let def = FleetDefinition::from_value(&row.definition).ok()?;
     if !as_notes(&def) {
         return None;

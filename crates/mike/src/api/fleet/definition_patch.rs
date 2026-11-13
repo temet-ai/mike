@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
@@ -175,7 +176,11 @@ async fn seats_other_fleets_are_opening(state: &AppState, this: uuid::Uuid) -> u
     let Some(persist) = state.persist() else {
         return 0;
     };
-    let Ok(rows) = persist.list_fleets_in_states(&[STATE_STARTING]).await else {
+    let Ok(rows) = persist
+        .fleet()
+        .list_fleets_in_states(&[STATE_STARTING])
+        .await
+    else {
         return 0;
     };
     let mut reserved = 0;
@@ -191,6 +196,7 @@ async fn still_to_open(persist: &PersistHandle, row: &FleetRow) -> usize {
     };
     let opened = match &row.run_id {
         Some(run) => persist
+            .fleet()
             .fleet_seat_rows(run)
             .await
             .map(|seats| seats.iter().filter(|s| s.closed_at.is_none()).count())
@@ -225,6 +231,7 @@ async fn save_once(
     }
     let missing_value = json!(missing);
     let saved = persist
+        .fleet()
         .save_fleet_definition(row.fleet_uuid, &definition, &missing_value, row.updated_at)
         .await?;
     Ok(saved.map(|updated_at| Saved {
@@ -243,6 +250,7 @@ pub(crate) async fn save_definition(
         return Ok(saved);
     }
     let fresh = persist
+        .fleet()
         .find_fleet(&row.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| DefinitionError::NotFound(row.slug.clone()))?;

@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use crate::logged::ok_or_warn;
@@ -109,6 +111,7 @@ async fn wrong_wakes(
     for (i, w) in weeks.iter_mut().enumerate() {
         let to = now - Duration::weeks(i64::try_from(i).unwrap_or(0));
         let (pushed, labelled_wrong) = persist
+            .steerer()
             .fetch_wake_counts(steerer_id, question.code(), to - Duration::weeks(1), to)
             .await
             .unwrap_or_default();
@@ -124,6 +127,7 @@ async fn effect_for(
     now: DateTime<Utc>,
 ) -> EffectEstimate {
     let rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, Some(question.code()), now)
         .await
         .unwrap_or_default();
@@ -133,6 +137,7 @@ async fn effect_for(
         .filter_map(|r| r.scored_turn_id)
         .collect();
     let ends: HashMap<i64, String> = persist
+        .eval()
         .session_end_labels_for_turns(&turns, now)
         .await
         .unwrap_or_default()
@@ -154,7 +159,10 @@ async fn raise(
         detail: evidence,
     };
     ok_or_warn(
-        persist.apply_alarm_pass(&[], &[firing], i32::MAX).await,
+        persist
+            .eval()
+            .apply_alarm_pass(&[], &[firing], i32::MAX)
+            .await,
         "turn_guard.demotion_alarm",
     );
 }
@@ -169,6 +177,7 @@ async fn demotion_for(
     let (settings, now) = ctx;
     let window = ok_or_warn(
         persist
+            .steerer()
             .fetch_live_precision_window(guard_id, question.code(), LIVE_WINDOW_N)
             .await,
         "turn_guard.demotion_window",
@@ -224,9 +233,11 @@ pub async fn run_demotion_check(persist: &PersistHandle, now: DateTime<Utc>) -> 
     if !settings.auto_demote {
         return Vec::new();
     }
-    let Some(guard) =
-        ok_or_warn(persist.guard_steerer().await, "turn_guard.demotion_steerer").flatten()
-    else {
+    let Some(guard) = ok_or_warn(
+        persist.steerer().guard_steerer().await,
+        "turn_guard.demotion_steerer",
+    )
+    .flatten() else {
         return Vec::new();
     };
     let policies = question_policies(persist, guard.id).await;

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 mod brief;
 pub(crate) mod ledger;
 pub(crate) mod mcp_seen;
@@ -195,6 +196,7 @@ pub(crate) async fn list_launches(
         limit: LaunchListFilter::DEFAULT_LIMIT,
     };
     handle
+        .launch()
         .list_launches(&filter)
         .await
         .map(Json)
@@ -208,7 +210,7 @@ pub(crate) async fn get_launch(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    match handle.find_launch_by_session(session).await {
+    match handle.launch().find_launch_by_session(session).await {
         Ok(Some(row)) => Ok(Json(row)),
         Ok(None) => Err(launch_not_found(session)),
         Err(e) => Err(persist_error_response(e)),

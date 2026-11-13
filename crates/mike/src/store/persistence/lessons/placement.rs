@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlacementWrite<'a> {
@@ -31,8 +31,8 @@ pub struct TopicMove {
     pub to: String,
 }
 
-impl PersistHandle {
-    pub async fn unplaced_lessons(&self, limit: i64) -> Result<Vec<UnplacedLesson>, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn unplaced_lessons(self, limit: i64) -> Result<Vec<UnplacedLesson>, PersistError> {
         crate::metrics::time_db("unplaced_lessons", async move {
             Ok(sqlx::query_as!(
                 UnplacedLesson,
@@ -60,7 +60,7 @@ impl PersistHandle {
     }
 
     pub async fn record_placement_failure(
-        &self,
+        self,
         lesson_id: i64,
         error: &str,
     ) -> Result<i32, PersistError> {
@@ -84,7 +84,7 @@ impl PersistHandle {
     }
 
     pub async fn set_lesson_placement(
-        &self,
+        self,
         lesson_id: i64,
         placement: PlacementWrite<'_>,
     ) -> Result<bool, PersistError> {
@@ -111,7 +111,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn skill_purposes(&self) -> Result<Vec<SkillPurpose>, PersistError> {
+    pub async fn skill_purposes(self) -> Result<Vec<SkillPurpose>, PersistError> {
         crate::metrics::time_db("skill_purposes", async move {
             Ok(sqlx::query_as!(
                 SkillPurpose,
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub async fn retopic_skill_lessons(
-        &self,
+        self,
         project_id: i64,
         moves: &[TopicMove],
     ) -> Result<u64, PersistError> {

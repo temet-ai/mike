@@ -5,7 +5,7 @@ mod replay;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 pub use labels::GuardLabelCandidate;
 pub use metrics::{GuardMetricRow, GuardMetricsWindow};
@@ -34,8 +34,8 @@ pub struct ChannelReachRow {
     pub last_heartbeat_interval_seconds: Option<i32>,
 }
 
-impl PersistHandle {
-    pub async fn guard_steerer(&self) -> Result<Option<GuardSteererRow>, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn guard_steerer(self) -> Result<Option<GuardSteererRow>, PersistError> {
         crate::metrics::time_db("guard_steerer", async move {
             Ok(sqlx::query_as!(
                 GuardSteererRow,
@@ -49,7 +49,7 @@ impl PersistHandle {
     }
 
     pub async fn steerer_config(
-        &self,
+        self,
         steerer_id: i64,
     ) -> Result<Option<serde_json::Value>, PersistError> {
         crate::metrics::time_db("steerer_config", async move {
@@ -64,7 +64,7 @@ impl PersistHandle {
     }
 
     pub async fn question_policies(
-        &self,
+        self,
         steerer_id: i64,
     ) -> Result<Vec<QuestionPolicyRow>, PersistError> {
         crate::metrics::time_db("question_policies", async move {
@@ -81,7 +81,7 @@ impl PersistHandle {
     }
 
     pub async fn set_question_mode(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         mode: &str,
@@ -109,7 +109,7 @@ impl PersistHandle {
     }
 
     pub async fn steerer_calls_today(
-        &self,
+        self,
         steerer_id: i64,
         role: &str,
     ) -> Result<i64, PersistError> {
@@ -127,7 +127,7 @@ impl PersistHandle {
     }
 
     pub async fn last_tool_of_turn(
-        &self,
+        self,
         operator_turn_id: i64,
     ) -> Result<Option<String>, PersistError> {
         crate::metrics::time_db("last_tool_of_turn", async move {
@@ -147,7 +147,7 @@ impl PersistHandle {
     }
 
     pub async fn channel_reach_rows(
-        &self,
+        self,
         session_db_id: i64,
         session_uuid: Option<uuid::Uuid>,
     ) -> Result<Vec<ChannelReachRow>, PersistError> {
@@ -183,7 +183,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn verifier_pattern(&self) -> Result<Option<String>, PersistError> {
+    pub async fn verifier_pattern(self) -> Result<Option<String>, PersistError> {
         crate::metrics::time_db("verifier_pattern", async move {
             let row = sqlx::query_scalar!(
                 "SELECT pattern FROM steering.steerers
@@ -196,10 +196,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn session_project_id(
-        &self,
-        session_db_id: i64,
-    ) -> Result<Option<i64>, PersistError> {
+    pub async fn session_project_id(self, session_db_id: i64) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("session_project_id", async move {
             Ok(sqlx::query_scalar!(
                 "SELECT project_id FROM sessions.sessions WHERE id = $1",
@@ -212,7 +209,7 @@ impl PersistHandle {
     }
 
     pub async fn session_last_request_at(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("session_last_request_at", async move {

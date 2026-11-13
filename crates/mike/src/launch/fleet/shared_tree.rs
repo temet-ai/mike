@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Mutex, OnceLock};
 
@@ -344,7 +346,7 @@ async fn held_now(
     def: &FleetDefinition,
     run: &str,
 ) -> Option<(Held, Roster)> {
-    let events = persist.fleet_events_since(run, 0).await.ok()?;
+    let events = persist.fleet().fleet_events_since(run, 0).await.ok()?;
     let now = Utc::now();
     let folded = super::fold::fold(&events, now);
     let sessions = def
@@ -369,6 +371,7 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
         }
         if matches!(
             persist
+                .launch()
                 .insert_message(Uuid::new_v4(), notice.to, None, &notice.body)
                 .await,
             Ok(Some(_))
@@ -380,7 +383,7 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
 
 async fn record(persist: &PersistHandle, outcome: Outcome, run: &str) {
     for event in &outcome.events {
-        if let Err(err) = persist.append_fleet_event(event).await {
+        if let Err(err) = persist.fleet().append_fleet_event(event).await {
             tracing::warn!(%run, error = %err, "fleet: could not record who holds the tree broken");
         }
     }

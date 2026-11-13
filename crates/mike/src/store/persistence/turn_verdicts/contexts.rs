@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::postgres::PgArguments;
 use sqlx::{Arguments, Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use crate::store::persistence::operator_turns::eligibility::{
     BACKOFF_ELAPSED, eligible_without_verdict,
 };
@@ -48,9 +48,9 @@ const CONTEXT_JOINS: &str = "FROM memory.operator_turns t \
    LEFT JOIN memory.operator_turns nt ON nt.id = f.next_genuine_turn_id \
    LEFT JOIN requests.requests nr ON nr.id = f.next_genuine_request_id";
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn fetch_judge_turn_contexts(
-        &self,
+        self,
         turn_ids: &[i64],
     ) -> Result<Vec<JudgeTurnContextRow>, PersistError> {
         if turn_ids.is_empty() {
@@ -74,7 +74,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn eligible_judge_turn_context(
-        &self,
+        self,
         bundle_id: i64,
         turn_id: i64,
     ) -> Result<Option<JudgeTurnContextRow>, PersistError> {

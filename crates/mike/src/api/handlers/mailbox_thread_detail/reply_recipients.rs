@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::http::StatusCode;
 use axum::response::Response;
 
@@ -42,7 +43,7 @@ async fn default_to_participants(
     thread_uuid: uuid::Uuid,
     from_session_uuid: Option<uuid::Uuid>,
 ) -> Result<RecipientPlan, Response> {
-    let participants = match handle.fetch_thread_participants(thread_id).await {
+    let participants = match handle.launch().fetch_thread_participants(thread_id).await {
         Ok(p) => p,
         Err(e) => {
             tracing::warn!(error = %e, %thread_uuid, "post_thread_message: participants fetch failed");

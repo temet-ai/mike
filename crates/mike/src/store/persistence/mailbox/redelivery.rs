@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::{MailboxMessageRow, ReapOutcome, ReloadedMailboxRow};
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn fetch_pending_redelivery(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         limit: i64,
     ) -> Result<Vec<ReloadedMailboxRow>, PersistError> {
@@ -69,7 +69,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_all_pending_redelivery(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<ReloadedMailboxRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_all_pending_redelivery", async move {
@@ -132,7 +132,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_failed_send(
-        &self,
+        self,
         attempted_by_session_uuid: Option<uuid::Uuid>,
         attempted_to: &str,
         reason: &'static str,
@@ -160,7 +160,7 @@ impl PersistHandle {
     }
 
     pub async fn dead_letter_expired_undelivered(
-        &self,
+        self,
         cutoff: DateTime<Utc>,
         activity_cutoff: DateTime<Utc>,
     ) -> Result<ReapOutcome, PersistError> {
@@ -207,7 +207,7 @@ impl PersistHandle {
     }
 
     pub async fn is_first_mail_for_recipient(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_is_first_for_recipient", async move {

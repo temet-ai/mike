@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct ThresholdRow {
@@ -45,9 +45,9 @@ fn col<T: Clone>(rows: &[ThresholdWrite], f: impl Fn(&ThresholdWrite) -> T) -> V
     rows.iter().map(f).collect()
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn thresholds_in_force(
-        &self,
+        self,
         steerer_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<Vec<ThresholdRow>, PersistError> {
@@ -70,7 +70,7 @@ impl PersistHandle {
     }
 
     pub async fn threshold_history(
-        &self,
+        self,
         steerer_id: i64,
         before_id: Option<i64>,
         limit: i64,
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_threshold_rows(
-        &self,
+        self,
         rows: &[ThresholdWrite],
     ) -> Result<Vec<i64>, PersistError> {
         if rows.is_empty() {

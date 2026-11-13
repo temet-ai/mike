@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -19,7 +20,10 @@ async fn refresh_session_embedding_inner(
     overview: Option<&str>,
     overview_generated_at: Option<DateTime<Utc>>,
 ) -> Result<SessionEmbeddingRefresh, PersistError> {
-    let chunk_centroid = persist.session_chunk_centroid(session_id).await?;
+    let chunk_centroid = persist
+        .knowledge()
+        .session_chunk_centroid(session_id)
+        .await?;
 
     if let Some(overview_text) = overview {
         let chunk_count = chunk_centroid
@@ -45,6 +49,7 @@ async fn refresh_session_embedding_inner(
             .max(newest_chunk_at)
             .unwrap_or_else(Utc::now);
         persist
+            .knowledge()
             .upsert_session_embedding(SessionEmbeddingWrite {
                 session_id,
                 embedding: &vector,
@@ -63,6 +68,7 @@ async fn refresh_session_embedding_inner(
     let model = embedding_service.model_name();
     let chunk_count_i32 = i32::try_from(chunk_count).unwrap_or(i32::MAX);
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id,
             embedding: &embedding,
@@ -138,7 +144,10 @@ pub(super) async fn refresh_session_vectors(
     }
     const BATCH: i64 = 64;
 
-    let candidates = persist.list_sessions_needing_embedding(BATCH).await?;
+    let candidates = persist
+        .knowledge()
+        .list_sessions_needing_embedding(BATCH)
+        .await?;
     let mut outcome = SessionVectorSweepOutcome::default();
     for candidate in &candidates {
         let overview_text = candidate
@@ -168,7 +177,7 @@ pub(super) async fn refresh_session_vectors(
         }
     }
 
-    match persist.refresh_project_centroids().await {
+    match persist.knowledge().refresh_project_centroids().await {
         Ok(n) => outcome.projects_refreshed = n,
         Err(e) => log_refresh_project_centroids_failed(&e),
     }

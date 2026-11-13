@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -32,6 +33,7 @@ pub async fn bind_seat_thread(
     };
     let namespace = namespace_for(codex_home);
     persist
+        .runtime()
         .register_runtime_namespace(&namespace)
         .await
         .map_err(record)?;
@@ -52,6 +54,7 @@ pub async fn bind_seat_thread(
         forked_from: forked_from.map(provider),
     };
     persist
+        .runtime()
         .bind_runtime_thread(&binding)
         .await
         .map(|_| ())
@@ -65,6 +68,7 @@ pub(crate) async fn bound_thread(
 ) -> anyhow::Result<Option<String>> {
     let namespace = namespace_for(codex_home);
     let binding = persist
+        .runtime()
         .runtime_thread_by_session(session)
         .await
         .map_err(|error| {

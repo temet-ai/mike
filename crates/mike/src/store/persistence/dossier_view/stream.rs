@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{DossierStreamRow, SessionHeaderRow};
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_session_header(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<SessionHeaderRow>, PersistError> {
         crate::metrics::time_db("fetch_session_header", async move {
@@ -26,7 +26,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_stream_as_of(
-        &self,
+        self,
         session_db_id: i64,
         at: DateTime<Utc>,
     ) -> Result<Vec<DossierStreamRow>, PersistError> {

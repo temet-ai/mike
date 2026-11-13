@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use crate::workspace::Liveness;
 
 pub(super) fn parse_liveness(s: &str) -> Liveness {
@@ -54,9 +54,9 @@ struct NodeEnrichmentRow {
     unconsumed_mail: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn fetch_fleet_nodes(
-        &self,
+        self,
         project_id: i64,
         window_hours: i32,
     ) -> Result<Vec<FleetNodeRow>, PersistError> {
@@ -115,7 +115,7 @@ impl PersistHandle {
     }
 
     async fn fetch_fleet_node_enrichment(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<std::collections::HashMap<i64, NodeEnrichmentRow>, PersistError> {
         let rows = sqlx::query_as!(

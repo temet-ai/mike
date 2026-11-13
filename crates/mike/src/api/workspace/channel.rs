@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::response::Response;
@@ -101,6 +102,7 @@ pub(crate) async fn claim_channel_messages(
     let native_delivery = plan.native_delivery;
 
     let claimed = handle
+        .launch()
         .claim_channel_messages(session_uuid, CHANNEL_CLAIM_LIMIT)
         .await
         .map_err(persist_error_response)?;
@@ -158,6 +160,7 @@ pub(crate) async fn release_channel_messages(
         return Err(persist_unavailable_response());
     };
     let released = handle
+        .launch()
         .release_channel_messages(session_uuid, body.message_uuids)
         .await
         .map_err(persist_error_response)?;

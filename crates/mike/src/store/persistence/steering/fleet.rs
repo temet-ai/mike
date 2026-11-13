@@ -1,8 +1,8 @@
 use super::{SteererFields, SteererRow, SteererUpdate};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub(crate) async fn list_steerers(&self) -> Result<Vec<SteererRow>, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub(crate) async fn list_steerers(self) -> Result<Vec<SteererRow>, PersistError> {
         crate::metrics::time_db("list_steerers", async move {
             let rows = sqlx::query_as!(
                 SteererRow,
@@ -44,7 +44,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_steerer_by_id(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<SteererRow>, PersistError> {
         crate::metrics::time_db("fetch_steerer_by_id", async move {
@@ -89,7 +89,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_steerer(
-        &self,
+        self,
         agent_id: i64,
         fields: SteererFields<'_>,
         source: Option<&str>,
@@ -139,7 +139,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_steerer_with_bootstrapped_agent(
-        &self,
+        self,
         fields: SteererFields<'_>,
         source: Option<&str>,
     ) -> Result<(i64, uuid::Uuid, i64), PersistError> {
@@ -201,7 +201,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn update_steerer(
-        &self,
+        self,
         fields: SteererUpdate<'_>,
         source: Option<&str>,
     ) -> Result<bool, PersistError> {
@@ -255,7 +255,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn delete_steerer(
-        &self,
+        self,
         id: i64,
         source: Option<&str>,
     ) -> Result<bool, PersistError> {

@@ -1,7 +1,7 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn gc_expired_lessons(&self, run_id: i64) -> Result<(u64, u64), PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn gc_expired_lessons(self, run_id: i64) -> Result<(u64, u64), PersistError> {
         crate::metrics::time_db("gc_expired_lessons", async move {
             let archived_count: i64 = sqlx::query_scalar(
                 "WITH archived AS (
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     pub async fn trim_lessons_to_max(
-        &self,
+        self,
         project_id: i64,
         max_count: i64,
         run_id: i64,

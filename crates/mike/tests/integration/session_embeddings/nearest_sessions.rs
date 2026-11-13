@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, planar_unit, seed_project, seed_session};
 use anyhow::Context;
@@ -39,6 +40,7 @@ async fn nearest_sessions_orders_excludes_self_and_filters() -> anyhow::Result<(
         (d_uuid, 30.0),
     ] {
         persist
+            .knowledge()
             .upsert_session_embedding(SessionEmbeddingWrite {
                 session_id: uuid,
                 embedding: &planar_unit(angle),
@@ -50,7 +52,10 @@ async fn nearest_sessions_orders_excludes_self_and_filters() -> anyhow::Result<(
             .await?;
     }
 
-    let all = persist.nearest_sessions(a_uuid, 10, false, 0.0).await?;
+    let all = persist
+        .knowledge()
+        .nearest_sessions(a_uuid, 10, false, 0.0)
+        .await?;
     let ids: Vec<Uuid> = all.iter().map(|n| n.session_id).collect();
     assert!(
         !ids.contains(&a_uuid),
@@ -79,15 +84,24 @@ async fn nearest_sessions_orders_excludes_self_and_filters() -> anyhow::Result<(
         "a session with no cached status and no request rows must come back None, not a bogus default"
     );
 
-    let same_project = persist.nearest_sessions(a_uuid, 10, true, 0.0).await?;
+    let same_project = persist
+        .knowledge()
+        .nearest_sessions(a_uuid, 10, true, 0.0)
+        .await?;
     let same_project_ids: Vec<Uuid> = same_project.iter().map(|n| n.session_id).collect();
     assert_eq!(same_project_ids, vec![b_uuid, c_uuid]);
 
-    let filtered = persist.nearest_sessions(a_uuid, 10, false, 0.5).await?;
+    let filtered = persist
+        .knowledge()
+        .nearest_sessions(a_uuid, 10, false, 0.5)
+        .await?;
     let filtered_ids: Vec<Uuid> = filtered.iter().map(|n| n.session_id).collect();
     assert_eq!(filtered_ids, vec![b_uuid, d_uuid]);
 
-    let capped = persist.nearest_sessions(a_uuid, 1, false, 0.0).await?;
+    let capped = persist
+        .knowledge()
+        .nearest_sessions(a_uuid, 1, false, 0.0)
+        .await?;
     assert_eq!(capped.len(), 1);
     assert_eq!(capped[0].session_id, b_uuid);
 

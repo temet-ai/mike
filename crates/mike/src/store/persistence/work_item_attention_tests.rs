@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -31,11 +32,13 @@ async fn a_recorded_but_undelivered_item_comes_back_on_the_next_pass() -> anyhow
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let item = attention("job1@100");
 
     let first = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("first record returned nothing"))?;
@@ -44,6 +47,7 @@ async fn a_recorded_but_undelivered_item_comes_back_on_the_next_pass() -> anyhow
     assert_eq!(first.delivery_attempts, 0);
 
     let again = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("second record returned nothing"))?;
@@ -63,10 +67,12 @@ async fn delivery_inserts_the_message_and_marks_the_item_in_one_step() -> anyhow
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let item = attention("job1@100");
     let recorded = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
@@ -74,11 +80,13 @@ async fn delivery_inserts_the_message_and_marks_the_item_in_one_step() -> anyhow
 
     assert!(
         persist
+            .launch()
             .deliver_work_item_attention(recorded.id, message_uuid, "[mike work registry] stuck")
             .await?
     );
     assert_eq!(mailbox_rows(&persist, message_uuid).await?, 1);
     let after = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
@@ -96,10 +104,12 @@ async fn a_retry_after_a_lost_marker_does_not_send_the_mail_twice() -> anyhow::R
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let item = attention("job1@100");
     let recorded = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
@@ -116,6 +126,7 @@ async fn a_retry_after_a_lost_marker_does_not_send_the_mail_twice() -> anyhow::R
 
     assert!(
         persist
+            .launch()
             .deliver_work_item_attention(recorded.id, message_uuid, "[mike work registry] stuck")
             .await?,
         "the item is marked against the mail that already exists"
@@ -127,6 +138,7 @@ async fn a_retry_after_a_lost_marker_does_not_send_the_mail_twice() -> anyhow::R
     );
     assert!(
         persist
+            .launch()
             .deliver_work_item_attention(recorded.id, message_uuid, "[mike work registry] stuck")
             .await?,
         "a repeat is harmless"
@@ -148,6 +160,7 @@ async fn delivery_to_an_item_that_is_gone_sends_nothing_and_says_so() -> anyhow:
 
     assert!(
         !persist
+            .launch()
             .deliver_work_item_attention(987_654, message_uuid, "[mike work registry] gone")
             .await?
     );
@@ -165,22 +178,27 @@ async fn a_failed_delivery_is_counted_against_the_item() -> anyhow::Result<()> {
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let item = attention("job1@100");
     let recorded = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
 
     persist
+        .launch()
         .note_work_item_attention_delivery_failed(recorded.id, 6, "mailbox down")
         .await?;
     persist
+        .launch()
         .note_work_item_attention_delivery_failed(recorded.id, 6, "mailbox down")
         .await?;
 
     let after = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
@@ -201,6 +219,7 @@ async fn repeated_passes_mail_once_and_a_give_up_stays_visible() -> anyhow::Resu
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let flaky = attention("flaky@1");
@@ -209,6 +228,7 @@ async fn repeated_passes_mail_once_and_a_give_up_stays_visible() -> anyhow::Resu
 
     for pass in 0..5 {
         let recorded = persist
+            .launch()
             .record_work_item_attention(session, &flaky)
             .await?
             .ok_or_else(|| anyhow::anyhow!("flaky returned nothing"))?;
@@ -217,10 +237,12 @@ async fn repeated_passes_mail_once_and_a_give_up_stays_visible() -> anyhow::Resu
         }
         if pass < 2 {
             persist
+                .launch()
                 .note_work_item_attention_delivery_failed(recorded.id, 3, "mailbox down")
                 .await?;
         } else {
             persist
+                .launch()
                 .deliver_work_item_attention(
                     recorded.id,
                     message_uuid,
@@ -231,6 +253,7 @@ async fn repeated_passes_mail_once_and_a_give_up_stays_visible() -> anyhow::Resu
     }
     assert_eq!(mailbox_rows(&persist, message_uuid).await?, 1);
     let flaky_row = persist
+        .launch()
         .record_work_item_attention(session, &flaky)
         .await?
         .ok_or_else(|| anyhow::anyhow!("flaky returned nothing"))?;
@@ -239,16 +262,19 @@ async fn repeated_passes_mail_once_and_a_give_up_stays_visible() -> anyhow::Resu
 
     for _ in 0..4 {
         let recorded = persist
+            .launch()
             .record_work_item_attention(session, &hopeless)
             .await?
             .ok_or_else(|| anyhow::anyhow!("hopeless returned nothing"))?;
         if recorded.delivery_attempts < 3 {
             persist
+                .launch()
                 .note_work_item_attention_delivery_failed(recorded.id, 3, "mailbox down")
                 .await?;
         }
     }
     let given_up = persist
+        .launch()
         .record_work_item_attention(session, &hopeless)
         .await?
         .ok_or_else(|| anyhow::anyhow!("hopeless returned nothing"))?;
@@ -274,22 +300,27 @@ async fn a_stale_or_resolved_item_keeps_its_disposition_and_reason() -> anyhow::
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let session = persist
+        .launch()
         .ensure_session_exists(&Uuid::new_v4().to_string())
         .await?;
     let item = attention("old@1");
     let recorded = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;
 
     persist
+        .launch()
         .settle_work_item_attention(recorded.id, "stale", "too old")
         .await?;
     persist
+        .launch()
         .settle_work_item_attention(recorded.id, "resolved", "ignored: already settled")
         .await?;
 
     let after = persist
+        .launch()
         .record_work_item_attention(session, &item)
         .await?
         .ok_or_else(|| anyhow::anyhow!("record returned nothing"))?;

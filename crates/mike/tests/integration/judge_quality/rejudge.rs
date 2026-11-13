@@ -2,6 +2,7 @@ use chrono::{Duration, Utc};
 use mike::eval::rejudge::{RejudgeError, plan_rejudge};
 use mike::settings::SettingsOverlay;
 use mike::store::persistence::eval_rejudge::{NewRejudgeRun, RejudgeWindow};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use super::promotion_support::{bundle, closed_turn, facts};
 use crate::turn_facts::{Fixture, fixture};
@@ -37,8 +38,8 @@ async fn rejudge_run_rejects_second_active_run() -> anyhow::Result<()> {
         return Ok(());
     };
     let b = bundle(&f).await?;
-    f.handle.create_rejudge_run(&run(b)).await?;
-    assert!(f.handle.create_rejudge_run(&run(b)).await.is_err());
+    f.handle.eval().create_rejudge_run(&run(b)).await?;
+    assert!(f.handle.eval().create_rejudge_run(&run(b)).await.is_err());
     assert_eq!(runs(&f).await?, 1);
     Ok(())
 }
@@ -53,13 +54,14 @@ async fn rejudge_progress_counts_eligible_and_ineligible() -> anyhow::Result<()>
     facts(&f, real, "genuine", "resolved").await?;
     let machine = closed_turn(&f, 23_002).await?;
     facts(&f, machine, "background-event", "resolved").await?;
-    let progress = f.handle.rejudge_progress(&window(b)).await?;
+    let progress = f.handle.eval().rejudge_progress(&window(b)).await?;
     assert_eq!(progress.eligible_total, 1);
     assert_eq!(progress.ineligible_total, 1);
     assert_eq!(progress.remaining, 1);
     assert_eq!(progress.calls_today, 0);
     let ineligible = f
         .handle
+        .eval()
         .rejudge_ineligible_turn_ids(&window(b), 0, 500)
         .await?;
     assert_eq!(ineligible, vec![machine]);
@@ -140,7 +142,7 @@ async fn rejudge_calls_today_counts_only_calls_made_since_the_run_was_created() 
     };
     live_verdict(&f, earlier, b, created - Duration::seconds(10)).await?;
     live_verdict(&f, later, b, Utc::now()).await?;
-    let progress = f.handle.rejudge_progress(&window).await?;
+    let progress = f.handle.eval().rejudge_progress(&window).await?;
     assert_eq!(progress.judged, 2);
     assert_eq!(progress.calls_today, 1);
     assert!((progress.cost_usd_so_far - 0.01).abs() < 1e-9);

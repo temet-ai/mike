@@ -1,9 +1,9 @@
+use super::PersistError;
 use super::steering;
-use super::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn steering_backfill_sent_request_id(
-        &self,
+        self,
         intervention_uuid: &str,
         request_id: i64,
     ) -> Result<bool, PersistError> {
@@ -14,7 +14,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn steering_backfill_trigger_request_id(
-        &self,
+        self,
         intervention_uuid: &str,
         request_id: i64,
     ) -> Result<bool, PersistError> {
@@ -25,7 +25,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn steering_backfill_delivered_request_id(
-        &self,
+        self,
         intervention_uuid: &str,
         request_id: i64,
     ) -> Result<bool, PersistError> {

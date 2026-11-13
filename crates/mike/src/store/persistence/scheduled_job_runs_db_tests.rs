@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use uuid::Uuid;
 
@@ -39,7 +40,10 @@ fn run(job: &str, machine: Option<Uuid>, trigger: &str, started: DateTime<Utc>) 
 #[tokio::test]
 async fn latest_runs_for_a_job_that_never_ran_is_empty() -> anyhow::Result<()> {
     let (db, handle) = connect().await?;
-    let found = handle.latest_scheduled_job_runs("never_ran", None).await?;
+    let found = handle
+        .web()
+        .latest_scheduled_job_runs("never_ran", None)
+        .await?;
     assert_eq!(found, LatestJobRuns::default());
     db.cleanup().await
 }
@@ -51,9 +55,12 @@ async fn latest_runs_returns_the_newest_row_and_the_newest_scheduled_start() -> 
     let manual = run("promote", None, "manual", at(22, 5));
     let older = run("promote", None, "schedule", at(20, 30));
     for row in [&older, &scheduled, &manual] {
-        handle.record_scheduled_job_run(row).await?;
+        handle.web().record_scheduled_job_run(row).await?;
     }
-    let found = handle.latest_scheduled_job_runs("promote", None).await?;
+    let found = handle
+        .web()
+        .latest_scheduled_job_runs("promote", None)
+        .await?;
     assert_eq!(found.latest, Some(manual));
     assert_eq!(found.last_scheduled_start, Some(at(21, 30)));
     db.cleanup().await
@@ -66,14 +73,18 @@ async fn latest_runs_for_a_machine_ignore_other_machines() -> anyhow::Result<()>
     let theirs = Uuid::new_v4();
     let my_run = run("sweep", Some(mine), "schedule", at(6, 0));
     let their_run = run("sweep", Some(theirs), "schedule", at(12, 0));
-    handle.record_scheduled_job_run(&my_run).await?;
-    handle.record_scheduled_job_run(&their_run).await?;
+    handle.web().record_scheduled_job_run(&my_run).await?;
+    handle.web().record_scheduled_job_run(&their_run).await?;
     let for_me = handle
+        .web()
         .latest_scheduled_job_runs("sweep", Some(mine))
         .await?;
     assert_eq!(for_me.latest, Some(my_run));
     assert_eq!(for_me.last_scheduled_start, Some(at(6, 0)));
-    let any = handle.latest_scheduled_job_runs("sweep", None).await?;
+    let any = handle
+        .web()
+        .latest_scheduled_job_runs("sweep", None)
+        .await?;
     assert_eq!(any.latest, Some(their_run));
     db.cleanup().await
 }
@@ -83,7 +94,7 @@ async fn record_run_with_an_exit_code_on_an_unrunnable_result_is_refused() -> an
     let (db, handle) = connect().await?;
     let mut bad = run("audit", None, "schedule", at(1, 0));
     bad.result_kind = "unrunnable".to_owned();
-    let refused = handle.record_scheduled_job_run(&bad).await;
+    let refused = handle.web().record_scheduled_job_run(&bad).await;
     assert!(refused.is_err(), "{refused:?}");
     db.cleanup().await
 }

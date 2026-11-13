@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 impl From<crate::store::persistence::steering::SteeredRequestRow> for SteeredRequestDto {
     fn from(r: crate::store::persistence::steering::SteeredRequestRow) -> Self {
@@ -36,7 +37,7 @@ pub(crate) async fn get_request_steering(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match handle.fetch_steered_request(id).await {
+    match handle.steerer().fetch_steered_request(id).await {
         Ok(Some(row)) => Ok(Json(SteeredRequestDto::from(row))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(e) => {
@@ -133,6 +134,7 @@ async fn fetch_session_steering_count(
     session_uuid: uuid::Uuid,
 ) -> Result<i64, StatusCode> {
     handle
+        .steerer()
         .count_session_steering(session_uuid)
         .await
         .map_err(|e| {
@@ -163,6 +165,7 @@ pub(crate) async fn get_session_steering(
 
     let offset_i64 = i64::try_from(offset).unwrap_or(i64::MAX);
     let rows = handle
+        .steerer()
         .fetch_session_steering(session_uuid, offset_i64, limit as i64)
         .await
         .map_err(|e| {
@@ -210,7 +213,7 @@ pub(crate) async fn get_steering_vocabulary(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match handle.fetch_steering_vocabulary().await {
+    match handle.steerer().fetch_steering_vocabulary().await {
         Ok(vocab) => Ok(Json(SteeringVocabularyDto {
             authorities: vocab
                 .authorities
@@ -269,7 +272,11 @@ pub(crate) async fn get_session_enrolments(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match handle.fetch_session_enrolments(session_uuid).await {
+    match handle
+        .steerer()
+        .fetch_session_enrolments(session_uuid)
+        .await
+    {
         Ok(rows) => Ok(Json(
             rows.into_iter().map(SessionEnrolmentDto::from).collect(),
         )),
@@ -297,7 +304,11 @@ pub(crate) async fn get_session_verifier_counts(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match handle.fetch_verifier_counts_for_session(session_uuid).await {
+    match handle
+        .steerer()
+        .fetch_verifier_counts_for_session(session_uuid)
+        .await
+    {
         Ok((fired, delivered)) => Ok(Json(SessionVerifierCountsDto { fired, delivered })),
         Err(e) => {
             tracing::warn!(
@@ -343,6 +354,7 @@ pub(crate) async fn get_session_validation_status(
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
     match handle
+        .steerer()
         .get_latest_evaluation_for_session(session_uuid, "verifier")
         .await
     {

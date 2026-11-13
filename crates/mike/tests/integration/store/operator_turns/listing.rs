@@ -1,4 +1,5 @@
 use mike::store::persistence::operator_turns::QuiescenceTarget;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::steering::NewIntervention;
 use mike::store::persistence::steering_evaluations::{EvaluationMode, NewEvaluation};
 
@@ -74,6 +75,7 @@ async fn record_evaluation(
     };
     fixture
         .handle
+        .steerer()
         .insert_evaluations_dispatched(&new, &[question.map(str::to_owned)])
         .await?;
     Ok(())
@@ -227,6 +229,7 @@ async fn list_quiescent_turns_excludes_turn_with_intervention_for_target() -> an
     idle_for(&fixture.pool, fixture.request_id, "1 hour").await?;
     fixture
         .handle
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id,
             enrolment_id: Some(enrolment_id),

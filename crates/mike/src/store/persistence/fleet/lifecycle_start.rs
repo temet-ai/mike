@@ -1,11 +1,11 @@
 use super::FleetRow;
 use super::lifecycle::{lock_fleet, same_lifecycle, write_state};
+use crate::store::persistence::PersistError;
 use crate::store::persistence::launch::NewRun;
-use crate::store::persistence::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn initialize_fleet_run(
-        &self,
+        self,
         expected: &FleetRow,
         run: &NewRun,
     ) -> Result<Option<FleetRow>, PersistError> {

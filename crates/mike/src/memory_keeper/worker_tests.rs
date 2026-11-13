@@ -1,3 +1,5 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
@@ -27,6 +29,7 @@ async fn fixture() -> anyhow::Result<Option<Fixture>> {
         .await?
         .with_llm_machine(Uuid::new_v4());
     let project = handle
+        .knowledge()
         .define_knowledge_project("keeper worker tests", Uuid::new_v4())
         .await?
         .id;
@@ -42,6 +45,7 @@ impl Fixture {
     async fn checkpoint(&self, where_we_are: &str) -> anyhow::Result<i64> {
         let outcome = self
             .handle
+            .launch()
             .checkpoint_work_thread(
                 self.project,
                 &CheckpointInput {
@@ -233,6 +237,7 @@ async fn card_worker_after_candidates_are_written_adds_the_related_section() -> 
     .fetch_one(f.handle.pool())
     .await?;
     f.handle
+        .launch()
         .replace_thread_card_candidates(
             thread_id,
             &[

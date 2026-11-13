@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DraftTarget {
@@ -43,8 +43,8 @@ pub struct NewSkillDraft<'a> {
     pub cost_usd: Option<f64>,
 }
 
-impl PersistHandle {
-    pub async fn next_skill_draft_target(&self) -> Result<Option<DraftTarget>, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn next_skill_draft_target(self) -> Result<Option<DraftTarget>, PersistError> {
         crate::metrics::time_db("next_skill_draft_target", async move {
             let row = sqlx::query!(
                 r#"WITH topics AS (
@@ -114,7 +114,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_lessons(
-        &self,
+        self,
         target: &DraftTarget,
     ) -> Result<Vec<DraftLesson>, PersistError> {
         crate::metrics::time_db("skill_draft_lessons", async move {
@@ -149,7 +149,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_skill_draft(&self, draft: NewSkillDraft<'_>) -> Result<i64, PersistError> {
+    pub async fn insert_skill_draft(self, draft: NewSkillDraft<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_skill_draft", async move {
             let id = sqlx::query_scalar!(
                 "INSERT INTO memory.skill_drafts
@@ -184,7 +184,7 @@ impl PersistHandle {
     }
 
     pub async fn record_skill_draft_failure(
-        &self,
+        self,
         target: &DraftTarget,
         error: &str,
     ) -> Result<i32, PersistError> {
@@ -211,7 +211,7 @@ impl PersistHandle {
     }
 
     pub async fn previous_rejected_skill_draft(
-        &self,
+        self,
         target: &DraftTarget,
     ) -> Result<Option<PreviousDraft>, PersistError> {
         crate::metrics::time_db("previous_rejected_skill_draft", async move {

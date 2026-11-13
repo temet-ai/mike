@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{DossierEntryRow, EntryClose};
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
@@ -36,9 +36,9 @@ pub struct BackingItemRow {
     pub finished_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_directive_sources(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<DirectiveSourceRow>, PersistError> {
         crate::metrics::time_db("load_directive_sources", async move {
@@ -55,7 +55,7 @@ impl PersistHandle {
     }
 
     pub async fn load_promise_sources(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<PromiseSourceRow>, PersistError> {
         crate::metrics::time_db("load_promise_sources", async move {
@@ -72,7 +72,7 @@ impl PersistHandle {
     }
 
     pub async fn load_backing_items(
-        &self,
+        self,
         session_ids: &[i64],
     ) -> Result<Vec<BackingItemRow>, PersistError> {
         crate::metrics::time_db("load_backing_items", async move {
@@ -88,7 +88,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn work_registry_first_launch(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
+    pub async fn work_registry_first_launch(self) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("work_registry_first_launch", async move {
             let first = sqlx::query_scalar!("SELECT min(launched_at) FROM agents.work_items")
                 .fetch_one(&self.pool)
@@ -99,7 +99,7 @@ impl PersistHandle {
     }
 
     pub async fn promise_close_candidates(
-        &self,
+        self,
         session_ids: &[i64],
         settle_minutes: i64,
     ) -> Result<Vec<EntryClose>, PersistError> {
@@ -118,7 +118,7 @@ impl PersistHandle {
     }
 
     pub async fn list_entries_as_of(
-        &self,
+        self,
         session_id: i64,
         as_of: DateTime<Utc>,
     ) -> Result<Vec<DossierEntryRow>, PersistError> {

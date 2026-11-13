@@ -1,4 +1,5 @@
 use chrono::{Duration, NaiveDate, Utc};
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::semantic::{CandidateDecision, NewCandidate, NewDriftRow};
 
 use super::support::{build_all, closed_turn, embedder, embedding_stub, facts, service};
@@ -39,6 +40,7 @@ async fn pattern_candidate_naming_inserts_axis_label_and_member_anchors_in_one_t
     .await?;
     let ids = f
         .handle
+        .knowledge()
         .insert_pattern_candidates(&[NewCandidate {
             cluster_version: "cluster-v1".to_owned(),
             embedder_key: e.embedder_key.clone(),
@@ -57,6 +59,7 @@ async fn pattern_candidate_naming_inserts_axis_label_and_member_anchors_in_one_t
     .await?;
     let decision = f
         .handle
+        .knowledge()
         .name_pattern_candidate(
             ids[0],
             "ran-wrong-suite",
@@ -73,7 +76,11 @@ async fn pattern_candidate_naming_inserts_axis_label_and_member_anchors_in_one_t
     };
     assert_eq!(sort_order, before + 1);
     assert_eq!(anchor_ids.len(), members.len());
-    let again = f.handle.dismiss_pattern_candidate(ids[0], "late").await?;
+    let again = f
+        .handle
+        .knowledge()
+        .dismiss_pattern_candidate(ids[0], "late")
+        .await?;
     assert!(matches!(again, CandidateDecision::NotOpen(ref s) if s == "named"));
     Ok(())
 }
@@ -99,7 +106,7 @@ async fn drift_rows_unique_per_day_stream_key_version() -> anyhow::Result<()> {
         prior_sd: Some(0.01),
         status: "scored",
     };
-    assert!(f.handle.insert_drift_row(&row).await?.is_some());
-    assert!(f.handle.insert_drift_row(&row).await?.is_none());
+    assert!(f.handle.knowledge().insert_drift_row(&row).await?.is_some());
+    assert!(f.handle.knowledge().insert_drift_row(&row).await?.is_none());
     Ok(())
 }

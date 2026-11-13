@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct SessionEndFacts {
@@ -33,9 +33,9 @@ impl SessionEndFacts {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn fetch_session_end_facts(
-        &self,
+        self,
         session_ids: &[i64],
         as_of: DateTime<Utc>,
     ) -> Result<Vec<SessionEndFacts>, PersistError> {

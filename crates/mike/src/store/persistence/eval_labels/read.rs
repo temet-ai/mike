@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EvalLabelListRow, ImportBatchRow};
 
 #[derive(Debug, Clone, Default)]
@@ -82,9 +82,9 @@ fn list_labels_query(query: &LabelQuery) -> QueryBuilder<Postgres> {
     qb
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_labels(
-        &self,
+        self,
         query: &LabelQuery,
     ) -> Result<Vec<EvalLabelListRow>, PersistError> {
         crate::metrics::time_db("list_labels", async move {
@@ -97,7 +97,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn eval_vocabulary(&self) -> Result<Vec<VocabularyRow>, PersistError> {
+    pub async fn eval_vocabulary(self) -> Result<Vec<VocabularyRow>, PersistError> {
         crate::metrics::time_db("eval_vocabulary", async move {
             let rows = sqlx::query_as!(
                 VocabularyRow,
@@ -111,7 +111,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn import_batches(&self) -> Result<Vec<ImportBatchRow>, PersistError> {
+    pub async fn import_batches(self) -> Result<Vec<ImportBatchRow>, PersistError> {
         crate::metrics::time_db("import_batches", async move {
             let rows = sqlx::query_as!(
                 ImportBatchRow,
@@ -126,7 +126,7 @@ impl PersistHandle {
     }
 
     pub async fn find_quote_turn(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         quote: &str,
     ) -> Result<Option<i64>, PersistError> {
@@ -149,7 +149,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn recent_relay_callers(&self, quote: &str) -> Result<Vec<String>, PersistError> {
+    pub async fn recent_relay_callers(self, quote: &str) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("recent_relay_callers", async move {
             let sessions = sqlx::query_scalar!(
                 r#"SELECT DISTINCT s.session_uuid::text AS "session_uuid!"
@@ -167,7 +167,7 @@ impl PersistHandle {
     }
 
     pub async fn verdict_now(
-        &self,
+        self,
         kind: &str,
         turn_id: i64,
     ) -> Result<Option<serde_json::Value>, PersistError> {
@@ -207,7 +207,7 @@ impl PersistHandle {
     }
 
     pub async fn session_ending_turn(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("session_ending_turn", async move {

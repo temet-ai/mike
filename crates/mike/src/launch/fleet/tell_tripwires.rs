@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -48,6 +49,7 @@ pub(super) async fn read(
     coordinator: Uuid,
 ) -> Vec<Notice> {
     match persist
+        .fleet()
         .fleet_closed_mail_attempts(run, lookback(status.now, status.started_at), status.now)
         .await
     {

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -40,11 +41,15 @@ async fn seed(
 }
 
 async fn resolved_id(handle: &PersistHandle, selector: &str) -> anyhow::Result<i64> {
-    Ok(handle.resolve_knowledge_project(selector).await?.id)
+    Ok(handle
+        .knowledge()
+        .resolve_knowledge_project(selector)
+        .await?
+        .id)
 }
 
 async fn resolve_message(handle: &PersistHandle, selector: &str) -> anyhow::Result<String> {
-    match handle.resolve_knowledge_project(selector).await {
+    match handle.knowledge().resolve_knowledge_project(selector).await {
         Ok(found) => anyhow::bail!("`{selector}` resolved to project {}", found.id),
         Err(error) => Ok(error.to_string()),
     }
@@ -92,6 +97,7 @@ async fn resolve_knowledge_project_by_location_root_returns_the_owning_project()
     let fx = fixture().await?;
     let project = seed(&fx.handle, "/r/by-root/home", "home", None).await?;
     fx.handle
+        .knowledge()
         .add_checkout_location(Uuid::new_v4(), "host", "/r/by-root/checkout", project.id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the location is free"))?;
@@ -157,6 +163,7 @@ async fn resolve_knowledge_project_shared_path_names_every_match_with_its_uuid()
     let owner = seed(&fx.handle, "/r/shared/radar", "radar", None).await?;
     let other = seed(&fx.handle, "/r/shared/gg", "gg", None).await?;
     fx.handle
+        .knowledge()
         .add_checkout_location(Uuid::new_v4(), "host", "/r/shared/radar", other.id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the location is free"))?;
@@ -218,10 +225,17 @@ async fn find_knowledge_project_unknown_selector_is_none_and_ambiguous_selector_
 
     assert!(
         fx.handle
+            .knowledge()
             .find_knowledge_project("/r/find/missing")
             .await?
             .is_none()
     );
-    assert!(fx.handle.find_knowledge_project("twin").await.is_err());
+    assert!(
+        fx.handle
+            .knowledge()
+            .find_knowledge_project("twin")
+            .await
+            .is_err()
+    );
     fx.db.cleanup().await
 }

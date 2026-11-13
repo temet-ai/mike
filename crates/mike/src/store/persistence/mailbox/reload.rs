@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::types::{InboxCounts, MailboxMessageRow, ReloadedMailboxRow};
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn fetch_inbox_counts(
-        &self,
+        self,
         session_id: i64,
     ) -> Result<InboxCounts, PersistError> {
         crate::metrics::time_db("mailbox_fetch_inbox_counts", async move {
@@ -40,7 +40,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_pending_unclaimed(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         limit: i64,
     ) -> Result<Vec<ReloadedMailboxRow>, PersistError> {
@@ -105,7 +105,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_stale_claimed(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
         older_than: DateTime<Utc>,
         limit: i64,
@@ -173,7 +173,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_all_pending_unclaimed(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<ReloadedMailboxRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_all_pending_unclaimed", async move {
@@ -238,7 +238,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_all_stale_claimed(
-        &self,
+        self,
         older_than: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<ReloadedMailboxRow>, PersistError> {
@@ -306,7 +306,7 @@ impl PersistHandle {
     }
 
     pub async fn has_pending_inbound_mail(
-        &self,
+        self,
         to_session_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("mailbox_has_pending_inbound", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -34,6 +35,7 @@ impl Fixture {
     async fn lesson(&self, text: &str) -> anyhow::Result<i64> {
         let row = self
             .handle
+            .lessons()
             .create_lesson_with_topic(NewLessonWrite {
                 project_id: self.project_id,
                 kind: "convention",
@@ -162,10 +164,10 @@ async fn placement_pass_refused_by_the_maintenance_cap_records_the_refusal() -> 
         Some(("daily_budget".to_owned(), 0))
     );
     assert_eq!(fx.counters().await?, (0, 0));
-    let waiting = fx.handle.unplaced_lessons(10).await?;
+    let waiting = fx.handle.lessons().unplaced_lessons(10).await?;
     assert_eq!(waiting.len(), 1);
     assert_eq!(waiting[0].id, lesson);
-    let seen = fx.handle.recent_maintenance_refusals().await?;
+    let seen = fx.handle.lessons().recent_maintenance_refusals().await?;
     assert_eq!(seen.len(), 1);
     assert_eq!(seen[0].pass, "placement");
     fx.db.cleanup().await?;

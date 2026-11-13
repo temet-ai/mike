@@ -1,4 +1,5 @@
 //! Request writes record which filter rules fired, in the junction table.
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::request_write::IdMode;
@@ -47,8 +48,8 @@ async fn insert_request_initial_writes_firing_rule_junction_rows() -> anyhow::Re
         style_override: false,
         title: None,
     };
-    let (fr_first_id, _) = handle.insert_filter_rule(&rule_first).await?;
-    let (fr_second_id, _) = handle.insert_filter_rule(&rule_second).await?;
+    let (fr_first_id, _) = handle.proxy().insert_filter_rule(&rule_first).await?;
+    let (fr_second_id, _) = handle.proxy().insert_filter_rule(&rule_second).await?;
 
     let session_id = uuid::Uuid::new_v4().to_string();
     let mut req = crate::store::tests::make_test_request(

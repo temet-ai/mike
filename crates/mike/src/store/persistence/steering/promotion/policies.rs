@@ -1,7 +1,7 @@
 use serde_json::json;
 
+use super::super::super::PersistError;
 use super::super::super::change_log::{NewChange, append_change_in};
-use super::super::super::{PersistError, PersistHandle};
 use super::{ModeChange, PolicyRow};
 
 async fn toggle_steerer(
@@ -25,8 +25,8 @@ async fn toggle_steerer(
     Ok(())
 }
 
-impl PersistHandle {
-    pub async fn policy_rows(&self, steerer_id: i64) -> Result<Vec<PolicyRow>, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn policy_rows(self, steerer_id: i64) -> Result<Vec<PolicyRow>, PersistError> {
         crate::metrics::time_db("policy_rows", async move {
             Ok(sqlx::query_as!(
                 PolicyRow,
@@ -42,7 +42,7 @@ impl PersistHandle {
     }
 
     pub async fn policy_row(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
     ) -> Result<Option<PolicyRow>, PersistError> {
@@ -61,7 +61,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn apply_mode_change(&self, c: &ModeChange<'_>) -> Result<i64, PersistError> {
+    pub async fn apply_mode_change(self, c: &ModeChange<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("apply_mode_change", async move {
             let mut tx = self.pool.begin().await?;
             let updated = sqlx::query!(
@@ -125,7 +125,7 @@ impl PersistHandle {
     }
 
     pub async fn set_steerer_enabled_preserving_config(
-        &self,
+        self,
         steerer_id: i64,
         enabled: bool,
         source_json: &str,
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn set_holdback_pct(
-        &self,
+        self,
         steerer_id: i64,
         question: &str,
         pct: Option<i16>,

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 use crate::filter::{FilterAction, FilterKind, FilterRule, RuleSource};
 
 #[derive(sqlx::FromRow)]
@@ -90,8 +90,8 @@ pub struct FilterRuleFiringStats {
     pub fires_7d: i64,
 }
 
-impl PersistHandle {
-    pub async fn list_filter_rules(&self) -> Result<Vec<FilterRule>, PersistError> {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
+    pub async fn list_filter_rules(self) -> Result<Vec<FilterRule>, PersistError> {
         crate::metrics::time_db("list_filter_rules", async move {
             let rows = sqlx::query_as!(
                 FilterRuleRow,
@@ -115,7 +115,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_filter_rule(&self, rule: &FilterRule) -> Result<(i64, i32), PersistError> {
+    pub async fn insert_filter_rule(self, rule: &FilterRule) -> Result<(i64, i32), PersistError> {
         crate::metrics::time_db("insert_filter_rule", async move {
             let mut tx = self.pool.begin().await?;
             let row = sqlx::query!(
@@ -149,7 +149,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn update_filter_rule(&self, rule: &FilterRule) -> Result<bool, PersistError> {
+    pub async fn update_filter_rule(self, rule: &FilterRule) -> Result<bool, PersistError> {
         crate::metrics::time_db("update_filter_rule", async move {
             let result = sqlx::query!(
                 "UPDATE rules.rules r
@@ -195,7 +195,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn delete_filter_rule(&self, id: i64) -> Result<bool, PersistError> {
+    pub async fn delete_filter_rule(self, id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("delete_filter_rule", async move {
             let result = sqlx::query!(
                 "UPDATE rules.rules
@@ -214,7 +214,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_filter_rules(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Vec<SessionFilterRuleRow>, PersistError> {
         crate::metrics::time_db("fetch_session_filter_rules", async move {
@@ -242,7 +242,7 @@ impl PersistHandle {
     }
 
     pub async fn session_system_prompt_is_filtered(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<bool, PersistError> {
         crate::metrics::time_db("filter_session_system_prompt_is_filtered", async move {
@@ -272,7 +272,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_filter_rule_firing_stats_all(
-        &self,
+        self,
     ) -> Result<std::collections::HashMap<i64, FilterRuleFiringStats>, PersistError> {
         crate::metrics::time_db("fetch_filter_rule_firing_stats_all", async move {
             let rows = sqlx::query_as!(
@@ -312,7 +312,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_filter_rule_firing_stats(
-        &self,
+        self,
         rule_id: i64,
     ) -> Result<FilterRuleFiringStats, PersistError> {
         crate::metrics::time_db("fetch_filter_rule_firing_stats", async move {
@@ -340,7 +340,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_latest_primary_first_request_id(
-        &self,
+        self,
         project_path: Option<&str>,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("fetch_latest_primary_first_request_id", async move {

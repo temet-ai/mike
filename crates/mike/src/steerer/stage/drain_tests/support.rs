@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use bytes::Bytes;
 
 use crate::config::ProxyConfig;
@@ -128,6 +129,7 @@ pub(super) async fn seed_intervention(
             .await?;
     let intervention_uuid = uuid::Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(crate::store::persistence::steering::NewIntervention {
             steerer_id,
             enrolment_id: None,

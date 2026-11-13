@@ -1,13 +1,13 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::thread_types::ThreadResolution;
 use super::types::{ContextItem, InsertedMessage, ThreadedMessageInsert};
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn resolve_thread_for_send(
-        &self,
+        self,
         thread_uuid: Option<uuid::Uuid>,
         in_reply_to_message_uuid: Option<uuid::Uuid>,
         subject: Option<&str>,
@@ -121,7 +121,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_message_with_context(
-        &self,
+        self,
         message_uuid: uuid::Uuid,
         to_session_uuid: uuid::Uuid,
         from_session_uuid: Option<uuid::Uuid>,
@@ -170,7 +170,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_threaded_message_with_context(
-        &self,
+        self,
         params: ThreadedMessageInsert<'_>,
         context: &[ContextItem],
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
@@ -192,7 +192,7 @@ impl PersistHandle {
     }
 
     async fn insert_threaded_with_items(
-        &self,
+        self,
         params: &ThreadedMessageInsert<'_>,
         context: &[ContextItem],
     ) -> Result<Option<DateTime<Utc>>, PersistError> {

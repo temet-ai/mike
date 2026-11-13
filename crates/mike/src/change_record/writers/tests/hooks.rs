@@ -4,7 +4,9 @@ use crate::change_record::writers::change_record_enabled;
 use crate::launch::fleet::check_report::{Finished, record_finished};
 use crate::launch::fleet::definition::{FleetDefinition, TaskDefinition};
 use crate::launch::fleet::events::{EventPayload, NewFleetEvent, SeatLaunchConfirmed};
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch::NewRun;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[tokio::test]
 async fn change_record_enabled_is_off_until_the_operator_turns_it_on() -> anyhow::Result<()> {
@@ -51,6 +53,7 @@ async fn finished_check_and_gate_write_one_event_each_only_with_the_switch_on() 
     };
     def.tasks.insert("T1".into(), TaskDefinition::default());
     f.handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: "run-9".into(),
             project_path: Some(repo.checkout()),
@@ -60,6 +63,7 @@ async fn finished_check_and_gate_write_one_event_each_only_with_the_switch_on() 
         })
         .await?;
     f.handle
+        .fleet()
         .append_fleet_event(&NewFleetEvent {
             run_id: "run-9".into(),
             task: Some("T1".into()),

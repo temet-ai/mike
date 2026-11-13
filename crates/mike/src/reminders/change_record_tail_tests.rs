@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::process::Command;
 use std::sync::Arc;
 
@@ -133,7 +134,7 @@ impl Seat {
         let mut event = test_seed::event(self.project, ChangeKind::Edit, &[path]);
         event.checkout = self.checkout.clone();
         event.session_id = Some(session);
-        self.f.handle.insert_change_events(&[event]).await?;
+        self.f.handle.fleet().insert_change_events(&[event]).await?;
         Ok(())
     }
 

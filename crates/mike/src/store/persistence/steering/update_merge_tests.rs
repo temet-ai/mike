@@ -1,5 +1,6 @@
 use super::SteererUpdate;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::test_support::acquire_ephemeral_db;
 
 #[derive(sqlx::FromRow)]
@@ -40,6 +41,7 @@ async fn update_steerer_merges_config_keeping_unsent_keys() -> anyhow::Result<()
     .await?;
     let sent = serde_json::json!({"confidence_threshold": 0.8, "debounce_turns": 2});
     handle
+        .steerer()
         .update_steerer(
             SteererUpdate {
                 id: current.id,

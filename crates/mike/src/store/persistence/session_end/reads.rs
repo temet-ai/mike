@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct EndLabelRow {
@@ -53,9 +53,9 @@ pub struct SessionVerdictFull {
     pub total: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn session_end_labels_for_turns(
-        &self,
+        self,
         turn_ids: &[i64],
         as_of: DateTime<Utc>,
     ) -> Result<Vec<EndLabelRow>, PersistError> {
@@ -76,7 +76,7 @@ impl PersistHandle {
     }
 
     pub async fn session_verdict_history(
-        &self,
+        self,
         session_db_id: i64,
         mode: Option<&str>,
         limit: i64,
@@ -115,7 +115,7 @@ impl PersistHandle {
     }
 
     pub async fn session_end_for_session(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<EndLabelRow>, PersistError> {
         let end = crate::metrics::time_db("session_end_for_session", async move {

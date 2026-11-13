@@ -1,5 +1,6 @@
 use crate::db_helpers;
 use crate::seed;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use chrono::Utc;
 use mike::store::persistence::PersistHandle;
@@ -27,6 +28,7 @@ async fn project_embedding_graph_populated_returns_nodes_and_siblings() -> anyho
 
     let now = Utc::now();
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -37,6 +39,7 @@ async fn project_embedding_graph_populated_returns_nodes_and_siblings() -> anyho
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(3.0),
@@ -47,6 +50,7 @@ async fn project_embedding_graph_populated_returns_nodes_and_siblings() -> anyho
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: c_uuid,
             embedding: &planar_unit(2.0),
@@ -56,7 +60,7 @@ async fn project_embedding_graph_populated_returns_nodes_and_siblings() -> anyho
             source_updated_at: now,
         })
         .await?;
-    persist.refresh_project_centroids().await?;
+    persist.knowledge().refresh_project_centroids().await?;
 
     let client = reqwest::Client::new();
     let resp = client
@@ -132,6 +136,7 @@ async fn project_embedding_graph_last_status_prefers_live_request_over_stale_cac
         .await?;
 
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -142,6 +147,7 @@ async fn project_embedding_graph_last_status_prefers_live_request_over_stale_cac
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(3.0),
@@ -151,7 +157,7 @@ async fn project_embedding_graph_last_status_prefers_live_request_over_stale_cac
             source_updated_at: now,
         })
         .await?;
-    persist.refresh_project_centroids().await?;
+    persist.knowledge().refresh_project_centroids().await?;
 
     let client = reqwest::Client::new();
     let resp = client

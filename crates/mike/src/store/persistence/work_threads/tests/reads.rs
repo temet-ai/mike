@@ -1,6 +1,7 @@
 use super::super::reads::{HistoryPage, ListFilter};
 use super::super::{CheckpointInput, EntryInput, MetaUpdate, StateFields, WorkThreadError};
 use super::{fixture, input, titled};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[tokio::test]
 async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Result<()> {
@@ -8,10 +9,12 @@ async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Resul
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("paged", "one"))
         .await?;
     for body in ["two", "three", "four", "five"] {
         f.handle
+            .launch()
             .add_work_thread_entry(
                 f.project,
                 &EntryInput {
@@ -28,6 +31,7 @@ async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Resul
     }
     let first = f
         .handle
+        .launch()
         .get_work_thread(
             f.project,
             "paged",
@@ -43,6 +47,7 @@ async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Resul
     assert_eq!(first.history_next_before_ord, Some(4));
     let second = f
         .handle
+        .launch()
         .get_work_thread(
             f.project,
             "paged",
@@ -56,6 +61,7 @@ async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Resul
     assert_eq!(ords, [3, 2]);
     let last = f
         .handle
+        .launch()
         .get_work_thread(
             f.project,
             "paged",
@@ -69,6 +75,7 @@ async fn history_pages_newest_first_with_a_cursor_and_a_total() -> anyhow::Resul
     assert_eq!(last.history_next_before_ord, None);
     let missing = f
         .handle
+        .launch()
         .get_work_thread(f.project, "ghost", HistoryPage::default())
         .await;
     assert!(matches!(missing, Err(WorkThreadError::NotFound(_))));
@@ -81,6 +88,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -93,6 +101,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
         )
         .await?;
     f.handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -107,6 +116,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
         .await?;
     let all = f
         .handle
+        .launch()
         .list_work_threads(f.project, ListFilter::default())
         .await?;
     assert_eq!(all.total, 2);
@@ -120,6 +130,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
     assert_eq!(alpha.next_up, "ship it");
     let parked = f
         .handle
+        .launch()
         .list_work_threads(
             f.project,
             ListFilter {
@@ -132,6 +143,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
     assert_eq!(parked.threads[0].slug, "beta");
     let either = f
         .handle
+        .launch()
         .list_work_threads(
             f.project,
             ListFilter {
@@ -143,6 +155,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
     assert_eq!(either.total, 2);
     let page = f
         .handle
+        .launch()
         .list_work_threads(
             f.project,
             ListFilter {
@@ -156,6 +169,7 @@ async fn list_returns_tldr_and_next_up_filters_by_status_and_pages() -> anyhow::
     assert_eq!(page.total, 2);
     let bad = f
         .handle
+        .launch()
         .list_work_threads(
             f.project,
             ListFilter {

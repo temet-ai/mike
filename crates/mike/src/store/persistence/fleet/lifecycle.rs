@@ -4,11 +4,11 @@ use uuid::Uuid;
 
 use super::FleetRow;
 use super::lifecycle_completion::run_settled;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub(super) async fn set_fleet_state_guarded(
-        &self,
+        self,
         fleet_uuid: Uuid,
         state: &str,
         run_id: Option<&str>,
@@ -31,7 +31,7 @@ impl PersistHandle {
     }
 
     pub async fn transition_fleet_state(
-        &self,
+        self,
         expected: &FleetRow,
         state: &str,
         run_id: Option<&str>,

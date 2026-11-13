@@ -1,5 +1,6 @@
 use super::knowledge::{model_keys, sweep};
 use super::knowledge_tests::{breaker, embedding_server, vector};
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistHandle,
     project_knowledge::{KnowledgeQuery, ProjectIdentity},
@@ -43,6 +44,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Overviews", Uuid::new_v4())
         .await?;
     let session = session_with_overview(&handle, &project).await?;
@@ -50,6 +52,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
     let keys = model_keys(&service);
     let key = keys.current().to_owned();
     let before = handle
+        .knowledge()
         .knowledge_embedding_health(Some(project.id), &keys)
         .await?;
     assert_eq!(
@@ -60,6 +63,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
     sweep(&handle, &service, &mut breaker()).await?;
 
     let after = handle
+        .knowledge()
         .knowledge_embedding_health(Some(project.id), &keys)
         .await?;
     assert_eq!(
@@ -92,6 +96,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
         ..Default::default()
     };
     let found = handle
+        .knowledge()
         .search_project_knowledge_hybrid(&query, Some(&embedding))
         .await?;
     assert_eq!(found["items"].as_array().map(Vec::len), Some(1), "{found}");

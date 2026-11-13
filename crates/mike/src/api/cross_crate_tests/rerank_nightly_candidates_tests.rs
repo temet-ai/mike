@@ -1,5 +1,7 @@
 //! Moved from crates/mike/src/rerank_nightly/candidates_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use std::sync::atomic::AtomicUsize;
 
@@ -16,6 +18,7 @@ use crate::store::persistence::work_threads::{
 async fn project(harness: &Harness) -> anyhow::Result<i64> {
     Ok(harness
         .handle
+        .knowledge()
         .define_knowledge_project("candidates", Uuid::new_v4())
         .await?
         .id)
@@ -24,6 +27,7 @@ async fn project(harness: &Harness) -> anyhow::Result<i64> {
 async fn thread(harness: &Harness, project: i64, slug: &str, tldr: &str) -> anyhow::Result<i64> {
     let outcome = harness
         .handle
+        .launch()
         .checkpoint_work_thread(
             project,
             &CheckpointInput {
@@ -189,6 +193,7 @@ async fn night_pass_when_the_reranker_fails_leaves_the_threads_old_candidates() 
     lessons(harness.handle.pool(), project, 3).await?;
     harness
         .handle
+        .launch()
         .replace_thread_card_candidates(
             thread_id,
             &[NewThreadCandidate {

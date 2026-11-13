@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -54,7 +56,11 @@ pub async fn latest_part(
         limit: NOTES_READ,
         offset: 0,
     };
-    let rows = persist.fetch_session_notes(session, filter).await.ok()?;
+    let rows = persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await
+        .ok()?;
     rows.iter()
         .filter(|row| tags.iter().all(|tag| row.tags.contains(tag)))
         .map(StoredPart::of)
@@ -102,6 +108,7 @@ async fn store(
         data: Some(&part.data),
     };
     persist
+        .launch()
         .create_session_note(session, note)
         .await
         .map(|row| StoredPart::of(&row))
@@ -219,7 +226,7 @@ async fn record_event(
         before_sha: None,
         after_sha: None,
     };
-    if let Err(err) = persist.insert_change_events(&[new]).await {
+    if let Err(err) = persist.fleet().insert_change_events(&[new]).await {
         tracing::warn!(run = %facts.run_id, error = %err, "mike could not record a brief note in the change record");
     }
 }
@@ -334,7 +341,11 @@ async fn mail_once(
     if super::told::already(persist, &facts.run_id, &key).await {
         return;
     }
-    match persist.insert_message(Uuid::new_v4(), to, None, body).await {
+    match persist
+        .launch()
+        .insert_message(Uuid::new_v4(), to, None, body)
+        .await
+    {
         Ok(_) => super::told::mark(persist, &facts.run_id, &[key]).await,
         Err(err) => {
             tracing::warn!(run = %facts.run_id, %key, error = %err, "mike could not mail a seat the lines of its brief that changed");

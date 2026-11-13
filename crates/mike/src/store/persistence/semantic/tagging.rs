@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 const ASSIGNMENT_SELECT: &str =
     "SELECT a.id, a.corrected_turn_id, a.correction_item_id, i.text AS correction_text,
@@ -90,9 +90,9 @@ pub struct AssignmentFilter<'a> {
     pub offset: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn corrections_needing_tagging(
-        &self,
+        self,
         embedder_key: &str,
         tagger_version: &str,
         limit: i64,
@@ -112,7 +112,7 @@ impl PersistHandle {
     }
 
     pub async fn nearest_anchors(
-        &self,
+        self,
         corrections: &[CorrectionForTagging],
         embedder_key: &str,
     ) -> Result<Vec<AnchorCandidateRow>, PersistError> {
@@ -140,7 +140,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_pattern_assignments(
-        &self,
+        self,
         rows: &[NewAssignment],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {
@@ -205,7 +205,7 @@ impl PersistHandle {
     }
 
     pub async fn list_pattern_assignments(
-        &self,
+        self,
         f: &AssignmentFilter<'_>,
     ) -> Result<(Vec<AssignmentRow>, i64), PersistError> {
         crate::metrics::time_db("list_pattern_assignments", async move {
@@ -236,7 +236,7 @@ impl PersistHandle {
     }
 
     pub async fn pattern_residue(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Vec<ResidueRow>, PersistError> {
         crate::metrics::time_db("build_candidate_graph", async move {

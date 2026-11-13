@@ -1,6 +1,7 @@
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::{Value, json};
 
 use tower::ServiceExt;
@@ -80,6 +81,7 @@ async fn seed_pending_lesson(f: &Fixture, base_id: i64) -> anyhow::Result<(i64, 
     let empty = json!([]);
     let lesson_id = f
         .handle
+        .lessons()
         .create_candidate_lesson(
             NewCandidateLesson {
                 project_id: f.project_id,

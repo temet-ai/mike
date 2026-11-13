@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -11,7 +12,11 @@ pub(super) async fn fetch_related_contexts(
     has_vector: bool,
 ) -> (Vec<Uuid>, Vec<RelatedSessionContext>) {
     let neighbours = if has_vector {
-        match persist.nearest_sessions(session_uuid, 5, true, 0.5).await {
+        match persist
+            .knowledge()
+            .nearest_sessions(session_uuid, 5, true, 0.5)
+            .await
+        {
             Ok(n) => n,
             Err(e) => {
                 log_nearest_sessions_failed(session_id, &e);
@@ -57,7 +62,11 @@ async fn fetch_neighbour_knowledge(
     if neighbour_ids.is_empty() {
         return std::collections::HashMap::new();
     }
-    match persist.fetch_session_knowledge_many(neighbour_ids).await {
+    match persist
+        .knowledge()
+        .fetch_session_knowledge_many(neighbour_ids)
+        .await
+    {
         Ok(rows) => rows
             .into_iter()
             .map(|k| (k.session_id, k.learnings))

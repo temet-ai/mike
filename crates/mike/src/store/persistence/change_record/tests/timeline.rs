@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::Duration;
 
 use super::fixture;
@@ -21,14 +22,20 @@ async fn open_changes_lists_paths_changed_since_their_newest_commit() -> anyhow:
         event(project_id, ChangeKind::ShellChange, &["b.rs", "c.rs"]),
         event(project_id, ChangeKind::Note, &["d.rs"]),
     ];
-    f.handle.insert_change_events(&events).await?;
+    f.handle.fleet().insert_change_events(&events).await?;
 
-    let open = f.handle.open_changes(CHECKOUT).await?;
+    let open = f.handle.fleet().open_changes(CHECKOUT).await?;
     let names: Vec<&str> = open.iter().map(|o| o.path.as_str()).collect();
     assert_eq!(names.len(), 2);
     assert!(names.contains(&"b.rs") && names.contains(&"c.rs"));
     assert!(open.iter().all(|o| o.session_id.is_none()));
-    assert!(f.handle.open_changes("/work/none").await?.is_empty());
+    assert!(
+        f.handle
+            .fleet()
+            .open_changes("/work/none")
+            .await?
+            .is_empty()
+    );
     f.db.cleanup().await?;
     Ok(())
 }
@@ -46,8 +53,11 @@ async fn open_changes_reports_the_session_of_the_newest_change_to_a_path() -> an
     older.session_id = Some(first);
     let mut newer = event(project_id, ChangeKind::Edit, &["a.rs"]);
     newer.session_id = Some(second);
-    f.handle.insert_change_events(&[older, newer]).await?;
-    let open = f.handle.open_changes(CHECKOUT).await?;
+    f.handle
+        .fleet()
+        .insert_change_events(&[older, newer])
+        .await?;
+    let open = f.handle.fleet().open_changes(CHECKOUT).await?;
     let [row] = open.as_slice() else {
         anyhow::bail!("expected one open path, got {open:?}");
     };
@@ -67,14 +77,16 @@ async fn open_changes_after_a_cached_read_sees_new_events_and_author_updates() -
     let author = session(pool, project_id, None).await?;
     let ids = f
         .handle
+        .fleet()
         .insert_change_events(&[event(project_id, ChangeKind::Edit, &["a.rs"])])
         .await?;
-    let first = f.handle.open_changes(CHECKOUT).await?;
-    assert_eq!(first, f.handle.open_changes(CHECKOUT).await?);
+    let first = f.handle.fleet().open_changes(CHECKOUT).await?;
+    assert_eq!(first, f.handle.fleet().open_changes(CHECKOUT).await?);
     assert_eq!(first.len(), 1);
     assert_eq!(first[0].session_id, None);
 
     f.handle
+        .fleet()
         .update_change_author(
             ids[0],
             Some(author),
@@ -82,14 +94,15 @@ async fn open_changes_after_a_cached_read_sees_new_events_and_author_updates() -
             &serde_json::json!({}),
         )
         .await?;
-    let named = f.handle.open_changes(CHECKOUT).await?;
+    let named = f.handle.fleet().open_changes(CHECKOUT).await?;
     assert_eq!(named.len(), 1);
     assert_eq!(named[0].session_id, Some(author));
 
     f.handle
+        .fleet()
         .insert_change_events(&[event(project_id, ChangeKind::Commit, &["a.rs"])])
         .await?;
-    assert!(f.handle.open_changes(CHECKOUT).await?.is_empty());
+    assert!(f.handle.fleet().open_changes(CHECKOUT).await?.is_empty());
     f.db.cleanup().await?;
     Ok(())
 }
@@ -113,6 +126,7 @@ async fn checkouts_with_working_sessions_returns_each_folder_with_its_newest_req
 
     let working = f
         .handle
+        .fleet()
         .checkouts_with_working_sessions(Duration::minutes(30))
         .await?;
     let [one] = working.as_slice() else {

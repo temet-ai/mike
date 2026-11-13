@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
@@ -79,6 +80,7 @@ fn question(raw: &str) -> Result<Question> {
 
 async fn guard_id(persist: &PersistHandle) -> Result<i64> {
     Ok(persist
+        .steerer()
         .guard_steerer()
         .await?
         .context("the turn-guard steerer row is not seeded")?
@@ -119,6 +121,7 @@ async fn effect(args: EffectArgs, cli: CliOverrides) -> Result<()> {
     let as_of = args.as_of.unwrap_or_else(Utc::now);
     let q = args.question.as_deref().map(question).transpose()?;
     let rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, q.map(Question::code), as_of)
         .await?;
     let estimate = estimate_effect(
@@ -138,6 +141,7 @@ async fn verify_arms(args: VerifyArgs, cli: CliOverrides) -> Result<()> {
     let policies = question_policies(&persist, steerer_id).await;
     let settings = GuardSettings::load(&persist).await;
     let rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, q.map(Question::code), Utc::now())
         .await?;
     let mut mismatches = Vec::new();

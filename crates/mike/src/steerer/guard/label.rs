@@ -1,4 +1,6 @@
 use crate::logged::ok_or_warn;
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
@@ -213,6 +215,7 @@ async fn session_ends(
     ids.sort_unstable();
     ids.dedup();
     persist
+        .eval()
         .session_end_labels_for_turns(&ids, chrono::Utc::now())
         .await
         .unwrap_or_default()
@@ -268,6 +271,7 @@ async fn call_budget(pass: &LabelPass<'_>, steerer_id: i64) -> i64 {
     let settings = GuardSettings::load(pass.persist).await;
     let used = pass
         .persist
+        .steerer()
         .steerer_calls_today(steerer_id, "eval")
         .await
         .unwrap_or(i64::MAX);
@@ -337,7 +341,7 @@ async fn run_calls(
 }
 
 async fn write_labels(persist: &PersistHandle, labels: &[EvaluationLabel]) -> u64 {
-    match persist.apply_evaluation_labels(labels).await {
+    match persist.steerer().apply_evaluation_labels(labels).await {
         Ok(n) => n,
         Err(error) => {
             tracing::warn!(%error, count = labels.len(), "turn guard labeller: label write failed");
@@ -351,14 +355,17 @@ pub async fn run_pass(pass: &LabelPass<'_>) -> LabelReport {
     if !pass.toggle_on {
         return report;
     }
-    let Some(steerer) =
-        ok_or_warn(pass.persist.guard_steerer().await, "guard_labeller.steerer").flatten()
-    else {
+    let Some(steerer) = ok_or_warn(
+        pass.persist.steerer().guard_steerer().await,
+        "guard_labeller.steerer",
+    )
+    .flatten() else {
         return report;
     };
     let settings = GuardSettings::load(pass.persist).await;
     let candidates = pass
         .persist
+        .steerer()
         .guard_label_candidates(steerer.id, PASS_LIMIT, settings.label_live_passes)
         .await
         .unwrap_or_default();

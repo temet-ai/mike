@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result};
 use chrono::{Days, NaiveDate, Utc};
 
@@ -8,10 +9,12 @@ pub(super) async fn rollup_action_effects(
     for_day: NaiveDate,
 ) -> Result<u64> {
     let rollup_id = persist
+        .eval()
         .current_or_claimed_action_effect_rollup_id(for_day)
         .await
         .with_context(|| format!("claiming the action-effect rollup for {for_day} failed"))?;
     persist
+        .eval()
         .write_action_effect_rows(
             rollup_id,
             crate::eval_metrics::day_start(

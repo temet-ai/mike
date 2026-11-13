@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{TimeZone, Utc};
 use uuid::Uuid;
 
@@ -13,6 +16,7 @@ async fn the_envelope_names_a_fleet_seat_and_its_task() -> anyhow::Result<()> {
     let label = f
         .env
         .persist
+        .launch()
         .sender_label(f.t1.session)
         .await
         .ok_or_else(|| anyhow::anyhow!("a fleet seat has a label"))?;
@@ -50,6 +54,7 @@ async fn the_envelope_names_a_named_session_outside_a_fleet() -> anyhow::Result<
         .uuid;
     f.env
         .persist
+        .steerer()
         .set_session_goal(
             crate::store::persistence::session_goals::SetSessionIdentity {
                 session_uuid: named,
@@ -62,7 +67,7 @@ async fn the_envelope_names_a_named_session_outside_a_fleet() -> anyhow::Result<
             },
         )
         .await?;
-    let label = f.env.persist.sender_label(named).await;
+    let label = f.env.persist.launch().sender_label(named).await;
     assert_eq!(label, Some(format!("reviewer (session {named})")));
     f.env.cleanup().await
 }
@@ -97,7 +102,11 @@ async fn the_answer_carries_the_tail_only_when_the_toggle_is_on() -> anyhow::Res
     let mut baseline = test_seed::event(f.env.project, ChangeKind::Edit, &["crates/a/src/old.rs"]);
     baseline.checkout = CHECKOUT.to_owned();
     baseline.session_id = Some(other_id);
-    f.env.persist.insert_change_events(&[baseline]).await?;
+    f.env
+        .persist
+        .fleet()
+        .insert_change_events(&[baseline])
+        .await?;
 
     f.env.tail(true);
     let (_, primed) = f.env.send(Some(f.t1.session), "task:T2", None).await;
@@ -106,7 +115,7 @@ async fn the_answer_carries_the_tail_only_when_the_toggle_is_on() -> anyhow::Res
     let mut event = test_seed::event(f.env.project, ChangeKind::Edit, &["crates/a/src/new.rs"]);
     event.checkout = CHECKOUT.to_owned();
     event.session_id = Some(other_id);
-    f.env.persist.insert_change_events(&[event]).await?;
+    f.env.persist.fleet().insert_change_events(&[event]).await?;
 
     let (status, on) = f.env.send(Some(f.t1.session), "task:T2", None).await;
     assert_eq!(status, StatusCode::CREATED, "{on}");

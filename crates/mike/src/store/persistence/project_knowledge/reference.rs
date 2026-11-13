@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use super::invalid;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 const UUID_KEYED_KINDS: [&str; 7] = [
     "lesson",
@@ -89,9 +89,9 @@ fn bounds(prefix: &str) -> Option<(Uuid, Uuid)> {
     Some((low, high))
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(super) async fn settle_reference(
-        &self,
+        self,
         project_id: Option<i64>,
         reference: &str,
         readable: &[&str],
@@ -123,7 +123,7 @@ impl PersistHandle {
     }
 
     async fn reference_candidates(
-        &self,
+        self,
         project_id: Option<i64>,
         kind: Option<&str>,
         prefix: &str,

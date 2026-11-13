@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 use std::process::Command;
 
@@ -100,12 +101,14 @@ async fn standing_for_a_fleet_seat_reports_task_state_open_paths_ahead_and_the_c
     let mut edit = test_seed::event(project, ChangeKind::Edit, &["src/mine/x.rs"]);
     edit.checkout = work_text.clone();
     edit.session_id = Some(me);
-    f.handle.insert_change_events(&[edit]).await?;
+    f.handle.fleet().insert_change_events(&[edit]).await?;
     let check = f
         .handle
+        .fleet()
         .begin_tree_check("run-1", "state-1", "scripts/cx check", "worker-T4")
         .await?;
     f.handle
+        .fleet()
         .finish_tree_check(check, Some(0), "ok", Some("state-1"))
         .await?;
     let def = definition(&work_text, me_identity.uuid);
@@ -143,7 +146,7 @@ async fn whose_names_the_owning_task_beside_the_last_changer() -> anyhow::Result
     let other = test_seed::session(pool, project, None).await?;
     let mut edit = test_seed::event(project, ChangeKind::Edit, &["src/mine/x.rs"]);
     edit.session_id = Some(other);
-    f.handle.insert_change_events(&[edit]).await?;
+    f.handle.fleet().insert_change_events(&[edit]).await?;
     let me = Uuid::new_v4();
     let resolved = Resolved {
         identity: None,
@@ -185,7 +188,7 @@ async fn the_tail_is_none_when_nothing_changed_and_at_most_twelve_lines_after_ch
 
     let mut first = test_seed::event(project, ChangeKind::Edit, &["src/mine/first.rs"]);
     first.session_id = Some(other);
-    f.handle.insert_change_events(&[first]).await?;
+    f.handle.fleet().insert_change_events(&[first]).await?;
     assert_eq!(
         lines_for(
             &f.handle,
@@ -215,7 +218,7 @@ async fn the_tail_is_none_when_nothing_changed_and_at_most_twelve_lines_after_ch
             e
         })
         .collect();
-    f.handle.insert_change_events(&many).await?;
+    f.handle.fleet().insert_change_events(&many).await?;
     let lines = lines_for(
         &f.handle,
         &def,
@@ -268,12 +271,12 @@ async fn the_proxy_tail_and_the_api_tail_share_one_place_so_lines_show_once() ->
     let caller = resolved.caller()?;
     let mut baseline = test_seed::event(project, ChangeKind::Edit, &["src/mine/base.rs"]);
     baseline.session_id = Some(other);
-    f.handle.insert_change_events(&[baseline]).await?;
+    f.handle.fleet().insert_change_events(&[baseline]).await?;
     assert!(answers::tail(&f.handle, &caller).await?.is_empty());
 
     let mut edit = test_seed::event(project, ChangeKind::Edit, &["src/mine/a.rs"]);
     edit.session_id = Some(other);
-    f.handle.insert_change_events(&[edit]).await?;
+    f.handle.fleet().insert_change_events(&[edit]).await?;
     let from_api = answers::tail(&f.handle, &caller).await?;
     assert!(!from_api.is_empty(), "the mod's read shows the new line");
     assert_eq!(
@@ -290,7 +293,7 @@ async fn the_proxy_tail_and_the_api_tail_share_one_place_so_lines_show_once() ->
 
     let mut again = test_seed::event(project, ChangeKind::Edit, &["src/mine/b.rs"]);
     again.session_id = Some(other);
-    f.handle.insert_change_events(&[again]).await?;
+    f.handle.fleet().insert_change_events(&[again]).await?;
     let from_proxy = lines_for(
         &f.handle,
         &def,

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -109,7 +110,11 @@ pub(super) async fn resolve_repo(
     repo: &str,
 ) -> Result<ResolvedProject, String> {
     for candidate in candidates(repo) {
-        match handle.resolve_work_thread_project(&candidate).await {
+        match handle
+            .launch()
+            .resolve_work_thread_project(&candidate)
+            .await
+        {
             Ok(Some(project)) => return finish(handle, repo, project).await,
             Ok(None) => {}
             Err(other) => return Err(other.to_string()),
@@ -124,6 +129,7 @@ async fn finish(
     project: crate::store::persistence::project_knowledge::ProjectIdentity,
 ) -> Result<ResolvedProject, String> {
     let mut roots = handle
+        .launch()
         .work_thread_project_roots(project.id)
         .await
         .map_err(|error| error.to_string())?;

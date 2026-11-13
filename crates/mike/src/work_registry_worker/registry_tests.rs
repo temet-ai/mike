@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -50,7 +51,7 @@ async fn add_request(
 
 async fn orphaned_job(persist: &PersistHandle) -> anyhow::Result<(String, i64)> {
     let uuid = Uuid::new_v4().to_string();
-    let session = persist.ensure_session_exists(&uuid).await?;
+    let session = persist.launch().ensure_session_exists(&uuid).await?;
     let launched_at = Utc::now() - Duration::minutes(30);
     let agent = Item {
         kind: "agent",
@@ -185,7 +186,7 @@ async fn step_incremental_reads_match_the_full_ledger() -> anyhow::Result<()> {
     let now = Utc::now();
     add_request(&persist, &uuid, None, now - Duration::minutes(20)).await?;
     add_request(&persist, &uuid, Some("a1"), now - Duration::minutes(30)).await?;
-    let session = persist.ensure_session_exists(&uuid).await?;
+    let session = persist.launch().ensure_session_exists(&uuid).await?;
     let agent = Item {
         kind: "agent",
         task: "a1",
@@ -232,7 +233,7 @@ async fn assert_same_ledger(
     session: i64,
     uuid: &str,
 ) -> anyhow::Result<()> {
-    let full = persist.work_item_ledger(session, uuid).await?;
+    let full = persist.launch().work_item_ledger(session, uuid).await?;
     let cached = registry
         .cache
         .ledger(session, Utc::now())

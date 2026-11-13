@@ -1,3 +1,4 @@
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use mike::store::persistence::remote_control::{PATH_HEARTBEAT, RemoteControlCall};
 
 use crate::store::remote_control::support::{call_at, digest, shared_handle, unique};
@@ -12,6 +13,7 @@ async fn a_digest_only_body_keeps_its_size_and_digest_but_not_its_bytes() -> any
     let push = br#"{"worker_epoch":5,"events":[{"payload":"the whole session transcript"}]}"#;
     let ack = br#"{"ok":true}"#;
     let call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             request_body: None,
             request_body_sha256: Some(digest(push)),
@@ -56,6 +58,7 @@ async fn a_stored_body_round_trips_whole() -> anyhow::Result<()> {
 
     let body = br#"{"session_id":"cse_whole","worker_epoch":5,"supports_heartbeat_probe":true,"current_interval_seconds":20,"idle_seconds":0}"#;
     let call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             request_body: Some(body),
             request_body_sha256: Some(digest(body)),
@@ -88,9 +91,11 @@ async fn an_absent_body_is_distinguishable_from_an_empty_one() -> anyhow::Result
     let cse_id = unique("cse_sizes");
 
     let read = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "GET", "/worker"))
         .await?;
     let empty = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             request_body: Some(b""),
             request_body_sha256: Some(digest(b"")),
@@ -121,6 +126,7 @@ async fn a_truncated_body_cannot_be_written() -> anyhow::Result<()> {
     let cse_id = unique("cse_guard");
 
     let call_id = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", PATH_HEARTBEAT))
         .await?;
 

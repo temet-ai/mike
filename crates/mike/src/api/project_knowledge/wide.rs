@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::HashSet;
 
 use serde_json::Value;
@@ -22,8 +23,12 @@ pub(crate) async fn candidate_rows(
     handle: &PersistHandle,
     pool: Pool<'_>,
 ) -> Result<Vec<Value>, PersistError> {
-    let own =
-        handle.knowledge_candidate_rows(pool.project.id, pool.input, pool.wanted, pool.vector);
+    let own = handle.knowledge().knowledge_candidate_rows(
+        pool.project.id,
+        pool.input,
+        pool.wanted,
+        pool.vector,
+    );
     if !pool.reranked || !state.rerank_service().current_config().search_no_project {
         return own.await;
     }
@@ -39,13 +44,14 @@ async fn extra_rows(
     handle: &PersistHandle,
     pool: &Pool<'_>,
 ) -> Result<Option<Vec<Value>>, PersistError> {
-    let Some(extra) = handle.no_project_knowledge_project().await? else {
+    let Some(extra) = handle.knowledge().no_project_knowledge_project().await? else {
         return Ok(None);
     };
     if extra.id == pool.project.id {
         return Ok(None);
     }
     let mut rows = handle
+        .knowledge()
         .knowledge_candidate_rows(extra.id, pool.input, pool.wanted, pool.vector)
         .await?;
     rows.iter_mut().for_each(mark_outside_project);

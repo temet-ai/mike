@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -30,12 +31,16 @@ fn projected_finish(run: &RejudgeRunRow, progress: &RejudgeProgress) -> Option<D
 }
 
 async fn view(persist: &PersistHandle, run: RejudgeRunRow) -> Result<RejudgeRunView, Response> {
-    let progress = persist.rejudge_progress(&run.window()).await.map_err(|e| {
-        error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("persistence error: {e}"),
-        )
-    })?;
+    let progress = persist
+        .eval()
+        .rejudge_progress(&run.window())
+        .await
+        .map_err(|e| {
+            error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("persistence error: {e}"),
+            )
+        })?;
     Ok(RejudgeRunView {
         projected_finish_date: projected_finish(&run, &progress),
         run,
@@ -50,7 +55,7 @@ pub(crate) async fn list_rejudge_runs(State(state): State<AppState>) -> Response
             "session persistence is disabled".to_owned(),
         );
     };
-    let runs = match persist.list_rejudge_runs().await {
+    let runs = match persist.eval().list_rejudge_runs().await {
         Ok(runs) => runs,
         Err(e) => {
             return error(
@@ -79,7 +84,7 @@ pub(crate) async fn get_rejudge_run(
             "session persistence is disabled".to_owned(),
         );
     };
-    match persist.get_rejudge_run(id).await {
+    match persist.eval().get_rejudge_run(id).await {
         Ok(Some(run)) => match view(persist, run).await {
             Ok(v) => Json(v).into_response(),
             Err(resp) => resp,

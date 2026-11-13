@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -36,6 +38,7 @@ pub async fn introduce(persist: &PersistHandle, row: &FleetRow) {
         return;
     };
     let changed = match persist
+        .fleet()
         .tree_changed_paths_since(run, earliest - Duration::microseconds(1))
         .await
     {
@@ -59,12 +62,13 @@ async fn mail_the_claimed(
         .iter()
         .map(|r| (r.again.use_id, r.first.use_id))
         .collect();
-    let claimed = match persist.record_introductions(run, &pairs).await {
+    let claimed = match persist.fleet().record_introductions(run, &pairs).await {
         Ok(claimed) => claimed,
         Err(err) => return note_unread(run, &err.to_string()),
     };
     for repeat in held.iter().filter(|r| claimed.contains(&r.again.use_id)) {
         let sent = persist
+            .launch()
             .insert_message(
                 Uuid::new_v4(),
                 repeat.again.session,
@@ -72,7 +76,12 @@ async fn mail_the_claimed(
                 &mail(repeat, changed),
             )
             .await;
-        release_unqueued(run, sent, persist.release_introduction(repeat.again.use_id)).await;
+        release_unqueued(
+            run,
+            sent,
+            persist.fleet().release_introduction(repeat.again.use_id),
+        )
+        .await;
     }
 }
 
@@ -98,6 +107,7 @@ async fn fresh_repeats(
     def: &FleetDefinition,
 ) -> Result<Vec<Repeat>, String> {
     let slow = persist
+        .fleet()
         .slow_commands(run, since, SLOW_SECONDS)
         .await
         .map_err(|e| e.to_string())?;
@@ -106,6 +116,7 @@ async fn fresh_repeats(
     let found = repeats_with_timings(&rows, &def.wrappers, &timings);
     let again: Vec<i64> = found.iter().map(|r| r.again.use_id).collect();
     let recorded = persist
+        .fleet()
         .recorded_introductions(&again)
         .await
         .map_err(|e| e.to_string())?;

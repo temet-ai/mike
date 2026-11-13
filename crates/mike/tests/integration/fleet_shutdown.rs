@@ -4,7 +4,9 @@ use mike::launch::fleet::test_seams::durable;
 use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use serde_json::json;
 use tempfile::TempDir;
@@ -30,6 +32,7 @@ impl Fixture {
         let persist = PersistHandle::connect(&db.database_url).await?;
         let repo = tempfile::tempdir()?;
         let row = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: format!("shutdown-{}", Uuid::new_v4()),
                 project_path: repo.path().display().to_string(),
@@ -39,10 +42,12 @@ impl Fixture {
             })
             .await?;
         let ready = persist
+            .fleet()
             .transition_fleet_state(&row, "ready", None, None)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture did not become ready"))?;
         let row = persist
+            .fleet()
             .transition_fleet_state(&ready, "starting", None, None)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture did not become starting"))?;
@@ -68,11 +73,13 @@ impl Fixture {
     async fn running(&mut self) -> anyhow::Result<()> {
         let initialized = self
             .persist
+            .fleet()
             .initialize_fleet_run(&self.row, &self.run)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture run initialization failed"))?;
         self.row = self
             .persist
+            .fleet()
             .transition_fleet_state(
                 &initialized,
                 "running",
@@ -86,6 +93,7 @@ impl Fixture {
 
     async fn refresh(&self) -> anyhow::Result<FleetRow> {
         self.persist
+            .fleet()
             .find_fleet(&self.row.fleet_uuid.to_string())
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture fleet disappeared"))
@@ -105,11 +113,12 @@ async fn stop_before_run_initialization_prevents_stale_start_reopening_run() -> 
     assert_eq!(report.state, "done");
     assert!(
         f.persist
+            .fleet()
             .initialize_fleet_run(&f.row, &f.run)
             .await?
             .is_none()
     );
-    assert!(f.persist.find_run(&f.run.run_id).await?.is_none());
+    assert!(f.persist.launch().find_run(&f.run.run_id).await?.is_none());
     assert_eq!(f.refresh().await?.state, "done");
     f.cleanup().await
 }
@@ -126,11 +135,13 @@ async fn stop_unproven_closed_launch_retains_checkout_until_verified_exit() -> a
     launch.run_id = Some(f.run.run_id.clone());
     launch.session_uuid = Some(Uuid::new_v4());
     launch.seat = Some("worker".into());
-    let id = f.persist.insert_launch(&launch).await?;
+    let id = f.persist.launch().insert_launch(&launch).await?;
     f.persist
+        .launch()
         .record_launch_opened(id, &LaunchSurfaceRefs::default())
         .await?;
     f.persist
+        .launch()
         .record_launch_closed(id, "old unverified closure", Some(false))
         .await?;
     let report = shutdown::stop(&f.state, &f.persist, &f.row).await?;
@@ -140,6 +151,7 @@ async fn stop_unproven_closed_launch_retains_checkout_until_verified_exit() -> a
     assert!(marker.is_file());
     assert!(f.refresh().await?.finished_at.is_none());
     f.persist
+        .fleet()
         .record_fleet_launch_verified_exit(id, &f.run.run_id, "fixture exit proof")
         .await?;
     let stopped = f.refresh().await?;
@@ -150,6 +162,7 @@ async fn stop_unproven_closed_launch_retains_checkout_until_verified_exit() -> a
     assert!(done.finished_at.is_some());
     assert!(
         f.persist
+            .launch()
             .find_run(&f.run.run_id)
             .await?
             .is_some_and(|run| run.closed_at.is_some())
@@ -170,21 +183,24 @@ async fn stop_orphaned_command_receipt_remains_stopping_without_fabricated_compl
     let ledger = format!("{}#command:fixture", f.run.run_id);
     let receipt = f
         .persist
+        .fleet()
         .begin_tree_check(&ledger, "state", "fake command", "worker")
         .await?;
-    let before = f.persist.latest_tree_check(&ledger).await?;
+    let before = f.persist.fleet().latest_tree_check(&ledger).await?;
     let report = shutdown::stop(&f.state, &f.persist, &f.row).await?;
     assert_eq!(report.state, "stopping");
     assert_eq!(report.managed.pending_receipts, vec![receipt]);
     assert!(!report.managed.known_in_this_process);
-    assert_eq!(f.persist.latest_tree_check(&ledger).await?, before);
+    assert_eq!(f.persist.fleet().latest_tree_check(&ledger).await?, before);
     assert!(
         f.persist
+            .launch()
             .find_run(&f.run.run_id)
             .await?
             .is_some_and(|run| run.closed_at.is_none())
     );
     f.persist
+        .fleet()
         .finish_tree_check(
             receipt,
             None,
@@ -196,6 +212,7 @@ async fn stop_orphaned_command_receipt_remains_stopping_without_fabricated_compl
     assert_eq!(report.state, "done");
     assert!(
         f.persist
+            .fleet()
             .latest_tree_check(&ledger)
             .await?
             .is_some_and(|row| !row.passed())
@@ -212,6 +229,7 @@ async fn stop_abandons_receipts_past_the_command_limit_and_finishes() -> anyhow:
     let ledger = format!("{}#command:fixture", f.run.run_id);
     let receipt = f
         .persist
+        .fleet()
         .begin_tree_check(&ledger, "state", "fake command", "worker")
         .await?;
     sqlx::query(
@@ -224,6 +242,7 @@ async fn stop_abandons_receipts_past_the_command_limit_and_finishes() -> anyhow:
     assert_eq!(report.state, "done");
     let row = f
         .persist
+        .fleet()
         .latest_tree_check(&ledger)
         .await?
         .ok_or_else(|| anyhow::anyhow!("receipt gone"))?;
@@ -244,6 +263,7 @@ async fn stop_stages_retrospective_before_atomic_done_without_rewriting_start_ev
     definition["retrospective"] = json!({"enabled": true});
     let saved_at = f
         .persist
+        .fleet()
         .save_fleet_definition(
             f.row.fleet_uuid,
             &definition,
@@ -271,7 +291,7 @@ async fn never_started_launch(f: &Fixture, seat: &str, minutes_old: i64) -> anyh
     launch.run_id = Some(f.run.run_id.clone());
     launch.session_uuid = Some(Uuid::new_v4());
     launch.seat = Some(seat.into());
-    let id = f.persist.insert_launch(&launch).await?;
+    let id = f.persist.launch().insert_launch(&launch).await?;
     sqlx::query(
         "UPDATE launch.launches SET created_at = now() - make_interval(mins => $2::int) WHERE id = $1",
     )
@@ -346,6 +366,7 @@ async fn stop_abandons_a_blocked_receipt_that_owns_no_process_and_finishes() -> 
     let ledger = format!("{}#command:fixture", f.run.run_id);
     let receipt = f
         .persist
+        .fleet()
         .begin_tree_check(&ledger, "state", "fake command", "worker")
         .await?;
     durable::leave_blocked_receipt(
@@ -362,6 +383,7 @@ async fn stop_abandons_a_blocked_receipt_that_owns_no_process_and_finishes() -> 
     assert!(durable::snapshot(&f.run.run_id).pending.is_empty());
     let row = f
         .persist
+        .fleet()
         .latest_tree_check(&ledger)
         .await?
         .ok_or_else(|| anyhow::anyhow!("receipt gone"))?;
@@ -379,8 +401,9 @@ async fn absent_persisted_pid_without_local_origin_never_completes_fleet() -> an
     let mut launch = NewLaunch::new("none", "/foreign/checkout");
     launch.run_id = Some(f.run.run_id.clone());
     launch.session_uuid = Some(Uuid::new_v4());
-    let id = f.persist.insert_launch(&launch).await?;
+    let id = f.persist.launch().insert_launch(&launch).await?;
     f.persist
+        .launch()
         .record_launch_opened(
             id,
             &LaunchSurfaceRefs {
@@ -395,7 +418,11 @@ async fn absent_persisted_pid_without_local_origin_never_completes_fleet() -> an
     let stopped = shutdown::stop(&f.state, &f.persist, &f.row).await?;
     assert_eq!(stopped.state, "stopping");
     assert_eq!(stopped.seats[0].process_exited, None);
-    let unresolved = f.persist.unsettled_fleet_launches(&f.run.run_id).await?;
+    let unresolved = f
+        .persist
+        .fleet()
+        .unsettled_fleet_launches(&f.run.run_id)
+        .await?;
     assert_eq!(unresolved.len(), 1);
     assert_eq!(unresolved[0].close_process_exited, None);
     assert!(f.refresh().await?.finished_at.is_none());
@@ -448,12 +475,13 @@ async fn same_proxy_witness_proves_natural_exit_of_its_owned_fixture_root() -> a
     let mut launch = NewLaunch::new("herdr", f.repo.path().display().to_string());
     launch.run_id = Some(f.run.run_id.clone());
     launch.session_uuid = Some(session);
-    let id = f.persist.insert_launch(&launch).await?;
+    let id = f.persist.launch().insert_launch(&launch).await?;
     let mut child = owned_root_fixture(&f, id, session).await?;
     let pid = child
         .id()
         .ok_or_else(|| anyhow::anyhow!("fixture child has no PID"))?;
     f.persist
+        .launch()
         .record_launch_opened(
             id,
             &LaunchSurfaceRefs {
@@ -469,6 +497,7 @@ async fn same_proxy_witness_proves_natural_exit_of_its_owned_fixture_root() -> a
     assert_eq!(f.refresh().await?.state, "done");
     assert!(
         f.persist
+            .fleet()
             .unsettled_fleet_launches(&f.run.run_id)
             .await?
             .is_empty()

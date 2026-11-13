@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 async fn resolve_session_scan_ids(
     handle: &crate::store::persistence::PersistHandle,
@@ -29,7 +30,7 @@ async fn resolve_session_scan_ids(
     };
 
     let request_ids = handle
-        .list_session_request_ids_asc(session_db_id)
+        .launch().list_session_request_ids_asc(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, session_id = %session_id, caller, "find_text: request id list failed");

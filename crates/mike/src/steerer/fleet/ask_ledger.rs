@@ -1,3 +1,5 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -38,7 +40,7 @@ async fn resolve_session_db_id_for_ledger(ph: &PersistHandle, session_uuid: Uuid
 }
 
 async fn is_first_ask_ledger_entry(ph: &PersistHandle, session_uuid: Uuid) -> bool {
-    match ph.fetch_ask_ledger(session_uuid, 1).await {
+    match ph.dossier().fetch_ask_ledger(session_uuid, 1).await {
         Ok(rows) => rows.is_empty(),
         Err(e) => {
             warn!(
@@ -73,7 +75,7 @@ pub(super) async fn append_ask_ledger_entry_for_turn(
         kind_source: "keyword",
         content: text,
     };
-    if let Err(e) = ph.append_ask_ledger_entry(&entry).await {
+    if let Err(e) = ph.dossier().append_ask_ledger_entry(&entry).await {
         warn!(
             session_id = %session_uuid,
             kind,
@@ -108,6 +110,7 @@ async fn fetch_ledger_for_reauthoring(
     session_uuid: Uuid,
 ) -> Option<LedgerForAuthoring> {
     match ph
+        .dossier()
         .fetch_ask_ledger_for_model(session_uuid, INTAKE_ASK_LEDGER_LIMIT)
         .await
     {
@@ -134,7 +137,11 @@ async fn fetch_seen_for_reauthoring(
     session_uuid: Uuid,
     session_db_id: i64,
 ) -> Option<Option<AskSeen>> {
-    match ph.fetch_acceptance_criteria_ask_seen(session_db_id).await {
+    match ph
+        .steerer()
+        .fetch_acceptance_criteria_ask_seen(session_db_id)
+        .await
+    {
         Ok(seen) => Some(seen),
         Err(e) => {
             warn!(
@@ -152,7 +159,7 @@ async fn count_older_asks_not_fetched(
     session_uuid: Uuid,
     fetched: usize,
 ) -> Option<usize> {
-    match ph.count_ask_ledger_for_model(session_uuid).await {
+    match ph.dossier().count_ask_ledger_for_model(session_uuid).await {
         Ok(total) => Some(usize::try_from(total).unwrap_or(0).saturating_sub(fetched)),
         Err(e) => {
             warn!(
@@ -197,6 +204,7 @@ async fn store_authored_criteria(
     criteria: Vec<NewCriterion>,
 ) {
     match ph
+        .steerer()
         .insert_acceptance_criteria_map(session_db_id, seen, Some(model), None, &criteria)
         .await
     {
@@ -257,6 +265,7 @@ pub(super) async fn reauthor_intake_criteria(
         return;
     };
     let project_path = ph
+        .steerer()
         .fetch_session_project_path(session_db_id)
         .await
         .ok()

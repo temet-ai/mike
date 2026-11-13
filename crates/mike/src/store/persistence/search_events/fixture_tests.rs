@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use serde_json::{Value, json};
@@ -111,6 +112,7 @@ impl Fixture {
         );
         Ok(self
             .handle
+            .knowledge()
             .record_search_event(&NewSearchEvent {
                 session,
                 tool: "search_project_knowledge",
@@ -130,6 +132,7 @@ impl Fixture {
     ) -> anyhow::Result<i64> {
         Ok(self
             .handle
+            .knowledge()
             .record_search_event(&NewSearchEvent {
                 session: Some(self.session),
                 tool,

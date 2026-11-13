@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -45,7 +47,11 @@ struct Seen {
 }
 
 async fn tick(state: &AppState, persist: &PersistHandle, seen: &mut Seen) {
-    let Ok(fleets) = persist.list_fleets_in_states(&[RUNNING, STOPPING]).await else {
+    let Ok(fleets) = persist
+        .fleet()
+        .list_fleets_in_states(&[RUNNING, STOPPING])
+        .await
+    else {
         return;
     };
     let fleets = here::on_this_machine(fleets, here::checkout_present);
@@ -147,7 +153,10 @@ async fn still_running(
             Ok(false) => {}
             Err(error) => tracing::warn!(%error, fleet = %row.slug, "fleet: seat reconcile failed"),
         }
-        if let Ok(Some(fresh)) = persist.find_fleet(&row.fleet_uuid.to_string()).await
+        if let Ok(Some(fresh)) = persist
+            .fleet()
+            .find_fleet(&row.fleet_uuid.to_string())
+            .await
             && fresh.state == RUNNING
             && fresh.run_id == row.run_id
         {
@@ -178,7 +187,7 @@ async fn show(
     let Some(run) = &row.run_id else {
         return;
     };
-    let Ok(seats) = persist.fleet_seat_rows(run).await else {
+    let Ok(seats) = persist.fleet().fleet_seat_rows(run).await else {
         return;
     };
     for seat in seats.iter().filter(|s| s.closed_at.is_none()) {
@@ -197,7 +206,7 @@ async fn show(
         ];
         backend.report_pane(pane, &values).await;
     }
-    if let Ok(Some(run_row)) = persist.find_run(run).await
+    if let Ok(Some(run_row)) = persist.launch().find_run(run).await
         && let Some(workspace) = run_row.workspace_ref
     {
         let values = vec![("progress".to_string(), progress_line(status))];

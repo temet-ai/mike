@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use serde::Deserialize;
@@ -18,6 +19,7 @@ pub(crate) struct RecordQuery {
 
 async fn find_row(persist: &PersistHandle, key: &str) -> Result<FleetRow, DefinitionError> {
     persist
+        .fleet()
         .find_fleet(key)
         .await?
         .ok_or_else(|| DefinitionError::NotFound(key.to_string()))
@@ -31,11 +33,17 @@ async fn record_of(
     if let (true, Some(run_id)) = (row.state == "done", row.run_id.as_deref()) {
         if recompute {
             run_record::recompute(persist, row, run_id).await?;
-        } else if persist.find_run_record(row.fleet_uuid).await?.is_none() {
+        } else if persist
+            .fleet()
+            .find_run_record(row.fleet_uuid)
+            .await?
+            .is_none()
+        {
             run_record::write(persist, row, run_id).await?;
         }
     }
     persist
+        .fleet()
         .find_run_record(row.fleet_uuid)
         .await?
         .ok_or(DefinitionError::NotFound(format!(

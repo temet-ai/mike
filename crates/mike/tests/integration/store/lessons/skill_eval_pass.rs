@@ -1,6 +1,7 @@
 use mike::lesson_proposer::skill_eval::{EVALUATOR_VERSION, run_pass};
 use mike::llm::{OpenRouterClient, reset_global_for_tests};
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -152,7 +153,7 @@ pub(super) async fn insert_evaluable(fx: &Fixture) -> anyhow::Result<i64> {
     new.skill_md = "---\nname: database-migrations\ndescription: \"Ship a migration safely.\"\n---\n<!-- mike-learning-generated:v1 -->\n\n# Database migrations\n\n- [references/numbering.md](references/numbering.md): read when numbering one.\n";
     new.reference_files = &references;
     new.trigger_queries = &queries;
-    Ok(fx.handle.insert_skill_draft(new).await?)
+    Ok(fx.handle.lessons().insert_skill_draft(new).await?)
 }
 
 async fn sibling(fx: &Fixture) -> anyhow::Result<()> {
@@ -167,6 +168,7 @@ async fn sibling(fx: &Fixture) -> anyhow::Result<()> {
     };
     let empty = json!([]);
     fx.handle
+        .lessons()
         .insert_skill_draft(draft(&target, &[3, 4], &empty))
         .await?;
     Ok(())

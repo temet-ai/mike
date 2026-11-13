@@ -1,9 +1,9 @@
 use super::{BackendValidationRow, NewBackendValidation};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn insert_backend_validation(
-        &self,
+        self,
         v: &NewBackendValidation,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("launch_insert_backend_validation", async move {
@@ -26,7 +26,7 @@ impl PersistHandle {
     }
 
     pub async fn latest_backend_validation(
-        &self,
+        self,
         backend: &str,
     ) -> Result<Option<BackendValidationRow>, PersistError> {
         crate::metrics::time_db("launch_latest_backend_validation", async move {

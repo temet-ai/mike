@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Deserialize)]
 pub(crate) struct PinRequest {
@@ -39,10 +40,10 @@ pub(crate) async fn patch_session_pin(
         return persist_unavailable_response();
     };
     let db_result = if body.pinned {
-        persist.pin_session(&session_id).await
+        persist.launch().pin_session(&session_id).await
     } else {
         match persist.resolve_session_db_id(&session_id).await {
-            Ok(Some(db_id)) => persist.unpin_session(db_id).await,
+            Ok(Some(db_id)) => persist.launch().unpin_session(db_id).await,
             Ok(None) => Ok(()),
             Err(e) => Err(e),
         }
@@ -76,7 +77,7 @@ pub(crate) async fn patch_session_ttl(
         return bad_ttl_zero_response();
     }
     let ttl = parse_ttl_secs(body.ttl_secs);
-    if let Err(e) = persist.set_session_ttl(&session_id, ttl).await {
+    if let Err(e) = persist.launch().set_session_ttl(&session_id, ttl).await {
         return persist_error_response(e);
     }
     let ttl_str = ttl.map(|d| humantime::format_duration(d).to_string());
@@ -91,6 +92,7 @@ pub(crate) async fn patch_session_ttl(
         Err(e) => return persist_error_response(e),
     };
     let effective = match persist
+        .launch()
         .effective_ttl_for_session(session_db_id, default_ttl)
         .await
     {
@@ -293,9 +295,9 @@ pub(crate) async fn patch_project_pin(
         return persist_unavailable_response();
     };
     let db_result = if body.pinned {
-        persist.pin_project(&project_path).await
+        persist.launch().pin_project(&project_path).await
     } else {
-        persist.unpin_project(&project_path).await
+        persist.launch().unpin_project(&project_path).await
     };
     if let Err(e) = db_result {
         return persist_error_response(e);
@@ -321,6 +323,7 @@ pub(crate) async fn patch_project_name(
         .map(str::trim)
         .filter(|s| !s.is_empty());
     match persist
+        .launch()
         .set_project_custom_name(&project_path, normalized)
         .await
     {
@@ -346,7 +349,7 @@ pub(crate) async fn patch_project_ttl(
         return bad_ttl_zero_response();
     }
     let ttl = parse_ttl_secs(body.ttl_secs);
-    if let Err(e) = persist.set_project_ttl(&project_path, ttl).await {
+    if let Err(e) = persist.launch().set_project_ttl(&project_path, ttl).await {
         return persist_error_response(e);
     }
     Json(serde_json::json!({

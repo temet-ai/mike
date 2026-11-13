@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -120,7 +121,7 @@ pub(crate) async fn get_eval_run_item_review(
         limit: 1,
         ..RunItemsFilter::default()
     };
-    let item = match persist.eval_run_items_page(run_id, &filter).await {
+    let item = match persist.eval().eval_run_items_page(run_id, &filter).await {
         Ok(page) => page.items.into_iter().next(),
         Err(e) => return internal(e),
     };
@@ -130,11 +131,11 @@ pub(crate) async fn get_eval_run_item_review(
             format!("eval run {run_id} has no item for turn {turn_id}"),
         );
     };
-    let context = match persist.eval_review_context(turn_id).await {
+    let context = match persist.eval().eval_review_context(turn_id).await {
         Ok(c) => c.map(view),
         Err(e) => return internal(e),
     };
-    match persist.eval_review_labels(run_id, turn_id).await {
+    match persist.eval().eval_review_labels(run_id, turn_id).await {
         Ok(labels) => Json(ReviewDetail {
             item,
             context,

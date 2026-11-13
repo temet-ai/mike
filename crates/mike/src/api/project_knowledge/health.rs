@@ -1,5 +1,6 @@
 use crate::embed_worker::knowledge_report::{KnowledgeSweepReport, fresh_report};
 use crate::state::AppState;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{KNOWLEDGE_COUNT_CAP, KnowledgeStateCounts};
 use crate::web_base::capability::{CapabilityRow, CapabilityState};
 
@@ -23,7 +24,11 @@ pub(crate) async fn embedding_capability(state: &AppState) -> CapabilityRow {
     };
     let keys = crate::embed_worker::knowledge::model_keys(&service);
     let model = keys.current().to_owned();
-    match handle.knowledge_embedding_state_counts(&keys).await {
+    match handle
+        .knowledge()
+        .knowledge_embedding_state_counts(&keys)
+        .await
+    {
         Ok(counts) => {
             let sweep = fresh_report(&model, chrono::Utc::now());
             apply_coverage(&mut row, counts, sweep.as_deref());

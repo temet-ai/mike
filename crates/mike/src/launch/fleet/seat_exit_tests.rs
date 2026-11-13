@@ -1,6 +1,8 @@
 use super::observe;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::UnsettledFleetLaunch;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support as test_util;
 use crate::store::persistence::workspace::RegisterWorkspaceSession;
 use uuid::Uuid;
@@ -71,7 +73,7 @@ async fn unopened_launch(handle: &PersistHandle, session: Uuid, run: &str) -> an
     new.session_uuid = Some(session);
     new.run_id = Some(run.into());
     new.seat = Some("worker".into());
-    let id = handle.insert_launch(&new).await?;
+    let id = handle.launch().insert_launch(&new).await?;
     sqlx::query("UPDATE launch.launches SET created_at = now() - interval '1 hour' WHERE id = $1")
         .bind(id)
         .execute(handle.pool())
@@ -121,15 +123,17 @@ async fn a_never_opened_launch_closes_when_its_session_ended_even_with_requests(
     let live_launch = unopened_launch(&handle, live, run).await?;
     assert!(
         handle
+            .fleet()
             .close_never_started_fleet_launch(ended_launch, run, "never started", 300.0)
             .await?
     );
     assert!(
         !handle
+            .fleet()
             .close_never_started_fleet_launch(live_launch, run, "never started", 300.0)
             .await?
     );
-    assert_eq!(handle.unsettled_fleet_launches(run).await?.len(), 1);
+    assert_eq!(handle.fleet().unsettled_fleet_launches(run).await?.len(), 1);
     db.cleanup().await?;
     Ok(())
 }

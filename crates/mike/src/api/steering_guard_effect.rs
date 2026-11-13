@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use axum::Json;
@@ -37,7 +39,7 @@ fn persistence(e: &crate::store::persistence::PersistError) -> Response {
 }
 
 async fn guard_steerer_id(persist: &PersistHandle) -> Result<i64, Response> {
-    match persist.guard_steerer().await {
+    match persist.steerer().guard_steerer().await {
         Ok(Some(row)) => Ok(row.id),
         Ok(None) => Err(error(
             StatusCode::NOT_FOUND,
@@ -55,6 +57,7 @@ async fn question_effect(
 ) -> Result<EffectEstimate, crate::store::persistence::PersistError> {
     let now = Utc::now();
     let rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, Some(question.code()), now)
         .await?;
     let turns: Vec<i64> = rows
@@ -63,6 +66,7 @@ async fn question_effect(
         .filter_map(|r| r.scored_turn_id)
         .collect();
     let ends: HashMap<i64, String> = persist
+        .eval()
         .session_end_labels_for_turns(&turns, now)
         .await?
         .into_iter()
@@ -133,6 +137,7 @@ pub(crate) async fn get_improvement_guard(
         Err(resp) => return resp,
     };
     match persist
+        .steerer()
         .guard_interventions_feed(steerer_id, limit, offset)
         .await
     {

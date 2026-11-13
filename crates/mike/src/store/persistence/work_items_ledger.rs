@@ -2,7 +2,6 @@ use chrono::Utc;
 use sqlx::PgPool;
 
 use super::PersistError;
-use super::PersistHandle;
 use super::work_items::BackfillCounts;
 use super::work_items_backfill;
 use crate::work_items::attention;
@@ -58,9 +57,9 @@ async fn fetch_ledger(
     Ok(built)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn work_item_ledger(
-        &self,
+        self,
         session_db_id: i64,
         session_uuid: &str,
     ) -> Result<Ledger, PersistError> {
@@ -72,7 +71,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn backfill_work_items(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<BackfillCounts, PersistError> {
         crate::metrics::time_db(

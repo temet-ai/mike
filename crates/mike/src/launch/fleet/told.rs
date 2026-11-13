@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::HashSet;
 
 use crate::store::persistence::PersistHandle;
@@ -15,7 +16,7 @@ impl Told {
 }
 
 pub async fn load(persist: &PersistHandle, run: &str) -> Told {
-    match persist.told_keys(run).await {
+    match persist.fleet().told_keys(run).await {
         Ok(keys) => Told {
             keys: keys.into_iter().collect(),
             unavailable: false,
@@ -31,7 +32,7 @@ pub async fn load(persist: &PersistHandle, run: &str) -> Told {
 }
 
 pub async fn already(persist: &PersistHandle, run: &str, what: &str) -> bool {
-    match persist.told_keys(run).await {
+    match persist.fleet().told_keys(run).await {
         Ok(keys) => keys.iter().any(|k| k == what),
         Err(err) => {
             tracing::warn!(%run, %what, error = %err, "fleet: could not read what was already said in this run; treating it as said");
@@ -41,7 +42,7 @@ pub async fn already(persist: &PersistHandle, run: &str, what: &str) -> bool {
 }
 
 pub async fn mark(persist: &PersistHandle, run: &str, what: &[String]) {
-    if let Err(err) = persist.mark_told(run, what).await {
+    if let Err(err) = persist.fleet().mark_told(run, what).await {
         tracing::warn!(%run, error = %err, "fleet: could not record what was said in this run; it may be said again");
     }
 }

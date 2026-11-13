@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
 
@@ -50,13 +51,13 @@ async fn relapse_wake_is_not_claimed_before_its_grace() -> anyhow::Result<()> {
     let t = turn(&f, 80_001).await?;
     let (early, _) = pending_wake(&f, t, 30).await?;
     let (due, _) = pending_wake(&f, t, -1).await?;
-    let claimed = f.handle.claim_due_wakes(50).await?;
+    let claimed = f.handle.steerer().claim_due_wakes(50).await?;
     assert!(claimed.contains(&due));
     assert!(
         !claimed.contains(&early),
         "a relapse wake is not pushed before 30 s"
     );
-    let context = f.handle.fetch_due_wake_context(&claimed).await?;
+    let context = f.handle.steerer().fetch_due_wake_context(&claimed).await?;
     assert_eq!(context.len(), 1);
     assert!(
         !context[0].stream_open,
@@ -79,10 +80,11 @@ async fn wrong_on_a_pending_wake_cancels_it() -> anyhow::Result<()> {
             .await?;
     let label = f
         .handle
+        .steerer()
         .label_steer_evaluation(evaluation, "wrong", Some("it was fine"), 0)
         .await?;
     assert!(label.is_some());
-    let cancelled = f.handle.reject_pending_wake(evaluation).await?;
+    let cancelled = f.handle.steerer().reject_pending_wake(evaluation).await?;
     assert_eq!(cancelled, vec![id]);
     let state: Option<String> =
         sqlx::query_scalar("SELECT wake_state FROM steering.interventions WHERE id = $1")
@@ -107,8 +109,8 @@ async fn pushed_wakes_in_the_last_hour_are_counted_for_the_cap() -> anyhow::Resu
             .await?;
     }
     let (fourth, _) = pending_wake(&f, t, -1).await?;
-    let claimed = f.handle.claim_due_wakes(50).await?;
-    let context = f.handle.fetch_due_wake_context(&claimed).await?;
+    let claimed = f.handle.steerer().claim_due_wakes(50).await?;
+    let context = f.handle.steerer().fetch_due_wake_context(&claimed).await?;
     let row = context.iter().find(|r| r.id == fourth);
     assert_eq!(
         row.map(|r| r.pushed_last_hour),

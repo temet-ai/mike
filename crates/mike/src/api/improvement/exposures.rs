@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -35,7 +36,7 @@ pub(crate) async fn list_exposures(
         Ok(window) => window,
         Err(message) => return (StatusCode::BAD_REQUEST, message).into_response(),
     };
-    match persist.list_lesson_exposures(q.project.as_deref(), from, until).await {
+    match persist.eval().list_lesson_exposures(q.project.as_deref(), from, until).await {
         Ok(rows) => Json(json!({
             "from": from, "until": until, "lessons": rows,
             "measure": "recorded_exposure_association",

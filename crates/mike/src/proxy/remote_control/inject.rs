@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -132,7 +133,7 @@ async fn push_reminder(
     if !deps.gate.admit(&session_id, reminder).may_wake() {
         return Ok(not_pushed(recipient, &source, "wake_not_admitted"));
     }
-    let mut channels = handle.fetch_channel_snapshots(&[recipient]).await?;
+    let mut channels = handle.proxy().fetch_channel_snapshots(&[recipient]).await?;
     channels.sort_by_key(|channel| std::cmp::Reverse(channel.stream_opened_at));
     let Some((channel, sender)) = channels.iter().find_map(|channel| {
         deps.remote_control_streams
@@ -147,6 +148,7 @@ async fn push_reminder(
     let event_id = Uuid::new_v4();
     let frame = client_event(event_id, &reminder.payload);
     let Some(reserved_at) = handle
+        .proxy()
         .reserve_remote_control_injection(&channel.cse_id, recipient, &source, event_id, &frame)
         .await?
     else {
@@ -165,6 +167,7 @@ async fn push_reminder(
         deps.gate.record_delivery(&session_id, reminder);
     }
     if let Err(error) = handle
+        .proxy()
         .finish_remote_control_injection(event_id, emitted)
         .await
     {
@@ -225,6 +228,7 @@ fn spawn_push_ack_fallback(
             return;
         };
         match handle
+            .proxy()
             .release_stale_steerer_push(intervention_uuid, pushed_at)
             .await
         {
@@ -259,6 +263,7 @@ pub(super) async fn record_delivery_ack(
         return;
     }
     if let Err(error) = handle
+        .proxy()
         .ack_remote_control_injections(&call.cse_id, &ids, call.created_at, call_id)
         .await
     {

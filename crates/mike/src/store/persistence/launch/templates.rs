@@ -1,11 +1,11 @@
 use uuid::Uuid;
 
 use super::{InsertedTemplate, NewTemplate, TemplateRow};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn insert_template(
-        &self,
+        self,
         new: &NewTemplate,
     ) -> Result<InsertedTemplate, PersistError> {
         crate::metrics::time_db("launch_insert_template", async move {
@@ -52,7 +52,7 @@ impl PersistHandle {
     }
 
     pub async fn find_live_template_by_name(
-        &self,
+        self,
         name: &str,
     ) -> Result<Option<TemplateRow>, PersistError> {
         crate::metrics::time_db("launch_find_live_template_by_name", async move {
@@ -69,7 +69,7 @@ impl PersistHandle {
     }
 
     pub async fn find_live_template_by_session(
-        &self,
+        self,
         session: Uuid,
     ) -> Result<Option<TemplateRow>, PersistError> {
         crate::metrics::time_db("launch_find_live_template_by_session", async move {
@@ -85,7 +85,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_live_templates(&self) -> Result<Vec<TemplateRow>, PersistError> {
+    pub async fn list_live_templates(self) -> Result<Vec<TemplateRow>, PersistError> {
         crate::metrics::time_db("launch_list_live_templates", async move {
             let rows = sqlx::query_file_as!(
                 TemplateRow,
@@ -98,7 +98,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn close_template(&self, name: &str) -> Result<bool, PersistError> {
+    pub async fn close_template(self, name: &str) -> Result<bool, PersistError> {
         crate::metrics::time_db("launch_close_template", async move {
             let hit =
                 sqlx::query_file_scalar!("src/store/persistence/launch/close_template.sql", name)

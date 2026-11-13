@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -109,6 +110,7 @@ pub(super) async fn closest(
     };
     let roots = match deps
         .persist
+        .knowledge()
         .project_roots_on_machine(project_id, machine.machine_uuid)
         .await
     {

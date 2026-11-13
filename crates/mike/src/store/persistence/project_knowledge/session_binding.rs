@@ -1,11 +1,11 @@
 use uuid::Uuid;
 
 use super::{ProjectIdentity, invalid};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn bind_session_location(
-        &self,
+        self,
         session: Uuid,
         location: Uuid,
     ) -> Result<ProjectIdentity, PersistError> {
@@ -50,7 +50,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn bind_session_to_local_root(
-        &self,
+        self,
         session: Uuid,
         machine: Uuid,
         cwd: &str,

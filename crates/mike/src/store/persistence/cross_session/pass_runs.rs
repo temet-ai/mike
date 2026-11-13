@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ThresholdPassRun {
@@ -28,9 +28,9 @@ pub struct ThresholdPassRunWrite {
     pub detail: serde_json::Value,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn record_threshold_pass_run(
-        &self,
+        self,
         run: &ThresholdPassRunWrite,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("record_threshold_pass_run", async move {
@@ -63,7 +63,7 @@ impl PersistHandle {
     }
 
     pub async fn recent_threshold_pass_runs(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<ThresholdPassRun>, PersistError> {
         crate::metrics::time_db("recent_threshold_pass_runs", async move {

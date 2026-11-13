@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/fleet/definition_db_tests.rs by the crate split: it reaches the serve
 //! crate, so it is tested from there.
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 use crate::store::persistence::test_support::seed_fleet_starting;
 use reqwest::StatusCode;
@@ -369,6 +370,7 @@ async fn a_ready_fleet_whose_definition_breaks_goes_back_to_draft() -> anyhow::R
     };
     let id = fleet_id(&h.create("regress").await?)?;
     h.handle
+        .fleet()
         .set_fleet_state(Uuid::parse_str(&id)?, "ready", None, None)
         .await?;
     let (status, view) = h.patch(&id, json!({"patch": {"goal": "g"}})).await?;
@@ -386,6 +388,7 @@ async fn a_stale_read_is_saved_on_the_retry_and_keeps_the_other_writers_change()
     let id = fleet_id(&h.create("race").await?)?;
     let stale = h
         .handle
+        .fleet()
         .find_fleet(&id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fleet vanished"))?;

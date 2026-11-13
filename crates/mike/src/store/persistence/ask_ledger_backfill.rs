@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub struct LedgerCandidateRow {
@@ -37,9 +37,9 @@ pub struct HistoryLinkOutcome {
     pub rows_unmatched: u64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn load_ledger_candidates(
-        &self,
+        self,
         session_ids: &[i64],
         since: DateTime<Utc>,
     ) -> Result<Vec<LedgerCandidateRow>, PersistError> {
@@ -58,7 +58,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_builder_ledger_rows(
-        &self,
+        self,
         rows: &[BuilderLedgerRow],
     ) -> Result<u64, PersistError> {
         if rows.is_empty() {
@@ -83,7 +83,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn link_ask_ledger_to_turns(&self, session_ids: &[i64]) -> Result<u64, PersistError> {
+    pub async fn link_ask_ledger_to_turns(self, session_ids: &[i64]) -> Result<u64, PersistError> {
         if session_ids.is_empty() {
             return Ok(0);
         }
@@ -105,7 +105,7 @@ impl PersistHandle {
     }
 
     pub async fn link_ask_ledger_history(
-        &self,
+        self,
         session_ids: &[i64],
         execute: bool,
     ) -> Result<HistoryLinkOutcome, PersistError> {
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub async fn recount_intake_maps(
-        &self,
+        self,
         session_ids: &[i64],
         cap: i64,
         execute: bool,

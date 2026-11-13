@@ -15,6 +15,8 @@ use crate::steerer::verifier::{
     build_accumulated_ask, build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
     written_by_the_operator,
 };
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::steering::PriorFireRow;
 use crate::store::persistence::turn_tool_call_reads::TurnToolCallMetaRow;
 use crate::store::persistence::verifier_replay::ReplayTrigger;
@@ -38,9 +40,11 @@ async fn load_eval_inputs(
     trigger: &ReplayTrigger,
 ) -> Result<EvalInputs, PersistError> {
     let blocks = ph
+        .steerer()
         .fetch_replay_eval_text_blocks(item.trigger_request_id)
         .await?;
     let uses = ph
+        .steerer()
         .fetch_replay_trigger_tool_uses(item.trigger_request_id)
         .await?;
     let tool_calls: Vec<ToolCall> = uses
@@ -53,6 +57,7 @@ async fn load_eval_inputs(
         })
         .collect();
     let anchor = ph
+        .steerer()
         .get_session_goal(trigger.session_uuid)
         .await?
         .map(|goal| Anchor {
@@ -60,7 +65,8 @@ async fn load_eval_inputs(
             next: goal.next_steps,
         });
     let operator_ask = resolve_operator_ask_with(&trigger.human_prompt, || {
-        ph.fetch_open_turn_prompt_as_of(trigger.session_db_id, trigger.trigger_at)
+        ph.steerer()
+            .fetch_open_turn_prompt_as_of(trigger.session_db_id, trigger.trigger_at)
     })
     .await?;
     Ok(EvalInputs {
@@ -83,14 +89,17 @@ async fn load_action_rows(
 ) -> Result<RawActions, PersistError> {
     let Some(limit) = budget.action_rows_loaded() else {
         let rows = ph
+            .steerer()
             .fetch_session_action_list_as_of(trigger.session_db_id, trigger.trigger_at)
             .await?;
         return Ok((rows, None));
     };
     let rows = ph
+        .steerer()
         .fetch_session_action_list_recent_as_of(trigger.session_db_id, trigger.trigger_at, limit)
         .await?;
     let counts = ph
+        .steerer()
         .fetch_session_action_counts_as_of(trigger.session_db_id, trigger.trigger_at)
         .await?;
     Ok((rows, Some(counts)))
@@ -106,6 +115,7 @@ async fn load_intake_criteria(
     trigger: &ReplayTrigger,
 ) -> Result<Option<String>, PersistError> {
     let map = ph
+        .steerer()
         .fetch_acceptance_criteria_as_of(trigger.session_db_id, trigger.trigger_at)
         .await?;
     Ok(map
@@ -120,19 +130,22 @@ async fn load_raw_context(
     budget: VerifierInputBudget,
 ) -> Result<RawVerifierContext, PersistError> {
     let ask_entries = written_by_the_operator(
-        ph.fetch_ask_ledger_as_of(
-            trigger.session_db_id,
-            trigger.trigger_at,
-            LEDGER_FETCH_LIMIT,
-        )
-        .await?,
+        ph.steerer()
+            .fetch_ask_ledger_as_of(
+                trigger.session_db_id,
+                trigger.trigger_at,
+                LEDGER_FETCH_LIMIT,
+            )
+            .await?,
     );
     let calls = ph
+        .steerer()
         .fetch_turn_tool_calls_as_of(item.turn_id, trigger.session_db_id, trigger.trigger_at)
         .await?;
     let metas: Vec<TurnToolCallMetaRow> = calls.into_iter().map(Into::into).collect();
     let (action_rows, action_counts) = load_action_rows(ph, trigger, budget).await?;
     let thread_criteria = ph
+        .launch()
         .fetch_thread_criteria_for_session(
             trigger.session_db_id,
             &build_accumulated_ask(&ask_entries),
@@ -161,6 +174,7 @@ async fn load_prior_fires_digest(
     steerer_id: i64,
 ) -> Result<String, PersistError> {
     let rows = ph
+        .steerer()
         .fetch_prior_verifier_fires_as_of(
             trigger.session_db_id,
             steerer_id,
@@ -187,7 +201,10 @@ pub(super) async fn assemble(
 ) -> Result<AsOfInputs, PersistError> {
     let steerer_id = replay.steerer.id;
     let limits = replay.note_limits;
-    let trigger = ph.fetch_replay_trigger(item.trigger_request_id).await?;
+    let trigger = ph
+        .steerer()
+        .fetch_replay_trigger(item.trigger_request_id)
+        .await?;
     let eval_inputs = load_eval_inputs(ph, item, &trigger).await?;
     let raw = load_raw_context(ph, item, &trigger, budget).await?;
     let prior_fires = load_prior_fires_digest(ph, item, &trigger, steerer_id).await?;

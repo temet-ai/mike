@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 mod dto;
 
 use axum::Json;
@@ -78,7 +79,7 @@ pub(crate) async fn get_turn_verdicts(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.operator_turn_exists(turn_id).await {
+    match persist.eval().operator_turn_exists(turn_id).await {
         Ok(true) => {}
         Ok(false) => {
             return error(
@@ -96,6 +97,7 @@ pub(crate) async fn get_turn_verdicts(
         Err(e) => return persistence_error(&e),
     };
     match persist
+        .eval()
         .list_turn_verdicts_for_turn(turn_id, mode, limit, offset)
         .await
     {
@@ -137,7 +139,7 @@ pub(crate) async fn list_turn_verdicts(
         limit,
         offset,
     };
-    match persist.list_turn_verdicts(&filter).await {
+    match persist.eval().list_turn_verdicts(&filter).await {
         Ok((rows, total)) => Json(TurnVerdictListPage {
             items: dtos(rows),
             total,

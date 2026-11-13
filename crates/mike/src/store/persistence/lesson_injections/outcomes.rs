@@ -1,4 +1,4 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 pub struct LessonOutcomeRow {
     pub lesson_id: i64,
@@ -10,9 +10,9 @@ pub struct LessonOutcomeRow {
     pub mean_quality_score: Option<f64>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn lesson_outcomes_observed_after_injection(
-        &self,
+        self,
     ) -> Result<Vec<LessonOutcomeRow>, PersistError> {
         crate::metrics::time_db("lesson_outcomes_observed_after_injection", async move {
             let rows = sqlx::query_as!(

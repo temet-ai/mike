@@ -1,3 +1,5 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 mod call;
 pub(crate) mod demotion;
 
@@ -60,6 +62,7 @@ async fn turn_of(persist: &PersistHandle, request_id: Option<i64>) -> Turn {
         .flatten()
         .unwrap_or_default();
     let tools = persist
+        .steerer()
         .fetch_request_tool_calls_paired(id)
         .await
         .unwrap_or_default();
@@ -80,7 +83,11 @@ async fn reply_of(persist: &PersistHandle, c: &ReplyLabelCandidate) -> Turn {
     let (Some(turn_id), Some(delivered)) = (c.reply_turn_id, c.delivered_request_id) else {
         return reply;
     };
-    match persist.fetch_open_turn_text(turn_id, Utc::now()).await {
+    match persist
+        .dossier()
+        .fetch_open_turn_text(turn_id, Utc::now())
+        .await
+    {
         Ok(rows) => {
             let whole = reply_text_from(&rows, delivered);
             if !whole.is_empty() {
@@ -190,6 +197,7 @@ async fn candidates(persist: &PersistHandle) -> Vec<ReplyLabelCandidate> {
         reply_settles_after_secs: REPLY_SETTLES_AFTER_SECS,
     };
     match persist
+        .steerer()
         .reply_label_candidates(PER_PASS, since, regrade)
         .await
     {
@@ -202,7 +210,7 @@ async fn candidates(persist: &PersistHandle) -> Vec<ReplyLabelCandidate> {
 }
 
 async fn write_labels(persist: &PersistHandle, labels: &[EvaluationLabel]) -> u64 {
-    match persist.apply_evaluation_labels(labels).await {
+    match persist.steerer().apply_evaluation_labels(labels).await {
         Ok(n) => n,
         Err(error) => {
             tracing::warn!(%error, count = labels.len(), "reply labeller: label write failed");

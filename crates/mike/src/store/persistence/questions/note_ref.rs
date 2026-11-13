@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use super::types::NoteRef;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn note_ref(&self, note: Uuid) -> Result<Option<NoteRef>, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub async fn note_ref(self, note: Uuid) -> Result<Option<NoteRef>, PersistError> {
         crate::metrics::time_db("questions_note_ref", async move {
             let row = sqlx::query_file!("src/store/persistence/questions/note_ref.sql", note)
                 .fetch_optional(&self.pool)

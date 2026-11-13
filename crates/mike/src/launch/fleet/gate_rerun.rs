@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use regex::Regex;
 
 use super::definition::{FleetDefinition, GateDefinition};
@@ -78,7 +79,7 @@ async fn rerun_once(
     let ledger = rerun_ledger(run);
     let state = rerun_state(&target.commit, test);
     let command = rerun_command(&def.gate.rerun_command, test);
-    if let Ok(Some(earlier)) = persist.find_tree_check(&ledger, &state).await
+    if let Ok(Some(earlier)) = persist.fleet().find_tree_check(&ledger, &state).await
         && earlier.command == command
         && earlier.state_after.as_deref() == Some(state.as_str())
     {
@@ -188,7 +189,7 @@ pub(super) async fn recorded_reruns(
         let state = rerun_state(commit, &test);
         let command = rerun_command(&gate.rerun_command, &test);
         let passed = matches!(
-            persist.find_tree_check(&ledger, &state).await,
+            persist.fleet().find_tree_check(&ledger, &state).await,
             Ok(Some(row)) if row.passed() && row.command == command && row.state_after.as_deref() == Some(state.as_str())
         );
         found.push(Rerun { test, passed });

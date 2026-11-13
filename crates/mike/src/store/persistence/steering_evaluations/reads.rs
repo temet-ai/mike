@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{EvaluationListRow, EvaluationRow, EvaluationStatsRow};
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -126,9 +126,9 @@ struct CountedRow {
     total_count: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn get_latest_evaluation_for_session(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         steerer_kind: &str,
     ) -> Result<Option<EvaluationRow>, PersistError> {
@@ -158,7 +158,7 @@ impl PersistHandle {
     }
 
     async fn evaluation_page(
-        &self,
+        self,
         f: &EvaluationFilter,
         before_id: Option<i64>,
         limit: i64,
@@ -173,7 +173,7 @@ impl PersistHandle {
     }
 
     pub async fn list_session_evaluations(
-        &self,
+        self,
         f: &EvaluationFilter,
     ) -> Result<(Vec<EvaluationListRow>, i64), PersistError> {
         crate::metrics::time_db("list_session_evaluations", async move {
@@ -193,7 +193,7 @@ impl PersistHandle {
     }
 
     pub async fn count_session_evaluations(
-        &self,
+        self,
         f: &EvaluationFilter,
     ) -> Result<i64, PersistError> {
         let probe = EvaluationFilter {
@@ -205,7 +205,7 @@ impl PersistHandle {
     }
 
     pub async fn evaluation_stats(
-        &self,
+        self,
         f: &EvaluationStatsFilter,
     ) -> Result<Vec<EvaluationStatsRow>, PersistError> {
         let since = f

@@ -75,12 +75,15 @@ async fn launch(
     session: Uuid,
     seat: &str,
 ) -> anyhow::Result<i64> {
-    persist.ensure_session_exists(&session.to_string()).await?;
+    persist
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     let mut launch = NewLaunch::new("herdr", "/tmp/gate-owner-test");
     launch.run_id = Some(run.into());
     launch.session_uuid = Some(session);
     launch.seat = Some(seat.into());
-    Ok(persist.insert_launch(&launch).await?)
+    Ok(persist.launch().insert_launch(&launch).await?)
 }
 
 async fn fixture(replace: bool) -> anyhow::Result<Option<Fixture>> {
@@ -93,6 +96,7 @@ async fn fixture(replace: bool) -> anyhow::Result<Option<Fixture>> {
     let (dir, target) = checkout().await?;
     let repo = dir.path().to_string_lossy().into_owned();
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.clone(),
             project_path: Some(repo.clone()),
@@ -131,6 +135,7 @@ async fn fixture(replace: bool) -> anyhow::Result<Option<Fixture>> {
         current.tasks.entry("A".into()).or_default().session = Some(successor.to_string());
     }
     let row = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: repo,
@@ -141,6 +146,7 @@ async fn fixture(replace: bool) -> anyhow::Result<Option<Fixture>> {
         .await?;
     seed_fleet_running(&persist, row.fleet_uuid, &run).await?;
     persist
+        .launch()
         .record_launch_closed(old_launch, "replaced", Some(true))
         .await?;
     Ok(Some(Fixture {
@@ -160,6 +166,7 @@ async fn fixture(replace: bool) -> anyhow::Result<Option<Fixture>> {
 
 async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<String>> {
     Ok(persist
+        .launch()
         .fetch_for_session_with_activity(session)
         .await?
         .inbox
@@ -215,9 +222,11 @@ async fn closed_owner_without_successor_falls_back_to_coordinator_and_preserves_
     let ledger = crate::launch::fleet::gate::ledger(&f.run);
     let id = f
         .persist
+        .fleet()
         .begin_tree_check(&ledger, &f.target.commit, &f.def.gate.command, "mike")
         .await?;
     f.persist
+        .fleet()
         .finish_tree_check(id, None, output, Some(&f.target.commit))
         .await?;
     let sent = tell_owners(
@@ -237,6 +246,7 @@ async fn closed_owner_without_successor_falls_back_to_coordinator_and_preserves_
     assert!(lead.contains("still unresolved"));
     let row = f
         .persist
+        .fleet()
         .find_tree_check(&ledger, &f.target.commit)
         .await?
         .ok_or_else(|| anyhow::anyhow!("durable receipt missing"))?;
@@ -255,11 +265,13 @@ async fn mailbox_failure_keeps_full_receipt_and_reports_owner_delivery_problem()
     def.tasks.entry("B".into()).or_default().session = Some(missing.to_string());
     let fleet = f
         .persist
+        .fleet()
         .find_fleet_for_session(f.coordinator)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fleet missing"))?;
     anyhow::ensure!(
         f.persist
+            .fleet()
             .save_fleet_definition(
                 fleet.fleet_uuid,
                 &serde_json::to_value(&def)?,
@@ -273,9 +285,11 @@ async fn mailbox_failure_keeps_full_receipt_and_reports_owner_delivery_problem()
     let ledger = crate::launch::fleet::gate::ledger(&f.run);
     let id = f
         .persist
+        .fleet()
         .begin_tree_check(&ledger, &f.target.commit, &def.gate.command, "mike")
         .await?;
     f.persist
+        .fleet()
         .finish_tree_check(id, None, output, Some(&f.target.commit))
         .await?;
     let sent = tell_owners(
@@ -295,6 +309,7 @@ async fn mailbox_failure_keeps_full_receipt_and_reports_owner_delivery_problem()
     assert!(inbox(&f.persist, f.other).await?.is_empty());
     let row = f
         .persist
+        .fleet()
         .find_tree_check(&ledger, &f.target.commit)
         .await?
         .ok_or_else(|| anyhow::anyhow!("durable receipt missing"))?;

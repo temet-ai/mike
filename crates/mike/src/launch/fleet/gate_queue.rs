@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -122,7 +124,7 @@ async fn queue_target(runner: &Runner<'_>, def: &FleetDefinition, target: &Targe
 async fn should_start(runner: &Runner<'_>, def: &FleetDefinition, target: &Target) -> bool {
     let ledger = gate::ledger_for(def, runner.run);
     let recorded = matches!(
-        runner.persist.find_tree_check(&ledger, &target.commit).await,
+        runner.persist.fleet().find_tree_check(&ledger, &target.commit).await,
         Ok(Some(row)) if row.command == def.gate.command
     );
     let running = gate::running_commit(&target.slot.to_string_lossy());
@@ -131,6 +133,7 @@ async fn should_start(runner: &Runner<'_>, def: &FleetDefinition, target: &Targe
     }
     let latest = runner
         .persist
+        .fleet()
         .latest_tree_check(&ledger)
         .await
         .ok()
@@ -162,6 +165,7 @@ async fn commit_passed(
     commit: &str,
 ) -> Option<Option<bool>> {
     let check = persist
+        .fleet()
         .find_tree_check(&gate::ledger_for(def, run), commit)
         .await
         .ok()?;
@@ -280,7 +284,11 @@ fn session_of_seat(def: &FleetDefinition, seat: &str) -> Option<Uuid> {
 }
 
 async fn mail(persist: &PersistHandle, to: Uuid, body: &str) {
-    match persist.insert_message(Uuid::new_v4(), to, None, body).await {
+    match persist
+        .launch()
+        .insert_message(Uuid::new_v4(), to, None, body)
+        .await
+    {
         Ok(Some(_)) => {}
         Ok(None) => missing_recipient(to),
         Err(err) => failed_mail(to, &err),
@@ -401,6 +409,7 @@ async fn tell_acceptance(
         return;
     };
     let current = persist
+        .fleet()
         .find_fleet_for_session(initial)
         .await
         .ok()

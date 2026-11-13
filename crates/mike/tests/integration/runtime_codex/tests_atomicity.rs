@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use std::time::Duration;
 
 use uuid::Uuid;
@@ -19,9 +20,16 @@ async fn context_write_failure_rolls_back_raw_event_and_intake_counter() -> anyh
     sqlx::query("ALTER TABLE runtime.codex_receipt_context ADD CONSTRAINT fixture_reject_context CHECK (context_version <> 1)")
         .execute(handle.pool()).await?;
     let request = input(namespace.id, delta("A"))?;
-    assert!(handle.capture_codex_receipt(request.clone()).await.is_err());
     assert!(
         handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await
+            .is_err()
+    );
+    assert!(
+        handle
+            .runtime()
             .runtime_receipt(receipt_id(&request))
             .await?
             .is_none()
@@ -31,7 +39,7 @@ async fn context_write_failure_rolls_back_raw_event_and_intake_counter() -> anyh
     sqlx::query("ALTER TABLE runtime.codex_receipt_context DROP CONSTRAINT fixture_reject_context")
         .execute(handle.pool())
         .await?;
-    let receipt = captured(handle.capture_codex_receipt(request).await?)?;
+    let receipt = captured(handle.runtime().capture_codex_receipt(request).await?)?;
     assert_eq!(receipt.capture_sequence, Some(1));
     handle.pool().close().await;
     db.cleanup().await?;
@@ -45,14 +53,21 @@ async fn application_failure_rolls_back_effects_state_and_marker_but_preserves_r
         return Ok(());
     };
     let request = input(namespace.id, delta("A\0B"))?;
-    let raw = captured(handle.capture_codex_receipt(request.clone()).await?)?;
+    let raw = captured(
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await?,
+    )?;
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     sqlx::query("ALTER TABLE runtime.codex_projection_applications ADD CONSTRAINT fixture_reject_application CHECK (effect_count < 0)")
         .execute(handle.pool()).await?;
     assert!(
         handle
+            .runtime()
             .apply_next_codex_projection(generation.generation_id)
             .await
             .is_err()
@@ -61,11 +76,15 @@ async fn application_failure_rolls_back_effects_state_and_marker_but_preserves_r
         assert_eq!(count(&handle, namespace.id, table).await?, 0);
     }
     assert_eq!(
-        handle.runtime_receipt(receipt_id(&request)).await?,
+        handle
+            .runtime()
+            .runtime_receipt(receipt_id(&request))
+            .await?,
         Some(raw)
     );
     assert_eq!(
         handle
+            .runtime()
             .codex_projection_generation(generation.generation_id)
             .await?,
         Some(generation.clone())
@@ -74,11 +93,13 @@ async fn application_failure_rolls_back_effects_state_and_marker_but_preserves_r
         .execute(handle.pool()).await?;
     assert!(matches!(
         handle
+            .runtime()
             .apply_next_codex_projection(generation.generation_id)
             .await?,
         CodexProjectionApplyOutcome::Applied(_)
     ));
     let state = handle
+        .runtime()
         .codex_projected_item(generation.generation_id, &key(namespace.id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing item"))?;
@@ -101,6 +122,7 @@ async fn intake_lock_hides_uncommitted_sequence_and_preserves_delta_order() -> a
         return Ok(());
     };
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     let first = input(namespace.id, delta("A"))?;
@@ -120,7 +142,7 @@ async fn intake_lock_hides_uncommitted_sequence_and_preserves_delta_order() -> a
         1
     );
     let second_input = input(namespace.id, delta("B"))?;
-    let second = handle.capture_codex_receipt(second_input);
+    let second = handle.runtime().capture_codex_receipt(second_input);
     tokio::pin!(second);
     assert!(
         tokio::time::timeout(Duration::from_millis(40), &mut second)
@@ -129,6 +151,7 @@ async fn intake_lock_hides_uncommitted_sequence_and_preserves_delta_order() -> a
     );
     assert!(matches!(
         handle
+            .runtime()
             .apply_next_codex_projection(generation.generation_id)
             .await?,
         CodexProjectionApplyOutcome::CaughtUp(_)
@@ -138,12 +161,15 @@ async fn intake_lock_hides_uncommitted_sequence_and_preserves_delta_order() -> a
     assert_eq!(second.capture_sequence, Some(2));
     assert!(first_id < second.event_id);
     handle
+        .runtime()
         .apply_next_codex_projection(generation.generation_id)
         .await?;
     handle
+        .runtime()
         .apply_next_codex_projection(generation.generation_id)
         .await?;
     let state = handle
+        .runtime()
         .codex_projected_item(generation.generation_id, &key(namespace.id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing item"))?;
@@ -172,27 +198,33 @@ async fn late_lower_raw_event_stays_visible_and_cannot_break_capture_checkpoint(
     let legacy_id = insert_observation(&mut transaction, &raw).await?;
     let eligible = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("A"))?)
             .await?,
     )?;
     assert!(legacy_id < eligible.event_id);
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     handle
+        .runtime()
         .apply_next_codex_projection(generation.generation_id)
         .await?;
     transaction.commit().await?;
     let following = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("B"))?)
             .await?,
     )?;
     assert_eq!(following.capture_sequence, Some(2));
     handle
+        .runtime()
         .apply_next_codex_projection(generation.generation_id)
         .await?;
     let unclassified = handle
+        .runtime()
         .list_codex_unclassified_receipts(RawEventPage {
             namespace_id: namespace.id,
             after_event_id: 0,
@@ -202,6 +234,7 @@ async fn late_lower_raw_event_stays_visible_and_cannot_break_capture_checkpoint(
     assert_eq!(unclassified.len(), 1);
     assert_eq!(unclassified[0].event_id, legacy_id);
     let state = handle
+        .runtime()
         .codex_projected_item(generation.generation_id, &key(namespace.id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing item"))?;
@@ -225,6 +258,7 @@ async fn intake_during_promotion_blocks_activation_until_its_receipt_is_applied(
         return Ok(());
     };
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     let first = input(namespace.id, delta("A"))?;
@@ -240,7 +274,9 @@ async fn intake_during_promotion_blocks_activation_until_its_receipt_is_applied(
         false,
     )
     .await?;
-    let activation = handle.activate_codex_projection_generation(generation.generation_id);
+    let activation = handle
+        .runtime()
+        .activate_codex_projection_generation(generation.generation_id);
     tokio::pin!(activation);
     assert!(
         tokio::time::timeout(Duration::from_millis(40), &mut activation)
@@ -251,18 +287,22 @@ async fn intake_during_promotion_blocks_activation_until_its_receipt_is_applied(
     assert!(activation.await.is_err());
     assert!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace.id)
             .await?
             .is_none()
     );
     handle
+        .runtime()
         .apply_next_codex_projection(generation.generation_id)
         .await?;
     handle
+        .runtime()
         .activate_codex_projection_generation(generation.generation_id)
         .await?;
     assert_eq!(
         handle
+            .runtime()
             .active_codex_projection_generation(namespace.id)
             .await?
             .map(|value| value.generation_id),

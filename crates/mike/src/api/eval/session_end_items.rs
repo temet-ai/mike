@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -42,7 +43,11 @@ pub(crate) async fn list_session_end_items(
     };
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let offset = query.offset.unwrap_or(0).max(0);
-    match persist.list_session_end_items(run_id, limit, offset).await {
+    match persist
+        .eval()
+        .list_session_end_items(run_id, limit, offset)
+        .await
+    {
         Ok((items, total)) => Json(SessionEndItemsView {
             run_id,
             total,

@@ -1,7 +1,7 @@
 use sqlx::PgConnection;
 
 use crate::lesson_shape::Assessment;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 pub const MAX_SHAPE_ATTEMPTS: i32 = 3;
 
@@ -67,9 +67,9 @@ pub(super) async fn insert_shape_finding(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn unchecked_lessons_for_shape(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<UncheckedLesson>, PersistError> {
         crate::metrics::time_db("unchecked_lessons_for_shape", async move {
@@ -90,7 +90,7 @@ impl PersistHandle {
     }
 
     pub async fn record_shape_findings(
-        &self,
+        self,
         findings: &[(i64, Assessment)],
     ) -> Result<u64, PersistError> {
         if findings.is_empty() {
@@ -128,7 +128,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn claim_shape_work(&self, limit: i64) -> Result<Vec<ShapeWork>, PersistError> {
+    pub async fn claim_shape_work(self, limit: i64) -> Result<Vec<ShapeWork>, PersistError> {
         crate::metrics::time_db("claim_shape_work", async move {
             Ok(sqlx::query_as!(
                 ShapeWork,
@@ -157,7 +157,7 @@ impl PersistHandle {
     }
 
     pub async fn record_shape_failure(
-        &self,
+        self,
         lesson_id: i64,
         error: &str,
     ) -> Result<bool, PersistError> {
@@ -182,7 +182,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn release_stale_shape_findings(&self, after_days: i32) -> Result<u64, PersistError> {
+    pub async fn release_stale_shape_findings(self, after_days: i32) -> Result<u64, PersistError> {
         crate::metrics::time_db("release_stale_shape_findings", async move {
             Ok(sqlx::query!(
                 "UPDATE memory.lesson_shape_findings
@@ -200,10 +200,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn lesson_has_open_shape_finding(
-        &self,
-        lesson_id: i64,
-    ) -> Result<bool, PersistError> {
+    pub async fn lesson_has_open_shape_finding(self, lesson_id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("lesson_has_open_shape_finding", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT EXISTS (
@@ -218,7 +215,7 @@ impl PersistHandle {
     }
 
     pub async fn shape_finding(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Option<ShapeFindingRow>, PersistError> {
         crate::metrics::time_db("shape_finding", async move {

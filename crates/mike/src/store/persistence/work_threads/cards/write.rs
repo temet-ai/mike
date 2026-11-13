@@ -3,7 +3,6 @@ use serde_json::Value;
 
 use super::super::WorkThreadError;
 use super::NewCard;
-use crate::store::persistence::PersistHandle;
 
 struct Columns {
     thread_ids: Vec<i64>,
@@ -25,9 +24,9 @@ fn columns(cards: &[NewCard]) -> Columns {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn write_work_thread_cards(
-        &self,
+        self,
         cards: &[NewCard],
     ) -> Result<usize, WorkThreadError> {
         if cards.is_empty() {

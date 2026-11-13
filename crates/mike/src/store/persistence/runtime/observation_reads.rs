@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, sqlx::FromRow)]
 pub struct SessionObservationRow {
@@ -46,9 +46,9 @@ pub struct RuntimeItemRow {
     pub content_availability: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn session_observation_time(
-        &self,
+        self,
         session: Uuid,
         observation: Uuid,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
@@ -64,7 +64,7 @@ impl PersistHandle {
     }
 
     pub async fn session_observations(
-        &self,
+        self,
         sessions: &[Uuid],
     ) -> Result<Vec<SessionObservationRow>, PersistError> {
         Ok(sqlx::query_file_as!(
@@ -77,7 +77,7 @@ impl PersistHandle {
     }
 
     pub async fn list_runtime_sessions(
-        &self,
+        self,
         runtime: &str,
         limit: i64,
         offset: i64,
@@ -94,7 +94,7 @@ impl PersistHandle {
     }
 
     pub async fn list_runtime_items(
-        &self,
+        self,
         session: Uuid,
         limit: i64,
         offset: i64,

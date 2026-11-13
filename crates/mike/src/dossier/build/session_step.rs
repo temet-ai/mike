@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
@@ -160,7 +161,10 @@ pub(crate) async fn classify_session_as_of(
 ) -> Result<Option<ClassResult>, crate::store::persistence::PersistError> {
     let (streams, _) =
         super::load_step::load_streams_and_turns(persist, &[session_id], as_of).await?;
-    let records = persist.load_session_records(&[session_id]).await?;
+    let records = persist
+        .dossier()
+        .load_session_records(&[session_id])
+        .await?;
     let Some(record) = records.iter().find(|r| r.session_id == session_id) else {
         return Ok(None);
     };

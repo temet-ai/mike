@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 const EVENTS_SELECT: &str = "SELECT e.id, e.uuid, e.operator_turn_id, e.session_id, e.mode, e.status, e.arm,
         e.holdback_draw, e.arm_anchor_turn_id, e.due_at, e.reach_at_due, e.dispatched_at, e.verdict_json,
@@ -71,9 +71,9 @@ pub struct QuestionEventRow {
     pub revert_reason: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn steer_question_events(
-        &self,
+        self,
         f: &EventsFilter<'_>,
     ) -> Result<Vec<QuestionEventRow>, PersistError> {
         crate::metrics::time_db("steer_question_events", async move {

@@ -1,3 +1,6 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -24,6 +27,7 @@ const LEDGER_FETCH_LIMIT: i64 = 30;
 
 async fn fetch_ask_entries(ph: &PersistHandle, session_uuid: Uuid) -> Vec<AskLedgerEntryRow> {
     match ph
+        .dossier()
         .fetch_ask_ledger_for_model(session_uuid, LEDGER_FETCH_LIMIT)
         .await
     {
@@ -89,6 +93,7 @@ async fn fetch_trajectory_digest(
         return String::new();
     };
     match ph
+        .steerer()
         .fetch_turn_tool_calls_paired(turn_id, session_db_id)
         .await
     {
@@ -118,7 +123,7 @@ async fn fetch_action_rows(
         return (Vec::new(), None);
     };
     let Some(limit) = budget.action_rows_loaded() else {
-        return match ph.fetch_session_action_list(session_db_id).await {
+        return match ph.steerer().fetch_session_action_list(session_db_id).await {
             Ok(rows) => (rows, None),
             Err(e) => {
                 log_action_list_fetch_failed(session_uuid, &e);
@@ -127,8 +132,9 @@ async fn fetch_action_rows(
         };
     };
     let (rows, counts) = tokio::join!(
-        ph.fetch_session_action_list_recent(session_db_id, limit),
-        ph.fetch_session_action_counts(session_db_id),
+        ph.steerer()
+            .fetch_session_action_list_recent(session_db_id, limit),
+        ph.steerer().fetch_session_action_counts(session_db_id),
     );
     match choose_action_source(rows, counts) {
         ActionSource::Recent(rows, counts) => (rows, Some(counts)),
@@ -148,7 +154,7 @@ async fn fetch_full_action_rows(
     session_uuid: Uuid,
     session_db_id: i64,
 ) -> (Vec<SessionActionRow>, Option<SessionActionCounts>) {
-    match ph.fetch_session_action_list(session_db_id).await {
+    match ph.steerer().fetch_session_action_list(session_db_id).await {
         Ok(rows) => (rows, None),
         Err(e) => {
             log_action_list_fetch_failed(session_uuid, &e);
@@ -190,6 +196,7 @@ async fn fetch_thread_criteria(
 ) -> Option<String> {
     let session_db_id = session_db_id?;
     match ph
+        .launch()
         .fetch_thread_criteria_for_session(session_db_id, accumulated_ask)
         .await
     {
@@ -219,7 +226,11 @@ async fn fetch_intake_criteria(
     session_db_id: Option<i64>,
 ) -> Option<String> {
     let session_db_id = session_db_id?;
-    match ph.fetch_current_acceptance_criteria(session_db_id).await {
+    match ph
+        .steerer()
+        .fetch_current_acceptance_criteria(session_db_id)
+        .await
+    {
         Ok(Some(map)) if !map.criteria.is_empty() => Some(render_intake_criteria(&map)),
         Ok(_) => None,
         Err(e) => {

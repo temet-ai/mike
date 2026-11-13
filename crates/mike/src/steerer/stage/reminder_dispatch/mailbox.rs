@@ -1,6 +1,7 @@
 use super::requeue_reminder;
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(in crate::steerer::stage) enum MailboxClaim {
@@ -34,7 +35,7 @@ pub(in crate::steerer::stage) async fn claim_mailbox_reminder(
         return MailboxClaim::Skip;
     }
 
-    let first_claim = match persist.claim_message(message_uuid).await {
+    let first_claim = match persist.launch().claim_message(message_uuid).await {
         Ok(claimed) => claimed,
         Err(e) => {
             log_mailbox_claim_failed(session_id, message_uuid, &e);
@@ -89,6 +90,7 @@ async fn resolve_mailbox_redelivery(
     }
 
     match persist
+        .launch()
         .bump_redelivery_attempt(
             message_uuid,
             state.config().mailbox_redelivery_max_attempts,
@@ -127,7 +129,11 @@ async fn resolve_mailbox_redelivery(
 }
 
 async fn tell_sender_not_delivered(persist: &PersistHandle, message_uuid: uuid::Uuid) {
-    if let Err(e) = persist.tell_sender_not_delivered(message_uuid).await {
+    if let Err(e) = persist
+        .launch()
+        .tell_sender_not_delivered(message_uuid)
+        .await
+    {
         tracing::warn!(%message_uuid, error = %e, "telling the sender a message was given up on failed");
     }
 }

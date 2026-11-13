@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::test_support;
 
 const PROJECT: &str = "w-recall-embedding";
@@ -65,9 +66,14 @@ async fn add_chunk(
 }
 
 async fn recalled_with(fx: &Fixture, model: &str) -> anyhow::Result<Vec<i64>> {
-    let project = fx.handle.resolve_knowledge_project(PROJECT).await?;
+    let project = fx
+        .handle
+        .knowledge()
+        .resolve_knowledge_project(PROJECT)
+        .await?;
     let rows = fx
         .handle
+        .knowledge()
         .recall_turns_by_embedding(&project, model, &angled_literal(1.0), 10, None)
         .await?;
     Ok(rows.into_iter().flatten().map(|row| row.turn_id).collect())

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -39,7 +40,11 @@ pub(crate) async fn post_skill_outcomes(
     if let Some(problem) = refusal(&request) {
         return (StatusCode::UNPROCESSABLE_ENTITY, problem).into_response();
     }
-    match persist.upsert_skill_live_outcomes(&request.outcomes).await {
+    match persist
+        .lessons()
+        .upsert_skill_live_outcomes(&request.outcomes)
+        .await
+    {
         Ok(stored) => {
             Json(json!({"sent": request.outcomes.len(), "stored": stored})).into_response()
         }

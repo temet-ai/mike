@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
@@ -37,9 +38,10 @@ pub async fn load_streams_and_turns(
         to: now,
     };
     let rows = persist
+        .dossier()
         .load_prompt_streams(session_ids, window, StreamSource::Stored)
         .await?;
-    let turns = persist.load_turn_records(session_ids).await?;
+    let turns = persist.dossier().load_turn_records(session_ids).await?;
     Ok((group_streams(&rows), turns))
 }
 
@@ -53,16 +55,19 @@ pub async fn load_batch(
         to: now,
     };
     let rows = persist
+        .dossier()
         .load_prompt_streams(session_ids, window, StreamSource::Stored)
         .await?;
-    let turns = persist.load_turn_records(session_ids).await?;
+    let turns = persist.dossier().load_turn_records(session_ids).await?;
     let existing = persist
+        .dossier()
         .load_existing_turn_facts(session_ids)
         .await?
         .into_iter()
         .map(|row| (row.operator_turn_id, row))
         .collect();
     let sessions = persist
+        .dossier()
         .load_session_records(session_ids)
         .await?
         .into_iter()
@@ -73,7 +78,7 @@ pub async fn load_batch(
         .filter(|turn| turn.closed_at.is_some())
         .map(|turn| turn.turn_id)
         .collect();
-    let max_ids = persist.load_max_request_ids(&closed).await?;
+    let max_ids = persist.dossier().load_max_request_ids(&closed).await?;
     Ok(Loaded {
         streams: group_streams(&rows),
         turns,
@@ -131,16 +136,16 @@ pub async fn load_fresh(
         .map(|turn| turn.turn_id)
         .collect();
     let mut fresh = Fresh::default();
-    for text in persist.load_text_facts(&ids).await? {
+    for text in persist.dossier().load_text_facts(&ids).await? {
         fresh.text.insert(text.turn_id, text);
     }
-    for stop in persist.load_stop_facts(&ids).await? {
+    for stop in persist.dossier().load_stop_facts(&ids).await? {
         fresh.stop.insert(stop.turn_id, stop);
     }
-    for usage in persist.load_bash_uses(&ids).await? {
+    for usage in persist.dossier().load_bash_uses(&ids).await? {
         fresh.uses.entry(usage.turn_id).or_default().push(usage);
     }
-    for text in persist.load_final_texts(&ids).await? {
+    for text in persist.dossier().load_final_texts(&ids).await? {
         fresh
             .final_text
             .insert(text.turn_id, text.text.unwrap_or_default());

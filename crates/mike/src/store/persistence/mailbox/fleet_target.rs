@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
 use uuid::Uuid;
@@ -6,7 +7,7 @@ use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::checks::normal;
 use crate::launch::fleet::commit::covers;
 use crate::launch::fleet::definition::with_task_seats;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FleetTarget {
@@ -132,15 +133,15 @@ pub(crate) fn seat_sessions(definition: &FleetDefinition) -> Vec<Uuid> {
     sessions
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn sender_fleet_definition(
-        &self,
+        self,
         sender: Uuid,
     ) -> Result<Option<FleetDefinition>, PersistError> {
-        if !crate::launch::seat_fact::is_fleet_seat(self, sender).await {
+        if !crate::launch::seat_fact::is_fleet_seat(&self, sender).await {
             return Ok(None);
         }
-        let Some(row) = self.find_fleet_for_session(sender).await? else {
+        let Some(row) = self.fleet().find_fleet_for_session(sender).await? else {
             return Ok(None);
         };
         let Some(run) = row.run_id.as_deref() else {
@@ -149,12 +150,12 @@ impl PersistHandle {
         let Ok(definition) = FleetDefinition::from_value(&row.definition) else {
             return Ok(None);
         };
-        let events = self.fleet_events_since(run, 0).await?;
+        let events = self.fleet().fleet_events_since(run, 0).await?;
         Ok(Some(with_task_seats(definition, &events)))
     }
 
     pub(crate) async fn open_sessions_among(
-        &self,
+        self,
         sessions: &[Uuid],
     ) -> Result<BTreeSet<Uuid>, PersistError> {
         crate::metrics::time_db("mailbox_open_sessions_among", async move {
@@ -175,7 +176,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn resolve_fleet_target(
-        &self,
+        self,
         sender: Uuid,
         to: &str,
     ) -> Result<Option<FleetTarget>, TargetError> {
@@ -206,7 +207,7 @@ impl PersistHandle {
     }
 
     async fn open_seats(
-        &self,
+        self,
         definition: &FleetDefinition,
         sender: Uuid,
     ) -> Result<FleetTarget, TargetError> {

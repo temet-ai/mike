@@ -1,4 +1,6 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 use mike::store::test_support::{TestDb, TestDbHandle};
 use serde_json::Value;
@@ -20,7 +22,7 @@ async fn indexed() -> anyhow::Result<Option<Indexed>> {
     let db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let scenario = build(handle.pool()).await?;
-    handle.refresh_seat_memory_items().await?;
+    handle.launch().refresh_seat_memory_items().await?;
     let project: String =
         sqlx::query_scalar("SELECT project_uuid::text FROM projects.projects WHERE id = $1")
             .bind(scenario.project_id)
@@ -37,6 +39,7 @@ async fn indexed() -> anyhow::Result<Option<Indexed>> {
 async fn search(fx: &Indexed, query: &str, kind: Option<&str>) -> anyhow::Result<Vec<Value>> {
     let found = fx
         .handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: fx.project.clone(),
             query: query.into(),
@@ -76,7 +79,11 @@ async fn seat_report_search_hit_carries_seat_labels_and_reads_in_full() -> anyho
             .is_some_and(|f| f.contains("not by the operator"))
     );
     let reference = hit["reference"].as_str().unwrap_or_default();
-    let read = fx.handle.read_project_knowledge(None, reference).await?;
+    let read = fx
+        .handle
+        .knowledge()
+        .read_project_knowledge(None, reference)
+        .await?;
     assert!(
         read["body"]
             .as_str()
@@ -99,6 +106,7 @@ async fn seat_brief_search_hit_reads_its_launch() -> anyhow::Result<()> {
     assert!(reference.starts_with("launch:"), "{reference}");
     let read = fx
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&fx.project), reference)
         .await?;
     assert_eq!(read["body"], "SM-BRIEF-WORKER");
@@ -149,7 +157,7 @@ async fn seat_memory_refresh_with_nothing_changed_writes_nothing() -> anyhow::Re
     let Some(fx) = indexed().await? else {
         return Ok(());
     };
-    let again = fx.handle.refresh_seat_memory_items().await?;
+    let again = fx.handle.launch().refresh_seat_memory_items().await?;
     assert!(again.items > 0);
     assert_eq!((again.written, again.removed), (0, 0));
     finish(fx).await
@@ -160,7 +168,7 @@ async fn seat_memory_generation_moves_when_a_fleet_event_is_added() -> anyhow::R
     let Some(fx) = indexed().await? else {
         return Ok(());
     };
-    let before = fx.handle.seat_memory_generation().await?;
+    let before = fx.handle.launch().seat_memory_generation().await?;
     super::fixture::event(
         fx.handle.pool(),
         &fx.scenario.run,
@@ -170,7 +178,7 @@ async fn seat_memory_generation_moves_when_a_fleet_event_is_added() -> anyhow::R
         &serde_json::json!({}),
     )
     .await?;
-    assert!(fx.handle.seat_memory_generation().await? > before);
+    assert!(fx.handle.launch().seat_memory_generation().await? > before);
     finish(fx).await
 }
 

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -98,9 +98,9 @@ pub(crate) struct HandCheckRow {
     pub(crate) hand_checked_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn record_supplied_lessons(
-        &self,
+        self,
         request_id: i64,
         session: Uuid,
         lessons: &[SuppliedLesson],
@@ -128,7 +128,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn record_supplied_cards(
-        &self,
+        self,
         request_id: i64,
         session: Uuid,
         cards: &[CarriedCard],
@@ -154,7 +154,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn supplied_items_for_request(
-        &self,
+        self,
         request_id: i64,
         limit: i64,
         offset: i64,
@@ -172,7 +172,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn supplied_items_for_session(
-        &self,
+        self,
         session: Uuid,
         limit: i64,
         offset: i64,
@@ -190,7 +190,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn supplied_items_pending_verdict(
-        &self,
+        self,
         limit: i64,
         supplied_since: DateTime<Utc>,
         closed_before: DateTime<Utc>,
@@ -223,7 +223,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_supply_verdict(
-        &self,
+        self,
         verdict: &NewVerdict<'_>,
     ) -> Result<bool, PersistError> {
         let done = sqlx::query_file!(
@@ -241,7 +241,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn supply_figures(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<Vec<SupplyFigure>, PersistError> {
         let rows = sqlx::query_file_as!(
@@ -255,7 +255,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn supply_hand_sample(
-        &self,
+        self,
         week_start: DateTime<Utc>,
         size: i64,
     ) -> Result<Vec<HandCheckRow>, PersistError> {
@@ -271,7 +271,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn set_supply_hand_verdict(
-        &self,
+        self,
         item_id: i64,
         verdict: &str,
         checked_by: &str,

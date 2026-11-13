@@ -1,4 +1,6 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::PgPool;
 
 use crate::turn_facts::{
@@ -51,7 +53,7 @@ async fn judged_turn(
     let mut row = sample_row(turn, session_id, Utc::now());
     resolve(&mut row);
     row.text_chars = 20;
-    tf.handle.upsert_turn_facts(&[row]).await?;
+    tf.handle.dossier().upsert_turn_facts(&[row]).await?;
     sqlx::query("UPDATE memory.operator_turns SET reaction = $2 WHERE id = $1")
         .bind(turn)
         .bind(reaction)
@@ -76,10 +78,12 @@ async fn mod_lessons_are_recorded_once_per_session_and_lesson_with_their_origin(
     let third = seed_lesson(pool, tf.project_id, "read the rule first").await?;
 
     tf.handle
+        .lessons()
         .record_lesson_injections(97_001, &uuid, "primary", None, &[first])
         .await?;
     let written = tf
         .handle
+        .lessons()
         .record_mod_lesson_injections(97_002, &uuid, "primary", &[first, second, 9_999_999])
         .await?;
     assert_eq!(
@@ -89,6 +93,7 @@ async fn mod_lessons_are_recorded_once_per_session_and_lesson_with_their_origin(
 
     let again = tf
         .handle
+        .lessons()
         .record_mod_lesson_injections(97_003, &uuid, "primary", &[first, second])
         .await?;
     assert_eq!(
@@ -97,12 +102,14 @@ async fn mod_lessons_are_recorded_once_per_session_and_lesson_with_their_origin(
     );
     let later = tf
         .handle
+        .lessons()
         .record_mod_lesson_injections(97_003, &uuid, "primary", &[third])
         .await?;
     assert_eq!(later, 1);
 
     let rows = tf
         .handle
+        .lessons()
         .session_lessons(uuid.parse()?)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -134,6 +141,7 @@ async fn mod_lessons_for_an_unknown_request_session_lane_or_empty_list_are_handl
 
     assert!(
         tf.handle
+            .lessons()
             .record_mod_lesson_injections(88_888_888, &uuid, "primary", &[lesson])
             .await
             .is_err(),
@@ -141,6 +149,7 @@ async fn mod_lessons_for_an_unknown_request_session_lane_or_empty_list_are_handl
     );
     assert_eq!(
         tf.handle
+            .lessons()
             .record_mod_lesson_injections(
                 97_101,
                 &uuid::Uuid::new_v4().to_string(),
@@ -152,12 +161,14 @@ async fn mod_lessons_for_an_unknown_request_session_lane_or_empty_list_are_handl
     );
     assert_eq!(
         tf.handle
+            .lessons()
             .record_mod_lesson_injections(97_101, &uuid, "no-such-lane", &[lesson])
             .await?,
         0
     );
     assert_eq!(
         tf.handle
+            .lessons()
             .record_mod_lesson_injections(97_101, &uuid, "primary", &[])
             .await?,
         0
@@ -190,19 +201,23 @@ async fn the_comparison_counts_each_arm_and_ignores_sessions_outside_both() -> a
     let mod_uuid = session_uuid(pool, tf.session_id).await?;
     let control_uuid = session_uuid(pool, control_session).await?;
     tf.handle
+        .lessons()
         .record_lesson_delivery(&mod_uuid, "mod", 2, 40)
         .await?;
     tf.handle
+        .lessons()
         .record_lesson_delivery(&control_uuid, "control", 0, 0)
         .await?;
     let first = seed_lesson(pool, tf.project_id, "run make fmt").await?;
     let second = seed_lesson(pool, tf.project_id, "name the toggle").await?;
     tf.handle
+        .lessons()
         .record_mod_lesson_injections(97_201, &mod_uuid, "primary", &[first, second])
         .await?;
 
     let rows = tf
         .handle
+        .lessons()
         .compare_lesson_delivery_arms(
             tf.base - Duration::hours(1),
             Utc::now() + Duration::hours(1),
@@ -239,6 +254,7 @@ async fn the_comparison_counts_each_arm_and_ignores_sessions_outside_both() -> a
 
     let later = tf
         .handle
+        .lessons()
         .compare_lesson_delivery_arms(
             Utc::now() + Duration::hours(2),
             Utc::now() + Duration::hours(3),

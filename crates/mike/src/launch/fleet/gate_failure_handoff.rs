@@ -9,7 +9,7 @@ pub(super) async fn add(persist: &PersistHandle, run: &str, routes: &mut Routes)
     if routes.tasks.is_empty() {
         return;
     }
-    let notes = persist.fleet_note_rows(run).await;
+    let notes = persist.fleet().fleet_note_rows(run).await;
     for (task, session) in &routes.tasks {
         let context = match &notes {
             Ok(notes) => references(task, notes),

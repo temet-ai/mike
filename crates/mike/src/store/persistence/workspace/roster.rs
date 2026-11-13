@@ -4,8 +4,8 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::{HEARTBEAT_LEASE_MINUTES, WorkspaceRosterRow};
+use crate::store::persistence::PersistError;
 use crate::store::persistence::remote_control::ChannelSnapshotRow;
-use crate::store::persistence::{PersistError, PersistHandle};
 use crate::workspace::{Liveness, RosterScope};
 
 const MIN_HEARTBEAT_INTERVAL_SECONDS: i32 = 20;
@@ -80,9 +80,9 @@ impl From<RosterQueryRow> for WorkspaceRosterRow {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn fetch_workspace_roster(
-        &self,
+        self,
         project_id: i64,
         scope: RosterScope,
     ) -> Result<Vec<WorkspaceRosterRow>, PersistError> {
@@ -156,7 +156,7 @@ impl PersistHandle {
     }
 
     async fn merge_channel_liveness(
-        &self,
+        self,
         roster: &mut [WorkspaceRosterRow],
     ) -> Result<(), PersistError> {
         let session_uuids: Vec<Uuid> = roster.iter().map(|r| r.session_uuid).collect();
@@ -185,7 +185,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_liveness(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<Liveness>, PersistError> {
         let activity_cutoff = activity_cutoff();
@@ -220,7 +220,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn find_live_session_by_pid(
-        &self,
+        self,
         pid: i32,
     ) -> Result<Option<uuid::Uuid>, PersistError> {
         crate::metrics::time_db("workspace_find_live_session_by_pid", async move {

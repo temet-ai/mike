@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -52,9 +52,9 @@ pub(super) fn parse_vector_text(s: &str) -> Result<Vec<f32>, PersistError> {
         .collect()
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn list_sessions_needing_embedding(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<SessionEmbeddingCandidate>, PersistError> {
         crate::metrics::time_db("list_sessions_needing_embedding", async move {
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     pub async fn session_chunk_centroid(
-        &self,
+        self,
         session_id: Uuid,
     ) -> Result<Option<(Vec<f32>, i64, DateTime<Utc>)>, PersistError> {
         crate::metrics::time_db("session_chunk_centroid", async move {
@@ -128,8 +128,7 @@ impl PersistHandle {
     }
 
     #[rustfmt::skip]
-    pub async fn upsert_session_embedding(
-        &self,
+    pub async fn upsert_session_embedding(self,
         write: SessionEmbeddingWrite<'_>,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("upsert_session_embedding", async move {
@@ -151,7 +150,7 @@ impl PersistHandle {
     }
 
     pub async fn session_embedding_status(
-        &self,
+        self,
         session_id: Uuid,
     ) -> Result<Option<SessionEmbeddingStatus>, PersistError> {
         crate::metrics::time_db("session_embedding_status", async move {

@@ -6,7 +6,6 @@ use uuid::Uuid;
 use super::WorkThreadError;
 use super::lock::{Tx, lock_thread};
 use super::validate::invalid;
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone, Default)]
 pub struct ImportedState {
@@ -249,9 +248,9 @@ async fn link_sessions(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn work_thread_exists(
-        &self,
+        self,
         project_id: i64,
         thread_slug: &str,
     ) -> Result<bool, WorkThreadError> {
@@ -265,7 +264,7 @@ impl PersistHandle {
     }
 
     pub async fn import_work_thread(
-        &self,
+        self,
         project_id: i64,
         thread: &ImportedThread,
     ) -> Result<ImportOutcome, WorkThreadError> {
@@ -301,7 +300,7 @@ impl PersistHandle {
     }
 
     pub async fn link_imported_dependencies(
-        &self,
+        self,
         project_id: i64,
         thread_slug: &str,
         depends_on: &[String],
@@ -339,9 +338,9 @@ impl PersistHandle {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn work_thread_project_roots(
-        &self,
+        self,
         project_id: i64,
     ) -> Result<Vec<String>, WorkThreadError> {
         Ok(sqlx::query_scalar!(

@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
@@ -14,6 +15,7 @@ pub(crate) async fn resolve_bound_session(
         return Ok(None);
     };
     Ok(persist
+        .runtime()
         .runtime_thread(&ProviderThreadRef {
             namespace_id: namespace.id,
             thread_id: thread.to_owned(),
@@ -32,7 +34,7 @@ pub(super) async fn verified_namespace(
     };
     for candidate in [home, canonical.as_path()] {
         let expected = crate::launch::codex::namespace_for(candidate);
-        if let Some(stored) = persist.runtime_namespace(expected.id).await?
+        if let Some(stored) = persist.runtime().runtime_namespace(expected.id).await?
             && stored.runtime == RuntimeKind::Codex
             && stored.durable_key == expected.durable_key
         {

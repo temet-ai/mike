@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -168,6 +169,7 @@ async fn competitors_of(
 ) -> Result<(), EvalError> {
     if progress.siblings.is_none() {
         let found = persist
+            .lessons()
             .skill_draft_siblings(draft.project_id, &draft.folder, SIBLINGS)
             .await
             .map_err(|e| EvalError::Deferred(format!("siblings: {e}")))?;
@@ -235,11 +237,13 @@ async fn review_phase(
     progress: &mut Progress,
 ) -> Result<(), EvalError> {
     let lessons = persist
+        .lessons()
         .skill_draft_lessons_by_id(&material.lesson_ids)
         .await
         .map_err(|e| EvalError::Deferred(format!("lessons: {e}")))?;
     let agent = match material.agent_id {
         Some(id) => persist
+            .lessons()
             .skill_draft_agent_scope(id)
             .await
             .map_err(|e| EvalError::Deferred(format!("agent: {e}")))?,
@@ -247,6 +251,7 @@ async fn review_phase(
     };
     let own = overlap::own_folders(&material.name, agent.as_ref());
     let replaced = persist
+        .lessons()
         .skill_draft_replaced(draft.project_id, &own, draft.id)
         .await
         .map_err(|e| EvalError::Deferred(format!("replaced skill: {e}")))?;
@@ -337,7 +342,7 @@ pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> EvalPa
         report.deferred = true;
         return report;
     }
-    let draft = match persist.claim_skill_draft_for_eval().await {
+    let draft = match persist.lessons().claim_skill_draft_for_eval().await {
         Ok(Some(draft)) => draft,
         Ok(None) => return report,
         Err(e) => {
@@ -355,6 +360,7 @@ pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> EvalPa
 
 async fn requeue_stale(persist: &PersistHandle) -> i64 {
     let requeued = persist
+        .lessons()
         .requeue_skill_drafts_before_evaluator(EVALUATOR_VERSION)
         .await
         .unwrap_or_else(|e| {
@@ -444,7 +450,11 @@ async fn store(
 
 async fn save_progress(persist: &PersistHandle, draft: &EvalDraft, progress: &Progress) {
     let value = serde_json::to_value(progress).unwrap_or(Value::Null);
-    if let Err(e) = persist.save_skill_draft_progress(draft.id, &value).await {
+    if let Err(e) = persist
+        .lessons()
+        .save_skill_draft_progress(draft.id, &value)
+        .await
+    {
         tracing::warn!(error = %e, draft_id = draft.id, "skill eval: progress not saved");
     }
 }
@@ -457,6 +467,7 @@ async fn finish(
     patch: Option<ShippedPatch<'_>>,
 ) {
     if let Err(e) = persist
+        .lessons()
         .finish_skill_draft_eval(draft.id, accepted, eval, patch)
         .await
     {
@@ -466,6 +477,7 @@ async fn finish(
 
 async fn record_failure(persist: &PersistHandle, draft: &EvalDraft, reason: &str) {
     let recorded = persist
+        .lessons()
         .fail_skill_draft_eval(draft.id, reason, MAX_ATTEMPTS, EVALUATOR_VERSION)
         .await;
     match recorded {

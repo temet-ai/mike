@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -76,15 +77,16 @@ pub(crate) async fn get_trend(
     let weeks = q.weeks.unwrap_or(8).clamp(1, 52);
     let now = Utc::now();
     let since = now - Duration::weeks(weeks);
-    let points: Vec<TrendPointView> = match persist.list_weekly_corrected_share(now, weeks).await {
-        Ok(rows) => rows.into_iter().map(TrendPointView::from).collect(),
-        Err(e) => {
-            return error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("persistence error: {e}"),
-            );
-        }
-    };
+    let points: Vec<TrendPointView> =
+        match persist.eval().list_weekly_corrected_share(now, weeks).await {
+            Ok(rows) => rows.into_iter().map(TrendPointView::from).collect(),
+            Err(e) => {
+                return error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("persistence error: {e}"),
+                );
+            }
+        };
     let markers = match markers_since(persist, since).await {
         Ok(rows) => rows,
         Err(e) => {

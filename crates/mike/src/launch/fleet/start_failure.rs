@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -78,6 +79,7 @@ fn nobody_to_tell(slug: &str) {
 
 async fn mail(persist: &PersistHandle, slug: &str, notice: &Notice) {
     let sent = persist
+        .launch()
         .insert_message(Uuid::new_v4(), notice.to, None, &notice.mail)
         .await;
     if let Err(err) = sent {
@@ -95,7 +97,7 @@ async fn raise(persist: &PersistHandle, slug: &str, notice: &Notice) {
         tags: Some(&tags),
         data: None,
     };
-    if let Err(err) = persist.create_session_note(notice.to, note).await {
+    if let Err(err) = persist.launch().create_session_note(notice.to, note).await {
         tracing::warn!(fleet = %slug, error = %err, "fleet: could not raise the failed start for the operator");
     }
 }

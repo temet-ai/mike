@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::test_support;
 
 async fn seed_batch(handle: &PersistHandle, key: &str, turns: &[i64]) -> anyhow::Result<()> {
@@ -60,12 +61,14 @@ async fn withdraw_batch_withdraws_one_batch_and_leaves_another_untouched() -> an
     seed_batch(&handle, "other", &turns[10..]).await?;
 
     let dry = handle
+        .eval()
         .withdraw_label_batch("jc11-test", "test", "tester", false)
         .await?;
     assert_eq!((dry.labels, dry.executed), (10, false));
     assert_eq!(current(&handle, "jc11-test").await?, 10);
 
     let done = handle
+        .eval()
         .withdraw_label_batch("jc11-test", "test", "tester", true)
         .await?;
     assert_eq!(done.labels, 10);
@@ -73,6 +76,7 @@ async fn withdraw_batch_withdraws_one_batch_and_leaves_another_untouched() -> an
     assert_eq!(current(&handle, "other").await?, 2);
 
     let again = handle
+        .eval()
         .withdraw_label_batch("jc11-test", "test", "tester", true)
         .await?;
     assert_eq!(again.labels, 0);

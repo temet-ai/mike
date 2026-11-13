@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -159,17 +160,18 @@ trait CompletionStore {
 
 impl CompletionStore for PersistHandle {
     async fn latest(&self, run: &str) -> Result<Option<TreeCheckRow>, PersistError> {
-        self.latest_tree_check(run).await
+        self.fleet().latest_tree_check(run).await
     }
 
     async fn finish(&self, captured: &Captured) -> Result<(), PersistError> {
-        self.finish_tree_check(
-            captured.id,
-            captured.exit_code,
-            &captured.output,
-            Some(&captured.state_after),
-        )
-        .await
+        self.fleet()
+            .finish_tree_check(
+                captured.id,
+                captured.exit_code,
+                &captured.output,
+                Some(&captured.state_after),
+            )
+            .await
     }
 }
 

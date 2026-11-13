@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -283,6 +284,7 @@ async fn current_pass(persist: &PersistHandle, row: &FleetRow, def: &FleetDefini
         return false;
     };
     let Ok(Some(result)) = persist
+        .fleet()
         .find_tree_check(&super::gate::ledger_for(def, run), &commit)
         .await
     else {

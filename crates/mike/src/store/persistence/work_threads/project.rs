@@ -2,12 +2,11 @@ use uuid::Uuid;
 
 use super::WorkThreadError;
 use super::validate::invalid;
-use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn resolve_work_thread_project(
-        &self,
+        self,
         selector: &str,
     ) -> Result<Option<ProjectIdentity>, WorkThreadError> {
         let selector = selector.trim();

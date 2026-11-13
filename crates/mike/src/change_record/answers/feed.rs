@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde::Serialize;
 
 use super::caller::AnswerError;
@@ -19,6 +20,7 @@ pub async fn feed(
     limit: i64,
 ) -> Result<FeedAnswer, AnswerError> {
     let events = persist
+        .fleet()
         .latest_change_events(checkout, &[], &[], limit)
         .await?;
     let names = names_for(persist, &events).await?;

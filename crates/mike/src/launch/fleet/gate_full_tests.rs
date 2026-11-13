@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use super::super::super::gate_slot::slot_for;
@@ -119,6 +121,7 @@ async fn startup_and_pushes_run_command_and_close_runs_full_command_once() -> an
         assert!(verified);
         assert_eq!(quick, format!("quick\n{}\n", target.commit));
         let row = persist
+            .fleet()
             .find_fleet(&fleet.to_string())
             .await?
             .ok_or_else(|| anyhow::anyhow!("fleet row"))?;
@@ -131,6 +134,7 @@ async fn startup_and_pushes_run_command_and_close_runs_full_command_once() -> an
         tracker.wait().await;
         let full = definition(&def);
         let ran = persist
+            .fleet()
             .find_tree_check(&ledger_for(&full, &run), &target.commit)
             .await?
             .ok_or_else(|| anyhow::anyhow!("close did not run the full gate"))?;
@@ -152,6 +156,7 @@ async fn starting_fleet(
     use crate::store::persistence::launch::NewRun;
     let run_id = format!("full-gate-startup-{}", uuid::Uuid::new_v4());
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run_id.clone(),
             project_path: Some(def.repo.clone()),
@@ -161,6 +166,7 @@ async fn starting_fleet(
         })
         .await?;
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run_id.clone(),
             project_path: def.repo.clone(),

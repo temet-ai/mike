@@ -1,7 +1,9 @@
 use anyhow::Context;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::acceptance_criteria::{AskSeen, NewCriterion};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::memory_ask_ledger::NewAskLedgerEntry;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use sqlx::PgPool;
 
 use crate::test_db::TestDb;
@@ -48,6 +50,7 @@ async fn acceptance_criteria_versioning_and_provenance_lifecycle() -> anyhow::Re
     let session = seed_session(&pool).await?;
 
     handle
+        .steerer()
         .insert_acceptance_criteria_map(
             session,
             AskSeen::count_only(1),
@@ -61,6 +64,7 @@ async fn acceptance_criteria_versioning_and_provenance_lifecycle() -> anyhow::Re
         )
         .await?;
     handle
+        .steerer()
         .insert_acceptance_criteria_map(
             session,
             AskSeen::count_only(2),
@@ -82,6 +86,7 @@ async fn acceptance_criteria_versioning_and_provenance_lifecycle() -> anyhow::Re
         .await?;
 
     let current = handle
+        .steerer()
         .fetch_current_acceptance_criteria(session)
         .await?
         .context("a map was stored")?;
@@ -92,7 +97,10 @@ async fn acceptance_criteria_versioning_and_provenance_lifecycle() -> anyhow::Re
     assert_eq!(current.criteria.len(), 2);
     assert_eq!(current.ask_entry_count, 2);
 
-    let history = handle.fetch_acceptance_criteria_history(session).await?;
+    let history = handle
+        .steerer()
+        .fetch_acceptance_criteria_history(session)
+        .await?;
     assert_eq!(history.len(), 2, "the earlier version must still exist");
     assert_eq!(history[0].version, 2, "newest first");
     assert_eq!(history[1].version, 1);
@@ -103,6 +111,7 @@ async fn acceptance_criteria_versioning_and_provenance_lifecycle() -> anyhow::Re
     );
 
     let map2 = handle
+        .steerer()
         .fetch_current_acceptance_criteria(session)
         .await?
         .context("stored")?;
@@ -136,6 +145,7 @@ async fn acceptance_criteria_refuses_unbacked_provenance_and_stores_empty_author
     let session = seed_session(&pool).await?;
 
     let unbacked = handle
+        .steerer()
         .insert_acceptance_criteria_map(
             session,
             AskSeen::count_only(1),
@@ -150,6 +160,7 @@ async fn acceptance_criteria_refuses_unbacked_provenance_and_stores_empty_author
     );
 
     let inflated = handle
+        .steerer()
         .insert_acceptance_criteria_map(
             session,
             AskSeen::count_only(1),
@@ -165,9 +176,11 @@ async fn acceptance_criteria_refuses_unbacked_provenance_and_stores_empty_author
 
     let empty_session = seed_session(&pool).await?;
     handle
+        .steerer()
         .insert_acceptance_criteria_map(empty_session, AskSeen::count_only(1), None, None, &[])
         .await?;
     let map = handle
+        .steerer()
         .fetch_current_acceptance_criteria(empty_session)
         .await?
         .context("an empty map is still a map")?;
@@ -190,6 +203,7 @@ async fn seed_session_with_uuid(pool: &PgPool) -> anyhow::Result<(i64, uuid::Uui
 
 async fn append_ask(handle: &PersistHandle, session: i64, content: &str) -> anyhow::Result<i64> {
     handle
+        .dossier()
         .append_ask_ledger_entry(&NewAskLedgerEntry {
             session_id: session,
             request_id: None,
@@ -217,7 +231,10 @@ async fn ask_seen_tracks_the_newest_ask_past_the_fetch_cap() -> anyhow::Result<(
     let (session, session_uuid) = seed_session_with_uuid(&pool).await?;
 
     assert_eq!(
-        handle.fetch_acceptance_criteria_ask_seen(session).await?,
+        handle
+            .steerer()
+            .fetch_acceptance_criteria_ask_seen(session)
+            .await?,
         None,
         "a session with no map has seen nothing"
     );
@@ -226,7 +243,10 @@ async fn ask_seen_tracks_the_newest_ask_past_the_fetch_cap() -> anyhow::Result<(
     for n in 0..45 {
         newest = append_ask(&handle, session, &format!("ask {n}")).await?;
     }
-    let fetched = handle.fetch_ask_ledger_for_model(session_uuid, 40).await?;
+    let fetched = handle
+        .dossier()
+        .fetch_ask_ledger_for_model(session_uuid, 40)
+        .await?;
     assert_eq!(fetched.len(), 40, "the fetch is capped");
     assert_eq!(
         fetched.iter().map(|e| e.id).max(),
@@ -234,7 +254,10 @@ async fn ask_seen_tracks_the_newest_ask_past_the_fetch_cap() -> anyhow::Result<(
         "the cap drops the oldest asks, never the newest"
     );
     assert_eq!(
-        handle.count_ask_ledger_for_model(session_uuid).await?,
+        handle
+            .dossier()
+            .count_ask_ledger_for_model(session_uuid)
+            .await?,
         45,
         "the count is not capped by the fetch"
     );
@@ -244,15 +267,22 @@ async fn ask_seen_tracks_the_newest_ask_past_the_fetch_cap() -> anyhow::Result<(
         newest_ask_entry_id: Some(newest),
     };
     handle
+        .steerer()
         .insert_acceptance_criteria_map(session, stored, Some("model-a"), None, &[])
         .await?;
     assert_eq!(
-        handle.fetch_acceptance_criteria_ask_seen(session).await?,
+        handle
+            .steerer()
+            .fetch_acceptance_criteria_ask_seen(session)
+            .await?,
         Some(stored)
     );
 
     let next = append_ask(&handle, session, "one more").await?;
-    let refetched = handle.fetch_ask_ledger_for_model(session_uuid, 40).await?;
+    let refetched = handle
+        .dossier()
+        .fetch_ask_ledger_for_model(session_uuid, 40)
+        .await?;
     assert_eq!(refetched.len(), 40, "the stored count did not move");
     assert!(
         refetched.iter().map(|e| e.id).max() > stored.newest_ask_entry_id,
@@ -279,9 +309,13 @@ async fn ask_seen_reports_the_newest_map_and_an_unrecorded_newest_ask_as_none() 
     let session = seed_session(&pool).await?;
 
     handle
+        .steerer()
         .insert_acceptance_criteria_map(session, AskSeen::count_only(3), None, None, &[])
         .await?;
-    let first = handle.fetch_acceptance_criteria_ask_seen(session).await?;
+    let first = handle
+        .steerer()
+        .fetch_acceptance_criteria_ask_seen(session)
+        .await?;
     assert_eq!(first.map(|s| s.ask_entry_count), Some(3));
     assert_eq!(first.and_then(|s| s.newest_ask_entry_id), None);
 
@@ -290,10 +324,14 @@ async fn ask_seen_reports_the_newest_map_and_an_unrecorded_newest_ask_as_none() 
         newest_ask_entry_id: Some(77),
     };
     handle
+        .steerer()
         .insert_acceptance_criteria_map(session, newer, None, None, &[])
         .await?;
     assert_eq!(
-        handle.fetch_acceptance_criteria_ask_seen(session).await?,
+        handle
+            .steerer()
+            .fetch_acceptance_criteria_ask_seen(session)
+            .await?,
         Some(newer),
         "the newest version answers"
     );

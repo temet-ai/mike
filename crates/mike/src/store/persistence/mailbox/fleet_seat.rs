@@ -1,9 +1,10 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use uuid::Uuid;
 
 use super::fleet_target::seat_sessions;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::definition::{recorded_task_of, with_task_seats};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ClosedSeat {
@@ -59,8 +60,8 @@ fn parsed(session: Option<&str>) -> Option<Uuid> {
     session.and_then(|s| Uuid::parse_str(s).ok())
 }
 
-impl PersistHandle {
-    async fn latest_launch_seat(&self, session: Uuid) -> Result<Option<LaunchSeat>, PersistError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    async fn latest_launch_seat(self, session: Uuid) -> Result<Option<LaunchSeat>, PersistError> {
         crate::metrics::time_db("mailbox_latest_launch_seat", async move {
             let row = sqlx::query!(
                 r#"SELECT l.run_id, l.seat,
@@ -86,10 +87,10 @@ impl PersistHandle {
     }
 
     pub(crate) async fn closed_fleet_seat(
-        &self,
+        self,
         to: Uuid,
     ) -> Result<Option<ClosedSeat>, PersistError> {
-        if !crate::launch::seat_fact::is_fleet_seat(self, to).await {
+        if !crate::launch::seat_fact::is_fleet_seat(&self, to).await {
             return Ok(None);
         }
         let Some(launch) = self.latest_launch_seat(to).await? else {
@@ -103,7 +104,7 @@ impl PersistHandle {
             successor: None,
             coordinator: None,
         };
-        let Some(row) = self.find_fleet_for_session(to).await? else {
+        let Some(row) = self.fleet().find_fleet_for_session(to).await? else {
             return Ok(Some(unknown));
         };
         if row.run_id != launch.run_id {
@@ -112,7 +113,7 @@ impl PersistHandle {
         let Ok(definition) = FleetDefinition::from_value(&row.definition) else {
             return Ok(Some(unknown));
         };
-        let events = self.fleet_events_since(run, 0).await?;
+        let events = self.fleet().fleet_events_since(run, 0).await?;
         let definition = with_task_seats(definition, &events);
         let task = task_of_session(&definition, to, launch.seat.as_deref())
             .or_else(|| recorded_task_of(&events, to));
@@ -131,7 +132,7 @@ impl PersistHandle {
         }))
     }
 
-    pub(crate) async fn sender_label(&self, from: Uuid) -> Option<String> {
+    pub(crate) async fn sender_label(self, from: Uuid) -> Option<String> {
         match self.sender_label_inner(from).await {
             Ok(label) => label,
             Err(error) => {
@@ -141,7 +142,7 @@ impl PersistHandle {
         }
     }
 
-    async fn sender_label_inner(&self, from: Uuid) -> Result<Option<String>, PersistError> {
+    async fn sender_label_inner(self, from: Uuid) -> Result<Option<String>, PersistError> {
         if let Some(definition) = self.sender_fleet_definition(from).await?
             && seat_sessions(&definition).contains(&from)
         {
@@ -154,7 +155,7 @@ impl PersistHandle {
         Ok(name.map(|n| format!("{n} (session {from})")))
     }
 
-    async fn session_display_name(&self, session: Uuid) -> Result<Option<String>, PersistError> {
+    async fn session_display_name(self, session: Uuid) -> Result<Option<String>, PersistError> {
         crate::metrics::time_db("mailbox_session_display_name", async move {
             let name = sqlx::query_scalar!(
                 r#"SELECT sg.display_name AS "display_name?"

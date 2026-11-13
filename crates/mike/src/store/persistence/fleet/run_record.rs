@@ -2,7 +2,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[cfg(test)]
 #[path = "run_record_tests.rs"]
@@ -110,9 +110,9 @@ pub struct RunPatterns<'a> {
     pub git_write: &'a str,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn run_measures(
-        &self,
+        self,
         run_id: &str,
         patterns: RunPatterns<'_>,
     ) -> Result<RunMeasures, PersistError> {
@@ -141,7 +141,7 @@ impl PersistHandle {
         .await
     }
 
-    async fn timing_measure(&self, run_id: &str) -> Result<TimingMeasure, PersistError> {
+    async fn timing_measure(self, run_id: &str) -> Result<TimingMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/timing.sql",
             run_id
@@ -160,7 +160,7 @@ impl PersistHandle {
         })
     }
 
-    async fn token_measures(&self, run_id: &str) -> Result<Vec<TokenMeasure>, PersistError> {
+    async fn token_measures(self, run_id: &str) -> Result<Vec<TokenMeasure>, PersistError> {
         let rows = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/tokens.sql",
             run_id
@@ -180,10 +180,7 @@ impl PersistHandle {
             .collect())
     }
 
-    async fn intervention_measure(
-        &self,
-        run_id: &str,
-    ) -> Result<InterventionMeasure, PersistError> {
+    async fn intervention_measure(self, run_id: &str) -> Result<InterventionMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/interventions.sql",
             run_id
@@ -206,7 +203,7 @@ impl PersistHandle {
     }
 
     async fn seat_measures(
-        &self,
+        self,
         run_id: &str,
         patterns: RunPatterns<'_>,
     ) -> Result<Vec<SeatMeasure>, PersistError> {
@@ -238,7 +235,7 @@ impl PersistHandle {
             .collect())
     }
 
-    async fn report_measure(&self, run_id: &str) -> Result<ReportMeasure, PersistError> {
+    async fn report_measure(self, run_id: &str) -> Result<ReportMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/reports.sql",
             run_id
@@ -254,7 +251,7 @@ impl PersistHandle {
         })
     }
 
-    async fn mail_pairs(&self, run_id: &str) -> Result<Vec<MailPair>, PersistError> {
+    async fn mail_pairs(self, run_id: &str) -> Result<Vec<MailPair>, PersistError> {
         let rows = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/mail.sql",
             run_id
@@ -274,7 +271,7 @@ impl PersistHandle {
     }
 
     async fn operation_measure(
-        &self,
+        self,
         run_id: &str,
         operation_pattern: &str,
     ) -> Result<OperationMeasure, PersistError> {
@@ -291,7 +288,7 @@ impl PersistHandle {
         })
     }
 
-    async fn question_measure(&self, run_id: &str) -> Result<QuestionMeasure, PersistError> {
+    async fn question_measure(self, run_id: &str) -> Result<QuestionMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/questions.sql",
             run_id
@@ -304,7 +301,7 @@ impl PersistHandle {
         })
     }
 
-    async fn fork_measure(&self, run_id: &str) -> Result<ForkMeasure, PersistError> {
+    async fn fork_measure(self, run_id: &str) -> Result<ForkMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/forks.sql",
             run_id
@@ -318,7 +315,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_run_record(
-        &self,
+        self,
         fleet_uuid: Uuid,
         run_id: &str,
         document: &Value,
@@ -339,7 +336,7 @@ impl PersistHandle {
     }
 
     pub async fn replace_run_record(
-        &self,
+        self,
         fleet_uuid: Uuid,
         run_id: &str,
         document: &Value,
@@ -367,7 +364,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn find_run_record(&self, fleet_uuid: Uuid) -> Result<Option<Value>, PersistError> {
+    pub async fn find_run_record(self, fleet_uuid: Uuid) -> Result<Option<Value>, PersistError> {
         crate::metrics::time_db("launch_find_run_record", async move {
             let row = sqlx::query_file_scalar!(
                 "src/store/persistence/fleet/run_record_sql/find.sql",

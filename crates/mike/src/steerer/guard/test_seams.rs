@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::Utc;
 
 use super::policy::forget_all;
@@ -24,7 +25,7 @@ pub async fn evaluate_guard_turn(
     seam: SeamTurn,
 ) -> Result<bool, PersistError> {
     forget_all().await;
-    let steerer = persist.guard_steerer().await?.ok_or_else(|| {
+    let steerer = persist.steerer().guard_steerer().await?.ok_or_else(|| {
         PersistError::DataInvariant("turn-guard steerer is not seeded".to_owned())
     })?;
     let llm = OpenRouterClient::new(

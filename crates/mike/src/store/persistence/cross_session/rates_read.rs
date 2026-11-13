@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, sqlx::FromRow)]
 pub struct RollupRef {
@@ -51,9 +51,9 @@ pub fn rate_key(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn rollup_as_of(
-        &self,
+        self,
         as_of: DateTime<Utc>,
     ) -> Result<Option<RollupRef>, PersistError> {
         crate::metrics::time_db("rollup_as_of", async move {
@@ -73,7 +73,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_calibration_rows(
-        &self,
+        self,
         rollup_id: i64,
         steerer_id: i64,
     ) -> Result<Vec<CalibrationRateRow>, PersistError> {

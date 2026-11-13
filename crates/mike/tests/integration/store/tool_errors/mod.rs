@@ -1,3 +1,4 @@
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 mod fixtures;
 mod paging;
 
@@ -369,7 +370,7 @@ async fn assert_errors_only_scopes_to_the_failed_tool_use(
         errors_only: true,
         ..base_filter
     };
-    let page = handle.list_tool_uses(&errors_only_filter).await?;
+    let page = handle.launch().list_tool_uses(&errors_only_filter).await?;
     let errors_rows = page.rows;
     assert_eq!(
         page.total.count, 1,
@@ -424,7 +425,7 @@ async fn list_tool_uses_joins_error_columns_and_scopes_errors_only() -> anyhow::
         cursor: None,
         order: SortOrder::Desc,
     };
-    let page = handle.list_tool_uses(&filter).await?;
+    let page = handle.launch().list_tool_uses(&filter).await?;
     assert_eq!(page.total.count, 3, "all three tool uses are counted");
     assert!(!page.total.capped);
     assert_eq!(page.next_cursor, None);

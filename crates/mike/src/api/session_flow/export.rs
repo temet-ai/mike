@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -100,6 +101,7 @@ async fn collect_component(
     let mut capped = false;
     loop {
         let Some(page) = handle
+            .web()
             .fetch_session_flow(
                 session,
                 component.clone(),

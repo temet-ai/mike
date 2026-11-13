@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use serde_json::json;
 use uuid::Uuid;
@@ -22,6 +24,7 @@ async fn definition_patch_stale_running_row_refuses_retry_after_stop_fence() -> 
     state.persist = Some(persist.clone());
     let run = format!("stale-patch-{}", Uuid::new_v4());
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.clone(),
             project_path: None,
@@ -31,6 +34,7 @@ async fn definition_patch_stale_running_row_refuses_retry_after_stop_fence() -> 
         })
         .await?;
     let row = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: run.clone(),
             project_path: "/test/stale-definition".into(),
@@ -41,13 +45,16 @@ async fn definition_patch_stale_running_row_refuses_retry_after_stop_fence() -> 
         .await?;
     seed_fleet_running(&persist, row.fleet_uuid, &run).await?;
     let stale = persist
+        .fleet()
         .find_fleet(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fleet missing before stop"))?;
     persist
+        .fleet()
         .set_fleet_state(row.fleet_uuid, "stopping", None, None)
         .await?;
     let fenced = persist
+        .fleet()
         .find_fleet(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fleet missing after stop"))?;
@@ -63,6 +70,6 @@ async fn definition_patch_stale_running_row_refuses_retry_after_stop_fence() -> 
     )
     .await;
     assert!(matches!(result, Err(DefinitionError::Stopping(slug)) if slug == run));
-    assert_eq!(persist.find_fleet(&run).await?, Some(fenced));
+    assert_eq!(persist.fleet().find_fleet(&run).await?, Some(fenced));
     db.cleanup().await
 }

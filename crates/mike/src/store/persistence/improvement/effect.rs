@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 
+use crate::store::persistence::PersistError;
 use crate::store::persistence::improvement::interval::wilson_interval;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 pub const EFFECT_WINDOW_DAYS: i32 = 14;
 pub const ACTION_EFFECT_SQL_VERSION: &str = "action-effect-v2";
@@ -52,16 +52,16 @@ impl GuardPopulationColumns {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn latest_completed_action_effect_day(
-        &self,
+        self,
     ) -> Result<Option<NaiveDate>, PersistError> {
         Ok(sqlx::query_scalar!("SELECT max(for_day) FROM eval.rollups WHERE sql_version = $1 AND finished_at IS NOT NULL", ACTION_EFFECT_SQL_VERSION)
             .fetch_one(&self.pool).await?)
     }
 
     pub async fn write_action_effect_rows(
-        &self,
+        self,
         rollup_id: i64,
         now: DateTime<Utc>,
     ) -> Result<u64, PersistError> {
@@ -149,7 +149,7 @@ SELECT $1, 'action_effect', 'share', b.population, 'project', b.project_id,
     }
 
     pub async fn write_guard_effect_rows(
-        &self,
+        self,
         rollup_id: i64,
         now: DateTime<Utc>,
         outcomes: &[GuardQuestionOutcome],
@@ -194,7 +194,7 @@ SELECT $1, 'action_effect', 'share', b.population, 'project', b.project_id,
     }
 
     pub async fn current_or_claimed_action_effect_rollup_id(
-        &self,
+        self,
         for_day: NaiveDate,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db("current_or_claimed_action_effect_rollup_id", async move {

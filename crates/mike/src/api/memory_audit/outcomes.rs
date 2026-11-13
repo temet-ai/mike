@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::response::Response;
@@ -50,6 +51,7 @@ pub(crate) async fn list_lesson_outcomes(
         return Err(persist_unavailable_response());
     };
     let rows: Vec<LessonOutcomeRow> = handle
+        .lessons()
         .lesson_outcomes_observed_after_injection()
         .await
         .map_err(|e| {

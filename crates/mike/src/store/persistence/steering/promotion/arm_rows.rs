@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct ArmRow {
@@ -26,9 +26,9 @@ pub struct ArmRow {
     pub wake_state: Option<String>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn fetch_arm_rows(
-        &self,
+        self,
         steerer_id: i64,
         question: Option<&str>,
         as_of: DateTime<Utc>,

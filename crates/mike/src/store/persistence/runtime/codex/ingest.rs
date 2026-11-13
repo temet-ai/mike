@@ -1,16 +1,16 @@
 use uuid::Uuid;
 
 use crate::runtime::codex::ingest::{FrameRoute, IngestFrame};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::{
     ClassificationProvenance, CodexCaptureOutcome, CodexIntakeContext, CodexProjectionApplication,
     CodexProjectionApplyOutcome, CodexReceiptInput,
 };
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn capture_codex_frame(
-        &self,
+        self,
         frame: &IngestFrame,
     ) -> Result<CodexCaptureOutcome, PersistError> {
         let provenance = match frame.route {
@@ -35,7 +35,7 @@ impl PersistHandle {
     }
 
     pub async fn drain_codex_projection(
-        &self,
+        self,
         generation_id: Uuid,
     ) -> Result<Vec<CodexProjectionApplication>, PersistError> {
         let mut applied = Vec::new();

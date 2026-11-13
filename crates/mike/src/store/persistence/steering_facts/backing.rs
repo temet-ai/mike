@@ -1,9 +1,9 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{BackingRow, FactKey};
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn steering_backing_rows(
-        &self,
+        self,
         keys: &[FactKey],
         count_unregistered: bool,
     ) -> Result<Vec<BackingRow>, PersistError> {

@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
@@ -269,6 +270,7 @@ pub async fn question_modes(
     POLICY_CACHE
         .get_or_load(steerer_id, Instant::now(), || async {
             let rows = persist
+                .steerer()
                 .question_policies(steerer_id)
                 .await
                 .unwrap_or_default();
@@ -283,6 +285,7 @@ pub async fn guard_config(persist: &PersistHandle, steerer_id: i64) -> GuardConf
     CONFIG_CACHE
         .get_or_load(steerer_id, Instant::now(), || async {
             let config = persist
+                .steerer()
                 .steerer_config(steerer_id)
                 .await
                 .ok()
@@ -316,6 +319,7 @@ pub async fn question_policies(
     FULL_POLICY_CACHE
         .get_or_load(steerer_id, Instant::now(), || async {
             persist
+                .steerer()
                 .policy_rows(steerer_id)
                 .await
                 .unwrap_or_default()

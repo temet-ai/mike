@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone)]
 pub struct ChannelLinkSweepCandidate {
@@ -9,9 +9,9 @@ pub struct ChannelLinkSweepCandidate {
     pub request_body: Option<Vec<u8>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn fetch_channel_link_sweep_candidates(
-        &self,
+        self,
         since: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<ChannelLinkSweepCandidate>, PersistError> {

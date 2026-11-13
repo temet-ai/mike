@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::test_support::TestDb;
 
 #[tokio::test]
@@ -10,7 +11,7 @@ async fn request_exists_true_for_seeded_false_for_missing() -> anyhow::Result<()
     let handle = PersistHandle::connect(&db.database_url).await?;
 
     assert!(
-        !handle.request_exists(999_999_999_999).await?,
+        !handle.steerer().request_exists(999_999_999_999).await?,
         "unknown request id must report not-exists"
     );
 
@@ -50,7 +51,7 @@ async fn request_exists_true_for_seeded_false_for_missing() -> anyhow::Result<()
     .await?;
 
     assert!(
-        handle.request_exists(request_id).await?,
+        handle.steerer().request_exists(request_id).await?,
         "seeded request id must report exists"
     );
 

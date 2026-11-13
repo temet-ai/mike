@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -139,7 +140,7 @@ pub async fn record(persist: &PersistHandle, session: Uuid, task: &str, sha: &st
         tags: Some(&tags),
         data: Some(&data),
     };
-    if let Err(err) = persist.create_session_note(session, note).await {
+    if let Err(err) = persist.launch().create_session_note(session, note).await {
         tracing::warn!(session_id = %session, error = %err, "fleet: could not record the issues a commit refers to");
     }
 }
@@ -171,7 +172,7 @@ async fn recorded_for(persist: &PersistHandle, session: Uuid) -> Vec<Recorded> {
         limit: NOTES_READ,
         offset: 0,
     };
-    match persist.fetch_session_notes(session, filter).await {
+    match persist.launch().fetch_session_notes(session, filter).await {
         Ok(rows) => rows.iter().filter_map(recorded_of).collect(),
         Err(err) => {
             tracing::warn!(session_id = %session, error = %err, "fleet: could not read the issues a seat's commits refer to");
@@ -231,7 +232,7 @@ async fn mark_closed(persist: &PersistHandle, note: Uuid) {
         status: Some(CLOSED),
         ..SessionNoteUpdate::default()
     };
-    if let Err(err) = persist.update_session_note(note, update).await {
+    if let Err(err) = persist.launch().update_session_note(note, update).await {
         tracing::warn!(error = %err, "fleet: could not mark a note's issues closed");
     }
 }

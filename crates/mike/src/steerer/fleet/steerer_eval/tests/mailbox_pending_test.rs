@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
@@ -27,6 +28,7 @@ async fn verifier_gate_forces_fire_when_mailbox_pending() -> anyhow::Result<()> 
         seed_project_and_session(&pool, "proj-verifier-mailbox-gate").await?;
 
     handle
+        .launch()
         .insert_message(
             uuid::Uuid::new_v4(),
             session_uuid,

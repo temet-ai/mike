@@ -1,4 +1,7 @@
 use mike::store::persistence::cross_session::ProposerParams;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::eval_repo::EvalPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::turn_verdicts::VerdictMode;
 
 use crate::judge_quality::promotion_support::{bundle, verdict};
@@ -38,9 +41,10 @@ async fn directive(
         let mut row = sample_row(prev, session, chrono::Utc::now());
         row.next_state = "resolved".to_owned();
         row.next_genuine_request_id = Some(request);
-        f.handle.upsert_turn_facts(&[row]).await?;
+        f.handle.dossier().upsert_turn_facts(&[row]).await?;
         let b = bundle(f).await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 prev,
                 VerdictMode::Live,
@@ -63,6 +67,7 @@ async fn directive(
         .execute(f.handle.pool())
         .await?;
     f.handle
+        .dossier()
         .upsert_turn_facts(&[sample_row(turn, session, chrono::Utc::now())])
         .await?;
     sqlx::query(
@@ -89,9 +94,16 @@ async fn restated_directives_in_two_sessions_produce_one_proposal_with_evidence_
     let second = insert_session(f.handle.pool(), f.project_id, chrono::Utc::now()).await?;
     directive(&f, f.session_id, 90_010, true).await?;
     directive(&f, second, 90_110, false).await?;
-    assert_eq!(f.handle.propose_repeated_directives(&params()).await?, 1);
+    assert_eq!(
+        f.handle
+            .steerer()
+            .propose_repeated_directives(&params())
+            .await?,
+        1
+    );
     let proposals = f
         .handle
+        .steerer()
         .list_directive_proposals(Some("open"), None, 50)
         .await?;
     assert_eq!(proposals.len(), 1);
@@ -104,20 +116,29 @@ async fn restated_directives_in_two_sessions_produce_one_proposal_with_evidence_
         proposals[0].proposed_text,
         "just commit when the tests are green"
     );
-    let detail = f.handle.fetch_proposal_detail(proposals[0].id).await?;
+    let detail = f
+        .handle
+        .steerer()
+        .fetch_proposal_detail(proposals[0].id)
+        .await?;
     assert_eq!(detail.map(|d| d.evidence.len()), Some(2));
     assert_eq!(
-        f.handle.propose_repeated_directives(&params()).await?,
+        f.handle
+            .steerer()
+            .propose_repeated_directives(&params())
+            .await?,
         0,
         "an open key is not proposed twice"
     );
     assert!(
         f.handle
+            .steerer()
             .reject_directive_proposal(proposals[0].id, Some("not a standing rule"))
             .await?
     );
     assert!(
         !f.handle
+            .steerer()
             .reject_directive_proposal(proposals[0].id, None)
             .await?,
         "only an open proposal can be rejected"
@@ -137,6 +158,12 @@ async fn a_directive_in_one_session_produces_no_proposal() -> anyhow::Result<()>
         return Ok(());
     };
     directive(&f, f.session_id, 91_010, true).await?;
-    assert_eq!(f.handle.propose_repeated_directives(&params()).await?, 0);
+    assert_eq!(
+        f.handle
+            .steerer()
+            .propose_repeated_directives(&params())
+            .await?,
+        0
+    );
     Ok(())
 }

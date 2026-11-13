@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -74,7 +75,10 @@ pub(crate) async fn ingest_hook(
     let session = resolve_hook_session(persist, &namespace, parent, &scope.thread_id).await?;
     let observation = session::hook(persist, source, session, delivery_id, &payload).await?;
     sync_lifecycle(persist, session, delivery_id, &payload).await?;
-    let outcome = persist.apply_session_observation(&observation).await?;
+    let outcome = persist
+        .runtime()
+        .apply_session_observation(&observation)
+        .await?;
     let mut report = report(namespace.id, delivery_id, outcome);
     report.mike_session_id = Some(session);
     let boundary = source.hook_boundary && parent.is_none();
@@ -93,7 +97,7 @@ pub(crate) async fn ingest_hook(
         .await;
     }
     if source.hook_boundary && !report.replayed {
-        report.pending_mail = persist.pending_runtime_mail(session, 20).await?;
+        report.pending_mail = persist.runtime().pending_runtime_mail(session, 20).await?;
     }
     Ok(report)
 }
@@ -124,6 +128,7 @@ async fn sync_lifecycle(
     payload: &HookPayload,
 ) -> Result<(), IngestError> {
     let replayed = persist
+        .runtime()
         .session_observation_time(session, delivery_id)
         .await?
         .is_some();
@@ -199,12 +204,16 @@ pub(crate) async fn ingest_otel(
         let delivery = Uuid::new_v5(&ingestion, &index.to_be_bytes());
         let mut observation = session::telemetry(&source, id, delivery, fact);
         if let Some(at) = persist
+            .runtime()
             .session_observation_time(id, observation.observation_id)
             .await?
         {
             observation.observed_at = at;
         }
-        let outcome = persist.apply_session_observation(&observation).await?;
+        let outcome = persist
+            .runtime()
+            .apply_session_observation(&observation)
+            .await?;
         report.facts += usize::from(outcome == ObservationApplyOutcome::Applied);
         report.replayed &= outcome == ObservationApplyOutcome::Replayed;
         match outcome {

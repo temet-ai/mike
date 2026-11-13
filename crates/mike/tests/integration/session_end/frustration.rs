@@ -1,5 +1,6 @@
 use mike::config::ProxyConfig;
 use mike::state::AppState;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::correction::COUNTS_AS_CORRECTION_SQL;
 use mike::store::persistence::operator_turns::projection::{ProjectionMode, ProjectionParams};
 use mike::store::persistence::turn_verdicts::VerdictMode;
@@ -80,7 +81,7 @@ async fn frustration_close_projects_the_final_turn_as_a_correction() -> anyhow::
     for turn in [ending, resolved] {
         let mut judgement = verdict(turn, VerdictMode::Live, b, ("accepted", "delivered"), 0.9);
         judgement.next_genuine_request_id = (turn == resolved).then_some(2);
-        f.handle.insert_turn_verdict(judgement).await?;
+        f.handle.eval().insert_turn_verdict(judgement).await?;
         gold_end(&f, turn, "closed_in_frustration").await?;
     }
     f.handle
@@ -113,6 +114,7 @@ async fn gold_reaction_outranks_the_session_end_label() -> anyhow::Result<()> {
     let ending = closed_turn(&f, 30_101).await?;
     facts(&f, ending, "genuine", "none_session_settled").await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             ending,
             VerdictMode::Live,
@@ -141,6 +143,7 @@ async fn list_corrected_turns_and_summary_count_a_frustration_close() -> anyhow:
     let ending = closed_turn(&f, 30_201).await?;
     facts(&f, ending, "genuine", "none_session_settled").await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             ending,
             VerdictMode::Live,

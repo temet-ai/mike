@@ -1,3 +1,5 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use uuid::Uuid;
 
 use super::super::CheckpointInput;
@@ -80,6 +82,7 @@ async fn card_inputs_for_recent_and_old_items_keep_only_the_recent_ones() -> any
     let session = Uuid::new_v4();
     let thread_id = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -101,7 +104,11 @@ async fn card_inputs_for_recent_and_old_items_keep_only_the_recent_ones() -> any
     seed_promises(pool, session_id, &turns).await?;
     seed_verdicts(pool, session_id, &turns).await?;
 
-    let inputs = f.handle.work_thread_card_inputs(&[thread_id]).await?;
+    let inputs = f
+        .handle
+        .launch()
+        .work_thread_card_inputs(&[thread_id])
+        .await?;
     let [card] = inputs.as_slice() else {
         anyhow::bail!("expected one thread's inputs, got {}", inputs.len());
     };
@@ -123,6 +130,7 @@ async fn card_inputs_for_unknown_thread_are_empty() -> anyhow::Result<()> {
     };
     assert!(
         f.handle
+            .launch()
             .work_thread_card_inputs(&[i64::MAX])
             .await?
             .is_empty()
@@ -159,6 +167,7 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_wea
     };
     let thread_id = f
         .handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("related-inputs", "related inputs"))
         .await?
         .thread
@@ -171,6 +180,7 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_wea
     let (_, weak) = lesson_ref(pool, f.project, "Weakly related lesson", "1 day").await?;
     let other = f
         .handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("older-effort", "Older effort"))
         .await?
         .thread
@@ -185,6 +195,7 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_wea
     .await?;
     let imported = format!("entry:{imported}");
     f.handle
+        .lessons()
         .insert_lesson_relation(&crate::store::persistence::LessonRelationDraft {
             from_lesson_id: new_id,
             to_lesson_id: old_id,
@@ -220,10 +231,15 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_wea
     )
     .collect();
     f.handle
+        .launch()
         .replace_thread_card_candidates(thread_id, &candidates)
         .await?;
 
-    let inputs = f.handle.work_thread_card_inputs(&[thread_id]).await?;
+    let inputs = f
+        .handle
+        .launch()
+        .work_thread_card_inputs(&[thread_id])
+        .await?;
 
     let [card] = inputs.as_slice() else {
         anyhow::bail!("expected one thread's inputs, got {}", inputs.len());

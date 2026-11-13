@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Deserialize)]
 pub(crate) struct PostThreadBody {
@@ -139,6 +140,7 @@ async fn insert_thread_row(
     created_by_session_id: Option<i64>,
 ) -> Result<NewThread, Response> {
     match handle
+        .launch()
         .create_thread(
             uuid::Uuid::new_v4(),
             subject,
@@ -169,7 +171,7 @@ async fn attach_thread_tags_best_effort(
     thread_uuid: uuid::Uuid,
     tags: &[String],
 ) {
-    if let Err(e) = handle.attach_tags_to_thread(thread_id, tags).await {
+    if let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await {
         tracing::warn!(error = %e, %thread_uuid, "post_thread: tag attach failed");
     }
 }
@@ -188,7 +190,11 @@ async fn resolve_thread_sender(
             format!("from_session_id is not a valid UUID: {raw}"),
         )
     })?;
-    match handle.resolve_session_core(from_session_uuid).await {
+    match handle
+        .launch()
+        .resolve_session_core(from_session_uuid)
+        .await
+    {
         Ok(Some((id, _))) => Ok((Some(from_session_uuid), Some(id))),
         Ok(None) => Err(mailbox_error(
             StatusCode::NOT_FOUND,
@@ -246,6 +252,7 @@ async fn insert_post_only_message(
     thread_uuid: uuid::Uuid,
 ) {
     if let Err(e) = handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid: uuid::Uuid::new_v4(),
@@ -329,7 +336,7 @@ async fn resolve_notify_recipient_id(
     handle: &crate::store::persistence::PersistHandle,
     to_uuid: uuid::Uuid,
 ) -> Result<i64, FailedDeliveryDto> {
-    match handle.resolve_session_core(to_uuid).await {
+    match handle.launch().resolve_session_core(to_uuid).await {
         Ok(Some((id, _))) => Ok(id),
         Ok(None) => Err(failed_notification(to_uuid, "session_not_found")),
         Err(e) => {
@@ -347,6 +354,7 @@ async fn insert_notify_message(
 ) -> Result<(uuid::Uuid, chrono::DateTime<chrono::Utc>), FailedDeliveryDto> {
     let message_uuid = uuid::Uuid::new_v4();
     match handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid,

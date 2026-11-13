@@ -1,6 +1,7 @@
 use crate::analysis::{EmbedError, EmbeddingService};
 use crate::store::persistence::consolidation_audit::ConsolidationActionRecord;
 use crate::store::persistence::lessons::{LessonRow, SimilarLesson};
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 use super::action_record::{
@@ -39,7 +40,7 @@ pub(super) async fn run_session_consolidation(
 }
 
 async fn discover_idle_projects(persist: &PersistHandle, idle_secs: u64) -> Option<Vec<i64>> {
-    match persist.discover_idle_projects(idle_secs).await {
+    match persist.lessons().discover_idle_projects(idle_secs).await {
         Ok(ids) => Some(ids),
         Err(e) => {
             log_discover_idle_failed(&e);
@@ -64,7 +65,11 @@ fn log_session_starting(project_count: usize) {
 }
 
 async fn open_session_run(persist: &PersistHandle) -> Option<i64> {
-    match persist.start_consolidation_run("session", "schedule").await {
+    match persist
+        .lessons()
+        .start_consolidation_run("session", "schedule")
+        .await
+    {
         Ok(id) => Some(id),
         Err(e) => {
             log_open_session_run_failed(&e);
@@ -85,7 +90,11 @@ async fn finish_session_run_if_open(persist: &PersistHandle, run_id: Option<i64>
         return;
     };
     let status = if any_error { "partial" } else { "completed" };
-    if let Err(e) = persist.finish_consolidation_run(run_id, status, None).await {
+    if let Err(e) = persist
+        .lessons()
+        .finish_consolidation_run(run_id, status, None)
+        .await
+    {
         log_finish_session_run_failed(run_id, &e);
     }
 }
@@ -181,6 +190,7 @@ pub(super) async fn consolidate_project(
 
 async fn claim_lessons(persist: &PersistHandle, project_id: i64) -> Option<Vec<LessonRow>> {
     match persist
+        .lessons()
         .claim_raw_lessons_for_consolidation(project_id, 50)
         .await
     {
@@ -235,6 +245,7 @@ async fn process_one_lesson(
     let runners_up = runners_up_json(&neighbours);
 
     match persist
+        .lessons()
         .promote_lesson_to_daily(lesson.id, &vec, &ctx.model_name)
         .await
     {
@@ -313,6 +324,7 @@ async fn find_neighbours(
     actions: &mut Vec<ConsolidationActionRecord>,
 ) -> Option<Vec<SimilarLesson>> {
     match persist
+        .lessons()
         .find_similar_lessons(ctx.project_id, vec, lesson.agent_id, 3, lesson.id)
         .await
     {
@@ -365,7 +377,11 @@ async fn record_actions_if_run_open(
     let Some(run_id) = run_id else {
         return;
     };
-    if let Err(e) = persist.record_consolidation_actions(run_id, actions).await {
+    if let Err(e) = persist
+        .lessons()
+        .record_consolidation_actions(run_id, actions)
+        .await
+    {
         log_record_actions_failed(project_id, run_id, &e);
     }
 }

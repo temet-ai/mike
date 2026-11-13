@@ -1,11 +1,16 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub(crate) async fn fetch_mailbox_delivery_fields(
     handle: &crate::store::persistence::PersistHandle,
     state: &AppState,
     to_session_uuid: uuid::Uuid,
 ) -> (Option<String>, Option<String>, Option<&'static str>) {
-    let activity = match handle.fetch_recipient_activity(to_session_uuid).await {
+    let activity = match handle
+        .launch()
+        .fetch_recipient_activity(to_session_uuid)
+        .await
+    {
         Ok(a) => a,
         Err(e) => {
             tracing::warn!(
@@ -66,6 +71,7 @@ async fn load_session_messages(
     session_uuid: uuid::Uuid,
 ) -> Result<crate::api::poll_answers::Loaded<Bytes>, Response> {
     let rows = handle
+        .launch()
         .fetch_for_session_with_activity(session_uuid)
         .await
         .map_err(|e| {
@@ -115,6 +121,7 @@ pub(crate) async fn get_session_message(
         ));
     };
     match handle
+        .launch()
         .fetch_message_for_recipient(message_uuid, session_uuid)
         .await
     {
@@ -156,6 +163,7 @@ pub(crate) async fn get_session_message_receipt(
         ));
     };
     match handle
+        .launch()
         .fetch_message_for_sender(message_uuid, session_uuid)
         .await
     {
@@ -202,7 +210,11 @@ pub(crate) async fn ack_session_message(
             "session persistence is disabled; the mailbox is not available".to_string(),
         ));
     };
-    match handle.ack_message(session_uuid, message_uuid).await {
+    match handle
+        .launch()
+        .ack_message(session_uuid, message_uuid)
+        .await
+    {
         Ok(crate::store::persistence::mailbox::AckOutcome::Consumed(consumed_at)) => {
             state
                 .store

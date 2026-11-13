@@ -2,6 +2,7 @@ use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::lesson_worker::session_consolidation::consolidate_project;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::NewLessonWrite;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::test_support;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -65,6 +66,7 @@ pub(super) async fn seed_nearest_and_runners_up(
     nearest_text: &str,
 ) -> anyhow::Result<i64> {
     let nearest_id = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -78,10 +80,12 @@ pub(super) async fn seed_nearest_and_runners_up(
         .await?
         .id;
     handle
+        .lessons()
         .promote_lesson_to_daily(nearest_id, &unit_vec(0), "test-model")
         .await?;
     for (slot, text) in [(1, "runner-up A"), (2, "runner-up B")] {
         let id = handle
+            .lessons()
             .create_lesson_with_topic(NewLessonWrite {
                 project_id,
                 kind: "convention",
@@ -95,6 +99,7 @@ pub(super) async fn seed_nearest_and_runners_up(
             .await?
             .id;
         handle
+            .lessons()
             .promote_lesson_to_daily(id, &unit_vec(slot), "test-model")
             .await?;
     }
@@ -161,6 +166,7 @@ pub(super) async fn seed_skip_cause_empty_embed_response(
         chunk_max_chars: 1500,
     });
     let lesson_empty = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project_empty,
             kind: "convention",
@@ -195,6 +201,7 @@ pub(super) async fn seed_skip_cause_embed_http_error(
         chunk_max_chars: 1500,
     });
     let lesson_err = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project_err,
             kind: "convention",
@@ -217,6 +224,7 @@ pub(super) async fn seed_skip_cause_vector_search_error(
 ) -> anyhow::Result<i64> {
     let project_dim = test_support::seed_project(pool, "skip-cause-dim-mismatch").await?;
     let dim_mismatch_neighbour = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project_dim,
             kind: "convention",
@@ -229,11 +237,13 @@ pub(super) async fn seed_skip_cause_vector_search_error(
         })
         .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(dim_mismatch_neighbour.id, &unit_vec(0), "test-model")
         .await?;
     let wrong_dim = vec![1.0_f32; 5];
     let (_dim_server, dim_embedding) = embedding_service_returning(wrong_dim).await;
     let lesson_dim = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project_dim,
             kind: "convention",

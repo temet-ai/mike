@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub(crate) async fn insert_response_intercept(
-        &self,
+        self,
         session_uuid: Uuid,
         request_id: Option<i64>,
         outcome: &str,

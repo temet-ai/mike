@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
 use super::definition::FleetDefinition;
@@ -80,6 +81,7 @@ impl Gate {
         }
         Self(
             persist
+                .fleet()
                 .latest_change_events(&def.repo, &[], &[ChangeKind::Check], CHECKS_READ)
                 .await
                 .ok(),

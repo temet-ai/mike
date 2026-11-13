@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::time::Instant;
 
 use crate::circuit_breaker::CircuitBreaker;
@@ -24,6 +25,7 @@ async fn reproject_ineligible(judge: &LiveJudge<'_>, window: &RejudgeWindow) -> 
         let Some(ids) = ok_or_warn(
             judge
                 .persist
+                .eval()
                 .rejudge_ineligible_turn_ids(window, after, INELIGIBLE_PAGE)
                 .await,
             "rejudge.ineligible_page",
@@ -49,7 +51,7 @@ async fn started(judge: &LiveJudge<'_>, run: &RejudgeRunRow) -> bool {
     run.status == "running"
         || (run.status == "queued"
             && ok_or_warn(
-                judge.persist.start_rejudge_run(run.id).await,
+                judge.persist.eval().start_rejudge_run(run.id).await,
                 "rejudge.start_run",
             )
             .unwrap_or(false))
@@ -57,7 +59,7 @@ async fn started(judge: &LiveJudge<'_>, run: &RejudgeRunRow) -> bool {
 
 async fn finish_if_done(judge: &LiveJudge<'_>, run: &RejudgeRunRow) -> Option<i64> {
     let progress = ok_or_warn(
-        judge.persist.rejudge_progress(&run.window()).await,
+        judge.persist.eval().rejudge_progress(&run.window()).await,
         "rejudge.progress",
     )?;
     if progress.remaining > 0 {
@@ -66,6 +68,7 @@ async fn finish_if_done(judge: &LiveJudge<'_>, run: &RejudgeRunRow) -> Option<i6
     ok_or_warn(
         judge
             .persist
+            .eval()
             .finish_rejudge_run(run.id, RejudgeFinish::Done)
             .await,
         "rejudge.finish_run",
@@ -80,7 +83,7 @@ async fn finish_if_done(judge: &LiveJudge<'_>, run: &RejudgeRunRow) -> Option<i6
 
 async fn active_run(judge: &LiveJudge<'_>) -> Option<RejudgeRunRow> {
     let run = ok_or_warn(
-        judge.persist.active_rejudge_run().await,
+        judge.persist.eval().active_rejudge_run().await,
         "rejudge.active_run",
     )??;
     if run.bundle_id == judge.bundle.id && run.role == "turn_judge" {
@@ -132,6 +135,7 @@ async fn drain_owned_run(
     let ids = ok_or_warn(
         judge
             .persist
+            .eval()
             .claim_rejudge_candidates(&run.window(), i64::from(reservation.granted()))
             .await,
         "rejudge.claim",
@@ -146,6 +150,7 @@ async fn drain_owned_run(
 #[cfg(test)]
 mod tests {
     use super::claim_size;
+    use crate::store::persistence::eval_repo::EvalPersist as _;
 
     #[test]
     fn claim_size_is_capped_by_daily_cap_left() {
@@ -167,10 +172,12 @@ mod tests {
         let id = f.create_history(1).await?;
         let run = f
             .persist
+            .eval()
             .active_rejudge_run()
             .await?
             .context("queued run")?;
         f.persist
+            .eval()
             .finish_rejudge_run(id, RejudgeFinish::Cancelled)
             .await?;
         let shared = LiveJudgeShared::default();

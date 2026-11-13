@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use serde_json::Value;
 
 use crate::state::AppState;
@@ -43,6 +44,7 @@ pub(crate) async fn answer(state: &AppState, project_path: &str) -> String {
     };
 
     let rows = match persist
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Live)
         .await
     {

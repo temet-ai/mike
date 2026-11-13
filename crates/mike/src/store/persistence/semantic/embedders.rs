@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EmbedderRow {
@@ -41,8 +41,8 @@ pub struct VerifySample {
     pub embedding: String,
 }
 
-impl PersistHandle {
-    pub async fn current_semantic_embedder(&self) -> Result<Option<EmbedderRow>, PersistError> {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    pub async fn current_semantic_embedder(self) -> Result<Option<EmbedderRow>, PersistError> {
         crate::metrics::time_db("current_semantic_embedder", async move {
             Ok(sqlx::query_as!(
                 EmbedderRow,
@@ -57,7 +57,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_semantic_embedders(&self) -> Result<Vec<EmbedderRow>, PersistError> {
+    pub async fn list_semantic_embedders(self) -> Result<Vec<EmbedderRow>, PersistError> {
         crate::metrics::time_db("list_semantic_embedders", async move {
             Ok(sqlx::query_as!(
                 EmbedderRow,
@@ -72,7 +72,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn insert_semantic_embedder(&self, e: &NewEmbedder<'_>) -> Result<i64, PersistError> {
+    pub async fn insert_semantic_embedder(self, e: &NewEmbedder<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_semantic_embedder", async move {
             let mut tx = self.pool.begin().await?;
             sqlx::query!(
@@ -104,7 +104,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn touch_semantic_embedder(&self, id: i64, url: &str) -> Result<(), PersistError> {
+    pub async fn touch_semantic_embedder(self, id: i64, url: &str) -> Result<(), PersistError> {
         crate::metrics::time_db("touch_semantic_embedder", async move {
             sqlx::query!(
                 "UPDATE memory.semantic_embedders
@@ -123,7 +123,7 @@ impl PersistHandle {
     }
 
     pub async fn set_semantic_copy_window(
-        &self,
+        self,
         id: i64,
         from: DateTime<Utc>,
         verify: &serde_json::Value,
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub async fn semantic_verify_sample(
-        &self,
+        self,
         since: DateTime<Utc>,
         model: &str,
         seed: &str,
@@ -182,9 +182,9 @@ pub struct PruneReport {
     pub retired: bool,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn prune_semantic_embedder(
-        &self,
+        self,
         embedder_key: &str,
     ) -> Result<Option<PruneReport>, PersistError> {
         crate::metrics::time_db("prune_semantic_embedder", async move {

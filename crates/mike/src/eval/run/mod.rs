@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 pub(crate) mod bundle;
 pub(crate) mod items;
 pub(crate) mod labels;
@@ -150,6 +151,7 @@ impl Runner<'_> {
         let components = judge.components();
         if let Some(id) = self
             .persist
+            .eval()
             .find_resolver_bundle("turn_judge", &components)
             .await?
         {
@@ -157,6 +159,7 @@ impl Runner<'_> {
         }
         Ok(self
             .persist
+            .eval()
             .create_candidate_bundle("turn_judge", "", &components)
             .await?)
     }
@@ -216,11 +219,11 @@ impl Runner<'_> {
             max_usd: req.max_usd,
             argv: req.labels.to_argv(),
         };
-        Ok(self.persist.create_eval_run(&run).await?)
+        Ok(self.persist.eval().create_eval_run(&run).await?)
     }
 
     pub(crate) async fn resume(&self, run_id: i64, judge: &RunJudge) -> anyhow::Result<RunOutcome> {
-        let Some(run) = self.persist.get_eval_run(run_id).await? else {
+        let Some(run) = self.persist.eval().get_eval_run(run_id).await? else {
             return Ok(RunOutcome::Refused(format!("no eval run with id {run_id}")));
         };
         let Some(options) = LabelOptions::from_argv(&run.argv) else {
@@ -236,6 +239,7 @@ impl Runner<'_> {
         }
         let done: Vec<i64> = self
             .persist
+            .eval()
             .all_eval_run_items(run_id)
             .await?
             .into_iter()
@@ -294,7 +298,7 @@ impl Runner<'_> {
             reaction_correct,
             delivery_correct,
         };
-        Ok(self.persist.upsert_eval_run_item(&write).await?)
+        Ok(self.persist.eval().upsert_eval_run_item(&write).await?)
     }
 
     async fn check_budget(
@@ -302,7 +306,7 @@ impl Runner<'_> {
         guard: &EvalSpendGuard,
     ) -> anyhow::Result<Result<(), BudgetPause>> {
         let all = self.persist.sum_todays_llm_spend_usd().await?;
-        let eval = self.persist.eval_spend_today_usd().await?;
+        let eval = self.persist.eval().eval_spend_today_usd().await?;
         Ok(guard.check(all, eval))
     }
 
@@ -316,7 +320,7 @@ impl Runner<'_> {
     ) -> anyhow::Result<RunOutcome> {
         for batch in items.chunks(CONTEXT_BATCH) {
             let ids: Vec<i64> = batch.iter().map(|i| i.operator_turn_id).collect();
-            let rows = self.persist.fetch_judge_turn_contexts(&ids).await?;
+            let rows = self.persist.eval().fetch_judge_turn_contexts(&ids).await?;
             for label in batch {
                 if let Err(pause) = self.check_budget(&guard).await? {
                     return self.pause(run_id, &pause).await;
@@ -355,6 +359,7 @@ impl Runner<'_> {
         reason: &impl serde::Serialize,
     ) -> anyhow::Result<RunOutcome> {
         self.persist
+            .eval()
             .refresh_eval_run(run_id, "paused_budget", None)
             .await?;
         Ok(RunOutcome::Finished {
@@ -366,7 +371,7 @@ impl Runner<'_> {
     }
 
     async fn finish(&self, run_id: i64, judge: &RunJudge) -> anyhow::Result<RunOutcome> {
-        let rows = self.persist.all_eval_run_items(run_id).await?;
+        let rows = self.persist.eval().all_eval_run_items(run_id).await?;
         let seed = u64::try_from(run_id).unwrap_or(0);
         let mut report = score_run(&score_items(&rows), judge.is_r3(), seed);
         if let Some(map) = report.as_object_mut() {
@@ -388,6 +393,7 @@ impl Runner<'_> {
             );
         }
         self.persist
+            .eval()
             .refresh_eval_run(run_id, "complete", Some(&report))
             .await?;
         Ok(RunOutcome::Finished {

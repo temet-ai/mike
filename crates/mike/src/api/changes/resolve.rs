@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -91,7 +92,7 @@ async fn seat_of(
     if !is_fleet_seat(persist, session).await {
         return Ok(None);
     }
-    let Some(row) = persist.find_fleet_for_session(session).await? else {
+    let Some(row) = persist.fleet().find_fleet_for_session(session).await? else {
         return Ok(None);
     };
     let (Some(run), "running") = (row.run_id.clone(), row.state.as_str()) else {

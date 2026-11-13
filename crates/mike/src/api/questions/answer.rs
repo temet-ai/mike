@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -31,7 +32,7 @@ pub(crate) struct DeclineBody {
 }
 
 async fn known(persist: &PersistHandle, id: Uuid) -> Result<QuestionRow, Box<Response>> {
-    match persist.question_by_uuid(id).await {
+    match persist.launch().question_by_uuid(id).await {
         Ok(Some(row)) => Ok(row),
         Ok(None) => Err(Box::new(problem(
             StatusCode::NOT_FOUND,
@@ -51,7 +52,7 @@ async fn brief_to_amend(
             "amend needs a question that is about a brief note; this one is about none",
         )));
     };
-    match persist.note_ref(note_id).await {
+    match persist.launch().note_ref(note_id).await {
         Ok(Some(note))
             if note
                 .tags
@@ -115,6 +116,7 @@ pub(crate) async fn post_question_answer(
         None
     };
     let outcome = persist
+        .launch()
         .settle_question(&SettledQuestion {
             question: id,
             by,
@@ -176,6 +178,7 @@ pub(crate) async fn post_question_decline(
         Err(response) => return *response,
     };
     let outcome = persist
+        .launch()
         .settle_question(&SettledQuestion {
             question: id,
             by,

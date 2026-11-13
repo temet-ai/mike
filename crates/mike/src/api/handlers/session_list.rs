@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SessionHead {
@@ -33,6 +34,7 @@ pub(crate) async fn get_session_head(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
     let row = handle
+        .launch()
         .fetch_session_head(session_db_id)
         .await
         .map_err(|e| {
@@ -41,7 +43,7 @@ pub(crate) async fn get_session_head(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
     let prompt_kind_counts = handle
-        .fetch_session_prompt_kind_counts(session_db_id)
+        .launch().fetch_session_prompt_kind_counts(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, session_id = %id, "get_session_head: prompt_kind_counts query failed");
@@ -97,6 +99,7 @@ async fn run_list_sessions_query(
     };
     if params.min_request_count.is_some() || project_filter.is_some() {
         handle
+            .launch()
             .list_sessions_paginated_filtered(
                 offset,
                 limit,
@@ -110,6 +113,7 @@ async fn run_list_sessions_query(
             .await
     } else {
         handle
+            .launch()
             .list_sessions_paginated_with_search(offset, limit, search, &listing_window)
             .await
     }
@@ -258,7 +262,7 @@ pub(crate) async fn list_sessions_by_ids_response(
         return Ok((StatusCode::OK, axum::Json(Vec::<SessionSummary>::new())).into_response());
     };
 
-    let rows = match handle.list_sessions_by_ids(&parsed).await {
+    let rows = match handle.launch().list_sessions_by_ids(&parsed).await {
         Ok(rows) => rows,
         Err(e) => {
             tracing::warn!(error = %e, "list_sessions(ids=): DB query failed");

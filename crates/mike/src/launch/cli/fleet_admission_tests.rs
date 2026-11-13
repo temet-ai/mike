@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::io::Cursor;
 use std::time::Duration;
 
@@ -20,6 +22,7 @@ async fn fleet() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, FleetRow
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
     let row = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: format!("opening-{}", Uuid::new_v4()),
             project_path: "/fixture/opening".into(),
@@ -29,10 +32,12 @@ async fn fleet() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, FleetRow
         })
         .await?;
     let ready = persist
+        .fleet()
         .transition_fleet_state(&row, "ready", None, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("ready fixture"))?;
     let starting = persist
+        .fleet()
         .transition_fleet_state(&ready, "starting", None, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("starting fixture"))?;
@@ -44,10 +49,12 @@ async fn fleet() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, FleetRow
         tab_ref: None,
     };
     let starting = persist
+        .fleet()
         .initialize_fleet_run(&starting, &run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("initialized fixture"))?;
     let row = persist
+        .fleet()
         .transition_fleet_state(&starting, "running", None, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("running fixture"))?;
@@ -87,6 +94,7 @@ pub(crate) async fn stopped_fleet_explicit_settings_cannot_bypass_actual_open_fe
         .await
         .map_err(|failure| anyhow::anyhow!("{}", failure.error))?;
     persist
+        .fleet()
         .transition_fleet_state(&row, "stopping", None, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("stop fixture"))?;
@@ -138,10 +146,12 @@ async fn assert_stop_waits_for_open(
         .run_id
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("no fixture run"))?;
-    let pending = persist.unsettled_fleet_launches(run).await?;
+    let pending = persist.fleet().unsettled_fleet_launches(run).await?;
     assert_eq!(pending.len(), 1);
     assert!(!pending[0].opened);
-    let stopping = persist.transition_fleet_state(row, "stopping", None, None);
+    let stopping = persist
+        .fleet()
+        .transition_fleet_state(row, "stopping", None, None);
     tokio::pin!(stopping);
     assert!(
         tokio::time::timeout(Duration::from_millis(30), &mut stopping)
@@ -156,11 +166,12 @@ async fn assert_stop_waits_for_open(
         .await??
         .ok_or_else(|| anyhow::anyhow!("stop lost its expected fixture state"))?;
     assert_eq!(stopped.state, "stopping");
-    let remaining = persist.unsettled_fleet_launches(run).await?;
+    let remaining = persist.fleet().unsettled_fleet_launches(run).await?;
     assert_eq!(remaining.len(), 1);
     assert!(remaining[0].opened);
     assert!(
         persist
+            .launch()
             .find_run(run)
             .await?
             .is_some_and(|run| run.closed_at.is_none())
@@ -200,14 +211,21 @@ pub(crate) async fn backend_open_error_keeps_fleet_reservation_unresolved() -> a
         .run_id
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("no fixture run"))?;
-    let pending = persist.unsettled_fleet_launches(run).await?;
+    let pending = persist.fleet().unsettled_fleet_launches(run).await?;
     assert_eq!(pending.len(), 1);
     assert!(!pending[0].opened);
     assert_eq!(pending[0].result, "pending");
     let stopping = persist
+        .fleet()
         .transition_fleet_state(&row, "stopping", None, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("stop fixture"))?;
-    assert!(persist.complete_fleet_run(&stopping, None).await?.is_none());
+    assert!(
+        persist
+            .fleet()
+            .complete_fleet_run(&stopping, None)
+            .await?
+            .is_none()
+    );
     db.cleanup().await
 }

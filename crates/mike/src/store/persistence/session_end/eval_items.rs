@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewSessionEndItem<'a> {
@@ -40,9 +40,9 @@ fn frustration_correct(label: &str, answer: Option<&str>) -> Option<bool> {
     answer.map(|a| (a == "closed_in_frustration") == (label == "closed_in_frustration"))
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn insert_session_end_item(
-        &self,
+        self,
         i: &NewSessionEndItem<'_>,
     ) -> Result<(), PersistError> {
         crate::metrics::time_db("insert_session_end_item", async move {
@@ -76,7 +76,7 @@ impl PersistHandle {
     }
 
     pub async fn list_session_end_items(
-        &self,
+        self,
         run_id: i64,
         limit: i64,
         offset: i64,

@@ -6,7 +6,7 @@ use sqlx::{Postgres, Transaction};
 use super::{
     CheckRunRow, EpisodeRow, NewClientError, ProblemFilter, ProblemPage, ProblemRow, RecordedRun,
 };
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 use crate::wright::{CheckOutcome, CheckRun, Finding};
 
 const LOCK_CHECK: &str = include_str!("sql/lock_check.sql");
@@ -101,9 +101,9 @@ async fn apply_complete(
     })
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn record_wright_run(
-        &self,
+        self,
         run: &CheckRun<'_>,
     ) -> Result<RecordedRun, PersistError> {
         let cols = match run.outcome {
@@ -131,7 +131,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_wright_problems(
-        &self,
+        self,
         filter: &ProblemFilter,
     ) -> Result<ProblemPage, PersistError> {
         let problems: Vec<ProblemRow> = sqlx::query_as(LIST_PROBLEMS) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query_file_as! with them
@@ -151,7 +151,7 @@ impl PersistHandle {
         Ok(ProblemPage { problems, total })
     }
 
-    pub(crate) async fn wright_problem(&self, id: i64) -> Result<Option<ProblemRow>, PersistError> {
+    pub(crate) async fn wright_problem(self, id: i64) -> Result<Option<ProblemRow>, PersistError> {
         Ok(
             sqlx::query_as(ONE_PROBLEM) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query_file_as! with them
                 .bind(id)
@@ -161,7 +161,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn wright_episodes(
-        &self,
+        self,
         problem_id: i64,
         limit: i64,
         offset: i64,
@@ -176,7 +176,7 @@ impl PersistHandle {
         )
     }
 
-    pub(crate) async fn latest_wright_runs(&self) -> Result<Vec<CheckRunRow>, PersistError> {
+    pub(crate) async fn latest_wright_runs(self) -> Result<Vec<CheckRunRow>, PersistError> {
         Ok(
             sqlx::query_as(LATEST_RUNS) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query_file_as! with them
                 .fetch_all(self.pool())
@@ -185,7 +185,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn last_wright_daily_pass(
-        &self,
+        self,
     ) -> Result<Option<DateTime<Utc>>, PersistError> {
         Ok(sqlx::query_scalar(LAST_DAILY)
             .fetch_one(self.pool())
@@ -193,7 +193,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_wright_client_error(
-        &self,
+        self,
         error: &NewClientError,
     ) -> Result<i64, PersistError> {
         Ok(sqlx::query_scalar(INSERT_CLIENT_ERROR)

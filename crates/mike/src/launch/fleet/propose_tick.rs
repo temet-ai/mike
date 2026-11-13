@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -56,7 +58,7 @@ pub(super) fn suspect_criteria(events: &[FleetEvent]) -> Vec<(String, i32)> {
 }
 
 async fn mark_suspect_criteria(persist: &PersistHandle, run: &str) {
-    let events = match persist.fleet_events_since(run, 0).await {
+    let events = match persist.fleet().fleet_events_since(run, 0).await {
         Ok(events) => events,
         Err(err) => {
             tracing::warn!(%run, error = %err, "fleet: could not read the events to judge criteria");
@@ -78,7 +80,7 @@ async fn record_suspect(persist: &PersistHandle, run: &str, criterion: String, f
             failures,
         }),
     };
-    if let Err(err) = persist.append_fleet_event(&event).await {
+    if let Err(err) = persist.fleet().append_fleet_event(&event).await {
         tracing::warn!(%run, %criterion, error = %err, "fleet: could not record criterion_suspect");
     }
 }
@@ -142,7 +144,7 @@ pub async fn settle_held(persist: &PersistHandle, fleet: Uuid) {
 }
 
 async fn tell_added(persist: &PersistHandle, fleet: Uuid, proposal: &str, task: &str) {
-    let Ok(Some(row)) = persist.find_fleet(&fleet.to_string()).await else {
+    let Ok(Some(row)) = persist.fleet().find_fleet(&fleet.to_string()).await else {
         return;
     };
     let Ok(def) = FleetDefinition::from_value(&row.definition) else {
@@ -157,6 +159,7 @@ async fn tell_added(persist: &PersistHandle, fleet: Uuid, proposal: &str, task: 
         "[mike proposal] The owner released the files of {proposal}; mike added it as task {task} and starts a seat for it on its next pass."
     );
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), to, None, &body)
         .await
     {
@@ -328,12 +331,13 @@ async fn unowned_causes(
 ) -> (Vec<String>, Vec<String>) {
     let now = Utc::now();
     let rows = persist
+        .fleet()
         .tree_changed_paths_since(run, now - Duration::hours(LOOK_BACK_HOURS))
         .await
         .unwrap_or_default();
     let changed =
         still_uncommitted(persist, &def.repo, quiet_unowned_changes(def, &rows, now)).await;
-    let failing = match persist.latest_tree_check(run).await {
+    let failing = match persist.fleet().latest_tree_check(run).await {
         Ok(Some(check)) => unowned_failures(def, &check),
         _ => Vec::new(),
     };
@@ -401,6 +405,7 @@ async fn tell_coordinator(
     };
     let body = coordinator_mail(p, answer);
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), to, None, &body)
         .await
     {

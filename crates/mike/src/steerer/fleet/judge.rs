@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 #[cfg(test)]
 mod tests;
 
@@ -73,6 +74,7 @@ pub(crate) async fn judge_turn_close_now(
     };
     let registry = steerer_registry.load_full();
     let Ok(enrolments) = persist
+        .steerer()
         .list_active_enrolments_for_session(session_uuid)
         .await
         .inspect_err(|e| {

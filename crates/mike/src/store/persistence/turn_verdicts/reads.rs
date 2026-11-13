@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{TurnVerdictFilter, TurnVerdictRow, VERDICT_COLUMNS, VERDICT_FROM, VerdictMode};
 
 #[derive(sqlx::FromRow)]
@@ -41,9 +41,9 @@ fn push_verdict_filter(query: &mut QueryBuilder<Postgres>, f: &TurnVerdictFilter
 
 const ALL_MODES: [&str; 3] = ["live", "shadow", "eval"];
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_turn_verdicts_for_turn(
-        &self,
+        self,
         turn_id: i64,
         mode: Option<VerdictMode>,
         limit: i64,
@@ -82,7 +82,7 @@ impl PersistHandle {
     }
 
     pub async fn list_turn_verdicts(
-        &self,
+        self,
         f: &TurnVerdictFilter,
     ) -> Result<(Vec<TurnVerdictRow>, i64), PersistError> {
         crate::metrics::time_db("list_turn_verdicts", async move {
@@ -106,7 +106,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn operator_turn_exists(&self, turn_id: i64) -> Result<bool, PersistError> {
+    pub async fn operator_turn_exists(self, turn_id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("operator_turn_exists", async move {
             let exists = sqlx::query_scalar!(
                 r#"SELECT EXISTS (SELECT 1 FROM memory.operator_turns WHERE id = $1) AS "exists!""#,

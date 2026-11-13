@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
@@ -23,12 +24,13 @@ pub(super) async fn tune_if_due(
     window_start: DateTime<Utc>,
     now: DateTime<Utc>,
 ) -> Result<Tuned, crate::store::persistence::PersistError> {
-    if persist.search_tuned_since(window_start).await? {
+    if persist.knowledge().search_tuned_since(window_start).await? {
         return Ok(Tuned::AlreadyToday);
     }
     let service = state.rerank_service();
     let config = service.current_config();
     let stored = persist
+        .knowledge()
         .search_grades_since(now - Duration::days(config.nightly.lookback_days))
         .await?;
     let grades: Vec<Grade> = stored
@@ -42,6 +44,7 @@ pub(super) async fn tune_if_due(
     let graded = i32::try_from(grades.len()).unwrap_or(i32::MAX);
     if grades.len() < config.nightly.min_graded_searches {
         persist
+            .knowledge()
             .insert_search_tuning_runs(TuningOutcome::TooFewGrades, &[], graded, now)
             .await?;
         return Ok(Tuned::TooFewGrades(grades.len()));
@@ -68,6 +71,7 @@ pub(super) async fn tune_if_due(
         TuningOutcome::NoChange
     };
     persist
+        .knowledge()
         .insert_search_tuning_runs(outcome, &runs, graded, now)
         .await?;
     Ok(Tuned::Recorded { kept, tried })

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct CallLoopRow {
@@ -16,9 +16,9 @@ pub fn loop_fires(row: &CallLoopRow, min_calls: i64, max_per_row: f64) -> bool {
     row.ok_calls >= min_calls && row.ok_calls as f64 > max_per_row * row.verdict_rows.max(1) as f64
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn eval_session_judge_call_loop(
-        &self,
+        self,
         at: DateTime<Utc>,
         max_attempts_per_day: i64,
     ) -> Result<CallLoopRow, PersistError> {
@@ -33,7 +33,7 @@ impl PersistHandle {
     }
 
     async fn eval_session_judge_call_loops(
-        &self,
+        self,
         ats: &[DateTime<Utc>],
         max_attempts_per_day: i64,
     ) -> Result<Vec<(DateTime<Utc>, CallLoopRow)>, PersistError> {
@@ -65,9 +65,9 @@ impl PersistHandle {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub(super) async fn backtest_call_loop(
-        &self,
+        self,
         steps: &[DateTime<Utc>],
         t: &super::types::AlarmThresholds,
     ) -> Result<Vec<super::types::BacktestRow>, PersistError> {

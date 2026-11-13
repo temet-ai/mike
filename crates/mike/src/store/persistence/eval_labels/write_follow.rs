@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::EvalLabelRow;
 use super::write::{Insert, LabelWriteError, insert_rows, lock_subject, snapshot};
 use crate::eval::labels::SpaOrigin;
@@ -71,9 +71,9 @@ fn follow_insert<'a>(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn withdraw_label(
-        &self,
+        self,
         id: i64,
         origin: &SpaOrigin,
         note: Option<&str>,
@@ -94,7 +94,7 @@ impl PersistHandle {
     }
 
     pub async fn confirm_relayed_label(
-        &self,
+        self,
         id: i64,
         origin: &SpaOrigin,
         note: Option<&str>,

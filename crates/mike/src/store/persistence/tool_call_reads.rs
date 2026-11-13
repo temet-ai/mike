@@ -1,4 +1,4 @@
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct ToolUseRow {
@@ -49,9 +49,9 @@ pub(crate) struct PairedToolCallRow {
     pub(crate) result_content: Option<serde_json::Value>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn count_tool_uses_for_session(
-        &self,
+        self,
         session_db_id: i64,
         agent: Option<&str>,
     ) -> Result<i64, PersistError> {
@@ -86,7 +86,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_tool_uses_for_session(
-        &self,
+        self,
         session_db_id: i64,
         offset: i64,
         limit: i64,
@@ -146,7 +146,7 @@ impl PersistHandle {
         })
         .await
     }
-    pub async fn request_exists(&self, request_id: i64) -> Result<bool, PersistError> {
+    pub async fn request_exists(self, request_id: i64) -> Result<bool, PersistError> {
         crate::metrics::time_db("request_exists", async {
             let exists = sqlx::query_scalar!(
                 r#"SELECT EXISTS (SELECT 1 FROM requests.requests WHERE id = $1) AS "exists!""#,
@@ -159,7 +159,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_tool_results_for_request(
-        &self,
+        self,
         request_id: i64,
     ) -> Result<Vec<ToolResultRow>, PersistError> {
         crate::metrics::time_db("fetch_tool_results_for_request", async {
@@ -175,7 +175,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_request_tool_calls_paired(
-        &self,
+        self,
         request_id: i64,
     ) -> Result<Vec<PairedToolCallRow>, PersistError> {
         crate::metrics::time_db("fetch_request_tool_calls_paired", async {
@@ -191,7 +191,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_results_for_tool_use_ids(
-        &self,
+        self,
         tu_ids: &[i64],
         session_db_id: i64,
     ) -> Result<Vec<BatchToolResultRow>, PersistError> {
@@ -213,7 +213,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn first_request_carrying_result(
-        &self,
+        self,
         wire_tool_use_id: &str,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("first_request_carrying_result", async {

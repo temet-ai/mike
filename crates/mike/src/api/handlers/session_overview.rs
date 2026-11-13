@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct SessionOverviewTurnDto {
@@ -145,7 +147,7 @@ async fn fetch_overview_quality(
     handle: &crate::store::persistence::PersistHandle,
     session_id: &str,
 ) -> Option<SessionQualityDto> {
-    match handle.fetch_session_quality(session_id).await {
+    match handle.eval().fetch_session_quality(session_id).await {
         Ok(Some(q)) => Some(SessionQualityDto::from(q)),
         Ok(None) => None,
         Err(e) => {
@@ -184,7 +186,11 @@ async fn fetch_overview_embedding(
     session_id: &str,
     session_uuid: uuid::Uuid,
 ) -> EmbeddingStatusDto {
-    match handle.session_embedding_status(session_uuid).await {
+    match handle
+        .knowledge()
+        .session_embedding_status(session_uuid)
+        .await
+    {
         Ok(Some(s)) => EmbeddingStatusDto::Present {
             present: true,
             source: s.source,
@@ -218,7 +224,11 @@ async fn fetch_overview_knowledge(
     session_id: &str,
     session_uuid: uuid::Uuid,
 ) -> Option<SessionKnowledgeDto> {
-    match handle.fetch_session_knowledge(session_uuid).await {
+    match handle
+        .knowledge()
+        .fetch_session_knowledge(session_uuid)
+        .await
+    {
         Ok(Some(k)) => Some(SessionKnowledgeDto {
             topics: k.topics,
             learnings: k.learnings,
@@ -271,7 +281,11 @@ async fn fetch_overview_related_sessions(
     session_id: &str,
     session_uuid: uuid::Uuid,
 ) -> Vec<SessionOverviewRelatedSessionDto> {
-    let neighbours = match handle.nearest_sessions(session_uuid, 5, true, 0.0).await {
+    let neighbours = match handle
+        .knowledge()
+        .nearest_sessions(session_uuid, 5, true, 0.0)
+        .await
+    {
         Ok(neighbours) => neighbours,
         Err(e) => {
             tracing::warn!(session_id = %session_id, error = %e, "get_session_overview: nearest_sessions failed — omitting");

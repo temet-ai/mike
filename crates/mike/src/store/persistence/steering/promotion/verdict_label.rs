@@ -1,11 +1,11 @@
 use serde_json::json;
 
+use super::super::super::PersistError;
 use super::super::super::eval_labels::assign_turn_split;
-use super::super::super::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn label_steer_evaluation(
-        &self,
+        self,
         evaluation: uuid::Uuid,
         label: &str,
         note: Option<&str>,

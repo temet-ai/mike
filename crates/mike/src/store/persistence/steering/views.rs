@@ -2,11 +2,11 @@ use super::{
     ArmingHistoryRow, PriorFireRow, SessionSteeringRow, SteeredRequestRow, SteeringVocabulary,
     VerifierRateRow, VocabTermRow,
 };
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub(crate) async fn fetch_steered_request(
-        &self,
+        self,
         request_id: i64,
     ) -> Result<Option<SteeredRequestRow>, PersistError> {
         crate::metrics::time_db("fetch_steered_request", async move {
@@ -47,7 +47,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_session_steering(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         offset: i64,
         limit: i64,
@@ -95,7 +95,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn count_session_steering(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<i64, PersistError> {
         let count = sqlx::query_scalar!(
@@ -110,7 +110,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_session_project_id(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("get_session_project_id", async move {
@@ -125,7 +125,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_verifier_counts_for_session(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
     ) -> Result<(i64, i64), PersistError> {
         crate::metrics::time_db("fetch_verifier_counts_for_session", async move {
@@ -145,7 +145,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_verifier_rate(
-        &self,
+        self,
         project: Option<&str>,
     ) -> Result<Vec<VerifierRateRow>, PersistError> {
         let project = project.map(str::trim).filter(|s| !s.is_empty());
@@ -194,7 +194,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_arming_history(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<ArmingHistoryRow, PersistError> {
         const ARMING_HISTORY_RECENT_CAP: i64 = 20;
@@ -229,7 +229,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_prior_fires_for_session(
-        &self,
+        self,
         session_db_id: i64,
         steerer_id: i64,
         limit: i64,
@@ -254,7 +254,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_steering_vocabulary(
-        &self,
+        self,
     ) -> Result<SteeringVocabulary, PersistError> {
         let rows = sqlx::query!(
             r#"SELECT 'authority' AS "kind!", code AS "code!", description AS "description!"

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -38,7 +39,7 @@ pub(crate) async fn list_projects(State(state): State<AppState>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.list_proposal_projects().await {
+    match persist.lessons().list_proposal_projects().await {
         Ok(projects) => {
             let undecided = projects.iter().map(|p| p.undecided).sum();
             Json(ProjectsResponse {
@@ -69,7 +70,11 @@ pub(crate) async fn list_proposals(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.list_placement_proposals(params.project).await {
+    match persist
+        .lessons()
+        .list_placement_proposals(params.project)
+        .await
+    {
         Ok(proposals) => Json(ProposalsResponse {
             project: params.project,
             proposals,
@@ -114,7 +119,11 @@ pub(crate) async fn decide(
             "decision must be accept, decline or clear",
         );
     };
-    match persist.set_placement_decision(lesson_id, decision).await {
+    match persist
+        .lessons()
+        .set_placement_decision(lesson_id, decision)
+        .await
+    {
         Ok(true) => Json(json!({ "ok": true })).into_response(),
         Ok(false) => error(
             StatusCode::NOT_FOUND,

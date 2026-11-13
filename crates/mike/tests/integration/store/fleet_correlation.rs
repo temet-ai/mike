@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::test_support::seed_project;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -77,7 +78,7 @@ async fn fetch_fleet_nodes_includes_quiet_session_with_active_registration() -> 
     )
     .await?;
 
-    let nodes = handle.fetch_fleet_nodes(project_id, 24).await?;
+    let nodes = handle.fleet().fetch_fleet_nodes(project_id, 24).await?;
     assert_eq!(
         nodes
             .iter()
@@ -141,7 +142,7 @@ async fn fetch_fleet_nodes_window_excludes_ended_and_expired_registrations() -> 
     let recent_session = Uuid::new_v4();
     seed_session_at(handle.pool(), project_id, recent_session, Utc::now()).await?;
 
-    let nodes = handle.fetch_fleet_nodes(project_id, 24).await?;
+    let nodes = handle.fleet().fetch_fleet_nodes(project_id, 24).await?;
     let uuids: Vec<Uuid> = nodes.iter().map(|n| n.session_uuid).collect();
     assert!(
         !uuids.contains(&ended_session),

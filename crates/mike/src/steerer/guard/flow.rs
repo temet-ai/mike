@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use crate::logged::ok_or_warn;
@@ -100,6 +101,7 @@ async fn dispatch_mode(turn: &GuardTurn<'_>, questions: &[Question], mode: Evalu
     };
     match turn
         .persist
+        .steerer()
         .insert_evaluations_dispatched(&new, &codes)
         .await
     {
@@ -133,6 +135,7 @@ async fn resolve(
         };
         if let Err(e) = turn
             .persist
+            .steerer()
             .resolve_evaluation(
                 *uuid,
                 fired,
@@ -183,6 +186,7 @@ fn new_record(turn: &GuardTurn<'_>) -> GuardRecord {
 async fn idle_seconds(turn: &GuardTurn<'_>) -> Option<i64> {
     let last = turn
         .persist
+        .steerer()
         .session_last_request_at(turn.session_db_id)
         .await
         .ok()
@@ -280,6 +284,7 @@ async fn call_and_decide(
     let snapshot = crate::cross_session::current();
     let project_id = turn
         .persist
+        .steerer()
         .session_project_id(turn.session_db_id)
         .await
         .ok()
@@ -364,6 +369,7 @@ async fn run(turn: &GuardTurn<'_>) -> GuardOutcome {
 async fn calls_today(turn: &GuardTurn<'_>) -> i64 {
     ok_or_warn(
         turn.persist
+            .steerer()
             .steerer_calls_today(turn.steerer_id, "steerer")
             .await,
         "turn_guard.calls_today",

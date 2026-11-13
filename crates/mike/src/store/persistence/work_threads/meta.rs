@@ -2,7 +2,6 @@ use super::lock::{LockedThread, Tx, require_thread};
 use super::reads::identity_by_id;
 use super::validate::{invalid, non_blank, relative_path, slug, status};
 use super::{ThreadIdentity, WorkThreadError};
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MetaUpdate<'a> {
@@ -193,9 +192,9 @@ async fn enforce_review_rule(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn update_work_thread_meta(
-        &self,
+        self,
         project_id: i64,
         thread_slug: &str,
         meta: &MetaUpdate<'_>,

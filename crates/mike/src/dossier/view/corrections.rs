@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -131,6 +132,7 @@ pub async fn load_label_corrections(
     };
     let tiers: Vec<String> = AUDIENCE_TIERS.iter().map(|t| (*t).to_owned()).collect();
     let rows = persist
+        .dossier()
         .correction_labels_as_of(session_uuid, label_bound(inputs), &tiers)
         .await?;
     Ok(corrections_from_labels(inputs, &rows))

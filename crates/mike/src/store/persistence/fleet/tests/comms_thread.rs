@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use uuid::Uuid;
 
@@ -16,6 +18,7 @@ async fn fleet_comms_thread_collects_seat_mail_and_names_project_and_fleet() -> 
     seed_run(&f.handle, &run_id).await?;
     let fleet = f
         .handle
+        .fleet()
         .insert_fleet(&new_fleet("comms", "/tmp/fleet-a"))
         .await?;
     seed_fleet_running(&f.handle, fleet.fleet_uuid, &run_id).await?;
@@ -26,20 +29,30 @@ async fn fleet_comms_thread_collects_seat_mail_and_names_project_and_fleet() -> 
     seed_launch(&f.handle, &run_id, "worker-T1", Some(worker), true).await?;
     seed_launch(&f.handle, &run_id, "acceptance", Some(acceptance), true).await?;
 
-    let thread = f.handle.ensure_fleet_comms_thread(fleet.fleet_uuid).await?;
+    let thread = f
+        .handle
+        .fleet()
+        .ensure_fleet_comms_thread(fleet.fleet_uuid)
+        .await?;
     assert_eq!(thread, Some(fleet.fleet_uuid));
     assert_eq!(
-        f.handle.ensure_fleet_comms_thread(fleet.fleet_uuid).await?,
+        f.handle
+            .fleet()
+            .ensure_fleet_comms_thread(fleet.fleet_uuid)
+            .await?,
         Some(fleet.fleet_uuid)
     );
 
     f.handle
+        .launch()
         .insert_message_with_context(Uuid::new_v4(), acceptance, Some(worker), "T1 done", &[])
         .await?;
     f.handle
+        .launch()
         .insert_message_with_context(Uuid::new_v4(), worker, Some(outsider), "relay", &[])
         .await?;
     f.handle
+        .launch()
         .insert_message_with_context(Uuid::new_v4(), outsider, Some(outsider), "elsewhere", &[])
         .await?;
 
@@ -47,7 +60,7 @@ async fn fleet_comms_thread_collects_seat_mail_and_names_project_and_fleet() -> 
         thread_uuid: Some(fleet.fleet_uuid),
         ..ThreadSummaryFilter::default()
     };
-    let rows = f.handle.fetch_thread_summaries(&filter).await?;
+    let rows = f.handle.launch().fetch_thread_summaries(&filter).await?;
     let [row] = rows.as_slice() else {
         anyhow::bail!("expected one fleet thread, got {}", rows.len());
     };
@@ -66,7 +79,10 @@ async fn fleet_comms_thread_for_an_unknown_fleet_is_none() -> anyhow::Result<()>
         return Ok(());
     };
     assert_eq!(
-        f.handle.ensure_fleet_comms_thread(Uuid::new_v4()).await?,
+        f.handle
+            .fleet()
+            .ensure_fleet_comms_thread(Uuid::new_v4())
+            .await?,
         None
     );
     f.db.cleanup().await?;

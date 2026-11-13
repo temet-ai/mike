@@ -2,6 +2,7 @@ use mike::store::persistence::session_flow::{
     FlowActorKind, FlowComponent, FlowOutcome, FlowProvenance, FlowReadError, FlowRelationshipKind,
     FlowRowId,
 };
+use mike::store::persistence::web_repo::WebPersist as _;
 
 use super::support::{Fixture, ids, no_raw};
 
@@ -302,6 +303,7 @@ async fn real_sidecar_codes_remain_observations_and_database_errors_stay_errors(
     f.handle.pool().close().await;
     assert!(matches!(
         f.handle
+            .web()
             .fetch_session_flow(f.session, FlowComponent::Requests, 10, None)
             .await,
         Err(FlowReadError::Database(_))

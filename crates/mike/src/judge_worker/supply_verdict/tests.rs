@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::sync::Mutex;
 
 use chrono::{Duration, Utc};
@@ -69,6 +70,7 @@ async fn judge_batch_writes_one_verdict_per_supplied_item_and_skips_bad_answers(
         },
     ];
     f.handle
+        .lessons()
         .record_supplied_lessons(f.requests[0], f.session, &lessons)
         .await?;
     let judge = FakeJudge::new(vec![answer("maybe"), answer("used")]);
@@ -89,6 +91,7 @@ async fn judge_batch_writes_one_verdict_per_supplied_item_and_skips_bad_answers(
 
     let items = f
         .handle
+        .lessons()
         .supplied_items_for_request(f.requests[0], 10, 0)
         .await?;
     let judged: Vec<_> = items.iter().filter_map(|i| i.verdict.clone()).collect();
@@ -122,6 +125,7 @@ async fn judge_batch_waits_for_the_turn_to_settle() -> anyhow::Result<()> {
         score: None,
     }];
     f.handle
+        .lessons()
         .record_supplied_lessons(f.requests[0], f.session, &lessons)
         .await?;
     let judge = FakeJudge::new(vec![answer("used")]);

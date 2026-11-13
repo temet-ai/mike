@@ -1,3 +1,4 @@
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::PersistHandle;
@@ -75,15 +76,20 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
     let session = Uuid::new_v4();
     let brief = format!("# Brief for {session}\n{}", "detail line\n".repeat(400));
 
-    let id = handle.insert_launch(&full_launch(session, &brief)).await?;
+    let id = handle
+        .launch()
+        .insert_launch(&full_launch(session, &brief))
+        .await?;
 
     let pending = handle
+        .launch()
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("inserted launch not found by session"))?;
     assert_pending_row(&pending, id, session, &brief);
 
     handle
+        .launch()
         .record_launch_opened(
             id,
             &LaunchSurfaceRefs {
@@ -95,11 +101,12 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
             },
         )
         .await?;
-    assert_eq!(handle.count_open_launches("herdr").await?, 1);
-    assert_eq!(handle.count_open_launches("tmux").await?, 0);
+    assert_eq!(handle.launch().count_open_launches("herdr").await?, 1);
+    assert_eq!(handle.launch().count_open_launches("tmux").await?, 0);
 
     let stderr = StderrCapture::capture("warning: something\n");
     handle
+        .launch()
         .record_launch_outcome(
             id,
             &LaunchOutcome {
@@ -115,12 +122,14 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
         .await?;
 
     let done = handle
+        .launch()
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("launch vanished after outcome"))?;
     assert_succeeded_row(&done, &stderr);
 
     let listed = handle
+        .launch()
         .list_launches(&LaunchListFilter {
             backend: Some("herdr".to_owned()),
             open_only: true,
@@ -130,19 +139,27 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0], done);
 
-    handle.record_launch_closed(id, "kill", Some(true)).await?;
-    handle.record_launch_closed(id, "reaped", None).await?;
+    handle
+        .launch()
+        .record_launch_closed(id, "kill", Some(true))
+        .await?;
+    handle
+        .launch()
+        .record_launch_closed(id, "reaped", None)
+        .await?;
 
     let closed = handle
+        .launch()
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("launch vanished after close"))?;
     assert!(closed.closed_at.is_some());
     assert_eq!(closed.close_reason.as_deref(), Some("kill"));
     assert_eq!(closed.close_process_exited, Some(true));
-    assert_eq!(handle.count_open_launches("herdr").await?, 0);
+    assert_eq!(handle.launch().count_open_launches("herdr").await?, 0);
     assert!(
         handle
+            .launch()
             .list_launches(&LaunchListFilter {
                 open_only: true,
                 ..LaunchListFilter::default()
@@ -152,12 +169,15 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
     );
 
     let second = handle
+        .launch()
         .insert_launch(&full_launch(session, "relaunch brief"))
         .await?;
     handle
+        .launch()
         .record_launch_opened(second, &LaunchSurfaceRefs::default())
         .await?;
     let found = handle
+        .launch()
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch for session"))?;
@@ -166,6 +186,7 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
         "the open relaunch wins over the closed original"
     );
     let ids: Vec<i64> = handle
+        .launch()
         .list_launches(&LaunchListFilter::default())
         .await?
         .into_iter()
@@ -186,7 +207,7 @@ async fn updates_on_unknown_launch_id_return_data_invariant() -> anyhow::Result<
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
 
-    let outcome = handle.record_launch_closed(-1, "kill", None).await;
+    let outcome = handle.launch().record_launch_closed(-1, "kill", None).await;
     assert!(
         matches!(
             outcome,

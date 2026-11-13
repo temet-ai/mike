@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 
+use super::super::PersistError;
 use super::super::dossier_entries::DossierEntryRow;
-use super::super::{PersistError, PersistHandle};
 use super::LedgerAsOfRow;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_ledger_as_of(
-        &self,
+        self,
         session_db_id: i64,
         at: DateTime<Utc>,
     ) -> Result<Vec<LedgerAsOfRow>, PersistError> {
@@ -25,7 +25,7 @@ impl PersistHandle {
     }
 
     pub async fn list_entries_reconstructed(
-        &self,
+        self,
         session_db_id: i64,
         at: DateTime<Utc>,
         extractor_versions: &[String],

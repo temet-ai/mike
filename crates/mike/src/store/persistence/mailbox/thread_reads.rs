@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::thread_types::{
     ParticipantIdentityRow, ThreadMessageRow, ThreadSummaryFilter, ThreadSummaryRow,
@@ -62,9 +62,9 @@ fn thread_summaries_builder(filter: &ThreadSummaryFilter) -> QueryBuilder<Postgr
     builder
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn fetch_thread_messages(
-        &self,
+        self,
         thread_id: i64,
     ) -> Result<Vec<ThreadMessageRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_thread_messages", async move {
@@ -112,7 +112,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_thread_participants(
-        &self,
+        self,
         thread_id: i64,
     ) -> Result<Vec<uuid::Uuid>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_thread_participants", async move {
@@ -139,7 +139,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_participant_identities(
-        &self,
+        self,
         session_uuids: &[uuid::Uuid],
     ) -> Result<Vec<ParticipantIdentityRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_participant_identities", async move {
@@ -176,7 +176,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn fetch_thread_summaries(
-        &self,
+        self,
         filter: &ThreadSummaryFilter,
     ) -> Result<Vec<ThreadSummaryRow>, PersistError> {
         crate::metrics::time_db("mailbox_fetch_thread_summaries", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::Duration;
 
 use super::fixture;
@@ -77,7 +78,11 @@ async fn paths_seen_by_lists_each_read_or_edited_path_with_its_latest_time() -> 
         .await?;
     }
 
-    let seen = f.handle.paths_seen_by(me, now - Duration::hours(1)).await?;
+    let seen = f
+        .handle
+        .fleet()
+        .paths_seen_by(me, now - Duration::hours(1))
+        .await?;
     let names: Vec<&str> = seen.iter().map(|s| s.path.as_str()).collect();
     assert_eq!(names, vec!["/work/alpha/a.rs", "/work/alpha/b.rs"]);
     assert_eq!(seen[0].last_seen, now - Duration::minutes(10));
@@ -144,6 +149,7 @@ async fn tool_calls_naming_path_returns_only_edit_calls_on_that_path_inside_the_
 
     let calls = f
         .handle
+        .fleet()
         .tool_calls_naming_path(path, now - Duration::seconds(30), now)
         .await?;
     let [call] = calls.as_slice() else {
@@ -235,6 +241,7 @@ async fn shell_commands_running_finds_overlapping_bash_calls_in_sessions_inside_
 
     let runs = f
         .handle
+        .fleet()
         .shell_commands_running("/work/alpha", now - Duration::seconds(30), now)
         .await?;
     assert_eq!(runs.len(), 2);
@@ -294,6 +301,7 @@ async fn shell_commands_running_drops_an_unfinished_call_of_a_session_that_went_
 
     let runs = f
         .handle
+        .fleet()
         .shell_commands_running("/work/alpha", now - Duration::seconds(30), now)
         .await?;
     let mut who: Vec<i64> = runs.iter().map(|r| r.session_id).collect();
@@ -319,6 +327,7 @@ async fn shell_commands_running_ignores_a_timeout_input_that_is_not_a_number() -
     unfinished_bash(&f, project_id, odd, Duration::seconds(60), input).await?;
     let runs = f
         .handle
+        .fleet()
         .shell_commands_running("/work/alpha", now - Duration::seconds(30), now)
         .await?;
     assert_eq!(runs.len(), 1, "{runs:?}");

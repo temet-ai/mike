@@ -1,3 +1,4 @@
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::Value;
 
 use crate::turn_facts::{Fixture, fixture};
@@ -7,6 +8,7 @@ const MIGRATION: &str =
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -38,7 +40,11 @@ async fn migration_seeds_guard_row_disabled_with_shadow_rollout_and_four_shadow_
         config["questions"]["relapse"].get("bar").is_none(),
         "bars are code constants"
     );
-    let policies = f.handle.question_policies(guard_id(&f).await?).await?;
+    let policies = f
+        .handle
+        .steerer()
+        .question_policies(guard_id(&f).await?)
+        .await?;
     assert_eq!(policies.len(), 4);
     assert!(policies.iter().all(|p| p.mode == "shadow"));
     Ok(())
@@ -52,6 +58,7 @@ async fn handback_wake_rejected_by_check() -> anyhow::Result<()> {
     let id = guard_id(&f).await?;
     let err = f
         .handle
+        .steerer()
         .set_question_mode(id, "authorised_handback", "wake", "cli")
         .await;
     assert!(
@@ -60,6 +67,7 @@ async fn handback_wake_rejected_by_check() -> anyhow::Result<()> {
     );
     assert!(
         f.handle
+            .steerer()
             .set_question_mode(id, "relapse", "off", "cli")
             .await
             .is_ok()

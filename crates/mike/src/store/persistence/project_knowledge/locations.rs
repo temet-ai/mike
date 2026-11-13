@@ -3,7 +3,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::invalid;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProjectIdentity {
@@ -40,9 +40,9 @@ pub(super) async fn upsert_location(
     .await?)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub(crate) async fn define_knowledge_project(
-        &self,
+        self,
         name: &str,
         uuid: Uuid,
     ) -> Result<ProjectIdentity, PersistError> {
@@ -65,7 +65,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_project_locations(
-        &self,
+        self,
         include_all: bool,
     ) -> Result<Value, PersistError> {
         let rows = sqlx::query_scalar!(
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     pub async fn register_project_location(
-        &self,
+        self,
         input: &LocationInput,
     ) -> Result<Value, PersistError> {
         if input.machine_name.trim().is_empty() || input.root_path.trim().is_empty() {
@@ -118,7 +118,7 @@ impl PersistHandle {
     }
 
     pub async fn project_for_location(
-        &self,
+        self,
         location: Uuid,
     ) -> Result<ProjectIdentity, PersistError> {
         sqlx::query_as!(

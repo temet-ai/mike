@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::Context;
 
 use super::ownership_test_support::Fixture;
@@ -68,10 +69,11 @@ async fn history_consumers_share_daily_admission() -> anyhow::Result<()> {
     assert_eq!(f.verdict_count().await?, 1);
     let run = f
         .persist
+        .eval()
         .active_rejudge_run()
         .await?
         .context("active run")?;
-    let progress = f.persist.rejudge_progress(&run.window()).await?;
+    let progress = f.persist.eval().rejudge_progress(&run.window()).await?;
     assert_eq!(progress.calls_today, 1);
     assert_eq!(progress.remaining, 1);
     f.cleanup().await

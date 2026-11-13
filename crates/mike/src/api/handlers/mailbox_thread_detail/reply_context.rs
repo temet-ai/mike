@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::http::StatusCode;
 use axum::response::Response;
 
@@ -18,7 +19,7 @@ pub(super) async fn build_reply_context(
     thread_uuid: uuid::Uuid,
     body: &PostThreadMessageBody,
 ) -> Result<ReplyContext, Response> {
-    let core = match handle.fetch_thread_core_by_uuid(thread_uuid).await {
+    let core = match handle.launch().fetch_thread_core_by_uuid(thread_uuid).await {
         Ok(Some(c)) => c,
         Ok(None) => {
             return Err(mailbox_error(
@@ -68,7 +69,11 @@ async fn resolve_in_reply_to(
             format!("in_reply_to is not a valid UUID: {raw}"),
         )
     })?;
-    match handle.fetch_message_core_by_uuid(parent_uuid).await {
+    match handle
+        .launch()
+        .fetch_message_core_by_uuid(parent_uuid)
+        .await
+    {
         Ok(Some(parent)) if parent.thread_id == Some(thread_id) => Ok(Some(parent.id)),
         Ok(_) => Err(mailbox_error(
             StatusCode::BAD_REQUEST,
@@ -100,7 +105,11 @@ async fn resolve_from_session(
             format!("from_session_id is not a valid UUID: {raw}"),
         )
     })?;
-    match handle.resolve_session_core(from_session_uuid).await {
+    match handle
+        .launch()
+        .resolve_session_core(from_session_uuid)
+        .await
+    {
         Ok(Some((id, _))) => Ok((Some(from_session_uuid), Some(id))),
         Ok(None) => Err(mailbox_error(
             StatusCode::NOT_FOUND,

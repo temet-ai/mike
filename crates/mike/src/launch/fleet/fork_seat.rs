@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -20,6 +22,7 @@ pub async fn template_for(
     }
     let discipline = seat.discipline.as_deref()?;
     let found = persist
+        .launch()
         .find_live_template_by_name(&template_name(run_id, discipline))
         .await;
     let own = usable(found.map_err(|e| e.to_string()), seat, args);
@@ -43,7 +46,7 @@ async fn nearest(
     seat: &SeatPlan,
     args: &[String],
 ) -> Option<TemplateRow> {
-    match persist.list_live_templates().await {
+    match persist.launch().list_live_templates().await {
         Ok(rows) => nearest_matching(rows, run_id, args),
         Err(err) => {
             lookup_failed(&err.to_string(), seat);
@@ -69,6 +72,7 @@ async fn template_seat(
     template: &TemplateRow,
 ) -> Option<FleetSeatRow> {
     persist
+        .fleet()
         .fleet_seat_rows(run_id)
         .await
         .ok()?

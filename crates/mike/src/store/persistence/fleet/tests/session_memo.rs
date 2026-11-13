@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -14,6 +15,7 @@ async fn running_fleet(f: &Fixture, slug: &str) -> anyhow::Result<(String, Fleet
     seed_run(&f.handle, &run).await?;
     let fleet = f
         .handle
+        .fleet()
         .insert_fleet(&new_fleet(slug, "/tmp/fleet-a"))
         .await?;
     let running = seed_fleet_running(&f.handle, fleet.fleet_uuid, &run).await?;
@@ -40,26 +42,33 @@ async fn session_fleet_lookup_with_a_feed_is_served_from_memory_until_the_feed_m
     let session = known_session(&f).await?;
     let (run, running) = running_fleet(&f, "memo").await?;
 
-    assert_eq!(f.handle.find_fleet_for_session(session).await?, None);
+    assert_eq!(
+        f.handle.fleet().find_fleet_for_session(session).await?,
+        None
+    );
     seed_launch(&other_machine, &run, "worker", Some(session), false).await?;
     assert_eq!(
-        f.handle.find_fleet_for_session(session).await?,
+        f.handle.fleet().find_fleet_for_session(session).await?,
         None,
         "the other machine's launch has not reached the feed, so the answer comes from memory"
     );
     feed.record(RowChangedTable::LaunchLaunches, Some(&session.to_string()));
     assert_eq!(
-        f.handle.find_fleet_for_session(session).await?,
+        f.handle.fleet().find_fleet_for_session(session).await?,
         Some(running.clone())
     );
     assert_eq!(
-        f.handle.find_fleet_header_for_session(session).await?,
+        f.handle
+            .fleet()
+            .find_fleet_header_for_session(session)
+            .await?,
         Some(FleetHeaderRow::from(&running))
     );
 
     let definition = json!({"seats": ["coordinator"], "goal": "memo"});
     let saved = f
         .handle
+        .fleet()
         .save_fleet_definition(
             running.fleet_uuid,
             &definition,
@@ -70,6 +79,7 @@ async fn session_fleet_lookup_with_a_feed_is_served_from_memory_until_the_feed_m
     assert!(saved.is_some());
     let found = f
         .handle
+        .fleet()
         .find_fleet_for_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the seat's fleet disappeared"))?;
@@ -79,11 +89,13 @@ async fn session_fleet_lookup_with_a_feed_is_served_from_memory_until_the_feed_m
     );
 
     other_machine
+        .fleet()
         .set_fleet_state(running.fleet_uuid, "stopping", None, None)
         .await?;
     feed.record(RowChangedTable::LaunchFleets, None);
     let found = f
         .handle
+        .fleet()
         .find_fleet_for_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the seat's fleet disappeared"))?;
@@ -105,10 +117,13 @@ async fn session_fleet_lookup_for_a_session_without_a_known_row_does_not_remembe
     let (run, running) = running_fleet(&f, "unknown").await?;
     let session = Uuid::new_v4();
 
-    assert_eq!(f.handle.find_fleet_for_session(session).await?, None);
+    assert_eq!(
+        f.handle.fleet().find_fleet_for_session(session).await?,
+        None
+    );
     seed_launch(&other_machine, &run, "worker", Some(session), false).await?;
     assert_eq!(
-        f.handle.find_fleet_for_session(session).await?,
+        f.handle.fleet().find_fleet_for_session(session).await?,
         Some(running)
     );
     f.db.cleanup().await
@@ -124,20 +139,24 @@ async fn session_fleet_header_lookup_without_a_feed_reads_launch_then_acceptance
     let seat = Uuid::new_v4();
     seed_launch(&f.handle, &run, "worker", Some(seat), false).await?;
     assert_eq!(
-        f.handle.find_fleet_header_for_session(seat).await?,
+        f.handle.fleet().find_fleet_header_for_session(seat).await?,
         Some(FleetHeaderRow::from(&running))
     );
 
     let acceptance = known_session(&f).await?;
     let mut configured = new_fleet("configured", "/tmp/fleet-a");
     configured.definition = json!({"acceptance": {"session": acceptance.to_string()}});
-    let expected = f.handle.insert_fleet(&configured).await?;
+    let expected = f.handle.fleet().insert_fleet(&configured).await?;
     assert_eq!(
-        f.handle.find_fleet_header_for_session(acceptance).await?,
+        f.handle
+            .fleet()
+            .find_fleet_header_for_session(acceptance)
+            .await?,
         Some(FleetHeaderRow::from(&expected))
     );
     assert_eq!(
         f.handle
+            .fleet()
             .find_fleet_header_for_session(Uuid::new_v4())
             .await?,
         None

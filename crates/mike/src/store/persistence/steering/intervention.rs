@@ -1,8 +1,8 @@
 use super::{InterventionStaleness, NewIntervention};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn insert_intervention(&self, new: NewIntervention<'_>) -> Result<i64, PersistError> {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+    pub async fn insert_intervention(self, new: NewIntervention<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("insert_intervention", async move {
             let mut tx = self.pool.begin().await?;
             let id: i64 = sqlx::query_scalar(
@@ -59,7 +59,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn has_intervention_for_turn(
-        &self,
+        self,
         steerer_id: i64,
         operator_turn_id: i64,
     ) -> Result<bool, PersistError> {
@@ -80,7 +80,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn intervention_staleness(
-        &self,
+        self,
         intervention_uuid: uuid::Uuid,
     ) -> Result<Option<InterventionStaleness>, PersistError> {
         crate::metrics::time_db("intervention_staleness", async move {
@@ -126,7 +126,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn expire_intervention(
-        &self,
+        self,
         intervention_uuid: uuid::Uuid,
         reason: &str,
     ) -> Result<bool, PersistError> {
@@ -149,7 +149,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn revert_intervention(
-        &self,
+        self,
         id: i64,
         reason: &str,
     ) -> Result<bool, PersistError> {

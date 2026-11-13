@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 mod enrolment;
 pub(crate) use enrolment::*;
@@ -214,6 +215,7 @@ pub(crate) async fn put_session_goal(
         return persist_unavailable_response();
     };
     match persist
+        .steerer()
         .set_session_goal(
             crate::store::persistence::session_goals::SetSessionIdentity {
                 session_uuid,
@@ -249,7 +251,7 @@ pub(crate) async fn get_session_goal(
     let Some(persist) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match persist.get_session_goal(session_uuid).await {
+    match persist.steerer().get_session_goal(session_uuid).await {
         Ok(sg) => Ok(Json(SessionGoalDto {
             goal: sg.as_ref().map(|g| g.goal.clone()),
             next_steps: sg.as_ref().map(|g| g.next_steps.clone()),
@@ -279,7 +281,11 @@ pub(crate) async fn revert_intervention(
             "session persistence is disabled; intervention revert is not available",
         ));
     };
-    match handle.revert_intervention(id, &body.revert_reason).await {
+    match handle
+        .steerer()
+        .revert_intervention(id, &body.revert_reason)
+        .await
+    {
         Ok(true) => Ok(StatusCode::OK.into_response()),
         Ok(false) => Err(steerer_error_response(
             StatusCode::NOT_FOUND,

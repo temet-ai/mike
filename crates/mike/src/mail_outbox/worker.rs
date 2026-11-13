@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
@@ -42,7 +43,7 @@ pub(crate) fn spawn_mail_outbox(state: &AppState) {
 pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)>, PersistError> {
     let pool = persist.pool();
     mirror_codex_mail(pool, MIRROR_BATCH).await?;
-    persist.reconcile_runtime_mail_outbox().await?;
+    persist.runtime().reconcile_runtime_mail_outbox().await?;
     let mut outcomes = Vec::new();
     let mut queue_jobs = tokio::task::JoinSet::new();
     for message in store::open_messages(pool, DELIVER_BATCH).await? {
@@ -149,7 +150,11 @@ async fn recipient_for(persist: &PersistHandle, mail: &Mail) -> Option<Box<dyn R
             session: mail.to,
         })),
         Runtime::Codex => {
-            let binding = persist.runtime_thread_by_session(mail.to).await.ok()??;
+            let binding = persist
+                .runtime()
+                .runtime_thread_by_session(mail.to)
+                .await
+                .ok()??;
             Some(Box::new(CodexRecipient {
                 rpc: LiveSeat {
                     persist: persist.clone(),

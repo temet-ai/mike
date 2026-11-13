@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use uuid::Uuid;
 
 use mike::store::test_support::seed_project;
@@ -94,6 +95,7 @@ async fn candidate_carries_its_newest_requests_body_not_an_older_one() -> anyhow
     .await?;
 
     let candidates = handle
+        .proxy()
         .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
         .await?;
     let found = candidates
@@ -132,6 +134,7 @@ async fn a_session_with_a_linked_channel_is_never_a_candidate() -> anyhow::Resul
     .await?;
 
     let candidates = handle
+        .proxy()
         .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
         .await?;
     assert!(
@@ -157,6 +160,7 @@ async fn a_session_last_seen_outside_the_window_is_not_a_candidate() -> anyhow::
     seed_request(handle.pool(), session_id, project_id, Some(b"body"), -1).await?;
 
     let candidates = handle
+        .proxy()
         .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
         .await?;
     assert!(
@@ -183,6 +187,7 @@ async fn the_limit_bounds_the_candidate_count() -> anyhow::Result<()> {
     }
 
     let candidates = handle
+        .proxy()
         .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 3)
         .await?;
     assert_eq!(candidates.len(), 3, "LIMIT must bound the returned rows");

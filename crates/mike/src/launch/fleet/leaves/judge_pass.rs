@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::OnceLock;
 
 use chrono::{DateTime, Utc};
@@ -133,6 +135,7 @@ pub(crate) async fn report_data(persist: &PersistHandle, p: &Pending) -> Option<
         offset: 0,
     };
     persist
+        .launch()
         .fetch_session_notes(p.seat, filter)
         .await
         .ok()?
@@ -171,8 +174,9 @@ async fn awaiting(
     def: &FleetDefinition,
     run: &str,
 ) -> Option<Vec<Pending>> {
-    let events = persist.fleet_events_since(run, 0).await.ok()?;
+    let events = persist.fleet().fleet_events_since(run, 0).await.ok()?;
     let launches = persist
+        .fleet()
         .unsettled_fleet_launches(run)
         .await
         .unwrap_or_default();
@@ -189,7 +193,7 @@ pub(crate) async fn judge_pending(
     (def, run, fleet): (&FleetDefinition, &str, &str),
     pending: &[Pending],
 ) {
-    let told_keys = persist.told_keys(run).await.unwrap_or_default();
+    let told_keys = persist.fleet().told_keys(run).await.unwrap_or_default();
     let open = pending
         .iter()
         .filter(|p| !told_keys.contains(&gave_up_key(p.note)))
@@ -241,7 +245,7 @@ async fn no_model(persist: &PersistHandle, run: &str, pending: &[Pending]) {
         waiting = pending.len(),
         "fleet judge: no model is configured (the steerer model and its key on /settings); reports wait"
     );
-    let told_keys = persist.told_keys(run).await.unwrap_or_default();
+    let told_keys = persist.fleet().told_keys(run).await.unwrap_or_default();
     for p in pending {
         let key = format!("judge-no-model:{}", p.note);
         if told_keys.contains(&key) {

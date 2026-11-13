@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::eval_repo::EvalPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ModelUsageEntry {
@@ -195,6 +196,7 @@ async fn fetch_workflow_run_data(
     Response,
 > {
     let runs_rows = handle
+        .eval()
         .fetch_workflow_runs(session_db_id)
         .await
         .map_err(|e| {
@@ -207,6 +209,7 @@ async fn fetch_workflow_run_data(
         })?;
 
     let agent_rows = handle
+        .eval()
         .fetch_workflow_agents(session_db_id)
         .await
         .map_err(|e| {

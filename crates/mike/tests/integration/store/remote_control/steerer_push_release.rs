@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::remote_control::PushSource;
@@ -15,12 +16,17 @@ async fn release_stale_steerer_push_releases_matching_unacked_claim() -> anyhow:
     let source = PushSource::Steerer { intervention_uuid };
     let event = Uuid::new_v4();
     let reserved_at = handle
+        .proxy()
         .reserve_remote_control_injection(&cse_id, session, &source, event, b"frame")
         .await?
         .ok_or_else(|| anyhow::anyhow!("reservation must succeed"))?;
-    handle.finish_remote_control_injection(event, true).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, true)
+        .await?;
 
     let released = handle
+        .proxy()
         .release_stale_steerer_push(intervention_uuid, reserved_at)
         .await?;
     assert!(
@@ -40,6 +46,7 @@ async fn release_stale_steerer_push_releases_matching_unacked_claim() -> anyhow:
 
     assert!(
         handle
+            .proxy()
             .reserve_remote_control_injection(&cse_id, session, &source, Uuid::new_v4(), b"frame")
             .await?
             .is_some()
@@ -59,13 +66,18 @@ async fn release_stale_steerer_push_noop_on_mismatched_pushed_at() -> anyhow::Re
     let source = PushSource::Steerer { intervention_uuid };
     let event = Uuid::new_v4();
     let reserved_at = handle
+        .proxy()
         .reserve_remote_control_injection(&cse_id, session, &source, event, b"frame")
         .await?
         .ok_or_else(|| anyhow::anyhow!("reservation must succeed"))?;
-    handle.finish_remote_control_injection(event, true).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, true)
+        .await?;
 
     let stale_timer_value = reserved_at - chrono::Duration::seconds(1);
     let released = handle
+        .proxy()
         .release_stale_steerer_push(intervention_uuid, stale_timer_value)
         .await?;
     assert!(
@@ -98,19 +110,26 @@ async fn release_stale_steerer_push_noop_once_acked() -> anyhow::Result<()> {
     let source = PushSource::Steerer { intervention_uuid };
     let event = Uuid::new_v4();
     let reserved_at = handle
+        .proxy()
         .reserve_remote_control_injection(&cse_id, session, &source, event, b"frame")
         .await?
         .ok_or_else(|| anyhow::anyhow!("reservation must succeed"))?;
-    handle.finish_remote_control_injection(event, true).await?;
+    handle
+        .proxy()
+        .finish_remote_control_injection(event, true)
+        .await?;
 
     let call = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", "/worker/events/delivery"))
         .await?;
     handle
+        .proxy()
         .ack_remote_control_injections(&cse_id, &[event], Utc::now(), call)
         .await?;
 
     let released = handle
+        .proxy()
         .release_stale_steerer_push(intervention_uuid, reserved_at)
         .await?;
     assert!(

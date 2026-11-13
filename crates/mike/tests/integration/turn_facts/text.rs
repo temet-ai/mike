@@ -1,4 +1,5 @@
 use anyhow::Context;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::{NewTurn, Req, attach, fixture, insert_request, insert_text_block, insert_turn};
 
@@ -46,7 +47,7 @@ async fn text_cut_at_before_trailing_monitor_and_suggestion_blocks() -> anyhow::
         ],
     )
     .await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts.len(), 1);
     assert_eq!(facts[0].text_chars, 4754);
     assert_eq!(facts[0].text_cut_at, 4584);
@@ -80,7 +81,7 @@ async fn text_spans_group_consecutive_blocks_by_origin() -> anyhow::Result<()> {
         ],
     )
     .await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     let spans = facts[0].text_spans.as_array().context("spans array")?;
     assert_eq!(spans.len(), 2);
     assert_eq!(spans[0]["origin"], "primary");
@@ -100,7 +101,7 @@ async fn turn_with_only_sidecar_text_has_cut_at_zero() -> anyhow::Result<()> {
     };
     let turn =
         seed_turn_with_blocks(&f, &[(9101, "monitor_sidecar", 0, "status".to_string())]).await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts[0].text_chars, 6);
     assert_eq!(facts[0].text_cut_at, 0);
     assert!(facts[0].consistent);
@@ -114,7 +115,7 @@ async fn turn_without_text_has_zero_chars() -> anyhow::Result<()> {
         return Ok(());
     };
     let turn = seed_turn_with_blocks(&f, &[]).await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts.len(), 1);
     assert_eq!(facts[0].text_chars, 0);
     assert_eq!(facts[0].text_cut_at, 0);
@@ -139,7 +140,7 @@ async fn mid_turn_advisor_block_is_a_span_not_behind_cut() -> anyhow::Result<()>
         ],
     )
     .await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts[0].text_chars, 17);
     assert_eq!(facts[0].text_cut_at, 17);
     assert!(facts[0].consistent);
@@ -163,7 +164,7 @@ async fn multibyte_text_offsets_count_characters() -> anyhow::Result<()> {
         ],
     )
     .await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts[0].text_cut_at, 12);
     assert_eq!(facts[0].text_chars, 16);
     assert!(facts[0].consistent);
@@ -178,7 +179,7 @@ async fn text_mismatch_with_final_assistant_text_marks_row_stale() -> anyhow::Re
     };
     let turn = seed_turn_with_blocks(&f, &[(9101, "primary", 0, "abc".to_string())]).await?;
     insert_text_block(&f, 9101, 1, "later").await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts[0].text_chars, 8);
     assert!(!facts[0].consistent);
     f.db.cleanup().await?;
@@ -190,7 +191,7 @@ async fn load_text_facts_with_no_turns_is_empty() -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    assert!(f.handle.load_text_facts(&[]).await?.is_empty());
+    assert!(f.handle.dossier().load_text_facts(&[]).await?.is_empty());
     f.db.cleanup().await?;
     Ok(())
 }
@@ -214,7 +215,7 @@ async fn sidecar_contamination_in_final_text_is_still_inconsistent() -> anyhow::
     .bind(turn)
     .execute(f.handle.pool())
     .await?;
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     assert_eq!(facts[0].text_chars, 12);
     assert!(!facts[0].consistent);
     assert_eq!(

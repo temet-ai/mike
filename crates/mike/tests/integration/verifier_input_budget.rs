@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::{PersistError, PersistHandle};
 use mike::store::test_support::{self, TestDb, TestDbHandle};
 
@@ -142,9 +143,14 @@ async fn recent_actions_return_newest_rows_in_session_order() -> anyhow::Result<
 
     let rows = s
         .handle
+        .steerer()
         .fetch_session_action_list_recent(s.session_db_id, 10)
         .await?;
-    let full = s.handle.fetch_session_action_list(s.session_db_id).await?;
+    let full = s
+        .handle
+        .steerer()
+        .fetch_session_action_list(s.session_db_id)
+        .await?;
 
     assert_eq!(rows.len(), 10);
     let tail: Vec<(&str, Option<&str>)> = full[30..]
@@ -161,6 +167,7 @@ async fn recent_actions_return_newest_rows_in_session_order() -> anyhow::Result<
 
     let all = s
         .handle
+        .steerer()
         .fetch_session_action_list_recent(s.session_db_id, 500)
         .await?;
     assert_eq!(
@@ -183,9 +190,14 @@ async fn action_counts_match_full_list() -> anyhow::Result<()> {
 
     let counts = s
         .handle
+        .steerer()
         .fetch_session_action_counts(s.session_db_id)
         .await?;
-    let full = s.handle.fetch_session_action_list(s.session_db_id).await?;
+    let full = s
+        .handle
+        .steerer()
+        .fetch_session_action_list(s.session_db_id)
+        .await?;
 
     assert_eq!(counts.total, full.len() as i64);
     let reads = full
@@ -210,7 +222,7 @@ async fn action_counts_match_full_list() -> anyhow::Result<()> {
         (40, 10, 5)
     );
 
-    let empty = s.handle.fetch_session_action_counts(-1).await?;
+    let empty = s.handle.steerer().fetch_session_action_counts(-1).await?;
     assert_eq!(empty.total, 0);
 
     s.handle.pool().close().await;
@@ -288,6 +300,7 @@ async fn assert_own_fire_excluded(
     if let Some(own_trigger) = own_trigger {
         let without_own = s
             .handle
+            .steerer()
             .fetch_prior_verifier_fires_as_of(
                 s.session_db_id,
                 verifier_id,
@@ -335,12 +348,17 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
 
     seed_context_rows(&s, trigger_at).await?;
 
-    let trigger = s.handle.fetch_replay_trigger(s.request_id).await?;
+    let trigger = s
+        .handle
+        .steerer()
+        .fetch_replay_trigger(s.request_id)
+        .await?;
     assert_eq!(trigger.session_db_id, s.session_db_id);
     assert_eq!(trigger.trigger_at, trigger_at);
 
     let actions = s
         .handle
+        .steerer()
         .fetch_session_action_list_as_of(s.session_db_id, trigger_at)
         .await?;
     assert_eq!(actions.len(), 2, "the Edit written after T is excluded");
@@ -352,11 +370,13 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
 
     let recent = s
         .handle
+        .steerer()
         .fetch_session_action_list_recent_as_of(s.session_db_id, trigger_at, 5)
         .await?;
     assert_eq!(recent.len(), 2);
     let counts = s
         .handle
+        .steerer()
         .fetch_session_action_counts_as_of(s.session_db_id, trigger_at)
         .await?;
     assert_eq!(
@@ -366,6 +386,7 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
 
     let calls = s
         .handle
+        .steerer()
         .fetch_turn_tool_calls_as_of(s.turn_id, s.session_db_id, trigger_at)
         .await?;
     assert_eq!(calls.len(), 2, "the turn's uses written by T");
@@ -373,6 +394,7 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
 
     let ledger = s
         .handle
+        .steerer()
         .fetch_ask_ledger_as_of(s.session_db_id, trigger_at, 30)
         .await?;
     assert_eq!(ledger.len(), 1);
@@ -385,6 +407,7 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
     .await?;
     let fires = s
         .handle
+        .steerer()
         .fetch_prior_verifier_fires_as_of(s.session_db_id, verifier_id, trigger_at, 10, 0)
         .await?;
     assert_eq!(fires.len(), 1);
@@ -395,6 +418,7 @@ async fn replay_as_of_excludes_rows_after_trigger() -> anyhow::Result<()> {
 
     let map = s
         .handle
+        .steerer()
         .fetch_acceptance_criteria_as_of(s.session_db_id, trigger_at)
         .await?
         .ok_or_else(|| anyhow::anyhow!("expected the version 1 map"))?;
@@ -411,7 +435,7 @@ async fn replay_on_unknown_request_is_err() -> anyhow::Result<()> {
     let Some(s) = seed().await? else {
         return Ok(());
     };
-    let result = s.handle.fetch_replay_trigger(-1).await;
+    let result = s.handle.steerer().fetch_replay_trigger(-1).await;
     assert!(
         matches!(result, Err(PersistError::DataInvariant(_))),
         "an unknown trigger request is a DataInvariant error, got {result:?}"

@@ -1,4 +1,5 @@
 use chrono::Duration;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::turn_facts::OpenedByRow;
 
 use super::{Fixture, NewTurn, Req, attach, fixture, insert_request, insert_turn, sample_row};
@@ -19,16 +20,21 @@ async fn upsert_inserts_then_identical_rebuild_writes_nothing() -> anyhow::Resul
     let first = sample_row(turn, f.session_id, f.base);
     let outcome = f
         .handle
+        .dossier()
         .upsert_turn_facts(std::slice::from_ref(&first))
         .await?;
     assert_eq!((outcome.inserted, outcome.updated), (1, 0));
     let later = sample_row(turn, f.session_id, f.base + Duration::minutes(5));
-    let again = f.handle.upsert_turn_facts(&[later]).await?;
+    let again = f.handle.dossier().upsert_turn_facts(&[later]).await?;
     assert_eq!(
         (again.inserted, again.updated, again.reclassified),
         (0, 0, 0)
     );
-    let stored = f.handle.load_existing_turn_facts(&[f.session_id]).await?;
+    let stored = f
+        .handle
+        .dossier()
+        .load_existing_turn_facts(&[f.session_id])
+        .await?;
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0], first);
     f.db.cleanup().await?;
@@ -42,6 +48,7 @@ async fn at_close_columns_are_not_overwritten_by_later_builds() -> anyhow::Resul
     };
     let turn = seed_turn(&f).await?;
     f.handle
+        .dossier()
         .upsert_turn_facts(&[sample_row(turn, f.session_id, f.base)])
         .await?;
     let mut changed = sample_row(turn, f.session_id, f.base + Duration::minutes(5));
@@ -50,9 +57,13 @@ async fn at_close_columns_are_not_overwritten_by_later_builds() -> anyhow::Resul
     changed.next_genuine_request_id_at_close = Some(9200);
     changed.text_chars = 10;
     changed.text_cut_at = 4;
-    let outcome = f.handle.upsert_turn_facts(&[changed]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[changed]).await?;
     assert_eq!(outcome.updated, 1);
-    let stored = f.handle.load_existing_turn_facts(&[f.session_id]).await?;
+    let stored = f
+        .handle
+        .dossier()
+        .load_existing_turn_facts(&[f.session_id])
+        .await?;
     assert_eq!(stored[0].prompt_kind_at_close, "genuine");
     assert_eq!(stored[0].next_state_at_close, "pending");
     assert_eq!(stored[0].next_genuine_request_id_at_close, None);
@@ -69,14 +80,19 @@ async fn prompt_kind_change_sets_reclassified_at() -> anyhow::Result<()> {
     };
     let turn = seed_turn(&f).await?;
     f.handle
+        .dossier()
         .upsert_turn_facts(&[sample_row(turn, f.session_id, f.base)])
         .await?;
     let mut looped = sample_row(turn, f.session_id, f.base + Duration::minutes(5));
     looped.prompt_kind = "loop-wakeup".to_string();
     looped.prompt_rule = Some("b".to_string());
-    let outcome = f.handle.upsert_turn_facts(&[looped]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[looped]).await?;
     assert_eq!(outcome.reclassified, 1);
-    let stored = f.handle.load_existing_turn_facts(&[f.session_id]).await?;
+    let stored = f
+        .handle
+        .dossier()
+        .load_existing_turn_facts(&[f.session_id])
+        .await?;
     assert!(stored[0].reclassified_at.is_some());
     assert_eq!(stored[0].prompt_kind_at_close, "genuine");
     f.db.cleanup().await?;
@@ -90,14 +106,19 @@ async fn pending_to_resolved_is_not_a_reclassification() -> anyhow::Result<()> {
     };
     let turn = seed_turn(&f).await?;
     f.handle
+        .dossier()
         .upsert_turn_facts(&[sample_row(turn, f.session_id, f.base)])
         .await?;
     let mut resolved = sample_row(turn, f.session_id, f.base + Duration::minutes(5));
     resolved.next_state = "resolved".to_string();
     resolved.next_genuine_request_id = Some(9200);
-    let outcome = f.handle.upsert_turn_facts(&[resolved]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[resolved]).await?;
     assert_eq!((outcome.updated, outcome.reclassified), (1, 0));
-    let stored = f.handle.load_existing_turn_facts(&[f.session_id]).await?;
+    let stored = f
+        .handle
+        .dossier()
+        .load_existing_turn_facts(&[f.session_id])
+        .await?;
     assert_eq!(stored[0].reclassified_at, None);
     f.db.cleanup().await?;
     Ok(())
@@ -112,11 +133,11 @@ async fn changed_next_genuine_request_is_a_reclassification() -> anyhow::Result<
     let mut first = sample_row(turn, f.session_id, f.base);
     first.next_state = "resolved".to_string();
     first.next_genuine_request_id = Some(9200);
-    f.handle.upsert_turn_facts(&[first]).await?;
+    f.handle.dossier().upsert_turn_facts(&[first]).await?;
     let mut second = sample_row(turn, f.session_id, f.base + Duration::minutes(5));
     second.next_state = "resolved".to_string();
     second.next_genuine_request_id = Some(9300);
-    let outcome = f.handle.upsert_turn_facts(&[second]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[second]).await?;
     assert_eq!(outcome.reclassified, 1);
     f.db.cleanup().await?;
     Ok(())
@@ -130,9 +151,10 @@ async fn upsert_with_invalid_prompt_kind_is_err() -> anyhow::Result<()> {
     let turn = seed_turn(&f).await?;
     let mut bad = sample_row(turn, f.session_id, f.base);
     bad.prompt_kind = "not-a-kind".to_string();
-    assert!(f.handle.upsert_turn_facts(&[bad]).await.is_err());
+    assert!(f.handle.dossier().upsert_turn_facts(&[bad]).await.is_err());
     assert!(
         f.handle
+            .dossier()
             .load_existing_turn_facts(&[f.session_id])
             .await?
             .is_empty()
@@ -149,7 +171,7 @@ async fn resolved_state_without_next_request_is_err() -> anyhow::Result<()> {
     let turn = seed_turn(&f).await?;
     let mut bad = sample_row(turn, f.session_id, f.base);
     bad.next_state = "resolved".to_string();
-    assert!(f.handle.upsert_turn_facts(&[bad]).await.is_err());
+    assert!(f.handle.dossier().upsert_turn_facts(&[bad]).await.is_err());
     f.db.cleanup().await?;
     Ok(())
 }
@@ -159,7 +181,7 @@ async fn upsert_of_no_rows_is_a_no_op() -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    let outcome = f.handle.upsert_turn_facts(&[]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[]).await?;
     assert_eq!((outcome.inserted, outcome.updated), (0, 0));
     f.db.cleanup().await?;
     Ok(())
@@ -179,6 +201,7 @@ async fn fill_opened_by_updates_only_null_rows() -> anyhow::Result<()> {
         .await?;
     let written = f
         .handle
+        .dossier()
         .fill_operator_turn_opened_by(&[
             OpenedByRow {
                 turn_id: unset,
@@ -197,7 +220,10 @@ async fn fill_opened_by_updates_only_null_rows() -> anyhow::Result<()> {
             .await?;
     assert_eq!(stored[0].1.as_deref(), Some("machine"));
     assert_eq!(stored[1].1.as_deref(), Some("operator"));
-    assert_eq!(f.handle.fill_operator_turn_opened_by(&[]).await?, 0);
+    assert_eq!(
+        f.handle.dossier().fill_operator_turn_opened_by(&[]).await?,
+        0
+    );
     f.db.cleanup().await?;
     Ok(())
 }

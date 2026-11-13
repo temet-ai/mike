@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::path::Path;
 
 use uuid::Uuid;
@@ -30,13 +31,17 @@ pub(super) async fn bind_by_repo(
         checkout_root: &checkout_root,
         project_id,
     };
-    let Some(location) = persist.adopt_repo_location(&adoption).await? else {
+    let Some(location) = persist.knowledge().adopt_repo_location(&adoption).await? else {
         return Ok(None);
     };
     if let Some(origin) = identity.origin_url.as_deref() {
-        persist.set_location_origin(location, origin).await?;
+        persist
+            .knowledge()
+            .set_location_origin(location, origin)
+            .await?;
     }
     persist
+        .knowledge()
         .bind_session_location(session, location)
         .await
         .map(Some)

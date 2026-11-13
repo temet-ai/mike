@@ -1,6 +1,6 @@
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::types::{
     AckOutcome, AlarmState, AlarmsFilter, EvalAlarmRow, EvalRateRow, EvalRollupRow, RatesFilter,
 };
@@ -139,8 +139,8 @@ struct CountedAlarm {
     total: i64,
 }
 
-impl PersistHandle {
-    pub async fn newest_eval_rollup(&self) -> Result<Option<EvalRollupRow>, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    pub async fn newest_eval_rollup(self) -> Result<Option<EvalRollupRow>, PersistError> {
         crate::metrics::time_db("newest_eval_rollup", async move {
             Ok(sqlx::query_as!(
                 EvalRollupRow,
@@ -156,7 +156,7 @@ impl PersistHandle {
     }
 
     pub async fn list_eval_rates(
-        &self,
+        self,
         f: &RatesFilter,
     ) -> Result<(Vec<EvalRateRow>, i64), PersistError> {
         crate::metrics::time_db("list_eval_rates", async move {
@@ -171,7 +171,7 @@ impl PersistHandle {
     }
 
     pub async fn list_eval_alarms(
-        &self,
+        self,
         f: &AlarmsFilter,
     ) -> Result<(Vec<EvalAlarmRow>, i64), PersistError> {
         crate::metrics::time_db("list_eval_alarms", async move {
@@ -186,7 +186,7 @@ impl PersistHandle {
     }
 
     pub async fn acknowledge_eval_alarm(
-        &self,
+        self,
         id: i64,
         note: &str,
         replace_note: bool,

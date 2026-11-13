@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PushbackPrompt {
@@ -16,9 +16,9 @@ pub struct PushbackPrompt {
 const MIN_CHARS: i32 = 20;
 const MAX_CHARS: i32 = 1500;
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn list_pushback_prompts_with_vectors(
-        &self,
+        self,
         since: DateTime<Utc>,
     ) -> Result<Vec<PushbackPrompt>, PersistError> {
         crate::metrics::time_db("list_pushback_prompts_with_vectors", async move {

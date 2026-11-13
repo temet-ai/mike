@@ -59,6 +59,7 @@ async fn one_checkout_queues_without_holding_the_caller_and_records_then_mails_r
         };
         let persist = PersistHandle::connect(&db.database_url).await?;
         persist
+            .launch()
             .ensure_session_exists(&Uuid::from_u128(SEAT_SESSION).to_string())
             .await?;
         let root = tempfile::tempdir()?;
@@ -91,6 +92,7 @@ async fn one_checkout_queues_without_holding_the_caller_and_records_then_mails_r
                 .map_err(anyhow::Error::msg)?
                 .ok_or_else(|| anyhow::anyhow!("no command"))?;
             let recorded = persist
+                .fleet()
                 .latest_tree_check(&focused.ledger)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("receipt returned before its record"))?;
@@ -117,6 +119,7 @@ async fn one_checkout_queues_without_holding_the_caller_and_records_then_mails_r
         tracker.wait().await;
         for (ledger, code) in receipts.iter().zip([7, 0]) {
             let row = persist
+                .fleet()
                 .latest_tree_check(ledger)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("missing completed receipt"))?;
@@ -232,6 +235,7 @@ async fn status_reports_an_interrupted_durable_receipt_instead_of_claiming_nothi
             .map_err(anyhow::Error::msg)?
             .ok_or_else(|| anyhow::anyhow!("missing command"))?;
         let id = persist
+            .fleet()
             .begin_tree_check(&focused.ledger, "state", "cargo check", "db-dev-M")
             .await?;
         let tracker = TaskTracker::new();

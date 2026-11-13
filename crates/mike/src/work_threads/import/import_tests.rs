@@ -1,3 +1,5 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::PathBuf;
 
 use uuid::Uuid;
@@ -26,10 +28,12 @@ async fn handle_with_project(
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("import tests", Uuid::new_v4())
         .await?;
     for root in [repo, "/Users/vimes/projects/temet/temet-proxy"] {
         handle
+            .knowledge()
             .register_project_location(&LocationInput {
                 project: project.project_uuid.to_string(),
                 machine_uuid: Uuid::new_v4(),
@@ -93,10 +97,12 @@ async fn importing_the_fixture_repo_twice_creates_then_updates_without_duplicate
     assert_eq!(second.updated.len(), 6);
 
     let listed = handle
+        .launch()
         .list_work_threads(project, ListFilter::default())
         .await?;
     assert_eq!(listed.total, 6);
     let motion = handle
+        .launch()
         .get_work_thread(project, "frontend-motion", HistoryPage::everything())
         .await?;
     assert_eq!(
@@ -116,12 +122,14 @@ async fn importing_the_fixture_repo_twice_creates_then_updates_without_duplicate
             .is_some_and(|p| p.ends_with("frontend-motion/worklog.md"))
     );
     let stub = handle
+        .launch()
         .get_work_thread(project, "missing-from-disk", HistoryPage::default())
         .await?;
     assert_eq!(stub.thread.status.as_deref(), Some("review"));
     assert_eq!(stub.thread.worktree.as_deref(), Some("platform/x"));
     assert_eq!(stub.thread.title, None);
     let legacy = handle
+        .launch()
         .get_work_thread(project, "legacy-labels", HistoryPage::default())
         .await?;
     assert_eq!(legacy.thread.title.as_deref(), Some("Legacy labels"));
@@ -140,6 +148,7 @@ async fn a_dry_run_reports_what_would_happen_and_writes_nothing() -> anyhow::Res
     assert_eq!(report.created.len(), 5, "{}", report.render(true));
     assert_eq!(
         handle
+            .launch()
             .list_work_threads(project, ListFilter::default())
             .await?
             .total,

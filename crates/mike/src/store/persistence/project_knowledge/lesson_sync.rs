@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::invalid;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Deserialize)]
 pub struct LessonImport {
@@ -13,8 +13,8 @@ pub struct LessonImport {
     pub payload: Value,
 }
 
-impl PersistHandle {
-    pub async fn lesson_files(&self, location: Uuid) -> Result<Value, PersistError> {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    pub async fn lesson_files(self, location: Uuid) -> Result<Value, PersistError> {
         let project = self.project_for_location(location).await?;
         let rows = sqlx::query_scalar!(
             r#"SELECT jsonb_build_object('version', c.version, 'payload', c.payload,
@@ -32,7 +32,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn acknowledge_lesson_files(
-        &self,
+        self,
         location: Uuid,
         receipts: Value,
     ) -> Result<(), PersistError> {
@@ -60,7 +60,7 @@ impl PersistHandle {
         Ok(())
     }
 
-    pub async fn import_lesson_file(&self, input: &LessonImport) -> Result<Value, PersistError> {
+    pub async fn import_lesson_file(self, input: &LessonImport) -> Result<Value, PersistError> {
         let project = self.project_for_location(input.location_uuid).await?;
         let payload = &input.payload;
         let (uuid, body) = lesson_identity(payload, &project.project_uuid.to_string())?;

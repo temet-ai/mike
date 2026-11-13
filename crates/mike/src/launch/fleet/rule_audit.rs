@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -142,6 +143,7 @@ struct Live<'a> {
 impl Effects for Live<'_> {
     async fn launch(&self, launch: &AuditLaunch) -> Result<(), String> {
         self.persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: launch.run_id.clone(),
                 project_path: Some(launch.folder.clone()),
@@ -197,6 +199,7 @@ impl Effects for Live<'_> {
 
     async fn record_closed(&self, launch_id: i64, reason: &str) -> Result<(), String> {
         self.persist
+            .launch()
             .record_launch_closed(launch_id, reason, Some(true))
             .await
             .map_err(|err| err.to_string())
@@ -248,6 +251,7 @@ fn shot_of(launch: &LaunchRow, status: Option<(Option<String>, DateTime<Utc>)>) 
 
 pub(super) async fn close_finished(state: &AppState, persist: &PersistHandle) {
     let launches = match persist
+        .launch()
         .list_launches(&LaunchListFilter {
             run_id: None,
             open_only: true,
@@ -272,7 +276,11 @@ pub(super) async fn close_finished(state: &AppState, persist: &PersistHandle) {
         })
         .collect();
     let ids: Vec<Uuid> = audits.iter().filter_map(|l| l.session_uuid).collect();
-    let summaries = persist.list_sessions_by_ids(&ids).await.unwrap_or_default();
+    let summaries = persist
+        .launch()
+        .list_sessions_by_ids(&ids)
+        .await
+        .unwrap_or_default();
     let shots: Vec<OneShot> = audits
         .iter()
         .filter_map(|launch| {

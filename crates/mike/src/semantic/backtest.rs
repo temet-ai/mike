@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde::Serialize;
 
@@ -31,6 +32,7 @@ pub async fn retrieval(
     window: (DateTime<Utc>, DateTime<Utc>),
 ) -> Result<RetrievalBacktest, SemanticError> {
     let turns = persist
+        .knowledge()
         .semantic_turns_with_items(
             &embedder.embedder_key,
             window.0,
@@ -132,8 +134,12 @@ pub async fn tagger(
 ) -> Result<TaggerBacktest, SemanticError> {
     let floors = floor_set(persist, &embedder.embedder_key, config.floor_quantile).await?;
     let floor = floors.by_pair.get("corr:corr").map_or(0.0, |f| f.floor);
-    let anchors = persist.semantic_anchors(&embedder.embedder_key).await?;
+    let anchors = persist
+        .knowledge()
+        .semantic_anchors(&embedder.embedder_key)
+        .await?;
     let cases = persist
+        .knowledge()
         .semantic_tagger_backtest_cases(&embedder.embedder_key)
         .await?;
     let with_vectors: Vec<(TaggerBacktestCase, Vec<f32>)> = cases

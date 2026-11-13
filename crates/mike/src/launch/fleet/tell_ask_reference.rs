@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeSet;
 
 use chrono::{DateTime, Duration, Utc};
@@ -232,6 +233,7 @@ pub async fn recent_reads(
     let tools: Vec<String> = READING_TOOLS.iter().map(|t| (*t).to_owned()).collect();
     let since = now - Duration::minutes(LOOK_BACK_MINUTES);
     match persist
+        .launch()
         .session_tool_reads(&unasked, &tools, since, USES_READ)
         .await
     {

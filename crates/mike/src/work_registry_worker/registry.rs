@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -53,7 +54,10 @@ impl Registry {
     }
 
     async fn load_all(&mut self, persist: &PersistHandle, reset: bool) -> Result<(), PersistError> {
-        let rows = persist.work_item_scope(ACTIVE_WINDOW_HOURS, None).await?;
+        let rows = persist
+            .launch()
+            .work_item_scope(ACTIVE_WINDOW_HOURS, None)
+            .await?;
         self.cache.apply_scope(rows, None);
         let ids = self.cache.ids();
         if reset {
@@ -78,6 +82,7 @@ impl Registry {
             return Ok(());
         }
         let rows = persist
+            .launch()
             .work_item_scope(ACTIVE_WINDOW_HOURS, Some(&named))
             .await?;
         self.cache.apply_scope(rows, Some(sessions));
@@ -106,7 +111,7 @@ impl Registry {
 
     async fn read(&mut self, persist: &PersistHandle, ids: &[i64]) -> Result<(), PersistError> {
         let after = self.cache.reads_after(ids);
-        let reads = persist.work_item_reads(&after).await?;
+        let reads = persist.launch().work_item_reads(&after).await?;
         self.cache.apply_reads(&reads);
         let live = self.cache.ids();
         self.known
@@ -135,7 +140,11 @@ impl Registry {
             .flat_map(|(id, items)| items.iter().map(move |item| (*id, item)))
             .filter(|(id, item)| !self.known.contains_key(&key_of(*id, item)))
             .collect();
-        for (key, record) in persist.record_work_item_attentions(&unknown).await? {
+        for (key, record) in persist
+            .launch()
+            .record_work_item_attentions(&unknown)
+            .await?
+        {
             if record.inserted {
                 self.log_new(&key, &unknown);
             }
@@ -163,7 +172,12 @@ impl Registry {
         {
             return Ok(deliver);
         }
-        let deliver = persist.setting_text(WAKE_MODE_KEY).await?.as_deref() == Some("deliver");
+        let deliver = persist
+            .launch()
+            .setting_text(WAKE_MODE_KEY)
+            .await?
+            .as_deref()
+            == Some("deliver");
         self.wake_mode = Some((Instant::now(), deliver));
         Ok(deliver)
     }

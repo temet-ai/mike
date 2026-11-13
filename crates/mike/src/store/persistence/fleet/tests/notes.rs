@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -33,12 +35,15 @@ async fn note_rows_are_decisions_tasks_and_what_asks_the_operator_oldest_first_w
         data: None,
     };
     f.handle
+        .launch()
         .create_session_note(inside, note("task", "write the table", Some("open")))
         .await?;
     f.handle
+        .launch()
         .create_session_note(inside, note("finding", "a finding, not a decision", None))
         .await?;
     f.handle
+        .launch()
         .create_session_note(
             inside,
             NewSessionNote {
@@ -48,6 +53,7 @@ async fn note_rows_are_decisions_tasks_and_what_asks_the_operator_oldest_first_w
         )
         .await?;
     f.handle
+        .launch()
         .create_session_note(
             inside,
             note(
@@ -58,16 +64,18 @@ async fn note_rows_are_decisions_tasks_and_what_asks_the_operator_oldest_first_w
         )
         .await?;
     f.handle
+        .launch()
         .create_session_note(outside, note("decision", "another run's decision", None))
         .await?;
     f.handle
+        .launch()
         .create_session_note(
             outside,
             note("question", "another run's question", Some("operator")),
         )
         .await?;
 
-    let rows = f.handle.fleet_note_rows(&run_id).await?;
+    let rows = f.handle.fleet().fleet_note_rows(&run_id).await?;
     let titles: Vec<_> = rows.iter().map(|r| r.title.as_str()).collect();
     assert_eq!(
         titles,
@@ -89,6 +97,7 @@ async fn note_rows_are_decisions_tasks_and_what_asks_the_operator_oldest_first_w
 
     assert!(
         f.handle
+            .fleet()
             .fleet_note_rows("run-with-no-launches")
             .await?
             .is_empty()

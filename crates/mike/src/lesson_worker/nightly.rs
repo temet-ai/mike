@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const MIN_JUDGED_KEY: &str = "lesson_outcome.min_judged_supplies";
@@ -51,21 +52,29 @@ pub(super) async fn run_nightly_consolidation(
 }
 
 async fn apply_lesson_relations(persist: &PersistHandle, tally: &mut NightlyTally) {
-    match persist.confirm_judge_only_write_time_relations().await {
+    match persist
+        .lessons()
+        .confirm_judge_only_write_time_relations()
+        .await
+    {
         Ok(n) => tally.relations_confirmed += n,
         Err(e) => {
             log_relations_failed("confirm_judge_only_write_time_relations", &e);
             tally.any_error = true;
         }
     }
-    match persist.apply_confirmed_lesson_relations().await {
+    match persist.lessons().apply_confirmed_lesson_relations().await {
         Ok(n) => tally.relations_applied += n,
         Err(e) => {
             log_relations_failed("apply_confirmed_lesson_relations", &e);
             tally.any_error = true;
         }
     }
-    match persist.release_stale_shape_findings(SHAPE_HOLD_DAYS).await {
+    match persist
+        .lessons()
+        .release_stale_shape_findings(SHAPE_HOLD_DAYS)
+        .await
+    {
         Ok(n) => tally.shape_released += n,
         Err(e) => {
             log_relations_failed("release_stale_shape_findings", &e);
@@ -76,7 +85,7 @@ async fn apply_lesson_relations(persist: &PersistHandle, tally: &mut NightlyTall
 }
 
 async fn retire_lessons(persist: &PersistHandle, tally: &mut NightlyTally) {
-    match persist.supersede_contradicted_lessons().await {
+    match persist.lessons().supersede_contradicted_lessons().await {
         Ok(n) => tally.superseded += n,
         Err(e) => {
             log_relations_failed("supersede_contradicted_lessons", &e);
@@ -84,7 +93,11 @@ async fn retire_lessons(persist: &PersistHandle, tally: &mut NightlyTally) {
         }
     }
     let (min_judged, floor) = retirement_floor(persist).await;
-    match persist.retire_lessons_by_outcome(min_judged, floor).await {
+    match persist
+        .lessons()
+        .retire_lessons_by_outcome(min_judged, floor)
+        .await
+    {
         Ok(n) => tally.retired_by_outcome += n,
         Err(e) => {
             log_relations_failed("retire_lessons_by_outcome", &e);
@@ -134,7 +147,11 @@ fn log_nightly_starting() {
 }
 
 async fn open_nightly_run(persist: &PersistHandle, trigger: &str) -> Option<i64> {
-    match persist.start_consolidation_run("nightly", trigger).await {
+    match persist
+        .lessons()
+        .start_consolidation_run("nightly", trigger)
+        .await
+    {
         Ok(id) => Some(id),
         Err(e) => {
             log_open_run_failed(&e);
@@ -151,7 +168,7 @@ fn log_open_run_failed(e: &PersistError) {
 }
 
 async fn discover_daily_projects(persist: &PersistHandle, run_id: i64) -> Option<Vec<i64>> {
-    match persist.discover_daily_projects().await {
+    match persist.lessons().discover_daily_projects().await {
         Ok(ids) => Some(ids),
         Err(e) => {
             log_discover_failed(&e);
@@ -167,6 +184,7 @@ fn log_discover_failed(e: &PersistError) {
 
 async fn close_failed_nightly_run(persist: &PersistHandle, run_id: i64, e: &PersistError) {
     if let Err(finish_err) = persist
+        .lessons()
         .finish_consolidation_run(run_id, "failed", Some(&e.to_string()))
         .await
     {
@@ -189,7 +207,11 @@ async fn promote_and_trim_project(
     run_id: i64,
     tally: &mut NightlyTally,
 ) {
-    match persist.promote_daily_to_long_term(project_id, run_id).await {
+    match persist
+        .lessons()
+        .promote_daily_to_long_term(project_id, run_id)
+        .await
+    {
         Ok(n) => tally.total_promoted += n,
         Err(e) => {
             log_promote_failed(project_id, &e);
@@ -198,6 +220,7 @@ async fn promote_and_trim_project(
     }
 
     match persist
+        .lessons()
         .trim_lessons_to_max(project_id, max_lessons_per_project, run_id)
         .await
     {
@@ -233,7 +256,11 @@ fn log_nightly_complete(project_count: usize, tally: &NightlyTally) {
 
 async fn finish_nightly_run(persist: &PersistHandle, run_id: i64, any_error: bool) {
     let status = if any_error { "partial" } else { "completed" };
-    if let Err(e) = persist.finish_consolidation_run(run_id, status, None).await {
+    if let Err(e) = persist
+        .lessons()
+        .finish_consolidation_run(run_id, status, None)
+        .await
+    {
         log_close_run_failed(run_id, &e);
     }
 }

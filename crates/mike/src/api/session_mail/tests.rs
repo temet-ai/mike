@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::{Duration, Instant};
 
 use axum::Json;
@@ -53,6 +54,7 @@ impl Env {
             .persist()
             .ok_or_else(|| anyhow::anyhow!("persist"))?;
         persist
+            .launch()
             .insert_message(message_uuid, self.session, None, body)
             .await?;
         self.state.store.write().await.enqueue_reminder(
@@ -138,6 +140,7 @@ async fn mail_claim_consumes_the_message_so_it_is_neither_redelivered_nor_dead_l
         "the client delivers it once, so mike must not redeliver or dead-letter it"
     );
     let redelivery = persist
+        .launch()
         .bump_redelivery_attempt(message_uuid, 1, 1, 1)
         .await?;
     assert!(
@@ -164,7 +167,7 @@ async fn mail_claim_answers_a_launch_brief_once() -> anyhow::Result<()> {
     new.brief_mode = Some("note".to_owned());
     new.brief_text = Some("Fix defects #315.".to_owned());
     new.brief_note_uuid = Some(note);
-    persist.insert_launch(&new).await?;
+    persist.launch().insert_launch(&new).await?;
     let first = env.claim().await?;
     let [block] = first.blocks.as_slice() else {
         anyhow::bail!("expected one block: {first:?}");

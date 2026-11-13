@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[path = "gate_failure_handoff.rs"]
 mod handoff;
@@ -117,6 +119,7 @@ async fn current_definition(
         return def.clone();
     };
     persist
+        .fleet()
         .find_fleet_for_session(session)
         .await
         .ok()
@@ -128,6 +131,7 @@ async fn current_definition(
 
 async fn recipient(persist: &PersistHandle, session: Uuid) -> Result<(Uuid, bool), String> {
     let closed = persist
+        .launch()
         .closed_fleet_seat(session)
         .await
         .map_err(|error| format!("Could not check recipient {session}: {error}"))?;
@@ -167,6 +171,7 @@ async fn recipients(
 
 async fn send(persist: &PersistHandle, session: Uuid, body: &str) -> Result<(), String> {
     match persist
+        .launch()
         .insert_message(Uuid::new_v4(), session, None, body)
         .await
     {

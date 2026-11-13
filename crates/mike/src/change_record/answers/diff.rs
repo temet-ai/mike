@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde::Serialize;
 
 use super::Caller;
@@ -68,6 +69,7 @@ pub async fn own_diff(
     limit: usize,
 ) -> Result<DiffAnswer, String> {
     let open = persist
+        .fleet()
         .open_changes(&caller.checkout)
         .await
         .map_err(|e| e.to_string())?;
@@ -129,6 +131,7 @@ pub async fn path_diff(
 ) -> Result<DiffAnswer, String> {
     relative_path(path)?;
     let place = persist
+        .fleet()
         .change_place(caller.session_id, &caller.checkout)
         .await
         .map_err(|e| e.to_string())?;
@@ -141,6 +144,7 @@ pub async fn path_diff(
         limit: EVENTS_LIMIT + 1,
     };
     let events = persist
+        .fleet()
         .change_events_after(&query)
         .await
         .map_err(|e| e.to_string())?;

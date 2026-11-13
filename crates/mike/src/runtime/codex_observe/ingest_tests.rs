@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -38,7 +39,7 @@ async fn hook_registers_common_session_and_replays_without_raw_payload() -> anyh
     assert_eq!(first.mike_session_id, Some(id));
     assert_eq!(first.control, "hook_boundary");
     assert!(!first.replayed && again.replayed);
-    let rows = persist.session_observations(&[id]).await?;
+    let rows = persist.runtime().session_observations(&[id]).await?;
     let row = rows
         .first()
         .ok_or_else(|| anyhow::anyhow!("no common observation"))?;
@@ -49,6 +50,7 @@ async fn hook_registers_common_session_and_replays_without_raw_payload() -> anyh
     assert_eq!(row.total_tokens, None);
     assert!(
         persist
+            .runtime()
             .runtime_observation(first.namespace_id, delivery)
             .await?
             .is_none()
@@ -73,7 +75,7 @@ async fn tool_metadata_upserts_without_retaining_input_or_output() -> anyhow::Re
         }))?;
         ingest::ingest_hook(&persist, &source, Uuid::new_v4(), &body).await?;
     }
-    let items = persist.list_runtime_items(id, 20, 0).await?;
+    let items = persist.runtime().list_runtime_items(id, 20, 0).await?;
     assert_eq!(items.len(), 1);
     let item = &items[0];
     assert_eq!(item.item_id, "tool-1");
@@ -104,7 +106,10 @@ async fn child_hook_uses_distinct_session_and_stops_only_child() -> anyhow::Resu
         )
         .await?;
     }
-    let rows = persist.session_observations(&[root, child]).await?;
+    let rows = persist
+        .runtime()
+        .session_observations(&[root, child])
+        .await?;
     assert_eq!(rows.len(), 2);
     assert_eq!(
         rows.iter()
@@ -183,12 +188,14 @@ async fn verified_home_maps_hook_to_managed_seat_and_keeps_other_home_distinct()
     let provider_uuid = Uuid::parse_str(&thread)?;
     assert!(
         persist
+            .runtime()
             .runtime_thread_by_session(provider_uuid)
             .await?
             .is_none()
     );
     assert_eq!(
         persist
+            .runtime()
             .session_observations(&[first_seat, second_seat])
             .await?
             .len(),

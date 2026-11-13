@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::time::Instant;
 
 use uuid::Uuid;
@@ -58,6 +60,7 @@ pub(super) async fn record_attempt(
 ) {
     match ctx
         .persist
+        .eval()
         .record_judge_attempt(
             session.session_db_id,
             &ctx.runtime.model,
@@ -168,6 +171,7 @@ async fn insert_verdict(
     let outcome_id = outcome_code_to_id(&verdict.outcome);
     match ctx
         .persist
+        .eval()
         .insert_session_verdict(crate::store::persistence::judge::SessionVerdictInsert {
             session_db_id: session.session_db_id,
             outcome_id,
@@ -254,6 +258,7 @@ pub(in crate::judge_worker) async fn write_knowledge(
     verdict_id: Option<i64>,
 ) {
     if let Err(e) = persist
+        .knowledge()
         .upsert_session_knowledge(
             session_uuid,
             &verdict.topics,

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 mod fixtures;
 
 use fixtures::{
@@ -26,6 +27,7 @@ async fn near_duplicate_raw_lesson_is_promoted_not_archived() -> anyhow::Result<
     let project_id = test_support::seed_project(&pool, "consolidation-near-dup").await?;
 
     let existing = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -38,10 +40,12 @@ async fn near_duplicate_raw_lesson_is_promoted_not_archived() -> anyhow::Result<
         })
         .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(existing.id, &unit_vec(0), "test-model")
         .await?;
 
     let incoming = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -90,6 +94,7 @@ async fn raw_lesson_without_neighbour_is_promoted() -> anyhow::Result<()> {
     let project_id = test_support::seed_project(&pool, "consolidation-no-neighbour").await?;
 
     let incoming = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -131,6 +136,7 @@ async fn archive_lesson_still_archives_independently_of_consolidation() -> anyho
 
     let project_id = test_support::seed_project(&pool, "consolidation-archive-path").await?;
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -143,10 +149,14 @@ async fn archive_lesson_still_archives_independently_of_consolidation() -> anyho
         })
         .await?;
     handle
+        .lessons()
         .promote_lesson_to_daily(lesson.id, &unit_vec(1), "test-model")
         .await?;
 
-    handle.archive_lesson(lesson.id, "expired", None).await?;
+    handle
+        .lessons()
+        .archive_lesson(lesson.id, "expired", None)
+        .await?;
 
     let (stage, archived_at) = lesson_stage(&pool, lesson.id).await?;
     assert_eq!(
@@ -178,6 +188,7 @@ async fn session_consolidation_records_full_decision_evidence() -> anyhow::Resul
 
     let incoming_text = "incoming raw lesson under evaluation";
     let incoming = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -195,7 +206,10 @@ async fn session_consolidation_records_full_decision_evidence() -> anyhow::Resul
     near_e0[1] = 0.0447;
     let (_server, embedding) = embedding_service_returning(near_e0).await;
 
-    let run_id = handle.start_consolidation_run("session", "manual").await?;
+    let run_id = handle
+        .lessons()
+        .start_consolidation_run("session", "manual")
+        .await?;
     consolidate_project(&handle, &embedding, project_id, 0.85, Some(run_id)).await;
 
     let row = sqlx::query_as!(
@@ -227,7 +241,10 @@ async fn session_consolidation_skip_causes_are_distinguishable() -> anyhow::Resu
         .connect(&db.database_url)
         .await?;
 
-    let run_id = handle.start_consolidation_run("session", "manual").await?;
+    let run_id = handle
+        .lessons()
+        .start_consolidation_run("session", "manual")
+        .await?;
 
     let lesson_empty_id = seed_skip_cause_empty_embed_response(&handle, &pool, run_id).await?;
     let lesson_err_id = seed_skip_cause_embed_http_error(&handle, &pool, run_id).await?;

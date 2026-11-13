@@ -1,9 +1,8 @@
 use super::super::WorkThreadError;
 use super::DirtyThread;
-use crate::store::persistence::PersistHandle;
 
-impl PersistHandle {
-    pub(crate) async fn thread_card_sources_generation(&self) -> Result<i64, WorkThreadError> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub(crate) async fn thread_card_sources_generation(self) -> Result<i64, WorkThreadError> {
         let generation = crate::metrics::time_db("thread_card_sources_generation", async move {
             sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"
@@ -18,7 +17,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn thread_cards_behind_their_threads(
-        &self,
+        self,
     ) -> Result<Vec<DirtyThread>, WorkThreadError> {
         let rows = crate::metrics::time_db("thread_cards_behind_their_threads", async move {
             sqlx::query_as!(
@@ -57,7 +56,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn thread_cards_behind_their_busy_sources(
-        &self,
+        self,
     ) -> Result<Vec<DirtyThread>, WorkThreadError> {
         let rows = crate::metrics::time_db("thread_cards_behind_their_busy_sources", async move {
             sqlx::query_as!(

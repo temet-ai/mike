@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use uuid::Uuid;
 
 use super::ObservationLimits;
@@ -62,9 +63,13 @@ async fn observation_usage_prefers_wire_without_summing_overlapping_otel_or_unkn
             ..Default::default()
         }),
     });
-    f.handle.apply_session_observation(&o).await?;
+    f.handle.runtime().apply_session_observation(&o).await?;
     assert_eq!(
-        f.handle.session_observations(&[f.session]).await?[0].input_tokens,
+        f.handle
+            .runtime()
+            .session_observations(&[f.session])
+            .await?[0]
+            .input_tokens,
         Some(100)
     );
     o.observation_id = Uuid::new_v4();
@@ -78,8 +83,12 @@ async fn observation_usage_prefers_wire_without_summing_overlapping_otel_or_unkn
         .as_mut()
         .ok_or_else(|| anyhow::anyhow!("usage missing"))?
         .input_tokens = Some(120);
-    f.handle.apply_session_observation(&o).await?;
-    let row = &f.handle.session_observations(&[f.session]).await?[0];
+    f.handle.runtime().apply_session_observation(&o).await?;
+    let row = &f
+        .handle
+        .runtime()
+        .session_observations(&[f.session])
+        .await?[0];
     assert_eq!(row.input_tokens, Some(120));
     assert_eq!(row.model_call_count, 1);
     o.observation_id = Uuid::new_v4();
@@ -92,9 +101,13 @@ async fn observation_usage_prefers_wire_without_summing_overlapping_otel_or_unkn
         .as_mut()
         .ok_or_else(|| anyhow::anyhow!("usage missing"))?
         .scope = "unknown".into();
-    f.handle.apply_session_observation(&o).await?;
+    f.handle.runtime().apply_session_observation(&o).await?;
     assert_eq!(
-        f.handle.session_observations(&[f.session]).await?[0].input_tokens,
+        f.handle
+            .runtime()
+            .session_observations(&[f.session])
+            .await?[0]
+            .input_tokens,
         Some(120)
     );
     o.observation_id = Uuid::new_v4();
@@ -104,9 +117,13 @@ async fn observation_usage_prefers_wire_without_summing_overlapping_otel_or_unkn
         input_tokens: Some(500),
         ..Default::default()
     });
-    f.handle.apply_session_observation(&o).await?;
+    f.handle.runtime().apply_session_observation(&o).await?;
     assert_eq!(
-        f.handle.session_observations(&[f.session]).await?[0].input_tokens,
+        f.handle
+            .runtime()
+            .session_observations(&[f.session])
+            .await?[0]
+            .input_tokens,
         Some(500)
     );
     f.cleanup().await
@@ -141,13 +158,15 @@ async fn observation_outbox_rotates_unavailable_backlog_and_settles_only_mailbox
     let queued = first[0];
     assert!(
         f.handle
+            .runtime()
             .reserve_runtime_mail_notification(f.session, queued)
             .await?
     );
     f.handle
+        .runtime()
         .finish_runtime_mail_notification(queued, "queued", None)
         .await?;
-    assert_eq!(f.handle.reconcile_runtime_mail_outbox().await?, 0);
+    assert_eq!(f.handle.runtime().reconcile_runtime_mail_outbox().await?, 0);
     let available = sqlx::query_file_scalar!("src/mail_outbox/open_messages.sql", 200_i64)
         .fetch_all(f.handle.pool())
         .await?;
@@ -158,7 +177,7 @@ async fn observation_outbox_rotates_unavailable_backlog_and_settles_only_mailbox
     )
     .execute(f.handle.pool())
     .await?;
-    assert_eq!(f.handle.reconcile_runtime_mail_outbox().await?, 1);
+    assert_eq!(f.handle.runtime().reconcile_runtime_mail_outbox().await?, 1);
     let status = sqlx::query_scalar!(
         "SELECT status FROM mailbox.outbox WHERE message_uuid = $1",
         queued

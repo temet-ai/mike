@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::ops::ControlFlow;
 use std::time::Instant;
 
@@ -194,7 +196,7 @@ async fn fetch_sessions(
     persist: &PersistHandle,
     query: &crate::store::persistence::NeedsJudgmentQuery<'_>,
 ) -> Vec<SessionForJudgment> {
-    match persist.fetch_sessions_needing_judgment(query).await {
+    match persist.eval().fetch_sessions_needing_judgment(query).await {
         Ok(s) => s,
         Err(e) => {
             log_poll_query_failed(&e);
@@ -298,7 +300,7 @@ async fn fetch_digest_turns(
     session_db_id: i64,
     session_id: &str,
 ) -> Option<Vec<JudgeDigestRow>> {
-    let turns = match persist.fetch_judge_digest(session_db_id).await {
+    let turns = match persist.eval().fetch_judge_digest(session_db_id).await {
         Ok(t) => t,
         Err(e) => {
             log_digest_fetch_failed(session_id, &e);
@@ -355,7 +357,11 @@ async fn check_embedding_status(
     session_uuid: Uuid,
     session_id: &str,
 ) -> bool {
-    match persist.session_embedding_status(session_uuid).await {
+    match persist
+        .knowledge()
+        .session_embedding_status(session_uuid)
+        .await
+    {
         Ok(status) => status.is_some(),
         Err(e) => {
             log_embedding_status_check_failed(session_id, &e);
@@ -373,7 +379,11 @@ async fn recheck_embedding_status(
     session_uuid: Uuid,
     session_id: &str,
 ) -> bool {
-    match persist.session_embedding_status(session_uuid).await {
+    match persist
+        .knowledge()
+        .session_embedding_status(session_uuid)
+        .await
+    {
         Ok(status) => status.is_some(),
         Err(e) => {
             log_embedding_status_recheck_failed(session_id, &e);

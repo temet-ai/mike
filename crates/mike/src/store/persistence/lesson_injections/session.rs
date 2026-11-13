@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 pub struct SessionInjectedLessonRow {
     pub lesson_id: i64,
@@ -24,9 +24,9 @@ pub struct SessionLessonsRows {
     pub recorded: Vec<SessionRecordedLessonRow>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn session_lessons(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<SessionLessonsRows>, PersistError> {
         crate::metrics::time_db("session_lessons", async move {

@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -73,11 +74,14 @@ async fn load_changed_sessions(
     persist: &PersistHandle,
     previous: Option<ChangeMark>,
 ) -> Result<Option<SessionProjects>, PersistError> {
-    let fingerprint = persist.lesson_session_projects_fingerprint().await?;
+    let fingerprint = persist
+        .knowledge()
+        .lesson_session_projects_fingerprint()
+        .await?;
     if previous == Some(fingerprint) {
         return Ok(None);
     }
-    let paths = persist.lesson_session_projects().await?;
+    let paths = persist.knowledge().lesson_session_projects().await?;
     Ok(Some(SessionProjects { fingerprint, paths }))
 }
 

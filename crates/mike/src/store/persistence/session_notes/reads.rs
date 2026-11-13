@@ -4,7 +4,7 @@ use sqlx::{Postgres, QueryBuilder};
 use super::{
     NoteOrder, ProjectNoteFilter, SessionNoteFilter, SessionNoteRow, SessionNoteWithAuthor,
 };
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 const SESSION_NOTES_SELECT: &str = "SELECT n.note_uuid, n.kind, n.title, n.body, n.status, n.tags, n.data, \
      n.created_at, n.updated_at \
@@ -86,9 +86,9 @@ fn push_project_filters<'q>(query: &mut QueryBuilder<Postgres>, filter: &Project
     push_text_search(query, filter.q);
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn session_note_belongs_to(
-        &self,
+        self,
         session: uuid::Uuid,
         note: uuid::Uuid,
     ) -> Result<bool, PersistError> {
@@ -104,7 +104,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_session_notes(
-        &self,
+        self,
         session_uuid: uuid::Uuid,
         filter: SessionNoteFilter<'_>,
     ) -> Result<Vec<SessionNoteRow>, PersistError> {
@@ -129,7 +129,7 @@ impl PersistHandle {
     }
 
     pub async fn fetch_project_notes(
-        &self,
+        self,
         project_id: i64,
         filter: ProjectNoteFilter<'_>,
     ) -> Result<(i64, Vec<SessionNoteWithAuthor>), PersistError> {

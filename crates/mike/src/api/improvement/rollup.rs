@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -24,6 +25,7 @@ pub(crate) async fn run_rollup(State(state): State<AppState>) -> Response {
     };
     let today = Utc::now().date_naive();
     let rollup_id = match persist
+        .eval()
         .current_or_claimed_action_effect_rollup_id(today)
         .await
     {
@@ -36,6 +38,7 @@ pub(crate) async fn run_rollup(State(state): State<AppState>) -> Response {
         }
     };
     match persist
+        .eval()
         .write_action_effect_rows(rollup_id, Utc::now())
         .await
     {

@@ -1,3 +1,6 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -33,7 +36,7 @@ impl Live<'_> {
             session_uuid: session,
             payload: body,
         };
-        if let Err(err) = self.persist.append_fleet_event(&event).await {
+        if let Err(err) = self.persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(error = %err, run = %self.run, "fleet supervisor: an event could not be recorded");
         }
     }
@@ -65,6 +68,7 @@ impl Live<'_> {
             data: None,
         };
         self.persist
+            .launch()
             .create_session_note(coordinator, note)
             .await
             .map(|_| ())
@@ -168,10 +172,16 @@ async fn observed(
         .ok()
         .flatten();
     let last_seen = match db_id {
-        Some(id) => persist.session_last_request_at(id).await.ok().flatten(),
+        Some(id) => persist
+            .steerer()
+            .session_last_request_at(id)
+            .await
+            .ok()
+            .flatten(),
         None => None,
     };
     let unread_mail = persist
+        .launch()
         .has_pending_inbound_mail(session)
         .await
         .unwrap_or(false);
@@ -248,10 +258,11 @@ pub async fn pass(
         return Vec::new();
     };
     let finished = finished_tasks(status);
-    let Ok(events) = persist.fleet_events_since(run_id, 0).await else {
+    let Ok(events) = persist.fleet().fleet_events_since(run_id, 0).await else {
         return Vec::new();
     };
     let launches = persist
+        .fleet()
         .unsettled_fleet_launches(run_id)
         .await
         .unwrap_or_default();

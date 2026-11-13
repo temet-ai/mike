@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sha2::{Digest as _, Sha256};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, sqlx::FromRow)]
 pub struct ApprovedLesson {
@@ -19,9 +19,9 @@ pub struct ApproveDirectiveProposal<'a> {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn approve_directive_proposal(
-        &self,
+        self,
         p: &ApproveDirectiveProposal<'_>,
     ) -> Result<Vec<ApprovedLesson>, PersistError> {
         crate::metrics::time_db("approve_directive_proposal", async move {

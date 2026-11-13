@@ -7,7 +7,7 @@ use super::{
     LessonHistoryHeaderRow, LessonInjectionRow, RUN_FROM, RUN_SELECT, RestoreLessonOutcome,
     RestoredLessonRow,
 };
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 fn push_run_filter(query: &mut QueryBuilder<Postgres>, filter: &ConsolidationRunsFilter) {
     query.push(" WHERE TRUE");
@@ -60,9 +60,9 @@ fn push_decision_filter(query: &mut QueryBuilder<Postgres>, filter: &Consolidati
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn list_consolidation_runs(
-        &self,
+        self,
         filter: &ConsolidationRunsFilter,
     ) -> Result<(i64, Vec<ConsolidationRunRow>), PersistError> {
         crate::metrics::time_db("list_consolidation_runs", async move {
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_consolidation_run(
-        &self,
+        self,
         run_id: i64,
     ) -> Result<Option<(ConsolidationRunRow, Vec<ConsolidationActionRow>)>, PersistError> {
         crate::metrics::time_db("get_consolidation_run", async move {
@@ -122,7 +122,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_consolidation_decisions(
-        &self,
+        self,
         filter: &ConsolidationDecisionsFilter,
     ) -> Result<(i64, Vec<ConsolidationActionRow>), PersistError> {
         crate::metrics::time_db("list_consolidation_decisions", async move {
@@ -153,7 +153,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_lesson_history(
-        &self,
+        self,
         lesson_id: i64,
     ) -> Result<Option<LessonHistory>, PersistError> {
         crate::metrics::time_db("get_lesson_history", async move {
@@ -194,7 +194,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_session_memory_actions(
-        &self,
+        self,
         session_uuid: Uuid,
     ) -> Result<Option<Vec<ConsolidationActionRow>>, PersistError> {
         crate::metrics::time_db("list_session_memory_actions", async move {
@@ -216,7 +216,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn restore_lesson(
-        &self,
+        self,
         id: i64,
     ) -> Result<RestoreLessonOutcome, PersistError> {
         crate::metrics::time_db("restore_lesson", async move {
@@ -255,7 +255,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_archived_lessons(
-        &self,
+        self,
         project_path: &str,
     ) -> Result<Vec<ArchivedLessonRow>, PersistError> {
         crate::metrics::time_db("list_archived_lessons", async move {

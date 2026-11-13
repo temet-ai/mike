@@ -1,6 +1,7 @@
 use super::knowledge::{model_key, model_keys, sweep};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::circuit_breaker::CircuitBreaker;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::{
     PersistHandle,
     project_knowledge::{KnowledgeQuery, LocationInput, ModelKeys, SourceInput},
@@ -17,6 +18,7 @@ use wiremock::{
 
 pub(super) async fn source(handle: &PersistHandle, project: &str) -> anyhow::Result<Uuid> {
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: project.into(),
             machine_uuid: Uuid::new_v4(),
@@ -25,6 +27,7 @@ pub(super) async fn source(handle: &PersistHandle, project: &str) -> anyhow::Res
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: "artifacts".into(),
@@ -40,7 +43,7 @@ pub(super) async fn scan(
     generation: i64,
     body: &str,
 ) -> anyhow::Result<()> {
-    handle.ingest_knowledge_scan(source, &serde_json::from_value(json!({"generation":generation,"documents":[{
+    handle.knowledge().ingest_knowledge_scan(source, &serde_json::from_value(json!({"generation":generation,"documents":[{
         "relative_path":"design.md", "title":"Design", "kind":"design", "status":"accepted", "metadata":{},
         "body":body, "content_hash":Sha256::digest(body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>()
     }]}))?).await?;
@@ -63,9 +66,11 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
+        .knowledge()
         .define_knowledge_project("Semantic", Uuid::new_v4())
         .await?;
     let other = handle
+        .knowledge()
         .define_knowledge_project("Other", Uuid::new_v4())
         .await?;
     let source = source(&handle, &project.project_uuid.to_string()).await?;
@@ -80,6 +85,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     sweep(&handle, &service, &mut breaker()).await?;
     let key = model_keys(&service);
     let health = handle
+        .knowledge()
         .knowledge_embedding_health(Some(project.id), &key)
         .await?;
     assert_eq!(health["ready"], 1);
@@ -93,7 +99,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
         ..Default::default()
     };
     assert!(
-        handle.search_project_knowledge(&query).await?["items"]
+        handle.knowledge().search_project_knowledge(&query).await?["items"]
             .as_array()
             .is_some_and(Vec::is_empty)
     );
@@ -103,6 +109,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
         service.model_name(),
     );
     let result = handle
+        .knowledge()
         .search_project_knowledge_hybrid(&query, Some(&embedding))
         .await?;
     assert_eq!(result["items"].as_array().map(Vec::len), Some(1));
@@ -116,6 +123,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     };
     assert!(
         handle
+            .knowledge()
             .search_project_knowledge_hybrid(&other_query, Some(&embedding))
             .await?["items"]
             .as_array()
@@ -124,6 +132,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     scan(&handle, source, 1, "Replacement version").await?;
     assert_eq!(
         handle
+            .knowledge()
             .read_project_knowledge(Some(&project.project_uuid.to_string()), historical)
             .await?["current"],
         false
@@ -134,6 +143,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     };
     assert!(
         handle
+            .knowledge()
             .search_project_knowledge_hybrid(&query, Some(&embedding))
             .await?["items"]
             .as_array()
@@ -187,12 +197,14 @@ async fn verify_retry(
     sweep(handle, service, &mut breaker()).await?;
     assert!(
         handle
+            .knowledge()
             .pending_knowledge_embeddings(keys.current())
             .await?
             .is_empty()
     );
     assert_eq!(
         handle
+            .knowledge()
             .knowledge_embedding_health(Some(project), keys)
             .await?["failed"],
         1
@@ -205,6 +217,7 @@ async fn verify_retry(
     });
     assert_eq!(
         handle
+            .knowledge()
             .pending_knowledge_embeddings(&model_key(&changed))
             .await?
             .len(),

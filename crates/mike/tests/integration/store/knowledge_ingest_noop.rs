@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::project_knowledge::{
     DocumentInput, LocationInput, ScanInput, SourceInput,
 };
@@ -28,6 +29,7 @@ async fn scan(
     doc: DocumentInput,
 ) -> anyhow::Result<()> {
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             source,
             &ScanInput {
@@ -60,6 +62,7 @@ async fn knowledge_scan_ignores_git_keys_but_records_real_changes() -> anyhow::R
     let project = format!("/test/knowledge-noop-{}", Uuid::new_v4());
     seed_project(handle.pool(), &project).await?;
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project,
             machine_uuid: Uuid::new_v4(),
@@ -69,6 +72,7 @@ async fn knowledge_scan_ignores_git_keys_but_records_real_changes() -> anyhow::R
         .await?;
     let location: Uuid = serde_json::from_value(location["location_uuid"].clone())?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: location,
             name: "artifacts".into(),

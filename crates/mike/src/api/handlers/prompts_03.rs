@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 pub(crate) async fn list_prompt_composition_revisions(
     State(state): State<AppState>,
@@ -13,6 +14,7 @@ pub(crate) async fn list_prompt_composition_revisions(
     };
     let uuid = parse_composition_id(&id)?;
     let exists = handle
+        .proxy()
         .fetch_composition_by_id(uuid)
         .await
         .map_err(map_composition_persist_error)?;
@@ -23,6 +25,7 @@ pub(crate) async fn list_prompt_composition_revisions(
         ));
     }
     let revisions = handle
+        .proxy()
         .list_composition_revisions(uuid)
         .await
         .map_err(map_composition_persist_error)?;
@@ -180,7 +183,7 @@ pub(crate) async fn refresh_volatile_cache(state: &AppState) {
         return;
     };
     let cache = state.composer.volatile_cache();
-    if let Err(err) = handle.reload_volatile_cache(&cache).await {
+    if let Err(err) = handle.proxy().reload_volatile_cache(&cache).await {
         tracing::warn!(error = %err, "volatile-line cache reload failed after CRUD write");
     }
 }
@@ -192,6 +195,7 @@ pub(crate) async fn list_volatile_lines(
         return Ok(Json(Vec::new()));
     };
     let rows = handle
+        .proxy()
         .list_volatile_patterns()
         .await
         .map_err(map_volatile_persist_error)?;
@@ -210,6 +214,7 @@ pub(crate) async fn get_volatile_line(
     };
     let uuid = parse_volatile_id(&id)?;
     let Some(row) = handle
+        .proxy()
         .fetch_volatile_pattern_by_id(uuid)
         .await
         .map_err(map_volatile_persist_error)?
@@ -241,6 +246,7 @@ pub(crate) async fn create_volatile_line(
         Some(body.applies_to_block_index),
     )?;
     let row = handle
+        .proxy()
         .create_volatile_pattern(
             &body.name,
             &body.pattern,
@@ -284,6 +290,7 @@ pub(crate) async fn patch_volatile_line(
     )?;
     let notes_patch: Option<Option<&str>> = body.notes.as_ref().map(|inner| inner.as_deref());
     let Some(row) = handle
+        .proxy()
         .patch_volatile_pattern(
             uuid,
             crate::store::persistence::volatile::VolatilePatternPatch {
@@ -318,6 +325,7 @@ pub(crate) async fn delete_volatile_line(
     };
     let uuid = parse_volatile_id(&id)?;
     let removed = handle
+        .proxy()
         .delete_volatile_pattern(uuid)
         .await
         .map_err(map_volatile_persist_error)?;
@@ -363,6 +371,7 @@ pub(crate) async fn export_prompt_compositions(
         }));
     };
     let map = handle
+        .proxy()
         .load_prompt_compositions()
         .await
         .map_err(map_composition_persist_error)?;

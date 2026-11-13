@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
 use chrono::{DateTime, Duration, Utc};
@@ -252,6 +253,7 @@ pub async fn of_file_change(
 ) -> Result<Authorship, PersistError> {
     let late = Duration::milliseconds(LATE_ROW_MS);
     let calls = persist
+        .fleet()
         .tool_calls_naming_path(
             change.absolute_path,
             change.edit.from,
@@ -259,6 +261,7 @@ pub async fn of_file_change(
         )
         .await?;
     let runs = persist
+        .fleet()
         .shell_commands_running(git.root(), change.shell.from, change.shell.to)
         .await?;
     if let Some(who) = proven_by_content(git, &calls, &runs, change).await {
@@ -362,6 +365,7 @@ pub async fn of_shell(
     shell: Window,
 ) -> Result<Authorship, PersistError> {
     let runs = persist
+        .fleet()
         .shell_commands_running(checkout, shell.from, shell.to)
         .await?;
     Ok(from_shell_runs(&runs))

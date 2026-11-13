@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::PgConnection;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::{
     sql_accuracy, sql_base_rate, sql_guard_calibration, sql_label_mix, sql_steer_calibration,
 };
@@ -74,9 +74,9 @@ async fn run_family(
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn run_eval_rollup(
-        &self,
+        self,
         req: RollupRequest<'_>,
     ) -> Result<RollupReport, PersistError> {
         let window_end = crate::eval_metrics::day_start(req.for_day);
@@ -142,7 +142,7 @@ impl PersistHandle {
     }
 
     pub async fn latest_rollup_day(
-        &self,
+        self,
         sql_version: &str,
     ) -> Result<Option<NaiveDate>, PersistError> {
         crate::metrics::time_db("eval_latest_rollup_day", async move {
@@ -157,9 +157,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn eval_setting_rows(
-        &self,
-    ) -> Result<Vec<(String, serde_json::Value)>, PersistError> {
+    pub async fn eval_setting_rows(self) -> Result<Vec<(String, serde_json::Value)>, PersistError> {
         crate::metrics::time_db("eval_settings_rows", async move {
             let rows = sqlx::query!(
                 "SELECT key, value FROM config.settings

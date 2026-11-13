@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::{BTreeSet, HashMap};
 
 use uuid::Uuid;
@@ -69,6 +70,7 @@ pub(crate) async fn get_fleet_changes(
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
     let rows = persist
+        .fleet()
         .tree_changes_since(&run, since, query.path.as_deref(), limit)
         .await?;
     let authors = record_authors(persist, &def, &run, &rows).await;
@@ -164,6 +166,7 @@ async fn record_authors(
         .unwrap_or(MAX_EVENTS)
         .clamp(1, MAX_EVENTS);
     let Ok(events) = persist
+        .fleet()
         .latest_change_events(&def.repo, &paths, &AUTHORED, limit)
         .await
     else {
@@ -180,6 +183,7 @@ async fn record_authors(
         return HashMap::new();
     };
     let seats: HashMap<Uuid, String> = persist
+        .fleet()
         .fleet_seat_rows(run)
         .await
         .unwrap_or_default()

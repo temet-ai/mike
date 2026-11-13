@@ -1,3 +1,4 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use std::time::Duration;
 
 use mike::launch::fleet::test_seams::durable;
@@ -21,6 +22,7 @@ async fn production_spawn_share_guard_delays_durable_stop_until_it_is_released()
     );
     let during = h
         .persist
+        .fleet()
         .find_fleet(&h.fleet.fleet_uuid.to_string())
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing fixture fleet"))?;
@@ -62,7 +64,13 @@ async fn stopping_wins_local_admission_race_without_creating_a_receipt() -> anyh
     );
     drop(begin);
     assert_eq!(stopped.state, "stopping");
-    assert!(h.persist.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.persist
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     assert!(durable::snapshot(&h.run).pending.is_empty());
     assert!(!h.repo.path().join("must-not-run").exists());
     h.finish().await
@@ -105,10 +113,16 @@ async fn queued_receipt_insert_blocks_stop_and_cannot_be_a_completion_phantom() 
     let stopped = tokio::time::timeout(Duration::from_secs(3), &mut stop).await??;
     drop(begin);
     drop(stop);
-    let pending = h.persist.pending_fleet_commands(&h.run).await?;
+    let pending = h.persist.fleet().pending_fleet_commands(&h.run).await?;
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id, queued.id());
-    assert!(h.other.complete_fleet_run(&stopped, None).await?.is_none());
+    assert!(
+        h.other
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_none()
+    );
     let receipt = queued
         .cancel_without_spawn(h.repo.path().into())
         .await
@@ -117,7 +131,13 @@ async fn queued_receipt_insert_blocks_stop_and_cannot_be_a_completion_phantom() 
     assert_eq!(receipt.state_after.as_deref(), Some("cancelled:unverified"));
     assert!(receipt.finished_at.is_some());
     assert!(!h.repo.path().join("must-not-run").exists());
-    assert!(h.other.complete_fleet_run(&stopped, None).await?.is_some());
+    assert!(
+        h.other
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_some()
+    );
     h.finish().await
 }
 
@@ -145,7 +165,13 @@ async fn stop_after_receipt_before_spawn_records_cancelled_and_never_launches() 
         receipt.output
     );
     assert!(!h.repo.path().join("must-not-run").exists());
-    assert!(h.persist.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.persist
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     h.finish().await
 }
 
@@ -185,6 +211,12 @@ async fn stop_after_receipt_before_auxiliary_git_records_cancelled_without_launc
         receipt.output
     );
     assert!(!h.repo.path().join("must-not-run").exists());
-    assert!(h.persist.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.persist
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     h.finish().await
 }

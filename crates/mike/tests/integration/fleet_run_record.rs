@@ -4,6 +4,7 @@ use mike::store::persistence::fleet::{
     ForkMeasure, InterventionMeasure, NewFleet, OperationMeasure, QuestionMeasure, ReportMeasure,
     RunMeasures, RunPatterns, TimingMeasure,
 };
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -35,6 +36,7 @@ async fn fleet_with_run(handle: &PersistHandle) -> anyhow::Result<(Uuid, String)
         .execute(handle.pool())
         .await?;
     let fleet = handle
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: format!("record-{}", Uuid::new_v4()),
             project_path: "/tmp/fleet-record".to_owned(),
@@ -58,21 +60,25 @@ async fn a_recomputed_record_replaces_the_stored_one_and_keeps_the_four_numbers(
 
     assert!(
         handle
+            .fleet()
             .insert_run_record(fleet, &run_id, &summarise(&measures(100.0)))
             .await?
     );
     assert!(
         !handle
+            .fleet()
             .insert_run_record(fleet, &run_id, &summarise(&measures(5.0)))
             .await?
     );
     assert!(
         handle
+            .fleet()
             .replace_run_record(fleet, &run_id, &summarise(&measures(200.0)))
             .await?
     );
 
     let record = handle
+        .fleet()
         .find_run_record(fleet)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no record was stored"))?;
@@ -101,7 +107,7 @@ async fn a_run_with_no_launches_measures_zero_without_failing() -> anyhow::Resul
         git_write: "a^",
     };
 
-    let measured = handle.run_measures(&run_id, patterns).await?;
+    let measured = handle.fleet().run_measures(&run_id, patterns).await?;
 
     assert_eq!(measured.timing, TimingMeasure::default());
     assert!(measured.tokens.is_empty());

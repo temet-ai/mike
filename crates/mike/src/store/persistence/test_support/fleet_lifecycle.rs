@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::fleet::FleetRow;
@@ -11,6 +12,7 @@ pub async fn seed_fleet_starting(
     let row = test_fleet_row(handle, fleet).await?;
     let ready = required(
         handle
+            .fleet()
             .transition_fleet_state(&row, "ready", None, None)
             .await?,
         fleet,
@@ -18,6 +20,7 @@ pub async fn seed_fleet_starting(
     )?;
     required(
         handle
+            .fleet()
             .transition_fleet_state(&ready, "starting", run_id, None)
             .await?,
         fleet,
@@ -33,6 +36,7 @@ pub async fn seed_fleet_running(
     let starting = seed_fleet_starting(handle, fleet, Some(run_id)).await?;
     required(
         handle
+            .fleet()
             .transition_fleet_state(&starting, "running", None, None)
             .await?,
         fleet,
@@ -47,13 +51,14 @@ pub async fn seed_fleet_done(
     let row = test_fleet_row(handle, fleet).await?;
     let stopping = required(
         handle
+            .fleet()
             .transition_fleet_state(&row, "stopping", None, None)
             .await?,
         fleet,
         "stopping",
     )?;
     required(
-        handle.complete_fleet_run(&stopping, None).await?,
+        handle.fleet().complete_fleet_run(&stopping, None).await?,
         fleet,
         "done",
     )
@@ -61,6 +66,7 @@ pub async fn seed_fleet_done(
 
 async fn test_fleet_row(handle: &PersistHandle, fleet: Uuid) -> Result<FleetRow, PersistError> {
     handle
+        .fleet()
         .find_fleet(&fleet.to_string())
         .await?
         .ok_or_else(|| PersistError::DataInvariant(format!("test fleet {fleet} disappeared")))

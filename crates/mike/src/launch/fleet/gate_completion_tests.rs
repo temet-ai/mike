@@ -40,6 +40,7 @@ async fn automatic_gate_completion_reaches_acceptance_on_green_failure_and_no_ex
     let persist = PersistHandle::connect(&db.database_url).await?;
     let acceptance = Uuid::new_v4();
     persist
+        .launch()
         .ensure_session_exists(&acceptance.to_string())
         .await?;
     let dir = tempfile::tempdir()?;
@@ -66,6 +67,7 @@ async fn automatic_gate_completion_reaches_acceptance_on_green_failure_and_no_ex
         assert_eq!(std::fs::read_to_string(log)?, "test output");
     }
     let inbox = persist
+        .launch()
         .fetch_for_session_with_activity(acceptance)
         .await?
         .inbox;

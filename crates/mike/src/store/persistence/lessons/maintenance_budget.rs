@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MaintenancePass {
@@ -40,8 +40,8 @@ pub struct MaintenanceRefusal {
     pub refused_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
-    pub async fn reserve_lesson_maintenance_call(&self, cap: i64) -> Result<bool, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn reserve_lesson_maintenance_call(self, cap: i64) -> Result<bool, PersistError> {
         if cap <= 0 {
             return Ok(false);
         }
@@ -63,7 +63,7 @@ impl PersistHandle {
     }
 
     pub async fn record_maintenance_refusal(
-        &self,
+        self,
         pass: MaintenancePass,
         reason: RefusalReason,
         cap: i64,
@@ -90,7 +90,7 @@ impl PersistHandle {
     }
 
     pub async fn recent_maintenance_refusals(
-        &self,
+        self,
     ) -> Result<Vec<MaintenanceRefusal>, PersistError> {
         crate::metrics::time_db("recent_maintenance_refusals", async move {
             Ok(sqlx::query_as!(

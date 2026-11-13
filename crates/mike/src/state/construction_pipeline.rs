@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::sync::Arc;
 
 use metrics_exporter_prometheus::PrometheusHandle;
@@ -132,7 +133,7 @@ async fn seed_composer_cache_and_agents(
     volatile_cache: &crate::compose_prompt::volatile::VolatilePatternCache,
 ) {
     seed_composer_cache(handle, composer_cache).await;
-    if let Err(err) = handle.reload_volatile_cache(volatile_cache).await {
+    if let Err(err) = handle.proxy().reload_volatile_cache(volatile_cache).await {
         tracing::warn!(
             error = %err,
             "failed to seed volatile-line registry; continuing with empty cache"
@@ -142,7 +143,7 @@ async fn seed_composer_cache_and_agents(
 }
 
 async fn seed_composer_cache(handle: &PersistHandle, composer_cache: &CompositionCache) {
-    let seed = match handle.load_prompt_compositions().await {
+    let seed = match handle.proxy().load_prompt_compositions().await {
         Ok(seed) => seed,
         Err(err) => {
             log_composer_cache_seed_failed(&err);

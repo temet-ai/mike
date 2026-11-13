@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -111,7 +112,7 @@ async fn insert_row(
 ) -> Result<u64, String> {
     let raw_id = evidence.request_id.as_u64();
     let request_id = (!is_fallback(raw_id)).then_some(raw_id as i64);
-    let insert = persist.insert_response_intercept(
+    let insert = persist.proxy().insert_response_intercept(
         session_uuid,
         request_id,
         evidence.outcome.code(),

@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -13,6 +14,7 @@ async fn raw_lesson(
     text: &str,
 ) -> anyhow::Result<mike::store::persistence::lessons::LessonInsertRow> {
     Ok(handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -46,6 +48,7 @@ async fn claim_promote_find_archive_consolidation_chain() -> anyhow::Result<()> 
     let raw_b = raw_lesson(&handle, project_id, "second raw lesson").await?;
 
     let claimed = handle
+        .lessons()
         .claim_raw_lessons_for_consolidation(project_id, 50)
         .await?;
     assert_eq!(claimed.len(), 2, "both raw lessons must be claimable");
@@ -55,6 +58,7 @@ async fn claim_promote_find_archive_consolidation_chain() -> anyhow::Result<()> 
     );
 
     handle
+        .lessons()
         .promote_lesson_to_daily(raw_a.id, &unit_vec(0), "bge-small-en-v1.5")
         .await?;
     let stage_a: String = sqlx::query_scalar(
@@ -74,6 +78,7 @@ async fn claim_promote_find_archive_consolidation_chain() -> anyhow::Result<()> 
     near[0] = 0.999;
     near[1] = 0.0447;
     let neighbours = handle
+        .lessons()
         .find_similar_lessons(project_id, &near, None, 5, raw_b.id)
         .await?;
     assert!(
@@ -91,6 +96,7 @@ async fn claim_promote_find_archive_consolidation_chain() -> anyhow::Result<()> 
     );
 
     handle
+        .lessons()
         .archive_lesson(raw_b.id, "duplicate", Some(raw_a.id))
         .await?;
     let (stage_b, dup_of): (String, Option<i64>) = sqlx::query_as(

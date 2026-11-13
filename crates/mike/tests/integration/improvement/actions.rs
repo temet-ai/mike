@@ -1,4 +1,5 @@
 use super::fixture;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 async fn seed_daily_lesson(f: &super::Fixture, text: &str) -> anyhow::Result<i64> {
     let lesson_id: i64 = sqlx::query_scalar(
@@ -90,7 +91,7 @@ async fn get_lesson_action_decodes_a_real_int4_rate_row() -> anyhow::Result<()> 
     )
     .await?;
 
-    let Some(row) = f.handle.get_lesson_action(lesson_id).await? else {
+    let Some(row) = f.handle.eval().get_lesson_action(lesson_id).await? else {
         anyhow::bail!("lesson action row must exist for a lesson with rate rows");
     };
     assert_eq!(row.k_before, Some(3));
@@ -131,7 +132,7 @@ async fn list_guard_question_actions_decodes_a_real_int4_rate_row() -> anyhow::R
     )
     .await?;
 
-    let rows = f.handle.list_guard_question_actions().await?;
+    let rows = f.handle.eval().list_guard_question_actions().await?;
     let Some(relapse) = rows.iter().find(|r| r.question == "relapse") else {
         anyhow::bail!(
             "relapse question policy row must exist (seeded by the turn_guard migration)"

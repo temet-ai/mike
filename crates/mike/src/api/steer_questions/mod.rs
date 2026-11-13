@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 mod actions;
 
 pub(crate) use actions::{demote_question, label_evaluation, patch_question, promote_question};
@@ -39,6 +40,7 @@ pub(super) fn parse_question(raw: &str) -> Result<Question, Box<Response>> {
 
 async fn verifier_id(persist: &PersistHandle) -> Option<i64> {
     persist
+        .steerer()
         .list_steerers()
         .await
         .ok()?
@@ -51,7 +53,7 @@ pub(crate) async fn get_steer_questions(State(state): State<AppState>) -> Respon
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let Ok(Some(guard)) = persist.guard_steerer().await else {
+    let Ok(Some(guard)) = persist.steerer().guard_steerer().await else {
         return error(
             StatusCode::NOT_FOUND,
             "the turn-guard steerer row is not seeded".to_owned(),
@@ -94,6 +96,7 @@ pub(crate) async fn list_question_events(
     };
     let limit = q.limit.unwrap_or(50).clamp(1, MAX_LIMIT);
     let rows = persist
+        .steerer()
         .steer_question_events(&EventsFilter {
             steerer_id,
             question: question.code(),
@@ -104,6 +107,7 @@ pub(crate) async fn list_question_events(
         })
         .await;
     let arm_rows = persist
+        .steerer()
         .fetch_arm_rows(steerer_id, Some(question.code()), chrono::Utc::now())
         .await
         .unwrap_or_default();

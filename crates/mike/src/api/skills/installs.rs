@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -52,7 +53,7 @@ pub(crate) async fn report_installs(
         machine_name: &body.machine_name,
         installs: &body.installs,
     };
-    match persist.record_skill_installs(report).await {
+    match persist.lessons().record_skill_installs(report).await {
         Ok(written) => Json(json!({ "recorded": written })).into_response(),
         Err(e) => persist_failed(&e),
     }

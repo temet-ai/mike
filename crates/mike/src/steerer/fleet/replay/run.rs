@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -120,7 +121,7 @@ pub(crate) struct Prepared {
 }
 
 pub(crate) async fn load_replay_steerer(ph: &PersistHandle) -> Result<ReplaySteerer, PersistError> {
-    let registry = SteererRegistry::from_rows(ph.list_steerers().await?);
+    let registry = SteererRegistry::from_rows(ph.steerer().list_steerers().await?);
     let steerer = registry
         .steerers
         .iter()

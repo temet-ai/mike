@@ -1,4 +1,5 @@
 use mike::store::persistence::eval_metrics::{AckOutcome, AlarmState, AlarmsFilter, RatesFilter};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use crate::turn_facts::fixture;
 
@@ -16,6 +17,7 @@ async fn alarms_read_returns_detail_unmodified_and_acknowledge_round_trips() -> 
     .await?;
     let (rows, total) = f
         .handle
+        .eval()
         .list_eval_alarms(&AlarmsFilter {
             state: AlarmState::Open,
             limit: 10,
@@ -26,14 +28,20 @@ async fn alarms_read_returns_detail_unmodified_and_acknowledge_round_trips() -> 
     assert_eq!(rows[0].detail, detail);
     let (outcome, row) = f
         .handle
+        .eval()
         .acknowledge_eval_alarm(id, "seen it", false)
         .await?;
     assert_eq!(outcome, AckOutcome::Acknowledged);
     assert!(row.is_some_and(|r| r.acknowledged_at.is_some() && r.cleared_at.is_none()));
-    let (again, _) = f.handle.acknowledge_eval_alarm(id, "again", false).await?;
+    let (again, _) = f
+        .handle
+        .eval()
+        .acknowledge_eval_alarm(id, "again", false)
+        .await?;
     assert_eq!(again, AckOutcome::AlreadyAcknowledged);
     let (missing, _) = f
         .handle
+        .eval()
         .acknowledge_eval_alarm(987_654, "none", false)
         .await?;
     assert_eq!(missing, AckOutcome::NotFound);
@@ -65,6 +73,7 @@ async fn rates_read_paginates_complete_rows_with_total() -> anyhow::Result<()> {
     for offset in [0, 2, 4] {
         let (rows, total) = f
             .handle
+            .eval()
             .list_eval_rates(&RatesFilter {
                 latest: true,
                 limit: 2,

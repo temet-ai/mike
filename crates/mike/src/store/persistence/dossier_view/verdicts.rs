@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, sqlx::FromRow)]
 pub struct LiveVerdictRow {
@@ -15,9 +15,9 @@ pub struct LiveVerdictRow {
     pub bundle_id: Option<i64>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_live_verdicts_as_of(
-        &self,
+        self,
         session_db_id: i64,
         at: DateTime<Utc>,
         reconstructed: bool,

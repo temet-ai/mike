@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/rerank_nightly/lesson_pairs_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::json;
 use sqlx::PgPool;
@@ -16,6 +17,7 @@ const SAME_TOPIC: &str = "Run one narrow check of the change, then commit it";
 async fn embedded_pair(harness: &Harness) -> anyhow::Result<(i64, i64)> {
     let project = harness
         .handle
+        .knowledge()
         .define_knowledge_project("lesson pairs", Uuid::new_v4())
         .await?
         .id;

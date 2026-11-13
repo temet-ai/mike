@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
@@ -144,7 +145,7 @@ impl SemanticCli {
 
     pub(super) async fn current(&self) -> Result<EmbedderRow> {
         self.persist
-            .current_semantic_embedder()
+            .knowledge().current_semantic_embedder()
             .await?
             .context("no embedder is registered yet: run the worker, or mike semantic backfill --execute, first")
     }
@@ -182,6 +183,7 @@ async fn backfill(c: &SemanticCli, args: &BackfillArgs) -> Result<()> {
     loop {
         let turns = c
             .persist
+            .knowledge()
             .turns_needing_semantic_items(
                 &embedder.embedder_key,
                 crate::semantic::BUILDER_VERSION,
@@ -245,7 +247,7 @@ async fn floors(c: &SemanticCli, cmd: &FloorsCommand) -> Result<()> {
 }
 
 async fn prune(c: &SemanticCli, a: &PruneArgs) -> Result<()> {
-    let current = c.persist.current_semantic_embedder().await?;
+    let current = c.persist.knowledge().current_semantic_embedder().await?;
     if current
         .as_ref()
         .is_some_and(|e| e.embedder_key == a.embedder_key)
@@ -262,7 +264,12 @@ async fn prune(c: &SemanticCli, a: &PruneArgs) -> Result<()> {
         );
         return Ok(());
     }
-    match c.persist.prune_semantic_embedder(&a.embedder_key).await? {
+    match c
+        .persist
+        .knowledge()
+        .prune_semantic_embedder(&a.embedder_key)
+        .await?
+    {
         Some(report) => print(&report),
         None => bail!("no retired embedder with key {}", a.embedder_key),
     }

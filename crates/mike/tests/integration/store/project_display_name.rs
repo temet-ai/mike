@@ -1,3 +1,4 @@
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::{PersistHandle, SENTINEL_PROJECT_PATH, id_resolvers};
 use mike::store::test_support::TestDb;
 
@@ -70,7 +71,7 @@ async fn pin_project_autocreate_derives_trimmed_display_name() -> anyhow::Result
         uuid::Uuid::new_v4()
     );
 
-    handle.pin_project(&project_path).await?;
+    handle.launch().pin_project(&project_path).await?;
 
     let (display_name,): (String,) =
         sqlx::query_as("SELECT display_name FROM projects.projects WHERE project_path = $1")
@@ -103,6 +104,7 @@ async fn set_project_ttl_autocreate_derives_trimmed_display_name() -> anyhow::Re
     );
 
     handle
+        .launch()
         .set_project_ttl(&project_path, Some(std::time::Duration::from_secs(3600)))
         .await?;
 

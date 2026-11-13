@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use tracing::{debug, warn};
 
 use super::judgement::TurnJudgement;
@@ -119,6 +120,7 @@ impl Recorder<'_> {
         };
         match self
             .persist
+            .steerer()
             .insert_evaluations_dispatched(&new, questions)
             .await
         {
@@ -147,6 +149,7 @@ impl Recorder<'_> {
             let record = judgement.evaluation_record(fired, self.retain_pass_verdicts);
             if let Err(e) = self
                 .persist
+                .steerer()
                 .resolve_evaluation(*uuid, fired, intervention, record)
                 .await
             {

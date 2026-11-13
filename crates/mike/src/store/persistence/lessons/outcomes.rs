@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, sqlx::FromRow)]
 pub struct LessonOutcome {
@@ -25,9 +25,9 @@ const SUPERSEDE_CONTRADICTED: &str = include_str!("supersede_contradicted.sql");
 const RETIREMENT: &str = "SELECT retired_at, retired_kind, retired_reason, retired_by_lesson_id
                             FROM memory.lessons WHERE id = $1";
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn lesson_outcomes(
-        &self,
+        self,
         lesson_ids: &[i64],
     ) -> Result<Vec<LessonOutcome>, PersistError> {
         if lesson_ids.is_empty() {
@@ -44,7 +44,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn lesson_outcome(&self, lesson_id: i64) -> Result<LessonOutcome, PersistError> {
+    pub async fn lesson_outcome(self, lesson_id: i64) -> Result<LessonOutcome, PersistError> {
         let found = self.lesson_outcomes(&[lesson_id]).await?;
         Ok(found.into_iter().next().unwrap_or(LessonOutcome {
             lesson_id,
@@ -52,10 +52,7 @@ impl PersistHandle {
         }))
     }
 
-    pub async fn lesson_retirement(
-        &self,
-        lesson_id: i64,
-    ) -> Result<LessonRetirement, PersistError> {
+    pub async fn lesson_retirement(self, lesson_id: i64) -> Result<LessonRetirement, PersistError> {
         crate::metrics::time_db("lesson_retirement", async move {
             Ok(
                 sqlx::query_as::<_, LessonRetirement>(RETIREMENT) // grader-allow: reads memory.lessons.retired_* (20261111170700), before its .sqlx entry is prepared
@@ -69,7 +66,7 @@ impl PersistHandle {
     }
 
     pub async fn retire_lessons_by_outcome(
-        &self,
+        self,
         min_judged: i64,
         floor: f64,
     ) -> Result<u64, PersistError> {
@@ -84,7 +81,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn supersede_contradicted_lessons(&self) -> Result<u64, PersistError> {
+    pub async fn supersede_contradicted_lessons(self) -> Result<u64, PersistError> {
         crate::metrics::time_db("supersede_contradicted_lessons", async move {
             let ids: Vec<i64> = sqlx::query_scalar(SUPERSEDE_CONTRADICTED)
                 .fetch_all(&self.pool)

@@ -1,5 +1,7 @@
 use mike::launch::fleet::{check::state_for, gate::ledger};
 use mike::store::persistence::fleet::NewTreeChange;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_notes::{NoteOrder, SessionNoteFilter};
 use reqwest::{Method, StatusCode};
 use serde_json::{Value, json};
@@ -49,9 +51,10 @@ fn verdict(h: &Harness) -> Value {
 }
 
 async fn no_new_work(h: &Harness) -> anyhow::Result<()> {
-    assert!(h.persist.latest_tree_check(&h.run).await?.is_none());
+    assert!(h.persist.fleet().latest_tree_check(&h.run).await?.is_none());
     assert!(
         h.persist
+            .fleet()
             .latest_tree_check(&ledger(&h.run))
             .await?
             .is_none()
@@ -61,6 +64,7 @@ async fn no_new_work(h: &Harness) -> anyhow::Result<()> {
         assert_eq!(h.inbox_len(session).await?, 0);
         let notes = h
             .persist
+            .launch()
             .fetch_session_notes(
                 session,
                 SessionNoteFilter {
@@ -138,6 +142,7 @@ async fn history_routes_stopping_and_done_fleets_remain_readable_without_new_wor
         return Ok(());
     };
     h.persist
+        .fleet()
         .insert_tree_changes(
             &h.run,
             &[NewTreeChange {
@@ -200,9 +205,11 @@ async fn check_and_gate_status_finished_fleets_read_receipts_without_askers_or_m
         .map_err(anyhow::Error::msg)?;
     let receipt = h
         .persist
+        .fleet()
         .begin_tree_check(&h.run, &state, &h.def.check.command, "original-asker")
         .await?;
     h.persist
+        .fleet()
         .finish_tree_check(
             receipt,
             Some(1),
@@ -213,13 +220,15 @@ async fn check_and_gate_status_finished_fleets_read_receipts_without_askers_or_m
     let gate_run = ledger(&h.run);
     let gate_receipt = h
         .persist
+        .fleet()
         .begin_tree_check(&gate_run, &commit, &h.def.gate.command, "acceptance")
         .await?;
     h.persist
+        .fleet()
         .finish_tree_check(gate_receipt, Some(0), "recorded gate", Some(&commit))
         .await?;
-    let check_before = h.persist.latest_tree_check(&h.run).await?;
-    let gate_before = h.persist.latest_tree_check(&gate_run).await?;
+    let check_before = h.persist.fleet().latest_tree_check(&h.run).await?;
+    let gate_before = h.persist.fleet().latest_tree_check(&gate_run).await?;
     for state in ["running", "stopping", "done"] {
         let fleet_before = h.state(state).await?;
         let request = json!({"session": h.worker, "status": true});
@@ -234,8 +243,14 @@ async fn check_and_gate_status_finished_fleets_read_receipts_without_askers_or_m
         assert_eq!(gate["how"], "reused");
         assert_eq!(gate["passed"], true);
         assert_eq!(gate["source_verified"], true);
-        assert_eq!(h.persist.latest_tree_check(&h.run).await?, check_before);
-        assert_eq!(h.persist.latest_tree_check(&gate_run).await?, gate_before);
+        assert_eq!(
+            h.persist.fleet().latest_tree_check(&h.run).await?,
+            check_before
+        );
+        assert_eq!(
+            h.persist.fleet().latest_tree_check(&gate_run).await?,
+            gate_before
+        );
         assert_eq!(h.row().await?, fleet_before);
         assert_eq!(h.inbox_len(h.other).await?, 0);
         assert!(!h.repo.path().join("admission-spawned").exists());
@@ -256,6 +271,7 @@ async fn report_and_verdict_running_fleet_preserve_closed_seat_delivery_results(
     assert_eq!(reported["told_acceptance"], true);
     assert_eq!(h.inbox_len(h.acceptance).await?, 1);
     h.persist
+        .launch()
         .record_launch_closed(h.worker_launch, "finished", Some(true))
         .await?;
     let mut judged = verdict(&h);

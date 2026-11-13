@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
@@ -208,11 +209,11 @@ pub(super) async fn load_changed_lessons(
     persist: &PersistHandle,
     previous: Option<ChangeMark>,
 ) -> Result<Option<LessonSet>, PersistError> {
-    let fingerprint = persist.injectable_lessons_fingerprint().await?;
+    let fingerprint = persist.lessons().injectable_lessons_fingerprint().await?;
     if previous == Some(fingerprint) {
         return Ok(None);
     }
-    let rows = persist.list_project_injectable_lessons().await?;
+    let rows = persist.lessons().list_project_injectable_lessons().await?;
     let (by_project, by_agent) = group_injectable(rows);
     Ok(Some(LessonSet {
         fingerprint,
@@ -280,6 +281,9 @@ fn persona_alias_map_from_rows(aliases: Vec<AgentAlias>) -> HashMap<String, i64>
 pub(super) async fn load_topic_withheld(
     persist: &PersistHandle,
 ) -> Result<HashSet<i64>, PersistError> {
-    let ids = persist.list_topic_lessons_withheld_from_content().await?;
+    let ids = persist
+        .lessons()
+        .list_topic_lessons_withheld_from_content()
+        .await?;
     Ok(ids.into_iter().collect())
 }

@@ -1,7 +1,5 @@
-use crate::store::persistence::PersistHandle;
-
-impl PersistHandle {
-    pub(super) async fn audit_closed_recipient(&self, from: Option<i64>, to: Option<i64>) {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
+    pub(super) async fn audit_closed_recipient(self, from: Option<i64>, to: Option<i64>) {
         let (Some(from), Some(to)) = (from, to) else {
             return;
         };

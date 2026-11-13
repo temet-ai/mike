@@ -1,4 +1,5 @@
 use chrono::{SubsecRound, Utc};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use mike::store::persistence::PersistError;
 use mike::store::persistence::remote_control::{PATH_STREAM, RemoteControlCall};
@@ -14,6 +15,7 @@ async fn a_stream_opens_then_closes_on_the_same_row() -> anyhow::Result<()> {
 
     let opened_at = Utc::now().trunc_subsecs(6);
     let call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             http_status: Some(200),
             created_at: opened_at,
@@ -37,6 +39,7 @@ async fn a_stream_opens_then_closes_on_the_same_row() -> anyhow::Result<()> {
 
     let closed_at = opened_at + chrono::Duration::seconds(90);
     handle
+        .proxy()
         .close_remote_control_stream(call_id, closed_at)
         .await?;
 
@@ -64,6 +67,7 @@ async fn closing_an_unknown_call_is_an_error_not_a_silent_no_op() -> anyhow::Res
     };
 
     let Err(err) = handle
+        .proxy()
         .close_remote_control_stream(-999_999, Utc::now())
         .await
     else {
@@ -89,6 +93,7 @@ async fn old_stream_close_keeps_newer_stream_open() -> anyhow::Result<()> {
     for created_at in [first, first + chrono::Duration::seconds(1)] {
         ids.push(
             handle
+                .proxy()
                 .record_remote_control_call(RemoteControlCall {
                     created_at,
                     completed_at: None,
@@ -98,6 +103,7 @@ async fn old_stream_close_keeps_newer_stream_open() -> anyhow::Result<()> {
         );
     }
     handle
+        .proxy()
         .close_remote_control_stream(ids[0], first + chrono::Duration::seconds(2))
         .await?;
     let closed: Option<chrono::DateTime<Utc>> =
@@ -110,6 +116,7 @@ async fn old_stream_close_keeps_newer_stream_open() -> anyhow::Result<()> {
         "old connection cleanup must not close its replacement"
     );
     handle
+        .proxy()
         .close_remote_control_stream(ids[1], first + chrono::Duration::seconds(3))
         .await?;
     let closed: Option<chrono::DateTime<Utc>> =

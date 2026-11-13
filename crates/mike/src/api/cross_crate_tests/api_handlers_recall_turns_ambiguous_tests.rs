@@ -1,5 +1,6 @@
 //! Moved from crates/mike/src/api/handlers/recall_turns_ambiguous_tests.rs by the crate split: it reaches the web
 //! crate, so it is tested from there.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -32,6 +33,7 @@ async fn share_a_path(harness: &Harness) -> anyhow::Result<Shared> {
     let other = seed_project(pool, &format!("/recall-shared/{unique}/gg")).await?;
     harness
         .handle
+        .knowledge()
         .add_checkout_location(Uuid::new_v4(), "host", &path, other)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the location is free"))?;

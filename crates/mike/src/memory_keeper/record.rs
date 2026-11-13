@@ -1,20 +1,21 @@
 use super::supply::SupplyRecord;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub(crate) fn spawn_record(persist: Option<PersistHandle>, record: SupplyRecord) {
     let Some(persist) = persist else {
         return;
     };
     tokio::spawn(async move {
-        if let Err(error) = persist.record_keeper_supply(&record).await {
+        if let Err(error) = persist.lessons().record_keeper_supply(&record).await {
             tracing::warn!(error = %error, "memory_keeper: supply not recorded");
         }
     });
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub(crate) async fn record_keeper_supply(
-        &self,
+        self,
         record: &SupplyRecord,
     ) -> Result<(), sqlx::Error> {
         let carrier = record.carrier.as_str();

@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::invalid;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Deserialize)]
 pub struct SourceInput {
@@ -64,9 +64,9 @@ impl ScanInput {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn register_knowledge_source(
-        &self,
+        self,
         input: &SourceInput,
     ) -> Result<Value, PersistError> {
         let registered = self
@@ -79,7 +79,7 @@ impl PersistHandle {
     }
 
     pub async fn register_knowledge_sources(
-        &self,
+        self,
         inputs: &[SourceInput],
     ) -> Result<Vec<Option<RegisteredSource>>, PersistError> {
         if inputs
@@ -128,7 +128,7 @@ impl PersistHandle {
     }
 
     pub async fn ingest_knowledge_scan(
-        &self,
+        self,
         source: Uuid,
         input: &ScanInput,
     ) -> Result<Value, PersistError> {

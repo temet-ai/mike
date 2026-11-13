@@ -1,3 +1,4 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -24,7 +25,7 @@ async fn capture_all(
         else {
             continue;
         };
-        match handle.capture_codex_frame(&frame).await? {
+        match handle.runtime().capture_codex_frame(&frame).await? {
             CodexCaptureOutcome::Captured { .. } => captured += 1,
             CodexCaptureOutcome::Excluded(reason) => anyhow::bail!("excluded: {reason:?}"),
         }
@@ -44,9 +45,11 @@ async fn recorded_session_and_reconnect_project_into_one_item_per_provider_id() 
     connection.reconnect();
     let second = capture_all(&handle, &Transcript::parse(RECONNECT)?, &mut connection).await?;
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     let applied = handle
+        .runtime()
         .drain_codex_projection(generation.generation_id)
         .await?;
     assert_eq!(applied.len(), first + second);
@@ -57,6 +60,7 @@ async fn recorded_session_and_reconnect_project_into_one_item_per_provider_id() 
     );
     let thread = live.header_text("thread_id")?;
     let items = handle
+        .runtime()
         .list_codex_items(CodexItemPage {
             generation_id: generation.generation_id,
             thread_id: thread,

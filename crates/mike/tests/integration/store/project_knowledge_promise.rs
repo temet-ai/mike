@@ -1,3 +1,4 @@
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::test_support::seed_project;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
@@ -47,6 +48,7 @@ async fn read_project_knowledge_promise_reference_returns_text_session_and_turn(
 
     let read = f
         .handle
+        .knowledge()
         .read_project_knowledge(Some("turn-facts"), &format!("promise:{promise}"))
         .await?;
 
@@ -73,10 +75,12 @@ async fn read_project_knowledge_promise_from_other_project_is_not_found() -> any
 
     let elsewhere = f
         .handle
+        .knowledge()
         .read_project_knowledge(Some("promise-elsewhere"), &format!("promise:{promise}"))
         .await;
     let missing = f
         .handle
+        .knowledge()
         .read_project_knowledge(Some("turn-facts"), &format!("promise:{}", promise + 1))
         .await;
 

@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 use sqlx::PgConnection;
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::EvalLabelRow;
 use crate::eval::labels::SpaOrigin;
 
@@ -228,9 +228,9 @@ pub struct NewRelayed<'a> {
     pub holdout_percent: i64,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn write_gold_labels(
-        &self,
+        self,
         write: &GoldWrite<'_>,
     ) -> Result<Vec<EvalLabelRow>, LabelWriteError> {
         let mut tx = self.pool.begin().await.map_err(PersistError::from)?;
@@ -273,7 +273,7 @@ impl PersistHandle {
     }
 
     pub async fn write_relayed_label(
-        &self,
+        self,
         write: &NewRelayed<'_>,
     ) -> Result<EvalLabelRow, LabelWriteError> {
         let mut tx = self.pool.begin().await.map_err(PersistError::from)?;

@@ -1,3 +1,5 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -40,6 +42,7 @@ impl Fixture {
         let peer = PersistHandle::connect(&db.database_url).await?;
         let components = super::spawn_test_seams::default_v2_bundle_components("test-model");
         let bundle_id = persist
+            .eval()
             .create_candidate_bundle("turn_judge", "", &components)
             .await?;
         persist
@@ -112,6 +115,7 @@ impl Fixture {
     pub(super) async fn create_history(&self, cap: i32) -> anyhow::Result<i64> {
         Ok(self
             .persist
+            .eval()
             .create_rejudge_run(&NewRejudgeRun {
                 window: RejudgeWindow {
                     bundle_id: self.bundle.id,
@@ -165,6 +169,7 @@ async fn seed_turns(persist: &PersistHandle, count: i64) -> anyhow::Result<Vec<i
     .await?;
     for turn in &turns {
         persist
+            .dossier()
             .upsert_turn_facts(&[facts(turn.id, turn.session_id, turn.start_request_id)])
             .await?;
     }

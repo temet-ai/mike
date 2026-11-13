@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde::Serialize;
 
 use super::caller::AnswerError;
@@ -26,6 +27,7 @@ pub async fn whose(
     path: &str,
 ) -> Result<WhoseAnswer, AnswerError> {
     let events = persist
+        .fleet()
         .latest_change_events(checkout, &[path.to_owned()], &CHANGE_KINDS, READ)
         .await?;
     let on_path: Vec<ChangeEvent> = events

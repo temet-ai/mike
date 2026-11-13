@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 mod flow;
 
 use flow::FlowAdmissionDto;
@@ -171,6 +172,7 @@ async fn resolve_location(
     Ok(match location {
         Some(location) => Some(
             handle
+                .knowledge()
                 .project_for_location(location)
                 .await
                 .map_err(crate::api::project_knowledge::knowledge_error)?,
@@ -189,6 +191,7 @@ async fn bind_location(
 ) -> Result<(), Response> {
     if let Some(location) = location {
         handle
+            .knowledge()
             .bind_session_location(session, location)
             .await
             .map_err(crate::api::project_knowledge::knowledge_error)?;

@@ -1,5 +1,6 @@
 use super::super::{CheckpointInput, MetaUpdate, WorkThreadError};
 use super::{fixture, input, titled};
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[tokio::test]
 async fn review_without_acceptance_criteria_is_refused_and_the_status_stays() -> anyhow::Result<()>
@@ -8,10 +9,12 @@ async fn review_without_acceptance_criteria_is_refused_and_the_status_stays() ->
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(f.project, &titled("gate", "start"))
         .await?;
     let refused = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "gate",
@@ -30,6 +33,7 @@ async fn review_without_acceptance_criteria_is_refused_and_the_status_stays() ->
     );
     let blank = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "gate",
@@ -43,6 +47,7 @@ async fn review_without_acceptance_criteria_is_refused_and_the_status_stays() ->
     assert!(matches!(blank, Err(WorkThreadError::Invalid(_))));
     let unchanged = f
         .handle
+        .launch()
         .get_work_thread(f.project, "gate", Default::default())
         .await?;
     assert_eq!(unchanged.thread.status.as_deref(), Some("active"));
@@ -57,6 +62,7 @@ async fn review_with_criteria_in_the_same_call_is_accepted() -> anyhow::Result<(
     };
     let outcome = f
         .handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -73,6 +79,7 @@ async fn review_with_criteria_in_the_same_call_is_accepted() -> anyhow::Result<(
     assert_eq!(outcome.thread.status.as_deref(), Some("review"));
     let detail = f
         .handle
+        .launch()
         .get_work_thread(f.project, "gate", Default::default())
         .await?;
     assert_eq!(
@@ -81,6 +88,7 @@ async fn review_with_criteria_in_the_same_call_is_accepted() -> anyhow::Result<(
     );
     let cleared = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "gate",
@@ -102,11 +110,13 @@ async fn dependencies_replace_by_slug_and_unknown_or_self_slugs_are_refused() ->
     };
     for slug in ["base", "other", "top"] {
         f.handle
+            .launch()
             .checkpoint_work_thread(f.project, &titled(slug, "x"))
             .await?;
     }
     let first = vec!["base".to_owned(), "other".to_owned()];
     f.handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "top",
@@ -118,6 +128,7 @@ async fn dependencies_replace_by_slug_and_unknown_or_self_slugs_are_refused() ->
         .await?;
     let second = vec!["other".to_owned()];
     f.handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "top",
@@ -129,11 +140,13 @@ async fn dependencies_replace_by_slug_and_unknown_or_self_slugs_are_refused() ->
         .await?;
     let top = f
         .handle
+        .launch()
         .get_work_thread(f.project, "top", Default::default())
         .await?;
     assert_eq!(top.depends_on, ["other"]);
     let other = f
         .handle
+        .launch()
         .get_work_thread(f.project, "other", Default::default())
         .await?;
     assert_eq!(other.depended_on_by, ["top"]);
@@ -141,6 +154,7 @@ async fn dependencies_replace_by_slug_and_unknown_or_self_slugs_are_refused() ->
     let unknown = vec!["nowhere".to_owned()];
     let refused = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "top",
@@ -157,6 +171,7 @@ async fn dependencies_replace_by_slug_and_unknown_or_self_slugs_are_refused() ->
     let itself = vec!["top".to_owned()];
     let refused = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "top",
@@ -177,6 +192,7 @@ async fn unknown_status_is_refused_listing_the_allowed_ones_and_empty_strings_cl
         return Ok(());
     };
     f.handle
+        .launch()
         .checkpoint_work_thread(
             f.project,
             &CheckpointInput {
@@ -193,6 +209,7 @@ async fn unknown_status_is_refused_listing_the_allowed_ones_and_empty_strings_cl
         .await?;
     let refused = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "fields",
@@ -211,6 +228,7 @@ async fn unknown_status_is_refused_listing_the_allowed_ones_and_empty_strings_cl
     );
     let cleared = f
         .handle
+        .launch()
         .update_work_thread_meta(
             f.project,
             "fields",
@@ -226,6 +244,7 @@ async fn unknown_status_is_refused_listing_the_allowed_ones_and_empty_strings_cl
     assert_eq!(cleared.goal.as_deref(), Some("do x"));
     let missing = f
         .handle
+        .launch()
         .update_work_thread_meta(f.project, "ghost", &MetaUpdate::default())
         .await;
     assert!(matches!(missing, Err(WorkThreadError::NotFound(_))));

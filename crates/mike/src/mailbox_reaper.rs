@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
@@ -28,14 +29,14 @@ pub fn spawn_mailbox_reaper(state: &AppState) {
                 }
                 _ = ticker.tick() => {
                     let notice_cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
-                    if let Err(err) = persist.tell_inactive_senders(notice_cutoff).await {
+                    if let Err(err) = persist.launch().tell_inactive_senders(notice_cutoff).await {
                         tracing::warn!(error = %err, "mailbox_reaper: could not notify waiting senders");
                     }
                     let ttl_minutes = state.config().mailbox_delivery_ttl_minutes;
                     let cutoff = chrono::Utc::now() - chrono::Duration::minutes(ttl_minutes);
                     let activity_cutoff = cutoff;
                     match persist
-                        .dead_letter_expired_undelivered(cutoff, activity_cutoff)
+                        .launch().dead_letter_expired_undelivered(cutoff, activity_cutoff)
                         .await
                     {
                         Ok(outcome) if outcome.dead_lettered > 0 => {

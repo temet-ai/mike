@@ -1,9 +1,9 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::NewEvaluation;
 
-impl PersistHandle {
+impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     pub async fn insert_evaluations_dispatched(
-        &self,
+        self,
         new: &NewEvaluation<'_>,
         questions: &[Option<String>],
     ) -> Result<Vec<(uuid::Uuid, Option<String>)>, PersistError> {
@@ -38,7 +38,7 @@ impl PersistHandle {
     }
 
     pub async fn insert_evaluation_dispatched(
-        &self,
+        self,
         new: &NewEvaluation<'_>,
     ) -> Result<uuid::Uuid, PersistError> {
         let rows = self.insert_evaluations_dispatched(new, &[None]).await?;

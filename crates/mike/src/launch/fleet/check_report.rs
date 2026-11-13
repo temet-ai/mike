@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 
 use uuid::Uuid;
@@ -143,13 +145,17 @@ async fn tell_one(persist: &PersistHandle, verdict: &Verdict, session: Uuid, lin
         return;
     };
     if !matches!(
-        persist.add_tree_check_told(verdict.row.id, &seat).await,
+        persist
+            .fleet()
+            .add_tree_check_told(verdict.row.id, &seat)
+            .await,
         Ok(true)
     ) {
         return;
     }
     let body = owner_mail(verdict, lines);
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), session, None, &body)
         .await
     {
@@ -189,7 +195,11 @@ pub(super) async fn definition_now(
     persist: &PersistHandle,
     fleet: Uuid,
 ) -> Option<FleetDefinition> {
-    let found = persist.find_fleet(&fleet.to_string()).await.ok()??;
+    let found = persist
+        .fleet()
+        .find_fleet(&fleet.to_string())
+        .await
+        .ok()??;
     FleetDefinition::from_value(&found.definition).ok()
 }
 
@@ -205,6 +215,7 @@ async fn mail_the_result(
     let answer = report(persist, def, &who, verdict.clone()).await;
     let body = format!("[mike check] {}", text(&answer));
     if let Err(err) = persist
+        .launch()
         .insert_message(Uuid::new_v4(), session, None, &body)
         .await
     {

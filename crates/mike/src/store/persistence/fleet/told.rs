@@ -1,7 +1,7 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn told_keys(&self, run_id: &str) -> Result<Vec<String>, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn told_keys(self, run_id: &str) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("launch_told_keys", async move {
             let rows =
                 sqlx::query_file!("src/store/persistence/fleet/told_sql/told_keys.sql", run_id)
@@ -12,7 +12,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn recorded_introductions(&self, again: &[i64]) -> Result<Vec<i64>, PersistError> {
+    pub async fn recorded_introductions(self, again: &[i64]) -> Result<Vec<i64>, PersistError> {
         if again.is_empty() {
             return Ok(Vec::new());
         }
@@ -28,7 +28,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn release_introduction(&self, again_use_id: i64) -> Result<(), PersistError> {
+    pub async fn release_introduction(self, again_use_id: i64) -> Result<(), PersistError> {
         crate::metrics::time_db("launch_release_introduction", async move {
             sqlx::query_file!(
                 "src/store/persistence/fleet/told_sql/release_introduction.sql",
@@ -41,7 +41,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn mark_told(&self, run_id: &str, what: &[String]) -> Result<(), PersistError> {
+    pub async fn mark_told(self, run_id: &str, what: &[String]) -> Result<(), PersistError> {
         if what.is_empty() {
             return Ok(());
         }

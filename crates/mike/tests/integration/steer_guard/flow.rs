@@ -1,4 +1,5 @@
 use mike::steerer::guard_test_seams::{SeamTurn, evaluate_guard_turn};
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -201,12 +202,16 @@ async fn question_mode_off_is_not_asked() -> anyhow::Result<()> {
     let server = openrouter().await;
     let id = f
         .handle
+        .steerer()
         .guard_steerer()
         .await?
         .map(|g| g.id)
         .unwrap_or_default();
     for q in ["relapse", "authorised_handback", "unobserved_done"] {
-        f.handle.set_question_mode(id, q, "off", "cli").await?;
+        f.handle
+            .steerer()
+            .set_question_mode(id, q, "off", "cli")
+            .await?;
     }
     let turn = wait_turn(&f, 50_401).await?;
     evaluate_guard_turn(&f.handle, &server.uri(), seam(&f, turn, true)).await?;

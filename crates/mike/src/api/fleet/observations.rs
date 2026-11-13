@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -11,6 +13,7 @@ pub(super) async fn with_observations(
 ) -> Result<Value, DefinitionError> {
     let sessions = match run {
         Some(run) => persist
+            .fleet()
             .fleet_seat_rows(run)
             .await?
             .into_iter()
@@ -18,7 +21,7 @@ pub(super) async fn with_observations(
             .collect::<Vec<_>>(),
         None => Vec::new(),
     };
-    let observations = persist.session_observations(&sessions).await?;
+    let observations = persist.runtime().session_observations(&sessions).await?;
     let mut value =
         serde_json::to_value(value).map_err(|error| DefinitionError::Status(error.to_string()))?;
     value["observations"] = serde_json::to_value(observations)

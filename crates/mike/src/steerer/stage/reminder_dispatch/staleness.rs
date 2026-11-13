@@ -1,5 +1,6 @@
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const PUSH_ACK_GRACE: chrono::Duration = chrono::Duration::seconds(10);
@@ -129,7 +130,7 @@ async fn fetch_intervention_staleness(
     intervention_uuid: &str,
     uuid: uuid::Uuid,
 ) -> Option<crate::store::persistence::steering::InterventionStaleness> {
-    match persist.intervention_staleness(uuid).await {
+    match persist.steerer().intervention_staleness(uuid).await {
         Ok(Some(staleness)) => Some(staleness),
         Ok(None) => None,
         Err(e) => {
@@ -155,7 +156,7 @@ async fn expire_stale_intervention(
     uuid: uuid::Uuid,
     reason: &str,
 ) {
-    if let Err(e) = persist.expire_intervention(uuid, reason).await {
+    if let Err(e) = persist.steerer().expire_intervention(uuid, reason).await {
         log_expire_intervention_failed(session_id, intervention_uuid, &e);
     }
 }

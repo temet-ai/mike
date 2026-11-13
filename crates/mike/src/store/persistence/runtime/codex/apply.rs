@@ -2,7 +2,7 @@ use sqlx::PgConnection;
 use uuid::Uuid;
 
 use crate::runtime::codex::{ProjectionBatch, decode_observation};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 use super::effects::{insert_effects, validate_batch};
 use super::generation::{check_versions, lock_generation};
@@ -14,9 +14,9 @@ use super::{
     invariant,
 };
 
-impl PersistHandle {
+impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     pub async fn apply_next_codex_projection(
-        &self,
+        self,
         generation_id: Uuid,
     ) -> Result<CodexProjectionApplyOutcome, PersistError> {
         let mut transaction = self.pool.begin().await?;

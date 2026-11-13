@@ -8,9 +8,9 @@ use super::placement::PlacementWrite;
 use super::shape::insert_shape_finding;
 use super::write_time::{PlannedRelation, insert_planned_relations};
 use crate::lesson_shape::Assessment;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::change_log::{NewChange, append_change_in};
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProposalError {
@@ -108,9 +108,9 @@ pub struct NewCandidateLesson<'a> {
     pub placement: Option<PlacementWrite<'a>>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn select_correction_candidates(
-        &self,
+        self,
         since: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<CorrectionCandidate>, PersistError> {
@@ -145,7 +145,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn record_evidence(&self, ev: EvidenceWrite<'_>) -> Result<i64, PersistError> {
+    pub async fn record_evidence(self, ev: EvidenceWrite<'_>) -> Result<i64, PersistError> {
         crate::metrics::time_db("record_lesson_proposal_evidence", async move {
             let mut tx = self.pool.begin().await?;
             let id = insert_evidence(&mut tx, &ev).await?;
@@ -156,7 +156,7 @@ impl PersistHandle {
     }
 
     pub async fn create_candidate_lesson(
-        &self,
+        self,
         new: NewCandidateLesson<'_>,
         evidence: EvidenceWrite<'_>,
     ) -> Result<i64, PersistError> {
@@ -210,7 +210,7 @@ impl PersistHandle {
     }
 
     pub async fn reinforce_lesson(
-        &self,
+        self,
         lesson_id: i64,
         evidence: EvidenceWrite<'_>,
     ) -> Result<(), PersistError> {
@@ -234,7 +234,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_lesson_evidence(&self, lesson_id: i64) -> Result<i64, PersistError> {
+    pub async fn count_lesson_evidence(self, lesson_id: i64) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_lesson_evidence", async move {
             let count = sqlx::query_scalar!(
                 r#"SELECT count(*) AS "count!" FROM memory.lesson_proposal_evidence WHERE lesson_id = $1"#,
@@ -248,7 +248,7 @@ impl PersistHandle {
     }
 
     pub async fn approve_lesson_candidate(
-        &self,
+        self,
         lesson_id: i64,
         text_override: Option<&str>,
         decided_by: &str,
@@ -301,7 +301,7 @@ impl PersistHandle {
     }
 
     pub async fn reject_lesson_candidate(
-        &self,
+        self,
         lesson_id: i64,
         api_reason: &str,
         note: Option<&str>,

@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 
 use super::context::TurnContext;
@@ -40,6 +41,7 @@ async fn same_change_fires(turn: &GuardTurn<'_>, question: Question, change: Opt
     };
     let count = turn
         .persist
+        .steerer()
         .same_change_fires(turn.steerer_id, question.code(), turn.session_db_id, change)
         .await
         .unwrap_or_default();
@@ -54,6 +56,7 @@ async fn prior_for(
 ) -> AnchorHistory {
     let fires = turn
         .persist
+        .steerer()
         .anchor_history(turn.steerer_id, question.code(), anchor)
         .await
         .unwrap_or_default();
@@ -214,7 +217,7 @@ fn arm_write(fire: &LiveFire) -> Option<ArmWrite> {
 
 pub(crate) async fn record_arms(persist: &PersistHandle, fires: &[LiveFire]) {
     for w in fires.iter().filter_map(arm_write) {
-        if let Err(e) = persist.record_arm(&w).await {
+        if let Err(e) = persist.steerer().record_arm(&w).await {
             tracing::warn!(evaluation = %w.evaluation, error = %e, "turn guard: arm record failed");
         }
     }

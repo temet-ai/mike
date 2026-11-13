@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
@@ -77,11 +79,11 @@ async fn open_questions(
     let Some(me) = identities.first() else {
         return Ok(Vec::new());
     };
-    let rows = persist.open_questions_for(me.uuid).await?;
+    let rows = persist.launch().open_questions_for(me.uuid).await?;
     let mut lines = Vec::with_capacity(rows.len());
     for row in rows {
         let about = match row.about_note {
-            Some(note) => persist.note_ref(note).await?,
+            Some(note) => persist.launch().note_ref(note).await?,
             None => None,
         };
         lines.push(question_line(row, about));
@@ -93,7 +95,7 @@ pub async fn standing(
     persist: &PersistHandle,
     caller: &Caller,
 ) -> Result<StandingAnswer, AnswerError> {
-    let open = persist.open_changes(&caller.checkout).await?;
+    let open = persist.fleet().open_changes(&caller.checkout).await?;
     let uncommitted = paths_of(&open, Some(caller.session_id));
     let (events_waiting, events_waiting_capped) = waiting(persist, caller).await?;
     let (others, newest_commits) = if caller.in_fleet {
@@ -128,13 +130,14 @@ fn paths_of(open: &[OpenChange], session: Option<i64>) -> Vec<String> {
 
 async fn waiting(persist: &PersistHandle, caller: &Caller) -> Result<(i64, bool), AnswerError> {
     let place = persist
+        .fleet()
         .change_place(caller.session_id, &caller.checkout)
         .await?;
     let query = ChangeQuery {
         exclude_session: Some(caller.session_id),
         ..ChangeQuery::everything_after(&caller.checkout, place, WAITING_COUNT_CAP + 1)
     };
-    let count = persist.change_events_after(&query).await?.len() as i64;
+    let count = persist.fleet().change_events_after(&query).await?.len() as i64;
     Ok((count.min(WAITING_COUNT_CAP), count > WAITING_COUNT_CAP))
 }
 
@@ -175,6 +178,7 @@ async fn newest_commits(
     caller: &Caller,
 ) -> Result<Vec<ChangeLine>, AnswerError> {
     let commits = persist
+        .fleet()
         .latest_change_events(&caller.checkout, &[], &[ChangeKind::Commit], NEWEST_COMMITS)
         .await?;
     let names = names_for(persist, &commits).await?;
@@ -268,10 +272,18 @@ mod tests {
             question: text,
             blocked,
         };
-        let first = f.handle.ask_question(&ask("first", true)).await?;
-        f.handle.ask_question(&ask("second", false)).await?;
-        let settled = f.handle.ask_question(&ask("settled", false)).await?;
+        let first = f.handle.launch().ask_question(&ask("first", true)).await?;
         f.handle
+            .launch()
+            .ask_question(&ask("second", false))
+            .await?;
+        let settled = f
+            .handle
+            .launch()
+            .ask_question(&ask("settled", false))
+            .await?;
+        f.handle
+            .launch()
             .settle_question(&SettledQuestion {
                 question: settled.question_uuid,
                 by: me_uuid,

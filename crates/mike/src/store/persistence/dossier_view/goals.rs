@@ -1,9 +1,9 @@
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::GoalsRow;
 
-impl PersistHandle {
+impl crate::store::persistence::dossier_repo::DossierDb<'_> {
     pub async fn fetch_session_goals_row(
-        &self,
+        self,
         session_db_id: i64,
     ) -> Result<Option<GoalsRow>, PersistError> {
         crate::metrics::time_db("fetch_session_goals_row", async move {

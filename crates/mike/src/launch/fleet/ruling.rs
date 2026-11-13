@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -41,6 +42,7 @@ pub(super) async fn registered(
     run: &str,
 ) -> Result<Vec<AcceptanceObligation>, String> {
     let notes: Vec<NoteFacts> = persist
+        .fleet()
         .fleet_note_rows(run)
         .await
         .map_err(|err| format!("ruling register unavailable: {err}"))?

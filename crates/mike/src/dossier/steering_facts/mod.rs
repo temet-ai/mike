@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 pub mod observation;
 pub mod read_back;
 pub mod tool_effect;
@@ -88,9 +89,10 @@ pub async fn compute(
     keys: &[FactKey],
 ) -> Result<Vec<ComputedFacts>, PersistError> {
     let backing = persist
+        .dossier()
         .steering_backing_rows(keys, !REGISTRY_PARSES_SCHEDULED_LAUNCHES)
         .await?;
-    let calls = persist.steering_call_rows(keys).await?;
+    let calls = persist.dossier().steering_call_rows(keys).await?;
     let mut refs_by_turn: HashMap<i64, Vec<BackingRef>> = HashMap::new();
     for row in &backing {
         refs_by_turn
@@ -220,6 +222,7 @@ pub async fn fill(
             ..filter.clone()
         };
         let batch = persist
+            .dossier()
             .stale_steering_fact_turns(&page, STEERING_FACTS_VERSION)
             .await?;
         let Some(last) = batch.last() else {
@@ -242,7 +245,7 @@ pub async fn fill(
             .collect::<Result<Vec<_>, _>>()?;
         report.count(&rows);
         if execute {
-            report.written += persist.write_steering_facts(&rows).await?;
+            report.written += persist.dossier().write_steering_facts(&rows).await?;
         }
     }
 }

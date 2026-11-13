@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::Utc;
 use serde_json::{Value, json};
 
@@ -51,6 +52,7 @@ async fn policy(
     question: Question,
 ) -> Result<PolicyRow, PromotionError> {
     persist
+        .steerer()
         .policy_row(steerer_id, question.code())
         .await?
         .ok_or_else(|| PromotionError::UnknownPolicy(question.code().to_owned()))
@@ -94,6 +96,7 @@ pub(crate) async fn gate_for(
     let p = policy(persist, steerer_id, question).await?;
     let settings = GuardSettings::load(persist).await;
     let counts = persist
+        .steerer()
         .fetch_gate_counts(&GateWindow {
             steerer_id,
             question: question.code(),
@@ -129,6 +132,7 @@ async fn verifier_check(
         return Ok(None);
     };
     let pairs = persist
+        .steerer()
         .fetch_verifier_pairs(verifier, req.steerer_id, gate.window_start)
         .await?;
     let decision = decide_replacement(&ReplacementInputs {
@@ -171,6 +175,7 @@ pub(crate) async fn promote(
         return Err(PromotionError::GateFailed(gate_json));
     }
     let id = persist
+        .steerer()
         .apply_mode_change(&ModeChange {
             policy_id: p.id,
             steerer_id: req.steerer_id,
@@ -215,6 +220,7 @@ pub(crate) async fn demote(
     };
     let evidence = json!({"reason": req.reason, "evidence": req.evidence, "at": Utc::now()});
     let id = persist
+        .steerer()
         .apply_mode_change(&ModeChange {
             policy_id: p.id,
             steerer_id: req.steerer_id,
@@ -233,6 +239,7 @@ pub(crate) async fn demote(
         .await?;
     if req.to_mode != "wake" {
         persist
+            .steerer()
             .disable_pending_for_question(req.steerer_id, req.question.code())
             .await?;
     }

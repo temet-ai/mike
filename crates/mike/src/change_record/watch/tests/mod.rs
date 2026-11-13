@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 mod authors;
 mod drill;
 mod feed;
@@ -121,6 +122,7 @@ pub(super) async fn watching(db: &Db, repo: &Repo, config: WatchConfig) -> anyho
 pub(super) async fn events(db: &Db, root: &str) -> anyhow::Result<Vec<ChangeEvent>> {
     Ok(db
         .persist
+        .fleet()
         .change_events_after(&ChangeQuery::everything_after(root, 0, 1000))
         .await?)
 }

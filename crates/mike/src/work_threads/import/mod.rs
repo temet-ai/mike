@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 mod frontmatter;
 mod parse;
 mod paths;
@@ -184,7 +185,10 @@ async fn apply_one(
             .push((thread.source_path.clone(), error.clone()));
     }
     if dry_run {
-        let exists = handle.work_thread_exists(project.id, &thread.slug).await;
+        let exists = handle
+            .launch()
+            .work_thread_exists(project.id, &thread.slug)
+            .await;
         match exists {
             Ok(true) => report.updated.push(label),
             Ok(false) => report.created.push(label),
@@ -194,7 +198,7 @@ async fn apply_one(
         }
         return;
     }
-    match handle.import_work_thread(project.id, thread).await {
+    match handle.launch().import_work_thread(project.id, thread).await {
         Ok(ImportOutcome::Created) => report.created.push(label),
         Ok(ImportOutcome::Updated) => report.updated.push(label),
         Ok(ImportOutcome::LeftAlone(why)) => report.left_alone.push((label, why)),
@@ -217,6 +221,7 @@ async fn link_dependencies(
             unknown_in_dry_run(handle, project, parsed, &item.depends_on).await
         } else {
             handle
+                .launch()
                 .link_imported_dependencies(project.id, slug, &item.depends_on)
                 .await
                 .unwrap_or_else(|error| vec![format!("(not linked: {error})")])
@@ -240,6 +245,7 @@ async fn unknown_in_dry_run(
         let in_batch = parsed.iter().any(|item| &item.thread.slug == slug);
         if !in_batch
             && !handle
+                .launch()
                 .work_thread_exists(project.id, slug)
                 .await
                 .unwrap_or(false)

@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 mod schedule;
 mod settings;
 
@@ -67,11 +68,12 @@ async fn operational_pass(
     roles: &[String],
 ) -> Option<()> {
     let firings = ok_or_warn(
-        persist.evaluate_operational_alarms(t, roles).await,
+        persist.eval().evaluate_operational_alarms(t, roles).await,
         "eval_metrics.operational_alarms",
     )?;
     let changes = ok_or_warn(
         persist
+            .eval()
             .apply_alarm_pass(
                 &AlarmKind::OPERATIONAL,
                 &firings,
@@ -86,7 +88,10 @@ async fn operational_pass(
 
 async fn daily_pass(persist: &PersistHandle, s: &EvalSettings, t: &AlarmThresholds) -> Option<()> {
     let last = ok_or_warn(
-        persist.latest_rollup_day(EVAL_ROLLUP_SQL_VERSION).await,
+        persist
+            .eval()
+            .latest_rollup_day(EVAL_ROLLUP_SQL_VERSION)
+            .await,
         "eval_metrics.rollup_lookup",
     )?;
     let day = schedule::rollup_due(Utc::now(), s.rollup_hour_utc, last)?;
@@ -97,16 +102,20 @@ async fn daily_pass(persist: &PersistHandle, s: &EvalSettings, t: &AlarmThreshol
         execute: true,
     };
     let report = ok_or_warn(
-        persist.run_eval_rollup(request).await,
+        persist.eval().run_eval_rollup(request).await,
         "eval_metrics.rollup",
     )?;
     tracing::info!(for_day = %report.for_day, families = ?report.per_family, "eval_metrics: rollup written");
     let firings = ok_or_warn(
-        persist.evaluate_daily_alarms(t, day_start(day)).await,
+        persist
+            .eval()
+            .evaluate_daily_alarms(t, day_start(day))
+            .await,
         "eval_metrics.daily_alarms",
     )?;
     let changes = ok_or_warn(
         persist
+            .eval()
             .apply_alarm_pass(
                 &AlarmKind::DAILY,
                 &firings,
@@ -121,19 +130,20 @@ async fn daily_pass(persist: &PersistHandle, s: &EvalSettings, t: &AlarmThreshol
 
 async fn action_effect_pass(persist: &PersistHandle, s: &EvalSettings) -> Option<()> {
     let last = ok_or_warn(
-        persist.latest_completed_action_effect_day().await,
+        persist.eval().latest_completed_action_effect_day().await,
         "eval_metrics.action_effect_lookup",
     )?;
     let now = Utc::now();
     let day = schedule::rollup_due(now, s.rollup_hour_utc, last)?;
     let id = ok_or_warn(
         persist
+            .eval()
             .current_or_claimed_action_effect_rollup_id(day)
             .await,
         "eval_metrics.action_effect_claim",
     )?;
     let rows = ok_or_warn(
-        persist.write_action_effect_rows(id, now).await,
+        persist.eval().write_action_effect_rows(id, now).await,
         "eval_metrics.action_effect_write",
     )?;
     tracing::info!(for_day = %day, rows, "eval_metrics: action effects written");
@@ -141,7 +151,10 @@ async fn action_effect_pass(persist: &PersistHandle, s: &EvalSettings) -> Option
 }
 
 pub async fn run_tick(persist: &PersistHandle, roles: &[String], was_disabled: bool) -> bool {
-    let Some(rows) = ok_or_warn(persist.eval_setting_rows().await, "eval_metrics.settings") else {
+    let Some(rows) = ok_or_warn(
+        persist.eval().eval_setting_rows().await,
+        "eval_metrics.settings",
+    ) else {
         return was_disabled;
     };
     let s = resolve_eval_settings(&rows);

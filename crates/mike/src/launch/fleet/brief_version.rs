@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use serde_json::json;
@@ -131,7 +133,7 @@ pub fn task_part_version_in(brief: &str) -> Option<i64> {
 }
 
 pub async fn version_for_run(persist: &PersistHandle, run: &str) -> Option<String> {
-    let row = persist.find_fleet_by_run(run).await.ok()??;
+    let row = persist.fleet().find_fleet_by_run(run).await.ok()??;
     let def = FleetDefinition::from_value(&row.definition).ok()?;
     Some(task_list_version(&def))
 }
@@ -248,7 +250,7 @@ async fn refresh(persist: &PersistHandle, row: &FleetRow) {
         open_only: true,
         ..LaunchListFilter::default()
     };
-    let Ok(launches) = persist.list_launches(&filter).await else {
+    let Ok(launches) = persist.launch().list_launches(&filter).await else {
         return;
     };
     if super::brief_notes::as_notes(&def) {
@@ -266,6 +268,7 @@ async fn mail_refreshes(persist: &PersistHandle, run: &str, due: Vec<(String, Re
     let said = super::told::load(persist, run).await;
     for (key, refresh) in due.into_iter().filter(|(key, _)| !said.already(key)) {
         match persist
+            .launch()
             .insert_message(Uuid::new_v4(), refresh.to(), None, refresh.body())
             .await
         {
@@ -279,6 +282,7 @@ async fn mail_refreshes(persist: &PersistHandle, run: &str, due: Vec<(String, Re
 
 async fn tick(persist: &PersistHandle) {
     let Ok(fleets) = persist
+        .fleet()
         .list_fleets_in_states(&[super::shutdown::RUNNING])
         .await
     else {

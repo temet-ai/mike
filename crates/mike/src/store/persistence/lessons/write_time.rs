@@ -4,8 +4,8 @@ use sha2::{Digest as _, Sha256};
 use sqlx::PgConnection;
 
 use super::proposals::{EvidenceWrite, insert_evidence};
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::vector_to_text_literal;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 pub const WRITE_TIME_DETECTOR_VERSION: &str = "lesson-write-time-v1";
 
@@ -78,9 +78,9 @@ pub(super) async fn insert_planned_relations(
     Ok(())
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn find_lesson_neighbours(
-        &self,
+        self,
         project_id: i64,
         embedding: &[f32],
         max_distance: f32,
@@ -118,7 +118,7 @@ impl PersistHandle {
     }
 
     pub async fn record_skipped_duplicate(
-        &self,
+        self,
         skipped: NewSkippedDuplicate<'_>,
         evidence: EvidenceWrite<'_>,
     ) -> Result<i64, PersistError> {
@@ -175,7 +175,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_promotion_evidence(&self, lesson_id: i64) -> Result<i64, PersistError> {
+    pub async fn count_promotion_evidence(self, lesson_id: i64) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_promotion_evidence", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT count(*) AS "n!"
@@ -198,7 +198,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn confirm_judge_only_write_time_relations(&self) -> Result<u64, PersistError> {
+    pub async fn confirm_judge_only_write_time_relations(self) -> Result<u64, PersistError> {
         crate::metrics::time_db("confirm_judge_only_write_time_relations", async move {
             Ok(sqlx::query!(
                 "UPDATE memory.lesson_relations r
@@ -223,7 +223,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn apply_confirmed_lesson_relations(&self) -> Result<u64, PersistError> {
+    pub async fn apply_confirmed_lesson_relations(self) -> Result<u64, PersistError> {
         crate::metrics::time_db("apply_confirmed_lesson_relations", async move {
             let archived = sqlx::query_scalar!(
                 r#"WITH due AS (

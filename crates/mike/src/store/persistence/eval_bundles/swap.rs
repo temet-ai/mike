@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
+use super::super::PersistError;
 use super::super::change_log::{NewChange, append_change_in};
-use super::super::{PersistError, PersistHandle};
 use super::BuildOrigin;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -50,9 +50,9 @@ fn is_live(status: &str) -> bool {
     matches!(status, "live" | "live_ungated")
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn swap_live_bundle_model(
-        &self,
+        self,
         req: SwapRequest<'_>,
     ) -> Result<Option<LiveModelSwap>, PersistError> {
         crate::metrics::time_db("swap_live_bundle_model", async move {
@@ -139,7 +139,7 @@ impl PersistHandle {
     }
 
     pub async fn retire_bundle(
-        &self,
+        self,
         bundle_id: i64,
         superseded_by_id: i64,
         source_json: &str,

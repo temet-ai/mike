@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -36,9 +37,11 @@ async fn capture_and_apply(
     generation_id: Uuid,
     input: CodexReceiptInput,
 ) -> anyhow::Result<(StoredRuntimeReceipt, CodexProjectionApplication)> {
-    let receipt = captured(handle.capture_codex_receipt(input).await?)?;
-    let CodexProjectionApplyOutcome::Applied(application) =
-        handle.apply_next_codex_projection(generation_id).await?
+    let receipt = captured(handle.runtime().capture_codex_receipt(input).await?)?;
+    let CodexProjectionApplyOutcome::Applied(application) = handle
+        .runtime()
+        .apply_next_codex_projection(generation_id)
+        .await?
     else {
         anyhow::bail!("expected an application");
     };
@@ -46,6 +49,7 @@ async fn capture_and_apply(
     assert_eq!(Some(application.capture_sequence), receipt.capture_sequence);
     assert_eq!(
         handle
+            .runtime()
             .codex_projection_application(generation_id, receipt.event_id)
             .await?,
         Some(application.clone())
@@ -100,18 +104,23 @@ async fn assert_effect_reads(
         let mut filtered = page(generation_id);
         filtered.kind = Some((*kind).into());
         assert_eq!(
-            handle.list_codex_projection_effects(filtered).await?,
+            handle
+                .runtime()
+                .list_codex_projection_effects(filtered)
+                .await?,
             vec![effects[index].clone()]
         );
     }
     assert_eq!(
         handle
+            .runtime()
             .list_codex_lifecycle_observations(page(generation_id))
             .await?,
         vec![effects[1].clone()]
     );
     assert_eq!(
         handle
+            .runtime()
             .list_codex_usage_observations(page(generation_id))
             .await?,
         vec![effects[3].clone()]
@@ -119,13 +128,19 @@ async fn assert_effect_reads(
     let mut first_page = page(generation_id);
     first_page.limit = 2;
     assert_eq!(
-        handle.list_codex_projection_effects(first_page).await?,
+        handle
+            .runtime()
+            .list_codex_projection_effects(first_page)
+            .await?,
         effects[..2]
     );
     let mut remaining = page(generation_id);
     remaining.after = Some((effects[1].capture_sequence, effects[1].effect_ordinal));
     assert_eq!(
-        handle.list_codex_projection_effects(remaining).await?,
+        handle
+            .runtime()
+            .list_codex_projection_effects(remaining)
+            .await?,
         effects[2..]
     );
     Ok(())
@@ -139,6 +154,7 @@ async fn all_effect_variants_roundtrip_nul_bytes_without_synthetic_requests() ->
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let mut expected = Vec::new();
@@ -154,6 +170,7 @@ async fn all_effect_variants_roundtrip_nul_bytes_without_synthetic_requests() ->
         expected.extend(decoded.effects);
     }
     let effects = handle
+        .runtime()
         .list_codex_projection_effects(page(generation_id))
         .await?;
     assert_eq!(
@@ -173,6 +190,7 @@ async fn all_effect_variants_roundtrip_nul_bytes_without_synthetic_requests() ->
     assert!(effects.iter().all(|row| row.effect_ordinal == 0));
     assert_effect_reads(&handle, generation_id, &effects).await?;
     let item = handle
+        .runtime()
         .codex_projected_item(generation_id, &key(namespace.id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing item"))?;
@@ -197,6 +215,7 @@ async fn usage_fields_preserve_missing_null_invalid_and_zero_without_summing() -
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let payloads = [
@@ -216,11 +235,13 @@ async fn usage_fields_preserve_missing_null_invalid_and_zero_without_summing() -
         capture_and_apply(&handle, generation_id, event).await?;
     }
     let effects = handle
+        .runtime()
         .list_codex_usage_observations(page(generation_id))
         .await?;
     assert_eq!(
         effects,
         handle
+            .runtime()
             .list_codex_projection_effects(page(generation_id))
             .await?
     );
@@ -275,6 +296,7 @@ async fn partial_unsupported_and_malformed_applications_keep_queryable_issues() 
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let partial = input(
@@ -327,31 +349,38 @@ async fn partial_unsupported_and_malformed_applications_keep_queryable_issues() 
     capture_and_apply(&handle, generation_id, input(namespace.id, delta("valid"))?).await?;
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_issues(generation_id, 0, 100)
             .await?,
         applications
     );
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_issues(generation_id, 1, 1)
             .await?,
         vec![applications[1].clone()]
     );
     assert!(
         handle
+            .runtime()
             .list_codex_projection_issues(generation_id, 3, 100)
             .await?
             .is_empty()
     );
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_effects(page(generation_id))
             .await?
             .len(),
         2
     );
     assert!(matches!(
-        handle.apply_next_codex_projection(generation_id).await?,
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await?,
         CodexProjectionApplyOutcome::CaughtUp(_)
     ));
     handle.pool().close().await;
@@ -373,6 +402,7 @@ async fn assert_history_items(
     namespace_id: Uuid,
 ) -> anyhow::Result<()> {
     let item = handle
+        .runtime()
         .codex_projected_item(generation_id, &key(namespace_id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing duplicate item"))?;
@@ -394,11 +424,14 @@ async fn assert_history_items(
         limit: 1,
     };
     assert_eq!(
-        handle.list_codex_items(items_page.clone()).await?,
+        handle
+            .runtime()
+            .list_codex_items(items_page.clone())
+            .await?,
         vec![item]
     );
     items_page.after = Some((1, "turn".into(), "item".into()));
-    let remaining = handle.list_codex_items(items_page).await?;
+    let remaining = handle.runtime().list_codex_items(items_page).await?;
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].item.key.item_id, "other");
     assert_eq!(
@@ -416,6 +449,7 @@ async fn history_duplicate_item_effects_keep_ordinals_and_reduce_in_source_order
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let (receipt, application) = capture_and_apply(
@@ -427,6 +461,7 @@ async fn history_duplicate_item_effects_keep_ordinals_and_reduce_in_source_order
     assert_eq!(application.effect_count, 3);
     assert_eq!(application.status, ProjectionStatus::Projected);
     let effects = handle
+        .runtime()
         .list_codex_projection_effects(page(generation_id))
         .await?;
     assert_eq!(
@@ -444,24 +479,34 @@ async fn history_duplicate_item_effects_keep_ordinals_and_reduce_in_source_order
     let mut following = page(generation_id);
     following.after = Some((1, 0));
     assert_eq!(
-        handle.list_codex_projection_effects(following).await?,
+        handle
+            .runtime()
+            .list_codex_projection_effects(following)
+            .await?,
         effects[1..]
     );
     assert_history_items(&handle, generation_id, namespace.id).await?;
     assert!(matches!(
-        handle.apply_next_codex_projection(generation_id).await?,
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await?,
         CodexProjectionApplyOutcome::CaughtUp(_)
     ));
     let replay = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, replay)
         .await?;
     assert!(matches!(
-        handle.apply_next_codex_projection(replay).await?,
+        handle.runtime().apply_next_codex_projection(replay).await?,
         CodexProjectionApplyOutcome::Applied(_)
     ));
     assert_eq!(
-        handle.list_codex_projection_effects(page(replay)).await?,
+        handle
+            .runtime()
+            .list_codex_projection_effects(page(replay))
+            .await?,
         effects
     );
     assert_history_items(&handle, replay, namespace.id).await?;

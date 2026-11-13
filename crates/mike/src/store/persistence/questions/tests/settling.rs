@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::seed::{fixture, question, session};
@@ -15,11 +16,13 @@ async fn an_answer_settles_once_and_leaves_the_recipients_open_list() -> anyhow:
     let recipient = session(&f.handle).await?;
     let asked = f
         .handle
+        .launch()
         .ask_question(&question(asker, recipient, "which file?"))
         .await?;
 
     let first = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: asked.question_uuid,
             by: recipient,
@@ -34,10 +37,17 @@ async fn an_answer_settles_once_and_leaves_the_recipients_open_list() -> anyhow:
     assert_eq!(row.answer.as_deref(), Some("fleet_target.rs"));
     assert_eq!(row.settled_by, Some(recipient));
     assert!(row.settled_at.is_some());
-    assert!(f.handle.open_questions_for(recipient).await?.is_empty());
+    assert!(
+        f.handle
+            .launch()
+            .open_questions_for(recipient)
+            .await?
+            .is_empty()
+    );
 
     let again = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: asked.question_uuid,
             by: recipient,
@@ -64,10 +74,12 @@ async fn a_decline_needs_no_reason_and_anyone_in_the_project_may_settle() -> any
     let reference = session(&f.handle).await?;
     let asked = f
         .handle
+        .launch()
         .ask_question(&question(asker, recipient, "can you?"))
         .await?;
     let outcome = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: asked.question_uuid,
             by: reference,
@@ -95,11 +107,13 @@ async fn settling_refuses_an_empty_answer_an_unknown_settler_and_reports_an_unkn
     let recipient = session(&f.handle).await?;
     let asked = f
         .handle
+        .launch()
         .ask_question(&question(asker, recipient, "q"))
         .await?;
 
     let empty = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: asked.question_uuid,
             by: recipient,
@@ -111,6 +125,7 @@ async fn settling_refuses_an_empty_answer_an_unknown_settler_and_reports_an_unkn
 
     let stranger = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: asked.question_uuid,
             by: Uuid::new_v4(),
@@ -122,6 +137,7 @@ async fn settling_refuses_an_empty_answer_an_unknown_settler_and_reports_an_unkn
 
     let missing = f
         .handle
+        .launch()
         .settle_question(&SettledQuestion {
             question: Uuid::new_v4(),
             by: recipient,
@@ -130,7 +146,10 @@ async fn settling_refuses_an_empty_answer_an_unknown_settler_and_reports_an_unkn
         })
         .await?;
     assert_eq!(missing, SettleOutcome::NotFound);
-    assert_eq!(f.handle.open_questions_for(recipient).await?.len(), 1);
+    assert_eq!(
+        f.handle.launch().open_questions_for(recipient).await?.len(),
+        1
+    );
     f.db.cleanup().await?;
     Ok(())
 }

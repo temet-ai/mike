@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -30,10 +31,14 @@ pub(crate) async fn get_session_ledger(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    let ledger = handle.work_item_ledger(db_id, &id).await.map_err(|e| {
-        tracing::warn!(error = %e, session_id = %id, "get_session_ledger: query failed");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let ledger = handle
+        .launch()
+        .work_item_ledger(db_id, &id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, session_id = %id, "get_session_ledger: query failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     Ok(Json(ledger))
 }
 
@@ -48,7 +53,7 @@ pub(crate) async fn post_session_work_items_backfill(
     let handle = handle.clone();
     let session_id = id.clone();
     tokio::spawn(async move {
-        match handle.backfill_work_items(db_id).await {
+        match handle.launch().backfill_work_items(db_id).await {
             Ok(counts) => tracing::info!(
                 session_id = %session_id,
                 launches = counts.launches,

@@ -104,6 +104,7 @@ async fn unverified_automatic_check_never_records_proof_or_blames_a_seat() -> an
         };
         let persist = PersistHandle::connect(&db.database_url).await?;
         persist
+            .launch()
             .ensure_session_exists(&Uuid::from_u128(SEAT_SESSION).to_string())
             .await?;
         let root = tempfile::tempdir()?;
@@ -123,7 +124,13 @@ async fn unverified_automatic_check_never_records_proof_or_blames_a_seat() -> an
         let row = queued_check(&runner, &def, &tracker, &persist, &run).await?;
         assert_eq!(row.exit_code, None);
         assert_ne!(row.state_after.as_deref(), Some(row.state.as_str()));
-        assert!(persist.find_tree_check(&run, &row.state).await?.is_none());
+        assert!(
+            persist
+                .fleet()
+                .find_tree_check(&run, &row.state)
+                .await?
+                .is_none()
+        );
         assert!(results(&persist).await?.is_empty());
         assert!(inbox(&persist).await?.is_empty());
         db.cleanup().await?;

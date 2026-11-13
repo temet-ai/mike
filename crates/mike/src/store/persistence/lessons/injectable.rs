@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ChangeMark {
@@ -16,8 +16,8 @@ pub struct InjectableLessonRow {
     pub agent_id: Option<i64>,
 }
 
-impl PersistHandle {
-    pub(crate) async fn injectable_lessons_fingerprint(&self) -> Result<ChangeMark, PersistError> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub(crate) async fn injectable_lessons_fingerprint(self) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("injectable_lessons_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
                 ChangeMark,
@@ -35,7 +35,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_project_injectable_lessons(
-        &self,
+        self,
     ) -> Result<Vec<InjectableLessonRow>, PersistError> {
         crate::metrics::time_db("list_project_injectable_lessons", async move {
             let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at, added in 20261111170700, before its .sqlx entry is prepared

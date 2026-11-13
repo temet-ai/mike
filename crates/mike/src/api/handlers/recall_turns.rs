@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
 use crate::web_base::detail::Detail;
 use crate::web_base::result_order::ResultOrder;
@@ -34,6 +35,7 @@ pub(crate) async fn own_turn_to_skip(
         return Ok(None);
     };
     handle
+        .knowledge()
         .newest_turn_of_session(session)
         .await
         .map_err(persist_error_response)
@@ -87,6 +89,7 @@ async fn answer_recall(
         .clamp(1, RECALL_SIMILAR_TURNS_MAX_LIMIT);
 
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(&body.project)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
@@ -205,6 +208,7 @@ async fn recall_rows_hybrid(
     let rows = match rows {
         Some(r) => r,
         None => handle
+            .knowledge()
             .recall_turns_by_fts(project, query, window.limit, window.exclude_turn)
             .await
             .map_err(|e| {
@@ -266,6 +270,7 @@ async fn recall_by_embedding(
 ) -> Option<Vec<crate::store::persistence::recall_reads::RankedTurnRow>> {
     let path = project.project_path.as_str();
     match handle
+        .knowledge()
         .recall_turns_by_embedding(project, model, literal, window.limit, window.exclude_turn)
         .await
     {

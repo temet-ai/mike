@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Postgres, QueryBuilder};
 
-use super::super::super::{PersistError, PersistHandle};
+use super::super::super::PersistError;
 use super::types::{
     PromptClassDetailRow, PromptClassObservationRow, PromptClassRow, PromptClassScope,
     PromptClassVersionRow,
@@ -10,9 +10,9 @@ use super::types::{
 const LIST_TAIL: &str = include_str!("prompt_classes/list_tail.sql");
 const DETAIL_TAIL: &str = include_str!("prompt_classes/detail_tail.sql");
 
-impl PersistHandle {
+impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub(crate) async fn list_prompt_classes(
-        &self,
+        self,
         window_start: Option<DateTime<Utc>>,
         window_end: Option<DateTime<Utc>>,
         limit: i64,
@@ -51,7 +51,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_prompt_class_detail(
-        &self,
+        self,
         lane: &str,
         persona: Option<&str>,
         window_start: Option<DateTime<Utc>>,
@@ -93,7 +93,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn list_prompt_class_observations(
-        &self,
+        self,
         lane: &str,
         persona: Option<&str>,
         limit: i64,
@@ -135,7 +135,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn get_prompt_class_versions(
-        &self,
+        self,
         lane: &str,
         persona: Option<&str>,
     ) -> Result<Option<Vec<PromptClassVersionRow>>, PersistError> {

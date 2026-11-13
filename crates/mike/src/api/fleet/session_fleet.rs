@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -53,6 +54,7 @@ pub(crate) async fn get_session_fleet(
     };
 
     let row = handle
+        .fleet()
         .fetch_session_fleet_membership(session_db_id)
         .await
         .map_err(persist_error_response)?;

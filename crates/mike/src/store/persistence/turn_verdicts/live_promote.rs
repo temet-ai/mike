@@ -2,14 +2,14 @@
 //! verdict is eval's, the projection step is the base's (operator_turns).
 
 use super::TurnVerdictInsert;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::projection::{
     ProjectionParams, PromoteOutcome, promote_on,
 };
-use crate::store::persistence::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn insert_live_verdict_and_promote(
-        &self,
+        self,
         verdict: TurnVerdictInsert<'_>,
         params: &ProjectionParams,
     ) -> Result<(i64, PromoteOutcome), PersistError> {

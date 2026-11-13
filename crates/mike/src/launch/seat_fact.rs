@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
@@ -57,7 +58,7 @@ pub(crate) async fn seat_fact(persist: &PersistHandle, session: Uuid) -> SeatFac
     if let Some(known) = FACTS.get(&key) {
         return *known;
     }
-    match persist.find_launch_by_session(session).await {
+    match persist.launch().find_launch_by_session(session).await {
         Ok(row) => {
             let fact = row.as_ref().map_or(SeatFact::OUTSIDE_ANY_FLEET, |launch| {
                 SeatFact::from_launch(

@@ -1,7 +1,7 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub async fn change_place(&self, session: i64, checkout: &str) -> Result<i64, PersistError> {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+    pub async fn change_place(self, session: i64, checkout: &str) -> Result<i64, PersistError> {
         crate::metrics::time_db("change_record_place", async move {
             let place = sqlx::query_file_scalar!(
                 "src/store/persistence/change_record/change_place.sql",
@@ -16,7 +16,7 @@ impl PersistHandle {
     }
 
     pub async fn move_change_place(
-        &self,
+        self,
         session: i64,
         checkout: &str,
         to: i64,

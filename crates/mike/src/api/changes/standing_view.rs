@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use serde_json::{Value, json};
 use tokio::process::Command;
 
@@ -35,7 +36,7 @@ async fn fleet_part(persist: &PersistHandle, seat: &FleetSeat) -> Result<Value, 
     )
     .await
     .and_then(|text| ahead_behind(&text));
-    let check = persist.latest_tree_check(&seat.run).await?;
+    let check = persist.fleet().latest_tree_check(&seat.run).await?;
     let latest_check = check.map(|row| {
         json!({
             "command": row.command,

@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::io::Cursor;
 use std::path::Path;
 
@@ -69,7 +70,10 @@ async fn brief_notes(
         limit: 20,
         offset: 0,
     };
-    Ok(persist.fetch_session_notes(session, filter).await?)
+    Ok(persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await?)
 }
 
 #[tokio::test]

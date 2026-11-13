@@ -1,4 +1,4 @@
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UntopicedLesson {
@@ -7,9 +7,9 @@ pub struct UntopicedLesson {
     pub text: String,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn untopiced_lesson_batch(
-        &self,
+        self,
         limit: i64,
     ) -> Result<Vec<UntopicedLesson>, PersistError> {
         crate::metrics::time_db("untopiced_lesson_batch", async move {
@@ -44,7 +44,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn project_topics(&self, project_id: i64) -> Result<Vec<String>, PersistError> {
+    pub async fn project_topics(self, project_id: i64) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("project_topics", async move {
             let rows = sqlx::query!(
                 r#"SELECT DISTINCT l.topic AS "topic!"
@@ -65,7 +65,7 @@ impl PersistHandle {
     }
 
     pub async fn set_lesson_topics(
-        &self,
+        self,
         ids: &[i64],
         topics: &[String],
     ) -> Result<u64, PersistError> {

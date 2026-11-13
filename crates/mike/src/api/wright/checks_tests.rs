@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -50,7 +51,7 @@ impl Env {
             .state
             .persist()
             .ok_or_else(|| anyhow::anyhow!("persistence is required"))?;
-        Ok(handle.list_wright_checks().await?.len())
+        Ok(handle.web().list_wright_checks().await?.len())
     }
 }
 
@@ -247,6 +248,7 @@ async fn removing_a_check_removes_its_problems_and_runs_but_disabling_keeps_them
         .persist()
         .ok_or_else(|| anyhow::anyhow!("persistence is required"))?;
     handle
+        .web()
         .record_wright_run(&CheckRun {
             check: "request_failures",
             source: "capture_db",
@@ -264,7 +266,7 @@ async fn removing_a_check_removes_its_problems_and_runs_but_disabling_keeps_them
         limit: 10,
         ..ProblemFilter::default()
     };
-    assert_eq!(handle.list_wright_problems(&filter).await?.total, 1);
+    assert_eq!(handle.web().list_wright_problems(&filter).await?.total, 1);
 
     let Json(_) = patch_check(
         State(env.state.clone()),
@@ -273,8 +275,8 @@ async fn removing_a_check_removes_its_problems_and_runs_but_disabling_keeps_them
     )
     .await
     .map_err(|_| anyhow::anyhow!("disable must succeed"))?;
-    assert_eq!(handle.list_wright_problems(&filter).await?.total, 1);
-    assert_eq!(handle.latest_wright_runs().await?.len(), 1);
+    assert_eq!(handle.web().list_wright_problems(&filter).await?.total, 1);
+    assert_eq!(handle.web().latest_wright_runs().await?.len(), 1);
 
     let Json(_) = delete_check(
         State(env.state.clone()),
@@ -282,8 +284,8 @@ async fn removing_a_check_removes_its_problems_and_runs_but_disabling_keeps_them
     )
     .await
     .map_err(|_| anyhow::anyhow!("delete must succeed"))?;
-    assert_eq!(handle.list_wright_problems(&filter).await?.total, 0);
-    assert!(handle.latest_wright_runs().await?.is_empty());
+    assert_eq!(handle.web().list_wright_problems(&filter).await?.total, 0);
+    assert!(handle.web().latest_wright_runs().await?.is_empty());
     env.cleanup().await
 }
 

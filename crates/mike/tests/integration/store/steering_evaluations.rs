@@ -1,3 +1,4 @@
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::steering_evaluations::{
     EvaluationFilter, EvaluationLabel, EvaluationMode, EvaluationStatsFilter, EvaluationVerdict,
     NewEvaluation,
@@ -45,13 +46,18 @@ async fn resolved(
     fired: bool,
 ) -> anyhow::Result<uuid::Uuid> {
     let new = new_evaluation(f, "verifier", mode).await?;
-    let uuid = f.handle.insert_evaluation_dispatched(&new).await?;
+    let uuid = f
+        .handle
+        .steerer()
+        .insert_evaluation_dispatched(&new)
+        .await?;
     let verdict = EvaluationVerdict {
         verdict_json: serde_json::json!({"fires": fired, "reason": "a × b = ç", "nested": {"k": [1, 2]}}),
         confidence: Some(0.8),
         reason: Some("because".to_owned()),
     };
     f.handle
+        .steerer()
         .resolve_evaluation(uuid, fired, None, Some(verdict))
         .await?;
     Ok(uuid)
@@ -70,7 +76,10 @@ async fn insert_evaluation_dispatched_with_steerer_id_writes_one_row_for_that_st
         return Ok(());
     };
     let new = new_evaluation(&f, "verifier", EvaluationMode::Live).await?;
-    f.handle.insert_evaluation_dispatched(&new).await?;
+    f.handle
+        .steerer()
+        .insert_evaluation_dispatched(&new)
+        .await?;
     let rows: Vec<(i64, String, Option<String>, Option<i64>)> = sqlx::query_as(
         "SELECT steerer_id, mode, trigger_point, trigger_request_id FROM steering.evaluations WHERE operator_turn_id = $1",
     )
@@ -99,6 +108,7 @@ async fn insert_evaluations_dispatched_writes_one_row_per_question_in_one_statem
     let questions = vec![Some("relapse".to_owned()), Some("unbacked_wait".to_owned())];
     let rows = f
         .handle
+        .steerer()
         .insert_evaluations_dispatched(&new, &questions)
         .await?;
     let mut got: Vec<Option<String>> = rows.into_iter().map(|(_, q)| q).collect();
@@ -151,9 +161,14 @@ async fn auto_label_on_a_live_row_whose_note_was_delivered_is_rejected_by_check(
         return Ok(());
     };
     let new = new_evaluation(&f, "verifier", EvaluationMode::Live).await?;
-    let uuid = f.handle.insert_evaluation_dispatched(&new).await?;
+    let uuid = f
+        .handle
+        .steerer()
+        .insert_evaluation_dispatched(&new)
+        .await?;
     let note = delivered_note(&f, &new).await?;
     f.handle
+        .steerer()
         .resolve_evaluation(uuid, true, Some(note), None)
         .await?;
     let err = sqlx::query(
@@ -191,7 +206,10 @@ async fn label_on_dispatched_row_is_rejected_by_check() -> anyhow::Result<()> {
         return Ok(());
     };
     let new = new_evaluation(&f, "verifier", EvaluationMode::Shadow).await?;
-    f.handle.insert_evaluation_dispatched(&new).await?;
+    f.handle
+        .steerer()
+        .insert_evaluation_dispatched(&new)
+        .await?;
     let err = sqlx::query(
         "UPDATE steering.evaluations SET outcome_label = 'right', label_source = 'operator',
                 labelled_at = NOW(), label_evidence = '{}'::jsonb",
@@ -234,12 +252,14 @@ async fn apply_evaluation_labels_operator_overrides_next_message() -> anyhow::Re
     let uuid = resolved(&f, EvaluationMode::Shadow, true).await?;
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[label(uuid, "right", "next_message")])
             .await?,
         1
     );
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[label(uuid, "wrong", "operator")])
             .await?,
         1
@@ -258,10 +278,12 @@ async fn apply_evaluation_labels_next_message_never_overrides_operator() -> anyh
     };
     let uuid = resolved(&f, EvaluationMode::Shadow, true).await?;
     f.handle
+        .steerer()
         .apply_evaluation_labels(&[label(uuid, "wrong", "operator")])
         .await?;
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[label(uuid, "right", "next_message")])
             .await?,
         0
@@ -299,6 +321,7 @@ async fn list_session_evaluations_pages_complete_rows_by_before_id() -> anyhow::
     loop {
         let (rows, total) = f
             .handle
+            .steerer()
             .list_session_evaluations(&filter(&f, 2, cursor)?)
             .await?;
         assert_eq!(total, 5);
@@ -328,6 +351,7 @@ async fn list_session_evaluations_returns_verdict_json_byte_identical() -> anyho
             .await?;
     let (rows, _) = f
         .handle
+        .steerer()
         .list_session_evaluations(&filter(&f, 50, None)?)
         .await?;
     assert_eq!(rows[0].verdict_json.as_ref(), Some(&stored));
@@ -344,6 +368,7 @@ async fn evaluation_stats_counts_match_list_under_same_filter() -> anyhow::Resul
     resolved(&f, EvaluationMode::Live, false).await?;
     let stats = f
         .handle
+        .steerer()
         .evaluation_stats(&EvaluationStatsFilter {
             mode: Some("shadow".to_owned()),
             ..EvaluationStatsFilter::default()
@@ -351,6 +376,7 @@ async fn evaluation_stats_counts_match_list_under_same_filter() -> anyhow::Resul
         .await?;
     let shadow_listed = f
         .handle
+        .steerer()
         .list_session_evaluations(&EvaluationFilter {
             mode: Some("shadow".to_owned()),
             ..filter(&f, 200, None)?
@@ -373,6 +399,7 @@ async fn get_latest_evaluation_for_session_ignores_shadow_and_non_verifier_rows(
     resolved(&f, EvaluationMode::Shadow, true).await?;
     let latest = f
         .handle
+        .steerer()
         .get_latest_evaluation_for_session(f.session.parse()?, "verifier")
         .await?;
     assert_eq!(latest.map(|r| r.uuid), Some(live));

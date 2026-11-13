@@ -1,8 +1,8 @@
 use sqlx::{Postgres, Transaction};
 
 use super::lifecycle_rows::FleetRunAdmission;
+use crate::store::persistence::PersistError;
 use crate::store::persistence::launch::{LaunchSurfaceRefs, NewRun};
-use crate::store::persistence::{PersistError, PersistHandle};
 
 pub struct FleetLaunchAdmission {
     transaction: Transaction<'static, Postgres>,
@@ -94,9 +94,9 @@ impl FleetLaunchAdmission {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn begin_fleet_launch(
-        &self,
+        self,
         run_id: &str,
     ) -> Result<Option<FleetLaunchAdmission>, PersistError> {
         crate::metrics::time_db("launch_begin_fleet_launch", async move {

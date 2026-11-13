@@ -1,3 +1,4 @@
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -93,7 +94,7 @@ async fn recipients_with_stream(
     let Some(handle) = deps.persist.as_ref() else {
         return Vec::new();
     };
-    let channels = match handle.fetch_channel_snapshots(candidates).await {
+    let channels = match handle.proxy().fetch_channel_snapshots(candidates).await {
         Ok(channels) => channels,
         Err(error) => {
             log_channel_lookup_failed(&error);

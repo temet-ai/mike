@@ -1,5 +1,4 @@
 use super::WorkThreadError;
-use crate::store::persistence::PersistHandle;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CandidateThread {
@@ -15,9 +14,9 @@ pub(crate) struct NewThreadCandidate {
     pub(crate) score: f32,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub(crate) async fn threads_for_card_candidates(
-        &self,
+        self,
     ) -> Result<Vec<CandidateThread>, WorkThreadError> {
         let rows = crate::metrics::time_db("threads_for_card_candidates", async move {
             sqlx::query_as!(
@@ -40,7 +39,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn thread_entry_ids_of(
-        &self,
+        self,
         thread_id: i64,
         entry_ids: &[i64],
     ) -> Result<Vec<i64>, WorkThreadError> {
@@ -60,7 +59,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn replace_thread_card_candidates(
-        &self,
+        self,
         thread_id: i64,
         candidates: &[NewThreadCandidate],
     ) -> Result<usize, WorkThreadError> {

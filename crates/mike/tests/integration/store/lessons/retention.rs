@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -91,8 +92,11 @@ async fn gc_expired_lessons_archives_and_never_deletes_the_row() -> anyhow::Resu
     let (_project_id, session_db_id, lesson_id, lesson_text) =
         seed_expiring_lesson_with_turn(&pool).await?;
 
-    let run_id = handle.start_consolidation_run("gc", "schedule").await?;
-    let (archived, deleted) = handle.gc_expired_lessons(run_id).await?;
+    let run_id = handle
+        .lessons()
+        .start_consolidation_run("gc", "schedule")
+        .await?;
+    let (archived, deleted) = handle.lessons().gc_expired_lessons(run_id).await?;
     assert_eq!(archived, 1, "the expired daily lesson must be archived");
     assert_eq!(deleted, 0, "GC never hard-deletes — the count stays 0");
 
@@ -180,8 +184,14 @@ async fn trim_lessons_to_max_records_rank_detail() -> anyhow::Result<()> {
         .execute(&pool)
         .await?;
 
-    let run_id = handle.start_consolidation_run("nightly", "manual").await?;
-    let trimmed = handle.trim_lessons_to_max(project_id, 1, run_id).await?;
+    let run_id = handle
+        .lessons()
+        .start_consolidation_run("nightly", "manual")
+        .await?;
+    let trimmed = handle
+        .lessons()
+        .trim_lessons_to_max(project_id, 1, run_id)
+        .await?;
     assert_eq!(trimmed, 1, "exactly one excess lesson must be trimmed");
 
     let rank_detail: serde_json::Value = sqlx::query_scalar(

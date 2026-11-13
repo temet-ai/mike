@@ -3,7 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SkillDraftDetail {
@@ -52,9 +52,9 @@ pub struct SkillDraftRevision {
     pub created_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn skill_draft_detail(
-        &self,
+        self,
         id: i64,
     ) -> Result<Option<SkillDraftDetail>, PersistError> {
         crate::metrics::time_db("skill_draft_detail", async move {
@@ -78,7 +78,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_source_lessons(
-        &self,
+        self,
         lesson_ids: &[i64],
     ) -> Result<Vec<SkillDraftLesson>, PersistError> {
         crate::metrics::time_db("skill_draft_source_lessons", async move {
@@ -101,7 +101,7 @@ impl PersistHandle {
     }
 
     pub async fn skill_draft_revisions(
-        &self,
+        self,
         project_id: i64,
         folder: &str,
     ) -> Result<Vec<SkillDraftRevision>, PersistError> {

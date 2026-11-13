@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use crate::eval::labels::import::fleet_mirror::{ImportPlan, SOURCE_KEY};
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
@@ -26,9 +26,9 @@ pub enum ImportOutcome {
     TurnInHoldout(Vec<i64>),
 }
 
-impl PersistHandle {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn resolve_label_turns(
-        &self,
+        self,
         turn_ids: &[i64],
     ) -> Result<Vec<ResolvedTurn>, PersistError> {
         crate::metrics::time_db("resolve_label_turns", async move {
@@ -50,7 +50,7 @@ impl PersistHandle {
     }
 
     pub async fn import_fleet_mirror(
-        &self,
+        self,
         plan: &ImportPlan,
         resolved: &[ResolvedTurn],
         imported_by: &str,

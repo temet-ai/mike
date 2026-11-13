@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::time::{Duration, Instant};
 
 use crate::analysis::EmbeddingService;
@@ -25,6 +26,7 @@ impl EmbeddingWork {
         }
         let model = embedding.model_name();
         let rows = match persist
+            .lessons()
             .pending_lesson_vector_repairs(&model, self.after_id, 16)
             .await
         {
@@ -71,6 +73,7 @@ async fn repair_one(
         return false;
     };
     let result = persist
+        .lessons()
         .write_repaired_lesson_vector(id, text, &vector, &model)
         .await;
     record_write_result(id, result)

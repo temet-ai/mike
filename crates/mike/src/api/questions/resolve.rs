@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::http::StatusCode;
 use axum::response::Response;
 use uuid::Uuid;
@@ -31,7 +32,7 @@ pub(super) async fn session(
             ),
         )));
     }
-    match persist.resolve_session_id_prefix(given).await {
+    match persist.launch().resolve_session_id_prefix(given).await {
         Ok(SessionIdResolution::Resolved(uuid)) => Ok(uuid),
         Ok(SessionIdResolution::NotFound) => Err(Box::new(problem(
             StatusCode::NOT_FOUND,
@@ -53,6 +54,7 @@ async fn reference_seat(
     asker: Uuid,
 ) -> Result<Destination, Box<Response>> {
     let definition = persist
+        .launch()
         .sender_fleet_definition(asker)
         .await
         .map_err(|e| Box::new(database(e)))?;
@@ -89,7 +91,7 @@ pub(super) async fn destination(
     if to == REFERENCE {
         return reference_seat(persist, asker).await;
     }
-    match persist.resolve_fleet_target(asker, to).await {
+    match persist.launch().resolve_fleet_target(asker, to).await {
         Ok(Some(FleetTarget::Seat { session, task })) => Ok(Destination { session, task }),
         Ok(Some(FleetTarget::Seats(_))) => Err(Box::new(problem(
             StatusCode::BAD_REQUEST,

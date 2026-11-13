@@ -1,3 +1,4 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -121,7 +122,7 @@ pub(super) fn spawn_record(state: &AppState, session: Option<&str>, draft: Draft
             returned: &draft.returned,
             rerank_state: draft.rerank_state,
         };
-        if let Err(error) = persist.record_search_event(&event).await {
+        if let Err(error) = persist.knowledge().record_search_event(&event).await {
             tracing::warn!(tool = draft.tool, error = %error, "search_events: could not record a search");
         }
     });

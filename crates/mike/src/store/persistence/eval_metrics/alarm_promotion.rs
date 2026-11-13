@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value, json};
 
-use super::super::{PersistError, PersistHandle};
+use super::super::PersistError;
 use super::types::{AlarmKind, AlarmThresholds, Firing};
 
 const METRIC_DROP_WINDOW_DAYS: i32 = 30;
@@ -121,8 +121,8 @@ fn shadow_disagreement_firing(
     }
 }
 
-impl PersistHandle {
-    async fn eval_shadow_bundle_pair(&self) -> Result<Option<(i64, i64)>, PersistError> {
+impl crate::store::persistence::eval_repo::EvalDb<'_> {
+    async fn eval_shadow_bundle_pair(self) -> Result<Option<(i64, i64)>, PersistError> {
         crate::metrics::time_db("eval_alarm_shadow_bundle_pair", async move {
             let row = sqlx::query_as!(
                 BundlePair,
@@ -153,7 +153,7 @@ impl PersistHandle {
     }
 
     async fn eval_shadow_reaction_pairs(
-        &self,
+        self,
         live_bundle_id: i64,
         shadow_bundle_id: i64,
         at: DateTime<Utc>,
@@ -182,7 +182,7 @@ impl PersistHandle {
     }
 
     async fn eval_shadow_disagreement(
-        &self,
+        self,
         at: DateTime<Utc>,
         min_n: i64,
         min_kappa: f64,
@@ -205,7 +205,7 @@ impl PersistHandle {
     }
 
     async fn eval_metric_drop_rows(
-        &self,
+        self,
         at: DateTime<Utc>,
         min_n: i64,
     ) -> Result<Vec<MetricDropRow>, PersistError> {
@@ -226,7 +226,7 @@ impl PersistHandle {
     }
 
     async fn eval_metric_drop(
-        &self,
+        self,
         at: DateTime<Utc>,
         min_n: i64,
     ) -> Result<Vec<Firing>, PersistError> {
@@ -244,7 +244,7 @@ impl PersistHandle {
     }
 
     pub async fn evaluate_promotion_alarms(
-        &self,
+        self,
         t: &AlarmThresholds,
         at: DateTime<Utc>,
     ) -> Result<Vec<Firing>, PersistError> {

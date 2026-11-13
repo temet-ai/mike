@@ -1,5 +1,7 @@
 //! The memory harvester as a response hook: after a response completes, it
 //! reads the response's mem:update tags and writes them as lessons.
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 use std::future::Future;
 use std::pin::Pin;
@@ -54,6 +56,7 @@ async fn run_harvester_hook(cfg: &HarvesterConfig, response: CompletedResponse<'
             None
         });
     match persist
+        .knowledge()
         .resolve_lesson_project(session_uuid, project_path)
         .await
     {
@@ -118,7 +121,7 @@ async fn record_harvest_run(
         lessons_skipped: result.lessons_skipped,
         lessons_truncated: result.lessons_truncated,
     };
-    if let Err(e) = persist.record_harvest_run(run).await {
+    if let Err(e) = persist.lessons().record_harvest_run(run).await {
         tracing::warn!(
             request_id = %ids.request_id,
             error = %e,

@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 pub(crate) async fn get_turn_tool_call_content(
     State(state): State<AppState>,
@@ -31,6 +33,7 @@ pub(crate) async fn get_turn_tool_call_content(
     };
 
     let row = handle
+        .steerer()
         .fetch_turn_tool_call_content(turn_id, session_db_id, &tool_id)
         .await
         .map_err(|e| {
@@ -279,7 +282,7 @@ pub(crate) async fn list_tool_uses(
         cursor,
         order: params.order.unwrap_or_default(),
     };
-    let page = handle.list_tool_uses(&filter).await.map_err(|e| {
+    let page = handle.launch().list_tool_uses(&filter).await.map_err(|e| {
         tracing::warn!(error = %e, "list_tool_uses: query failed");
         persist_error_response(e)
     })?;
@@ -345,7 +348,7 @@ pub(crate) async fn list_tool_use_facets(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let (projects, tool_names) = handle.list_tool_use_facets().await.map_err(|e| {
+    let (projects, tool_names) = handle.launch().list_tool_use_facets().await.map_err(|e| {
         tracing::warn!(error = %e, "list_tool_use_facets: query failed");
         persist_error_response(e)
     })?;

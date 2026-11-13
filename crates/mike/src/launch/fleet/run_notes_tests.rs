@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 
 use serde_json::json;
@@ -73,7 +75,10 @@ async fn notes_with_tag(
         limit: 50,
         offset: 0,
     };
-    Ok(persist.fetch_session_notes(session, filter).await?)
+    Ok(persist
+        .launch()
+        .fetch_session_notes(session, filter)
+        .await?)
 }
 
 fn only(notes: Vec<SessionNoteRow>) -> anyhow::Result<SessionNoteRow> {
@@ -93,6 +98,7 @@ async fn the_rules_and_each_contract_a_run_uses_are_recorded_once_with_where_the
     project_file(setup.repo.path(), "db-contract.md", "DB CONTRACT")?;
     let def = definition(setup.repo.path(), ".claude/fleet/db-contract.md");
     persist
+        .launch()
         .ensure_session_exists(&seats().coordinator.to_string())
         .await?;
 
@@ -143,6 +149,7 @@ async fn text_mike_supplies_is_recorded_as_built_into_mike() -> anyhow::Result<(
     bundle::install_files(setup.state.path()).map_err(anyhow::Error::msg)?;
     let def = definition(setup.repo.path(), ".claude/fleet/worker-contract.md");
     persist
+        .launch()
         .ensure_session_exists(&seats().coordinator.to_string())
         .await?;
 
@@ -190,7 +197,10 @@ async fn with_no_coordinator_session_the_notes_go_to_mikes_own_session_under_the
         limit: 50,
         offset: 0,
     };
-    let (total, found) = persist.fetch_project_notes(project, filter).await?;
+    let (total, found) = persist
+        .launch()
+        .fetch_project_notes(project, filter)
+        .await?;
     assert_eq!(total, 1, "{found:?}");
     setup.db.cleanup().await
 }
@@ -202,6 +212,7 @@ async fn running_fleet(
 ) -> anyhow::Result<(FleetRow, FleetDefinition)> {
     let def = definition(repo, "");
     let fleet = persist
+        .fleet()
         .insert_fleet(&NewFleet {
             slug: "close-note".into(),
             project_path: repo.to_string_lossy().into_owned(),
@@ -211,6 +222,7 @@ async fn running_fleet(
         })
         .await?;
     persist
+        .launch()
         .upsert_run(&NewRun {
             run_id: run.to_string(),
             project_path: Some(repo.to_string_lossy().into_owned()),

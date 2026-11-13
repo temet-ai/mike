@@ -1,3 +1,4 @@
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Utc};
@@ -228,13 +229,14 @@ async fn execute(
         });
     }
     rows.extend(plan_fire_rows(persist, snapshot, rollup, now).await?);
-    let changes = persist.insert_threshold_rows(&rows).await?;
+    let changes = persist.steerer().insert_threshold_rows(&rows).await?;
     let summary = PassSummary {
         outcome: outcome_of(&snapshot.settings, &rows),
         rows_written: rows.len(),
         changes,
     };
     persist
+        .steerer()
         .record_threshold_pass_run(&ThresholdPassRunWrite {
             rollup_id: rollup.id,
             outcome: summary.outcome.to_owned(),
@@ -277,7 +279,7 @@ pub async fn run_threshold_pass(
                 n_by_source: json!({}),
                 detail: json!({"error": error.to_string()}),
             };
-            if let Err(record) = persist.record_threshold_pass_run(&failed).await {
+            if let Err(record) = persist.steerer().record_threshold_pass_run(&failed).await {
                 tracing::warn!(error = %record, rollup = rollup.id, "cross_session: pass failure not recorded");
             }
             Err(error)

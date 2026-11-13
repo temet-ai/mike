@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 pub(crate) fn validate_blocks_input(
     blocks: &[PromptCompositionBlockInput],
@@ -44,7 +45,7 @@ pub(crate) async fn refresh_composer_cache(state: &AppState) {
     let Some(handle) = state.persist() else {
         return;
     };
-    match handle.load_prompt_compositions().await {
+    match handle.proxy().load_prompt_compositions().await {
         Ok(seed) => state.composer.cache().store(seed),
         Err(err) => {
             tracing::warn!(error = %err, "composer cache reload failed after CRUD write");
@@ -60,6 +61,7 @@ pub(crate) async fn list_prompt_compositions(
         return Ok(Json(Vec::new()));
     };
     let map = handle
+        .proxy()
         .load_prompt_compositions()
         .await
         .map_err(map_composition_persist_error)?;
@@ -133,6 +135,7 @@ pub(crate) async fn get_prompt_composition(
     };
     let uuid = parse_composition_id(&id)?;
     let Some(composition) = handle
+        .proxy()
         .fetch_composition_by_id(uuid)
         .await
         .map_err(map_composition_persist_error)?
@@ -161,6 +164,7 @@ pub(crate) async fn get_prompt_composition_by_sha256(
         ));
     };
     let Some(composition) = handle
+        .proxy()
         .fetch_composition_by_prompt_sha256(&prompt_sha256)
         .await
         .map_err(map_composition_persist_error)?
@@ -213,6 +217,7 @@ pub(crate) async fn create_prompt_composition(
         reject_subagent_alteration(mode, lane)?;
     }
     let composition = handle
+        .proxy()
         .create_composition(
             crate::store::persistence::compositions::NewCompositionParams {
                 prompt_sha256: &body.prompt_sha256,
@@ -280,6 +285,7 @@ pub(crate) async fn patch_prompt_composition(
         && mode != crate::wire::composition::CompositionMode::Observe
     {
         let Some(existing) = handle
+            .proxy()
             .fetch_composition_by_id(uuid)
             .await
             .map_err(map_composition_persist_error)?
@@ -300,6 +306,7 @@ pub(crate) async fn patch_prompt_composition(
         .map(|inner| inner.as_deref());
 
     let Some(composition) = handle
+        .proxy()
         .patch_composition(
             uuid,
             crate::compose_prompt::store::PatchCompositionParams {
@@ -343,6 +350,7 @@ pub(crate) async fn delete_prompt_composition(
     };
     let uuid = parse_composition_id(&id)?;
     let outcome = handle
+        .proxy()
         .delete_composition(uuid)
         .await
         .map_err(map_composition_persist_error)?;

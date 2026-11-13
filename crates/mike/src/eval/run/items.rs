@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use serde_json::Value;
 
 use crate::analysis::judge::input_v2::INPUT_BUILDER_R3;
@@ -150,6 +151,7 @@ async fn judge_v2(job: &ItemJob<'_>, cfg: &V2JudgeConfig) -> anyhow::Result<Item
     };
     let verdict_id = job
         .persist
+        .eval()
         .insert_turn_verdict(judged.to_insert(cfg, target))
         .await?;
     let delivery_correct = job
@@ -208,7 +210,7 @@ async fn judge_r3(
         input_text: &message,
         usage: verdict_usage(&usage),
     };
-    let verdict_id = job.persist.insert_turn_verdict(insert).await?;
+    let verdict_id = job.persist.eval().insert_turn_verdict(insert).await?;
     Ok(ItemResult::Judged {
         verdict_id,
         reaction_correct: (label == "corrected") == (job.label.reaction_label == "corrected"),

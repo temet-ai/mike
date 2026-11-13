@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct PromptSubPatternDto {
@@ -72,6 +73,7 @@ pub(crate) async fn list_prompt_anomalies(
         .clamp(1, ANOMALIES_MAX_LIMIT);
     let offset = params.offset.unwrap_or(0).max(0);
     let groups = handle
+        .proxy()
         .list_anomalies_windowed(date_from, date_to, limit, offset)
         .await
         .map_err(map_composition_persist_error)?;

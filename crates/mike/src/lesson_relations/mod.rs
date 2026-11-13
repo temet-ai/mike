@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub(crate) mod evidence;
 
 mod adjudication;
@@ -129,6 +130,7 @@ pub(crate) async fn run_detection(
 
     for &project_id in project_ids {
         let pairs = persist
+            .lessons()
             .find_candidate_relation_pairs(project_id, distance_threshold)
             .await?;
         let pairs: Vec<_> = pairs
