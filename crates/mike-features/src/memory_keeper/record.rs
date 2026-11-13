@@ -1,0 +1,47 @@
+use super::supply::SupplyRecord;
+use crate::store::persistence::PersistHandle;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
+
+pub fn spawn_record(persist: Option<PersistHandle>, record: SupplyRecord) {
+    let Some(persist) = persist else {
+        return;
+    };
+    tokio::spawn(async move {
+        if let Err(error) = persist.lessons().record_keeper_supply(&record).await {
+            tracing::warn!(error = %error, "memory_keeper: supply not recorded");
+        }
+    });
+}
+
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn record_keeper_supply(
+        self,
+        record: &SupplyRecord,
+    ) -> Result<(), sqlx::Error> {
+        let carrier = record.carrier.as_str();
+        let arm = record.arm.as_str();
+        crate::metrics::time_db("record_keeper_supply", async move {
+            sqlx::query!(
+                r#"INSERT INTO memory.keeper_supplies
+                       (session_uuid, thread_id, content_hash, carrier, arm, resolution, signals,
+                        block_hash, card_text, score, chance)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
+                record.session,
+                record.thread_id,
+                record.content_hash.as_deref(),
+                carrier,
+                arm,
+                record.resolution,
+                &record.signals,
+                record.block_hash.as_deref(),
+                record.card_text.as_deref(),
+                record.score,
+                record.chance,
+            )
+            .execute(self.pool())
+            .await
+        })
+        .await?;
+        Ok(())
+    }
+}

@@ -44,15 +44,6 @@ pub(crate) async fn own_turn_to_skip(
 pub(crate) const RECALL_SIMILAR_TURNS_DEFAULT_LIMIT: i64 = 5;
 pub(crate) const RECALL_SIMILAR_TURNS_MAX_LIMIT: i64 = 50;
 
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct SimilarTurnDto {
-    #[serde(flatten)]
-    pub(crate) turn: OperatorTurnDto,
-    pub(crate) rank: f32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) rerank_score: Option<f64>,
-}
-
 #[derive(Debug, Serialize)]
 pub(crate) struct RecallSimilarTurnsResponse {
     pub(crate) turns: Vec<recall_turns_detail::TurnEntry>,

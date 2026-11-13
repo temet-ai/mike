@@ -1,3 +1,4 @@
+pub use mike_features::api::manifest::*;
 use std::time::Duration;
 
 use axum::Router;
@@ -23,7 +24,6 @@ mod eval;
 mod eval_metrics;
 mod evaluations;
 mod filters;
-mod fleets;
 mod improvement;
 mod knowledge;
 mod launches;

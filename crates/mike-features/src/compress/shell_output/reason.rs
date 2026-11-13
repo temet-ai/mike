@@ -1,0 +1,17 @@
+pub const SHELL_OUTPUT_REDUCED: &str = "shell_output_reduced";
+pub const FRESHEST_RESULT: &str = "freshest_result";
+pub const GRACE_WINDOW: &str = "grace_window";
+pub const ERROR_RESULT: &str = "error_result";
+pub const SMALL_RESULT: &str = "small_result";
+pub const ALREADY_REDUCED: &str = "already_reduced";
+pub const INJECTED_CONTENT: &str = "injected_content";
+pub const CACHE_WARM: &str = "cache_warm";
+pub const ORIGINAL_NOT_RECOVERABLE: &str = "original_not_recoverable";
+pub const RANGE_NOT_FOUND: &str = "range_not_found";
+pub const RANGE_AMBIGUOUS: &str = "range_ambiguous";
+pub const ENCODE_FAILED: &str = "encode_failed";
+pub const NO_SHRINK: &str = "no_shrink";
+pub const STAGE_APPLIED: &str = "applied";
+pub const STAGE_NO_CANDIDATES: &str = "no_candidates";
+pub const STAGE_MALFORMED_BODY: &str = "malformed_body";
+pub const STAGE_ALL_FAILED_CLOSED: &str = "all_targets_failed_closed";
