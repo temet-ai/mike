@@ -1,6 +1,5 @@
 //! Facade: `api::handlers` as mike_features sees it (crate split, ADR 0002).
 
-use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -9,24 +8,10 @@ use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use crate::analysis::EmbeddingService;
-use crate::api::embedding_graph::EmbeddingStatusDto;
 use crate::state::AppState;
-use crate::store::models::{
-    Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId, RequestStatus, SessionView,
-    SystemPromptSource,
-};
-use crate::store::persistence::SessionSummaryRow;
 use crate::store::persistence::meta::pg_interval_to_humantime;
-use crate::store::{DiagnosticStatsView, FindingView, MemoryBreakdownView, MemoryEntryRow};
 pub use crate::types::SortOrder;
-use crate::types::{RequestParams, TokenUsage, ToolCall};
 pub use crate::web_base::{persist_error_response, persist_unavailable_response};
-#[cfg(any(test, feature = "test-seams"))]
-use chrono::{DateTime, TimeZone, Utc};
-#[cfg(any(test, feature = "test-seams"))]
-use serde_json::Value;
-#[cfg(any(test, feature = "test-seams"))]
-use std::collections::HashMap;
 pub use agent_composition_stats::*;
 pub use agents::*;
 pub use filter_rule_dto::*;

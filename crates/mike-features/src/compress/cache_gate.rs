@@ -55,7 +55,7 @@ impl CacheGate {
         self.warm_cuts.as_ref()
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     fn is_warm(&self) -> bool {
         self.warm_cuts.is_some()
     }

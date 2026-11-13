@@ -94,7 +94,7 @@ impl InjectionGate {
             .is_some_and(|last| last.elapsed() < window)
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     fn backdate_wake(&self, session_id: &str, reminder: &SystemReminder, age: Duration) {
         let policy = policy_for(&reminder.source);
         self.woke.insert(

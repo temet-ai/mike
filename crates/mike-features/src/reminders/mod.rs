@@ -39,9 +39,9 @@ pub mod self_identity_stage_tests;
 pub mod session_lessons_stage_tests;
 #[cfg(test)]
 pub mod session_lessons_tests;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub mod stage_test_support;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub mod test_support;
 #[cfg(test)]
 pub mod tests;

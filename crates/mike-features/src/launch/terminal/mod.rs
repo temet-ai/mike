@@ -66,7 +66,7 @@ impl XdgTerminalBackend {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     fn with_binaries_and_timeouts(
         xdg_bin: impl Into<PathBuf>,
         hypr_bin: impl Into<PathBuf>,

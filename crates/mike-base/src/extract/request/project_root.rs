@@ -143,7 +143,7 @@ pub fn legacy_trimmed_alias(root: &str) -> Option<String> {
     Some(trimmed)
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 fn sig_from_prompt(prompt: &str) -> ProjectSignals<'_> {
     ProjectSignals {
         system_prompt: Some(prompt),

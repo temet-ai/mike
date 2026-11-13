@@ -48,7 +48,7 @@ impl TmuxBackend {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     fn with_binary_and_capture_budget(bin: impl Into<PathBuf>, capture_budget: Duration) -> Self {
         Self {
             cli: TmuxCli::new(bin),

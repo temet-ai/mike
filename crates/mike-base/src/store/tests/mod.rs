@@ -10,7 +10,7 @@ pub mod diagnostic_stats;
 pub mod entry_ops;
 #[cfg(test)]
 pub mod findings;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub mod helpers;
 #[cfg(test)]
 pub mod memory_breakdown;

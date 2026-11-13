@@ -1,11 +1,5 @@
 //! Facade: `store::persistence` as mike_features sees it (crate split, ADR 0002).
 
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::time::Duration;
-use chrono::{DateTime, Utc};
-use sqlx::PgPool;
-use tokio::sync::RwLock;
 
 pub use mike_base::store::persistence::*;
 pub mod acceptance_criteria;
