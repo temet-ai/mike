@@ -125,11 +125,13 @@ fn log_reap_failed(e: &crate::store::persistence::PersistError) {
 
 #[cfg(unix)]
 pub fn is_process_alive(pid: i32) -> bool {
-    let result = unsafe { libc::kill(pid as libc::pid_t, 0) };
-    if result == 0 {
-        return true;
-    }
-    std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+    let Some(pid) = rustix::process::Pid::from_raw(pid) else {
+        return false;
+    };
+    !matches!(
+        rustix::process::test_kill_process(pid),
+        Err(rustix::io::Errno::SRCH)
+    )
 }
 
 #[cfg(not(unix))]

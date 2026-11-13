@@ -54,18 +54,13 @@ fn forget_choice(config_file: &Path) {
     if let Err(e) = clear_pending(config_file) {
         tracing::warn!(error = %e, "setup: could not clear the saved feature choice");
     }
-    unsafe {
-        std::env::remove_var(PENDING_ENV);
-    }
 }
 
 pub(crate) async fn apply_pending_at_start(state: &AppState) {
     let config = state.config();
-    let selected = std::env::var(PENDING_ENV).ok().or_else(|| {
-        ConfigFile::open(&config.config_path)
-            .ok()
-            .and_then(|file| file.literal(PENDING_ENV).ok().flatten())
-    });
+    let selected = ConfigFile::open(&config.config_path)
+        .ok()
+        .and_then(|file| file.literal(PENDING_ENV).ok().flatten());
     let Some(preset) = pending_preset(selected.as_deref()) else {
         return;
     };

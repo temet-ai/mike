@@ -81,14 +81,9 @@ mod tests {
     use super::*;
     use crate::error::ForwardError;
 
-    fn test_ca() -> Result<(Ca, std::path::PathBuf), ForwardError> {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let dir = std::env::temp_dir().join(format!("pf-resolver-{nanos}"));
-        let ca = Ca::load_or_generate(&dir)?;
+    fn test_ca() -> Result<(Ca, tempfile::TempDir), ForwardError> {
+        let dir = tempfile::tempdir().map_err(ForwardError::Io)?;
+        let ca = Ca::load_or_generate(&dir.path().join("ca"))?;
         Ok((ca, dir))
     }
 

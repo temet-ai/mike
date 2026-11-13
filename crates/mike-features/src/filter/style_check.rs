@@ -11,7 +11,10 @@ fn resolve_rules_path() -> Option<PathBuf> {
 }
 
 pub fn load_banned_terms() -> Option<Vec<String>> {
-    let path = resolve_rules_path()?;
+    load_banned_terms_at(&resolve_rules_path()?)
+}
+
+fn load_banned_terms_at(path: &std::path::Path) -> Option<Vec<String>> {
     let content = std::fs::read_to_string(path).ok()?;
     Some(banned_terms_from_content(&content))
 }
@@ -292,17 +295,9 @@ label that stands in for the items themselves."#;
     }
 
     #[test]
-    fn load_banned_terms_none_when_env_points_at_missing_file() {
-        unsafe {
-            std::env::set_var(
-                "MIKE_STYLE_RULES_PATH",
-                "/nonexistent/path/response-style.md",
-            );
-        }
-        let result = load_banned_terms();
-        unsafe {
-            std::env::remove_var("MIKE_STYLE_RULES_PATH");
-        }
+    fn load_banned_terms_none_when_path_is_a_missing_file() {
+        let result =
+            load_banned_terms_at(std::path::Path::new("/nonexistent/path/response-style.md"));
         assert!(
             result.is_none(),
             "a missing rules file must yield None (validation passes), not a panic or Some(empty)"
@@ -310,17 +305,11 @@ label that stands in for the items themselves."#;
     }
 
     #[test]
-    fn load_banned_terms_reads_env_override_path() -> anyhow::Result<()> {
+    fn load_banned_terms_reads_the_given_path() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("response-style.md");
         std::fs::write(&path, RULES_FIXTURE)?;
-        unsafe {
-            std::env::set_var("MIKE_STYLE_RULES_PATH", &path);
-        }
-        let result = load_banned_terms();
-        unsafe {
-            std::env::remove_var("MIKE_STYLE_RULES_PATH");
-        }
+        let result = load_banned_terms_at(&path);
         let terms = result.ok_or_else(|| anyhow::anyhow!("expected Some(terms), got None"))?;
         assert!(terms.iter().any(|t| t == "gate"));
         Ok(())

@@ -16,7 +16,6 @@ impl Drop for FileLease {
 impl FileLease {
     #[cfg(unix)]
     pub(crate) fn try_acquire(path: &Path, create: bool) -> Result<Option<Self>> {
-        use std::os::fd::AsRawFd;
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
         let file = std::fs::OpenOptions::new()
             .read(true)
@@ -32,22 +31,17 @@ impl FileLease {
             .context("cannot inspect installation lock")?;
         anyhow::ensure!(
             metadata.is_file()
-                && metadata.uid() == unsafe { libc::geteuid() }
+                && metadata.uid() == rustix::process::geteuid().as_raw()
                 && metadata.permissions().mode() & 0o077 == 0,
             "installation lock must be a private file owned by the current user"
         );
-        let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
-        if result == 0 {
-            return Ok(Some(Self { _file: file }));
+        match file.try_lock() {
+            Ok(()) => Ok(Some(Self { _file: file })),
+            Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+            Err(std::fs::TryLockError::Error(error)) => {
+                Err(error).context("cannot acquire installation ownership lock")
+            }
         }
-        let error = std::io::Error::last_os_error();
-        if error
-            .raw_os_error()
-            .is_some_and(|code| code == libc::EWOULDBLOCK || code == libc::EAGAIN)
-        {
-            return Ok(None);
-        }
-        Err(error).context("cannot acquire installation ownership lock")
     }
 
     #[cfg(not(unix))]
