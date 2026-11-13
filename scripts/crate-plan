@@ -38,7 +38,10 @@ DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
 PATH = re.compile(r"crate::(\w+(?:::\w+)*)(?!::|\w)")
 BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
 CALL = re.compile(r"\.(\w+)\s*\(")
-IMPL = re.compile(r"\nimpl PersistHandle \{(.*?)\n\}", re.S)
+IMPL = re.compile(r"\nimpl (?:PersistHandle|crate::store::persistence::\w+_repo::\w+Db<'_>) \{(.*?)\n\}", re.S)
+# An inherent impl on the handle outside the crate that defines it cannot compile
+# once db is its own crate: those methods go on the crate's repo (persist.<crate>()).
+HANDLE_IMPL = re.compile(r"^impl PersistHandle\s*\{", re.M)
 METHOD = re.compile(r"\n    pub(?:\([^)]*\))? (?:async )?fn (\w+)")
 
 
@@ -124,8 +127,6 @@ def read_sources():
 def method_crates(cmap, files):
     owner, clash = {}, set()
     for rel, text in files.items():
-        if not rel.startswith("store/persistence"):
-            continue
         crate = cmap.crate_of_path(rel)
         for block in IMPL.finditer(text):
             for match in METHOD.finditer(block.group(1)):
@@ -224,6 +225,11 @@ def scan(cmap, files):
         parts = [(text, True, False)] if whole_test else (
             [(text[: cut.start()], False, False), (text[cut.start():], True, True)] if cut
             else [(text, False, False)])
+        handle_crate = cmap.crate_of_path("store/persistence/mod.rs")
+        if src != handle_crate:
+            for _ in HANDLE_IMPL.finditer(text):
+                edges[(handle_crate, src, "prod")]["impl PersistHandle"] += 1
+                SITES[(handle_crate, src, "prod")][rel] += 1
         for part, test, inline in parts:
             kind = "test" if test else "prod"
             for dst, symbol in file_refs(cmap, methods, part, rel, inline):
