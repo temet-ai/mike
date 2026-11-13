@@ -6,7 +6,6 @@ pub mod fork_prefix;
 pub mod formatter;
 pub mod git_read_hint;
 pub mod inject;
-pub mod launch_brief;
 pub mod lesson_injection_backfill;
 pub mod seat_role;
 pub mod self_identity;

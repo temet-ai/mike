@@ -1,6 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{TimeZone, Utc};
 use uuid::Uuid;
 
@@ -54,7 +53,7 @@ async fn the_envelope_names_a_named_session_outside_a_fleet() -> anyhow::Result<
         .uuid;
     f.env
         .persist
-        .steerer()
+        .launch()
         .set_session_goal(
             crate::store::persistence::session_goals::SetSessionIdentity {
                 session_uuid: named,

@@ -4,8 +4,8 @@ use crate::store::persistence::test_support::seed_fleet_running;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::definition_patch::{PatchFleetRequest, save_definition};
-use super::definition_view::DefinitionError;
+use crate::api::fleet::definition_patch::{PatchFleetRequest, save_definition};
+use crate::api::fleet::definition_view::DefinitionError;
 use crate::config::ProxyConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;

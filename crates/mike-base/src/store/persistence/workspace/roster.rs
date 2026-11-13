@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::{HEARTBEAT_LEASE_MINUTES, WorkspaceRosterRow};
 use crate::store::persistence::PersistError;
-use crate::store::persistence::remote_control::ChannelSnapshotRow;
+use crate::store::persistence::PersistHandle;
 use crate::workspace::{Liveness, RosterScope};
 
 const MIN_HEARTBEAT_INTERVAL_SECONDS: i32 = 20;
@@ -18,6 +18,23 @@ fn activity_cutoff() -> DateTime<Utc> {
 
 fn uncaptured_cutoff() -> DateTime<Utc> {
     Utc::now() - chrono::Duration::minutes(UNCAPTURED_GRACE_MINUTES)
+}
+
+#[derive(Debug, Clone)]
+pub struct ChannelSnapshotRow {
+    pub cse_id: String,
+    pub local_session_uuid: Option<Uuid>,
+    pub last_heartbeat_at: Option<DateTime<Utc>>,
+    pub last_heartbeat_interval_seconds: Option<i32>,
+    pub last_idle_seconds: Option<i32>,
+    pub worker_status: Option<String>,
+    pub worker_status_at: Option<DateTime<Utc>>,
+    pub stream_open: bool,
+    pub stream_opened_at: Option<DateTime<Utc>>,
+    pub last_delivery_at: Option<DateTime<Utc>>,
+    pub post_turn_summary: Option<serde_json::Value>,
+    pub post_turn_summary_at: Option<DateTime<Utc>>,
+    pub client_version: Option<String>,
 }
 
 struct RosterQueryRow {
@@ -80,9 +97,9 @@ impl From<RosterQueryRow> for WorkspaceRosterRow {
     }
 }
 
-impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
+impl PersistHandle {
     pub async fn fetch_workspace_roster(
-        self,
+        &self,
         project_id: i64,
         scope: RosterScope,
     ) -> Result<Vec<WorkspaceRosterRow>, PersistError> {
@@ -156,7 +173,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 
     async fn merge_channel_liveness(
-        self,
+        &self,
         roster: &mut [WorkspaceRosterRow],
     ) -> Result<(), PersistError> {
         let session_uuids: Vec<Uuid> = roster.iter().map(|r| r.session_uuid).collect();
@@ -185,7 +202,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 
     pub async fn fetch_session_liveness(
-        self,
+        &self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<Liveness>, PersistError> {
         let activity_cutoff = activity_cutoff();
@@ -220,7 +237,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 
     pub async fn find_live_session_by_pid(
-        self,
+        &self,
         pid: i32,
     ) -> Result<Option<uuid::Uuid>, PersistError> {
         crate::metrics::time_db("workspace_find_live_session_by_pid", async move {
@@ -239,6 +256,61 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
             .fetch_optional(&self.pool)
             .await?;
             Ok(row.map(|r| r.session_uuid))
+        })
+        .await
+    }
+}
+
+impl PersistHandle {
+    pub async fn fetch_channel_snapshots(
+        &self,
+        session_uuids: &[Uuid],
+    ) -> Result<Vec<ChannelSnapshotRow>, PersistError> {
+        crate::metrics::time_db("remote_control_fetch_channel_snapshots", async move {
+            let rows = sqlx::query!(
+                r#"
+                SELECT
+                    c.cse_id                          AS "cse_id!",
+                    c.local_session_uuid              AS "local_session_uuid?",
+                    c.last_heartbeat_at                AS "last_heartbeat_at?",
+                    c.last_heartbeat_interval_seconds  AS "last_heartbeat_interval_seconds?",
+                    c.last_idle_seconds                AS "last_idle_seconds?",
+                    c.worker_status                    AS "worker_status?",
+                    c.worker_status_at                 AS "worker_status_at?",
+                    (c.stream_opened_at IS NOT NULL
+                       AND (c.stream_closed_at IS NULL
+                            OR c.stream_closed_at < c.stream_opened_at)) AS "stream_open!",
+                    c.stream_opened_at                 AS "stream_opened_at?",
+                    c.last_delivery_at                 AS "last_delivery_at?",
+                    c.post_turn_summary                AS "post_turn_summary?",
+                    c.post_turn_summary_at             AS "post_turn_summary_at?",
+                    c.client_version                   AS "client_version?"
+                  FROM remote_control.channels c
+                 WHERE c.local_session_uuid = ANY($1::uuid[])
+                "#,
+                session_uuids,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+
+            Ok(rows
+                .into_iter()
+                .map(|r| ChannelSnapshotRow {
+                    cse_id: r.cse_id,
+                    local_session_uuid: r.local_session_uuid,
+                    last_heartbeat_at: r.last_heartbeat_at,
+                    last_heartbeat_interval_seconds: r.last_heartbeat_interval_seconds,
+                    last_idle_seconds: r.last_idle_seconds,
+                    worker_status: r.worker_status,
+                    worker_status_at: r.worker_status_at,
+                    stream_open: r.stream_open,
+                    stream_opened_at: r.stream_opened_at,
+                    last_delivery_at: r.last_delivery_at,
+                    post_turn_summary: r.post_turn_summary,
+                    post_turn_summary_at: r.post_turn_summary_at,
+                    client_version: r.client_version,
+                })
+                .collect())
         })
         .await
     }

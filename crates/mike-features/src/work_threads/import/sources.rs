@@ -123,7 +123,7 @@ pub async fn resolve_repo(handle: &PersistHandle, repo: &str) -> Result<Resolved
 async fn finish(
     handle: &PersistHandle,
     repo: &str,
-    project: crate::store::persistence::project_knowledge::ProjectIdentity,
+    project: crate::store::persistence::project_identity::ProjectIdentity,
 ) -> Result<ResolvedProject, String> {
     let mut roots = handle
         .launch()

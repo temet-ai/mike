@@ -51,6 +51,3 @@ struct FleetErrorBody {
 fn fleet_error(status: StatusCode, error: &'static str, message: String) -> Response {
     (status, Json(FleetErrorBody { error, message })).into_response()
 }
-
-#[cfg(test)]
-pub mod admission_tests;

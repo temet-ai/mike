@@ -1,6 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use serde_json::json;
 use uuid::Uuid;
@@ -67,7 +66,7 @@ async fn ended_acceptance_notes_retain_launch_authority_and_updated_order() -> a
         .record_launch_closed(launch, "replaced", Some(true))
         .await?;
     f.handle
-        .steerer()
+        .launch()
         .set_session_goal(SetSessionIdentity {
             session_uuid: first,
             role: Some("worker"),
@@ -126,7 +125,7 @@ async fn tagged_notes_are_project_scoped_and_do_not_inherit_unrelated_authority(
     seed_run(&f.handle, &another_run).await?;
     acceptance_launch(&f, &another_run, same_project).await?;
     f.handle
-        .steerer()
+        .launch()
         .set_session_goal(SetSessionIdentity {
             session_uuid: same_project,
             role: Some("acceptance"),

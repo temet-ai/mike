@@ -88,7 +88,7 @@ pub async fn ingest_hook(
         "pull_only"
     };
     if boundary && outcome_applied_or_replayed(outcome) {
-        crate::mail_outbox::observe_local_codex(
+        crate::runtime::codex_home::observe_local_codex(
             persist,
             session,
             &scope.thread_id,

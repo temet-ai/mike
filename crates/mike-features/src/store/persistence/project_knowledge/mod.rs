@@ -20,7 +20,6 @@ pub mod nearest_first;
 pub mod reference;
 #[cfg(test)]
 pub mod reference_tests;
-pub mod repo_adoption;
 pub mod rerank_passages;
 #[cfg(test)]
 pub mod rerank_passages_tests;
@@ -28,17 +27,16 @@ pub mod resolve;
 #[cfg(test)]
 pub mod resolve_tests;
 pub mod search;
-pub mod session_binding;
 pub mod session_scope;
 pub mod window;
 
+pub use crate::store::persistence::project_placement::{MachineLocationRoot, RepoLocationAdoption};
 pub use documents::{DocumentInput, RegisteredSource, ScanInput, SourceInput};
 pub use guidance::{AGENTS_SOURCE, MEMORY_SOURCE, RULES_SOURCE, SKILLS_SOURCE};
 pub use guidance::{GuidanceRow, ShownGuidance};
 pub use lesson_sync::LessonImport;
 pub use location_view::is_scratch;
 pub use locations::{LocationInput, ProjectIdentity};
-pub use repo_adoption::RepoLocationAdoption;
 pub use search::KnowledgeQuery;
 pub use search::REFERENCE_NOT_IN_PROJECT;
 pub use search::SemanticCut;

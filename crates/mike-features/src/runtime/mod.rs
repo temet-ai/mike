@@ -1,5 +1,6 @@
 pub use mike_base::runtime::*;
 pub mod codex;
+pub mod codex_home;
 pub mod codex_observe;
 pub mod events;
 pub mod session;

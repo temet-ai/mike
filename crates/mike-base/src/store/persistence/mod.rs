@@ -34,6 +34,8 @@ pub mod operator_turns;
 pub mod origin_backfill;
 pub mod pool;
 pub mod pool_classes;
+pub mod project_identity;
+pub mod project_placement;
 pub mod prompt_classification;
 pub mod reconstruct;
 pub mod rehydrate;

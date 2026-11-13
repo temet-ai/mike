@@ -1,4 +1,3 @@
-use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::sync::Arc;
 
@@ -40,7 +39,6 @@ pub async fn load_roster(
 ) -> Result<Loaded<RosterAnswer>, Response> {
     let (project_id, project_path) = super::resolve_project_path(handle, project_path).await?;
     let rows = handle
-        .proxy()
         .fetch_workspace_roster(project_id, scope)
         .await
         .map_err(persist_error_response)?;

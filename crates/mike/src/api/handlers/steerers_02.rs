@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 mod enrolment;
@@ -215,7 +216,7 @@ pub(crate) async fn put_session_goal(
         return persist_unavailable_response();
     };
     match persist
-        .steerer()
+        .launch()
         .set_session_goal(
             crate::store::persistence::session_goals::SetSessionIdentity {
                 session_uuid,
@@ -251,7 +252,7 @@ pub(crate) async fn get_session_goal(
     let Some(persist) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match persist.steerer().get_session_goal(session_uuid).await {
+    match persist.launch().get_session_goal(session_uuid).await {
         Ok(sg) => Ok(Json(SessionGoalDto {
             goal: sg.as_ref().map(|g| g.goal.clone()),
             next_steps: sg.as_ref().map(|g| g.next_steps.clone()),

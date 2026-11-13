@@ -1,9 +1,9 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
-use super::deliver_launch_briefs;
 use crate::change_feed::ChangeFeed;
 use crate::config::ProxyConfig;
+use crate::launch::brief_delivery::deliver_launch_briefs;
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, RowChangedTable};
 use crate::store::persistence::PersistHandle;

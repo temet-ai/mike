@@ -15,10 +15,11 @@ use crate::settings::service::SettingsService;
 use crate::steerer::registry::SteererRegistry;
 use crate::steerer::service::SteeringService;
 use crate::store::RequestStore;
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistHandle;
 
 use crate::config::ProxyConfig;
-use crate::config::apply_settings_overrides;
+
+pub use crate::config::db_fold::fold_db_settings;
 use crate::config::persist_bootstrap::PersistLlmUsageSink;
 use crate::config::write_guards::{
     FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
@@ -62,43 +63,6 @@ pub fn attach_persist_to_store(store: &mut RequestStore, persist: Option<&Persis
     if let Some(handle) = persist {
         store.set_persist(handle.capture());
     }
-}
-
-pub async fn fold_db_settings(persist: Option<&PersistHandle>, config: &mut ProxyConfig) {
-    let Some(handle) = persist else {
-        return;
-    };
-    let rows = handle.fetch_settings().await;
-    apply_fetched_settings(config, rows);
-}
-
-fn apply_fetched_settings(
-    config: &mut ProxyConfig,
-    rows: Result<Vec<(String, serde_json::Value)>, PersistError>,
-) {
-    let rows = match rows {
-        Ok(rows) => rows,
-        Err(err) => {
-            log_settings_fetch_failed(&err);
-            return;
-        }
-    };
-    apply_settings_overrides(config, &rows);
-    log_settings_folded(rows.len());
-}
-
-fn log_settings_fetch_failed(err: &PersistError) {
-    tracing::warn!(
-        error = %err,
-        "settings: failed to fetch DB overrides; ProxyConfig stays at compiled/TOML defaults"
-    );
-}
-
-fn log_settings_folded(count: usize) {
-    tracing::info!(
-        count,
-        "settings: DB overrides folded onto ProxyConfig (OnRestart keys)"
-    );
 }
 
 pub async fn seed_filter_service(

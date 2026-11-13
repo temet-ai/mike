@@ -167,13 +167,11 @@ pub mod questions_tests;
 #[cfg(test)]
 pub mod report_tests;
 #[cfg(test)]
-pub mod run_notes_tests;
-#[cfg(test)]
 pub mod run_record_tests;
 #[cfg(test)]
 pub mod seated_tests;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use seat_settings::background_hook::run as background_hook;
 pub use seat_settings::receipt_hook::run as receipt_hook;

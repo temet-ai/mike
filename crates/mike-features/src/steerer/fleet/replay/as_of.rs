@@ -57,7 +57,7 @@ async fn load_eval_inputs(
         })
         .collect();
     let anchor = ph
-        .steerer()
+        .launch()
         .get_session_goal(trigger.session_uuid)
         .await?
         .map(|goal| Anchor {

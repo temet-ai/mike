@@ -1,16 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
 use super::invalid;
 use crate::store::persistence::PersistError;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct ProjectIdentity {
-    pub id: i64,
-    pub project_uuid: Uuid,
-    pub project_path: String,
-}
+pub use crate::store::persistence::project_identity::ProjectIdentity;
+pub use crate::store::persistence::project_placement::upsert_location;
 
 #[derive(Deserialize)]
 pub struct LocationInput {
@@ -20,50 +16,7 @@ pub struct LocationInput {
     pub root_path: String,
 }
 
-pub async fn upsert_location(
-    connection: &mut sqlx::PgConnection,
-    project_id: i64,
-    machine: Uuid,
-    root_path: &str,
-) -> Result<Option<Uuid>, PersistError> {
-    Ok(sqlx::query_scalar!(
-        "INSERT INTO projects.locations(project_id, machine_uuid, root_path)
-         VALUES ($1, $2, $3) ON CONFLICT(machine_uuid, root_path)
-         DO UPDATE SET last_seen = now()
-         WHERE projects.locations.project_id = EXCLUDED.project_id
-         RETURNING location_uuid",
-        project_id,
-        machine,
-        root_path,
-    )
-    .fetch_optional(connection)
-    .await?)
-}
-
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
-    pub async fn define_knowledge_project(
-        self,
-        name: &str,
-        uuid: Uuid,
-    ) -> Result<ProjectIdentity, PersistError> {
-        if name.trim().is_empty() {
-            return Err(invalid("Project name must not be empty"));
-        }
-        let row = sqlx::query_as!(
-            ProjectIdentity,
-            "INSERT INTO projects.projects(project_uuid, project_path, display_name, custom_name)
-             VALUES ($1, $2, $3, $3) ON CONFLICT(project_uuid)
-             DO UPDATE SET last_seen = now()
-             RETURNING id, project_uuid, project_path",
-            uuid,
-            format!("mike:{uuid}"),
-            name,
-        )
-        .fetch_one(self.pool())
-        .await?;
-        Ok(row)
-    }
-
     pub async fn list_project_locations(self, include_all: bool) -> Result<Value, PersistError> {
         let rows = sqlx::query_scalar!(
             r#"SELECT jsonb_build_object('project_uuid', p.project_uuid,
@@ -112,20 +65,5 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         tx.commit().await?;
         Ok(serde_json::json!({"project_uuid": project.project_uuid,
             "location_uuid": location, "project_path": project.project_path}))
-    }
-
-    pub async fn project_for_location(
-        self,
-        location: Uuid,
-    ) -> Result<ProjectIdentity, PersistError> {
-        sqlx::query_as!(
-            ProjectIdentity,
-            "SELECT p.id, p.project_uuid, p.project_path FROM projects.projects p
-             JOIN projects.locations l ON l.project_id = p.id WHERE l.location_uuid = $1",
-            location,
-        )
-        .fetch_optional(self.pool())
-        .await?
-        .ok_or_else(|| invalid("Unknown project location"))
     }
 }

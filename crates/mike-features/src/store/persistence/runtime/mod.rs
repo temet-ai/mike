@@ -51,8 +51,6 @@ pub mod tests_events;
 pub mod tests_identity;
 
 #[cfg(test)]
-pub mod tests_observation;
-#[cfg(test)]
 pub mod tests_observation_support;
 
 #[cfg(test)]

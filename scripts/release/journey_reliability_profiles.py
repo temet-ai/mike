@@ -71,7 +71,7 @@ def normal_default_contract():
             {"keys": ["fleet_auto_start", "prompt_assistant"], "dependency": "Operator-triggered features remain enabled; this workload does not invoke launch/assistant actions and must never expose real CLI credentials.",
              "source": ["crates/mike-features/src/api/fleet/definitions.rs", "crates/mike-base/src/feature_toggles/tests.rs"]},
             {"keys": ["launch_brief"], "dependency": "Delivers a spawned session's launch brief only; this workload spawns no session, launch or Remote Control stream.",
-             "source": ["crates/mike-features/src/reminders/launch_brief.rs", "crates/mike-features/src/launch/fleet/brief_version.rs"]},
+             "source": ["crates/mike-features/src/launch/brief_delivery.rs", "crates/mike-features/src/launch/fleet/brief_version.rs"]},
             {"keys": ["client_serves_self_identity"], "dependency": "Only makes the proxy stand aside from the self-identity reminder when a client serves it; this workload has no such client.",
              "source": ["crates/mike-features/src/reminders/client_context.rs", "crates/mike-base/src/feature_toggles/meta.rs"]},
         ],

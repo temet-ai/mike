@@ -1,4 +1,3 @@
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub mod flow;
 
 use flow::FlowAdmissionDto;
@@ -169,14 +168,13 @@ pub async fn register_session(
 async fn resolve_location(
     handle: &PersistHandle,
     location: Option<Uuid>,
-) -> Result<Option<crate::store::persistence::project_knowledge::ProjectIdentity>, Response> {
+) -> Result<Option<crate::store::persistence::project_identity::ProjectIdentity>, Response> {
     Ok(match location {
         Some(location) => Some(
             handle
-                .knowledge()
                 .project_for_location(location)
                 .await
-                .map_err(crate::api::project_knowledge::knowledge_error)?,
+                .map_err(crate::web_base::knowledge_error)?,
         ),
         None => None,
     })
@@ -188,14 +186,13 @@ async fn bind_location(
     registered: &mut RegisteredWorkspaceSession,
     session: Uuid,
     location: Option<Uuid>,
-    location_project: Option<crate::store::persistence::project_knowledge::ProjectIdentity>,
+    location_project: Option<crate::store::persistence::project_identity::ProjectIdentity>,
 ) -> Result<(), Response> {
     if let Some(location) = location {
         handle
-            .knowledge()
             .bind_session_location(session, location)
             .await
-            .map_err(crate::api::project_knowledge::knowledge_error)?;
+            .map_err(crate::web_base::knowledge_error)?;
         if let Some(project) = location_project {
             state
                 .session_projects

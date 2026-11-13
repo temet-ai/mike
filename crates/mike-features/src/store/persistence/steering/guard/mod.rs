@@ -207,14 +207,4 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         })
         .await
     }
-
-    pub async fn session_last_request_at(
-        self,
-        session_db_id: i64,
-    ) -> Result<Option<DateTime<Utc>>, PersistError> {
-        crate::metrics::time_db("session_last_request_at", async move {
-            self.latest_request_at(session_db_id).await
-        })
-        .await
-    }
 }

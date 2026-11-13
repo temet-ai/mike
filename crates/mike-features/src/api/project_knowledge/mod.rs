@@ -10,23 +10,14 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::state::AppState;
-use crate::store::persistence::PersistError;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, LocationInput, ScanInput, SourceInput,
 };
 use crate::web_base::detail::Detail;
+use crate::web_base::persist_unavailable_response;
 use crate::web_base::result_order::ResultOrder;
-use crate::web_base::{persist_error_response, persist_unavailable_response};
 
-pub fn knowledge_error(error: PersistError) -> Response {
-    match error {
-        PersistError::DataInvariant(message) => {
-            tracing::warn!(error = %message, "project knowledge request refused as a conflict");
-            (StatusCode::CONFLICT, Json(json!({"error": message}))).into_response()
-        }
-        other => persist_error_response(other),
-    }
-}
+pub use crate::web_base::knowledge_error;
 
 #[derive(Deserialize, Default)]
 pub struct LocationsQuery {

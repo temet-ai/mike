@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 pub mod response_trigger;
 #[cfg(test)]
@@ -52,7 +53,7 @@ pub async fn fetch_anchor(
     target: &EvalTarget,
 ) -> Option<Anchor> {
     let ph = ctx.persist.as_ref()?;
-    match ph.steerer().get_session_goal(session_uuid).await {
+    match ph.launch().get_session_goal(session_uuid).await {
         Ok(Some(sg)) => Some(Anchor {
             state_of_play: sg.goal,
             next: sg.next_steps,

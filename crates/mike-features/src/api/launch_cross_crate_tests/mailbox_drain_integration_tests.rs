@@ -1,7 +1,7 @@
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
-use super::support::{drain_primary_turn, seed_session};
+use super::mailbox_drain_support_tests::{drain_primary_turn, seed_session};
 
 #[tokio::test]
 async fn drain_never_injects_a_dead_lettered_mailbox_row_regardless_of_redelivery_toggle()

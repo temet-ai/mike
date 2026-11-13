@@ -7,39 +7,8 @@ use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
 
-fn operator_home() -> Option<PathBuf> {
-    std::env::var_os("CODEX_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")))
-}
-
-async fn verified_home(candidate: &str) -> Option<PathBuf> {
-    let expected = tokio::fs::canonicalize(operator_home()?).await.ok()?;
-    let candidate = tokio::fs::canonicalize(candidate).await.ok()?;
-    (candidate == expected).then_some(expected)
-}
-
-pub async fn observe_local_codex(
-    persist: &PersistHandle,
-    session: Uuid,
-    thread: &str,
-    home: Option<&str>,
-) {
-    let Some(home) = home else { return };
-    let Some(home) = verified_home(home).await else {
-        return;
-    };
-    if Uuid::parse_str(thread).is_err() {
-        return;
-    }
-    if let Err(error) = persist
-        .runtime()
-        .register_runtime_notification_target(session, thread, &home.to_string_lossy())
-        .await
-    {
-        tracing::warn!(session_id = %session, error = %error, "Codex local mail notification target not recorded");
-    }
-}
+pub use crate::runtime::codex_home::observe_local_codex;
+use crate::runtime::codex_home::verified_home;
 
 pub struct QueueJob {
     session: Uuid,

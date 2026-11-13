@@ -20,7 +20,7 @@ pub struct SetSessionIdentity<'a> {
     pub set_by: &'a str,
 }
 
-impl crate::store::persistence::steerer_repo::SteererDb<'_> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn set_session_goal(
         self,
         identity: SetSessionIdentity<'_>,

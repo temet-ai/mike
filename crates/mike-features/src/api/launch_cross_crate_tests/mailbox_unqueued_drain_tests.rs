@@ -2,7 +2,7 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::NewLaunch;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
-use super::support::{drain_primary_turn, seed_session};
+use super::mailbox_drain_support_tests::{drain_primary_turn, seed_session};
 
 async fn drain_once(state: &crate::state::AppState, session: &str) -> Vec<String> {
     drain_primary_turn(state, session)

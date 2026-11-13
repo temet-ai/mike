@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use uuid::Uuid;
 
-use super::{MailClaimResponse, post_mail_claim};
+use crate::api::session_mail::{MailClaimResponse, post_mail_claim};
 use crate::config::ProxyConfig;
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};

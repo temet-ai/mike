@@ -1,10 +1,8 @@
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::super::WorkThreadError;
 use super::fixture;
-use crate::store::persistence::project_knowledge::LocationInput;
 
 #[tokio::test]
 async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_are_ambiguous()
@@ -14,7 +12,6 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
     };
     let duplicate = f
         .handle
-        .knowledge()
         .define_knowledge_project("duplicate", Uuid::new_v4())
         .await?;
     sqlx::query("UPDATE projects.projects SET project_path = '/shared/checkout' WHERE id = $1")
@@ -23,17 +20,10 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
         .await?;
     let canonical = f
         .handle
-        .knowledge()
         .define_knowledge_project("canonical", Uuid::new_v4())
         .await?;
     f.handle
-        .knowledge()
-        .register_project_location(&LocationInput {
-            project: canonical.project_uuid.to_string(),
-            machine_uuid: Uuid::new_v4(),
-            machine_name: "machine".to_owned(),
-            root_path: "/shared/checkout".to_owned(),
-        })
+        .add_checkout_location(Uuid::new_v4(), "machine", "/shared/checkout", canonical.id)
         .await?;
 
     let by_location = f
@@ -45,17 +35,15 @@ async fn a_registered_location_outranks_a_bare_project_path_and_two_locations_ar
 
     let rival = f
         .handle
-        .knowledge()
         .define_knowledge_project("rival", Uuid::new_v4())
         .await?;
     f.handle
-        .knowledge()
-        .register_project_location(&LocationInput {
-            project: rival.project_uuid.to_string(),
-            machine_uuid: Uuid::new_v4(),
-            machine_name: "other machine".to_owned(),
-            root_path: "/shared/checkout".to_owned(),
-        })
+        .add_checkout_location(
+            Uuid::new_v4(),
+            "other machine",
+            "/shared/checkout",
+            rival.id,
+        )
         .await?;
     let ambiguous = f
         .handle

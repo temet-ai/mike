@@ -33,7 +33,7 @@ pub async fn verified_namespace(
         Err(_) => return Ok(None),
     };
     for candidate in [home, canonical.as_path()] {
-        let expected = crate::launch::codex::namespace_for(candidate);
+        let expected = crate::runtime::codex_home::namespace_for(candidate);
         if let Some(stored) = persist.runtime().runtime_namespace(expected.id).await?
             && stored.runtime == RuntimeKind::Codex
             && stored.durable_key == expected.durable_key
@@ -48,7 +48,7 @@ pub async fn verified_namespace(
         return Ok(None);
     };
     if tokio::fs::canonicalize(expected).await.ok().as_ref() == Some(&canonical) {
-        return Ok(Some(crate::launch::codex::namespace_for(&canonical)));
+        return Ok(Some(crate::runtime::codex_home::namespace_for(&canonical)));
     }
     Ok(None)
 }

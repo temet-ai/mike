@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
-use super::locations::upsert_location;
-use crate::store::persistence::PersistError;
+use crate::store::persistence::project_identity::{ProjectIdentity, invalid};
+use crate::store::persistence::{PersistError, PersistHandle};
 
 pub struct RepoLocationAdoption<'a> {
     pub session: Uuid,
@@ -16,9 +16,9 @@ pub struct MachineLocationRoot {
     pub project_id: i64,
 }
 
-impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+impl PersistHandle {
     pub async fn machine_location_roots(
-        self,
+        &self,
         machine: Uuid,
     ) -> Result<Vec<MachineLocationRoot>, PersistError> {
         Ok(sqlx::query_as!(
@@ -33,7 +33,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         .await?)
     }
 
-    pub async fn project_id_for_path(self, path: &str) -> Result<Option<i64>, PersistError> {
+    pub async fn project_id_for_path(&self, path: &str) -> Result<Option<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT COALESCE(merged_into_id, id) AS "project_id!" FROM projects.projects
              WHERE project_path = rtrim($1, '/')"#,
@@ -44,7 +44,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn adopt_repo_location(
-        self,
+        &self,
         adoption: &RepoLocationAdoption<'_>,
     ) -> Result<Option<Uuid>, PersistError> {
         let unbound = sqlx::query_scalar!(
@@ -67,7 +67,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn add_checkout_location(
-        self,
+        &self,
         machine: Uuid,
         machine_name: &str,
         checkout_root: &str,
@@ -88,7 +88,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn set_location_origin(
-        self,
+        &self,
         location: Uuid,
         origin: &str,
     ) -> Result<(), PersistError> {
@@ -103,7 +103,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(())
     }
 
-    pub async fn project_ids_for_origin(self, origin: &str) -> Result<Vec<i64>, PersistError> {
+    pub async fn project_ids_for_origin(&self, origin: &str) -> Result<Vec<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT DISTINCT COALESCE(p.merged_into_id, p.id) AS "project_id!"
              FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id
@@ -115,7 +115,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn project_id_enclosing(
-        self,
+        &self,
         machine: Uuid,
         path: &str,
     ) -> Result<Option<i64>, PersistError> {
@@ -133,4 +133,66 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         .fetch_optional(self.pool())
         .await?)
     }
+    pub async fn define_knowledge_project(
+        &self,
+        name: &str,
+        uuid: Uuid,
+    ) -> Result<ProjectIdentity, PersistError> {
+        if name.trim().is_empty() {
+            return Err(invalid("Project name must not be empty"));
+        }
+        let row = sqlx::query_as!(
+            ProjectIdentity,
+            "INSERT INTO projects.projects(project_uuid, project_path, display_name, custom_name)
+             VALUES ($1, $2, $3, $3) ON CONFLICT(project_uuid)
+             DO UPDATE SET last_seen = now()
+             RETURNING id, project_uuid, project_path",
+            uuid,
+            format!("mike:{uuid}"),
+            name,
+        )
+        .fetch_one(self.pool())
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn locations_on_machine(
+        &self,
+        machine: Uuid,
+    ) -> Result<Vec<MachineLocation>, PersistError> {
+        Ok(sqlx::query_as!(
+            MachineLocation,
+            "SELECT location_uuid, root_path FROM projects.locations
+              WHERE machine_uuid = $1 ORDER BY root_path",
+            machine
+        )
+        .fetch_all(self.pool())
+        .await?)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct MachineLocation {
+    pub location_uuid: Uuid,
+    pub root_path: String,
+}
+
+pub async fn upsert_location(
+    connection: &mut sqlx::PgConnection,
+    project_id: i64,
+    machine: Uuid,
+    root_path: &str,
+) -> Result<Option<Uuid>, PersistError> {
+    Ok(sqlx::query_scalar!(
+        "INSERT INTO projects.locations(project_id, machine_uuid, root_path)
+         VALUES ($1, $2, $3) ON CONFLICT(machine_uuid, root_path)
+         DO UPDATE SET last_seen = now()
+         WHERE projects.locations.project_id = EXCLUDED.project_id
+         RETURNING location_uuid",
+        project_id,
+        machine,
+        root_path,
+    )
+    .fetch_optional(connection)
+    .await?)
 }
