@@ -280,6 +280,47 @@ async fn mailbox_push_is_not_subject_to_the_steerer_wake_interval() -> anyhow::R
 }
 
 #[tokio::test]
+async fn mailbox_push_is_skipped_when_the_client_claims_the_mailbox() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let (session, _intervention_uuid) = seed(&handle).await?;
+    let streams = ReplyStreams::default();
+    let _registration = register_autoack_stream(&streams);
+    let deps = deps(handle.clone(), streams, Arc::new(InjectionGate::default()));
+    crate::mailbox_served::mark_mailbox_served(&session.to_string());
+
+    let message_uuid = Uuid::new_v4();
+    handle
+        .launch()
+        .insert_message(message_uuid, session, None, "hi via tether")
+        .await?;
+    let mailbox_reminder = SystemReminder {
+        source: ReminderSource::SessionMailbox {
+            message_uuid,
+            from_session_uuid: None,
+        },
+        payload: "<system-reminder>Cross-session message from x</system-reminder>".to_string(),
+    };
+    assert!(!deliver_or_enqueue(&deps, session, mailbox_reminder).await);
+
+    assert_eq!(
+        deps.store
+            .write()
+            .await
+            .claim_reminders(&session.to_string())
+            .len(),
+        1,
+        "mail for a session whose client claims its mailbox stays queued for that claim"
+    );
+
+    handle.pool().close().await;
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn mailbox_push_is_skipped_when_the_channel_listener_is_live() -> anyhow::Result<()> {
     let Some(db) = acquire_ephemeral_db().await? else {
         return Ok(());
