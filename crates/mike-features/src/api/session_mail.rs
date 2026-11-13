@@ -11,26 +11,26 @@ use tokio::sync::oneshot;
 use tokio::time::Instant;
 use uuid::Uuid;
 
-use crate::api::client_serves::by_deadline;
 use crate::base_state::BaseState;
-use crate::reminders::launch_brief::brief_reminder;
-use crate::steerer::stage::client_served::mark_mailbox_served;
+use crate::launch::brief_delivery::brief_reminder;
+use crate::mailbox_served::mark_mailbox_served;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::QueuedLaunchBrief;
+use crate::web_base::client_serves::by_deadline;
 
 const MAIL_CLAIM_BUDGET: Duration = Duration::from_millis(600);
 
 #[derive(Debug, Serialize)]
 pub struct MailBlock {
-    source: &'static str,
-    message_id: Option<Uuid>,
-    text: String,
+    pub source: &'static str,
+    pub message_id: Option<Uuid>,
+    pub text: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct MailClaimResponse {
-    blocks: Vec<MailBlock>,
+    pub blocks: Vec<MailBlock>,
 }
 
 #[derive(Clone)]
@@ -48,7 +48,7 @@ pub async fn post_mail_claim(
     let Ok(session) = Uuid::parse_str(&id) else {
         return Err(StatusCode::BAD_REQUEST);
     };
-    crate::api::client_serves::require_client_serves(&state, "client_serves_mail")?;
+    crate::web_base::client_serves::require_client_serves(&state, "client_serves_mail")?;
     let Some(persist) = state.persist().cloned() else {
         return Ok(Json(MailClaimResponse { blocks: Vec::new() }));
     };
@@ -220,6 +220,3 @@ async fn unclaim(job: &ClaimJob, message_uuid: Uuid) {
         tracing::warn!(session_id = %job.session, %message_uuid, error = %e, "mail claim: releasing a late claim failed");
     }
 }
-
-#[cfg(test)]
-mod tests;

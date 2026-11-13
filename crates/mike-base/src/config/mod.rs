@@ -1,6 +1,7 @@
 pub mod channel_link_sweep;
 pub mod compress;
 pub mod db_cost;
+pub mod db_fold;
 pub mod db_pool;
 pub mod launch;
 pub mod lesson_relations;

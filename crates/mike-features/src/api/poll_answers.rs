@@ -15,16 +15,8 @@ use crate::change_feed::{ChangeFeed, Generation};
 use crate::launch::state::LaunchState;
 use crate::store::models::RowChangedTable;
 
-#[cfg(test)]
-#[path = "poll_answers_tests.rs"]
-pub mod poll_answers_tests;
-
-#[cfg(test)]
-#[path = "poll_answers_db_tests.rs"]
-pub mod poll_answers_db_tests;
-
-const MAX_ENTRIES: usize = 2048;
-const MAX_WEIGHT: usize = 32 * 1024 * 1024;
+pub const MAX_ENTRIES: usize = 2048;
+pub const MAX_WEIGHT: usize = 32 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Freshness {
@@ -135,7 +127,7 @@ impl<V: Clone + Weigh> AnswerCache<V> {
             .map(|entry| entry.sessions.clone())
     }
 
-    fn value_at(&self, key: &str, etag: &str) -> Option<V> {
+    pub fn value_at(&self, key: &str, etag: &str) -> Option<V> {
         self.shelf()
             .entries
             .get(key)
@@ -143,7 +135,7 @@ impl<V: Clone + Weigh> AnswerCache<V> {
             .map(|entry| entry.value.clone())
     }
 
-    fn store(&self, key: String, etag: String, sessions: Vec<String>, value: V) {
+    pub fn store(&self, key: String, etag: String, sessions: Vec<String>, value: V) {
         let weight = value.weight();
         let mut shelf = self.shelf();
         if let Some(old) = shelf.entries.remove(&key) {

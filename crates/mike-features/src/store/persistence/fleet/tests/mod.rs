@@ -1,5 +1,4 @@
 pub mod acceptance_notes;
-pub mod carry;
 pub mod comms_thread;
 pub mod crud;
 pub mod events;

@@ -66,7 +66,8 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         topics: &[String],
         per_topic_limit: i64,
     ) -> Result<Vec<LessonRow>, PersistError> {
-        let candidates = project_path_candidates(project_path);
+        let candidates =
+            crate::store::persistence::project_identity::project_path_candidates(project_path);
         let topics = topics.to_vec();
         crate::metrics::time_db("list_recall_lessons", async move {
             let rows = sqlx::query_as!(
@@ -107,25 +108,6 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
             .fetch_all(&self.pool)
             .await?;
             Ok(rows)
-        })
-        .await
-    }
-
-    pub async fn get_project_ids_for_path(
-        self,
-        project_path: &str,
-    ) -> Result<Vec<i64>, PersistError> {
-        let candidates = project_path_candidates(project_path);
-        crate::metrics::time_db("get_project_ids_for_path", async move {
-            let ids = sqlx::query_scalar!(
-                r#"SELECT id AS "id!" FROM projects.projects
-                    WHERE project_path = ANY($1::text[])
-                    ORDER BY array_position($1::text[], project_path)"#,
-                &candidates,
-            )
-            .fetch_all(&self.pool)
-            .await?;
-            Ok(ids)
         })
         .await
     }
@@ -222,12 +204,4 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         })
         .await
     }
-}
-
-fn project_path_candidates(project_path: &str) -> Vec<String> {
-    let mut candidates = vec![project_path.to_owned()];
-    if let Some(alias) = crate::extract::request::legacy_trimmed_alias(project_path) {
-        candidates.push(alias);
-    }
-    candidates
 }

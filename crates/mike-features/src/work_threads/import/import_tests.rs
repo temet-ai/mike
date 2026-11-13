@@ -1,4 +1,3 @@
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::PathBuf;
 
@@ -8,7 +7,6 @@ use super::import_repo;
 use super::registry::RegistryEntry;
 use super::report::Report;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::project_knowledge::LocationInput;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use crate::store::persistence::work_threads::{HistoryPage, ListFilter};
 
@@ -28,18 +26,11 @@ async fn handle_with_project(
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
-        .knowledge()
         .define_knowledge_project("import tests", Uuid::new_v4())
         .await?;
     for root in [repo, "/Users/vimes/projects/temet/temet-proxy"] {
         handle
-            .knowledge()
-            .register_project_location(&LocationInput {
-                project: project.project_uuid.to_string(),
-                machine_uuid: Uuid::new_v4(),
-                machine_name: "test machine".to_owned(),
-                root_path: root.to_owned(),
-            })
+            .add_checkout_location(Uuid::new_v4(), "test machine", root, project.id)
             .await?;
     }
     Ok(Some((db, handle, project.id)))

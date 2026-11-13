@@ -2,7 +2,7 @@ use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::ingest::{self, ObserveSource};
+use crate::runtime::codex_observe::ingest::{self, ObserveSource};
 use crate::store::persistence::{PersistHandle, test_support};
 
 fn source() -> ObserveSource {
@@ -175,15 +175,19 @@ async fn verified_home_maps_hook_to_managed_seat_and_keeps_other_home_distinct()
         let report = ingest::ingest_hook(&persist, &source, Uuid::new_v4(), &body).await?;
         assert_eq!(report.mike_session_id, Some(seat));
         assert_eq!(
-            super::resolve_bound_session(&persist, home, &thread).await?,
+            crate::runtime::codex_observe::resolve_bound_session(&persist, home, &thread).await?,
             Some(seat)
         );
     }
     let unknown_home = tempfile::tempdir()?;
     assert!(
-        super::resolve_bound_session(&persist, unknown_home.path(), &thread)
-            .await?
-            .is_none()
+        crate::runtime::codex_observe::resolve_bound_session(
+            &persist,
+            unknown_home.path(),
+            &thread
+        )
+        .await?
+        .is_none()
     );
     let provider_uuid = Uuid::parse_str(&thread)?;
     assert!(

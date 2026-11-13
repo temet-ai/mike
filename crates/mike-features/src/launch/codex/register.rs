@@ -3,21 +3,14 @@ use std::path::Path;
 
 use uuid::Uuid;
 
-use crate::runtime::{ProviderThreadRef, RuntimeKind, RuntimeNamespace, RuntimeThreadBinding};
+use crate::runtime::{ProviderThreadRef, RuntimeThreadBinding};
 use crate::store::persistence::PersistHandle;
 
 pub const CODEX_BACKEND: &str = "none";
 pub const CODEX_BACKEND_REASON: &str =
     "codex seat: controlled through `codex app-server`, no terminal surface";
 
-pub fn namespace_for(codex_home: &Path) -> RuntimeNamespace {
-    let durable_key = format!("codex-home:{}", codex_home.display());
-    RuntimeNamespace {
-        id: Uuid::new_v5(&Uuid::NAMESPACE_URL, durable_key.as_bytes()),
-        runtime: RuntimeKind::Codex,
-        durable_key,
-    }
-}
+pub use crate::runtime::codex_home::namespace_for;
 
 pub async fn bind_seat_thread(
     persist: &PersistHandle,

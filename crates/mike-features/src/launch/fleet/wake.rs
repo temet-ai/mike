@@ -1,6 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
@@ -26,12 +25,7 @@ pub async fn pass(state: &BaseState, persist: &PersistHandle, def: &FleetDefinit
         if counts.unconsumed == 0 {
             continue;
         }
-        let last = persist
-            .steerer()
-            .session_last_request_at(db_id)
-            .await
-            .ok()
-            .flatten();
+        let last = persist.session_last_request_at(db_id).await.ok().flatten();
         if !silent(last, now) {
             continue;
         }

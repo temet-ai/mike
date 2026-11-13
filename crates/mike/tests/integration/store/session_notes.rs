@@ -5,7 +5,6 @@ use mike::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, ProjectNoteFilter, SessionNoteFilter, SessionNoteRow,
     SessionNoteUpdate,
 };
-use mike::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use super::workspace::support::{register_input, shared_handle, unique};
@@ -201,7 +200,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
     ];
     for (session, name, role, finding) in seats {
         handle
-            .steerer()
+            .launch()
             .set_session_goal(SetSessionIdentity {
                 session_uuid: session,
                 display_name: Some(name),

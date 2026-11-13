@@ -1,4 +1,3 @@
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub mod cards;
 pub mod checkpoint;
 pub mod cleanup;
@@ -28,7 +27,6 @@ pub async fn fixture() -> anyhow::Result<Option<Fixture>> {
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let project = handle
-        .knowledge()
         .define_knowledge_project("thread tests", Uuid::new_v4())
         .await?
         .id;

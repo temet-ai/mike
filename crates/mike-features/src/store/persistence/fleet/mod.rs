@@ -21,7 +21,7 @@ pub mod types;
 pub mod write;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use carry::{CarryNote, CarryOutcome, NewCarry};
 pub use checks::TreeCheckRow;

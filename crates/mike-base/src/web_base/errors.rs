@@ -17,3 +17,17 @@ pub fn persist_error_response(e: crate::store::persistence::PersistError) -> Res
     )
         .into_response()
 }
+
+pub fn knowledge_error(error: crate::store::persistence::PersistError) -> Response {
+    match error {
+        crate::store::persistence::PersistError::DataInvariant(message) => {
+            tracing::warn!(error = %message, "project knowledge request refused as a conflict");
+            (
+                StatusCode::CONFLICT,
+                axum::Json(serde_json::json!({"error": message})),
+            )
+                .into_response()
+        }
+        other => persist_error_response(other),
+    }
+}

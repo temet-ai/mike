@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::WorkThreadError;
 use super::validate::invalid;
-use crate::store::persistence::project_knowledge::ProjectIdentity;
+use crate::store::persistence::project_identity::ProjectIdentity;
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn resolve_work_thread_project(

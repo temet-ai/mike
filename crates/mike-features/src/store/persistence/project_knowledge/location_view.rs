@@ -1,25 +1,8 @@
 use serde_json::{Value, json};
 
-const SCRATCH_PREFIXES: [&str; 5] = [
-    "/tmp/",
-    "/var/folders/",
-    "/private/tmp/",
-    "/private/var/folders/",
-    "__",
-];
-const SCRATCH_PARTS: [&str; 3] = [
-    "/.claude/.cache/tmp/",
-    "/.local/state/mike/seats/",
-    "{parent}",
-];
-const INDEX_FOLDER: &str = "/artifacts/learning-memory/";
+pub use crate::workspace::checkouts::is_scratch;
 
-pub fn is_scratch(path: &str) -> bool {
-    SCRATCH_PREFIXES
-        .iter()
-        .any(|prefix| path.starts_with(prefix))
-        || SCRATCH_PARTS.iter().any(|part| path.contains(part))
-}
+const INDEX_FOLDER: &str = "/artifacts/learning-memory/";
 
 fn drop_index_locations(project: &mut Value) -> usize {
     let Some(locations) = project.get_mut("locations").and_then(Value::as_array_mut) else {

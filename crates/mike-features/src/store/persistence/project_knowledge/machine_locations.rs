@@ -1,12 +1,8 @@
 use uuid::Uuid;
 
-use crate::store::persistence::PersistError;
+pub use crate::store::persistence::project_placement::MachineLocation;
 
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
-pub struct MachineLocation {
-    pub location_uuid: Uuid,
-    pub root_path: String,
-}
+use crate::store::persistence::PersistError;
 
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn project_roots_on_machine(
@@ -24,19 +20,5 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         .fetch_all(self.pool())
         .await?;
         Ok(rows.into_iter().map(|row| row.root_path).collect())
-    }
-
-    pub async fn locations_on_machine(
-        self,
-        machine: Uuid,
-    ) -> Result<Vec<MachineLocation>, PersistError> {
-        Ok(sqlx::query_as!(
-            MachineLocation,
-            "SELECT location_uuid, root_path FROM projects.locations
-              WHERE machine_uuid = $1 ORDER BY root_path",
-            machine
-        )
-        .fetch_all(self.pool())
-        .await?)
     }
 }

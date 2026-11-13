@@ -1,5 +1,4 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use uuid::Uuid;
 
 use super::super::CheckpointInput;
@@ -194,25 +193,20 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_wea
     .fetch_one(pool)
     .await?;
     let imported = format!("entry:{imported}");
-    f.handle
-        .lessons()
-        .insert_lesson_relation(&crate::store::persistence::LessonRelationDraft {
-            from_lesson_id: new_id,
-            to_lesson_id: old_id,
-            kind: "supersedes",
-            method: "declared",
-            status: "confirmed",
-            candidate_distance: None,
-            evidence_json: serde_json::json!({}),
-            proposer_model: None,
-            proposer_rationale: None,
-            adjudicator_model: None,
-            adjudicator_agrees: None,
-            adjudicator_rationale: None,
-            detector_version: "test",
-            decided_by: Some("test"),
-        })
-        .await?;
+    sqlx::query(
+        "INSERT INTO memory.lesson_relations
+            (from_lesson_id, to_lesson_id, kind_id, method_id, status_id,
+             evidence_json, detector_version, decided_at, decided_by)
+         SELECT $1, $2, rk.id, rm.id, rs.id, '{}'::jsonb, 'test', NOW(), 'test'
+           FROM memory.lesson_relation_kinds rk,
+                memory.lesson_relation_methods rm,
+                memory.lesson_relation_statuses rs
+          WHERE rk.code = 'supersedes' AND rm.code = 'declared' AND rs.code = 'confirmed'",
+    )
+    .bind(new_id)
+    .bind(old_id)
+    .execute(pool)
+    .await?;
     let candidates: Vec<_> = [
         (&expired, 0.95),
         (&superseded, 0.9),

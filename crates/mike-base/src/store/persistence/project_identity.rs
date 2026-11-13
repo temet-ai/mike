@@ -1,11 +1,38 @@
 use uuid::Uuid;
 
-use super::{ProjectIdentity, invalid};
-use crate::store::persistence::PersistError;
+use serde::Serialize;
 
-impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+use crate::store::persistence::{PersistError, PersistHandle};
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectIdentity {
+    pub id: i64,
+    pub project_uuid: Uuid,
+    pub project_path: String,
+}
+
+pub(crate) fn invalid(message: &str) -> PersistError {
+    PersistError::DataInvariant(message.to_string())
+}
+
+impl PersistHandle {
+    pub async fn project_for_location(
+        &self,
+        location: Uuid,
+    ) -> Result<ProjectIdentity, PersistError> {
+        sqlx::query_as!(
+            ProjectIdentity,
+            "SELECT p.id, p.project_uuid, p.project_path FROM projects.projects p
+             JOIN projects.locations l ON l.project_id = p.id WHERE l.location_uuid = $1",
+            location,
+        )
+        .fetch_optional(self.pool())
+        .await?
+        .ok_or_else(|| invalid("Unknown project location"))
+    }
+
     pub async fn bind_session_location(
-        self,
+        &self,
         session: Uuid,
         location: Uuid,
     ) -> Result<ProjectIdentity, PersistError> {
@@ -34,10 +61,8 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                 "Session is already bound to a location of another project; its binding is unchanged",
             ));
         }
-        super::super::session_projects::repoint_session_project(
-            &mut tx, id, project.id, "operator",
-        )
-        .await?;
+        super::session_projects::repoint_session_project(&mut tx, id, project.id, "operator")
+            .await?;
         sqlx::query!(
             "UPDATE sessions.sessions SET location_uuid = $2 WHERE id = $1",
             id,
@@ -50,7 +75,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn bind_session_to_local_root(
-        self,
+        &self,
         session: Uuid,
         machine: Uuid,
         cwd: &str,
@@ -80,4 +105,33 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
             None => Ok(None),
         }
     }
+}
+
+impl PersistHandle {
+    pub async fn get_project_ids_for_path(
+        &self,
+        project_path: &str,
+    ) -> Result<Vec<i64>, PersistError> {
+        let candidates = project_path_candidates(project_path);
+        crate::metrics::time_db("get_project_ids_for_path", async move {
+            let ids = sqlx::query_scalar!(
+                r#"SELECT id AS "id!" FROM projects.projects
+                    WHERE project_path = ANY($1::text[])
+                    ORDER BY array_position($1::text[], project_path)"#,
+                &candidates,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            Ok(ids)
+        })
+        .await
+    }
+}
+
+pub fn project_path_candidates(project_path: &str) -> Vec<String> {
+    let mut candidates = vec![project_path.to_owned()];
+    if let Some(alias) = crate::extract::request::legacy_trimmed_alias(project_path) {
+        candidates.push(alias);
+    }
+    candidates
 }

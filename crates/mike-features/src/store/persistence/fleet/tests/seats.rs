@@ -1,6 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use super::fixture;
@@ -24,7 +23,7 @@ async fn seat_rows_list_opened_launches_oldest_first_with_role_and_context() -> 
     let coordinator_sid = seed_session(pool, project_id, coordinator).await?;
     seed_session(pool, project_id, worker).await?;
     f.handle
-        .steerer()
+        .launch()
         .set_session_goal(SetSessionIdentity {
             session_uuid: coordinator,
             display_name: None,

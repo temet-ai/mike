@@ -1,7 +1,4 @@
-pub fn client_serves(state: &crate::base_state::BaseState, key: &str) -> bool {
-    crate::feature_toggles::get_toggle_enabled(&state.feature_toggle_overlay.load(), key)
-        .unwrap_or(false)
-}
+pub use crate::web_base::client_serves::client_serves;
 
 #[cfg(any(test, feature = "test-seams"))]
 pub fn serve_every_stage_for_tests(state: &crate::base_state::BaseState) {

@@ -1,6 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -172,12 +171,7 @@ async fn observed(
         .ok()
         .flatten();
     let last_seen = match db_id {
-        Some(id) => persist
-            .steerer()
-            .session_last_request_at(id)
-            .await
-            .ok()
-            .flatten(),
+        Some(id) => persist.session_last_request_at(id).await.ok().flatten(),
         None => None,
     };
     let unread_mail = persist

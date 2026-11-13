@@ -18,7 +18,7 @@ pub mod undelivered;
 pub mod unqueued;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use fleet_target::{FleetTarget, TargetError};
 pub use team_comms::{TeamCommsDispatchRow, TeamCommsMessageRow};

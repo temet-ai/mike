@@ -5,6 +5,16 @@ use chrono::{DateTime, Utc};
 use super::{PersistError, PersistHandle};
 
 impl PersistHandle {
+    pub async fn session_last_request_at(
+        &self,
+        session_db_id: i64,
+    ) -> Result<Option<DateTime<Utc>>, PersistError> {
+        crate::metrics::time_db("session_last_request_at", async move {
+            self.latest_request_at(session_db_id).await
+        })
+        .await
+    }
+
     pub async fn latest_request_at(
         &self,
         session_db_id: i64,

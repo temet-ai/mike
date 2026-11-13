@@ -9,6 +9,8 @@ pub mod embedding_graph;
 pub mod eval;
 pub mod fleet;
 pub mod handlers;
+#[cfg(test)]
+pub mod launch_cross_crate_tests;
 pub mod launches;
 pub mod lesson_delivery;
 pub mod lesson_delivery_comparison;

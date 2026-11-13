@@ -238,6 +238,7 @@
   "api": "web",
   "cross_crate_tests": "serve",
   "features_cross_crate_tests": "knowledge",
+  "api/launch_cross_crate_tests": "state",
   "api/handlers/recall_turns_detail": "web",
   "api/handlers/search_session_scan": "web",
   "api/handlers/search_session_messages": "web",
@@ -306,6 +307,7 @@
   "api/handlers/search_session": "web",
   "api/handlers/search_unified": "web",
   "api/handlers/session_admin": "launch",
+  "api/handlers/session_narrative_llm": "steerer",
   "api/handlers/session_list": "web",
   "api/handlers/session_notes": "launch",
   "api/handlers/session_overview": "web",
@@ -564,7 +566,7 @@
   "store/persistence/session_embeddings": "knowledge",
   "store/persistence/session_end": "eval",
   "store/persistence/session_flow": "web",
-  "store/persistence/session_goals": "steerer",
+  "store/persistence/session_goals": "launch",
   "store/persistence/session_ids": "db",
   "store/persistence/session_latest": "db",
   "store/persistence/session_notes": "launch",
@@ -593,7 +595,7 @@
   "store/persistence/work_items_reconcile": "launch",
   "store/persistence/work_threads": "launch",
   "store/persistence/workflow_judge_reads": "eval",
-  "store/persistence/workspace/roster": "proxy",
+  "store/persistence/workspace/roster": "db",
   "store/persistence/wright": "web",
   "tui": "cli",
   "types": "core",
@@ -606,7 +608,6 @@
   "work_registry_worker": "launch",
   "work_threads": "launch",
   "workspace": "db",
-  "workspace/checkouts": "knowledge",
   "wright": "serve"
  },
  "schemas": {
@@ -698,7 +699,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 545,
-  "foreign_writes": 110
+  "crate_seams": 505,
+  "foreign_writes": 105
  }
 }

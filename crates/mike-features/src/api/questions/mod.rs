@@ -4,9 +4,6 @@ pub mod mail;
 pub mod resolve;
 pub mod text;
 
-#[cfg(test)]
-mod tests;
-
 pub use answer::{post_question_answer, post_question_decline};
 pub use ask::post_question;
 

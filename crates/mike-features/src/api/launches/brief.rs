@@ -32,7 +32,7 @@ pub async fn push_launch_brief(
         .await
         .map_err(persist_error_response)?;
     let pushed =
-        crate::reminders::launch_brief::deliver_launch_briefs(&state, session, &briefs).await;
+        crate::launch::brief_delivery::deliver_launch_briefs(&state, session, &briefs).await;
     Ok(Json(LaunchBriefDelivery {
         pending: briefs.len(),
         pushed,

@@ -1,15 +1,14 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use chrono::Duration;
 use uuid::Uuid;
 
-use super::tests_observation_support::{fixture, observation};
-use super::{ObservationApplyOutcome, ObservationLimits};
 use crate::runtime::{ModelCallObservation, SessionLifecycle, UsageSnapshot};
 use crate::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};
 use crate::store::persistence::rehydrate::fetch_session_summary;
+use crate::store::persistence::runtime::tests_observation_support::{fixture, observation};
+use crate::store::persistence::runtime::{ObservationApplyOutcome, ObservationLimits};
 use crate::workspace::{Liveness, RosterScope};
 
 #[tokio::test]
@@ -57,7 +56,6 @@ async fn observation_third_runtime_drives_roster_fleet_and_summary() -> anyhow::
     );
     let roster = f
         .handle
-        .proxy()
         .fetch_workspace_roster(f.project, RosterScope::Live)
         .await?;
     assert_eq!(roster[0].liveness, Liveness::Live);
@@ -163,7 +161,7 @@ async fn observation_replay_atomic_failure_and_provider_order_preserve_facts() -
     assert_eq!(facts[0].output_tokens, None);
     assert_eq!(facts[0].model_call_count, 1);
     assert_eq!(
-        f.handle.proxy().fetch_session_liveness(f.session).await?,
+        f.handle.fetch_session_liveness(f.session).await?,
         Some(Liveness::Ended)
     );
     o.observation_id = Uuid::new_v4();
@@ -171,7 +169,7 @@ async fn observation_replay_atomic_failure_and_provider_order_preserve_facts() -
     o.lifecycle = Some(SessionLifecycle::Active);
     f.handle.runtime().apply_session_observation(&o).await?;
     assert_eq!(
-        f.handle.proxy().fetch_session_liveness(f.session).await?,
+        f.handle.fetch_session_liveness(f.session).await?,
         Some(Liveness::Live)
     );
     f.cleanup().await

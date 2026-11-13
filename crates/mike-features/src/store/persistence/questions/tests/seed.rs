@@ -1,5 +1,4 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use crate::store::persistence::PersistHandle;
@@ -33,7 +32,7 @@ pub async fn session(handle: &PersistHandle) -> anyhow::Result<Uuid> {
 
 pub async fn named(handle: &PersistHandle, session: Uuid, name: &str) -> anyhow::Result<()> {
     handle
-        .steerer()
+        .launch()
         .set_session_goal(SetSessionIdentity {
             session_uuid: session,
             display_name: Some(name),

@@ -1,8 +1,17 @@
-use super::*;
+use crate::api::handlers::mailbox_dto::ThreadSummaryDto;
+use crate::api::handlers::mailbox_dto::build_identity_index;
+use crate::api::handlers::mailbox_dto::mailbox_error;
+use crate::api::handlers::mailbox_thread_dto::ListThreadsParams;
+use crate::api::handlers::mailbox_thread_dto::ThreadListResponse;
+use crate::api::handlers::mailbox_thread_dto::thread_summary_dto;
 use crate::base_state::BaseState;
 use crate::launch::state::LaunchState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::Response;
+use bytes::Bytes;
 
 use crate::api::poll_answers::{Loaded, MAILBOX_THREADS, Poll, answer_json, json_bytes};
 
@@ -149,7 +158,7 @@ async fn load_thread_list(
     params: ListThreadsParams,
 ) -> Result<Loaded<Bytes>, Response> {
     let project_ids = match params.project.as_deref() {
-        Some(path) => match handle.lessons().get_project_ids_for_path(path).await {
+        Some(path) => match handle.get_project_ids_for_path(path).await {
             Ok(ids) => Some(ids),
             Err(e) => {
                 tracing::warn!(error = %e, project = path, "list_threads: project_path resolution failed");

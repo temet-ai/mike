@@ -1,12 +1,3 @@
-//! Deliver a spawned session's launch brief as mail from mike.
-//!
-//! The brief is pushed over Remote Control, never through the mike channel:
-//! Claude Code frames a Remote Control push as a teammate's request to act
-//! on, but a channel message as untrusted external data that it will not
-//! act on (see docs/INJECTION_TRUST.md). If no Remote Control stream takes
-//! it, the mail stays queued in memory and is injected on the session's next
-//! eligible turn, which is also what makes it acknowledgeable.
-
 use uuid::Uuid;
 
 use crate::base_state::BaseState;
@@ -54,9 +45,5 @@ pub async fn deliver_launch_briefs(
 }
 
 #[cfg(test)]
-#[path = "launch_brief_tests.rs"]
+#[path = "brief_delivery_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "launch_brief_db_tests.rs"]
-pub mod db_tests;
