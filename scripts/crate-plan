@@ -18,6 +18,12 @@ the lower crate can be extracted. The scan is textual, not a compiler query.
   scripts/crate-plan --stage NAME    grade a stage's grouping (a key of `stages`)
   scripts/crate-plan --check         fail when production seams exceed the ratchet
                                      recorded in the map (ratchet.crate_seams)
+  scripts/crate-plan --files CRATE   the git mv list that extracts target crate CRATE
+  scripts/crate-plan --where         files whose package differs from the map's
+                                     "packages" entry for their crate
+
+`use super::*` and `use crate::a::*` count as references to the module they
+glob. Files named tests_*.rs count as test code.
 
 Replay: for each commit on origin/main that touched crates/mike/src, the
 crates it touched plus every crate depending on them (production references
@@ -33,12 +39,15 @@ import subprocess
 import sys
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-SRC = os.path.join(REPO, "crates", "mike", "src")
-# Crate mike's sources across the crates it has been split into so far. A file is
-# keyed by its path under its crate's src/, which is its module path; facade files
-# (generated re-exports, docs/adr/0002) carry no code of their own and are skipped.
-SRCS = [SRC] + [os.path.join(REPO, "crates", c, "src") for c in ("mike-base", "mike-features")]
-SRC_PREFIXES = ("crates/mike/src/", "crates/mike-base/src/", "crates/mike-features/src/")
+sys.path.insert(0, os.path.join(REPO, "scripts", "lib"))
+import split_crates  # noqa: E402
+
+# Crate mike's sources across the crates it has been split into so far (the map's
+# "packages"). A file is keyed by its path under its crate's src/, which is its
+# module path; a module split across crates is read as one text.
+PACKAGES = split_crates.names()
+SRCS = [os.path.join(REPO, "crates", p, "src") for p in PACKAGES]
+SRC_PREFIXES = tuple(f"crates/{p}/src/" for p in PACKAGES)
 DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
 PATH = re.compile(r"crate::(\w+(?:::\w+)*)(?!::|\w)")
 BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
@@ -87,9 +96,13 @@ class Map:
         self.rank = {c: i for i, c in enumerate(self.order)}
         self.rules = sorted(cfg["rules"].items(), key=lambda kv: -len(kv[0]))
         self.stages = cfg.get("stages", {})
+        # a target crate's name in this map (a staged map names groups)
+        self.alias = cfg.get("alias") or {c: c for c in self.order}
+        self.package_top = {p: self.alias.get(crates[-1]) for p, crates in
+                            split_crates.packages().items()}
 
     def crate_of_path(self, rel):
-        key = re.sub(r"/mod$", "", re.sub(r"\.rs$", "", rel))
+        key = re.sub(r"/mod$", "", re.sub(r"\.(rs|sql)$", "", rel))
         for prefix, crate in self.rules:
             if key == prefix or key.startswith(prefix + "/"):
                 return crate
@@ -115,15 +128,17 @@ class Map:
 def is_test(rel, text):
     base = os.path.basename(rel)
     return (re.search(r"(^|_)tests?(_\d+)?\.rs$", base) is not None
+            or base.startswith("tests_")
             or "/tests/" in rel or "#![cfg(test)]" in text[:200])
 
 
 def read_sources():
     """Module path -> source. A module present in several crates (its owner plus
     re-export facades above it) is read as one text, so the glob index still sees
-    every `pub use child::*`."""
+    every `pub use child::*`. PHYSICAL records which packages hold each file."""
     files = {}
-    for root in SRCS:
+    PHYSICAL.clear()
+    for package, root in zip(PACKAGES, SRCS):
         for directory, _, names in os.walk(root):
             for name in names:
                 if name.endswith(".rs"):
@@ -132,7 +147,20 @@ def read_sources():
                         text = handle.read()
                     rel = os.path.relpath(path, root)
                     files[rel] = files[rel] + "\n" + text if rel in files else text
+                    PHYSICAL.setdefault(rel, []).append(package)
     return files
+
+
+# file path under src/ -> the packages that hold a file at that path, filled by read_sources
+PHYSICAL = {}
+
+
+def split_module_packages(module):
+    """The packages a module's own file sits in, when that module is split across crates."""
+    for rel in ("/".join(module) + ".rs", "/".join(module) + "/mod.rs", "lib.rs" if not module else None):
+        if rel and len(PHYSICAL.get(rel, ())) > 1:
+            return PHYSICAL[rel]
+    return None
 
 
 def method_crates(cmap, files):
@@ -149,7 +177,9 @@ def method_crates(cmap, files):
 
 
 INLINE_TEST = re.compile(r"#\[cfg\(test\)\]\s*(?:#\[[^\]]*\]\s*)*mod\s+\w+\s*\{")
-RELATIVE = re.compile(r"(?<![\w:])((?:super::)+|self::)((?:\w+::)*)(\{[^{}]*\}|\w+)")
+RELATIVE = re.compile(r"(?<![\w:])((?:super::)+|self::)((?:\w+::)*)(\{[^{}]*\}|\w+|\*)")
+# `use crate::a::b::*` names every item of a::b, so it depends on a::b's crate
+CRATE_GLOB = re.compile(r"crate::((?:\w+::)+)\*")
 
 
 def module_of(rel):
@@ -176,7 +206,20 @@ def relative_refs(cmap, rel, text, inline=False):
         items = tail[1:-1].split(",") if tail.startswith("{") else [tail]
         for item in items:
             item = item.strip().split(" as ")[0].split("::")[0].strip()
-            if item and item not in ("self", "*") and head:
+            if item == "*" and head:
+                # `use super::*` imports the parent's items; a child mapped to another
+                # crate depends on the parent's crate through it. A parent split across
+                # packages resolves to its half in the child's own package: the map's
+                # crate when the package holds it, else the top of the package.
+                mapped = cmap.crate_of_modpath(head)
+                split = split_module_packages(head)
+                own = PHYSICAL.get(rel, [])
+                if split and len(own) == 1 and own[0] in split:
+                    held = {cmap.alias.get(c) for c in split_crates.packages()[own[0]]}
+                    if mapped not in held:
+                        mapped = cmap.package_top.get(own[0])
+                yield mapped, "::".join(head) + "::*"
+            elif item and item != "self" and head:
                 parts = head + [item]
                 yield cmap.crate_of_modpath(parts), "::".join(parts)
 
@@ -205,8 +248,11 @@ def file_refs(cmap, methods, text, rel=None, inline=False):
         for item in match.group(2).split(","):
             item = item.strip().split(" as ")[0].strip()
             if item and item != "self":
-                parts = [p for p in (match.group(1) + item).split("::") if p]
+                parts = [p for p in (match.group(1) + item).split("::") if p and p != "*"]
                 yield cmap.crate_of_modpath(parts), "::".join(parts)
+    for match in CRATE_GLOB.finditer(text):
+        parts = [p for p in match.group(1).split("::") if p]
+        yield cmap.crate_of_modpath(parts), "::".join(parts) + "::*"
     for match in PATH.finditer(text):
         yield cmap.crate_of_modpath(match.group(1).split("::")), match.group(1)
     for match in CALL.finditer(text):
@@ -373,7 +419,7 @@ def staged_map(cfg, groups):
         for crate in group:
             of[crate] = name
     # a stage lists its groups bottom to top; that list is the order
-    return Map({"order": names, "rules": {k: of[v] for k, v in cfg["rules"].items()}})
+    return Map({"order": names, "rules": {k: of[v] for k, v in cfg["rules"].items()}, "alias": of})
 
 
 def print_stages(cfg, files, commits):
@@ -404,6 +450,42 @@ def ratchet_check(cfg, cmap, files):
     return 0
 
 
+def package_of_crate(crate):
+    return next((p for p, crates in split_crates.packages().items() if crate in crates), None)
+
+
+def physical_files():
+    """(package, path under src/) for every .rs and .sql file of the split packages."""
+    for package, root in zip(PACKAGES, SRCS):
+        for directory, _, names in os.walk(root):
+            for name in names:
+                if name.endswith((".rs", ".sql")):
+                    yield package, os.path.relpath(os.path.join(directory, name), root)
+
+
+def print_files(cmap, crate):
+    """The git mv list that moves target crate `crate` into crates/mike-<crate>.
+    Files of a module split across packages are left out: they are edited, not moved."""
+    counts = collections.Counter(rel for _, rel in physical_files())
+    for package, rel in sorted(physical_files(), key=lambda pr: pr[1]):
+        owner = cmap.crate_of_path(rel) or cmap.crate_of_path(os.path.dirname(rel))
+        if counts[rel] > 1 or owner != crate:
+            continue
+        print(f"git mv crates/{package}/src/{rel} crates/mike-{crate}/src/{rel}")
+
+
+def print_where(cmap):
+    """Files whose package differs from the one the map's "packages" gives their crate."""
+    counts = collections.Counter(rel for _, rel in physical_files())
+    for package, rel in sorted(physical_files(), key=lambda pr: pr[1]):
+        if counts[rel] > 1 or not rel.endswith(".rs"):
+            continue
+        crate = cmap.crate_of_path(rel)
+        expected = package_of_crate(crate)
+        if expected and expected != package:
+            print(f"{rel}: in {package}, mapped to {crate} ({expected})")
+
+
 def main(argv):
     args = list(argv)
     path = DEFAULT_MAP
@@ -421,6 +503,12 @@ def main(argv):
         print("not in the map (add a rule):", " ".join(missing))
     if "--check" in args:
         return ratchet_check(cfg, cmap, files)
+    if "--files" in args:
+        print_files(cmap, args[args.index("--files") + 1])
+        return 0
+    if "--where" in args:
+        print_where(cmap)
+        return 0
     if "--stages" in args:
         print_stages(cfg, files, None)
         return 0

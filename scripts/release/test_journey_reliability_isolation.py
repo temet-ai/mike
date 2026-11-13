@@ -28,8 +28,9 @@ class SourceRoots:
     a module keeps its path under whichever crate's src/ now holds it."""
 
     def __init__(self):
-        crates = Path(__file__).resolve().parents[2] / "crates"
-        self.roots = [crates / name / "src" for name in ("mike", "mike-base", "mike-features")]
+        root = Path(__file__).resolve().parents[2]
+        crate_map = json.loads((root / "docs/adr/0002-crate-map.json").read_text())
+        self.roots = [root / "crates" / name / "src" for name in sorted(crate_map["packages"])]
 
     def file(self, relative):
         for root in self.roots:

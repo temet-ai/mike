@@ -23,10 +23,9 @@ fn guard_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 
 #[test]
 fn guard_code_has_no_delivery_path() -> anyhow::Result<()> {
-    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut files = Vec::new();
-    for name in ["mike", "mike-base", "mike-features"] {
-        let root = crates.join(name).join("src/steerer/guard");
+    for src in crate::split_crates::src_roots()? {
+        let root = src.join("steerer/guard");
         if root.is_dir() {
             guard_files(&root, &mut files)?;
         }

@@ -8,5 +8,7 @@ mod migration_checksums;
 mod outcome_single_writer;
 #[path = "schema/session_verdict_readers.rs"]
 mod session_verdict_readers;
+#[path = "common/split_crates.rs"]
+mod split_crates;
 #[path = "schema/turn_closed_path_removed.rs"]
 mod turn_closed_path_removed;

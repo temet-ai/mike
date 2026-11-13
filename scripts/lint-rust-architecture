@@ -16,6 +16,9 @@ from pathlib import Path
 import sys
 from typing import NamedTuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import split_crates  # noqa: E402
+
 
 class Token(NamedTuple):
     text: str
@@ -190,7 +193,7 @@ def axum_line(tokens: list[Token]) -> int | None:
 
 
 def module_relative(path: str) -> str:
-    return re.sub(r"^crates/mike-(?:base|features)/src/", "crates/mike/src/", path)
+    return re.sub("^" + split_crates.src_prefix_pattern(), "crates/mike/src/", path)
 
 
 def is_axum_adapter(relative: str) -> bool:

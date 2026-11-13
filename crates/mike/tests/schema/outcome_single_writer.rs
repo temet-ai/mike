@@ -7,13 +7,7 @@ const R3_PATH_WRITERS: [&str; 2] = [
     "store/persistence/turn_verdicts/insert_live.sql",
 ];
 
-fn src_roots() -> Vec<PathBuf> {
-    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    ["mike", "mike-base", "mike-features"]
-        .iter()
-        .map(|name| crates.join(name).join("src"))
-        .collect()
-}
+use crate::split_crates::src_roots;
 
 fn source_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     for entry in std::fs::read_dir(dir)? {
@@ -59,7 +53,7 @@ fn writes_outcome_id(text: &str) -> usize {
 #[test]
 fn outcome_id_has_exactly_one_writer_outside_the_r3_path() -> anyhow::Result<()> {
     let mut writers = Vec::new();
-    for root in src_roots() {
+    for root in src_roots()? {
         let mut files = Vec::new();
         source_files(&root, &mut files)?;
         for file in files {

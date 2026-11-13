@@ -41,9 +41,12 @@ def path_entry_is_fast(path, modules):
     )
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import split_crates  # noqa: E402
+
 # Crate mike and the crates split from it (docs/adr/0002): their unit-test
 # binaries share one module list because the split keeps module paths.
-SPLIT_CRATES = ("mike", "mike-base", "mike-features")
+SPLIT_CRATES = tuple(sorted(split_crates.names()))
 
 
 def db_filter(spec):
@@ -134,8 +137,19 @@ def validate_config(root, spec):
     return errors
 
 
+def write_config(root, spec):
+    """Rewrites every copy of the DB partition in nextest.toml to the one the spec and
+    the crate list give, e.g. after a crate is added to the map's "packages"."""
+    path = root / ".config/nextest.toml"
+    text = path.read_text()
+    current = tomllib.loads(text)["profile"]["db"]["default-filter"]
+    path.write_text(text.replace(json.dumps(current), json.dumps(db_filter(spec))))
+
+
 def main(args):
     spec = json.loads((ROOT / ".config/test-tiers.json").read_text())
+    if "--write" in args:
+        write_config(ROOT, spec)
     errors, records = inspect(ROOT, spec)
     errors.extend(validate_config(ROOT, spec))
     if "--require-db" in args and not os.environ.get("MIKE_TEST_ADMIN_URL", "").strip():
