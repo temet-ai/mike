@@ -25,6 +25,7 @@ pub mod session_lookup;
 #[cfg(any(test, feature = "test-seams"))]
 pub use helpers::*;
 
+use super::models::{RequestStatus, SystemPromptObservation};
 use crate::types::RequestParams;
 
 pub fn make_test_request(id_override: Option<RequestId>, session_id: &str) -> InterceptedRequest {
