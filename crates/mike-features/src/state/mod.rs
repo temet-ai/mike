@@ -1,35 +1,25 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI64, AtomicU64};
 
 use arc_swap::ArcSwap;
-use metrics_exporter_prometheus::PrometheusHandle;
-use tokio::sync::{RwLock, broadcast};
-use tokio_util::sync::CancellationToken;
-use tokio_util::task::TaskTracker;
 
 use crate::analysis::{AnalyzerRegistry, EmbeddingService};
 use crate::compose_prompt::ComposerService;
+use crate::feature_toggles::SessionToggleCache;
 use crate::feature_toggles::service::FeatureToggleService;
-use crate::feature_toggles::{FeatureToggles, SessionToggleCache};
 use crate::filter::service::FilterService;
-use crate::llm::LlmUsageSink;
-use crate::settings::SettingsOverlay;
 use crate::settings::service::SettingsService;
 use crate::steerer::registry::SteererRegistry;
 use crate::steerer::service::SteeringService;
-use crate::store::RequestStore;
-use crate::store::models::ProxyEvent;
-use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::RegisteredWorkspaceSession;
-use crate::store::retention::RetentionPolicy;
 
-use crate::config::ProxyConfig;
+pub use crate::base_state::{BaseState, MailPush, NoMailPush, PushFuture};
 
 pub mod accessors;
 pub mod construction;
 pub mod construction_llm;
 pub mod construction_pipeline;
 pub mod construction_services;
+pub mod mail_push;
 #[cfg(test)]
 mod tests;
 
@@ -47,22 +37,10 @@ pub use client_serves::serve_every_stage_for_tests;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub store: Arc<RwLock<RequestStore>>,
-    pub client: reqwest::Client,
-    pub event_tx: broadcast::Sender<ProxyEvent>,
-    pub config: Arc<ProxyConfig>,
-    pub shutdown: CancellationToken,
-    pub tracker: TaskTracker,
+    pub base: BaseState,
     pub remote_control_streams: crate::proxy::remote_control::ReplyStreams,
     pub remote_control_writers: crate::proxy::remote_control::capture::CallWriters,
-    pub retention: RetentionPolicy,
-    pub request_count: Arc<AtomicU64>,
-    pub last_request_at_unix: Arc<AtomicI64>,
-    pub last_capturable_request_at_unix: Arc<AtomicI64>,
-    pub started_at: std::time::Instant,
-    pub metrics_handle: PrometheusHandle,
     pub analyzer_registry: Arc<ArcSwap<AnalyzerRegistry>>,
-    pub persist: Option<PersistHandle>,
     pub filter_config: Arc<ArcSwap<crate::filter::FilterConfig>>,
     pub filter_service: Option<Arc<FilterService>>,
     pub system_replay: Arc<crate::filter::replay::ReplayRegistry>,
@@ -71,23 +49,17 @@ pub struct AppState {
     pub embedding_service: EmbeddingService,
     pub rerank_service: crate::analysis::RerankService,
     pub semantic: crate::semantic::SemanticHandle,
-    pub in_flight: Arc<crate::in_flight::InFlightRegistry>,
     pub shed_registry: Arc<crate::memory_cap::ShedRegistry>,
     pub capture_admission_throttled: Arc<std::sync::atomic::AtomicBool>,
     pub lesson_cache: crate::lesson_worker::LessonCache,
     pub keeper_snapshot: crate::memory_keeper::snapshot::KeeperCache,
-    pub change_feed: crate::change_feed::ChangeFeed,
     pub poll_answers: crate::api::poll_answers::PollAnswers,
 
     pub steerer_registry: Arc<ArcSwap<SteererRegistry>>,
 
     pub steerer_service: Option<Arc<SteeringService>>,
 
-    pub feature_toggle_overlay: Arc<ArcSwap<FeatureToggles>>,
-
     pub feature_toggle_service: Option<Arc<FeatureToggleService>>,
-
-    pub settings_overlay: Arc<ArcSwap<SettingsOverlay>>,
 
     pub settings_service: Option<Arc<SettingsService>>,
 
@@ -109,8 +81,6 @@ pub struct AppState {
 
     pub change_record_tail_served: Arc<dashmap::DashSet<String>>,
 
-    pub host_machine_uuid: Arc<tokio::sync::OnceCell<uuid::Uuid>>,
-
     pub model_catalogue: Arc<crate::steerer::model_catalogue::ModelCatalogue>,
 
     pub openrouter_usage_cache: Arc<crate::api::usage::OpenRouterUsageCache>,
@@ -119,13 +89,29 @@ pub struct AppState {
 
     pub judge_llm: Option<crate::llm::OpenRouterClient>,
 
-    pub llm_usage_sink: Option<Arc<dyn LlmUsageSink>>,
-
-    pub steerer_openrouter_key: crate::llm::key::OpenRouterKeySlot,
-
     pub anthropic_api_key: crate::llm::key::AnthropicKeySlot,
 
     pub service_token: crate::service_token::ServiceToken,
 
     pub anthropic_cli: crate::anthropic_cli::AnthropicCliState,
+}
+
+impl std::ops::Deref for AppState {
+    type Target = BaseState;
+
+    fn deref(&self) -> &BaseState {
+        &self.base
+    }
+}
+
+impl std::ops::DerefMut for AppState {
+    fn deref_mut(&mut self) -> &mut BaseState {
+        &mut self.base
+    }
+}
+
+impl axum::extract::FromRef<AppState> for BaseState {
+    fn from_ref(state: &AppState) -> BaseState {
+        state.base.clone()
+    }
 }
