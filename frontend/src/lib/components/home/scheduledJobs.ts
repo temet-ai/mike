@@ -150,7 +150,10 @@ function lastRanLine(job: ScheduledJob, status: JobStatus, now: number): string 
 			: job.last_trigger === 'schedule'
 				? ' · on schedule'
 				: '';
-	return `${running ? 'started' : 'ran'} ${relativeTime(startedIso, now)}${by}`;
+	// A run stamped later than now (clock skew, a stale clock) reads as just now, never "in 2h".
+	const startedMs = parseIso(startedIso)?.getTime() ?? now;
+	const when = startedMs > now ? 'just now' : relativeTime(startedIso, now);
+	return `${running ? 'started' : 'ran'} ${when}${by}`;
 }
 
 function nextLine(job: ScheduledJob, status: JobStatus, ctx: RowContext): string {

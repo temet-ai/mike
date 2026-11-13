@@ -76,6 +76,13 @@ describe('rowView', () => {
 		expect(view.next).toBe('next 14:00 · in 2h');
 	});
 
+	it('reads a run stamped later than now as just now, never "ran in"', () => {
+		const future = job({ last_started_at: at(2 * 3_600_000) });
+		expect(rowView(future, ctx).lastRan).toBe('ran just now · on schedule');
+		const running = job({ running_since: at(5_000), last_started_at: at(5_000) });
+		expect(rowView(running, ctx).lastRan).toBe('started just now · on schedule');
+	});
+
 	it('names the weekday for a weekly job', () => {
 		const audit = realJob('learning_audit');
 		expect(rowView(audit, ctx).next).toBe('next Mon 03:00 · in 2d');

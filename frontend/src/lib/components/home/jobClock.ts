@@ -18,6 +18,15 @@ export interface Segment {
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 export const clock = (hour: number, minute: number): string => `${pad2(hour)}:${pad2(minute)}`;
 
+/** Gridlines every three hours across the axis, in percent; the fifth is 00:00 UTC. */
+export const GRID_PERCENTS = [0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
+
+/** Where the current moment sits on the axis, in percent. */
+export function nowPercent(now: number): number {
+	const d = new Date(now);
+	return axisPercent(d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60);
+}
+
 /** Position on the axis, in percent, of a UTC time of day in minutes. */
 export function axisPercent(minuteOfDay: number): number {
 	return (((((minuteOfDay - AXIS_START_MIN) % DAY_MIN) + DAY_MIN) % DAY_MIN) / DAY_MIN) * 100;

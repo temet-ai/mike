@@ -166,9 +166,22 @@ const SPECS: Spec[] = [
 ];
 
 const MIN = 60_000;
+const DAY = 86_400_000;
 
-function build(spec: Spec): ScheduledJob {
-	const start = Date.parse(spec.lastStart);
+/** Last run and next run of a spec as of `now`: a run later than `now` moves back whole periods. */
+function relativeTo(spec: Spec, now: number): { start: number; next: string } {
+	const period = spec.window.period === 'week' ? 7 * DAY : DAY;
+	let start = Date.parse(spec.lastStart);
+	let next = Date.parse(spec.next);
+	while (start > now) {
+		start -= period;
+		next -= period;
+	}
+	return { start, next: new Date(next).toISOString() };
+}
+
+function build(spec: Spec, now: number): ScheduledJob {
+	const { start, next } = relativeTo(spec, now);
 	return {
 		id: spec.id,
 		label: spec.label,
@@ -182,7 +195,7 @@ function build(spec: Spec): ScheduledJob {
 		last_finished_at: new Date(start + spec.minutes * MIN).toISOString(),
 		last_exit_code: 0,
 		last_output_tail: null,
-		next_run_at: spec.next,
+		next_run_at: next,
 		running_since: null,
 		run_requested_at: null,
 		last_trigger: 'schedule',
@@ -195,21 +208,28 @@ function build(spec: Spec): ScheduledJob {
 	};
 }
 
-/** The nine real jobs, healthy as of NOW_DAY. */
-export function realJobs(): ScheduledJob[] {
-	return SPECS.map(build);
+/** The nine real jobs, healthy as of `now` (NOW_DAY by default); no run is later than `now`. */
+export function realJobs(now: number = NOW_DAY): ScheduledJob[] {
+	return SPECS.map((spec) => build(spec, now));
 }
 
 /** One of the nine, with changes. */
-export function realJob(id: string, overrides: Partial<ScheduledJob> = {}): ScheduledJob {
+export function realJob(
+	id: string,
+	overrides: Partial<ScheduledJob> = {},
+	now: number = NOW_DAY
+): ScheduledJob {
 	const spec = SPECS.find((s) => s.id === id);
 	if (!spec) throw new Error(`no fixture job ${id}`);
-	return { ...build(spec), ...overrides };
+	return { ...build(spec, now), ...overrides };
 }
 
 /** The nine jobs with some replaced by id. */
-export function realJobsWith(changes: Record<string, Partial<ScheduledJob>>): ScheduledJob[] {
-	return SPECS.map((spec) => ({ ...build(spec), ...changes[spec.id] }));
+export function realJobsWith(
+	changes: Record<string, Partial<ScheduledJob>>,
+	now: number = NOW_DAY
+): ScheduledJob[] {
+	return SPECS.map((spec) => ({ ...build(spec, now), ...changes[spec.id] }));
 }
 
 export const iso = (ms: number): string => new Date(ms).toISOString();

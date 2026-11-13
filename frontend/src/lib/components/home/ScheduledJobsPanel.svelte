@@ -174,7 +174,7 @@
 			{/snippet}
 			<div class="sj-wrap">
 				<div class="sj-list" data-slot="scheduled-jobs-list">
-					<ScheduledJobsAxis {now} {timeZone} {highlight} />
+					<ScheduledJobsAxis {now} {timeZone} />
 					{#each groups as group (group.key)}
 						<section class="sj-group" data-slot="scheduled-jobs-group" data-group={group.key}>
 							<h4 class="sj-group-title">{group.label}</h4>
@@ -193,6 +193,7 @@
 										switchPending={switching.get(job.id) ?? null}
 										switchError={switchErrors.get(job.id) ?? null}
 										onSetEnabled={(on) => void changeEnabled(job, on)}
+										{highlight}
 										onLaneHover={(segments) => (highlight = segments)}
 									/>
 								{/each}

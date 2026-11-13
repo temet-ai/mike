@@ -1,7 +1,15 @@
 <script lang="ts">
 	import type { ScheduledJob } from '$lib/api/scheduledJobs';
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
-	import { describeLane, hoverSegments, runStrip, windowShape, type Segment } from './jobClock';
+	import {
+		GRID_PERCENTS,
+		describeLane,
+		hoverSegments,
+		nowPercent,
+		runStrip,
+		windowShape,
+		type Segment
+	} from './jobClock';
 	import type { LaneTone } from './scheduledJobs';
 
 	interface Props {
@@ -9,11 +17,15 @@
 		tone: LaneTone;
 		now: number;
 		timeZone: string;
+		/** Stretches of the axis to light up: what runs with the hovered job. */
+		highlight?: Segment[];
 		/** Reports the stretches of the axis this job runs in while the pointer is over the lane. */
 		onHover?: (segments: Segment[]) => void;
 	}
 
-	const { job, tone, now, timeZone, onHover }: Props = $props();
+	const { job, tone, now, timeZone, highlight = [], onHover }: Props = $props();
+
+	const nowLeft = $derived(nowPercent(now));
 
 	const shape = $derived(windowShape(job.window));
 	const strip = $derived(runStrip(job, now));
@@ -32,6 +44,27 @@
 			onpointerenter={() => onHover?.(hoverSegments(job.window))}
 			onpointerleave={() => onHover?.([])}
 		>
+			<div class="sj-grid" data-slot="scheduled-jobs-grid" aria-hidden="true">
+				{#each GRID_PERCENTS as p, i (i)}
+					<span
+						class="sj-gridline"
+						data-midnight={i === 4 ? '' : undefined}
+						style="left: calc({p}% - {p / 100}px)"
+					></span>
+				{/each}
+				{#each highlight as seg, i (i)}
+					<span
+						class="sj-highlight"
+						data-slot="scheduled-jobs-highlight"
+						style="left: {seg.left}%; width: {seg.width}%"
+					></span>
+				{/each}
+				<span
+					class="sj-now"
+					data-slot="scheduled-jobs-now"
+					style="left: calc({nowLeft}% - {nowLeft / 100}px)"
+				></span>
+			</div>
 			{#if shape.kind === 'none'}
 				<span class="sj-lane-none" data-slot="scheduled-job-lane-none">—</span>
 			{:else}
@@ -97,6 +130,29 @@
 		transform: translateY(-50%);
 		color: var(--text-3);
 		font-size: var(--text-sm);
+	}
+	.sj-grid {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+	.sj-gridline,
+	.sj-now {
+		position: absolute;
+		inset-block: 0;
+		inline-size: var(--hairline);
+		background: var(--border-subtle);
+	}
+	.sj-gridline[data-midnight] {
+		background: var(--border-default);
+	}
+	.sj-now {
+		background: var(--signal-active);
+	}
+	.sj-highlight {
+		position: absolute;
+		inset-block: 0;
+		background: var(--interactive-hover-surface);
 	}
 	.sj-track {
 		position: absolute;

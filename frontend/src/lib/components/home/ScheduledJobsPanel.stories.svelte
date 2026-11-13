@@ -86,7 +86,27 @@
 	const row = (root: HTMLElement, id: string): HTMLElement =>
 		root.querySelector(`[data-job-id="${id}"]`) as HTMLElement;
 	const box = (el: Element): DOMRect => el.getBoundingClientRect();
-	const pct = (el: HTMLElement, prop: 'left' | 'width'): number => parseFloat(el.style[prop]);
+	/** The percentage in a style value such as "61.1%" or "calc(61.1% - 0.6px)". */
+	const pct = (el: HTMLElement, prop: 'left' | 'width'): number =>
+		parseFloat(/-?[\d.]+(?=%)/.exec(el.style[prop])?.[0] ?? 'NaN');
+
+	/** Gridlines and the now line live inside lanes, so they never cross a name, a time or a control. */
+	async function expectGridInsideLanes(root: HTMLElement): Promise<void> {
+		const marks = root.querySelectorAll(
+			'[data-slot="scheduled-jobs-now"], .sj-gridline, [data-slot="scheduled-jobs-highlight"]'
+		);
+		await expect(marks.length).toBeGreaterThan(0);
+		for (const mark of marks) {
+			const lane = mark.closest('[data-slot="scheduled-job-lane"]');
+			await expect(lane).not.toBeNull();
+			const m = mark.getBoundingClientRect();
+			const l = (lane as Element).getBoundingClientRect();
+			await expect(m.left).toBeGreaterThanOrEqual(l.left - 0.5);
+			await expect(m.right).toBeLessThanOrEqual(l.right + 0.5);
+			await expect(m.top).toBeGreaterThanOrEqual(l.top - 0.5);
+			await expect(m.bottom).toBeLessThanOrEqual(l.bottom + 0.5);
+		}
+	}
 
 	const { Story } = defineMeta({
 		title: 'Home/ScheduledJobsPanel',
@@ -148,6 +168,7 @@
 		await expect(pct(relations, 'left')).toBeCloseTo(41.67, 1);
 		await expect(pct(relations, 'width')).toBeCloseTo(8.33, 1);
 		await expect(canvas.getAllByText('ok')).toHaveLength(9);
+		await expectGridInsideLanes(canvasElement);
 		const loopLinks = canvas.getAllByRole('link', { name: 'See it in the loop' });
 		await expect(loopLinks).toHaveLength(5);
 		await expect(loopLinks[0]).toHaveAttribute('href', expect.stringMatching(/\/memory$/));
@@ -171,22 +192,25 @@
 	args={{
 		now: NOW_NIGHT,
 		load: respond(
-			realJobsWith({
-				learning_promote: {
-					last_started_at: '2026-11-13T02:30:00Z',
-					last_finished_at: '2026-11-13T02:33:00Z'
+			realJobsWith(
+				{
+					learning_promote: {
+						last_started_at: '2026-11-13T02:30:00Z',
+						last_finished_at: '2026-11-13T02:33:00Z'
+					},
+					cargo_sweep: {
+						last_started_at: '2026-11-13T00:00:00Z',
+						last_finished_at: '2026-11-13T00:02:00Z'
+					},
+					nightly_tests: {
+						state: 'running',
+						last_started_at: '2026-11-13T02:00:00Z',
+						last_finished_at: null,
+						running_since: '2026-11-13T02:00:00Z'
+					}
 				},
-				cargo_sweep: {
-					last_started_at: '2026-11-13T00:00:00Z',
-					last_finished_at: '2026-11-13T00:02:00Z'
-				},
-				nightly_tests: {
-					state: 'running',
-					last_started_at: '2026-11-13T02:00:00Z',
-					last_finished_at: null,
-					running_since: '2026-11-13T02:00:00Z'
-				}
-			})
+				NOW_NIGHT
+			)
 		),
 		timeZone: TIME_ZONE,
 		runJob: fn(),
@@ -210,6 +234,11 @@
 		const run = canvas.getByRole('button', { name: 'Run Nightly full Rust test run now' });
 		await expect(run).toBeDisabled();
 		await expect(run.querySelector('[data-motion~="wait-spin"]')).toBeNull();
+		// No run is later than the clock: no row reads "ran in 2h".
+		for (const li of canvasElement.querySelectorAll('[data-slot="scheduled-job"]')) {
+			await expect(li.textContent).not.toContain('ran in');
+		}
+		await expectGridInsideLanes(canvasElement);
 	}}
 >
 	{#snippet template(args)}
@@ -679,6 +708,7 @@
 		await canvas.findByText('Learning and memory');
 		const panel = canvasElement.querySelector('[data-slot="scheduled-jobs"]') as HTMLElement;
 		await expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+		await expectGridInsideLanes(canvasElement);
 		const visible = [...canvasElement.querySelectorAll('[data-slot="axis-utc"]')].filter(
 			(el) => getComputedStyle(el).display !== 'none'
 		);

@@ -1,31 +1,17 @@
 <script lang="ts">
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
-	import {
-		AXIS_TICKS_WIDE,
-		axisLabels,
-		axisPercent,
-		offsetLabel,
-		offsetMinutes,
-		type Segment
-	} from './jobClock';
+	import { AXIS_TICKS_WIDE, axisLabels, offsetLabel, offsetMinutes } from './jobClock';
 
 	interface Props {
 		now: number;
 		timeZone: string;
-		/** Stretches of the axis to light up: what runs with the hovered job. */
-		highlight?: Segment[];
 	}
 
-	const { now, timeZone, highlight = [] }: Props = $props();
+	const { now, timeZone }: Props = $props();
 
 	const labels = $derived(axisLabels(now, timeZone, AXIS_TICKS_WIDE));
 	const offset = $derived(offsetMinutes(now, timeZone));
 	const showLocal = $derived(offset !== 0);
-	const nowMinute = $derived.by(() => {
-		const d = new Date(now);
-		return d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60;
-	});
-	const nowLeft = $derived(axisPercent(nowMinute));
 	const zoneTip = $derived(`Your browser's time zone: ${timeZone}, ${offsetLabel(offset)}.`);
 
 	function tickClass(i: number): string {
@@ -72,24 +58,6 @@
 			</div>
 		{/if}
 	</div>
-</div>
-
-<div class="sj-grid" data-slot="scheduled-jobs-grid" aria-hidden="true">
-	{#each labels as label, i (i)}
-		<span
-			class="sj-gridline"
-			data-midnight={i === 4 ? '' : undefined}
-			style="left: {label.percent}%"
-		></span>
-	{/each}
-	{#each highlight as seg, i (i)}
-		<span
-			class="sj-highlight"
-			data-slot="scheduled-jobs-highlight"
-			style="left: {seg.left}%; width: {seg.width}%"
-		></span>
-	{/each}
-	<span class="sj-now" data-slot="scheduled-jobs-now" style="left: {nowLeft}%"></span>
 </div>
 
 <style>
@@ -142,31 +110,6 @@
 		}
 	}
 
-	.sj-grid {
-		position: absolute;
-		inset-block: 0;
-		inset-inline: var(--space-3);
-		pointer-events: none;
-	}
-	.sj-gridline,
-	.sj-now {
-		position: absolute;
-		inset-block: 0;
-		inline-size: var(--hairline);
-		background: var(--border-subtle);
-	}
-	.sj-gridline[data-midnight] {
-		background: var(--border-default);
-	}
-	.sj-now {
-		background: var(--signal-active);
-	}
-	.sj-highlight {
-		position: absolute;
-		inset-block: 0;
-		background: var(--interactive-hover-surface);
-	}
-
 	@container (min-width: 64rem) {
 		.sj-axis {
 			grid-column: 1 / -1;
@@ -183,10 +126,6 @@
 			text-align: right;
 		}
 		.sj-labels {
-			grid-column: 3;
-		}
-		.sj-grid {
-			inset-inline: 0;
 			grid-column: 3;
 		}
 	}

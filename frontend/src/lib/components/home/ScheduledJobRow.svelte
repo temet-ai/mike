@@ -28,6 +28,8 @@
 		/** Why the last switch change was refused; replaces the next-run line. */
 		switchError?: string | null;
 		onSetEnabled?: (on: boolean) => void;
+		/** What runs with the hovered job; lit in every lane. */
+		highlight?: Segment[];
 		onLaneHover?: (segments: Segment[]) => void;
 	}
 
@@ -44,6 +46,7 @@
 		switchPending = null,
 		switchError = null,
 		onSetEnabled,
+		highlight = [],
 		onLaneHover
 	}: Props = $props();
 
@@ -114,7 +117,14 @@
 		</Tooltip>
 	</span>
 	<div class="sj-lane-cell">
-		<ScheduledJobLane {job} tone={view.laneTone} {now} {timeZone} onHover={onLaneHover} />
+		<ScheduledJobLane
+			{job}
+			tone={view.laneTone}
+			{now}
+			{timeZone}
+			{highlight}
+			onHover={onLaneHover}
+		/>
 	</div>
 	<div class="sj-when" data-slot="scheduled-job-when">
 		<span class="sj-when-last" data-slot="scheduled-job-last">{view.lastRan}</span>
