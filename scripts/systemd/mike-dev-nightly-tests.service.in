@@ -1,0 +1,14 @@
+[Unit]
+Description=mike development: every Rust test tier at origin/main
+Documentation=file://@PROJECT_ROOT@/docs/DEVELOPMENT.md
+
+[Service]
+Type=oneshot
+WorkingDirectory=@PROJECT_ROOT@
+Environment=PATH=@PATH@
+UnsetEnvironment=CARGO_TARGET_DIR CLAUDE_CODE_SESSION_ID
+Nice=10
+TimeoutStartSec=3h
+ExecStart=@PROJECT_ROOT@/scripts/nightly-tests
+StandardOutput=append:@PROJECT_ROOT@/.deploy/nightly-tests.log
+StandardError=append:@PROJECT_ROOT@/.deploy/nightly-tests.log

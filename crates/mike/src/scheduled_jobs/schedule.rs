@@ -159,7 +159,7 @@ mod schedule_restore_tests;
 #[cfg(test)]
 mod tests {
     use super::super::jobs::{
-        AUDIT, CARGO_SWEEP, COMPRESSOR_LOOP, LESSONS_COMMIT, PROMOTE, USAGE_AUDIT,
+        AUDIT, COMPRESSOR_LOOP, LESSONS_COMMIT, PROMOTE, SIX_HOURLY_FIXTURE, USAGE_AUDIT,
     };
     use super::*;
     use chrono::TimeZone;
@@ -179,9 +179,9 @@ mod tests {
     }
 
     #[test]
-    fn cargo_sweep_runs_on_the_hour_every_six_hours() {
+    fn a_six_hourly_job_runs_on_the_hour_every_six_hours() {
         let schedule = Schedule::default();
-        let cadence = &CARGO_SWEEP.cadence;
+        let cadence = &SIX_HOURLY_FIXTURE.cadence;
         for hour in [0, 6, 12, 18] {
             assert!(schedule.due(cadence, at(14, hour, 0)), "hour {hour}");
         }
@@ -258,7 +258,7 @@ mod tests {
             Some(at(19, 1, 0))
         );
         assert_eq!(
-            CARGO_SWEEP.cadence.next_due_after(at(14, 18, 0)),
+            SIX_HOURLY_FIXTURE.cadence.next_due_after(at(14, 18, 0)),
             Some(at(15, 0, 0))
         );
     }

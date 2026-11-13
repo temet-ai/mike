@@ -53,8 +53,8 @@ async fn run_now_without_the_app_origin_is_forbidden_and_queues_nothing() -> any
 async fn run_now_while_the_job_runs_is_a_conflict_saying_so() -> anyhow::Result<()> {
     let mut running = ready();
     running.running_since = Some(chrono::Utc::now());
-    replace_for_tests("cargo_sweep", &running);
-    let (status, body) = post(from_app(), "cargo_sweep").await?;
+    replace_for_tests("lessons_commit", &running);
+    let (status, body) = post(from_app(), "lessons_commit").await?;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["reason"], "already_running");
     let message = body["error"].as_str().unwrap_or_default();

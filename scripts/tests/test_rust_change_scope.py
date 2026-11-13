@@ -62,7 +62,7 @@ class RustChangeScopeTests(unittest.TestCase):
             target = self.root / file
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPO / file, target)
-        for name in ["cx", "lint-rust"]:
+        for name in ["cx", "lint-rust", "crate-plan", "schema-plan"]:
             target = self.write(f"scripts/{name}", '#!/usr/bin/env python3\nimport json, pathlib, sys\nwith (pathlib.Path(__file__).parent / "calls.jsonl").open("a") as out:\n    out.write(json.dumps([pathlib.Path(__file__).name, *sys.argv[1:]]) + "\\n")\n')
             target.chmod(0o755)
         self.git("add", ".")

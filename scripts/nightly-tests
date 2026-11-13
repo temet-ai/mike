@@ -4,9 +4,9 @@
 #
 # The pre-push hook runs only the tests of the areas a push changed
 # (scripts/test-area), not each crate's whole fast tier, so a change that breaks
-# a test in an area it never touched is caught here instead. The scheduled job
-# nightly_tests runs this script; it is off by default and is turned on, in
-# /settings under Scheduled jobs, on the one machine that should carry the run.
+# a test in an area it never touched is caught here instead. The systemd user
+# timer mike-dev-nightly-tests runs this script; start-proxy.sh enables it only
+# where .env sets MIKE_DEV_NIGHTLY_TESTS=1, the one machine that carries the run.
 #
 # The worktree (MIKE_NIGHTLY_DIR, default <checkout>/.claude/worktrees/nightly) is
 # kept between runs, so its target/ stays warm and only what main changed since

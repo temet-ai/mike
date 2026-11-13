@@ -79,7 +79,8 @@ checkout only.
    the push changed, in every tier) for what the push changed, plus the crates' whole
    fast tier when a change belongs to no area (manifests, lockfile, build scripts,
    crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the
-   `nightly_tests` scheduled job). Don't run `test-area` yourself first, and never run
+   `mike-dev-nightly-tests` systemd user timer on the machine whose `.env` sets
+   `MIKE_DEV_NIGHTLY_TESTS=1`). Don't run `test-area` yourself first, and never run
    the full suite. What CI would add when it runs is in
    [`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
 5. If the push fails, fix every failure the log shows, rerun only the failed step, and

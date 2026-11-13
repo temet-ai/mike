@@ -1,0 +1,14 @@
+[Unit]
+Description=mike development: sweep idle Rust build folders on this machine
+Documentation=file://@PROJECT_ROOT@/docs/DEVELOPMENT.md
+
+[Service]
+Type=oneshot
+WorkingDirectory=@PROJECT_ROOT@
+Environment=PATH=@PATH@
+UnsetEnvironment=CARGO_TARGET_DIR CLAUDE_CODE_SESSION_ID
+Nice=19
+TimeoutStartSec=30min
+ExecStart=@PROJECT_ROOT@/scripts/cargo-sweep-all
+StandardOutput=append:@PROJECT_ROOT@/.deploy/cargo-sweep.log
+StandardError=append:@PROJECT_ROOT@/.deploy/cargo-sweep.log

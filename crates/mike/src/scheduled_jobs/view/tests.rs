@@ -1,4 +1,4 @@
-use super::super::jobs::{AUDIT, CARGO_SWEEP, PROMOTE, USAGE_AUDIT};
+use super::super::jobs::{AUDIT, PROMOTE, SIX_HOURLY_FIXTURE, USAGE_AUDIT};
 use super::*;
 use crate::scheduled_jobs::status::Trigger;
 use chrono::TimeZone;
@@ -253,9 +253,12 @@ fn a_job_between_windows_is_not_overdue() {
     let mut sweep = ready();
     sweep.last_started_at = Some(at(14, 6, 0));
     sweep.last_run = Some(ran(at(14, 6, 5), RunResult::Succeeded));
-    assert_eq!(state_of(&CARGO_SWEEP, &sweep, at(14, 9, 0)), JobState::Ok);
     assert_eq!(
-        state_of(&CARGO_SWEEP, &sweep, at(14, 13, 30)),
+        state_of(&SIX_HOURLY_FIXTURE, &sweep, at(14, 9, 0)),
+        JobState::Ok
+    );
+    assert_eq!(
+        state_of(&SIX_HOURLY_FIXTURE, &sweep, at(14, 13, 30)),
         JobState::Overdue
     );
 }
@@ -323,8 +326,6 @@ fn the_view_carries_each_jobs_group_and_utc_window() -> anyhow::Result<()> {
     assert_eq!(value["window"]["period"], "hour");
     assert_eq!(value["window"]["minute"], 30);
     assert_eq!(value["window"]["hours_utc"][0], 20);
-    let sweep = serde_json::to_value(build_view(&CARGO_SWEEP, &ready(), None, at(14, 12, 0)))?;
-    assert_eq!(sweep["group"], "builds_and_tests");
     let audit = serde_json::to_value(build_view(&USAGE_AUDIT, &ready(), None, at(14, 12, 0)))?;
     assert_eq!(audit["group"], "measurement");
     assert_eq!(audit["window"]["weekday"], "Sun");
@@ -364,9 +365,13 @@ fn without_scripts() -> JobStatus {
 fn a_job_without_a_scripts_folder_is_unavailable_and_not_scheduled() {
     let mut status = without_scripts();
     status.next_run_at = Some(at(14, 18, 0));
-    let v = build_view(&CARGO_SWEEP, &status, None, at(14, 12, 0));
+    let v = build_view(&SIX_HOURLY_FIXTURE, &status, None, at(14, 12, 0));
     assert_eq!(v.state, JobState::Unavailable);
-    assert!(v.detail.contains("scripts/cargo-sweep-all"), "{}", v.detail);
+    assert!(
+        v.detail.contains("scripts/six-hourly-fixture"),
+        "{}",
+        v.detail
+    );
     assert!(v.detail.contains("/srv/mike"), "{}", v.detail);
     assert!(v.fix.is_empty(), "{}", v.fix);
     assert_eq!(v.next_run_at, None);
@@ -378,11 +383,11 @@ fn earlier_failed_runs_do_not_make_a_job_without_a_scripts_folder_failing() {
     status.last_started_at = Some(at(14, 6, 0));
     status.last_run = Some(ran(
         at(14, 6, 0),
-        RunResult::Unrunnable("scripts/cargo-sweep-all does not exist".to_owned()),
+        RunResult::Unrunnable("scripts/six-hourly-fixture does not exist".to_owned()),
     ));
     status.consecutive_failures = 5;
     assert_eq!(
-        state_of(&CARGO_SWEEP, &status, at(14, 12, 0)),
+        state_of(&SIX_HOURLY_FIXTURE, &status, at(14, 12, 0)),
         JobState::Unavailable
     );
 }

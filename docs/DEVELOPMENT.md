@@ -18,8 +18,8 @@ Make the change, run one narrow check of what you changed, commit. The pre-push 
 fmt, clippy, `scripts/lint-rust` and `scripts/test-area` (the tests of every area the push
 changed, in every tier), and each crate's whole fast tier only for a change no area owns, so
 run `git push` in the background. Do not run them yourself per change. The full suite runs
-nightly on one machine (`scripts/nightly-tests`, the `nightly_tests` scheduled job, off until
-turned on in /settings), and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
+nightly on one machine (`scripts/nightly-tests`, the `mike-dev-nightly-tests` systemd user
+timer, which `start-proxy.sh` enables where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`), and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
 what runs when.
 
 | Changed | The one check |
@@ -62,10 +62,10 @@ under `~/projects` and `~/.cache`, including worktrees. Existing interval and si
 settings are preserved; a new installation uses a 25 GiB per-directory cap and
 reports failure if free space remains below 30 GiB.
 
-The LaunchAgent runs independently of Mike's working directory. An installed
-Mike started from its state directory cannot run checkout-relative scheduler
-scripts; an enabled `cargo_sweep` setting alone does not prove cleanup is running.
-Check `launchctl print gui/$(id -u)/com.dawiddutoit.cargo-sweep` for the last exit
+The LaunchAgent runs independently of Mike's working directory. On Linux the sweep
+is the `mike-dev-cargo-sweep` systemd user timer, which `start-proxy.sh` installs
+every six hours; it is development tooling, not a mike scheduled job. On the Mac,
+check `launchctl print gui/$(id -u)/com.dawiddutoit.cargo-sweep` for the last exit
 status, and `~/.local/state/mike/cargo-sweep/sweep.log` for the directories and sizes
 actually swept. The installer keeps backups alongside the log.
 

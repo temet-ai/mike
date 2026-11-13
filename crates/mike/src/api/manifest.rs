@@ -312,11 +312,9 @@ mod tests {
                 "learning_promote",
                 "learning_audit",
                 "compressor_loop",
-                "cargo_sweep",
                 "lessons_commit",
                 "usage_audit",
                 "lesson_relations",
-                "nightly_tests",
                 "memory_review"
             ]
         );

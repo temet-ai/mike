@@ -115,7 +115,7 @@ fn request_for_an_unknown_job_names_it_and_the_known_jobs() -> anyhow::Result<()
         refusal.message
     );
     assert!(
-        refusal.message.contains("cargo_sweep"),
+        refusal.message.contains("usage_audit"),
         "{}",
         refusal.message
     );
