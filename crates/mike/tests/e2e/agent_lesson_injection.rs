@@ -43,6 +43,7 @@ async fn boot_proxy(
     config.upstream_url = upstream_url.to_string();
 
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await?;

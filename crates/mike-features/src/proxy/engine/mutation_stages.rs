@@ -75,7 +75,12 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         subagent_persona: signals.subagent_persona.as_deref(),
         has_agent_id: signals.claude_code_agent_id.is_some(),
     };
-    pipeline::run(&pipeline::stages_before_steerer(), &stage_ctx, &mut body).await;
+    pipeline::run(
+        &pipeline::stages_before_steerer(state.lesson_hooks()),
+        &stage_ctx,
+        &mut body,
+    )
+    .await;
 
     let pipeline::StageBodyParts {
         original,

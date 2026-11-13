@@ -1,4 +1,3 @@
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::time::{Duration, Instant};
 
 use tokio_util::sync::CancellationToken;
@@ -345,7 +344,7 @@ fn new_breaker() -> CircuitBreaker {
 
 async fn catchup_batches(persist: &PersistHandle) -> usize {
     let since = chrono::Utc::now() - chrono::Duration::minutes(5);
-    match persist.lessons().has_recent_primary_activity(since).await {
+    match persist.has_recent_primary_activity(since).await {
         Ok(false) => IDLE_BATCHES,
         Ok(true) => 1,
         Err(error) => {

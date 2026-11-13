@@ -3,7 +3,7 @@ use bytes::Bytes;
 use super::FilterStage;
 use crate::extract::request::TurnOrigin;
 use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::store::models::RequestId;
 use crate::wire::manifest::StageOutcome;

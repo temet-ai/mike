@@ -35,6 +35,7 @@ impl AppState {
                 .clone()
                 .map(|service| service as Arc<dyn SettingWriter>),
             drift_alarms: Arc::new(EvalDriftAlarms),
+            lesson_pairs: self.lesson_hooks().pairs_phase(),
         }
     }
 }

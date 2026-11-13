@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::store::persistence::lessons::LessonOutcome;
+use super::marks::LessonOutcome;
 
 const RELOAD_EVERY: Duration = Duration::from_secs(600);
 

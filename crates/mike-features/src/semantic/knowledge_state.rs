@@ -51,6 +51,7 @@ pub struct KnowledgeState {
     pub rerank_service: RerankService,
     pub settings: Option<Arc<dyn SettingWriter>>,
     pub drift_alarms: Arc<dyn DriftAlarms>,
+    pub lesson_pairs: Option<Arc<dyn crate::rerank_nightly::PairsPhase>>,
 }
 
 impl std::ops::Deref for KnowledgeState {

@@ -31,6 +31,7 @@ pub async fn run(overrides: CliOverrides) -> anyhow::Result<()> {
     let state = AppState::new_with_shutdown(config, shutdown.clone())
         .await
         .context("failed to initialize app state")?;
+    crate::lesson_delivery::hooks::install(&state);
     if shutdown.is_cancelled() {
         let drained = drain_tracker(state.tracker(), TRACKER_DRAIN_TIMEOUT).await;
         tracing_init::flush_otel(tracing_guards.otel_provider);

@@ -11,7 +11,7 @@ use crate::extract::request::TurnOrigin;
 use crate::filter::stage::FilterStage;
 use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
 use crate::lazy_sections::stage::LazySectionsStage;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::state::AppState;
 use crate::store::models::RequestId;

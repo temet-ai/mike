@@ -5,7 +5,7 @@ use super::stage::ReadDedupStage;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::store::models::RequestId;
 use crate::wire::manifest::{StageEntry, StageOutcome};

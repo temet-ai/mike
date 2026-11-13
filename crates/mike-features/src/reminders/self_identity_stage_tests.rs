@@ -5,7 +5,7 @@ use super::stage_test_support::{StageCtxFixture, make_ctx, user_turn_body};
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
 use crate::wire::manifest::StageOutcome;
 

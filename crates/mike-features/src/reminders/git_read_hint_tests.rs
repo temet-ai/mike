@@ -8,7 +8,7 @@ use super::stage_test_support::{StageCtxFixture, make_ctx};
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::RequestStage;
 use crate::store::models::RequestId;
 

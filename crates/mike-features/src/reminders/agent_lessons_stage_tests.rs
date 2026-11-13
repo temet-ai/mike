@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use super::stage::AgentLessonsStage;
+use super::agent_lessons_stage::AgentLessonsStage;
 use super::stage_test_support::{StageCtxFixture, make_ctx, user_turn_body};
 use super::test_support::code_reviewer_snapshot;
 use crate::extract::request::TurnOrigin;

@@ -1,8 +1,7 @@
 use bytes::Bytes;
 
-use crate::extract::request::TurnOrigin;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
-use crate::reminders::{self, RemindersConfig, RemindersOutcome, SessionLessonsRequest};
+use crate::reminders::{self, RemindersConfig, RemindersOutcome};
 use crate::wire::manifest::AppliedStage;
 
 pub struct StageManifestCodes {
@@ -13,28 +12,12 @@ pub struct StageManifestCodes {
     pub source_finding_ids_are_lesson_ids: bool,
 }
 
-const SESSION_LESSONS_CODES: StageManifestCodes = StageManifestCodes {
-    stage: "session_lessons",
-    policy_id: "session_lessons",
-    delivered_out_of_band: "session_lessons_delivered_out_of_band",
-    nothing_to_inject: "session_lessons_nothing_to_inject",
-    source_finding_ids_are_lesson_ids: true,
-};
-
 const SELF_IDENTITY_CODES: StageManifestCodes = StageManifestCodes {
     stage: "self_identity",
     policy_id: "self_identity",
     delivered_out_of_band: "self_identity_delivered_out_of_band",
     nothing_to_inject: "self_identity_nothing_to_inject",
     source_finding_ids_are_lesson_ids: false,
-};
-
-const AGENT_LESSONS_CODES: StageManifestCodes = StageManifestCodes {
-    stage: "agent_lessons",
-    policy_id: "agent_lessons",
-    delivered_out_of_band: "agent_lessons_delivered_out_of_band",
-    nothing_to_inject: "agent_lessons_nothing_to_inject",
-    source_finding_ids_are_lesson_ids: true,
 };
 
 const DIAGNOSTIC_REMINDERS_CODES: StageManifestCodes = StageManifestCodes {
@@ -79,89 +62,6 @@ pub fn record_outcome_without_body_change(
         RemindersOutcome::Unchanged => {
             body.record_unchanged(codes.stage, codes.policy_id, codes.nothing_to_inject);
         }
-    }
-}
-
-pub struct SessionLessonsStage;
-
-#[async_trait::async_trait]
-impl RequestStage for SessionLessonsStage {
-    fn name(&self) -> &'static str {
-        "lessons"
-    }
-
-    fn enabled(&self, ctx: &StageContext<'_>) -> bool {
-        ctx.session_toggles.reminders_inject_lessons && is_session_own_lane(ctx)
-    }
-
-    async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
-        if crate::lesson_delivery::client_holds_lessons(
-            ctx.state.feature_toggle_overlay.load().mod_lesson_delivery,
-            ctx.lesson_snapshot,
-            ctx.session_id,
-            body.body(),
-        ) {
-            body.record_unchanged(
-                "session_lessons",
-                "session_lessons",
-                "session_lessons_held_by_client",
-            );
-            return;
-        }
-        let cfg = RemindersConfig {
-            enabled: ctx.session_toggles.reminders,
-            inject_lessons: ctx.session_toggles.reminders_inject_lessons,
-            max_lessons_to_inject: ctx.session_toggles.reminders_max_lessons_to_inject,
-        };
-        let push_deps = ctx.state.push_deps();
-        let outcome = reminders::apply_session_lessons(SessionLessonsRequest {
-            body_bytes: body.body(),
-            session_id: ctx.session_id,
-            project_path: ctx.project_path,
-            is_tool_loop: ctx.is_tool_loop,
-            turn_origin: ctx.turn_origin,
-            snapshot: ctx.lesson_snapshot,
-            cfg: &cfg,
-            recall_injector_enabled: ctx.session_toggles.recall_injector,
-            request_id: ctx.request_id,
-            push_deps: &push_deps,
-        })
-        .await;
-        let RemindersOutcome::Appended {
-            body: new_body,
-            reminder_text,
-            source_finding_ids: injected_lesson_ids,
-            ..
-        } = outcome
-        else {
-            record_outcome_without_body_change(body, &SESSION_LESSONS_CODES, &outcome);
-            return;
-        };
-        let new_bytes = Bytes::from(new_body);
-        tracing::debug!(
-            request_id = %ctx.request_id,
-            session_id = %ctx.session_id,
-            lesson_reminder_len = reminder_text.len(),
-            lesson_ids = ?injected_lesson_ids,
-            "lessons injected <system-reminder> block at session start"
-        );
-        body.merge_lesson_ids(injected_lesson_ids);
-        body.rewrite(
-            new_bytes.clone(),
-            AppliedStage {
-                stage: "session_lessons",
-                policy_id: "session_lessons",
-                policy_version: 1,
-                resolved_parameters: serde_json::json!({ "reminder_text_len": reminder_text.len() }),
-                new_bytes: new_bytes.as_ref(),
-                targets: Vec::new(),
-                reason_code: "session_lessons_injected",
-                detail: Some(format!(
-                    "injected {} bytes of lesson text",
-                    reminder_text.len()
-                )),
-            },
-        );
     }
 }
 
@@ -240,70 +140,6 @@ impl RequestStage for SelfIdentityStage {
                 targets: Vec::new(),
                 reason_code: "self_identity_injected",
                 detail: Some(format!("injected {} bytes", reminder_text.len())),
-            },
-        );
-    }
-}
-
-pub struct AgentLessonsStage;
-
-#[async_trait::async_trait]
-impl RequestStage for AgentLessonsStage {
-    fn name(&self) -> &'static str {
-        "agent_lessons"
-    }
-
-    fn enabled(&self, ctx: &StageContext<'_>) -> bool {
-        ctx.session_toggles.agent_lessons && matches!(ctx.turn_origin, TurnOrigin::Subagent)
-    }
-
-    async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
-        let push_deps = ctx.state.push_deps();
-        let outcome = reminders::apply_agent_lessons(reminders::AgentLessonsRequest {
-            body_bytes: body.body(),
-            session_id: ctx.session_id,
-            subagent_persona: ctx.subagent_persona,
-            turn_origin: ctx.turn_origin,
-            snapshot: ctx.lesson_snapshot,
-            agent_lessons_enabled: ctx.session_toggles.agent_lessons,
-            request_id: ctx.request_id,
-            push_deps: &push_deps,
-        })
-        .await;
-        let RemindersOutcome::Appended {
-            body: new_body,
-            reminder_text,
-            source_finding_ids: injected_lesson_ids,
-            ..
-        } = outcome
-        else {
-            record_outcome_without_body_change(body, &AGENT_LESSONS_CODES, &outcome);
-            return;
-        };
-        let new_bytes = Bytes::from(new_body);
-        tracing::debug!(
-            request_id = %ctx.request_id,
-            session_id = %ctx.session_id,
-            persona = ?ctx.subagent_persona,
-            agent_lesson_reminder_len = reminder_text.len(),
-            lesson_ids = ?injected_lesson_ids,
-            "agent-scoped lessons injected <system-reminder> block"
-        );
-        body.merge_lesson_ids(injected_lesson_ids);
-        body.rewrite(
-            new_bytes.clone(),
-            AppliedStage {
-                stage: "agent_lessons",
-                policy_id: "agent_lessons",
-                policy_version: 1,
-                resolved_parameters: serde_json::json!({ "persona": ctx.subagent_persona }),
-                new_bytes: new_bytes.as_ref(),
-                targets: Vec::new(),
-                reason_code: "agent_lessons_injected",
-                detail: Some(format!(
-                    "injected {} bytes of lesson text",
-                    reminder_text.len()
-                )),
             },
         );
     }

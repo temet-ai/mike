@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::extract::request::TurnOrigin;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::proxy::remote_control::ReplyStreams;
 use crate::proxy::remote_control::inject::PushDeps;
 use crate::store::RequestStore;
@@ -11,9 +11,10 @@ use crate::store::persistence::test_support::acquire_ephemeral_db;
 use crate::store::retention::RetentionPolicy;
 
 use super::agent_lessons::AgentLessonsRequest;
+use super::agent_lessons::apply_agent_lessons;
 use super::session_lessons::SessionLessonsRequest;
 use super::test_support::{code_reviewer_snapshot, mk_finding, sample_request, user_turn_body};
-use super::{RemindersConfig, RemindersOutcome, apply_agent_lessons, apply_reminders};
+use super::{RemindersConfig, RemindersOutcome, apply_reminders};
 
 const CSE: &str = "cse_reminders_push_test";
 
@@ -190,7 +191,7 @@ async fn apply_session_lessons_appends_instead_of_pushing_to_a_live_channel() ->
             "always use make targets".to_string(),
         )],
     )]);
-    let outcome = super::apply_session_lessons(SessionLessonsRequest {
+    let outcome = super::session_lessons::apply_session_lessons(SessionLessonsRequest {
         body_bytes: &body,
         session_id: &session.to_string(),
         project_path: "my-project",

@@ -96,7 +96,7 @@ async fn a_fork_stage_leaves_message_zero_as_it_came_in() -> anyhow::Result<()> 
     use super::stage_test_support::{StageCtxFixture, make_ctx};
     use crate::extract::request::TurnOrigin;
     use crate::filter::FilterConfig;
-    use crate::lesson_worker::LessonSnapshot;
+    use crate::lesson_cache::LessonSnapshot;
     use crate::pipeline::{RequestStage, StageBody};
 
     let state =

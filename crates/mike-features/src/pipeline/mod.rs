@@ -3,8 +3,9 @@ use bytes::Bytes;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::state::AppState;
+use crate::state::lesson_hooks::{LessonHooks, LessonStage};
 use crate::store::models::RequestId;
 use crate::wire::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 
@@ -219,27 +220,34 @@ pub const STAGE_ORDER: [&str; 19] = [
     "context_focus_question",
 ];
 
-pub fn registry() -> Vec<Box<dyn RequestStage>> {
-    let mut all = stages_before_steerer();
+pub fn registry(lessons: &dyn LessonHooks) -> Vec<Box<dyn RequestStage>> {
+    let mut all = stages_before_steerer(lessons);
     all.extend(stages_after_steerer());
     all
 }
 
-pub fn stages_before_steerer() -> Vec<Box<dyn RequestStage>> {
-    vec![
-        Box::new(crate::filter::stage::FilterStage),
-        Box::new(crate::reminder_on_token::stage::ReminderOnTokenStage),
-        Box::new(crate::lazy_sections::stage::LazySectionsStage),
-        Box::new(crate::recall_injector::stage::RecallInjectorStage),
-        Box::new(crate::reminders::stage::SessionLessonsStage),
-        Box::new(crate::memory_keeper::stage::MemoryKeeperStage),
-        Box::new(crate::reminders::stage::SelfIdentityStage),
-        Box::new(crate::reminders::workspace_briefing::WorkspaceBriefingStage),
-        Box::new(crate::reminders::stage::AgentLessonsStage),
-        Box::new(crate::reminders::stage::RemindersStage),
-        Box::new(crate::reminders::change_record_tail::ChangeRecordTailStage),
-        Box::new(crate::reminders::git_read_hint::GitReadHintStage),
-    ]
+pub fn stages_before_steerer(lessons: &dyn LessonHooks) -> Vec<Box<dyn RequestStage>> {
+    let stages: Vec<Option<Box<dyn RequestStage>>> = vec![
+        Some(Box::new(crate::filter::stage::FilterStage)),
+        Some(Box::new(
+            crate::reminder_on_token::stage::ReminderOnTokenStage,
+        )),
+        Some(Box::new(crate::lazy_sections::stage::LazySectionsStage)),
+        lessons.stage(LessonStage::RecallInjector),
+        lessons.stage(LessonStage::SessionLessons),
+        lessons.stage(LessonStage::MemoryKeeper),
+        Some(Box::new(crate::reminders::stage::SelfIdentityStage)),
+        Some(Box::new(
+            crate::reminders::workspace_briefing::WorkspaceBriefingStage,
+        )),
+        lessons.stage(LessonStage::AgentLessons),
+        Some(Box::new(crate::reminders::stage::RemindersStage)),
+        Some(Box::new(
+            crate::reminders::change_record_tail::ChangeRecordTailStage,
+        )),
+        Some(Box::new(crate::reminders::git_read_hint::GitReadHintStage)),
+    ];
+    stages.into_iter().flatten().collect()
 }
 
 pub fn stages_after_steerer() -> Vec<Box<dyn RequestStage>> {

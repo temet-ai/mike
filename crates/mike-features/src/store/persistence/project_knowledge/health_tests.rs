@@ -1,10 +1,8 @@
 use super::tests::document;
 use super::*;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{
     PersistHandle,
-    lessons::NewLessonWrite,
     test_support::{acquire_ephemeral_db, seed_project},
 };
 use serde_json::{Value, json};
@@ -46,20 +44,18 @@ fn entry(health: &Value, location: Uuid) -> anyhow::Result<&Value> {
 }
 
 async fn new_lesson(handle: &PersistHandle, project: i64, text: &str) -> anyhow::Result<Uuid> {
-    let lesson = handle
-        .lessons()
-        .create_lesson_with_topic(NewLessonWrite {
-            project_id: project,
-            kind: "warning",
-            text,
-            topic: None,
-            source_turn_id: None,
-            agent_id: None,
-            session_db_id: None,
-            request_id: None,
-        })
-        .await?;
-    Ok(lesson.uuid)
+    let uuid: Uuid = sqlx::query_scalar(
+        "INSERT INTO memory.lessons (project_id, kind_id, text, text_sha256, stage_id, source_id)
+         SELECT $1, lk.id, $2, sha256(convert_to(lower($2), 'UTF8')), ls.id, lsrc.id
+           FROM memory.lesson_kinds lk, memory.lesson_stages ls, memory.lesson_sources lsrc
+          WHERE lk.code = 'warning' AND ls.code = 'raw' AND lsrc.code = 'operator'
+         RETURNING uuid",
+    )
+    .bind(project)
+    .bind(text)
+    .fetch_one(handle.pool())
+    .await?;
+    Ok(uuid)
 }
 
 #[tokio::test]

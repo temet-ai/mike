@@ -1,48 +1,19 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
-use std::collections::HashMap;
-use std::sync::LazyLock;
 use std::time::Duration;
 
-use bytes::Bytes;
-use dashmap::DashMap;
 use uuid::Uuid;
 
 use super::held::find;
 use super::origin::{heading_block_ids, tether_line_ids};
-use crate::lesson_worker::InjectableLesson;
 use crate::memory_keeper::block::KEEPER_MARKER_OPEN;
 use crate::state::AppState;
-use crate::store::models::RequestId;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::supplied_items::{CarriedCard, SuppliedLesson};
 
-const SESSION_CAPACITY: usize = 4096;
-const SCORES_PER_SESSION: usize = 256;
 const CARD_HASH_CHARS: usize = 12;
 const CARD_RECORD_RETRY: Duration = Duration::from_secs(2);
 
-static SCORES: LazyLock<DashMap<String, HashMap<i64, f32>>> = LazyLock::new(DashMap::new);
-
-pub fn remember_scores(session: &str, chosen: &[(&InjectableLesson, f32)]) {
-    if chosen.is_empty() {
-        return;
-    }
-    if SCORES.len() >= SESSION_CAPACITY && !SCORES.contains_key(session) {
-        SCORES.clear();
-    }
-    let mut scores = SCORES.entry(session.to_owned()).or_default();
-    if scores.len() >= SCORES_PER_SESSION {
-        scores.clear();
-    }
-    scores.extend(chosen.iter().map(|(lesson, score)| (lesson.id, *score)));
-}
-
-pub fn chosen_score(session: &str, lesson_id: i64) -> Option<f64> {
-    SCORES
-        .get(session)?
-        .get(&lesson_id)
-        .map(|score| f64::from(*score))
-}
+pub use crate::lesson_cache::scores::{chosen_score, remember_scores};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SupplyEvidence {
@@ -123,13 +94,7 @@ fn card_hash_at(body: &[u8], start: usize) -> Option<String> {
     std::str::from_utf8(hash).ok().map(str::to_owned)
 }
 
-pub struct SupplyCapture<'a> {
-    pub request_id: RequestId,
-    pub session_id: &'a str,
-    pub original: &'a Bytes,
-    pub sent: &'a Bytes,
-    pub proxy_lessons: &'a [i64],
-}
+pub use crate::state::lesson_hooks::SupplyCapture;
 
 pub fn spawn_supply_records(state: &AppState, capture: SupplyCapture<'_>) {
     let (Some(persist), Ok(session)) = (&state.persist, Uuid::parse_str(capture.session_id)) else {

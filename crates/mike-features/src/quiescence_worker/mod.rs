@@ -51,6 +51,7 @@ pub fn spawn_quiescence_worker(state: &AppState) {
     let injection_gate = state.injection_gate.clone();
     let usage_sink = state.llm_usage_sink.clone();
     let embedding = state.embedding_service.clone();
+    let lessons = state.lesson_hooks.clone();
 
     state.tracker.spawn(async move {
         run(RunArgs {
@@ -66,6 +67,7 @@ pub fn spawn_quiescence_worker(state: &AppState) {
             injection_gate,
             usage_sink,
             embedding,
+            lessons,
         })
         .await;
     });
@@ -94,6 +96,7 @@ struct RunArgs {
     injection_gate: Arc<crate::injection::InjectionGate>,
     usage_sink: Option<Arc<dyn crate::llm::LlmUsageSink>>,
     embedding: crate::analysis::embeddings::EmbeddingService,
+    lessons: crate::state::lesson_hooks::LessonHookCell,
 }
 
 async fn run(args: RunArgs) {
@@ -110,6 +113,7 @@ async fn run(args: RunArgs) {
         injection_gate,
         usage_sink,
         embedding,
+        lessons,
     } = args;
 
     let quiet_secs =
@@ -137,6 +141,7 @@ async fn run(args: RunArgs) {
         injection_gate: &injection_gate,
         usage_sink: usage_sink.as_ref(),
         embedding: &embedding,
+        lessons: crate::state::lesson_hooks::hooks_in(&lessons),
     };
 
     let mut tick: u64 = 0;
@@ -189,9 +194,7 @@ async fn run_guarded_tick(
     if label_tick::is_label_tick(tick) {
         label_tick::run_label_tick(ctx, guard_on).await;
     }
-    if proposer_tick::is_proposer_tick(tick) {
-        proposer_tick::run_proposer_tick(ctx, proposer_on).await;
-    }
+    ctx.lessons.proposer_tick(ctx, tick, proposer_on).await;
 }
 
 async fn run_steerer_ticks(

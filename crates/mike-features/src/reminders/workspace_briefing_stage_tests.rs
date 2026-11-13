@@ -5,7 +5,7 @@ use super::workspace_briefing::WorkspaceBriefingStage;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
 
 async fn in_memory_state() -> anyhow::Result<crate::state::AppState> {

@@ -21,6 +21,7 @@ pub mod construction_pipeline;
 pub mod construction_services;
 pub mod knowledge_state;
 pub mod launch_state;
+pub mod lesson_hooks;
 pub mod mail_push;
 #[cfg(test)]
 mod tests;
@@ -53,8 +54,9 @@ pub struct AppState {
     pub semantic: crate::semantic::SemanticHandle,
     pub shed_registry: Arc<crate::memory_cap::ShedRegistry>,
     pub capture_admission_throttled: Arc<std::sync::atomic::AtomicBool>,
-    pub lesson_cache: crate::lesson_worker::LessonCache,
-    pub keeper_snapshot: crate::memory_keeper::snapshot::KeeperCache,
+    pub lesson_cache: crate::lesson_cache::LessonCache,
+    pub lesson_hooks: lesson_hooks::LessonHookCell,
+    pub keeper_snapshot: crate::lesson_cache::KeeperCache,
     pub poll_answers: crate::api::poll_answers::PollAnswers,
 
     pub steerer_registry: Arc<ArcSwap<SteererRegistry>>,

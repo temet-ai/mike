@@ -1,5 +1,5 @@
 use super::*;
-use crate::store::persistence::lessons::LessonOutcome;
+use crate::lesson_cache::marks::LessonOutcome;
 
 #[test]
 fn distinctive_task_terms_outweigh_repeated_project_boilerplate() {

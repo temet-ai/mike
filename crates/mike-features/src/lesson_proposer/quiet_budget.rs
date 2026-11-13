@@ -1,4 +1,3 @@
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::{Timelike, Utc};
 use serde_json::Value;
 
@@ -53,7 +52,6 @@ impl QuietBudget {
             return normal;
         }
         match persist
-            .lessons()
             .has_recent_primary_activity(now - chrono::Duration::seconds(self.idle_secs))
             .await
         {

@@ -46,6 +46,7 @@ pub async fn start_proxy_with_analysis(
     ])?;
     config.analysis = analysis;
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -95,6 +96,7 @@ pub async fn start_proxy_with_composition_enabled(
     ])?;
     config.set_composition_enabled(true);
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -150,6 +152,7 @@ pub async fn start_proxy_with_openrouter(
     }
 
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -199,6 +202,7 @@ pub async fn start_inspect_with_service_token(
         "0",
     ])?;
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
     let service_token = state.service_token().expose().to_owned();
 
@@ -232,6 +236,7 @@ pub async fn start_proxy_with_shutdown(
         "0",
     ])?;
     let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
     let shutdown = state.shutdown();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await?;

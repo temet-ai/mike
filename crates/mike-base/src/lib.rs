@@ -16,6 +16,7 @@ pub mod extract;
 pub mod feature_toggles;
 pub mod finding;
 pub mod in_flight;
+pub mod lesson_cache;
 pub mod lesson_shape;
 pub mod llm;
 pub mod logged;

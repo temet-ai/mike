@@ -351,7 +351,7 @@
   "api/rerank_search": "knowledge",
   "api/rerank_search/harness": "web",
   "api/semantic": "knowledge",
-  "api/session_agent_context": "proxy",
+  "api/session_agent_context": "lessons",
   "api/session_agent_context_tests": "lessons",
   "api/session_mail": "launch",
   "api/session_proxy_tools": "proxy",
@@ -531,7 +531,7 @@
   "store/persistence/judge_ownership": "db",
   "store/persistence/launch": "launch",
   "store/persistence/lesson_injections": "lessons",
-  "store/persistence/lesson_pair_candidates": "knowledge",
+  "store/persistence/lesson_pair_candidates": "lessons",
   "store/persistence/lesson_relations": "lessons",
   "store/persistence/lessons": "lessons",
   "store/persistence/listings": "launch",
@@ -611,7 +611,13 @@
   "wright": "serve",
   "dossier/as_of": "model",
   "eval_metrics/drift_alarms": "eval",
-  "state/knowledge_state": "state"
+  "state/knowledge_state": "state",
+  "lesson_cache": "llm",
+  "judge_worker/supply_verdict": "lessons",
+  "rerank_nightly/lesson_pairs": "lessons",
+  "reminders/session_lessons": "lessons",
+  "reminders/agent_lessons": "lessons",
+  "quiescence_worker/proposer_tick": "lessons"
  },
  "schemas": {
   "comment": "Owning crate per Postgres schema, or per schema.table where a table belongs elsewhere (ADR 0003). Longest key wins. Only the owner writes; other crates read the owner's tables or its contract views.",

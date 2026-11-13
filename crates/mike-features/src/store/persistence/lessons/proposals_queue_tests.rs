@@ -260,15 +260,9 @@ async fn quiet_activity_includes_tool_loops_and_excludes_sidecars() -> anyhow::R
         return Ok(());
     };
     let since = chrono::Utc::now() - chrono::Duration::hours(1);
-    assert!(
-        fx.handle
-            .lessons()
-            .has_recent_primary_activity(since)
-            .await?
-    );
+    assert!(fx.handle.has_recent_primary_activity(since).await?);
     assert!(
         !fx.handle
-            .lessons()
             .has_recent_primary_activity(chrono::Utc::now() + chrono::Duration::days(1))
             .await?
     );
@@ -276,20 +270,10 @@ async fn quiet_activity_includes_tool_loops_and_excludes_sidecars() -> anyhow::R
         .bind(fx.project_id)
         .execute(fx.handle.pool())
         .await?;
-    assert!(
-        fx.handle
-            .lessons()
-            .has_recent_primary_activity(since)
-            .await?
-    );
+    assert!(fx.handle.has_recent_primary_activity(since).await?);
     sqlx::query("UPDATE requests.requests SET turn_origin_id=(SELECT id FROM requests.turn_origins WHERE code='title_sidecar') WHERE project_id=$1")
         .bind(fx.project_id).execute(fx.handle.pool()).await?;
-    assert!(
-        !fx.handle
-            .lessons()
-            .has_recent_primary_activity(since)
-            .await?
-    );
+    assert!(!fx.handle.has_recent_primary_activity(since).await?);
     fx.db.cleanup().await?;
     Ok(())
 }

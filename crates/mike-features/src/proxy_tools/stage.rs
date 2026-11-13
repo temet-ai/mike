@@ -83,7 +83,7 @@ mod tests {
     use super::*;
     use crate::extract::request::TurnOrigin;
     use crate::filter::FilterConfig;
-    use crate::lesson_worker::LessonSnapshot;
+    use crate::lesson_cache::LessonSnapshot;
     use crate::store::models::RequestId;
 
     const BODY: &[u8] =

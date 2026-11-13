@@ -25,6 +25,7 @@ pub struct SweepContext<'a> {
     pub remote_control_streams: &'a crate::proxy::remote_control::ReplyStreams,
     pub injection_gate: &'a std::sync::Arc<crate::injection::InjectionGate>,
     pub embedding: &'a EmbeddingService,
+    pub lessons: &'a dyn crate::state::lesson_hooks::LessonHooks,
 }
 
 impl SweepContext<'_> {

@@ -18,11 +18,11 @@ use tokio::time::{MissedTickBehavior, interval};
 
 use crate::analysis::rerank::RerankNightly as QuietBudget;
 use crate::semantic::KnowledgeState;
+use crate::semantic::knowledge_state::KnowledgeFuture;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
 use candidates::candidates_phase;
 use grade::{Graded, grade_event};
-use lesson_pairs::pairs_phase;
 use tune::{Tuned, tune_if_due};
 
 const LEASE_ROLE: &str = "rerank_nightly";
@@ -107,7 +107,7 @@ pub async fn night_pass(
     persist: &PersistHandle,
     budget: &QuietBudget,
     now: DateTime<Utc>,
-    idle: &impl Idle,
+    idle: &(impl Idle + Sync),
 ) -> Pass {
     let mut pass = Pass::default();
     pass.stopped = grade_phase(state, persist, idle, &mut pass.graded).await;
@@ -118,8 +118,12 @@ pub async fn night_pass(
     if pass.stopped.is_none() {
         pass.stopped = candidates_phase(state, persist, idle, &mut pass.thread_candidates).await;
     }
-    if pass.stopped.is_none() {
-        pass.stopped = pairs_phase(state, persist, idle, &mut pass.lesson_pairs).await;
+    if pass.stopped.is_none()
+        && let Some(phase) = state.lesson_pairs.clone()
+    {
+        pass.stopped = phase
+            .run(state, persist, idle, &mut pass.lesson_pairs)
+            .await;
     }
     pass
 }
@@ -194,6 +198,26 @@ async fn grade_events(
 
 pub trait Idle {
     fn is_idle(&self) -> impl Future<Output = bool> + Send;
+}
+
+pub trait IdleCheck: Sync {
+    fn idle_now(&self) -> KnowledgeFuture<'_, bool>;
+}
+
+impl<T: Idle + Sync> IdleCheck for T {
+    fn idle_now(&self) -> KnowledgeFuture<'_, bool> {
+        Box::pin(self.is_idle())
+    }
+}
+
+pub trait PairsPhase: Send + Sync {
+    fn run<'a>(
+        &'a self,
+        state: &'a KnowledgeState,
+        persist: &'a PersistHandle,
+        idle: &'a dyn IdleCheck,
+        found: &'a mut usize,
+    ) -> KnowledgeFuture<'a, Option<Stop>>;
 }
 
 struct LoadIdle<'a> {

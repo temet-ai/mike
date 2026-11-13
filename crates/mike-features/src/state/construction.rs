@@ -111,10 +111,11 @@ impl AppState {
             capture_admission_throttled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             poll_answers: crate::api::poll_answers::PollAnswers::default(),
             lesson_cache: Arc::new(ArcSwap::from_pointee(
-                crate::lesson_worker::LessonSnapshot::default(),
+                crate::lesson_cache::LessonSnapshot::default(),
             )),
+            lesson_hooks: Default::default(),
             keeper_snapshot: Arc::new(ArcSwap::from_pointee(
-                crate::memory_keeper::snapshot::KeeperSnapshot::default(),
+                crate::lesson_cache::KeeperSnapshot::default(),
             )),
             steerer_registry,
             steerer_service,

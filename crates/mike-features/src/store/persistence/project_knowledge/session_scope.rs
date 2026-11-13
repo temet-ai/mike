@@ -1,5 +1,5 @@
+use crate::lesson_cache::ChangeMark;
 use crate::store::persistence::PersistError;
-use crate::store::persistence::lessons::ChangeMark;
 use std::collections::HashMap;
 use uuid::Uuid;
 
