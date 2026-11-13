@@ -56,7 +56,7 @@ impl Fk {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct NaturalKeySpec {
+pub struct NaturalKeySpec {
     column: &'static str,
     dest_expr: &'static str,
     case_insensitive: bool,
@@ -86,7 +86,7 @@ impl NaturalKeySpec {
     }
 }
 
-struct TableSpec {
+pub struct TableSpec {
     name: &'static str,
     columns: &'static [&'static str],
     fks: &'static [Fk],

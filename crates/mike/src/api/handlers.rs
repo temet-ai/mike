@@ -173,7 +173,6 @@ mod compression_01;
 mod remote_control_link;
 mod steering_views_01;
 mod steering_views_02;
-mod mailbox_fanout_delivery;
 mod mailbox_post_fanout;
 mod mailbox_post_name;
 mod steerer_model_check;

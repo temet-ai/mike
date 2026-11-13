@@ -19,10 +19,6 @@ use std::collections::HashMap;
 
 use gates::invocation_gate_passed;
 pub use gates::pattern_gate_admits;
-#[cfg(any(test, feature = "test-seams"))]
-use gates::{pattern_invocation_matches, pattern_matches};
-#[cfg(any(test, feature = "test-seams"))]
-use verdict_call::resolve_effective_client;
 
 use delivery_gate::repeats_last_delivery;
 pub use judgement::{Abstention, TurnJudgement};
@@ -62,7 +58,7 @@ impl LlmCallOutcome {
     }
 }
 
-struct EvalWindow<'a> {
+pub struct EvalWindow<'a> {
     ctx: &'a FleetCtx,
     target: &'a EvalTarget,
     eval_inputs: &'a EvalInputs,
@@ -78,7 +74,7 @@ impl EvalWindow<'_> {
     }
 }
 
-struct WindowState<'s> {
+pub struct WindowState<'s> {
     debounce: &'s mut HashMap<(String, i64), DebounceLedger>,
     verifier_context: Option<VerifierJudgeContext>,
     session_notes: Option<SessionNotes>,
@@ -86,13 +82,13 @@ struct WindowState<'s> {
     outcome: &'s mut LlmCallOutcome,
 }
 
-enum StepOutcome {
+pub enum StepOutcome {
     Continue,
     StopWindow,
     Fired(uuid::Uuid, SystemReminder),
 }
 
-struct Exit {
+pub struct Exit {
     step: StepOutcome,
     resolution: Resolution,
 }

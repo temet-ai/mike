@@ -16,7 +16,7 @@ pub mod delivery;
 pub use delivery::tell_owners;
 
 #[derive(Debug, Default, PartialEq, Eq)]
-struct Routes {
+pub struct Routes {
     owners: BTreeMap<Uuid, BTreeSet<String>>,
     unresolved: BTreeSet<String>,
     tasks: BTreeMap<String, Option<Uuid>>,

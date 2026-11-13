@@ -13,8 +13,6 @@ pub mod link_tests;
 
 pub use payload::{ClassifiedPayload, PayloadSessionLink};
 pub use policy::describe_remote_control_metrics;
-#[cfg(any(test, feature = "test-seams"))]
-use policy::endpoint_labels;
 pub use signals::ChannelSignals;
 pub use stored_body::stored_body;
 

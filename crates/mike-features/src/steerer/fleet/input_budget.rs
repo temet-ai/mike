@@ -13,8 +13,6 @@ use crate::store::persistence::session_action_list::{SessionActionCounts, Sessio
 pub mod action_list;
 
 use action_list::project_action_list;
-#[cfg(any(test, feature = "test-seams"))]
-use action_list::tally_counts;
 
 #[cfg(test)]
 #[path = "input_budget_tests.rs"]
@@ -37,7 +35,7 @@ pub enum VerifierInputBudget {
     V1Wide,
 }
 
-struct SectionCaps {
+pub struct SectionCaps {
     operator_ask: usize,
     last_user_message: usize,
     tool_calls_summary: usize,

@@ -55,7 +55,7 @@ const PARALLEL_CALLS: usize = 4;
 pub const EVALUATOR_VERSION: i32 = 5;
 
 #[derive(Debug, thiserror::Error)]
-enum EvalError {
+pub enum EvalError {
     #[error("{0}")]
     Deferred(String),
     #[error("draft cannot be evaluated: {0}")]
@@ -89,7 +89,7 @@ pub struct EvalPassReport {
     pub error: Option<String>,
 }
 
-struct Material {
+pub struct Material {
     name: String,
     description: String,
     skill_md: String,

@@ -180,7 +180,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 }
 
-struct CallInsertParams {
+pub struct CallInsertParams {
     times: RollupTimes,
     tally: PayloadTally,
     request_sha: Option<[u8; 32]>,

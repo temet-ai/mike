@@ -33,7 +33,7 @@ pub struct ChannelSource {
     pub cwd: String,
 }
 
-pub trait ChannelStore {
+pub(crate) trait ChannelStore {
     fn available(&self) -> bool;
     async fn present(&self, session: Uuid) -> Result<bool, String>;
     async fn link(&self, cse_id: &str, session: Uuid, cwd: &str) -> Result<LinkOutcome, String>;
