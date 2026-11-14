@@ -135,7 +135,7 @@ if managed_service_installed; then
     SERVICE_BIN="$(managed_service_program || true)"
     if [[ "${SERVICE_BIN}" != /* ]]; then
         echo "deploy-proxy.sh: mike is installed as ${SERVICE_ID}, but the program path could not be read from $(managed_service_file proxy)." >&2
-        echo "  Nothing was touched. Run 'mike service install' to rewrite the service file." >&2
+        echo "  Nothing was touched. The file must name the mike binary (after any wrapper), or 'mike service install' rewrites it." >&2
         exit 1
     fi
     echo "==> mike runs as an installed service (${SERVICE_ID}, program ${SERVICE_BIN}) — deploying through it; the checkout's .env is not used."

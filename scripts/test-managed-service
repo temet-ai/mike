@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Checks that the deploy finds mike's installed service by its label as well as by the marker,
+# and replaces the mike binary rather than a wrapper the service file starts it through
+# (scripts/lib/managed-service.sh). Fake plists and units in a temporary HOME, a fake mike and a
+# fake wrapper; no launchctl, systemctl, server or build. MANAGED_SERVICE_PLATFORM picks the
+# launchd or systemd branch on any machine; plutil, where present, is used as on a Mac.
+#
+# Usage: scripts/test-managed-service     Exit: 0 = no FAIL. A missing prerequisite prints NOT RUN.
+# The subshells set HOME and the platform on purpose; nothing is meant to leak out.
+# shellcheck disable=SC2030,SC2031
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+
+for need in awk grep cp mv chmod; do
+    if ! command -v "$need" >/dev/null 2>&1; then
+        notrun=$((notrun+1))
+        echo "NOT RUN: every case ($need is missing)"
+        echo "managed service: 0 passed, 0 failed, $notrun not run"
+        exit 0
+    fi
+done
+
+scratch="$(mktemp -d /tmp/ms.XXXXXX)"
+trap 'rm -rf "$scratch"' EXIT
+# shellcheck source=lib/managed-service.sh
+source "$root/scripts/lib/managed-service.sh"
+
+# A mike that answers --build-info, one under another name, a wrapper that runs its arguments, and
+# a file named mike that is not executable.
+bin="$scratch/bin"; mkdir -p "$bin" "$scratch/other" "$scratch/noexec"
+printf '#!/bin/sh\n[ "$1" = "--build-info" ] && echo "mike fake-build"\nexit 0\n' >"$bin/mike"
+cp "$bin/mike" "$scratch/other/mike-dev"
+printf '#!/bin/sh\nexec "$@"\n' >"$bin/with-key"
+printf 'not runnable' >"$scratch/noexec/mike"
+chmod +x "$bin/mike" "$scratch/other/mike-dev" "$bin/with-key"
+wrapper_text="$(cat "$bin/with-key")"
+
+home_n=0
+# $1 = platform, rest = the lines of the service file; prints the HOME it made.
+make_home() {
+    local platform="$1" home
+    shift
+    home_n=$((home_n+1)); home="$scratch/home$home_n"
+    if [[ "$platform" == launchd ]]; then
+        mkdir -p "$home/Library/LaunchAgents"
+        printf '%s\n' "$@" >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist"
+    else
+        mkdir -p "$home/.config/systemd/user"
+        printf '%s\n' "$@" >"$home/.config/systemd/user/mike.service"
+    fi
+    echo "$home"
+}
+in_home() {   # $1 = home, $2 = platform, rest = command
+    local home="$1" platform="$2"
+    shift 2
+    ( export HOME="$home" MANAGED_SERVICE_PLATFORM="$platform"; unset XDG_CONFIG_HOME XDG_STATE_HOME; "$@" )
+}
+plist() {   # $1 = label, $2 = marker comment ("" for none), rest = ProgramArguments strings
+    local label="$1" marker="$2"
+    shift 2
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+    [[ -n "$marker" ]] && printf '<!-- %s -->\n' "$marker"
+    printf '%s\n' '<plist version="1.0">' '<dict>' '  <key>Label</key>' "  <string>$label</string>" \
+        '  <key>ProgramArguments</key>' '  <array>'
+    local a
+    for a in "$@"; do printf '    <string>%s</string>\n' "$a"; done
+    printf '%s\n' '  </array>' '  <key>KeepAlive</key>' '  <true/>' '</dict>' '</plist>'
+}
+plist_file() { printf '%s/Library/LaunchAgents/ai.temet.mike.proxy.plist' "$1"; }
+# Replace the binary the way the deploy does (install_service_binary over what managed_service_program names).
+replace_case() {   # $1 = home, $2 = platform
+    local target
+    target="$(in_home "$1" "$2" managed_service_program 2>/dev/null)" || { echo "no program"; return; }
+    ( export HOME="$1" MANAGED_SERVICE_PLATFORM="$2"; SERVICE_BIN="$target"
+      printf '#!/bin/sh\necho "mike staged"\n' >"$scratch/staged"; chmod +x "$scratch/staged"
+      install_service_binary "$scratch/staged" ) >/dev/null 2>&1
+    echo "replaced $target"
+}
+
+MARK="$MANAGED_SERVICE_MARKER. Run \`mike service install\` to regenerate this file."
+
+# ── the marked plist: found, binary is argument 0 ────────────────────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "$MARK" "$bin/mike" serve)")"
+in_home "$home" launchd managed_service_installed; eq "marked plist is installed" 0 "$?"
+eq "marked plist: the program is argument 0" "$bin/mike" "$(in_home "$home" launchd managed_service_program)"
+
+# ── no marker, but the label ─────────────────────────────────────────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "" "$bin/mike" serve)")"
+in_home "$home" launchd managed_service_installed; eq "plist without the marker but with the label is installed" 0 "$?"
+eq "label-only plist: the program is argument 0" "$bin/mike" "$(in_home "$home" launchd managed_service_program)"
+
+# ── no marker, another label ─────────────────────────────────────────────────
+home="$(make_home launchd "$(plist com.example.other "" "$bin/mike" serve)")"
+in_home "$home" launchd managed_service_installed; eq "plist with neither marker nor label is not installed" 1 "$?"
+
+# ── the wrapper as argument 0, no marker (the 2026-11-14 hand edit) ──────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "" "$bin/with-key" "$bin/mike" serve)")"
+in_home "$home" launchd managed_service_installed; eq "wrapper plist without the marker is installed by its label" 0 "$?"
+eq "arguments are listed in order" "$bin/with-key $bin/mike serve" "$(in_home "$home" launchd managed_service_program_arguments | tr '\n' ' ' | sed 's/ $//')"
+eq "wrapper plist: the program is the mike argument, not the wrapper" "$bin/mike" "$(in_home "$home" launchd managed_service_program)"
+cp "$bin/mike" "$bin/mike.orig"
+eq "wrapper plist: the deploy replaces mike" "replaced $bin/mike" "$(replace_case "$home" launchd)"
+eq "wrapper plist: the new mike is the staged binary" 'echo "mike staged"' "$(sed -n 2p "$bin/mike")"
+eq "wrapper plist: the wrapper is untouched" "$wrapper_text" "$(cat "$bin/with-key")"
+cp "$bin/mike.orig" "$bin/mike"; chmod +x "$bin/mike"; rm -f "$bin/mike.orig"
+
+# ── a wrapper with the marker is resolved the same way ───────────────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "$MARK" "$bin/with-key" "$bin/mike" serve)")"
+eq "marked wrapper plist: the program is the mike argument" "$bin/mike" "$(in_home "$home" launchd managed_service_program)"
+
+# ── no mike argument at all ──────────────────────────────────────────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "" "$bin/with-key" /usr/bin/env serve)")"
+err="$(in_home "$home" launchd managed_service_program 2>&1 >/dev/null)"; rc=$?
+eq "no mike argument: the lookup fails" 1 "$rc"
+eq "no mike argument: nothing is printed as a program" "" "$(in_home "$home" launchd managed_service_program 2>/dev/null)"
+case "$err" in *"$(plist_file "$home")"*) ok "no mike argument: the message names the plist" ;; *) bad "no mike argument: the message names the plist" "got [$err]" ;; esac
+eq "no mike argument: no copy is made" "no program" "$(replace_case "$home" launchd)"
+eq "no mike argument: the wrapper is untouched" "$wrapper_text" "$(cat "$bin/with-key")"
+
+# ── a later argument named mike that cannot run is not a binary ──────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "" "$bin/with-key" "$scratch/noexec/mike" serve)")"
+eq "a non-executable mike argument is not chosen" "no program" "$(replace_case "$home" launchd)"
+
+# ── argument 0 under another name that answers --build-info ──────────────────
+home="$(make_home launchd "$(plist ai.temet.mike.proxy "" "$scratch/other/mike-dev" serve)")"
+eq "argument 0 that answers --build-info is the binary" "$scratch/other/mike-dev" "$(in_home "$home" launchd managed_service_program)"
+
+# ── several strings on one line, and XML escapes ─────────────────────────────
+home="$(make_home launchd '<key>Label</key><string>ai.temet.mike.proxy</string>' \
+    "<key>ProgramArguments</key><array><string>$bin/with-key</string><string>$bin/mike</string></array>")"
+in_home "$home" launchd managed_service_installed; eq "a one-line plist is installed by its label" 0 "$?"
+eq "a one-line plist: the program is the mike argument" "$bin/mike" "$(in_home "$home" launchd managed_service_program)"
+eq "the array reader undoes XML escapes" "/tmp/a & b/mike" \
+    "$(printf '%s\n' '<key>ProgramArguments</key>' '<array>' '<string>/tmp/a &amp; b/mike</string>' '</array>' | _managed_service_plist_array ProgramArguments)"
+
+# ── systemd: the unit by name, with and without the marker, with a wrapper ───
+home="$(make_home systemd '[Service]' "ExecStart=$bin/with-key $bin/mike serve")"
+in_home "$home" systemd managed_service_installed; eq "systemd: a unit without the marker is installed by its name" 0 "$?"
+eq "systemd: the program is the mike word after the wrapper" "$bin/mike" "$(in_home "$home" systemd managed_service_program)"
+eq "systemd: the deploy replaces mike" "replaced $bin/mike" "$(replace_case "$home" systemd)"
+eq "systemd: the wrapper is untouched" "$wrapper_text" "$(cat "$bin/with-key")"
+home="$(make_home systemd '[Service]' "ExecStart=\"$bin/with-key\" '$scratch/noexec/mike' serve")"
+eq "systemd: quoted words are read whole" "$bin/with-key $scratch/noexec/mike serve" \
+    "$(in_home "$home" systemd managed_service_program_arguments | tr '\n' ' ' | sed 's/ $//')"
+err="$(in_home "$home" systemd managed_service_program 2>&1 >/dev/null)"
+case "$err" in *"mike.service"*) ok "systemd: no mike word, the message names the unit file" ;; *) bad "systemd: no mike word, the message names the unit file" "got [$err]" ;; esac
+
+# ── the resolver on its own ──────────────────────────────────────────────────
+eq "resolver: nothing in, nothing out" 1 "$(managed_service_resolve_binary >/dev/null 2>&1; echo $?)"
+eq "resolver: a path named mike is taken as given" "/no/such/dir/mike" "$(managed_service_resolve_binary /no/such/dir/mike serve)"
+
+for script in scripts/lib/managed-service.sh scripts/deploy-proxy.sh scripts/test-managed-service; do
+    if bash -n "$root/$script" 2>/dev/null; then ok "bash -n $script"; else bad "bash -n $script"; fi
+done
+
+echo "managed service: $pass passed, $fail failed, $notrun not run"
+(( fail == 0 ))

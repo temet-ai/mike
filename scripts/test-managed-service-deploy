@@ -67,10 +67,10 @@ home="$scratch/foreign-plist"
 mkdir -p "$home/Library/LaunchAgents"
 cat >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
-<plist version="1.0"><dict><key>Label</key><string>ai.temet.mike.proxy</string></dict></plist>
+<plist version="1.0"><dict><key>Label</key><string>com.example.other</string></dict></plist>
 EOF
 in_home "$home" launchd managed_service_installed
-eq "launchd: a plist without the marker is not installed" "1" "$?"
+eq "launchd: a plist with neither the marker nor mike's label is not installed" "1" "$?"
 
 # ── a marked launchd plist in the shape launchd.rs renders ───────────────────
 home="$scratch/launchd"
@@ -139,9 +139,9 @@ eq "launchd: a missing StandardOutPath falls back to the default log" "$home/.lo
 # ── a systemd unit without, then with, the marker ────────────────────────────
 home="$scratch/systemd"
 mkdir -p "$home/.config/systemd/user"
-printf '%s\n' '[Service]' 'ExecStart=/tmp/fake/bin/mike serve' >"$home/.config/systemd/user/mike.service"
+printf '%s\n' '[Service]' >"$home/.config/systemd/user/mike.service"
 in_home "$home" systemd managed_service_installed
-eq "systemd: a unit without the marker is not installed" "1" "$?"
+eq "systemd: a unit with neither the marker nor an ExecStart is not installed" "1" "$?"
 cat >"$home/.config/systemd/user/mike.service" <<'EOF'
 # Managed by mike service install. Run `mike service install` to regenerate this file and `mike service uninstall` to remove it.
 [Unit]

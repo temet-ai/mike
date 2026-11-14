@@ -56,21 +56,13 @@ managed_service_file() {
     fi
 }
 
-# 0 when the proxy's definition file exists and carries the marker mike writes.
-managed_service_installed() {
-    local file
-    file="$(managed_service_file proxy)" || return 1
-    [[ -f "${file}" ]] || return 1
-    head -n "${MANAGED_SERVICE_MARKER_SCAN_LINES}" "${file}" 2>/dev/null \
-        | grep -qF "${MANAGED_SERVICE_MARKER}"
-}
-
 # The text of the first <string> that follows <key>$1</key> inside the plist on stdin, with the
 # XML escapes launchd.rs applies undone. For ProgramArguments that is the first array element.
 _managed_service_plist_string() {
     awk -v key="$1" '
         function unescape(s) {
-            gsub(/&lt;/, "<", s); gsub(/&gt;/, ">", s); gsub(/&amp;/, "\\&", s)
+            gsub(/&lt;/, "<", s); gsub(/&gt;/, ">", s); gsub(/&quot;/, "\"", s)
+            gsub(/&apos;/, "'"'"'", s); gsub(/&amp;/, "\\&", s)
             return s
         }
         index($0, "<key>" key "</key>") { want = 1 }
@@ -82,41 +74,152 @@ _managed_service_plist_string() {
     '
 }
 
-# The executable the proxy service runs.
-managed_service_program() {
-    local file value=""
+# Every <string> of the <array> that follows <key>$1</key> inside the plist on stdin, one per
+# line, escapes undone. Strings may share a line, as a hand-edited plist may put them.
+_managed_service_plist_array() {
+    awk -v key="$1" '
+        function unescape(s) {
+            gsub(/&lt;/, "<", s); gsub(/&gt;/, ">", s); gsub(/&quot;/, "\"", s)
+            gsub(/&apos;/, "'"'"'", s); gsub(/&amp;/, "\\&", s)
+            return s
+        }
+        {
+            line = $0
+            if (!want) {
+                i = index(line, "<key>" key "</key>")
+                if (!i) next
+                want = 1
+                line = substr(line, i + length(key) + 11)
+            }
+            while (match(line, /<array\/>|<array>|<\/array>|<string>[^<]*<\/string>|<key>[^<]*<\/key>/)) {
+                tok = substr(line, RSTART, RLENGTH)
+                line = substr(line, RSTART + RLENGTH)
+                if (tok == "<array/>" || tok == "</array>") exit
+                if (tok == "<array>") { inarr = 1; continue }
+                if (tok ~ /^<key>/) { if (!inarr) exit; continue }
+                if (!inarr) exit
+                print unescape(substr(tok, 9, length(tok) - 17))
+            }
+        }
+    '
+}
+
+# The value of top-level string key $2 in plist $1: plutil where it exists (it also reads binary
+# plists), else the text reader.
+_managed_service_plist_value() {
+    local value=""
+    if command -v plutil >/dev/null 2>&1; then
+        value="$(plutil -extract "$2" raw -o - "$1" 2>/dev/null || true)"
+    fi
+    [[ -n "${value}" ]] || value="$(_managed_service_plist_string "$2" <"$1")"
+    printf '%s\n' "${value}"
+}
+
+# The words of the first ExecStart= line of unit file $1, one per line. systemd.rs double-quotes
+# a word that holds whitespace; single quotes and backslashes are read as systemd reads them.
+_managed_service_unit_words() {
+    awk -v sq="'" '
+        /^ExecStart=/ {
+            line = substr($0, 11); n = length(line); word = ""; have = 0; q = ""
+            for (i = 1; i <= n; i++) {
+                c = substr(line, i, 1)
+                if (c == "\\" && i < n) { word = word substr(line, i + 1, 1); have = 1; i++; continue }
+                if (q != "") { if (c == q) q = ""; else word = word c; continue }
+                if (c == "\"" || c == sq) { q = c; have = 1; continue }
+                if (c == " " || c == "\t") { if (have) print word; word = ""; have = 0; continue }
+                word = word c; have = 1
+            }
+            if (have) print word
+            exit
+        }
+    ' "$1" | while IFS= read -r word; do
+        word="${word//%%/%}"
+        printf '%s\n' "${word//\$\$/\$}"
+    done
+}
+
+# 0 when the proxy's definition file exists and is mike's: it carries the marker mike writes, or
+# it is the service by name. A hand edit (a wrapper that supplies a key) can drop the marker; the
+# launchd Label, or the systemd unit's file name and an ExecStart=, still say whose it is.
+managed_service_installed() {
+    local file
     file="$(managed_service_file proxy)" || return 1
     [[ -f "${file}" ]] || return 1
-    if [[ "$(managed_service_platform)" == "launchd" ]]; then
-        if command -v plutil >/dev/null 2>&1; then
-            value="$(plutil -extract ProgramArguments.0 raw -o - "${file}" 2>/dev/null || true)"
-        fi
-        [[ -n "${value}" ]] || value="$(_managed_service_plist_string ProgramArguments <"${file}")"
-    else
-        # First word of ExecStart=, which systemd.rs double-quotes when it holds whitespace.
-        value="$(awk '
-            /^ExecStart=/ {
-                line = substr($0, 11)
-                if (substr(line, 1, 1) == "\"") {
-                    line = substr(line, 2); out = ""
-                    while (length(line) > 0) {
-                        c = substr(line, 1, 1)
-                        if (c == "\\") { out = out substr(line, 2, 1); line = substr(line, 3); continue }
-                        if (c == "\"") break
-                        out = out c; line = substr(line, 2)
-                    }
-                    print out
-                } else {
-                    sub(/[ \t].*$/, "", line); print line
-                }
-                exit
-            }
-        ' "${file}")"
-        value="${value//%%/%}"
-        value="${value//\$\$/\$}"
+    if head -n "${MANAGED_SERVICE_MARKER_SCAN_LINES}" "${file}" 2>/dev/null \
+        | grep -qF "${MANAGED_SERVICE_MARKER}"; then
+        return 0
     fi
-    [[ -n "${value}" ]] || return 1
-    printf '%s\n' "${value}"
+    if [[ "$(managed_service_platform)" == "launchd" ]]; then
+        [[ "$(_managed_service_plist_value "${file}" Label)" == "$(managed_service_identifier proxy)" ]]
+    else
+        grep -q '^ExecStart=' "${file}" 2>/dev/null
+    fi
+}
+
+# The proxy service's command line, one argument per line: ProgramArguments, or the words of
+# ExecStart=. Argument 0 is the program the supervisor starts, which a hand edit may have made a
+# wrapper that starts mike.
+managed_service_program_arguments() {
+    local file i value count=0
+    file="$(managed_service_file proxy)" || return 1
+    [[ -f "${file}" ]] || return 1
+    if [[ "$(managed_service_platform)" != "launchd" ]]; then
+        _managed_service_unit_words "${file}"
+        return 0
+    fi
+    if command -v plutil >/dev/null 2>&1; then
+        i=0
+        while value="$(plutil -extract "ProgramArguments.${i}" raw -o - "${file}" 2>/dev/null)"; do
+            printf '%s\n' "${value}"
+            i=$((i + 1)); count=$((count + 1))
+        done
+    fi
+    (( count > 0 )) || _managed_service_plist_array ProgramArguments <"${file}"
+}
+
+# Which argument of a command line ($1 = argument 0, then the rest) is the mike binary to
+# replace. Argument 0 is it when its file name is mike or it answers --build-info; otherwise
+# argument 0 is a wrapper and the binary is the first later argument named mike that is an
+# executable file. Prints the path; 1 when there is none. Never names the wrapper.
+managed_service_resolve_binary() {
+    local first="${1-}" arg out
+    [[ -n "${first}" ]] || return 1
+    if [[ "${first##*/}" == "mike" ]]; then
+        printf '%s\n' "${first}"
+        return 0
+    fi
+    if [[ -f "${first}" && -x "${first}" ]]; then
+        out="$("${first}" --build-info </dev/null 2>/dev/null || true)"
+        if [[ -n "${out}" ]]; then
+            printf '%s\n' "${first}"
+            return 0
+        fi
+    fi
+    shift
+    for arg in "$@"; do
+        if [[ "${arg##*/}" == "mike" && -f "${arg}" && -x "${arg}" ]]; then
+            printf '%s\n' "${arg}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The mike binary the proxy service runs, which a deploy replaces. Fails, with a message naming
+# the service file, when the command line holds no mike binary, so nothing is ever copied over
+# a wrapper.
+managed_service_program() {
+    local file arg args=() value
+    file="$(managed_service_file proxy)" || return 1
+    [[ -f "${file}" ]] || return 1
+    while IFS= read -r arg; do args[${#args[@]}]="${arg}"; done < <(managed_service_program_arguments)
+    if value="$(managed_service_resolve_binary "${args[@]+"${args[@]}"}")" && [[ -n "${value}" ]]; then
+        printf '%s\n' "${value}"
+        return 0
+    fi
+    echo "managed-service: ${file} starts ${args[0]:-nothing}, and no mike binary is among its arguments." >&2
+    echo "  Nothing was copied. Name the mike binary in the file (after any wrapper), or run 'mike service install'." >&2
+    return 1
 }
 
 # Where the proxy service's output goes: a file path, or the journalctl command that shows it.
