@@ -6,6 +6,7 @@ Every button is always present and is disabled when it does not apply, so the ro
 -->
 <script lang="ts">
 	import Badge from '$lib/components/shared/Badge.svelte';
+	import AcceptChance from '$lib/components/shared/AcceptChance.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDay } from '$lib/components/eval/evalReview';
 	import type { Proposal } from '$lib/api/proposals';
@@ -15,8 +16,12 @@ Every button is always present and is disabled when it does not apply, so the ro
 		proposal,
 		busy = false,
 		error = null,
+		chance = null,
+		showChance = false,
 		onDecide
 	}: {
+		chance?: number | null;
+		showChance?: boolean;
 		proposal: Proposal;
 		busy?: boolean;
 		error?: string | null;
@@ -49,6 +54,7 @@ Every button is always present and is disabled when it does not apply, so the ro
 			Lesson {proposal.lesson_id}{proposal.topic ? `, ${proposal.topic}` : ''}
 		</h3>
 		<Badge variant={stateVariant}>{stateText}</Badge>
+		<span class="pr-chance"><AcceptChance {chance} show={showChance} /></span>
 	</header>
 
 	<p class="pr-text">{proposal.text}</p>
@@ -121,6 +127,9 @@ Every button is always present and is disabled when it does not apply, so the ro
 		align-items: center;
 		gap: var(--space-3);
 		flex-wrap: wrap;
+	}
+	.pr-chance {
+		margin-left: auto;
 	}
 	.pr-title {
 		margin: 0;

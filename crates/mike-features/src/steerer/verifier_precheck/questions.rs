@@ -9,8 +9,6 @@ pub const QUESTION_SET: &str = "verifier_precheck_v1";
 pub const UNFINISHED: &str = "ask_left_unfinished";
 pub const DISCLOSED: &str = "turn_already_says_it";
 pub const ONLY_ANSWER: &str = "turn_only_answers";
-pub const SENDS_WHEN_TRUE: [&str; 1] = [UNFINISHED];
-pub const SENDS_WHEN_FALSE: [&str; 2] = [DISCLOSED, ONLY_ANSWER];
 
 pub fn questions() -> BTreeMap<String, Question> {
     BTreeMap::from([

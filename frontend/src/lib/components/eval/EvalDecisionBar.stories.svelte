@@ -36,9 +36,16 @@
 
 <Story
 	name="Two questions, turn 12180"
+	args={{ suggestion: { label: 'accepted', probability: 0.72 } }}
 	play={async ({ canvasElement, args }) => {
 		const c = within(canvasElement);
 		await expect(c.getByText('Which is right?')).toBeInTheDocument();
+		await expect(c.getByTestId('prelabel-suggestion').textContent).toBe(
+			'Jev suggests Accepted, 72%'
+		);
+		await expect(
+			canvasElement.querySelectorAll('button[data-label][aria-pressed="true"]')
+		).toHaveLength(0);
 		const rows = c.getAllByRole('group');
 		await expect(rows.map((r) => r.getAttribute('aria-label'))).toEqual([
 			'What was delivered',

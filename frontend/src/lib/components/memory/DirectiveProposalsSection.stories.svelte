@@ -65,9 +65,14 @@
 			});
 		}
 		if (url.includes('/api/directive-proposals')) {
-			return typed<{ proposals: DirectiveProposal[]; next_cursor: number | null }>({
+			return typed<{
+				proposals: DirectiveProposal[];
+				next_cursor: number | null;
+				suggested_accept?: Record<string, number>;
+			}>({
 				proposals: rejected ? [] : [PROPOSAL],
-				next_cursor: null
+				next_cursor: null,
+				...(url.includes('sort=suggested') ? { suggested_accept: { '4': 0.7 } } : {})
 			});
 		}
 		return typed<Record<string, never>>({});
@@ -103,6 +108,17 @@
 				'is gone'
 			)
 		);
+		await expect(canvasElement.querySelector('[data-slot="accept-chance"]')).toBeNull();
+		await userEvent.selectOptions(canvas.getByLabelText('Order'), 'suggested');
+		await waitFor(() =>
+			expect(
+				canvasElement
+					.querySelector('[data-slot="accept-chance"]')
+					?.textContent?.replace(/\s+/g, ' ')
+					.trim()
+			).toBe('accept 70%')
+		);
+		await expect(canvas.getByRole('button', { name: 'Reject' })).toBeEnabled();
 		await userEvent.click(canvas.getByRole('button', { name: 'Reject' }));
 		await waitFor(() => expect(canvas.getByText('No open proposals.')).toBeTruthy());
 	}}

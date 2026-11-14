@@ -7,6 +7,7 @@ real use, and why mike removed it when it did.
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import SkillStateBadge from './SkillStateBadge.svelte';
+	import AcceptChance from '$lib/components/shared/AcceptChance.svelte';
 	import { formatDay } from '$lib/components/eval/evalReview';
 	import { percent, type SkillFolder } from '$lib/api/skills';
 	import SkillPlacementAdvice from './SkillPlacementAdvice.svelte';
@@ -18,7 +19,11 @@ real use, and why mike removed it when it did.
 		reviewerSentence
 	} from './skillEvidenceText';
 
-	let { skill }: { skill: SkillFolder } = $props();
+	let {
+		skill,
+		chance = null,
+		showChance = false
+	}: { skill: SkillFolder; chance?: number | null; showChance?: boolean } = $props();
 
 	const href = $derived(
 		skill.draft_id === null ? null : resolve(`skills/${skill.draft_id}` as `skills/${string}`)
@@ -68,6 +73,7 @@ real use, and why mike removed it when it did.
 			{/if}
 		</h3>
 		<SkillStateBadge state={skill.state} />
+		<span class="sfr-chance"><AcceptChance {chance} show={showChance} /></span>
 	</header>
 
 	<p class="sfr-desc">
@@ -150,6 +156,9 @@ real use, and why mike removed it when it did.
 		align-items: center;
 		gap: var(--space-3);
 		flex-wrap: wrap;
+	}
+	.sfr-chance {
+		margin-left: auto;
 	}
 	.sfr-name {
 		margin: 0;

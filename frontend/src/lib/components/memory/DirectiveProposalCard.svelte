@@ -19,8 +19,19 @@ sits inside `LessonCandidateList`, so this reads as one family with those cards 
 	} from '$lib/api/directiveProposals';
 	import type { DirectiveProposal, ProposalDetail } from '$lib/api/directiveProposals';
 	import { formatDate } from '$lib/components/eval/evalReview';
+	import AcceptChance from '$lib/components/shared/AcceptChance.svelte';
 
-	let { proposal, onDecided }: { proposal: DirectiveProposal; onDecided?: () => void } = $props();
+	let {
+		proposal,
+		onDecided,
+		chance = null,
+		showChance = false
+	}: {
+		proposal: DirectiveProposal;
+		onDecided?: () => void;
+		chance?: number | null;
+		showChance?: boolean;
+	} = $props();
 
 	const evidenceWindow = $derived.by(() => {
 		const first = formatDate(proposal.first_evidence_at);
@@ -94,10 +105,14 @@ sits inside `LessonCandidateList`, so this reads as one family with those cards 
 	aria-label="Standing directive proposal"
 >
 	<div class="dpc-body">
-		<p class="dpc-meta">
-			<span class="machine">{sourceLabel(proposal.source)}</span> — {proposal.evidence_count} times in
-			{proposal.session_count} sessions{evidenceWindow}
-		</p>
+		<div class="dpc-meta-row">
+			<p class="dpc-meta">
+				<span class="machine">{sourceLabel(proposal.source)}</span> — {proposal.evidence_count} times
+				in
+				{proposal.session_count} sessions{evidenceWindow}
+			</p>
+			<AcceptChance {chance} show={showChance} />
+		</div>
 		<p class="dpc-text" data-proposal-text>{proposal.proposed_text}</p>
 
 		<button
@@ -159,6 +174,12 @@ sits inside `LessonCandidateList`, so this reads as one family with those cards 
 <style>
 	.dpc {
 		min-width: 0;
+	}
+	.dpc-meta-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
 	}
 	.dpc-meta {
 		margin: 0;

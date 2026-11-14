@@ -19,6 +19,7 @@ export interface ReviewFilters {
 	gold: string;
 	judge: string;
 	agree: boolean;
+	uncertain?: boolean;
 }
 
 export const DEFAULT_FILTERS: ReviewFilters = {
@@ -69,8 +70,15 @@ export function filtersFromParams(params: URLSearchParams): ReviewFilters {
 		mode: isAxis(mode) ? mode : DEFAULT_FILTERS.mode,
 		gold: plainLabel(params.get('gold')),
 		judge: plainLabel(params.get('judge')),
-		agree: params.get('agree') === '1'
+		agree: params.get('agree') === '1',
+		...uncertainFromParam(params.get('uncertain'))
 	};
+}
+
+function uncertainFromParam(value: string | null): { uncertain?: boolean } {
+	if (value === '1') return { uncertain: true };
+	if (value === '0') return { uncertain: false };
+	return {};
 }
 
 export function paramsFor(filters: ReviewFilters, turn: number | null): URLSearchParams {
@@ -79,6 +87,7 @@ export function paramsFor(filters: ReviewFilters, turn: number | null): URLSearc
 	if (filters.gold) params.set('gold', filters.gold);
 	if (filters.judge) params.set('judge', filters.judge);
 	if (filters.agree) params.set('agree', '1');
+	if (filters.uncertain !== undefined) params.set('uncertain', filters.uncertain ? '1' : '0');
 	if (turn !== null) params.set('turn', String(turn));
 	return params;
 }
@@ -89,6 +98,7 @@ export function activeFilterCount(filters: ReviewFilters): number {
 
 export function queueQuery(filters: ReviewFilters): RunItemsQuery {
 	const query: RunItemsQuery = { include: ['review'], limit: QUEUE_LIMIT };
+	if (filters.uncertain === true) query.review = 'uncertain';
 	if (!filters.agree) query.disagreement = filters.mode;
 	if (filters.gold)
 		query[filters.mode === 'reaction' ? 'gold_reaction' : 'gold_delivery'] = filters.gold;

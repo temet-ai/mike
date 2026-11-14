@@ -12,6 +12,9 @@ would add, and accepts or declines it.
 	import EmptyStateOnboarding from '$lib/components/shared/EmptyStateOnboarding.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import ProposalRow from '$lib/components/proposals/ProposalRow.svelte';
+	import ListOrderSelect from '$lib/components/shared/ListOrderSelect.svelte';
+	import { chanceFor, sortQuery } from '$lib/suggestedOrder';
+	import type { ListOrder } from '$lib/suggestedOrder';
 	import { decideProposal } from '$lib/api/proposals';
 	import type { ProposalsPageData } from './+page';
 
@@ -22,10 +25,16 @@ would add, and accepts or declines it.
 	let busy = $state<number | null>(null);
 	let failed = $state<{ id: number; message: string } | null>(null);
 
+	function go(uuid: string, order: ListOrder): void {
+		const sort = sortQuery(order);
+		void goto(
+			`${resolve('/proposals')}?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`,
+			{ reset: false }
+		);
+	}
+
 	function choose(uuid: string): void {
-		void goto(`${resolve('/proposals')}?project=${encodeURIComponent(uuid)}`, {
-			reset: false
-		});
+		go(uuid, data.order);
 	}
 
 	async function decide(id: number, decision: 'accept' | 'decline' | 'clear'): Promise<void> {
@@ -101,10 +110,16 @@ would add, and accepts or declines it.
 									onRetry={() => void invalidateAll()}
 								/>
 							{:else if data.proposals}
+								<ListOrderSelect
+									order={data.order}
+									onChange={(order) => go(project.project_uuid, order)}
+								/>
 								<div class="pp-rows">
 									{#each data.proposals.proposals as proposal (proposal.lesson_id)}
 										<ProposalRow
 											{proposal}
+											showChance={data.order === 'suggested'}
+											chance={chanceFor(data.proposals.suggested_accept, proposal.lesson_id)}
 											busy={busy === proposal.lesson_id}
 											error={failed?.id === proposal.lesson_id ? failed.message : null}
 											onDecide={(d) => void decide(proposal.lesson_id, d)}

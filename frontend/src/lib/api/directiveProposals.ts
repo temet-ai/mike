@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/api';
+import type { AcceptChances, ListOrder } from '$lib/suggestedOrder';
 
 export interface DirectiveProposal {
 	id: number;
@@ -55,10 +56,18 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<T>
 	return (await res.json()) as T;
 }
 
+export interface DirectiveProposalsPage {
+	proposals: DirectiveProposal[];
+	next_cursor: number | null;
+	suggested_accept?: AcceptChances;
+}
+
 export function listProposals(
-	status = 'open'
-): Promise<{ proposals: DirectiveProposal[]; next_cursor: number | null }> {
-	return send('GET', `/api/directive-proposals?status=${status}`);
+	status = 'open',
+	order: ListOrder = 'default'
+): Promise<DirectiveProposalsPage> {
+	const sort = order === 'suggested' ? '&sort=suggested' : '';
+	return send('GET', `/api/directive-proposals?status=${status}${sort}`);
 }
 
 export function getProposal(id: number): Promise<ProposalDetail> {

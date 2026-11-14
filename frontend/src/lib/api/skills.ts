@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/api';
+import type { AcceptChances, ListOrder } from '$lib/suggestedOrder';
 
 /**
  * Client for the Skills page: the skills mike writes into a project's `.claude/skills/` from its
@@ -113,6 +114,7 @@ export interface SkillFoldersResponse {
 	mode: SkillMode;
 	mode_set: boolean;
 	skills: SkillFolder[];
+	suggested_accept?: AcceptChances;
 }
 
 export interface ReferenceFile {
@@ -229,8 +231,12 @@ export function getSkillProjects(): Promise<SkillProjectsResponse> {
 	return send('GET', '/api/skills/projects');
 }
 
-export function getProjectSkills(projectUuid: string): Promise<SkillFoldersResponse> {
-	return send('GET', `/api/skills?project=${encodeURIComponent(projectUuid)}`);
+export function getProjectSkills(
+	projectUuid: string,
+	order: ListOrder = 'default'
+): Promise<SkillFoldersResponse> {
+	const sort = order === 'suggested' ? '&sort=suggested' : '';
+	return send('GET', `/api/skills?project=${encodeURIComponent(projectUuid)}${sort}`);
 }
 
 export function getSkillDraft(id: number): Promise<SkillDraftResponse> {
