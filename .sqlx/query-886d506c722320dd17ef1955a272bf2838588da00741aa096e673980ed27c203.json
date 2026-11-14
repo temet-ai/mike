@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.slug, COALESCE(t.title, '') AS \"title!\", c.criteria_text AS \"criteria_text!\"\n                     FROM sessions.sessions s\n                     JOIN work.thread_sessions ts ON ts.session_uuid = s.session_uuid\n                     JOIN work.threads t ON t.id = ts.thread_id\n                     JOIN work.thread_acceptance_criteria c ON c.thread_id = t.id\n                    WHERE s.id = $1\n                      AND btrim(COALESCE(c.criteria_text, '')) <> ''\n                    ORDER BY ts.last_seen_at DESC, t.id DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slug",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "criteria_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_acceptance_criteria",
+            "name": "criteria_text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true
+    ]
+  },
+  "hash": "886d506c722320dd17ef1955a272bf2838588da00741aa096e673980ed27c203"
+}

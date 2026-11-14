@@ -41,3 +41,7 @@ pub fn register() {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "validate_tests.rs"]
+mod validate_tests;

@@ -73,6 +73,7 @@ async fn rollup_disabled_writes_nothing_on_the_next_tick() -> anyhow::Result<()>
     let Some(f) = fixture().await? else {
         return Ok(());
     };
+    mike::features_settings::register();
     set_setting(&f, "eval.rollup.enabled", serde_json::json!(false)).await?;
     set_setting(&f, "eval.rollup.hour_utc", serde_json::json!(0)).await?;
     let disabled = mike::eval_metrics::run_tick(&f.handle, &["turn_judge".to_owned()], false).await;

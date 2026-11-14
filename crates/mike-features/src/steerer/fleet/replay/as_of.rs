@@ -8,11 +8,12 @@ use crate::steerer::fleet::input_budget::{
 use crate::steerer::fleet::judge::build_judge_user_message;
 use crate::steerer::fleet::session_block::{BlockRequest, session_block, with_session_block};
 use crate::steerer::fleet::triggers::response_trigger::resolve_operator_ask_with;
-use crate::steerer::fleet::verifier_judge::{VerifierJudgeContext, render_intake_criteria};
+use crate::steerer::fleet::verifier_criteria::CriteriaInputs;
+use crate::steerer::fleet::verifier_judge::VerifierJudgeContext;
 use crate::steerer::gate::strip_harness_scaffold;
 use crate::steerer::note_policy::SessionNotes;
 use crate::steerer::verifier::{
-    build_accumulated_ask, build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
+    build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
     written_by_the_operator,
 };
 use crate::store::persistence::launch_repo::LaunchPersist as _;
@@ -110,19 +111,6 @@ type RawActions = (
     Option<crate::store::persistence::session_action_list::SessionActionCounts>,
 );
 
-async fn load_intake_criteria(
-    ph: &PersistHandle,
-    trigger: &ReplayTrigger,
-) -> Result<Option<String>, PersistError> {
-    let map = ph
-        .steerer()
-        .fetch_acceptance_criteria_as_of(trigger.session_db_id, trigger.trigger_at)
-        .await?;
-    Ok(map
-        .filter(|m| !m.criteria.is_empty())
-        .map(|m| render_intake_criteria(&m)))
-}
-
 async fn load_raw_context(
     ph: &PersistHandle,
     item: &ReplayItem,
@@ -144,26 +132,23 @@ async fn load_raw_context(
         .await?;
     let metas: Vec<TurnToolCallMetaRow> = calls.into_iter().map(Into::into).collect();
     let (action_rows, action_counts) = load_action_rows(ph, trigger, budget).await?;
-    let thread_criteria = ph
+    let threads = ph
         .launch()
-        .fetch_thread_criteria_for_session(
-            trigger.session_db_id,
-            &build_accumulated_ask(&ask_entries),
-        )
-        .await?
-        .map(|thread| thread.criteria_text);
-    let intake_criteria = if thread_criteria.is_some() {
-        None
-    } else {
-        load_intake_criteria(ph, trigger).await?
-    };
+        .fetch_linked_thread_criteria(trigger.session_db_id)
+        .await?;
+    let intake = ph
+        .steerer()
+        .fetch_acceptance_criteria_as_of(trigger.session_db_id, trigger.trigger_at)
+        .await?;
+    let criteria = CriteriaInputs::new(threads, intake).by_default();
     Ok(RawVerifierContext {
         ask_entries,
         trajectory_digest: build_trajectory_digest(&metas),
         action_rows,
         action_counts,
-        thread_criteria,
-        intake_criteria,
+        thread_criteria: criteria.thread_criteria,
+        intake_criteria: criteria.intake_criteria,
+        checklist_criteria: criteria.checklist_criteria,
     })
 }
 

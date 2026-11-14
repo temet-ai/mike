@@ -181,6 +181,7 @@ async fn replay_rebuild_matches_live_builder_on_seeded_session() -> anyhow::Resu
             Some(s.session_db_id),
             Some(s.turn_id),
             budget,
+            None,
         )
         .await;
         let rebuilt = assemble(&s.handle, &item, &replay, budget).await?.context;

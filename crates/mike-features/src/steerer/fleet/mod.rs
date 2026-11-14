@@ -11,6 +11,7 @@ pub mod session_block;
 pub mod steerer_eval;
 pub mod triggers;
 pub mod verifier_arming;
+pub mod verifier_criteria;
 pub mod verifier_judge;
 
 pub use bundle_probe::steerer_input_probe;

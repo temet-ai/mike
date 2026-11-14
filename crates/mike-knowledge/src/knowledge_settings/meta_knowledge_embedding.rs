@@ -21,7 +21,7 @@ pub fn entries() -> Vec<SettingMeta> {
             DEFAULT_INTERVAL_SECS as i64,
             (5, 3_600),
             "Seconds between embedding sweeps",
-            "How long the knowledge embedder rests between sweeps. Lower it to embed a backlog faster; the sweep only works while sources are waiting.",
+            "How long the knowledge embedder rests between sweeps. Lower it to embed a backlog faster; the sweep only works while sources are waiting. After a sweep finds nothing to embed, the rest doubles, up to 2 minutes (or this value if it is longer), and drops back to this value once a sweep finds work.",
         ),
         int(
             BUDGET_SECS,

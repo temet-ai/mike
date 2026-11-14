@@ -26,7 +26,7 @@ async fn wrong_exact_run_and_absent_fleet_cannot_insert_a_receipt() -> anyhow::R
 }
 
 #[tokio::test]
-async fn deferred_commit_rejection_retains_unknown_outcome_entry_without_inventing_a_receipt()
+async fn deferred_commit_rejection_is_read_back_as_not_committed_and_leaves_nothing_pending()
 -> anyhow::Result<()> {
     let Some(h) = Harness::new().await? else {
         return Ok(());
@@ -47,20 +47,20 @@ async fn deferred_commit_rejection_retains_unknown_outcome_entry_without_inventi
         why.contains("fixture deferred receipt commit rejected"),
         "{why}"
     );
+    assert!(why.contains("did not commit"), "{why}");
     h.stop_other().await?;
     durable::local_stop_fence(&h.run).await.stopping_persisted();
     let snapshot = durable::snapshot(&h.run);
-    assert_eq!(snapshot.pending.len(), 1);
-    assert_eq!(snapshot.pending[0].phase, Phase::ReceiptBlocked);
-    assert!(snapshot.pending[0].receipt.is_some());
     assert!(
-        snapshot.pending[0]
-            .detail
-            .as_deref()
-            .is_some_and(|detail| detail.contains("commit outcome unknown"))
+        snapshot
+            .pending
+            .iter()
+            .all(|entry| entry.phase != Phase::ReceiptBlocked),
+        "{:?}",
+        snapshot.pending
     );
-    assert_eq!(snapshot.pending[0].owned_processes, 0);
-    assert!(!snapshot.locally_settled());
+    assert!(snapshot.pending.is_empty(), "{:?}", snapshot.pending);
+    assert!(snapshot.locally_settled());
     assert!(
         h.other
             .fleet()

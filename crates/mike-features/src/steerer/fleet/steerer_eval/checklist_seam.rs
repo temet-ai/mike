@@ -1,7 +1,7 @@
 use super::{EvalWindow, WindowState};
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
-use crate::steerer::checklist_point::{self, Checked, Evidence, parse_criteria};
+use crate::steerer::checklist_point::{self, Checked, Evidence};
 use crate::steerer::registry::Steerer;
 use crate::steerer::verdict::SteererVerdict;
 
@@ -30,10 +30,7 @@ pub async fn run(
         return None;
     }
     let context = state.verifier_context.as_ref()?;
-    let criteria = parse_criteria(
-        context.thread_criteria.as_deref(),
-        context.intake_criteria.as_deref(),
-    );
+    let criteria = &context.checklist_criteria;
     if criteria.is_empty() {
         return None;
     }
@@ -49,7 +46,7 @@ pub async fn run(
         trajectory: &context.trajectory_digest,
         turn_end: &window.eval_inputs.eval_text,
     };
-    let checked = checklist_point::check(&decider, &criteria, &evidence, subject).await?;
+    let checked = checklist_point::check(&decider, criteria, &evidence, subject).await?;
     Some(JevChecklist { decider, checked })
 }
 

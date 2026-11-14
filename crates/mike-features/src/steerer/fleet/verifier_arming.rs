@@ -5,7 +5,9 @@ use uuid::Uuid;
 use super::context::{EvalInputs, EvalTarget, FleetCtx};
 use super::input_budget::{VerifierInputBudget, project_prior_fires};
 use super::verifier_judge::{VerifierJudgeContext, build_verifier_judge_context};
+use crate::llm::decisions::point::Decider;
 use crate::steerer::arming::{ArmingState, derive_arming_state, has_explicit_done_claim};
+use crate::steerer::criteria_source_point;
 use crate::steerer::registry::Steerer;
 use crate::steerer::verifier::build_prior_fires_digest;
 use crate::store::persistence::PersistHandle;
@@ -118,12 +120,14 @@ pub async fn verifier_arming_check(
                 && let Some(uuid) = session_uuid
             {
                 let budget = VerifierInputBudget::for_steerer_kind(&ctx.settings, &steerer.kind);
+                let decider = criteria_source_decider(ctx, ph);
                 let mut context = build_verifier_judge_context(
                     ph,
                     uuid,
                     Some(db_id),
                     eval_inputs.judged_turn_id,
                     budget,
+                    decider.as_ref(),
                 )
                 .await;
                 context.prior_fires_digest = project_prior_fires(prior_fires_digest, budget);
@@ -148,7 +152,27 @@ pub async fn ensure_verifier_context_fallback(
         return;
     };
     let budget = VerifierInputBudget::for_steerer_kind(&ctx.settings, &steerer.kind);
+    let decider = criteria_source_decider(ctx, ph);
     *verifier_context = Some(
-        build_verifier_judge_context(ph, uuid, None, eval_inputs.judged_turn_id, budget).await,
+        build_verifier_judge_context(
+            ph,
+            uuid,
+            None,
+            eval_inputs.judged_turn_id,
+            budget,
+            decider.as_ref(),
+        )
+        .await,
     );
+}
+
+fn criteria_source_decider(ctx: &FleetCtx, ph: &PersistHandle) -> Option<Decider> {
+    Decider::for_point(
+        &ctx.llm,
+        ph,
+        ctx.toggles.load().decisions,
+        &ctx.settings.load(),
+        criteria_source_point::POINT,
+    )
+    .map(Decider::inline)
 }

@@ -68,10 +68,44 @@ impl KnowledgeSweepSettings {
     }
 }
 
+pub const IDLE_WAIT_CEILING: Duration = Duration::from_secs(120);
+
+pub fn next_wait(configured: Duration, previous: Duration, found_work: bool) -> Duration {
+    if found_work {
+        return configured;
+    }
+    previous
+        .max(configured)
+        .saturating_mul(2)
+        .min(configured.max(IDLE_WAIT_CEILING))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn next_wait_empty_sweeps_double_up_to_the_ceiling() {
+        let configured = Duration::from_secs(30);
+        let second = next_wait(configured, configured, false);
+        let third = next_wait(configured, second, false);
+        assert_eq!(second, Duration::from_secs(60));
+        assert_eq!(third, IDLE_WAIT_CEILING);
+        assert_eq!(next_wait(configured, third, false), IDLE_WAIT_CEILING);
+    }
+
+    #[test]
+    fn next_wait_found_work_returns_to_the_configured_interval() {
+        let configured = Duration::from_secs(30);
+        assert_eq!(next_wait(configured, IDLE_WAIT_CEILING, true), configured);
+    }
+
+    #[test]
+    fn next_wait_configured_above_ceiling_is_kept() {
+        let configured = Duration::from_secs(600);
+        assert_eq!(next_wait(configured, configured, false), configured);
+    }
 
     fn row(key: &str, value: serde_json::Value) -> (String, serde_json::Value) {
         (key.to_owned(), value)

@@ -140,6 +140,7 @@ async fn set_invalid_value_returns_invalid_value_error() -> anyhow::Result<()> {
     let db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
 
+    mike::feature_settings::install();
     let overlay = Arc::new(ArcSwap::from_pointee(SettingsOverlay::default()));
     let write_lock = Arc::new(Mutex::new(SettingsWriteGuard));
     let svc = SettingsService::reconcile_on_startup(overlay, write_lock, handle).await?;

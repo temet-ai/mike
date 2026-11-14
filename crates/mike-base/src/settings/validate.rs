@@ -212,54 +212,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn validate_setting_value_bool_ok() {
-        let result =
-            validate_setting_value("reminders.inject_lessons", serde_json::Value::Bool(false));
-        assert!(result.is_ok(), "expected Ok, got {result:?}");
-    }
-
-    #[test]
-    fn validate_setting_value_bool_wrong_type() {
-        let result = validate_setting_value(
-            "reminders.inject_lessons",
-            serde_json::Value::Number(1u64.into()),
-        );
-        assert!(result.is_err(), "expected Err for wrong type");
-    }
-
-    #[test]
-    fn validate_setting_value_compression_dedup_enabled_ok() {
-        let result =
-            validate_setting_value("compression_dedup.enabled", serde_json::Value::Bool(false));
-        assert!(result.is_ok(), "expected Ok, got {result:?}");
-    }
-
-    #[test]
-    fn validate_setting_value_int_range() {
-        assert!(
-            validate_setting_value(
-                "reminders.max_lessons_to_inject",
-                serde_json::Value::Number(5u64.into())
-            )
-            .is_ok()
-        );
-        assert!(
-            validate_setting_value(
-                "reminders.max_lessons_to_inject",
-                serde_json::Value::Number(serde_json::Number::from(-1i64))
-            )
-            .is_err()
-        );
-        assert!(
-            validate_setting_value(
-                "reminders.max_lessons_to_inject",
-                serde_json::Value::Number(serde_json::Number::from(51i64))
-            )
-            .is_err()
-        );
-    }
-
-    #[test]
     fn validate_setting_value_float_range() {
         assert!(
             validate_setting_value(
@@ -298,19 +250,6 @@ mod tests {
 
     #[test]
     fn validate_setting_value_text_blank_rejected() {
-        let blank =
-            validate_setting_value("weasel_intercept.correction_prompt", serde_json::json!(""));
-        assert!(blank.is_err(), "empty string must be rejected");
-
-        let whitespace_only = validate_setting_value(
-            "weasel_intercept.correction_prompt",
-            serde_json::json!("   \n\t "),
-        );
-        assert!(
-            whitespace_only.is_err(),
-            "whitespace-only string must be rejected"
-        );
-
         let blank_rubric =
             validate_setting_value("judge_worker.system_prompt", serde_json::json!(""));
         assert!(blank_rubric.is_err(), "empty rubric must be rejected");
@@ -324,85 +263,8 @@ mod tests {
     }
 
     #[test]
-    fn validate_setting_value_text_non_blank_accepted_unchanged() {
-        let result = validate_setting_value(
-            "weasel_intercept.correction_prompt",
-            serde_json::json!("Say '{word}' is not allowed."),
-        );
-        assert_eq!(
-            result,
-            Ok(serde_json::Value::String(
-                "Say '{word}' is not allowed.".to_owned()
-            ))
-        );
-    }
-
-    #[test]
     fn validate_setting_value_string_kind_allows_blank() {
         let result = validate_setting_value("judge_worker.model", serde_json::json!(""));
         assert_eq!(result, Ok(serde_json::Value::String(String::new())));
-    }
-
-    #[test]
-    fn validate_setting_value_file_read_compression_min_bytes_range() {
-        assert!(
-            validate_setting_value("file_read_compression.min_bytes", serde_json::json!(1500))
-                .is_ok()
-        );
-        assert!(
-            validate_setting_value("file_read_compression.min_bytes", serde_json::json!(0))
-                .is_err(),
-            "0 is below the min_i64 floor"
-        );
-        assert!(
-            validate_setting_value(
-                "file_read_compression.min_bytes",
-                serde_json::json!(20_000_000i64)
-            )
-            .is_err(),
-            "20MB exceeds the max_i64 ceiling"
-        );
-    }
-
-    #[test]
-    fn validate_setting_value_file_read_compression_line_shape() {
-        assert!(
-            validate_setting_value("file_read_compression.head_lines", serde_json::json!(40))
-                .is_ok()
-        );
-        assert!(
-            validate_setting_value("file_read_compression.tail_lines", serde_json::json!(20))
-                .is_ok()
-        );
-        assert!(
-            validate_setting_value("file_read_compression.head_lines", serde_json::json!(-1))
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn validate_setting_value_file_read_compression_string_lists() {
-        assert!(
-            validate_setting_value(
-                "file_read_compression.enabled_producers",
-                serde_json::json!(["Read", "Bash"])
-            )
-            .is_ok()
-        );
-        assert!(
-            validate_setting_value(
-                "file_read_compression.protected_paths",
-                serde_json::json!(["**/*.env", "secrets/**"])
-            )
-            .is_ok()
-        );
-        assert!(
-            validate_setting_value(
-                "file_read_compression.enabled_producers",
-                serde_json::json!("Read")
-            )
-            .is_err(),
-            "a bare string is not a StringList"
-        );
     }
 }

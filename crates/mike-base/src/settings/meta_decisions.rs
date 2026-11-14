@@ -180,6 +180,11 @@ points![
         "Jev decides whether acceptance criteria describe an observable end state."
     ),
     (
+        "criteria_source",
+        "Criteria source",
+        "Jev decides, over all the operator asked a session, which of its linked work threads it was asked to do; only those threads' criteria join its verifier."
+    ),
+    (
         "steerer_checklist",
         "Steerer checklist",
         "Jev answers one question per criterion before the fleet steerer writes a nudge."
@@ -296,6 +301,7 @@ pub fn area(point: &str) -> &'static str {
         | "prod_detect"
         | "ended_on"
         | "criteria_contract"
+        | "criteria_source"
         | "steerer_checklist"
         | "diagnostic_phrase"
         | "weasel_after" => "steering",

@@ -6,6 +6,7 @@ pub mod commit_message;
 pub mod correction_classifier;
 pub mod criteria_contract;
 pub mod criteria_point;
+pub mod criteria_source_point;
 pub mod decisions_loop;
 pub mod ended_on_point;
 pub mod enrolment_hook;

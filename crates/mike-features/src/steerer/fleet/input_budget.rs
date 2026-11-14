@@ -6,6 +6,7 @@ use tracing::warn;
 use super::context::EvalInputs;
 use super::verifier_judge::VerifierJudgeContext;
 use crate::settings::SharedSettingsOverlay;
+use crate::steerer::checklist_point::Criterion;
 use crate::steerer::verifier::{build_accumulated_ask, build_session_action_list};
 use crate::store::persistence::memory_ask_ledger::AskLedgerEntryRow;
 use crate::store::persistence::session_action_list::{SessionActionCounts, SessionActionRow};
@@ -291,6 +292,7 @@ pub struct RawVerifierContext {
     pub action_counts: Option<SessionActionCounts>,
     pub thread_criteria: Option<String>,
     pub intake_criteria: Option<String>,
+    pub checklist_criteria: Vec<Criterion>,
 }
 
 pub fn project_verifier_context(
@@ -303,6 +305,7 @@ pub fn project_verifier_context(
             trajectory_digest: raw.trajectory_digest.clone(),
             thread_criteria: raw.thread_criteria.clone(),
             intake_criteria: raw.intake_criteria.clone(),
+            checklist_criteria: raw.checklist_criteria.clone(),
             session_action_list: build_session_action_list(&raw.action_rows),
             budget,
             ..Default::default()
@@ -315,6 +318,7 @@ pub fn project_verifier_context(
         trajectory_digest: raw.trajectory_digest.clone(),
         thread_criteria: raw.thread_criteria.as_ref().map(cut_criteria),
         intake_criteria: raw.intake_criteria.as_ref().map(cut_criteria),
+        checklist_criteria: raw.checklist_criteria.clone(),
         session_action_list: project_action_list(&raw.action_rows, raw.action_counts, caps),
         budget,
         ..Default::default()
