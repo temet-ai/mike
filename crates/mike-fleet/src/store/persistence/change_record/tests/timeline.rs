@@ -2,7 +2,7 @@ use crate::store::persistence::fleet_repo::FleetPersist as _;
 use chrono::Duration;
 
 use super::fixture;
-use super::seed::{CHECKOUT, event, micros_now, project, request, session};
+use super::seed::{CHECKOUT, ToolUse, event, micros_now, project, request, session, tool_use};
 use crate::change_record::ChangeKind;
 
 #[tokio::test]
@@ -135,6 +135,47 @@ async fn checkouts_with_working_sessions_returns_each_folder_with_its_newest_req
     assert_eq!(one.checkout, "/work/alpha");
     assert_eq!(one.project_id, project_id);
     assert_eq!(one.newest_request_at, now - Duration::minutes(2));
+    f.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn checkouts_with_working_sessions_include_folders_a_session_edited_outside_its_cwd()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let now = micros_now()?;
+    let project_id = project(pool).await?;
+    let busy = session(pool, project_id, Some("/work/alpha")).await?;
+    let req = request(pool, busy, project_id, now - Duration::minutes(2)).await?;
+    for (name, path) in [
+        ("Write", "/work/alpha/.claude/worktrees/fix/src/lib.rs"),
+        ("Read", "/work/beta/src/lib.rs"),
+    ] {
+        tool_use(
+            pool,
+            &ToolUse {
+                session_id: busy,
+                request_id: req,
+                name,
+                file_path: Some(path),
+                at: now - Duration::minutes(1),
+            },
+        )
+        .await?;
+    }
+    let working = f
+        .handle
+        .fleet()
+        .checkouts_with_working_sessions(Duration::minutes(30))
+        .await?;
+    let folders: Vec<&str> = working.iter().map(|w| w.checkout.as_str()).collect();
+    assert_eq!(
+        folders,
+        ["/work/alpha/.claude/worktrees/fix/src", "/work/alpha"]
+    );
     f.db.cleanup().await?;
     Ok(())
 }

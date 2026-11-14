@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH placed AS (\n    SELECT coalesce(s.cwd, loc.root_path) AS checkout,\n           s.project_id,\n           max(r.created_at) AS newest\n      FROM requests.requests r\n      JOIN sessions.sessions s ON s.id = r.session_id\n      LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid\n     WHERE r.created_at >= $1\n       AND coalesce(s.cwd, loc.root_path) IS NOT NULL\n     GROUP BY 1, 2\n),\nedited AS (\n    SELECT regexp_replace(u.file_path, '/[^/]*$', '') AS checkout,\n           s.project_id,\n           max(u.created_at) AS newest\n      FROM tools.uses u\n      JOIN sessions.sessions s ON s.id = u.session_id\n     WHERE u.created_at >= $1\n       AND u.tool_name IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')\n       AND starts_with(u.file_path, '/')\n     GROUP BY 1, 2\n)\nSELECT w.checkout AS \"checkout!\",\n       w.project_id AS \"project_id!\",\n       max(w.newest) AS \"newest_request_at!\"\n  FROM (SELECT * FROM placed UNION ALL SELECT * FROM edited) w\n WHERE w.checkout <> ''\n GROUP BY w.checkout, w.project_id\n ORDER BY 3 DESC, 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "checkout!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "newest_request_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c811fd14ef10c22615508b0f516c0f39b45b33bea5ad0623f808688e595e9175"
+}
