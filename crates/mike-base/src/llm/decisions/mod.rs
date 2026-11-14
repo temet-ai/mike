@@ -177,6 +177,7 @@ pub mod export;
 pub mod loop_store;
 pub mod point;
 pub mod record;
+pub mod text;
 
 #[cfg(test)]
 mod retention_tests;

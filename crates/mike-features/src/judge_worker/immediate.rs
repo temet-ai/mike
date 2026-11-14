@@ -119,6 +119,13 @@ impl ImmediateJudge {
             session_judge_bundle_id: overlay.session_judge_live_bundle_id,
             backoff_base_secs: self.judge_cfg.backoff_base_secs,
             backoff_max_secs: self.judge_cfg.backoff_max_secs,
+            jev: crate::llm::decisions::point::Decider::for_point(
+                llm,
+                &self.persist,
+                self.toggles.load().decisions,
+                &overlay,
+                crate::analysis::judge::jev::POINT,
+            ),
         }
     }
 

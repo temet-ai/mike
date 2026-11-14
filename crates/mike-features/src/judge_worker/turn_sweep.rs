@@ -33,6 +33,7 @@ pub struct JudgeSweepParams<'a> {
     pub backoff_base_secs: i64,
     pub backoff_max_secs: i64,
     pub bundle_id: Option<i64>,
+    pub decisions: Option<crate::llm::decisions::point::Decider>,
 }
 
 pub struct SweepReport {
@@ -216,6 +217,30 @@ async fn judge_one_turn(
     c: &JudgeCandidateRow,
 ) -> ControlFlow<(), bool> {
     let user_msg = build_judge_user_message(c);
+    if let Some(decider) = params.decisions.as_ref()
+        && let Some(jev) = super::jev_turn::judge_legacy(
+            decider,
+            llm,
+            c,
+            params.system_prompt,
+            &user_msg,
+            params.threshold,
+        )
+        .await
+    {
+        breaker.record(true, Instant::now());
+        let judged = LiveJudged {
+            turn_id: c.turn_id,
+            verdict: &jev.verdict,
+            usage: &jev.usage,
+            input_text: &user_msg,
+        };
+        let stored = stamp_and_log(persist, breaker, params, judged).await;
+        if stored {
+            crate::analysis::judge::jev::mark_stored(decider, &jev.jev, params.threshold).await;
+        }
+        return ControlFlow::Continue(stored);
+    }
     let result = run_judge_with_usage(llm, params.system_prompt, &user_msg, c.turn_id).await;
     let (verdict, usage) = match result {
         Ok(v) => {

@@ -26,6 +26,7 @@ pub struct SweepContext<'a> {
     pub injection_gate: &'a std::sync::Arc<crate::injection::InjectionGate>,
     pub embedding: &'a EmbeddingService,
     pub lessons: &'a dyn crate::state::lesson_hooks::LessonHooks,
+    pub toggles: &'a Arc<ArcSwap<crate::feature_toggles::FeatureToggles>>,
 }
 
 impl SweepContext<'_> {
@@ -83,7 +84,7 @@ fn log_sweep_query_failed(e: &PersistError) {
     );
 }
 
-fn build_base_llm_client(ctx: &SweepContext<'_>) -> Option<OpenRouterClient> {
+pub(super) fn build_base_llm_client(ctx: &SweepContext<'_>) -> Option<OpenRouterClient> {
     let config = ctx.config;
     let model = ctx.settings.load().live_steerer_model(&config.model);
     match OpenRouterClient::new(

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT r.id, e.outcome_label, 'turn_guard_label',\n       jsonb_build_object('evaluation_uuid', e.uuid, 'label_source', e.label_source)\n  FROM decisions.records r\n  JOIN steering.evaluations e ON e.intervention_uuid = r.intervention_uuid\n WHERE r.point = $1 AND e.outcome_label IS NOT NULL\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8837ef1acf9c37b132e9380d62c3cddc5bc363a3c3a211ffe699a234a2949f13"
+}

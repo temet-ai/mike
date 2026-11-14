@@ -39,6 +39,7 @@ pub struct LiveJudge<'a> {
     pub session_judge_bundle_id: i64,
     pub backoff_base_secs: i64,
     pub backoff_max_secs: i64,
+    pub jev: Option<crate::llm::decisions::point::Decider>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -221,7 +222,11 @@ async fn store_verdict(
         breaker.record(false, Instant::now());
         return false;
     };
-    log_promote(turn_id, verdict_id, &outcome)
+    let promoted = log_promote(turn_id, verdict_id, &outcome);
+    if let (Some(decider), Some(jev)) = (judge.jev.as_ref(), judged.jev.as_ref()) {
+        crate::analysis::judge::jev::mark_stored(decider, jev, judge.threshold).await;
+    }
+    promoted
 }
 
 async fn judge_one(
@@ -293,6 +298,13 @@ async fn judge_fresh(
     )??;
     let ctx = context_from_row(&row)?;
     let turn_llm = attribute_turn(judge.persist, judge.llm, reservation, turn_id).await;
+    if let Some(decider) = judge.jev.as_ref()
+        && let Some(judged) =
+            super::jev_turn::judge_v2(decider, &turn_llm, &judge.bundle.cfg, &ctx, judge.threshold)
+                .await
+    {
+        return Some(Ok(judged));
+    }
     Some(judge_turn_v2(&turn_llm, &judge.bundle.cfg, &ctx).await)
 }
 

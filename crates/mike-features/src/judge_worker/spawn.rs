@@ -142,6 +142,7 @@ struct JudgeTickContext<'a> {
     backoff_max_secs: i64,
     shared: &'a LiveJudgeShared,
     interval: Duration,
+    toggles: &'a Arc<ArcSwap<FeatureToggles>>,
 }
 
 async fn run(args: RunArgs) {
@@ -185,6 +186,7 @@ async fn run(args: RunArgs) {
         backoff_max_secs,
         shared: &shared,
         interval: Duration::from_secs(interval_secs),
+        toggles: &toggles,
     };
 
     loop {
@@ -273,6 +275,7 @@ async fn run_one_tick(
             shared: ctx.shared,
             overlay: &live_settings,
             judge_cfg: ctx.judge_cfg,
+            decisions_on: ctx.toggles.load().decisions,
         };
         return run_live_tick(tick, breaker).await.defer;
     }
@@ -295,6 +298,13 @@ async fn run_one_tick(
         backoff_base_secs: ctx.backoff_base_secs,
         backoff_max_secs: ctx.backoff_max_secs,
         bundle_id: live_settings.bundles.turn_judge,
+        decisions: crate::llm::decisions::point::Decider::for_point(
+            &effective_llm,
+            ctx.persist,
+            ctx.toggles.load().decisions,
+            &live_settings,
+            crate::analysis::judge::jev::POINT,
+        ),
     };
     run_sweep_and_log(ctx.persist, &effective_llm, breaker, &params).await
 }

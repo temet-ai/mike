@@ -4,6 +4,7 @@ pub mod gate_probe;
 pub mod gates;
 pub mod guard_delivery;
 pub mod guard_seam;
+pub mod jev_note;
 pub mod judgement;
 pub mod log;
 pub mod record;
@@ -11,7 +12,9 @@ pub mod rollout;
 pub mod steps;
 #[cfg(test)]
 mod tests;
+pub mod turn_notes;
 pub mod verdict_call;
+pub mod verifier_seam;
 
 pub use gate_probe::steerer_gate_probe;
 
@@ -177,10 +180,30 @@ async fn fire_steerer(
     }
 }
 
+async fn fire_after_precheck(
+    window: &EvalWindow<'_>,
+    steerer: &Steerer,
+    resolved: &ResolvedVerdict,
+    nudge_message: &str,
+    rows: &[uuid::Uuid],
+) -> Exit {
+    let precheck = verifier_seam::run(window, steerer, resolved, nudge_message, rows).await;
+    if let Some(held) = precheck.as_ref().filter(|p| p.holds()) {
+        held.mark(false).await;
+        return Exit::would_fire(resolved.verdict.clone());
+    }
+    let exit = fire_steerer(window, steerer, resolved, nudge_message).await;
+    if let Some(sent) = precheck {
+        sent.mark(matches!(exit.step, StepOutcome::Fired(..))).await;
+    }
+    exit
+}
+
 async fn judge_past_gate(
     window: &EvalWindow<'_>,
     steerer: &Steerer,
     state: &mut WindowState<'_>,
+    rows: &[uuid::Uuid],
 ) -> Exit {
     if let Some(reason) = pre_verdict_decline(window, steerer, state).await {
         state.outcome.abstain(steerer, reason);
@@ -215,7 +238,7 @@ async fn judge_past_gate(
         log_shadow_would_fire(window.target, steerer.id);
         return Exit::would_fire(resolved.verdict);
     }
-    fire_steerer(window, steerer, &resolved, &nudge_message).await
+    fire_after_precheck(window, steerer, &resolved, &nudge_message, rows).await
 }
 
 async fn evaluate_one_steerer(
@@ -239,7 +262,7 @@ async fn evaluate_one_steerer(
         return StepOutcome::Continue;
     }
     let rows = dispatch_rows(window, steerer).await;
-    let exit = judge_past_gate(window, steerer, state).await;
+    let exit = judge_past_gate(window, steerer, state, &rows).await;
     resolve_exit(window.recorder.as_ref(), &rows, exit.resolution).await;
     exit.step
 }

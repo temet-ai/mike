@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT r.id,\n       CASE WHEN e.kind = r.composed -> 'verdict' ->> 'kind' THEN 'right' ELSE 'wrong' END,\n       'operator_kind',\n       jsonb_build_object('ask_entry_id', e.id,\n                          'operator_kind', e.kind,\n                          'jev_kind', r.composed -> 'verdict' ->> 'kind')\n  FROM decisions.records r\n  JOIN memory.ask_ledger_entries e ON e.request_id = r.request_id\n WHERE r.point = 'correction_classifier'\n   AND r.applied IN ('warned', 'passed')\n   AND e.kind_source = 'operator'\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "abd4c845350db15b9fdefd785ba368c99fd98b97cf9dd5f9a5bc2ff275aaae71"
+}
