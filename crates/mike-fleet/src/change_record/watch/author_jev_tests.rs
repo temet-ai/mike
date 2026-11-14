@@ -28,6 +28,7 @@ fn run(session: i64) -> ShellRun {
         session_id: session,
         started: Utc::now(),
         finished: None,
+        names_checkout: false,
     }
 }
 
