@@ -47,15 +47,12 @@ pub async fn apply_session_lessons_with_floor(
         return RemindersOutcome::Unchanged;
     }
 
-    let (query, message_count) = super::session_lessons_query::conversation_query(body_bytes);
-    if message_count > 0 {
-        snapshot
-            .relevance
-            .observe_context(session_id, message_count);
+    let (query, _) = super::session_lessons_query::conversation_query(body_bytes);
+    if !matches!(turn_origin, TurnOrigin::Primary | TurnOrigin::PrimaryFirst) {
+        return RemindersOutcome::Unchanged;
     }
-    if !matches!(turn_origin, TurnOrigin::Primary | TurnOrigin::PrimaryFirst)
-        || (is_tool_loop && !snapshot.relevance.query_ready(session_id, &query))
-    {
+    snapshot.relevance.observe_request(session_id);
+    if is_tool_loop && !snapshot.relevance.query_ready(session_id, &query) {
         return RemindersOutcome::Unchanged;
     }
     let mut seen = std::collections::HashSet::new();

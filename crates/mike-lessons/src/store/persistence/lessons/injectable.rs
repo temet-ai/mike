@@ -33,8 +33,12 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn list_project_injectable_lessons(
         self,
     ) -> Result<Vec<InjectableLessonRow>, PersistError> {
+        let machine = crate::machine_identity::load_default()
+            .await
+            .ok()
+            .map(|identity| identity.machine_uuid);
         crate::metrics::time_db("list_project_injectable_lessons", async move {
-            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at, added in 20261111170700, before its .sqlx entry is prepared
+            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at and machine_uuid, added in 20261111170700 and 20261114150000, before their .sqlx entries are prepared
                 r#"SELECT l.id, p.project_path, lk.code AS kind, l.text, l.topic, l.agent_id
                      FROM memory.lessons l
                      JOIN projects.projects p ON p.id = l.project_id
@@ -44,6 +48,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                     WHERE (ls.code IN ('daily', 'long_term') OR (ls.code = 'raw' AND src.code = 'operator'))
                       AND (l.expires_at IS NULL OR l.expires_at > NOW())
                       AND l.retired_at IS NULL
+                      AND (l.machine_uuid IS NULL OR l.machine_uuid = $1)
                       AND NOT EXISTS (
                           SELECT 1
                             FROM memory.lesson_relations r
@@ -57,6 +62,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                       ))
                     ORDER BY l.created_at DESC"#,
             )
+            .bind(machine)
             .fetch_all(&self.pool)
             .await?;
             Ok(rows)
