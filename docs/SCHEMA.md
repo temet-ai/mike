@@ -4083,7 +4083,7 @@ allows.
 | `request_body` | `JSONB NULL` | Added in `20260902000001_llm_calls_request_body.sql`. The full outbound request body (system + messages + parameters) exactly as sent, captured once by `crates/mike/src/llm/openrouter.rs` and stored unchanged — never a slice or a summary. `NULL` on rows predating this column and on refused calls, which never build a body in the first place. This is what lets the session judge's related-sessions block (the neighbour-session context spliced into the judge prompt) be read back off the live system after the fact. |
 | `machine_uuid` | `UUID NULL` | Added in `20261014130000_llm_worker_leases.sql`. The `machine_uuid` from `machine.json` of the proxy that made the call, filled by `PersistHandle::insert_llm_call`. `NULL` on rows recorded before the column existed and on rows from a proxy with no machine identity file. Not indexed: the per-machine audit reads a bounded time window through `idx_llm_calls_created_at`. |
 
-Migration `20261113200000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
+Migration `20261114090000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
 
 **Indexes:**
 - `idx_llm_calls_created_at`: `created_at` (BRIN) — append-only time series
@@ -4148,7 +4148,7 @@ the roles another machine holds, with that machine's uuid and heartbeat age.
 
 ## Domain: `decisions`
 
-Added by `20261113200000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
+Added by `20261114090000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
 
 ### `decisions.records`
 
