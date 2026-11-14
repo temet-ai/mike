@@ -440,6 +440,11 @@ pub fn build_feature_toggle_overlay(
         steerer: config.steerer.enabled,
         ..FeatureToggles::default()
     };
-    crate::settings::registry::apply_boot_toggles(&config.sections, &mut toggles);
+    for (key, enabled) in crate::settings::registry::boot_toggle_values(&config.sections) {
+        match set_toggle_enabled(&toggles, key, enabled) {
+            Some(updated) => toggles = updated,
+            None => tracing::warn!(key, "boot toggle names no feature toggle"),
+        }
+    }
     std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(toggles))
 }

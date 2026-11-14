@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{ConfigSection, ConfigSections, SectionSpec};
 use crate::config::ProxyConfig;
-use crate::feature_toggles::FeatureToggles;
 use crate::settings::registry::{self, FeatureSettings};
 use crate::settings::{FeatureOverlays, SettingApplies, SettingKind, SettingMeta, SettingScope};
 
@@ -59,8 +58,8 @@ fn no_overlay(_: &mut FeatureOverlays, _: &str, _: &serde_json::Value) -> bool {
     false
 }
 
-fn probe_toggles(sections: &ConfigSections, toggles: &mut FeatureToggles) {
-    toggles.harvester = sections.get::<ProbeSection>().enabled;
+fn probe_toggles(sections: &ConfigSections) -> Vec<(&'static str, bool)> {
+    vec![("harvester", sections.get::<ProbeSection>().enabled)]
 }
 
 static PROBE: FeatureSettings = FeatureSettings {

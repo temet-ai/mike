@@ -5,7 +5,6 @@ pub use sections::ChannelLinkSweepConfig;
 use serde_json::Value;
 
 use crate::config::{ConfigSections, SectionSpec};
-use crate::feature_toggles::FeatureToggles;
 use crate::settings::{FeatureOverlays, FeatureSettings, SettingMeta};
 
 pub static CHANNEL_LINK_SETTINGS: FeatureSettings = FeatureSettings {
@@ -33,7 +32,9 @@ fn no_overlay(_overlays: &mut FeatureOverlays, _key: &str, _value: &Value) -> bo
     false
 }
 
-fn no_boot_toggles(_sections: &ConfigSections, _toggles: &mut FeatureToggles) {}
+fn no_boot_toggles(_sections: &ConfigSections) -> Vec<(&'static str, bool)> {
+    Vec::new()
+}
 
 #[cfg(test)]
 mod tests {

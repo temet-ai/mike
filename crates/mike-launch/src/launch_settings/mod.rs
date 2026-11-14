@@ -3,7 +3,6 @@ pub mod meta_work_registry;
 use serde_json::Value;
 
 use crate::config::ConfigSections;
-use crate::feature_toggles::FeatureToggles;
 use crate::settings::{FeatureOverlays, FeatureSettings};
 
 pub static LAUNCH_SETTINGS: FeatureSettings = FeatureSettings {
@@ -27,7 +26,9 @@ fn no_overlay(_overlays: &mut FeatureOverlays, _key: &str, _value: &Value) -> bo
     false
 }
 
-fn no_boot_toggles(_sections: &ConfigSections, _toggles: &mut FeatureToggles) {}
+fn no_boot_toggles(_sections: &ConfigSections) -> Vec<(&'static str, bool)> {
+    Vec::new()
+}
 
 #[cfg(test)]
 mod tests {

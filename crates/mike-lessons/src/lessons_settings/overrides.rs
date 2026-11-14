@@ -2,7 +2,6 @@ use serde_json::Value;
 
 use super::sections::{LessonRelationsConfig, LessonWorkerConfig};
 use crate::config::ConfigSections;
-use crate::feature_toggles::FeatureToggles;
 
 use super::sections::{HarvesterConfig, RecallInjectorConfig};
 
@@ -11,10 +10,18 @@ pub fn apply_override(sections: &mut ConfigSections, key: &str, value: &Value) -
         || apply_lesson_relations_override(sections, key, value)
 }
 
-pub fn boot_toggles(sections: &ConfigSections, toggles: &mut FeatureToggles) {
-    toggles.recall_injector = sections.get::<RecallInjectorConfig>().enabled;
-    toggles.lesson_worker = sections.get::<LessonWorkerConfig>().enabled;
-    toggles.harvester = sections.get::<HarvesterConfig>().enabled;
+pub fn boot_toggles(sections: &ConfigSections) -> Vec<(&'static str, bool)> {
+    vec![
+        (
+            "recall_injector",
+            sections.get::<RecallInjectorConfig>().enabled,
+        ),
+        (
+            "lesson_worker",
+            sections.get::<LessonWorkerConfig>().enabled,
+        ),
+        ("harvester", sections.get::<HarvesterConfig>().enabled),
+    ]
 }
 
 fn apply_lesson_worker_override(sections: &mut ConfigSections, key: &str, value: &Value) -> bool {
