@@ -65,6 +65,7 @@ fn problem(escalated: bool) -> ProblemStatus {
         detail: "C2 failed three times".into(),
         decisions: vec![],
         escalated,
+        routed: false,
     }
 }
 

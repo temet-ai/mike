@@ -86,7 +86,7 @@ async fn run(first: &str, second: &str) -> anyhow::Result<Option<Vec<(String, St
     };
     let queries = queries();
     let picked: Vec<&TriggerQuery> = queries.iter().collect();
-    ask_batch(&client, Some(&jev), &offer, 0, &picked).await?;
+    ask_batch(&client, Some(&jev), PROMPT, &offer, 0, &picked).await?;
     let found = labels(&persist).await?;
     persist.pool().close().await;
     db.cleanup().await?;

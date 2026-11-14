@@ -125,7 +125,7 @@ pub(super) struct Use {
 
 pub(super) enum Matcher {
     Ast {
-        rule: RuleConfig<SupportLang>,
+        rule: Box<RuleConfig<SupportLang>>,
         capture: Option<String>,
     },
     Text(Regex),
@@ -188,7 +188,7 @@ fn compile_spec(doc: RuleDoc) -> Result<Spec, WiringError> {
 fn compile_use(id: &str, doc: UseDoc) -> Result<Use, WiringError> {
     let matcher = match (doc.ast, doc.text) {
         (Some(ast), None) => Matcher::Ast {
-            rule: compile_ast(id, ast)?,
+            rule: Box::new(compile_ast(id, ast)?),
             capture: doc.capture,
         },
         (None, Some(text)) => {

@@ -5,6 +5,7 @@ use crate::dossier::render::judge::{JudgeSectionId, JudgeView};
 use crate::dossier::render::{TypedView, render};
 use crate::dossier::view::types::{AsOf, Audience, Budget};
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use crate::store::persistence::turn_verdicts::JudgeTurnContextRow;
 
 const DOSSIER_SLICES: [JudgeSlice; 3] = [

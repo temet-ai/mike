@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::{Value, json};
 
-use super::SupplyJudge;
 use super::prompt::Answer;
+use super::{JudgeError, SupplyJudge};
 use crate::llm::decisions::env::{DecisionEnv, head_chars, tail_chars};
 use crate::llm::decisions::point::{Asked, Decider, choice};
 use crate::llm::decisions::{Question, record::DecisionSubject};
@@ -142,7 +142,7 @@ impl<J: SupplyJudge + Sync> SupplyJudge for JevJudge<'_, J> {
         }
     }
 
-    async fn judge(&self, item: &PendingVerdict, user: &str) -> Result<Answer, String> {
+    async fn judge(&self, item: &PendingVerdict, user: &str) -> Result<Answer, JudgeError> {
         if !self.tripped.load(Ordering::Relaxed)
             && let Some(answer) = self.ask(item).await
         {

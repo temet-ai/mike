@@ -209,6 +209,7 @@ pub(super) const DECISIONS_LOOP: Job = Job {
     label: "Decisions loop",
     description: "Scores every Jev decision point against its labels (AUROC, holds that were right, fail-open rate, spend), copies the turn guard's labels beside the decisions they settle, and files a finding on the jev-decisions thread for a point below its bar.",
     script: "scripts/decisions-loop",
+    checkout_only: false,
     args: &[],
     timeout: Duration::from_secs(10 * 60),
     cadence: Cadence {

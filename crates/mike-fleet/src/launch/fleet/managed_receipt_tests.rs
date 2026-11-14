@@ -60,6 +60,7 @@ async fn ask(
         tracker: &tracker,
         run,
         fleet,
+        decisions: None,
     };
     with_private_root(begin_check(&runner, def, "state-1", "seat-x")).await
 }
