@@ -108,7 +108,7 @@ test-p:
 ## Filter by source-module or test-fn name across ALL tiers, ignoring the
 ## default fast filter. `make test-t t=roundtrip` selects that module.
 test-t:
-	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run --all --ignore-default-filter -E 'test($(t))'
+	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run $(if $(p),-p $(p),--workspace) --ignore-default-filter -E 'test($(t))'
 
 ## Everyday repository loop: Rust fast tier + frontend logic + script regressions.
 test-repo-fast:

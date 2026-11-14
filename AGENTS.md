@@ -75,7 +75,10 @@ checkout only.
 1. Make the change.
 2. Run one narrow check of what you changed, once per state of the tree, through
    `scripts/cx`, never plain `cargo`:
-   `scripts/cx check --lib -p <crate>`, `scripts/cx test`, the one test target (`make test-t t=<filter>`),
+   `scripts/cx check --lib -p <crate>`, `scripts/cx nextest run -p <crate> <filter>`,
+   `make test-t p=<crate> t=<filter>`. `<crate>` is the crate that holds the file you
+   edited, never `--workspace` (a warm workspace test build is 3-4 minutes, one crate's
+   17-50 s),
    `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
 3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate>` once, after
    the last edit. The structural limits below are not visible from the code.
