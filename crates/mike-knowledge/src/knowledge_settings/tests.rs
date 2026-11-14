@@ -1,11 +1,33 @@
 use serde_json::json;
 
 use super::meta_search_ranking::entries;
-use super::{SETTINGS_META, SettingKind, validate_setting_value};
 use crate::search_ranking::{RANKING_KEYS, RankingConfig};
+use crate::settings::{SETTINGS_META, SettingKind};
+
+fn validate_setting_value(key: &str, value: serde_json::Value) -> Result<(), String> {
+    super::register();
+    crate::settings::validate_setting_value(key, value).map(|_| ())
+}
+
+#[test]
+fn knowledge_settings_registered_meta_lists_every_moved_key() {
+    super::register();
+    for key in [
+        super::meta_semantic::ALLOW_REMOTE_EMBEDDING,
+        super::meta_knowledge_embedding::INTERVAL_SECS,
+        crate::search_ranking::KEY_KIND_WEIGHTS,
+    ] {
+        assert_eq!(
+            SETTINGS_META.iter().filter(|m| m.key == key).count(),
+            1,
+            "{key}"
+        );
+    }
+}
 
 #[test]
 fn ranking_entries_register_every_key_once_in_the_search_ranking_group() {
+    super::register();
     let keys: Vec<&str> = entries().iter().map(|m| m.key).collect();
     assert_eq!(keys, RANKING_KEYS);
     for meta in entries() {
@@ -70,6 +92,7 @@ fn validate_kind_weights_accepts_numbers_in_range_and_names_the_bad_entry() {
 
 #[test]
 fn kind_weights_is_the_only_json_setting() {
+    super::register();
     let json_keys: Vec<&str> = SETTINGS_META
         .iter()
         .filter(|m| m.kind == SettingKind::Json)

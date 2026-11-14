@@ -1,4 +1,4 @@
-use crate::settings::meta_knowledge_embedding as keys;
+use crate::knowledge_settings::meta_knowledge_embedding as keys;
 use crate::store::persistence::PersistHandle;
 use std::time::Duration;
 
