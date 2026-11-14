@@ -4,6 +4,7 @@ use serde_json::Value;
 
 mod checks;
 mod problems;
+pub(crate) mod remedies;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

@@ -5,9 +5,12 @@ use serde_json::json;
 
 pub(crate) mod checks;
 pub(crate) mod problems;
+pub(crate) mod remedies;
 
 #[cfg(test)]
 mod checks_tests;
+#[cfg(test)]
+mod remedies_tests;
 
 pub(crate) const PAGE_MAX_LIMIT: i64 = 500;
 

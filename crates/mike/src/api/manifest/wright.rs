@@ -1,7 +1,7 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 
-use crate::api::wright::{checks, problems as api};
+use crate::api::wright::{checks, problems as api, remedies};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -43,6 +43,34 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "Written by the web page when a route fails to load or throws; sessions never report page errors",
         },
     ),
+    route(
+        "GET",
+        "/api/wright/remedies",
+        Coverage::Exempt {
+            reason: "Wright's known fixes with their limits and pause state, for the Wright page and the operator; no session workflow reads them",
+        },
+    ),
+    route(
+        "PATCH",
+        "/api/wright/remedies/{name}",
+        Coverage::Exempt {
+            reason: "The operator's switch and limits for one known fix; a session must never change Wright's limits, so no tool reaches it",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/actions",
+        Coverage::Exempt {
+            reason: "What Wright's known fixes did, with prior state, effect and undo, for the Wright page; no session workflow reads it",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/actions/{id}/undo",
+        Coverage::Exempt {
+            reason: "The operator undoes one of Wright's setting or filter rule changes from the Wright page; sessions never undo Wright's actions",
+        },
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -58,4 +86,8 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             patch(checks::patch_check).delete(checks::delete_check),
         )
         .route("/api/wright/client-errors", post(api::report_client_error))
+        .route("/api/wright/remedies", get(remedies::list_remedies))
+        .route("/api/wright/remedies/{name}", patch(remedies::patch_remedy))
+        .route("/api/wright/actions", get(remedies::list_actions))
+        .route("/api/wright/actions/{id}/undo", post(remedies::undo_action))
 }

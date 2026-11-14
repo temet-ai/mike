@@ -84,6 +84,8 @@ fn sql_check(name: &str, query: &str) -> Value {
     })
 }
 
+const SEEDED: usize = 13;
+
 const GOOD_QUERY: &str =
     "SELECT 'job'::text, job_name, jsonb_build_object('failures', consecutive_failures)
   FROM jobs.runs WHERE consecutive_failures >= ($1->>'min_failures')::int LIMIT 200";
@@ -91,7 +93,7 @@ const GOOD_QUERY: &str =
 #[tokio::test]
 async fn a_check_is_added_changed_disabled_listed_and_removed() -> anyhow::Result<()> {
     let env = Env::boot().await?;
-    assert_eq!(env.count().await?, 11);
+    assert_eq!(env.count().await?, SEEDED);
 
     let added = add_check(
         State(env.state.clone()),
@@ -101,7 +103,7 @@ async fn a_check_is_added_changed_disabled_listed_and_removed() -> anyhow::Resul
     let (status, body) = status_and_body(added.unwrap_or_else(|r| r)).await?;
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(body["check"]["enabled"], true);
-    assert_eq!(env.count().await?, 12);
+    assert_eq!(env.count().await?, SEEDED + 1);
 
     let again = add_check(
         State(env.state.clone()),
@@ -131,7 +133,7 @@ async fn a_check_is_added_changed_disabled_listed_and_removed() -> anyhow::Resul
         .await
         .map_err(|_| anyhow::anyhow!("list must succeed"))?;
     let checks = listed["checks"].as_array().cloned().unwrap_or_default();
-    assert_eq!(checks.len(), 12);
+    assert_eq!(checks.len(), SEEDED + 1);
     assert!(
         checks
             .iter()
@@ -152,7 +154,7 @@ async fn a_check_is_added_changed_disabled_listed_and_removed() -> anyhow::Resul
     .await;
     let (status, _) = status_and_body(missing.err().ok_or_else(|| anyhow::anyhow!("404"))?).await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(env.count().await?, 11);
+    assert_eq!(env.count().await?, SEEDED);
     env.cleanup().await
 }
 
@@ -194,7 +196,7 @@ async fn a_query_the_database_refuses_is_a_400_and_writes_nothing() -> anyhow::R
             .is_some_and(|e| e.contains("(text, text, jsonb)")),
         "{body}"
     );
-    assert_eq!(env.count().await?, 11);
+    assert_eq!(env.count().await?, SEEDED);
     env.cleanup().await
 }
 
@@ -235,7 +237,7 @@ async fn invalid_definitions_name_the_offending_input() -> anyhow::Result<()> {
             .as_str()
             .is_some_and(|e| e.contains("window_minutes") && e.contains("2000"))
     );
-    assert_eq!(env.count().await?, 11);
+    assert_eq!(env.count().await?, SEEDED);
     env.cleanup().await
 }
 
@@ -303,7 +305,7 @@ async fn params_patch_merges_and_refuses_dropping_a_key_the_query_reads() -> any
             .unwrap_or("")
             .contains("min_failures")
     );
-    assert_eq!(env.count().await?, 11);
+    assert_eq!(env.count().await?, SEEDED);
 
     let Json(merged) = patch_check(
         State(env.state.clone()),
