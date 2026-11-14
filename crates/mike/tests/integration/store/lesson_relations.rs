@@ -51,7 +51,7 @@ fn draft(from_lesson_id: i64, to_lesson_id: i64) -> LessonRelationDraft<'static>
         adjudicator_model: None,
         adjudicator_agrees: None,
         adjudicator_rationale: None,
-        detector_version: "test",
+        detector_version: mike::lesson_relations::DETECTOR_VERSION,
         decided_by: None,
     }
 }

@@ -79,8 +79,8 @@ pub async fn detect_one_pair(
         return Ok(None);
     };
 
-    let adjudicator_agrees = verdict.from_lesson_id == proposal.from_lesson_id
-        && verdict.to_lesson_id == proposal.to_lesson_id;
+    let adjudicator_agrees =
+        super::claim_stands(&verdict, proposal.from_lesson_id, proposal.to_lesson_id);
     let status = if adjudicator_agrees {
         STATUS_PROPOSED
     } else {
