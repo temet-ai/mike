@@ -8,7 +8,6 @@ use uuid::Uuid;
 
 use crate::feature_toggles::FeatureToggles;
 use crate::proxy::remote_control::inject::{PushDeps, try_push_reminder};
-use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 
 const TICK: Duration = Duration::from_secs(2);
@@ -33,16 +32,6 @@ pub fn push_text(notes: &[CodeNote]) -> String {
     text
 }
 
-pub fn spawn_code_findings_pusher(state: &AppState) {
-    let pusher = Pusher {
-        deps: state.push_deps(),
-        notes: state.code_notes.clone(),
-        toggles: state.feature_toggle_overlay.clone(),
-    };
-    let shutdown = state.shutdown();
-    state.tracker.spawn(pusher.run(shutdown));
-}
-
 pub struct Pusher {
     pub deps: PushDeps,
     pub notes: Arc<CodeNotes>,
@@ -50,6 +39,10 @@ pub struct Pusher {
 }
 
 impl Pusher {
+    pub fn spawn(self, tracker: &tokio_util::task::TaskTracker, shutdown: CancellationToken) {
+        tracker.spawn(self.run(shutdown));
+    }
+
     async fn run(self, shutdown: CancellationToken) {
         loop {
             tokio::select! {

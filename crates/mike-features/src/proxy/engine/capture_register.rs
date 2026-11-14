@@ -139,13 +139,7 @@ pub async fn capture_and_register(
     })
     .await;
 
-    let request_id = mint_capture_id(
-        state,
-        &mut intercepted,
-        is_new_session,
-        (request_id, &session_id),
-    )
-    .await;
+    let request_id = mint_capture_id(state, &mut intercepted, is_new_session, request_id).await;
 
     spawn_supply_records(
         state,
@@ -383,11 +377,16 @@ async fn mint_capture_id(
     state: &AppState,
     intercepted: &mut InterceptedRequest,
     is_new_session: bool,
-    (pipeline_request, session_id): (RequestId, &str),
+    pipeline_request: RequestId,
 ) -> RequestId {
     let capture_request =
         capture::insert_stub_and_mint_id(&state.store, intercepted, is_new_session).await;
-    bind_code_notes(state, pipeline_request, capture_request, session_id);
+    bind_code_notes(
+        state,
+        pipeline_request,
+        capture_request,
+        &intercepted.session_id,
+    );
     capture_request
 }
 

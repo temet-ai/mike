@@ -120,6 +120,7 @@ pub struct SessionCodeCounts {
     pub told: i64,
     pub fixed_after_told: i64,
     pub fixed: i64,
+    pub fixed_by_other: i64,
     pub ignored: i64,
     pub open: i64,
 }

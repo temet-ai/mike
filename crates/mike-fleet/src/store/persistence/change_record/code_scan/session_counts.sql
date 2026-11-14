@@ -14,6 +14,7 @@ SELECT (SELECT count(*)
        count(f.id) FILTER (WHERE f.outcome = 'fixed' AND f.delivered_at IS NOT NULL
                              AND f.outcome_at > f.delivered_at) AS "fixed_after_told!",
        count(f.id) FILTER (WHERE f.outcome = 'fixed') AS "fixed!",
+       count(f.id) FILTER (WHERE f.outcome = 'fixed_by_other') AS "fixed_by_other!",
        count(f.id) FILTER (WHERE f.outcome = 'ignored') AS "ignored!",
        count(f.id) FILTER (WHERE f.outcome = 'open') AS "open!"
   FROM workspace.code_findings f

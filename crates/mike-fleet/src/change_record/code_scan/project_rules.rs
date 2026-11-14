@@ -124,15 +124,7 @@ fn load(
 ) -> Option<(Signature, ActiveRules)> {
     let base = Path::new(root);
     let files = rule_files(base);
-    let signature: Signature = files
-        .iter()
-        .map(|path| {
-            let meta = std::fs::metadata(path).ok();
-            let len = meta.as_ref().map_or(0, std::fs::Metadata::len);
-            let modified = meta.and_then(|m| m.modified().ok());
-            (path.clone(), len, modified)
-        })
-        .collect();
+    let signature = signature_of(&files);
     if previous.as_ref() == Some(&signature) {
         return None;
     }
@@ -151,23 +143,32 @@ fn load(
         .zip(names)
         .filter_map(|(path, name)| std::fs::read_to_string(path).ok().map(|t| (name, t)))
         .collect();
-    let rules = match RuleSet::with_project(&texts) {
+    let rules = build(root, &texts, builtin, &mut status);
+    set_status(status);
+    Some((signature, rules))
+}
+
+fn build(
+    root: &str,
+    texts: &[(String, String)],
+    builtin: &'static RuleSet,
+    status: &mut ProjectRulesStatus,
+) -> ActiveRules {
+    match RuleSet::with_project(texts) {
         Ok(rules) => {
             let mut ids: Vec<String> = rules.project_ids().map(str::to_string).collect();
             ids.sort();
             status.rules = ids;
             status.version = Some(rules.version().to_string());
-            tracing::info!(checkout = %root, rules = status.rules.len(), version = rules.version(), "code scan: project rules loaded");
+            log_loaded(root, status.rules.len(), rules.version());
             ActiveRules::Project(Arc::new(rules))
         }
         Err(err) => {
-            tracing::warn!(checkout = %root, error = %err, "code scan: the project's rules did not load, so only the built-in rules run");
+            log_load_failed(root, &err);
             status.error = Some(err.to_string());
             ActiveRules::Builtin(builtin)
         }
-    };
-    set_status(status);
-    Some((signature, rules))
+    }
 }
 
 fn relative(base: &Path, path: &Path) -> String {
@@ -228,4 +229,24 @@ fn is_yaml(path: &Path) -> bool {
         path.extension().and_then(|e| e.to_str()),
         Some("yml" | "yaml")
     )
+}
+
+fn signature_of(files: &[PathBuf]) -> Signature {
+    files
+        .iter()
+        .map(|path| {
+            let meta = std::fs::metadata(path).ok();
+            let len = meta.as_ref().map_or(0, std::fs::Metadata::len);
+            let modified = meta.and_then(|m| m.modified().ok());
+            (path.clone(), len, modified)
+        })
+        .collect()
+}
+
+fn log_loaded(root: &str, rules: usize, version: &str) {
+    tracing::info!(checkout = %root, rules, version, "code scan: project rules loaded");
+}
+
+fn log_load_failed(root: &str, err: &mike_code::RuleError) {
+    tracing::warn!(checkout = %root, error = %err, "code scan: the project's rules did not load, so only the built-in rules run");
 }

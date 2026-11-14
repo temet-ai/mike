@@ -16,6 +16,7 @@ mod api_project_knowledge_rerank_machine_tests;
 mod api_project_knowledge_rerank_tests;
 mod api_project_knowledge_session_overview_tests;
 mod api_project_knowledge_wide_pools_tests;
+mod api_session_overview_code_findings_tests;
 mod memory_keeper_health_tests;
 mod rerank_nightly_candidates_tests;
 mod rerank_nightly_first_ten_tests;

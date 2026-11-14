@@ -299,6 +299,51 @@ Story: Shared/InstrumentReadout
 
 See it: `scripts/story-shot --shot shared instrumentreadout`
 
+## Feedback
+
+### Status text
+
+`frontend/src/lib/components/ui/status-mark/status-mark.svelte`
+
+```ts
+import { StatusMark } from '$lib/components/ui/status-mark'
+```
+
+Props:
+
+- `ref?: HTMLSpanElement | null`
+- `class?: string`
+- `icon: GlyphComponent`
+- `label: string`
+- `tone: StatusMarkTone`
+- `size?: number`
+
+Story: UI/StatusMark
+
+See it: `scripts/story-shot --shot ui statusmark`
+
+## Data
+
+### Data table
+
+`frontend/src/lib/components/ui/data-table/data-table.svelte`
+
+```ts
+import { DataTable, DataTableRow, DataTableCell, DataTableGroupRow } from '$lib/components/ui/data-table'
+```
+
+Props:
+
+- `ref?: HTMLDivElement | null`
+- `class?: string`
+- `label: string`
+- `columns: DataTableColumn[]`
+- `children?: Snippet`
+
+Story: UI/DataTable
+
+See it: `scripts/story-shot --shot ui datatable`
+
 ## Surfaces
 
 ### Panel

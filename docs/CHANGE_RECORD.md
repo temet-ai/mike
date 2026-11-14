@@ -174,7 +174,19 @@ at which commit, and its paths are the failing files.
 ## mike-code scans
 
 With `code_scan` on (the default) and `change_record` on, each file change event is scanned
-with ast-grep by the machine that recorded it, using the rules built into `crates/mike-code/rules/`.
+with ast-grep by the machine that recorded it, using the rules built into `crates/mike-code/rules/`
+and the checkout's own rules.
+
+- **Languages.** Rust, TypeScript/TSX (`.js` and `.jsx` too), Bash (and extensionless scripts
+  by shebang), Python, Go, C, C++, Java, Kotlin, Lua, Ruby, Swift, Elixir and Zig. OCaml, Gleam,
+  Nim and Svelte have no grammar and are skipped as `no_grammar`.
+- **Project rules.** ast-grep rule files in the directories `sgconfig.yml` names under
+  `ruleDirs`, and in `.mike/code-rules/`, at the checkout root (YAML, recursive, at most 200 files
+  and 1 MB). They are checked every 30 s and reloaded when a file changes. A rule with a
+  built-in rule's id replaces it. A file that does not parse leaves the built-in rules running
+  and is reported under `project_rules[].error` in `GET /api/code-findings`.
+- **Deletions** are not scanned: one update per batch marks the deleted paths' open findings
+  `superseded`.
 
 - `workspace.code_scans` holds one row per event, kept whether or not it found anything: the
   language, the rule set version, how many rules ran, the bytes, the scan time in microseconds,
@@ -182,14 +194,28 @@ with ast-grep by the machine that recorded it, using the rules built into `crate
   or `skipped` (`no_grammar`, `too_large` over 256 KB, `not_utf8`, `deleted`) or `error`.
 - `workspace.code_findings` holds one row per finding the change added (only what the change
   added: a file's older findings are not repeated). Its session is the change event's session.
-  `outcome` is `open`, `fixed` (a later scan of the file no longer has it) or `superseded`
-  (the file was deleted).
+  `rule_source` is `builtin` or `project`. `outcome` is `open`, `fixed` (a later scan of the
+  file no longer has it), `fixed_by_other` (that later change was another session's),
+  `ignored` (the session was told and the finding was still there when the path was
+  committed, or 30 minutes after it was told; a later fix still moves it to `fixed`) or
+  `superseded` (the file was deleted).
 - With `code_findings` on, the stage of that name adds up to three of the session's open
   warnings and errors from the last hour to its next request, tool loops included, and sets
-  `delivered_request_id`. Hints are recorded and never delivered.
-- `GET /api/code-findings?hours=24&session=<uuid>&limit=200` returns the summary (scans,
-  skipped, failed, added, fixed, median and longest scan), per-rule counts (found, delivered,
-  fixed, fixed after the session was told, open) and the findings.
+  `delivered_request_id` with `delivered_via = 'request'`. Hints are recorded and never
+  delivered.
+- With `code_findings_push` on too (the default), findings the session has not taken 8 s after
+  they are ready (its turn has ended) are pushed to it over Remote Control, five at most per
+  push, as a message asking it to fix them or say why not. They are recorded with
+  `delivered_via = 'push'` against the session's next captured request, or with no request if
+  none comes within 10 minutes. A session with no Remote Control stream gets them on its next
+  request instead, and they are not offered for a push again.
+- `GET /api/code-findings?hours=24&session=<uuid>&limit=200` returns whether scanning,
+  delivering and pushing are on, the grammars, the built-in rule catalogue (each rule's
+  language, severity and the lesson or instruction it replaces), each checkout's project rules
+  and load error, the watched checkouts, the session's counts when `session` is given, the
+  summary (scans, skipped, failed, added, fixed, median and longest scan), per-rule counts
+  (found, told, pushed, fixed, fixed after told, fixed untold, fixed by another session,
+  ignored, open, median seconds from found to told) and the findings.
 
 The scan starts at the newest event when it first sees a checkout; nothing earlier is scanned.
 

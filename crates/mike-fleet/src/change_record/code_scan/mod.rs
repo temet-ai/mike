@@ -99,19 +99,7 @@ impl Worker {
             return;
         }
         self.settled = Some(Instant::now());
-        match self.persist.fleet().settle_code_findings().await {
-            Ok(settled) if settled.fixed_by_other + settled.ignored > 0 => {
-                tracing::info!(
-                    fixed_by_other = settled.fixed_by_other,
-                    ignored = settled.ignored,
-                    "code findings: outcomes settled"
-                );
-            }
-            Ok(_) => {}
-            Err(err) => {
-                tracing::warn!(error = %err, "code findings: outcomes could not be settled");
-            }
-        }
+        log_settled(self.persist.fleet().settle_code_findings().await);
     }
 
     async fn cursor(&mut self, root: &str) -> Option<i64> {
@@ -161,9 +149,7 @@ impl Worker {
             if !self.supersede(root, &mut deleted).await {
                 return cursor;
             }
-            let record = scan_change(&git, rules.clone(), root, &change).await;
-            if let Err(err) = self.persist.fleet().record_code_scan(&record).await {
-                tracing::warn!(%root, path = %change.path, error = %err, "code scan: the scan could not be recorded");
+            if !self.record(&git, rules.clone(), root, &change).await {
                 return last;
             }
             last = change.id;
@@ -172,6 +158,23 @@ impl Worker {
             last
         } else {
             cursor
+        }
+    }
+
+    async fn record(
+        &self,
+        git: &Git,
+        rules: ActiveRules,
+        root: &str,
+        change: &PendingChange,
+    ) -> bool {
+        let record = scan_change(git, rules, root, change).await;
+        match self.persist.fleet().record_code_scan(&record).await {
+            Ok(_) => true,
+            Err(err) => {
+                tracing::warn!(%root, path = %change.path, error = %err, "code scan: the scan could not be recorded");
+                false
+            }
         }
     }
 
@@ -197,4 +200,29 @@ impl Worker {
             }
         }
     }
+}
+
+fn log_settled(
+    result: Result<
+        crate::store::persistence::change_record::code_scan::Settled,
+        crate::store::persistence::PersistError,
+    >,
+) {
+    match result {
+        Ok(settled) if settled.fixed_by_other + settled.ignored > 0 => log_outcomes(settled),
+        Ok(_) => {}
+        Err(err) => log_settle_failed(&err),
+    }
+}
+
+fn log_outcomes(settled: crate::store::persistence::change_record::code_scan::Settled) {
+    tracing::info!(
+        fixed_by_other = settled.fixed_by_other,
+        ignored = settled.ignored,
+        "code findings: outcomes settled"
+    );
+}
+
+fn log_settle_failed(err: &crate::store::persistence::PersistError) {
+    tracing::warn!(error = %err, "code findings: outcomes could not be settled");
 }

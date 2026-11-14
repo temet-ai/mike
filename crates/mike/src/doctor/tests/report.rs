@@ -39,6 +39,7 @@ fn every_check_the_audit_lists_is_present_with_a_stable_id() {
         "embeddings",
         "rerank",
         "launch_backend",
+        "code_scan",
     ] {
         assert!(ids.contains(&expected), "missing {expected} in {ids:?}");
     }
