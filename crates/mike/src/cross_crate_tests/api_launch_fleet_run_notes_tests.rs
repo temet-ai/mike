@@ -257,6 +257,7 @@ async fn stopping_a_fleet_leaves_one_close_note_with_its_state_time_and_tasks() 
         "--database-url",
         &setup.db.database_url,
     ])?;
+    crate::launch::cli::fleet_settings::install();
     let state = AppState::new(config).await?;
 
     let report = shutdown::stop(&state, persist, &running).await?;

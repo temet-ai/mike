@@ -7,9 +7,9 @@ use serde::Serialize;
 use tokio::time::Instant;
 use uuid::Uuid;
 
-use crate::api::changes::session_tail_lines;
 use crate::api::client_serves::by_deadline;
 use crate::api::workspace::{Briefing, protocol_text};
+use crate::launch::session_tail::session_tail_lines;
 use crate::state::AppState;
 use crate::store::updater::analysis_completed;
 

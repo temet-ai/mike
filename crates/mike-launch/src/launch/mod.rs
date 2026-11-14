@@ -18,6 +18,7 @@ pub mod reap;
 pub mod request;
 pub mod seat;
 pub mod seat_fact;
+pub mod session_tail;
 pub mod stack_starter;
 pub mod state;
 pub mod terminal;

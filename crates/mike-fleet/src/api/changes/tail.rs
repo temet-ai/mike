@@ -8,6 +8,7 @@ use crate::change_record::answers::{self, Caller};
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::commit::ownership;
 use crate::launch::fleet::seated::Seated;
+use crate::launch::session_tail::{SessionTail, TailFuture};
 use crate::store::persistence::PersistHandle;
 
 #[derive(Serialize)]
@@ -85,4 +86,12 @@ pub async fn session_tail_lines(persist: &PersistHandle, session: Uuid) -> Optio
         }
     };
     read_tail(persist, &caller).await
+}
+
+pub struct FleetSessionTail;
+
+impl SessionTail for FleetSessionTail {
+    fn lines<'a>(&'a self, persist: &'a PersistHandle, session: Uuid) -> TailFuture<'a> {
+        Box::pin(session_tail_lines(persist, session))
+    }
 }

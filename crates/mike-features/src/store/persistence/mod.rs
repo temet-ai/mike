@@ -1,7 +1,6 @@
 pub use mike_knowledge::store::persistence::*;
 pub mod acceptance_criteria;
 pub mod ask_ledger_backfill;
-pub mod change_record;
 pub mod compositions;
 pub mod cross_session;
 pub mod db_cost_reads;
@@ -34,8 +33,6 @@ pub mod steering;
 pub mod steering_backfill;
 pub mod steering_evaluations;
 pub mod steering_facts;
-#[cfg(any(test, feature = "test-seams"))]
-pub mod test_support;
 pub mod tool_call_reads;
 pub mod turn_facts;
 pub mod turn_tool_call_reads;

@@ -25,10 +25,15 @@ the lower crate can be extracted. The scan is textual, not a compiler query.
 `use super::*` and `use crate::a::*` count as references to the module they
 glob. Files named tests_*.rs count as test code.
 
-Replay: for each commit on origin/main that touched crates/mike/src, the
-crates it touched plus every crate depending on them (production references
-only; a test-only reference rebuilds just that crate's tests) are summed in
-lines, against the whole crate today. Lines are a proxy for compile time.
+Replay: for each commit on origin/main that touched the split crates' sources,
+the lines rebuilt are summed against the whole of today's sources; lines are a
+proxy for compile time. A map with "packages" rebuilds by Cargo dependencies:
+the touched crate's whole package and every package depending on it. A map
+without (a stage's grouping) follows references instead: the touched crates plus
+every crate depending on them (production references only; a test-only reference
+rebuilds just that crate's tests). A migration under store/persistence/migrations/
+bills only the bin, which embeds them. --check also fails when a package's
+Cargo.toml names a split package that the map's package_deps does not allow.
 """
 
 import collections
@@ -37,6 +42,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.insert(0, os.path.join(REPO, "scripts", "lib"))
@@ -48,6 +54,7 @@ import split_crates  # noqa: E402
 PACKAGES = split_crates.names()
 SRCS = [os.path.join(REPO, "crates", p, "src") for p in PACKAGES]
 SRC_PREFIXES = tuple(f"crates/{p}/src/" for p in PACKAGES)
+MIGRATIONS = "store/persistence/migrations/"
 DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
 PATH = re.compile(r"crate::(\w+(?:::\w+)*)(?!::|\w)")
 BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
@@ -100,6 +107,8 @@ class Map:
         self.alias = cfg.get("alias") or {c: c for c in self.order}
         self.package_top = {p: self.alias.get(crates[-1]) for p, crates in
                             split_crates.packages().items()}
+        self.packages = cfg.get("packages")
+        self.package_deps = cfg.get("package_deps")
 
     def crate_of_path(self, rel):
         key = re.sub(r"/mod$", "", re.sub(r"\.(rs|sql)$", "", rel))
@@ -308,7 +317,9 @@ def history(cmap):
             current = set()
         elif line.startswith(SRC_PREFIXES):
             prefix = next(p for p in SRC_PREFIXES if line.startswith(p))
-            crate = cmap.crate_of_path(line[len(prefix):])
+            rel = line[len(prefix):]
+            crate = (cmap.alias.get("bin") if rel.startswith(MIGRATIONS)
+                     else cmap.crate_of_path(rel))
             if crate:
                 current.add(crate)
     if current:
@@ -345,6 +356,59 @@ class Graph:
         return hit
 
 
+def cargo_deps(packages, sections=("dependencies",)):
+    """package -> the split packages its Cargo.toml names under `sections`."""
+    deps = {}
+    for package in packages:
+        with open(os.path.join(REPO, "crates", package, "Cargo.toml"), "rb") as handle:
+            manifest = tomllib.load(handle)
+        deps[package] = {name for section in sections for name in manifest.get(section, {})
+                         if name in packages and name != package}
+    return deps
+
+
+class PackageGraph:
+    """Rebuilds follow the packages' Cargo dependencies: a change to a target crate
+    rebuilds its whole package and every package that depends on it."""
+
+    def __init__(self, cmap):
+        self.crates_of = {p: {cmap.alias.get(c, c) for c in crates}
+                          for p, crates in cmap.packages.items()}
+        self.package_of = {c: p for p, crates in self.crates_of.items() for c in crates}
+        self.users = collections.defaultdict(set)
+        for package, deps in cargo_deps(tuple(cmap.packages)).items():
+            for dep in deps:
+                self.users[dep].add(package)
+        self.memo = {}
+
+    def packages_rebuilt(self, package):
+        if package not in self.memo:
+            seen, todo = {package}, [package]
+            while todo:
+                for user in self.users[todo.pop()]:
+                    if user not in seen:
+                        seen.add(user)
+                        todo.append(user)
+            self.memo[package] = seen
+        return self.memo[package]
+
+    def dependents(self, crate):
+        package = self.package_of.get(crate)
+        if package is None:
+            return {crate}
+        return set().union(*(self.crates_of[p] for p in self.packages_rebuilt(package)))
+
+    def rebuilt(self, touched):
+        hit = set()
+        for crate in touched:
+            hit |= self.dependents(crate)
+        return hit
+
+
+def graph_for(cmap, edges):
+    return PackageGraph(cmap) if cmap.packages else Graph(cmap, edges)
+
+
 def seams(cmap, edges):
     found = [(sum(v.values()), a, b, k) for (a, b, k), v in edges.items()
              if a in cmap.rank and b in cmap.rank and cmap.rank[a] < cmap.rank[b]]
@@ -361,7 +425,7 @@ def summary(cmap, lines, edges, commits):
     found = seams(cmap, edges)
     prod = [s for s in found if s[3] == "prod"]
     test = [s for s in found if s[3] == "test"]
-    costs = replay(lines, Graph(cmap, edges), commits)
+    costs = replay(lines, graph_for(cmap, edges), commits)
     mean = sum(costs) / max(len(costs), 1)
     return {
         "crates": len(cmap.order), "total": total,
@@ -399,7 +463,7 @@ def print_matrix(cmap, edges):
 
 
 def print_blame(cmap, lines, edges, commits):
-    graph = Graph(cmap, edges)
+    graph = graph_for(cmap, edges)
     touches = collections.Counter(c for t in commits for c in t)
     total = sum(sum(lines[c] for c in graph.rebuilt(t)) for t in commits) or 1
     print("crate: commits touching x lines rebuilt when it changes = share of the replay cost")
@@ -432,6 +496,32 @@ def print_stages(cfg, files, commits):
         s = summary(cmap, lines, edges, history(cmap))
         print(f"  {name:30} {s['crates']:4}   {s['prod'][0]:5} in {s['prod'][1]:3} edges   "
               f"{s['pct']:3.0f}% of today")
+
+
+def package_deps_check(cmap):
+    """Each package's Cargo.toml may name only the split packages the map's
+    package_deps puts below it: its direct dependencies and theirs."""
+    if not cmap.packages or cmap.package_deps is None:
+        return 0
+
+    def below(package, seen):
+        for dep in cmap.package_deps.get(package, []):
+            if dep not in seen:
+                seen.add(dep)
+                below(dep, seen)
+        return seen
+
+    status = 0
+    declared = cargo_deps(tuple(cmap.packages), ("dependencies", "dev-dependencies"))
+    for package, deps in sorted(declared.items()):
+        extra = sorted(deps - below(package, set()))
+        if extra:
+            print(f"crate-plan: FAIL crates/{package}/Cargo.toml depends on {', '.join(extra)}, "
+                  f"which package_deps in {os.path.relpath(DEFAULT_MAP, REPO)} does not allow")
+            status = 1
+    if status == 0:
+        print("crate-plan: PASS every package depends only on the packages package_deps allows")
+    return status
 
 
 def ratchet_check(cfg, cmap, files):
@@ -502,7 +592,7 @@ def main(argv):
     if missing:
         print("not in the map (add a rule):", " ".join(missing))
     if "--check" in args:
-        return ratchet_check(cfg, cmap, files)
+        return max(ratchet_check(cfg, cmap, files), package_deps_check(cmap))
     if "--files" in args:
         print_files(cmap, args[args.index("--files") + 1])
         return 0

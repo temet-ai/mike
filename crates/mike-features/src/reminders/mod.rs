@@ -15,8 +15,6 @@ pub mod workspace_briefing;
 #[cfg(test)]
 pub mod appender_tests;
 #[cfg(test)]
-pub mod change_record_tail_tests;
-#[cfg(test)]
 pub mod client_context_tests;
 #[cfg(test)]
 pub mod fork_prefix_tests;

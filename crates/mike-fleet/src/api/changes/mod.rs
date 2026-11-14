@@ -23,7 +23,9 @@ use crate::change_record::answers::{self, AnswerError, Scope, Since};
 use crate::store::persistence::PersistError;
 use resolve::{Resolved, resolve};
 
-pub use tail::{WithTail, note_answer_tail, session_tail_lines, since_you_last_looked};
+pub use tail::{
+    FleetSessionTail, WithTail, note_answer_tail, session_tail_lines, since_you_last_looked,
+};
 
 pub const CHANGE_RECORD_OFF: &str = "the change record is off, so nothing has been recorded to answer from; switch on `change_record` in /settings";
 
