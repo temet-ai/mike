@@ -16,7 +16,7 @@ SELECT rq.n AS "requests!", rq.at AS requests_at,
        (SELECT count(*) AS n, max(v.created_at) AS at
           FROM memory.turn_verdicts v WHERE v.created_at >= $1) tv,
        (SELECT count(*) AS n, max(s.judged_at) AS at
-          FROM session_judges.verdicts s WHERE s.judged_at >= $1) sv,
+          FROM session_judges.verdicts s WHERE s.mode = 'live' AND s.judged_at >= $1) sv,
        (SELECT count(*) AS n, max(l.created_at) AS at
           FROM memory.lessons l WHERE l.created_at >= $1) ls,
        (SELECT count(*) AS n, max(x.created_at) AS at
