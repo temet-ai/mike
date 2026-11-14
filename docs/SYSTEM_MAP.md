@@ -126,6 +126,7 @@ replayed first so the prompt cache prefix stays stable (`injected_replay/`).
 | 8 | Agent lessons | `agent_lessons` (off), subagent turns | Persona-scoped lessons | user guide [memory](user-guide/memory.md) |
 | 9 | Diagnostic reminders | `reminders` (off), own lane | Findings on the previous response as a `<system-reminder>` | [`FEATURES.md`](FEATURES.md) |
 | 10 | Change record tail | `change_record_tail` (off) | What others changed in files this session owns | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
+| 10b | Code findings | `code_findings` (off), needs `code_scan` and `change_record` | ast-grep findings the session's own edit added, with the fix; `GET /api/code-findings` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md#mike-code-scans) |
 | 11 | Git read hint | `change_record` (off) | Nudge to use `what_changed` instead of git | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | — | Steerer drain | not gated here; producers are | Delivers queued steerer interventions and mailbox messages, up to `mailbox_max_deliveries_per_turn` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md) |
 | 12 | Repeated notices | `repeated_notices` (off) | Sends each Claude Code boilerplate notice once per session | [`FEATURES.md`](FEATURES.md) |

@@ -1,0 +1,32 @@
+id: rust-query-in-loop
+language: rust
+severity: warning
+rule:
+  any:
+    - pattern: sqlx::query!($$$)
+    - pattern: sqlx::query_as!($$$)
+    - pattern: sqlx::query_scalar!($$$)
+    - pattern: sqlx::query($$$)
+    - pattern: sqlx::query_as($$$)
+  inside:
+    any:
+      - kind: for_expression
+      - kind: while_expression
+      - kind: loop_expression
+    stopBy:
+      kind: function_item
+message: A query inside a loop is per-row work. Use a set operation (unnest, INSERT ... SELECT, DISTINCT ON) or add grader-allow naming the constraint.
+---
+id: rust-sql-from-string
+language: rust
+severity: warning
+rule:
+  any:
+    - pattern: AssertSqlSafe($X)
+    - pattern: sqlx::AssertSqlSafe($X)
+    - pattern: sqlx::raw_sql($X)
+constraints:
+  X:
+    not:
+      kind: string_literal
+message: SQL built from a runtime string switches off sqlx's literal-only check. Use query!/query_as! or a literal with bind parameters.

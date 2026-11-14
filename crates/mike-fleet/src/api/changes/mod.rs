@@ -1,3 +1,4 @@
+pub mod code;
 pub mod diff;
 pub mod mine;
 pub mod resolve;

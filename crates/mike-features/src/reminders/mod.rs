@@ -1,6 +1,7 @@
 pub mod appender;
 pub mod change_record_tail;
 pub mod client_context;
+pub mod code_findings;
 pub mod fork_prefix;
 pub mod formatter;
 pub mod git_read_hint;

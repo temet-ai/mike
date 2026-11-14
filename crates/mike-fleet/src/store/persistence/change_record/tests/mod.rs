@@ -1,3 +1,4 @@
+pub mod code_scan;
 pub mod errors;
 pub mod events;
 pub mod places;

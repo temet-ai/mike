@@ -56,6 +56,16 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     client_serves("client_serves_weasel_guard"),
     client_serves("client_serves_workspace_briefing"),
     ToggleMeta {
+        key: "code_findings",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
+        key: "code_scan",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "context_focus_question",
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,

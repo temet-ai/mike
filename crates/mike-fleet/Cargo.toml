@@ -20,6 +20,7 @@ ts-export = ["dep:ts-rs", "mike-base/ts-export", "mike-runtime/ts-export", "mike
 mike-base = { path = "../mike-base" }
 mike-runtime = { path = "../mike-runtime" }
 mike-launch = { path = "../mike-launch" }
+mike-code = { path = "../mike-code" }
 anyhow = { workspace = true }
 arc-swap = "1"
 async-trait = { workspace = true }
