@@ -258,6 +258,7 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
             "request_failures",
             "scheduled_job_failures",
             "session_tool_errors",
+            "slow_queries",
             "undelivered_mail",
         ]
     );
