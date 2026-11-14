@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const FLUSH_INTERVAL_MS_KEY: &str = "dossier.flush_interval_ms";
 pub const BATCH_SESSIONS_KEY: &str = "dossier.batch_sessions";

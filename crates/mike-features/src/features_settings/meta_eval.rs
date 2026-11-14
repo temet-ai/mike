@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const HOLDOUT_PERCENT_KEY: &str = "eval.labels.holdout_percent";
 pub const RELAY_ENABLED_KEY: &str = "eval.relay_labels_enabled";

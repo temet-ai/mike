@@ -358,10 +358,13 @@ async fn apply_reminders_carries_only_the_findings_block() -> anyhow::Result<()>
     let findings = vec![mk_finding("for now", "There is no 'later'", 0)];
     seed_findings(&state, &id, 46, findings.clone()).await;
     let toggles = state.resolve_session_toggles(&id);
+    let reminders = toggles
+        .features
+        .get::<crate::features_settings::RemindersOverlay>();
     let cfg = RemindersConfig {
         enabled: toggles.reminders,
-        inject_lessons: toggles.reminders_inject_lessons,
-        max_lessons_to_inject: toggles.reminders_max_lessons_to_inject,
+        inject_lessons: reminders.inject_lessons,
+        max_lessons_to_inject: reminders.max_lessons_to_inject,
     };
     let raw = user_turn_body()?;
     let push_deps = super::test_support::noop_push_deps();

@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 use super::build::{BUILDER_VERSION, BuildConfig, BuildReport, build_sessions};
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
-use crate::settings::meta_dossier::{
+use crate::features_settings::meta_dossier::{
     BACKSTOP_INTERVAL_SECS_KEY, BACKSTOP_LOOKBACK_HOURS_KEY, BATCH_SESSIONS_KEY,
     DEFAULT_BACKSTOP_INTERVAL_SECS, DEFAULT_BACKSTOP_LOOKBACK_HOURS, DEFAULT_BATCH_SESSIONS,
     DEFAULT_FLUSH_INTERVAL_MS, DEFAULT_SESSION_SETTLE_MINUTES, FLUSH_INTERVAL_MS_KEY,

@@ -34,7 +34,7 @@ mod tests;
 #[cfg(test)]
 pub mod workspace_briefing_stage_tests;
 
-pub use crate::config::reminders::RemindersConfig;
+pub use crate::features_settings::RemindersConfig;
 pub use self_identity::{SelfIdentityRequest, apply_self_identity};
 
 use crate::store::RequestStore;

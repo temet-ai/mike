@@ -1,5 +1,6 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
-use crate::settings::cross_session::{
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+
+use super::cross_session::{
     ALLOW_LOWERING_FOR_WAKE_KEY, CAL_MIN_LABELLED_KEY, CAL_WINDOW_DAYS_KEY, CEILING_KEY,
     COOLDOWN_DAYS_KEY, HYSTERESIS_KEY, INPUT_MODE_KEY, PROPOSER_MIN_CONFIRMED_KEY,
     PROPOSER_MIN_SESSIONS_KEY, PROPOSER_SOURCES_KEY, PROPOSER_WINDOW_DAYS_KEY, STEERER_BAR_KEY,

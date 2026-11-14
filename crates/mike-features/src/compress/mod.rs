@@ -12,7 +12,7 @@ use bytes::Bytes;
 use serde::Serialize;
 use serde_json::Value;
 
-pub use crate::config::compress::CompressConfig;
+pub use crate::features_settings::CompressConfig;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct BlockStat {

@@ -23,7 +23,11 @@ impl RequestStage for ReadDedupStage {
             );
             return;
         };
-        let armed = ctx.session_toggles.compression_dedup_enabled;
+        let armed = ctx
+            .session_toggles
+            .features
+            .get::<crate::features_settings::ContextShapingOverlay>()
+            .compression_dedup_enabled;
         let (hits, rewritten) = if armed {
             ctx.state.store.write().await.rewrite_read_dedup(
                 ctx.session_id,
@@ -197,7 +201,11 @@ mod tests {
         let state = crate::state::AppState::new(config).await?;
         let resolved = state.resolve_session_toggles("session-read-dedup-hit-test");
         let mut session_toggles: ResolvedToggles = (*resolved).clone();
-        session_toggles.compression_dedup_enabled = true;
+        session_toggles
+            .features
+            .update::<crate::features_settings::ContextShapingOverlay>(|o| {
+                o.compression_dedup_enabled = true;
+            });
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
         let turn_origin = TurnOrigin::Primary;
@@ -289,7 +297,11 @@ mod tests {
         let state = crate::state::AppState::new(config).await?;
         let resolved = state.resolve_session_toggles("session-read-dedup-disarmed-test");
         let mut session_toggles: ResolvedToggles = (*resolved).clone();
-        session_toggles.compression_dedup_enabled = false;
+        session_toggles
+            .features
+            .update::<crate::features_settings::ContextShapingOverlay>(|o| {
+                o.compression_dedup_enabled = false;
+            });
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
         let turn_origin = TurnOrigin::Primary;

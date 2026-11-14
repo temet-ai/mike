@@ -15,7 +15,7 @@ use std::sync::Once;
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 
-use crate::settings::meta_dossier::ENTRIES_ENABLED_KEY;
+use crate::features_settings::meta_dossier::ENTRIES_ENABLED_KEY;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]

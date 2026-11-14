@@ -162,10 +162,14 @@ impl RequestStage for RemindersStage {
             body.record_unchanged("reminders", "reminders", "reminders_served_by_client");
             return;
         }
+        let reminders = ctx
+            .session_toggles
+            .features
+            .get::<crate::features_settings::RemindersOverlay>();
         let cfg = RemindersConfig {
             enabled: ctx.session_toggles.reminders,
-            inject_lessons: ctx.session_toggles.reminders_inject_lessons,
-            max_lessons_to_inject: ctx.session_toggles.reminders_max_lessons_to_inject,
+            inject_lessons: reminders.inject_lessons,
+            max_lessons_to_inject: reminders.max_lessons_to_inject,
         };
         let push_deps = ctx.state.push_deps();
         let outcome = reminders::apply_reminders(

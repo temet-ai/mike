@@ -1,7 +1,7 @@
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 use serde::Serialize;
 
-use crate::settings::cross_session::CrossSessionSettings;
+use crate::features_settings::cross_session::CrossSessionSettings;
 use crate::store::persistence::cross_session::ProposerParams;
 use crate::store::persistence::{PersistError, PersistHandle};
 

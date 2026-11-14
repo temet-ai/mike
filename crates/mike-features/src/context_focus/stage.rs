@@ -24,7 +24,11 @@ impl RequestStage for ContextFocusStage {
             );
             return;
         }
-        let mode = inject::Mode::parse(&ctx.session_toggles.context_focus_question_mode);
+        let shaping = ctx
+            .session_toggles
+            .features
+            .get::<crate::features_settings::ContextShapingOverlay>();
+        let mode = inject::Mode::parse(&shaping.context_focus_question_mode);
         let InjectOutcome::Injected {
             new_body,
             tools,

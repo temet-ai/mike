@@ -91,15 +91,6 @@ pub struct ProxyConfig {
     #[serde(default = "default_spa_bind")]
     pub spa_bind: String,
 
-    #[serde(default)]
-    pub compress: crate::config::compress::CompressConfig,
-
-    #[serde(default)]
-    pub reminders: crate::config::reminders::RemindersConfig,
-
-    #[serde(default)]
-    pub weasel_intercept: crate::config::weasel_intercept::WeaselInterceptConfig,
-
     #[serde(deserialize_with = "deserialize_permissive_bool")]
     pub composition_enabled: bool,
 
@@ -163,9 +154,6 @@ pub struct ProxyConfig {
 
     #[serde(default)]
     pub steerer: crate::config::steerer::SteererConfig,
-
-    #[serde(default)]
-    pub session_judge: crate::config::session_judge::SessionJudgeConfig,
 
     #[serde(default)]
     pub retention_sweep: crate::config::retention_sweep::RetentionSweepConfig,

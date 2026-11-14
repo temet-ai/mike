@@ -44,6 +44,7 @@ impl AppState {
         analyzer_registry: AnalyzerRegistry,
         shutdown: CancellationToken,
     ) -> anyhow::Result<Self> {
+        crate::features_settings::register();
         let mut config = config;
         let retention = pipeline::build_retention_policy(&config);
         let client = pipeline::build_http_client()?;

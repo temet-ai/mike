@@ -83,7 +83,11 @@ async fn forward_arm_on_a_cold_cache_sends_the_shortened_body() -> anyhow::Resul
     let state =
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-forward")).clone();
-    toggles.shell_output_compression_forward = true;
+    toggles
+        .features
+        .update::<crate::features_settings::ShellOutputCompressionOverlay>(|o| {
+            o.mode = "forward".to_owned();
+        });
     let raw = bash_then_answers(3)?;
     crate::compress::cache_gate::seed_cold_lane(REDUCER, &raw);
     let body = run(&toggles, &state, &raw).await;
@@ -104,9 +108,17 @@ async fn session_arm_uses_its_own_share_independent_of_file_reads() -> anyhow::R
     let state =
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-arm")).clone();
-    toggles.file_read_compression_forward_share = 100;
+    toggles
+        .features
+        .update::<crate::features_settings::FileReadCompressionOverlay>(|o| {
+            o.forward_share = 100;
+        });
     assert!((0..50).all(|i| session_arm(&toggles, &format!("s-{i}")) == ARM_CONTROL));
-    toggles.shell_output_compression_forward_share = 50;
+    toggles
+        .features
+        .update::<crate::features_settings::ShellOutputCompressionOverlay>(|o| {
+            o.forward_share = 50;
+        });
     let forwarded = (0..200)
         .filter(|i| session_arm(&toggles, &format!("s-{i}")) == ARM_FORWARD)
         .count();

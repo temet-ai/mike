@@ -123,7 +123,11 @@ async fn weasel_is_armed_only_for_a_session_its_client_did_not_guard() -> anyhow
     let mut toggles: ResolvedToggles =
         (*state.resolve_session_toggles("weasel-guard-test")).clone();
     toggles.weasel_intercept = true;
-    toggles.weasel_intercept_forbidden_words = vec!["pre-existing".to_owned()];
+    toggles
+        .features
+        .update::<crate::features_settings::WeaselOverlay>(|o| {
+            o.forbidden_words = vec!["pre-existing".to_owned()];
+        });
     let guarded = Uuid::new_v4().to_string();
     let other = Uuid::new_v4().to_string();
     assert!(weasel_armed(&toggles, &guarded));

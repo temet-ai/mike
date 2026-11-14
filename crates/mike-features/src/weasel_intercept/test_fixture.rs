@@ -84,10 +84,13 @@ pub fn armed_toggles(state: &AppState, words: &[&str]) {
         weasel_intercept: true,
         ..FeatureToggles::default()
     }));
-    state.settings_overlay.store(Arc::new(SettingsOverlay {
-        weasel_intercept_forbidden_words: words.iter().map(|w| (*w).to_owned()).collect(),
-        ..SettingsOverlay::default()
-    }));
+    let mut overlay = SettingsOverlay::default();
+    overlay
+        .features
+        .update::<crate::features_settings::WeaselOverlay>(|o| {
+            o.forbidden_words = words.iter().map(|w| (*w).to_owned()).collect();
+        });
+    state.settings_overlay.store(Arc::new(overlay));
 }
 
 pub async fn drain_spawned_writes(state: &AppState) {

@@ -32,8 +32,10 @@ async fn test_app_state_new() -> anyhow::Result<()> {
 #[tokio::test]
 async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyhow::Result<()> {
     use crate::feature_toggles::FeatureToggles;
+    use crate::features_settings::RemindersOverlay;
     use crate::settings::SettingsOverlay;
 
+    crate::features_settings::register();
     let config = parse(&["mike", "--persist-enabled", "0"])?;
     let state = AppState::new(config).await?;
 
@@ -41,12 +43,13 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
     assert!(!a_first.reminders, "session A must snapshot reminders=OFF");
     assert!(!a_first.recall_injector);
     assert!(!a_first.weasel_intercept);
+    let a_first_reminders = a_first.features.get::<RemindersOverlay>();
     assert!(
-        !a_first.reminders_inject_lessons,
+        !a_first_reminders.inject_lessons,
         "reminders_inject_lessons must default OFF"
     );
     assert_eq!(
-        a_first.reminders_max_lessons_to_inject, 5,
+        a_first_reminders.max_lessons_to_inject, 5,
         "default max_lessons_to_inject"
     );
 
@@ -56,10 +59,10 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
     };
     state.feature_toggle_overlay.store(Arc::new(flipped));
 
-    let new_settings = SettingsOverlay {
-        reminders_max_lessons_to_inject: 99,
-        ..SettingsOverlay::default()
-    };
+    let mut new_settings = SettingsOverlay::default();
+    new_settings
+        .features
+        .update::<RemindersOverlay>(|o| o.max_lessons_to_inject = 99);
     state.settings_overlay.store(Arc::new(new_settings));
 
     let a_second = state.resolve_session_toggles("session-A");
@@ -68,7 +71,11 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
         "in-flight session A must keep frozen reminders=OFF after a mid-session flip"
     );
     assert_eq!(
-        a_second.reminders_max_lessons_to_inject, 5,
+        a_second
+            .features
+            .get::<RemindersOverlay>()
+            .max_lessons_to_inject,
+        5,
         "in-flight session A must keep the frozen max_lessons_to_inject=5, not 99"
     );
     assert!(
@@ -82,7 +89,11 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
         "new session B must observe the flipped reminders=ON"
     );
     assert_eq!(
-        b_first.reminders_max_lessons_to_inject, 99,
+        b_first
+            .features
+            .get::<RemindersOverlay>()
+            .max_lessons_to_inject,
+        99,
         "new session B must observe the updated max_lessons_to_inject=99"
     );
 

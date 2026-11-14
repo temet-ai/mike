@@ -7,7 +7,7 @@ use crate::compress::recovery::CapturedResults;
 
 use super::reduction::ReductionShape;
 
-pub use crate::settings::meta_shell_output::{
+pub use crate::features_settings::meta_shell_output::{
     DEFAULT_GRACE_TURNS, DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES,
     DEFAULT_SIGNAL_CONTEXT_LINES, DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES,
 };

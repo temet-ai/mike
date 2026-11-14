@@ -13,6 +13,7 @@ pub mod dossier;
 pub mod eval;
 pub mod eval_metrics;
 pub mod extract;
+pub mod features_settings;
 pub mod filter;
 pub mod injected_replay;
 pub mod injection;

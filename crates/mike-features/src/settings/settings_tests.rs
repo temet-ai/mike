@@ -1,4 +1,7 @@
 use super::*;
+use crate::features_settings::{
+    ContextShapingOverlay, FileReadCompressionOverlay, RemindersOverlay, WeaselOverlay,
+};
 
 #[test]
 fn settings_meta_keys_are_unique() {
@@ -29,26 +32,35 @@ fn settings_meta_enum_variants_non_empty() {
 
 #[test]
 fn settings_overlay_defaults_match_toggle_off_by_default_contract() {
-    let overlay = SettingsOverlay::default();
+    let features = SettingsOverlay::default().features;
     assert!(
-        !overlay.reminders_inject_lessons,
+        !features.get::<RemindersOverlay>().inject_lessons,
         "reminders.inject_lessons must default false"
     );
     assert!(
-        !overlay.compression_dedup_enabled,
+        !features
+            .get::<ContextShapingOverlay>()
+            .compression_dedup_enabled,
         "compression_dedup.enabled must default false"
     );
     assert!(
-        !overlay.file_read_compression_protected_paths.is_empty(),
+        !features
+            .get::<FileReadCompressionOverlay>()
+            .protected_paths
+            .is_empty(),
         "file_read_compression.protected_paths must not default empty"
     );
 }
 
 #[test]
 fn weasel_correction_prompt_default_matches_compiled_and_catalogue() {
-    let overlay_default = SettingsOverlay::default().weasel_intercept_correction_prompt;
+    crate::features_settings::register();
+    let overlay_default = SettingsOverlay::default()
+        .features
+        .get::<WeaselOverlay>()
+        .correction_prompt;
     let compiled_default =
-        crate::config::weasel_intercept::WeaselInterceptConfig::default().correction_prompt;
+        crate::features_settings::WeaselInterceptConfig::default().correction_prompt;
     assert_eq!(
         overlay_default, compiled_default,
         "SettingsOverlay::default must mirror WeaselInterceptConfig::default"
@@ -91,16 +103,15 @@ fn settings_meta_text_kind_defaults_are_never_blank() {
 
 #[test]
 fn settings_overlay_default_matches_file_read_compression_compiled_defaults() {
-    let overlay = SettingsOverlay::default();
-    assert_eq!(overlay.file_read_compression_min_bytes, 1500);
-    assert_eq!(overlay.file_read_compression_head_lines, 40);
-    assert_eq!(overlay.file_read_compression_tail_lines, 20);
+    let overlay = SettingsOverlay::default()
+        .features
+        .get::<FileReadCompressionOverlay>();
+    assert_eq!(overlay.min_bytes, 1500);
+    assert_eq!(overlay.head_lines, 40);
+    assert_eq!(overlay.tail_lines, 20);
+    assert_eq!(overlay.enabled_producers, vec!["Read".to_owned()]);
     assert_eq!(
-        overlay.file_read_compression_enabled_producers,
-        vec!["Read".to_owned()]
-    );
-    assert_eq!(
-        overlay.file_read_compression_protected_paths,
+        overlay.protected_paths,
         vec![
             "**/CLAUDE.md".to_owned(),
             "**/BRIEF*.md".to_owned(),
@@ -136,7 +147,8 @@ fn meta_default_string(key: &str) -> String {
 #[test]
 fn model_settings_registry_defaults_match_compiled_defaults() {
     let steerer = crate::config::steerer::SteererConfig::default();
-    let session_judge = crate::config::session_judge::SessionJudgeConfig::default();
+    let session_judge =
+        crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
 
     assert_eq!(meta_default_string("steerer.model"), steerer.model);
     assert_eq!(

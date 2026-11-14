@@ -384,22 +384,6 @@ fn overlay_with_mixed_toggles() -> FeatureToggles {
     }
 }
 
-fn settings_with_mixed_values() -> crate::settings::SettingsOverlay {
-    crate::settings::SettingsOverlay {
-        reminders_inject_lessons: false,
-        reminders_max_lessons_to_inject: 7,
-        weasel_intercept_forbidden_words: vec!["bad".to_owned()],
-        weasel_intercept_correction_prompt: "correct!".to_owned(),
-        file_read_compression_min_bytes: 4000,
-        file_read_compression_head_lines: 10,
-        file_read_compression_tail_lines: 5,
-        file_read_compression_enabled_producers: vec!["Read".to_owned(), "Grep".to_owned()],
-        file_read_compression_protected_paths: vec!["**/*.env".to_owned()],
-        compression_dedup_enabled: false,
-        ..crate::settings::SettingsOverlay::default()
-    }
-}
-
 fn assert_resolved_flags(resolved: &ResolvedToggles) {
     assert!(!resolved.reminders);
     assert!(resolved.recall_injector);
@@ -409,32 +393,13 @@ fn assert_resolved_flags(resolved: &ResolvedToggles) {
     assert!(!resolved.workspace_capture_registration);
     assert!(!resolved.self_identity_reminder);
     assert!(!resolved.workspace_briefing);
-    assert!(!resolved.reminders_inject_lessons);
-    assert!(!resolved.compression_dedup_enabled);
-}
-
-fn assert_resolved_settings(resolved: &ResolvedToggles) {
-    assert_eq!(resolved.reminders_max_lessons_to_inject, 7);
-    assert_eq!(resolved.weasel_intercept_forbidden_words, vec!["bad"]);
-    assert_eq!(resolved.weasel_intercept_correction_prompt, "correct!");
-    assert_eq!(resolved.file_read_compression_min_bytes, 4000);
-    assert_eq!(resolved.file_read_compression_head_lines, 10);
-    assert_eq!(resolved.file_read_compression_tail_lines, 5);
-    assert_eq!(
-        resolved.file_read_compression_enabled_producers,
-        vec!["Read".to_owned(), "Grep".to_owned()]
-    );
-    assert_eq!(
-        resolved.file_read_compression_protected_paths,
-        vec!["**/*.env".to_owned()]
-    );
 }
 
 #[test]
 fn resolved_toggles_from_overlay() {
     let overlay = overlay_with_mixed_toggles();
-    let settings = settings_with_mixed_values();
+    let settings = crate::settings::SettingsOverlay::default();
     let resolved = ResolvedToggles::from_overlay(&overlay, &settings);
     assert_resolved_flags(&resolved);
-    assert_resolved_settings(&resolved);
+    assert_eq!(resolved.features, settings.features);
 }

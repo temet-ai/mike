@@ -156,8 +156,11 @@ fn spawn_intercepted_stream(setup: InterceptedStreamSetup<'_>) -> Body {
 
     spawn_store_updater_for(state, request_id, store_event_rx);
 
+    let weasel = session_toggles
+        .features
+        .get::<crate::features_settings::WeaselOverlay>();
     let forbidden_words = if weasel_armed {
-        session_toggles.weasel_intercept_forbidden_words.clone()
+        weasel.forbidden_words
     } else {
         Vec::new()
     };
@@ -173,7 +176,7 @@ fn spawn_intercepted_stream(setup: InterceptedStreamSetup<'_>) -> Body {
                 forward_headers: forwarded_headers_for_correction,
                 original_body: upstream_body_for_correction,
                 forbidden_words,
-                correction_prompt: session_toggles.weasel_intercept_correction_prompt.clone(),
+                correction_prompt: weasel.correction_prompt,
                 answers_tool_calls: tool_loop_armed,
                 original_request_id: request_id,
                 session_id,

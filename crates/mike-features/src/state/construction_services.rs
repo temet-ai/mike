@@ -95,7 +95,9 @@ fn bundle_publisher(
     let handle = persist?;
     let inputs = BundleStaticInputs {
         judge: config.steerer.judge.clone(),
-        session_judge: config.session_judge.clone(),
+        session_judge: config
+            .sections
+            .get::<crate::features_settings::SessionJudgeConfig>(),
         fleet_default_model: config.steerer.model.clone(),
         smoke_run: config.smoke_run,
     };
