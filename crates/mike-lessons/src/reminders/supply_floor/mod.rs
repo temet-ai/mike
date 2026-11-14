@@ -58,6 +58,26 @@ pub struct Candidate<'a> {
     pub text: &'a str,
 }
 
+pub async fn keep_above_floor<'a>(
+    decider: &Decider,
+    context: &Context<'_>,
+    selected: Vec<&'a crate::lesson_cache::InjectableLesson>,
+) -> Vec<&'a crate::lesson_cache::InjectableLesson> {
+    let asked: Vec<Candidate<'_>> = selected
+        .iter()
+        .map(|l| Candidate {
+            id: l.id,
+            kind: &l.kind,
+            text: &l.text,
+        })
+        .collect();
+    let kept = apply(decider, context, &asked).await;
+    selected
+        .into_iter()
+        .filter(|l| kept.contains(&l.id))
+        .collect()
+}
+
 pub async fn apply(
     decider: &Decider,
     context: &Context<'_>,

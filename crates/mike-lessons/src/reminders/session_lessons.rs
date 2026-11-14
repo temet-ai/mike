@@ -81,19 +81,7 @@ pub async fn apply_session_lessons_with_floor(
                 request_id: i64::try_from(request_id.as_u64()).unwrap_or(0),
                 text: &query,
             };
-            let asked: Vec<_> = selected
-                .iter()
-                .map(|l| super::supply_floor::Candidate {
-                    id: l.id,
-                    kind: &l.kind,
-                    text: &l.text,
-                })
-                .collect();
-            let kept = super::supply_floor::apply(decider, &context, &asked).await;
-            selected
-                .into_iter()
-                .filter(|l| kept.contains(&l.id))
-                .collect()
+            super::supply_floor::keep_above_floor(decider, &context, selected).await
         }
         None => selected,
     };

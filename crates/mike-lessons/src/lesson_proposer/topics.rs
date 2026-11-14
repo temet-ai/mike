@@ -143,15 +143,8 @@ pub async fn run_pass(
         Err(e) => return failed(report, format!("topics: {e}")),
     };
     let chosen = topic_pick::assign_to_existing(decisions, &existing, &batch).await;
-    if !chosen.ids.is_empty() {
-        match persist
-            .lessons()
-            .set_lesson_topics(&chosen.ids, &chosen.topics)
-            .await
-        {
-            Ok(n) => report.assigned += n,
-            Err(e) => return failed(report, format!("write: {e}")),
-        }
+    if let Err(e) = write_chosen(persist, &chosen, &mut report).await {
+        return failed(report, e);
     }
     let remaining: Vec<UntopicedLesson> = batch
         .into_iter()
@@ -160,14 +153,41 @@ pub async fn run_pass(
     if remaining.is_empty() {
         return report;
     }
+    name_remaining(persist, llm, &existing, &remaining, report).await
+}
+
+async fn write_chosen(
+    persist: &PersistHandle,
+    chosen: &topic_pick::Assigned,
+    report: &mut TopicPassReport,
+) -> Result<(), String> {
+    if chosen.ids.is_empty() {
+        return Ok(());
+    }
+    let n = persist
+        .lessons()
+        .set_lesson_topics(&chosen.ids, &chosen.topics)
+        .await
+        .map_err(|e| format!("write: {e}"))?;
+    report.assigned += n;
+    Ok(())
+}
+
+async fn name_remaining(
+    persist: &PersistHandle,
+    llm: &OpenRouterClient,
+    existing: &[String],
+    remaining: &[UntopicedLesson],
+    mut report: TopicPassReport,
+) -> TopicPassReport {
     let answer = match llm
-        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(&existing, &remaining), schema())
+        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(existing, remaining), schema())
         .await
     {
         Ok(answer) => answer,
         Err(e) => return failed(report, format!("model: {e}")),
     };
-    let (ids, topics) = accepted(&remaining, answer);
+    let (ids, topics) = accepted(remaining, answer);
     match persist.lessons().set_lesson_topics(&ids, &topics).await {
         Ok(n) => report.assigned += n,
         Err(e) => return failed(report, format!("write: {e}")),

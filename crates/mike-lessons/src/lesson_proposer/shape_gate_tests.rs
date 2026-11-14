@@ -41,7 +41,7 @@ fn candidates_keep_only_status_openers_outside_verifier_topics() {
 
 #[test]
 fn compose_rule_answer_above_the_floor_clears_the_lesson() {
-    let rows = vec![row(1, "Done means the tests pass.", None)];
+    let rows = [row(1, "Done means the tests pass.", None)];
     let group: Vec<&UncheckedLesson> = rows.iter().collect();
     assert_eq!(compose(&answered(1, 0.9), &group), vec![(1, 0.9)]);
     assert!(compose(&answered(1, 0.4), &group).is_empty());
@@ -49,14 +49,14 @@ fn compose_rule_answer_above_the_floor_clears_the_lesson() {
 
 #[test]
 fn compose_failed_answer_keeps_the_status_finding() {
-    let rows = vec![row(1, "Done means the tests pass.", None)];
+    let rows = [row(1, "Done means the tests pass.", None)];
     let group: Vec<&UncheckedLesson> = rows.iter().collect();
     assert!(compose(&Asked::failed_with("timeout"), &group).is_empty());
 }
 
 #[test]
 fn applied_score_is_the_probability_of_the_action_taken() {
-    let rows = vec![row(1, "Done means x.", None)];
+    let rows = [row(1, "Done means x.", None)];
     let group: Vec<&UncheckedLesson> = rows.iter().collect();
     assert!((applied_score(&answered(1, 0.9), &group) - 0.9).abs() < 1e-9);
     assert!((applied_score(&answered(1, 0.2), &group) - 0.8).abs() < 1e-9);
@@ -64,7 +64,7 @@ fn applied_score_is_the_probability_of_the_action_taken() {
 
 #[test]
 fn state_and_questions_cover_every_lesson_in_the_group() {
-    let rows = vec![row(7, "Done means x.", Some("t"))];
+    let rows = [row(7, "Done means x.", Some("t"))];
     let group: Vec<&UncheckedLesson> = rows.iter().collect();
     assert_eq!(state(&group)["lessons"][0]["id"], 7);
     assert!(questions(&group).contains_key("lesson_7"));

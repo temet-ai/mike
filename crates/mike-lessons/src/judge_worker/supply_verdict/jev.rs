@@ -117,20 +117,12 @@ impl<'a, J: SupplyJudge> JevJudge<'a, J> {
             self.tripped.store(true, Ordering::Relaxed);
         }
         let composed = compose(&asked);
-        let applied = composed
-            .as_ref()
-            .map_or("none", |(a, _)| applied_for(&a.verdict));
+        let applied = composed.as_ref().map_or("none", |_| "labelled");
         let score = composed.as_ref().map_or(0.0, |(_, p)| *p);
         self.decider
             .mark(&asked, asked.composed(json!({ "score": score })), applied)
             .await;
         composed.filter(|_| self.decider.applies()).map(|(a, _)| a)
-    }
-}
-
-fn applied_for(verdict: &str) -> &'static str {
-    match verdict {
-        _ => "labelled",
     }
 }
 

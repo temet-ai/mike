@@ -173,7 +173,7 @@ pub fn relevant<'a>(rules: &'a [Rule], turn: &TurnTools, limit: usize) -> Vec<&'
         .map(|rule| (relevance(rule, &bag, &turn.paths), rule))
         .filter(|(score, _)| *score >= 2)
         .collect();
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.0));
     scored.into_iter().take(limit).map(|(_, r)| r).collect()
 }
 

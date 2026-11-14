@@ -177,7 +177,7 @@ async fn file_findings(persist: &PersistHandle, scores: &[PointScore]) -> Option
     }
 }
 
-pub async fn run(persist: &PersistHandle, now: DateTime<Utc>) -> Result<Value, PersistError> {
+async fn sync_outcomes(persist: &PersistHandle) -> Result<u64, PersistError> {
     let store = crate::llm::decisions::store(persist);
     let mut synced = store
         .sync_evaluation_outcomes(crate::steerer::precheck::POINT)
@@ -189,6 +189,12 @@ pub async fn run(persist: &PersistHandle, now: DateTime<Utc>) -> Result<Value, P
         .sync_intervention_outcomes(crate::quiescence_worker::wake_recheck::POINT)
         .await?;
     synced += store.sync_operator_label_outcomes().await?;
+    Ok(synced)
+}
+
+pub async fn run(persist: &PersistHandle, now: DateTime<Utc>) -> Result<Value, PersistError> {
+    let store = crate::llm::decisions::store(persist);
+    let synced = sync_outcomes(persist).await?;
     let since = now - WINDOW;
     let counts = store.decision_point_counts(since).await?;
     let labelled = store.labelled_decisions(since).await?;
