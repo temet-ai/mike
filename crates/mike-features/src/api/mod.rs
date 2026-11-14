@@ -2,6 +2,7 @@ pub use mike_knowledge::api::*;
 pub mod client_serves;
 pub mod cross_session;
 pub mod cross_session_approve;
+pub mod decisions_calibration;
 pub mod dossier;
 pub mod eval;
 pub mod handlers;

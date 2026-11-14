@@ -1,11 +1,20 @@
 use axum::Router;
 use axum::routing::{get, patch};
 
-use crate::api::{steering_evaluations, steering_guard, steering_guard_effect};
+use crate::api::{
+    decisions_calibration, steering_evaluations, steering_guard, steering_guard_effect,
+};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
+    route(
+        "GET",
+        "/api/decisions/calibration",
+        Coverage::Exempt {
+            reason: "SPA decisions calibration panel on settings/steering; agents read decisions.records through the loop's thread findings",
+        },
+    ),
     route(
         "GET",
         "/api/sessions/{id}/evaluations",
@@ -57,6 +66,10 @@ pub(super) const ROUTES: &[RouteEntry] = &[
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
+        .route(
+            "/api/decisions/calibration",
+            get(decisions_calibration::get_calibration),
+        )
         .route(
             "/api/sessions/{id}/evaluations",
             get(steering_evaluations::list_session_evaluations),

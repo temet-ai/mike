@@ -27,7 +27,34 @@ pub struct PointScore {
     pub sent_right: usize,
     pub labels_per_day: f64,
     pub days_to_min_labels: Option<f64>,
+    pub applied_labelled: usize,
+    pub applied_right: usize,
+    pub applied_precision_lower: Option<f64>,
     pub findings: Vec<String>,
+}
+
+pub const APPLIED_PRECISION_BAR: f64 = 0.6;
+
+fn applied_precision(point: &str, rows: &[&LabelledDecision]) -> (usize, usize, Option<f64>) {
+    if point == crate::steerer::precheck::POINT {
+        return (0, 0, None);
+    }
+    let applied: Vec<&&LabelledDecision> = rows
+        .iter()
+        .filter(|l| l.applied.as_deref().is_some_and(|a| a != "none"))
+        .collect();
+    let right = applied.iter().filter(|l| is_right(&l.label)).count();
+    let lower = wilson_lower_bound(right as f64, applied.len() as f64);
+    (applied.len(), right, lower)
+}
+
+fn applied_finding(n: usize, lower: Option<f64>) -> Option<String> {
+    let lower = lower.filter(|_| n >= 10)?;
+    (lower < APPLIED_PRECISION_BAR).then(|| {
+        format!(
+            "of {n} labelled applied decisions, the share that were right has a lower bound of {lower:.2}, under the bar {APPLIED_PRECISION_BAR:.2}"
+        )
+    })
 }
 
 fn is_right(label: &str) -> bool {
@@ -83,7 +110,13 @@ pub fn score_point(counts: PointCounts, labelled: &[LabelledDecision]) -> PointS
     let held_lower = wilson_lower_bound(held_wrong as f64, held.len() as f64);
     let per_day = counts.labelled_last_7d as f64 / 7.0;
     let missing = (MIN_LABELS - counts.labelled).max(0) as f64;
+    let (applied_n, applied_right, applied_lower) = applied_precision(&counts.point, &rows);
+    let mut found = findings(&counts, held_lower, held.len());
+    found.extend(applied_finding(applied_n, applied_lower));
     PointScore {
+        applied_labelled: applied_n,
+        applied_right,
+        applied_precision_lower: applied_lower,
         auroc: auroc(&scored),
         held_labelled: held.len(),
         held_wrong,
@@ -92,7 +125,7 @@ pub fn score_point(counts: PointCounts, labelled: &[LabelledDecision]) -> PointS
         sent_right: sent.iter().filter(|l| is_right(&l.label)).count(),
         labels_per_day: per_day,
         days_to_min_labels: (per_day > 0.0).then(|| missing / per_day),
-        findings: findings(&counts, held_lower, held.len()),
+        findings: found,
         counts,
     }
 }
@@ -233,6 +266,17 @@ mod tests {
         let s = score_point(counts("p", 2, 2, 0), &labelled);
         assert_eq!(s.auroc, Some(1.0));
         assert_eq!(s.sent_right, 1);
+    }
+
+    #[test]
+    fn a_point_whose_applied_decisions_are_mostly_wrong_is_a_finding() {
+        let labelled: Vec<_> = (0..12)
+            .map(|i| label(0.8, "chosen", if i < 3 { "right" } else { "wrong" }))
+            .collect();
+        let s = score_point(counts("p", 100, 90, 0), &labelled);
+        assert_eq!(s.applied_labelled, 12);
+        assert_eq!(s.applied_right, 3);
+        assert!(s.findings.iter().any(|f| f.contains("labelled applied")));
     }
 
     #[test]
