@@ -1978,7 +1978,7 @@ Added in `20260729020000_memory_lesson_relations.sql`. Directional "B updates A"
 contradicts). Never a deletion mechanism: a row only records that a relationship was proposed and how it
 was decided; archiving stays with `memory.consolidation_actions`. `candidate_distance` only nominated the
 pair for comparison; direction and kind come from `evidence_json`, the rationales and adjudication. Written
-by `crates/mike-features/src/lesson_relations/` (detection, rule-based and adjudicated pairs; the `lesson_relations`
+by `crates/mike-lessons/src/lesson_relations/` (detection, rule-based and adjudicated pairs; the `lesson_relations`
 `llm.calls` role) through `store/persistence/lesson_relations.rs`, and at lesson write time by
 `store/persistence/lessons/write_time.rs` (`POST /api/lessons`, methods `write_time` and `rewritten`).
 Operator decisions arrive through `POST /api/memory/relations/{id}/confirm` and `/reject`; reads are
@@ -3364,7 +3364,7 @@ on every tick.
 ### `memory.harvest_runs`
 
 Added in migration `20261014140000_harvest_runs.sql` (mike#611). One row per finished model reply in
-which the memory harvester (`crates/mike-features/src/memory_harvester/`) found at least one
+which the memory harvester (`crates/mike-lessons/src/memory_harvester/`) found at least one
 `<mem:update>` tag; a reply with no tag writes no row. The weekly learning audit sums these rows
 to show whether sessions use the memory verb grammar. `request_id` has no foreign key because the
 retention sweep deletes old requests and this record is meant to outlive them.
@@ -3400,7 +3400,7 @@ after the third. A model refusal from the call limiter is not a failure.
 ### `memory.skill_policies`
 
 Added in `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`, routes under
-`/api/skills` in `crates/mike-features/src/api/skills/`). Whether mike may write learned skills into a project's
+`/api/skills` in `crates/mike-lessons/src/api/skills/`). Whether mike may write learned skills into a project's
 checkouts on its own: `auto` (the promoter, `scripts/learning_audit/promote.py`, ships drafts that passed
 evaluation, or a generated skill when there is none) or `ask` (it ships only drafts the user approved). A
 project with no row is `ask`, so a project first seen after this table was created never receives a skill
@@ -3480,7 +3480,7 @@ an accepted proposal into a rule or agent file yet; the page shows the file and 
 ### The user's control over learned skills
 
 Added in migration `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`,
-routes under `/api/skills` in `crates/mike-features/src/api/skills/`). The learning promoter
+routes under `/api/skills` in `crates/mike-lessons/src/api/skills/`). The learning promoter
 (`scripts/learning_audit/promote.py`) reads the first three and writes the fourth through
 `POST /api/skills/installs`.
 
@@ -3511,7 +3511,7 @@ Index `skill_installs_project_idx` on `(project_id, folder)`.
 ### `memory.lesson_proposal_evidence`
 
 Added in migration `20260929000001_improvement_schema.sql` (JC21). One row per
-`memory.turn_verdicts` row the lesson proposer (`crates/mike-features/src/lesson_proposer/`) has examined,
+`memory.turn_verdicts` row the lesson proposer (`crates/mike-lessons/src/lesson_proposer/`) has examined,
 whether or not it produced or reinforced a lesson. `verdict_id` is `UNIQUE` — it is both the
 anti-join key the candidate-selection query in `store/persistence/lessons/proposals.rs` uses to
 skip an already-examined verdict (`rust-database-reliability.md` allows this: the uniqueness lives on a real
@@ -3544,7 +3544,7 @@ identifier, in `CREATE TABLE` or in an `INSERT` column list.
 ### `memory.lesson_proposal_jobs`
 
 Added in `20261005000000_learning_proposal_queue.sql`. One durable replay job per verdict for the lesson
-proposer (`crates/mike-features/src/lesson_proposer/`, queue code in
+proposer (`crates/mike-lessons/src/lesson_proposer/`, queue code in
 `store/persistence/lessons/proposals/queue.rs`): when a proposal has been produced but cannot be written
 because embedding is unavailable, the immutable proposer inputs and the wire response are saved here as
 `awaiting_embedding` and replayed once `next_attempt_at` is due (back-off `15 * 2^n` s capped at 1 h,
@@ -4066,7 +4066,7 @@ allows.
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
-| `role` | `TEXT NOT NULL` | CHECK `steerer \| session_judge \| judge_worker \| lesson_relations \| eval \| lesson_proposer`. `eval` added by `20260925000000_llm_calls_role_eval.sql`; `lesson_proposer` (the JC21 lesson proposer, `crates/mike-features/src/lesson_proposer/`) by `20260929000001_improvement_schema.sql`, alongside the matching widening of `llm.daily_spend.role` below (its `AFTER INSERT` trigger copies `NEW.role` verbatim, so a role `llm.calls` accepts but `llm.daily_spend` does not fails every insert of that role, not just a read) |
+| `role` | `TEXT NOT NULL` | CHECK `steerer \| session_judge \| judge_worker \| lesson_relations \| eval \| lesson_proposer`. `eval` added by `20260925000000_llm_calls_role_eval.sql`; `lesson_proposer` (the JC21 lesson proposer, `crates/mike-lessons/src/lesson_proposer/`) by `20260929000001_improvement_schema.sql`, alongside the matching widening of `llm.daily_spend.role` below (its `AFTER INSERT` trigger copies `NEW.role` verbatim, so a role `llm.calls` accepts but `llm.daily_spend` does not fails every insert of that role, not just a read) |
 | `model` | `TEXT NOT NULL` | OpenRouter model id |
 | `generation_id` | `TEXT NULL` | OpenRouter response `id`; a cross-reference fingerprint only, deliberately not indexed |
 | `prompt_tokens` | `INTEGER NULL` | |
@@ -5880,7 +5880,7 @@ mutation and egress toggles off on a database that has captured no requests yet.
 **Indexes:** none beyond the PK — the table has ≤10 rows and is read at startup and on every settings-page load.
 
 Migration `20260929000001_improvement_schema.sql` (JC21) adds `judge_lessons` to the closed key
-set (the lesson proposer, `crates/mike-features/src/lesson_proposer/`). It sends captured turn text to an
+set (the lesson proposer, `crates/mike-lessons/src/lesson_proposer/`). It sends captured turn text to an
 LLM, so `agent-behavior-and-data.md` requires the code default off; the migration inserts
 `(judge_lessons, false, false)` rather than any "on for this install" value a deploy records —
 that flip is a deploy-time operator action through `/settings`, logged by the trigger below like

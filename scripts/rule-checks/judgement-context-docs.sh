@@ -146,7 +146,7 @@ list_toggles() {
 
 list_settings() {
   local f
-  for f in crates/mike/src/settings/meta_*.rs; do
+  for f in crates/*/src/settings/meta_*.rs; do
     [ -f "$f" ] || continue
     case "$f" in *_tests.rs) continue ;; esac
     grep -oE 'key: "[^"]+"' "$f" || true
@@ -315,6 +315,7 @@ list_dangling_relations_lines() {
   list_relations > "$TMP/relations"
   cut -d. -f1 "$TMP/relations" | LC_ALL=C sort -u > "$TMP/schemas"
   list_columns | awk '{ split($1, a, "."); print a[1] "." $2 }' | LC_ALL=C sort -u >> "$TMP/relations"
+  list_settings >> "$TMP/relations"
   { grep -noE '`[a-z_]+\.[a-z_]+`' "$MACHINERY" || true; } | tr -d '`' | while IFS=: read -r ln rel; do
     if grep -qxF -- "${rel%%.*}" "$TMP/schemas" && ! grep -qxF -- "$rel" "$TMP/relations"; then
       echo "$ln $rel"
