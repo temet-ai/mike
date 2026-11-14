@@ -9,6 +9,7 @@ mod backfill_predecessors;
 mod backfill_session_prompts;
 mod decisions;
 mod decisions_import;
+mod decisions_replay;
 mod directives;
 pub mod dossier_backfill;
 mod dossier_backfill_entries;

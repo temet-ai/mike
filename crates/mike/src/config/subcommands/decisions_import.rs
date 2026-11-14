@@ -7,7 +7,9 @@ use clap::{Args, ValueEnum};
 use serde_json::{Map, Value, json};
 
 use crate::config::CliOverrides;
-use crate::llm::decisions::record::{CallResult, DecisionContext, DecisionMode, RecordInsert};
+use crate::llm::decisions::record::{
+    Applied, CallResult, DecisionContext, DecisionMode, RecordInsert,
+};
 use crate::store::persistence::PersistHandle;
 
 const PRECHECK_QUESTIONS: &str = r#"{
@@ -35,12 +37,18 @@ const NOTES: [(&str, &str); 3] = [
     ),
 ];
 
+#[cfg(test)]
+#[path = "decisions_import_tests.rs"]
+mod decisions_import_tests;
+
 const REPLAY_DAY: &str = "2026-11-13T18:00:00Z";
+const JEV_MODEL: &str = "typesafe/jev-1.14";
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ReplayKind {
     Precheck,
     Seat,
+    Replay,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -60,6 +68,9 @@ struct Imported {
     cost_usd: Option<f64>,
     label: Option<(String, &'static str)>,
     source_ref: String,
+    model: String,
+    latency_ms: Option<i32>,
+    composed: Option<Value>,
 }
 
 fn precheck_row(row: &Value) -> Imported {
@@ -95,6 +106,9 @@ fn precheck_row(row: &Value) -> Imported {
             .as_str()
             .map(|l| (l.to_owned(), "turn_guard_label")),
         source_ref: format!("jev_precheck_replay:{}", row["id"]),
+        model: JEV_MODEL.to_owned(),
+        latency_ms: None,
+        composed: None,
     }
 }
 
@@ -122,12 +136,14 @@ fn seat_row(index: usize, row: &Value) -> Imported {
             row["task"].as_str().unwrap_or("?"),
             index
         ),
+        model: JEV_MODEL.to_owned(),
+        latency_ms: None,
+        composed: None,
     }
 }
 
 async fn store(persist: &PersistHandle, row: &Imported) -> Result<i64> {
-    let request =
-        json!({"model": "typesafe/jev-1.14", "state": row.state, "questions": row.questions});
+    let request = json!({"model": row.model, "state": row.state, "questions": row.questions});
     let result = CallResult {
         outcome: if row.answers.is_some() {
             "ok"
@@ -139,8 +155,9 @@ async fn store(persist: &PersistHandle, row: &Imported) -> Result<i64> {
             .is_none()
             .then(|| "the replay recorded no answer".to_owned()),
         answers: row.answers.clone(),
-        served_model: Some("typesafe/jev-1.14".to_owned()),
+        served_model: Some(row.model.clone()),
         cost_usd: row.cost_usd,
+        latency_ms: row.latency_ms,
         ..CallResult::default()
     };
     let mut context = DecisionContext::new(row.point, DecisionMode::Replay, row.question_set);
@@ -148,7 +165,7 @@ async fn store(persist: &PersistHandle, row: &Imported) -> Result<i64> {
     let id = crate::llm::decisions::store(persist)
         .insert_decision_record(RecordInsert {
             context: &context,
-            model_requested: "typesafe/jev-1.14",
+            model_requested: &row.model,
             state: &row.state,
             questions: &row.questions,
             request_body: &request,
@@ -156,12 +173,71 @@ async fn store(persist: &PersistHandle, row: &Imported) -> Result<i64> {
             created_at: Some(row.created_at),
         })
         .await?;
+    if let Some(composed) = &row.composed {
+        let applied = Applied {
+            composed: composed.clone(),
+            applied: "none",
+            fail_open: row.answers.is_none(),
+        };
+        crate::llm::decisions::store(persist)
+            .mark_decision_applied(id, &applied, None)
+            .await?;
+    }
     if let Some((label, source)) = &row.label {
         crate::llm::decisions::store(persist)
             .insert_decision_outcome(id, label, source, &json!({"source_ref": row.source_ref}))
             .await?;
     }
     Ok(id)
+}
+
+fn replay_row(line: usize, row: &Value) -> Result<Imported> {
+    let point = row["point"].as_str().unwrap_or("");
+    let Some(known) = super::decisions_replay::known_point(point) else {
+        bail!("line {line}: `{point}` is not a replay point");
+    };
+    if row["schema"] != super::decisions_replay::SCHEMA {
+        bail!(
+            "line {line}: schema is not {}",
+            super::decisions_replay::SCHEMA
+        );
+    }
+    let outcome = &row["outcome"];
+    Ok(Imported {
+        point: known.point,
+        question_set: known.question_set,
+        created_at: row["asked_at"]
+            .as_str()
+            .and_then(|t| t.parse().ok())
+            .unwrap_or_else(Utc::now),
+        state: row["request"]["state"].clone(),
+        questions: row["request"]["questions"].clone(),
+        answers: (!row["answers"].is_null()).then(|| row["answers"].clone()),
+        cost_usd: row["cost_usd"].as_f64(),
+        label: outcome["label"]
+            .as_str()
+            .map(|label| (label.to_owned(), known.outcome_source)),
+        source_ref: row["source_ref"].as_str().unwrap_or("").to_owned(),
+        model: row["request"]["model"]
+            .as_str()
+            .unwrap_or(JEV_MODEL)
+            .to_owned(),
+        latency_ms: row["latency_ms"]
+            .as_i64()
+            .and_then(|l| i32::try_from(l).ok()),
+        composed: (!row["composed"].is_null()).then(|| row["composed"].clone()),
+    })
+}
+
+fn import_rows(kind: ReplayKind, rows: &[Value]) -> Result<Vec<Imported>> {
+    rows.iter()
+        .enumerate()
+        .map(|(i, r)| match kind {
+            ReplayKind::Precheck => Ok(precheck_row(r)),
+            ReplayKind::Seat => Ok(seat_row(i, r)),
+            ReplayKind::Replay => replay_row(i + 1, r),
+        })
+        .collect()
 }
 
 pub async fn run(args: DecisionsImportArgs, cli: CliOverrides) -> Result<()> {
@@ -176,18 +252,12 @@ pub async fn run(args: DecisionsImportArgs, cli: CliOverrides) -> Result<()> {
     if rows.is_empty() {
         bail!("{} has no rows", args.file.display());
     }
-    let imported: Vec<Imported> = rows
-        .iter()
-        .enumerate()
-        .map(|(i, r)| match args.kind {
-            ReplayKind::Precheck => precheck_row(r),
-            ReplayKind::Seat => seat_row(i, r),
-        })
-        .collect();
+    let imported = import_rows(args.kind, &rows)?;
     let persist = super::eval::connect(cli, true).await?;
     let prefix = match args.kind {
         ReplayKind::Precheck => "jev_precheck_replay:",
         ReplayKind::Seat => "jev_seat_replay:",
+        ReplayKind::Replay => "decisions_replay:",
     };
     let existing: HashSet<String> = crate::llm::decisions::store(&persist)
         .decision_source_refs(prefix)

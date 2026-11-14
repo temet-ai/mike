@@ -20,6 +20,7 @@ pub enum DecisionsCommand {
     Loop(DecisionsLoopArgs),
     Export(DecisionsExportArgs),
     ImportReplay(super::decisions_import::DecisionsImportArgs),
+    Replay(super::decisions_replay::DecisionsReplayArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -90,29 +91,46 @@ pub struct RecordingClient {
     tracker: TaskTracker,
 }
 
+async fn plain_base_client(
+    cli: CliOverrides,
+    persist: &PersistHandle,
+) -> Result<(OpenRouterClient, SettingsOverlay)> {
+    let config =
+        crate::config::load::load(cli).context("failed to resolve config for mike decisions")?;
+    let overlay = crate::settings::apply_db_rows_to_overlay(persist.fetch_settings().await?);
+    let key = crate::llm::key::cli_api_key(
+        config.steerer.openrouter_api_key.as_ref(),
+        &overlay.llm_provider,
+        None,
+        &overlay.decisions_model,
+    )
+    .map_err(|e| anyhow::anyhow!("mike decisions: {e}"))?;
+    let base = OpenRouterClient::new(
+        key,
+        overlay.decisions_model.clone(),
+        Some(config.steerer.openrouter_base_url.clone()),
+        None,
+    )?;
+    Ok((base, overlay))
+}
+
+pub(super) async fn read_only_client(
+    cli: CliOverrides,
+    persist: &PersistHandle,
+) -> Result<(OpenRouterClient, SettingsOverlay)> {
+    let (base, overlay) = plain_base_client(cli, persist).await?;
+    Ok((decision_client(&base, &overlay)?, overlay))
+}
+
 impl RecordingClient {
     pub async fn connect(cli: CliOverrides, persist: &PersistHandle) -> Result<Self> {
-        let config = crate::config::load::load(cli)
-            .context("failed to resolve config for mike decisions")?;
-        let overlay = crate::settings::apply_db_rows_to_overlay(persist.fetch_settings().await?);
-        let key = crate::llm::key::cli_api_key(
-            config.steerer.openrouter_api_key.as_ref(),
-            &overlay.llm_provider,
-            None,
-            &overlay.decisions_model,
-        )
-        .map_err(|e| anyhow::anyhow!("mike decisions: {e}"))?;
+        let (base, overlay) = plain_base_client(cli, persist).await?;
         let tracker = TaskTracker::new();
         let sink: Arc<dyn LlmUsageSink> =
             Arc::new(PersistLlmUsageSink::new(persist.clone(), tracker.clone()).await);
-        let base = OpenRouterClient::new(
-            key,
-            overlay.decisions_model.clone(),
-            Some(config.steerer.openrouter_base_url.clone()),
-            None,
-        )?
-        .with_usage_sink(sink)
-        .with_decision_store(persist.clone());
+        let base = base
+            .with_usage_sink(sink)
+            .with_decision_store(persist.clone());
         Ok(Self {
             client: decision_client(&base, &overlay)?,
             overlay,
@@ -159,5 +177,6 @@ pub async fn run(command: DecisionsCommand, cli: CliOverrides) -> Result<()> {
         DecisionsCommand::Loop(args) => decisions_loop(args, cli).await,
         DecisionsCommand::Export(args) => export(args, cli).await,
         DecisionsCommand::ImportReplay(args) => super::decisions_import::run(args, cli).await,
+        DecisionsCommand::Replay(args) => super::decisions_replay::run(args, cli).await,
     }
 }
