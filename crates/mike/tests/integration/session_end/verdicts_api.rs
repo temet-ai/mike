@@ -18,7 +18,7 @@ fn row<'a>(
     SessionVerdictV3Row {
         session_db_id: f.session_id,
         outcome_id,
-        quality_score: 0.3,
+        quality_score: Some(0.3),
         rationale: "the operator gave up on the retry",
         judge_model: "google/gemini-3.5-flash",
         rubric_version: 3,

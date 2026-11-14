@@ -46,6 +46,7 @@ fn poll<'a>(f: &'a Fixture, embedding: &'a EmbeddingService, bundle: i64) -> Liv
         batch: 10,
         turn_judge_live_bundle_id: f.bundle.id,
         turn_confidence_threshold: 0.5,
+        jev: None,
     }
 }
 

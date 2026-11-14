@@ -29,6 +29,7 @@ pub struct SessionJudgementV3 {
     pub digest_version: String,
     pub as_of: DateTime<Utc>,
     pub usage: CallUsage,
+    pub quality_unknown: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -166,5 +167,6 @@ pub async fn judge_session_v3(
         digest_version,
         as_of: subject.as_of.at,
         usage,
+        quality_unknown: false,
     })
 }

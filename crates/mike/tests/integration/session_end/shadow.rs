@@ -25,7 +25,7 @@ fn shadow_row(
     SessionVerdictV3Row {
         session_db_id: session_id,
         outcome_id,
-        quality_score: 0.2,
+        quality_score: Some(0.2),
         rationale: "shadow candidate: the operator gave up",
         judge_model: "google/gemini-3.5-flash",
         rubric_version: 3,

@@ -115,6 +115,13 @@ async fn run_v3_poll(
         return;
     };
     let llm = llm.with_reservation(&reservation);
+    let jev = crate::llm::decisions::point::Decider::for_point(
+        &llm,
+        deps.persist,
+        deps.toggles.load().decisions,
+        &deps.settings.load(),
+        super::jev::POINT,
+    );
     let poll = crate::judge_worker::session_end::live::LivePoll {
         persist: deps.persist,
         llm: &llm,
@@ -125,6 +132,7 @@ async fn run_v3_poll(
         batch: i64::from(reservation.granted()),
         turn_judge_live_bundle_id: runtime.turn_judge_live_bundle_id,
         turn_confidence_threshold: runtime.turn_confidence_threshold,
+        jev: jev.as_ref(),
     };
     let judged = poll.run(breaker).await;
     if i64::try_from(judged).unwrap_or(0) < batch {
