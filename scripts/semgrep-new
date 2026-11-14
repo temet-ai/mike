@@ -230,7 +230,23 @@ def run(argv):
         at, message = where[key]
         name, _, line = at.rpartition(":")
         print(f"semgrep-new: {place(name, new_files)}:{line} {key[0]} (+{count}): {message}", file=sys.stderr)
+    summary = f"{len(new_files)} files, {sum(new.values())} findings, {sum(added.values())} new"
+    print(f"semgrep-new: {argv[0]}: {summary}", file=sys.stderr)
+    record(argv[0], summary, bool(added))
     return 1 if added else 0
+
+
+def record(scope, summary, failed):
+    state = pathlib.Path(os.environ.get("XDG_STATE_HOME") or pathlib.Path.home() / ".local/state") / "mike"
+    session = os.environ.get("MIKE_SESSION_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID") or "-"
+    stamp = subprocess.run(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"], capture_output=True, text=True).stdout.strip()
+    line = f"{stamp}\t{session}\t{os.getcwd()}\t{scope}\t{summary}\t{'fail' if failed else 'pass'}\n"
+    try:
+        state.mkdir(parents=True, exist_ok=True)
+        with open(state / "semgrep-scans.log", "a") as log:
+            log.write(line)
+    except OSError:
+        pass
 
 
 def main(argv):

@@ -10,7 +10,8 @@ root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 sg="$root/scripts/semgrep-new"
 command -v semgrep >/dev/null || { echo "FAIL: semgrep is not installed (pipx install semgrep)"; exit 1; }
 wt="$(mktemp -d)"
-trap 'git -C "$root" worktree remove --force "$wt" >/dev/null 2>&1' EXIT
+export XDG_STATE_HOME; XDG_STATE_HOME="$(mktemp -d)"
+trap 'git -C "$root" worktree remove --force "$wt" >/dev/null 2>&1; rm -rf "$XDG_STATE_HOME"' EXIT
 git -C "$root" worktree add -q --detach "$wt" HEAD
 mkdir -p "$wt/.semgrep" && cp "$root/.semgrep/rules.yml" "$wt/.semgrep/rules.yml"
 cd "$wt" || exit 1
