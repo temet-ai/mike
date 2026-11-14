@@ -135,6 +135,14 @@ if command -v cargo-nextest >/dev/null 2>&1; then
   [[ "$out" == *"cargo shim is missing"* ]] \
     && chk pass "unset, mbx installed, no shim: nextest refuses instead of making mbx call itself" \
     || chk fail "unset, mbx installed, no shim: nextest refuses ($(printf '%s\n' "$out" | tr '\n' ' '))"
+  if [[ "$(uname -s)" == Darwin ]]; then
+    shim="$T/home/Library/Application Support/mbx/bin/cargo"
+    mkdir -p "$(dirname "$shim")" && cp "$fake" "$shim"
+    out="$(plain MBX_BIN="$fake" XDG_DATA_HOME= HOME="$T/home" "$cx" nextest run -p mike 2>&1)"
+    [[ "$(printf '%s\n' "$out" | tr '\n' ' ')" == "env CARGO=$shim $(command -v cargo-nextest) nextest run -p mike " ]] \
+      && chk pass "macOS, no XDG_DATA_HOME: nextest finds mbx's shim in ~/Library/Application Support" \
+      || chk fail "macOS, no XDG_DATA_HOME: nextest finds mbx's shim ($(printf '%s\n' "$out" | tr '\n' ' '))"
+  fi
 else
   chk pass "unset, mbx installed: nextest case skipped, cargo-nextest is not installed"
 fi
