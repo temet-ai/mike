@@ -3,9 +3,10 @@ title: Split crate mike into peer crates along measured seams
 status: accepted
 created: 2026-11-12
 updated: 2026-11-14
-summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines by references; S6 puts fleet beside knowledge, features and lessons, and the replay by Cargo dependencies is 73% (the chain was 75%).
+summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines by references; S6 puts fleet beside knowledge, features and lessons, and the replay by Cargo dependencies is 73% (the chain was 75%); S7 moves each feature's settings into its crate, and the replay is 70%.
 session_id:
   - 6bf6170d-77c4-477e-9e50-5b6dda36334e
+  - 6d890106-dde2-4b37-b2be-515a1927abb2
 ---
 
 # ADR 0002 — Split crate mike into peer crates along measured seams
@@ -280,6 +281,11 @@ the `cross_crate_tests` modules all link there.
   `Cargo.toml` names a split package that `package_deps` does not put below it.
 
 Replay of 232 commits by Cargo dependencies: the S5 chain 75%, side by side 73%.
+
+After S7 (launch, knowledge, lessons and features own their settings), the replay of
+276 commits by Cargo dependencies recompiles a mean of 391,696 lines, against 414,046
+before S7 features: 5.4% less, and 70% of the 557,277 lines that every commit rebuilt
+before it (the estimate was 68%).
 
 ### S7 pattern: a feature crate owns its settings
 
