@@ -1,6 +1,8 @@
 use crate::test_db::{self, TestDb};
 
-use mike::steerer::structural::never_fired::{NeverFiredRule, check_never_fired_context_kind};
+use mike::steerer::structural::never_fired::{
+    NeverFiredRule, check_never_fired_context_kind, check_never_written_fleet_event_kind,
+};
 
 async fn seed_send_session_message(
     pool: &sqlx::PgPool,
@@ -89,6 +91,46 @@ async fn check_never_fired_context_kind_reports_clean_when_every_declared_kind_f
 
     assert!(finding.never_observed.is_empty());
     assert_eq!(finding.total_observations, 1);
+
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn check_never_written_fleet_event_kind_counts_only_recent_rows_of_declared_kinds()
+-> anyhow::Result<()> {
+    let Some(factory) = TestDb::bootstrap().await? else {
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let pool = sqlx::PgPool::connect(&db.database_url).await?;
+
+    sqlx::query("INSERT INTO launch.runs (run_id, backend) VALUES ('wiring-run', 'herdr')")
+        .execute(&pool)
+        .await?;
+    for (kind, age_days) in [
+        ("floor_passed", 0),
+        ("commit_landed", 0),
+        ("seat_woken", 10),
+    ] {
+        sqlx::query(
+            "INSERT INTO launch.fleet_events (run_id, kind, occurred_at)
+             VALUES ('wiring-run', $1, now() - make_interval(days => $2))",
+        )
+        .bind(kind)
+        .bind(age_days)
+        .execute(&pool)
+        .await?;
+    }
+
+    let rule = NeverFiredRule {
+        name: "test rule",
+        declared: &["floor_passed", "seat_woken", "tree_broken_by"],
+    };
+    let finding = check_never_written_fleet_event_kind(&pool, &rule, 7).await?;
+
+    assert_eq!(finding.never_observed, vec!["seat_woken", "tree_broken_by"]);
+    assert_eq!(finding.total_observations, 2);
 
     db.cleanup().await?;
     Ok(())

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE steering.wiring_findings\n           SET resolved_at = now()\n         WHERE check_kind = $1\n           AND resolved_at IS NULL\n           AND NOT (subject = ANY($2::text[]))\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e43ff2c4506321f1f61882f77ed79a32e09f55f10dbd324fd9a2607f29565cdf"
+}

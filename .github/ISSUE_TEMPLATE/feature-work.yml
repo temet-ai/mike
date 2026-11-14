@@ -1,0 +1,29 @@
+name: Feature work
+description: A feature or fix that is done when it works for a user, not when it merges.
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What a user can do when this is done
+      description: The observable end state, not the diff.
+    validations:
+      required: true
+  - type: textarea
+    id: live-figure
+    attributes:
+      label: The live figure that closes it
+      description: |
+        Name the figure that will prove the feature is running: a check in the liveness report
+        (GET /api/liveness, or get_stats with select ["/liveness/findings"]), a row count, a
+        rate. At close, paste that figure as read after the deploy, with the machine and the
+        time. Merged code does not close the issue.
+      placeholder: "Example: stage_applied for recall reads 34% applied over 24 h on omit, 2026-11-15 09:00 UTC"
+    validations:
+      required: true
+  - type: textarea
+    id: install
+    attributes:
+      label: How it reaches an installed user
+      description: Default on or off, which setup step or doctor row covers it, and what it needs on the machine (a script under share/mike, a model provider, a service).
+    validations:
+      required: true
