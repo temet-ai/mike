@@ -1,4 +1,5 @@
 mod post;
+pub mod project_rules;
 mod scan;
 
 #[cfg(test)]
@@ -6,7 +7,7 @@ mod tests;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
 use mike_code::RuleSet;
@@ -19,10 +20,14 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 pub use post::Poster;
+pub use project_rules::{ActiveRules, ProjectRules, ProjectRulesStatus, project_rules_status};
 pub use scan::{fill, scan_change};
 
+use crate::store::persistence::change_record::code_scan::PendingChange;
+
 const TICK: Duration = Duration::from_secs(3);
-const BATCH: i64 = 50;
+const BATCH: i64 = 200;
+const SETTLE_EVERY: Duration = Duration::from_secs(30);
 
 pub fn spawn_code_scanner(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -42,9 +47,10 @@ pub fn spawn_code_scanner(state: &BaseState) {
     );
     let worker = Worker {
         persist,
-        rules,
+        project: ProjectRules::new(rules),
         toggles: state.feature_toggle_overlay.clone(),
         cursors: HashMap::new(),
+        settled: None,
         poster: Poster::new(state.code_notes.clone()),
     };
     let shutdown = state.shutdown();
@@ -53,10 +59,11 @@ pub fn spawn_code_scanner(state: &BaseState) {
 
 struct Worker {
     persist: PersistHandle,
-    rules: &'static RuleSet,
+    project: ProjectRules,
     toggles: Arc<ArcSwap<FeatureToggles>>,
     cursors: HashMap<String, i64>,
     poster: Poster,
+    settled: Option<Instant>,
 }
 
 impl Worker {
@@ -84,6 +91,27 @@ impl Worker {
             self.poster.post(&self.persist, &roots).await;
         }
         self.poster.record_delivered(&self.persist).await;
+        self.settle().await;
+    }
+
+    async fn settle(&mut self) {
+        if self.settled.is_some_and(|at| at.elapsed() < SETTLE_EVERY) {
+            return;
+        }
+        self.settled = Some(Instant::now());
+        match self.persist.fleet().settle_code_findings().await {
+            Ok(settled) if settled.fixed_by_other + settled.ignored > 0 => {
+                tracing::info!(
+                    fixed_by_other = settled.fixed_by_other,
+                    ignored = settled.ignored,
+                    "code findings: outcomes settled"
+                );
+            }
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(error = %err, "code findings: outcomes could not be settled");
+            }
+        }
     }
 
     async fn cursor(&mut self, root: &str) -> Option<i64> {
@@ -119,22 +147,54 @@ impl Worker {
         self.cursors.insert(root.to_string(), last);
     }
 
-    async fn scan_all(
-        &self,
-        root: &str,
-        cursor: i64,
-        pending: Vec<crate::store::persistence::change_record::code_scan::PendingChange>,
-    ) -> i64 {
+    async fn scan_all(&mut self, root: &str, cursor: i64, pending: Vec<PendingChange>) -> i64 {
         let git = Git::new(root);
+        let rules = self.project.for_checkout(root).await;
         let mut last = cursor;
+        let mut deleted: Vec<String> = Vec::new();
         for change in pending {
-            let record = scan_change(&git, self.rules, root, &change).await;
+            if change.after_sha.is_none() {
+                deleted.push(change.path);
+                last = change.id;
+                continue;
+            }
+            if !self.supersede(root, &mut deleted).await {
+                return cursor;
+            }
+            let record = scan_change(&git, rules.clone(), root, &change).await;
             if let Err(err) = self.persist.fleet().record_code_scan(&record).await {
                 tracing::warn!(%root, path = %change.path, error = %err, "code scan: the scan could not be recorded");
-                break;
+                return last;
             }
             last = change.id;
         }
-        last
+        if self.supersede(root, &mut deleted).await {
+            last
+        } else {
+            cursor
+        }
+    }
+
+    async fn supersede(&self, root: &str, deleted: &mut Vec<String>) -> bool {
+        if deleted.is_empty() {
+            return true;
+        }
+        deleted.sort();
+        deleted.dedup();
+        match self
+            .persist
+            .fleet()
+            .supersede_deleted_paths(root, deleted)
+            .await
+        {
+            Ok(_) => {
+                deleted.clear();
+                true
+            }
+            Err(err) => {
+                tracing::warn!(%root, paths = deleted.len(), error = %err, "code scan: deleted files could not be recorded");
+                false
+            }
+        }
     }
 }

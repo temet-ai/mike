@@ -28,6 +28,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::quiescence_worker::spawn_quiescence_worker(state);
 
+    crate::reminders::code_findings_push::spawn_code_findings_pusher(state);
+
     crate::steerer::reply_label::demotion::spawn_steerer_demotion(state);
 
     crate::judge_worker::spawn_session_judge_worker(state);

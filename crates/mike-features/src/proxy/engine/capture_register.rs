@@ -139,7 +139,13 @@ pub async fn capture_and_register(
     })
     .await;
 
-    let request_id = mint_capture_id(state, &mut intercepted, is_new_session, request_id).await;
+    let request_id = mint_capture_id(
+        state,
+        &mut intercepted,
+        is_new_session,
+        (request_id, &session_id),
+    )
+    .await;
 
     spawn_supply_records(
         state,
@@ -377,20 +383,28 @@ async fn mint_capture_id(
     state: &AppState,
     intercepted: &mut InterceptedRequest,
     is_new_session: bool,
-    pipeline_request: RequestId,
+    (pipeline_request, session_id): (RequestId, &str),
 ) -> RequestId {
     let capture_request =
         capture::insert_stub_and_mint_id(&state.store, intercepted, is_new_session).await;
-    bind_code_notes(state, pipeline_request, capture_request);
+    bind_code_notes(state, pipeline_request, capture_request, session_id);
     capture_request
 }
 
-fn bind_code_notes(state: &AppState, pipeline_request: RequestId, capture_request: RequestId) {
+fn bind_code_notes(
+    state: &AppState,
+    pipeline_request: RequestId,
+    capture_request: RequestId,
+    session_id: &str,
+) {
     if mike_base::store::models::request_id::is_fallback(capture_request.as_u64()) {
         return;
     }
-    state.code_notes.bind_capture_id(
-        pipeline_request.as_u64(),
-        i64::try_from(capture_request.as_u64()).unwrap_or(i64::MAX),
-    );
+    let capture = i64::try_from(capture_request.as_u64()).unwrap_or(i64::MAX);
+    state
+        .code_notes
+        .bind_capture_id(pipeline_request.as_u64(), capture);
+    if let Ok(session) = session_id.parse::<uuid::Uuid>() {
+        state.code_notes.bind_session_request(session, capture);
+    }
 }

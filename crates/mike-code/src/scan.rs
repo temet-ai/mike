@@ -8,12 +8,13 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::MAX_SCAN_BYTES;
-use crate::language::language_for;
+use crate::language::{language_for, language_name};
 use crate::rules::RuleSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Finding {
     pub rule_id: String,
+    pub source: &'static str,
     pub severity: &'static str,
     pub message: String,
     pub line: u32,
@@ -25,7 +26,7 @@ pub struct Finding {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Scan {
-    pub language: Option<&'static str>,
+    pub language: Option<String>,
     pub rules_run: usize,
     pub skipped: Option<&'static str>,
     pub findings: Vec<Finding>,
@@ -57,7 +58,7 @@ pub fn scan(rules: &RuleSet, path: &str, bytes: &[u8]) -> Scan {
     let mut findings = Vec::new();
     for rule in &applicable {
         for node in root.root().find_all(&rule.matcher) {
-            findings.push(finding(rule, &node));
+            findings.push(finding(rules, rule, &node));
         }
     }
     findings.sort_by(|a, b| (a.line, a.column, &a.rule_id).cmp(&(b.line, b.column, &b.rule_id)));
@@ -87,11 +88,16 @@ pub fn new_findings(before: &[Finding], after: &[Finding]) -> Vec<Finding> {
         .collect()
 }
 
-fn finding(rule: &RuleConfig<SupportLang>, node: &NodeMatch<'_, StrDoc<SupportLang>>) -> Finding {
+fn finding(
+    rules: &RuleSet,
+    rule: &RuleConfig<SupportLang>,
+    node: &NodeMatch<'_, StrDoc<SupportLang>>,
+) -> Finding {
     let matched = node.text().to_string();
     let start = node.start_pos();
     Finding {
         rule_id: rule.id.clone(),
+        source: rules.source_of(&rule.id),
         severity: severity_name(&rule.severity),
         message: rule.get_message(node),
         line: to_u32(start.line() + 1),
@@ -124,22 +130,12 @@ fn to_u32(value: usize) -> u32 {
     u32::try_from(value).unwrap_or(u32::MAX)
 }
 
-fn severity_name(severity: &Severity) -> &'static str {
+pub(crate) fn severity_name(severity: &Severity) -> &'static str {
     match severity {
         Severity::Off => "off",
         Severity::Hint => "hint",
         Severity::Info => "info",
         Severity::Warning => "warning",
         Severity::Error => "error",
-    }
-}
-
-fn language_name(language: SupportLang) -> &'static str {
-    match language {
-        SupportLang::Rust => "rust",
-        SupportLang::TypeScript => "typescript",
-        SupportLang::Tsx => "tsx",
-        SupportLang::Bash => "bash",
-        SupportLang::Python => "python",
     }
 }

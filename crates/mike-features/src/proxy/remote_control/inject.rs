@@ -106,6 +106,7 @@ pub fn push_source(source: &ReminderSource) -> Option<PushSource> {
         ReminderSource::Diagnostic => PushSource::Diagnostic,
         ReminderSource::Lesson => PushSource::Lesson,
         ReminderSource::Recall => PushSource::Recall,
+        ReminderSource::CodeFindings => PushSource::CodeFindings,
         ReminderSource::SelfIdentity => return None,
         ReminderSource::WorkspaceBriefing => return None,
     })
@@ -207,7 +208,10 @@ fn arm_ack_fallback(
             event_id,
             reminder.clone(),
         ),
-        PushSource::Lesson | PushSource::Diagnostic | PushSource::Recall => {}
+        PushSource::Lesson
+        | PushSource::Diagnostic
+        | PushSource::Recall
+        | PushSource::CodeFindings => {}
     }
 }
 

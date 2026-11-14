@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.code_findings f\n   SET delivered_request_id = d.request_id,\n       delivered_via = d.via,\n       delivered_at = now()\n  FROM unnest($1::bigint[], $2::bigint[], $3::text[]) AS d(finding_id, request_id, via)\n WHERE f.id = d.finding_id\n   AND f.delivered_at IS NULL\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "752239cfae0550931a16c715255b467114eeb2387dd66f5954d690aa08b70449"
+}

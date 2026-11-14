@@ -70,7 +70,8 @@ async fn stamp_one_reminder_sent(
         | ReminderSource::Lesson
         | ReminderSource::Recall
         | ReminderSource::SelfIdentity
-        | ReminderSource::WorkspaceBriefing => {}
+        | ReminderSource::WorkspaceBriefing
+        | ReminderSource::CodeFindings => {}
     }
 }
 

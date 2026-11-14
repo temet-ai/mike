@@ -1,4 +1,5 @@
 id: rust-no-comments
+url: '.claude/rules/rust-database-reliability.md#rust'
 language: rust
 severity: warning
 rule:
@@ -10,6 +11,7 @@ rule:
 message: Rust files carry no comments, doc comments, disabled code or TODOs. Say it with names, types and tests; put the reason in the commit message.
 ---
 id: rust-log-field-names
+url: 'scripts/lint-rust-log-fields'
 language: rust
 severity: error
 rule:
@@ -22,6 +24,7 @@ rule:
 message: Log fields use the shared names; write an error as `error = %e` and a session as `session_id = %id`. scripts/lint-rust-log-fields fails the push otherwise.
 ---
 id: rust-lint-suppression
+url: 'scripts/lint-rust-suppressions'
 language: rust
 severity: error
 rule:
@@ -63,6 +66,7 @@ rule:
 message: A shell command line is built with format!. Run the program directly with Command::new(program).args(list).
 ---
 id: rust-ignore-needs-reason
+url: '.claude/rules/rust-database-reliability.md#tests'
 language: rust
 severity: warning
 rule:

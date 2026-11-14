@@ -1,0 +1,105 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.rule_id AS \"rule_id!\",\n       min(f.rule_source) AS \"source!\",\n       count(*) AS \"found!\",\n       count(*) FILTER (WHERE f.delivered_at IS NOT NULL) AS \"delivered!\",\n       count(*) FILTER (WHERE f.delivered_via = 'push') AS \"pushed!\",\n       count(*) FILTER (WHERE f.outcome = 'fixed') AS \"fixed!\",\n       count(*) FILTER (WHERE f.outcome = 'fixed' AND f.delivered_at IS NOT NULL\n                          AND f.outcome_at > f.delivered_at) AS \"fixed_after_told!\",\n       count(*) FILTER (WHERE f.outcome = 'fixed' AND f.delivered_at IS NULL) AS \"fixed_untold!\",\n       count(*) FILTER (WHERE f.outcome = 'fixed_by_other') AS \"fixed_by_other!\",\n       count(*) FILTER (WHERE f.outcome = 'ignored') AS \"ignored!\",\n       count(*) FILTER (WHERE f.outcome = 'open') AS \"open!\",\n       (percentile_cont(0.5) WITHIN GROUP (\n            ORDER BY extract(epoch FROM f.delivered_at - f.found_at)))::float8 AS \"median_lag_s\"\n  FROM workspace.code_findings f\n WHERE f.found_at >= $1\n GROUP BY f.rule_id\n ORDER BY count(*) DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rule_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "rule_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "found!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "delivered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "pushed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "fixed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "fixed_after_told!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "fixed_untold!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "fixed_by_other!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "ignored!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "open!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "median_lag_s",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "09deb48afb271f20902ae5f8b9f50357e9a0d8e4860c3e7af0b19997b455b3bb"
+}

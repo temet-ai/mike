@@ -46,13 +46,24 @@ pub async fn get_code_findings(
         .into_iter()
         .take(usize::try_from(limit).unwrap_or(usize::MAX))
         .collect();
+    let session_counts = match session {
+        Some(id) => Some(persist.fleet().session_code_counts(id).await?),
+        None => None,
+    };
     let toggles = state.feature_toggle_overlay.load();
     let rule_set = mike_code::RuleSet::builtin().ok();
+    let scanning = toggles.change_record && toggles.code_scan;
     Ok(Json(json!({
-        "scanning": toggles.change_record && toggles.code_scan,
-        "delivering": toggles.change_record && toggles.code_scan && toggles.code_findings,
+        "scanning": scanning,
+        "delivering": scanning && toggles.code_findings,
+        "pushing": scanning && toggles.code_findings && toggles.code_findings_push,
+        "grammars": mike_code::grammars(),
         "rules_version": rule_set.map(mike_code::RuleSet::version),
         "rule_ids": rule_set.map(mike_code::RuleSet::ids),
+        "catalogue": rule_set.map(mike_code::RuleSet::catalogue),
+        "project_rules": crate::change_record::code_scan::project_rules_status(),
+        "watched_checkouts": crate::change_record::watch::watched_roots(),
+        "session_counts": session_counts,
         "hours": hours,
         "summary": summary,
         "rules": rules,

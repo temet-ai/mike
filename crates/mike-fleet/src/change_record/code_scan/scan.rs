@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
-use mike_code::{RuleSet, Scan, new_findings, scan};
+use mike_code::{Scan, new_findings, scan};
+
+use super::project_rules::ActiveRules;
 
 use crate::change_record::watch::Git;
 use crate::store::persistence::change_record::code_scan::{NewCodeScan, NewFinding, PendingChange};
@@ -9,7 +11,7 @@ const SCAN_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub async fn scan_change(
     git: &Git,
-    rules: &'static RuleSet,
+    rules: ActiveRules,
     root: &str,
     change: &PendingChange,
 ) -> NewCodeScan {
@@ -17,11 +19,10 @@ pub async fn scan_change(
         change_event_id: change.id,
         checkout: root.to_string(),
         path: change.path.clone(),
-        rules_version: rules.version().to_string(),
+        rules_version: rules.get().version().to_string(),
         ..NewCodeScan::default()
     };
     let Some(after_sha) = change.after_sha.as_deref() else {
-        record.deleted = true;
         record.skipped = Some("deleted".to_string());
         return record;
     };
@@ -43,7 +44,8 @@ pub async fn scan_change(
     let path = change.path.clone();
     let started = Instant::now();
     let job = tokio::task::spawn_blocking(move || {
-        (scan(rules, &path, &before), scan(rules, &path, &after))
+        let set = rules.get();
+        (scan(set, &path, &before), scan(set, &path, &after))
     });
     match tokio::time::timeout(SCAN_TIMEOUT, job).await {
         Ok(Ok((old, new))) => fill(&mut record, &old, &new),
@@ -55,7 +57,7 @@ pub async fn scan_change(
 }
 
 pub fn fill(record: &mut NewCodeScan, old: &Scan, new: &Scan) {
-    record.language = new.language.map(str::to_string);
+    record.language.clone_from(&new.language);
     record.rules_run = i32::try_from(new.rules_run).unwrap_or(i32::MAX);
     record.skipped = new.skipped.map(str::to_string);
     record.findings_before = count(old.findings.len());
@@ -65,6 +67,7 @@ pub fn fill(record: &mut NewCodeScan, old: &Scan, new: &Scan) {
         .into_iter()
         .map(|f| NewFinding {
             rule_id: f.rule_id,
+            rule_source: f.source.to_string(),
             severity: f.severity.to_string(),
             message: f.message,
             line: i32::try_from(f.line).unwrap_or(i32::MAX),

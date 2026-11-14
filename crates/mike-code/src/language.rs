@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use ast_grep_core::Language;
 use ast_grep_language::SupportLang;
 
 pub fn language_for(path: &str, bytes: &[u8]) -> Option<SupportLang> {
@@ -10,15 +11,26 @@ pub fn language_for(path: &str, bytes: &[u8]) -> Option<SupportLang> {
     by_shebang(bytes)
 }
 
+pub fn language_name(language: SupportLang) -> String {
+    language.to_string().to_ascii_lowercase()
+}
+
+pub fn grammars() -> Vec<String> {
+    let mut names: Vec<String> = SupportLang::all_langs()
+        .iter()
+        .map(|lang| language_name(*lang))
+        .collect();
+    names.sort();
+    names
+}
+
 fn by_extension(file: &Path) -> Option<SupportLang> {
     let extension = file.extension()?.to_str()?;
     match extension {
-        "rs" => Some(SupportLang::Rust),
         "ts" | "mts" | "cts" | "js" | "mjs" | "cjs" => Some(SupportLang::TypeScript),
         "tsx" | "jsx" => Some(SupportLang::Tsx),
-        "sh" | "bash" => Some(SupportLang::Bash),
-        "py" => Some(SupportLang::Python),
-        _ => None,
+        "zsh" => Some(SupportLang::Bash),
+        _ => SupportLang::from_path(file),
     }
 }
 
@@ -29,6 +41,10 @@ fn by_shebang(bytes: &[u8]) -> Option<SupportLang> {
     let name = interpreter.rsplit('/').next()?;
     match name {
         "bash" | "sh" | "zsh" => Some(SupportLang::Bash),
+        "node" | "bun" | "deno" | "tsx" => Some(SupportLang::TypeScript),
+        "ruby" => Some(SupportLang::Ruby),
+        "lua" | "luajit" => Some(SupportLang::Lua),
+        "elixir" => Some(SupportLang::Elixir),
         _ if name.starts_with("python") => Some(SupportLang::Python),
         _ => None,
     }
