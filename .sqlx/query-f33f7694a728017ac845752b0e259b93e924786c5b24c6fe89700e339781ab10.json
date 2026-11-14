@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.request_efforts\n                     (request_id, run_id, seat, session_id, trigger, label, decided_by, labelled_at)\n                 SELECT u.id, $1, u.seat, u.session_id, u.trigger, u.label, u.decided_by,\n                        CASE WHEN u.label IS NULL THEN NULL ELSE now() END\n                   FROM UNNEST($2::bigint[], $3::text[], $4::bigint[], $5::text[], $6::text[], $7::text[])\n                        AS u(id, seat, session_id, trigger, label, decided_by)\n                 ON CONFLICT (request_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8Array",
+        "TextArray",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f33f7694a728017ac845752b0e259b93e924786c5b24c6fe89700e339781ab10"
+}

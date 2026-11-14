@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.request_efforts e\n                    SET label = u.label, decided_by = u.decided_by, record_id = u.record_id, labelled_at = now()\n                   FROM UNNEST($1::bigint[], $2::text[], $3::text[], $4::bigint[])\n                        AS u(id, label, decided_by, record_id)\n                  WHERE e.request_id = u.id AND e.label IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb7752f5ca014134f70130a1d4627d2a1b85e05febb2efa4e289d6f95d04a37e"
+}

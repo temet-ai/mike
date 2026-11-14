@@ -76,6 +76,7 @@ async fn one_checkout_queues_without_holding_the_caller_and_records_then_mails_r
             tracker: &tracker,
             run,
             fleet,
+            decisions: None,
         };
         let first = command_request("cat target/warm; printf first >> target/order; exit 7");
         let second = command_request("cat target/warm; printf second >> target/order");
@@ -190,6 +191,7 @@ async fn a_failed_receipt_write_never_starts_the_command() -> anyhow::Result<()>
             tracker: &tracker,
             run: "fleet-command-refused",
             fleet,
+            decisions: None,
         };
         let receipt = check(
             runner,
@@ -245,6 +247,7 @@ async fn status_reports_an_interrupted_durable_receipt_instead_of_claiming_nothi
                 tracker: &tracker,
                 run,
                 fleet,
+                decisions: None,
             },
             &def,
             &seated(),

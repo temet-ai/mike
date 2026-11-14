@@ -57,6 +57,10 @@ pub const STEPS: &[Step] = &[
         run: wake_step,
     },
     Step {
+        name: "effort",
+        run: effort_step,
+    },
+    Step {
         name: "tell",
         run: tell_step,
     },
@@ -133,6 +137,15 @@ fn problems_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
 
 fn introduce_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
     Box::pin(super::introduce::introduce(ctx.persist, ctx.row))
+}
+
+fn effort_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
+    Box::pin(super::decisions::effort::tick(
+        ctx.state,
+        ctx.persist,
+        (ctx.row, ctx.def),
+        ctx.run_id,
+    ))
 }
 
 fn wake_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {

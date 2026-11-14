@@ -13,6 +13,7 @@ pub mod report;
 pub mod reuse;
 pub mod session_fleet;
 pub mod status_poll;
+pub mod stop_facts;
 pub mod tree;
 pub mod verdict;
 
@@ -32,6 +33,7 @@ pub use report::report_slice;
 pub use reuse::get_fleet_reuse;
 pub use session_fleet::get_session_fleet;
 pub use status_poll::{get_fleet_status, get_fleet_status_for_session, list_fleets};
+pub use stop_facts::post_stop_facts;
 pub use tree::{commit_fleet, get_fleet_results, integrate_fleet};
 pub use verdict::record_verdict;
 

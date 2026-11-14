@@ -22,6 +22,7 @@ pub fn blank(seat: &str, check: &CheckDefinition, how: &str) -> CheckReport {
         output_tail: String::new(),
         refused: None,
         started_at: None,
+        triage: None,
     }
 }
 

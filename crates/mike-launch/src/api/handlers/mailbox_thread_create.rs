@@ -270,6 +270,7 @@ async fn insert_post_only_message(
                 body: msg_body,
                 thread_id: Some(thread_id),
                 in_reply_to_id: None,
+                held: false,
             },
             &[],
         )
@@ -372,6 +373,7 @@ async fn insert_notify_message(
                 body: args.msg_body,
                 thread_id: Some(args.thread_id),
                 in_reply_to_id: None,
+                held: false,
             },
             &[],
         )

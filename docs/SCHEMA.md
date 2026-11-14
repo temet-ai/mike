@@ -4610,6 +4610,7 @@ sends and SET NULL if the sending session is deleted.
 | `consumed_at` | `TIMESTAMPTZ NULL` | Stamped by `POST /api/sessions/{id}/messages/{uuid}/ack` — explicit recipient acknowledgment; stops redelivery |
 | `dead_lettered_at` | `TIMESTAMPTZ NULL` | Stamped when `delivery_attempts` reaches `mailbox_redelivery_max_attempts` without an ack — stops redelivery |
 | `delivery_attempts` | `INT NOT NULL DEFAULT 0` | Count of successful envelope injections (first send + every redelivery) |
+| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114100000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn |
 
 **Indexes:**
 - `idx_mailbox_messages_from_session`: `from_session_id WHERE NOT NULL` (BTree partial) — reply pointer queries
@@ -5579,9 +5580,30 @@ The whole output is kept. Written and read through `store/persistence/fleet/` (`
 | `told` | `TEXT[] NOT NULL DEFAULT '{}'` | The seats mike mailed because their file failed it |
 | `state_after` | `TEXT NULL` | The tree state when the check finished; when it differs from `state` the tree changed during the run, so the result belongs to neither state and is not served to a later asker |
 | `executing_at` | `TIMESTAMPTZ NULL` | When the managed command's process actually started (`launch/fleet/managed_command.rs`); NULL while queued |
+| `triage` | `TEXT NULL` | Added by `20261114100000_fleet_decisions.sql`. One line saying what a failed check needs (retry, fix the code, fix the environment) and why; computed once when the check completes and printed in the receipt |
 
 **Indexes:**
 - `idx_tree_checks_run_state`: `(run_id, state, id DESC)` (BTree)
+
+---
+
+### `launch.request_efforts`
+
+Added by `20261114100000_fleet_decisions.sql`. One row per request a fleet seat made, for the measured split of effort into work, machinery and waiting. Written by `launch/fleet/decisions/effort.rs` on each fleet tick through `store/persistence/fleet/effort.rs`; summed by the run record and `get_fleet_record`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `request_id` | `BIGINT PRIMARY KEY` | FK → `requests.requests(id)` ON DELETE CASCADE |
+| `run_id` | `TEXT NOT NULL` | The fleet run (soft reference) |
+| `seat` | `TEXT NOT NULL` | The seat that made the request |
+| `session_id` | `BIGINT NOT NULL` | `sessions.sessions.id` of the seat (no FK) |
+| `trigger` | `TEXT NOT NULL` | What started the turn: `operator`, `hook`, `mail`, `wakeup`, `tool_result`, `steering`; computed by code from the request |
+| `label` | `TEXT NULL` | `work`, `machinery` or `waiting`; NULL until labelled |
+| `decided_by` | `TEXT NULL` | `trigger` when the trigger decided the label, `jev` when the decision model did |
+| `record_id` | `BIGINT NULL` | `decisions.records.id` of the Jev call that labelled it (no FK) |
+| `created_at`, `labelled_at` | `TIMESTAMPTZ` | When the row was made and when it was labelled |
+
+**Indexes:** `idx_request_efforts_run_seat` `(run_id, seat)`; `idx_request_efforts_unlabelled` `(run_id, request_id) WHERE label IS NULL`.
 
 ---
 

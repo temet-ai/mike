@@ -18,8 +18,14 @@ pub(super) async fn deliver_fanout_messages(
 ) -> (Vec<ThreadDeliveryDto>, Vec<FailedDeliveryDto>) {
     let mut deliveries = Vec::with_capacity(args.recipient_uuids.len());
     let mut failed = Vec::new();
-    for to_uuid in args.recipient_uuids {
-        match deliver_one_fanout_recipient(handle, state, &args, *to_uuid).await {
+    let outcomes = futures::future::join_all(
+        args.recipient_uuids
+            .iter()
+            .map(|to_uuid| deliver_one_fanout_recipient(handle, state, &args, *to_uuid)),
+    )
+    .await;
+    for outcome in outcomes {
+        match outcome {
             Ok(dto) => deliveries.push(dto),
             Err(dto) => failed.push(dto),
         }
@@ -34,8 +40,19 @@ async fn deliver_one_fanout_recipient(
     to_uuid: uuid::Uuid,
 ) -> Result<ThreadDeliveryDto, FailedDeliveryDto> {
     let to_session_id = resolve_fanout_recipient_id(handle, to_uuid).await?;
+    let held = crate::launch::fleet::decisions::wake::hold(
+        &state.base,
+        &crate::launch::fleet::decisions::wake::Mail {
+            to: to_uuid,
+            from: Some(args.from_session_uuid),
+            in_reply_to_id: None,
+            body: &args.body.message,
+            sender_label: args.sender_label,
+        },
+    )
+    .await;
     let (message_uuid, queued_at) =
-        insert_fanout_message(handle, args, to_session_id, to_uuid).await?;
+        insert_fanout_message(handle, args, (to_session_id, to_uuid), held).await?;
     let reminder = crate::store::models::SystemReminder {
         payload: crate::store::persistence::mailbox::MailboxEnvelope {
             from_session_uuid: Some(&args.from_session_uuid.to_string()),
@@ -51,8 +68,14 @@ async fn deliver_one_fanout_recipient(
             from_session_uuid: Some(args.from_session_uuid.to_string()),
         },
     };
-    crate::proxy::remote_control::inject::deliver_or_enqueue(&state.push_deps(), to_uuid, reminder)
+    if !held {
+        crate::proxy::remote_control::inject::deliver_or_enqueue(
+            &state.push_deps(),
+            to_uuid,
+            reminder,
+        )
         .await;
+    }
     Ok(ThreadDeliveryDto {
         message_uuid,
         to_session_uuid: to_uuid,
@@ -76,8 +99,8 @@ async fn resolve_fanout_recipient_id(
 async fn insert_fanout_message(
     handle: &crate::store::persistence::PersistHandle,
     args: &FanoutDeliveryArgs<'_>,
-    to_session_id: i64,
-    to_uuid: uuid::Uuid,
+    (to_session_id, to_uuid): (i64, uuid::Uuid),
+    held: bool,
 ) -> Result<(uuid::Uuid, chrono::DateTime<chrono::Utc>), FailedDeliveryDto> {
     let message_uuid = uuid::Uuid::new_v4();
     match handle
@@ -90,6 +113,7 @@ async fn insert_fanout_message(
                 body: &args.body.message,
                 thread_id: Some(args.thread_id),
                 in_reply_to_id: None,
+                held,
             },
             &args.body.context,
         )

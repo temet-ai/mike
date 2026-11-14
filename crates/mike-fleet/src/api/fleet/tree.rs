@@ -267,7 +267,15 @@ pub async fn commit_fleet(
         Some(persist) => Seated::of_run(persist, &run, &def).await,
         None => Seated::default(),
     };
-    let report = commit(&def, &seated, &request, verifier).await;
+    let mut report = commit(&def, &seated, &request, verifier).await;
+    let decisions = crate::launch::fleet::decisions::FleetDecisions::from_state(&state);
+    let warned = crate::launch::fleet::decisions::commit_message::for_report(
+        decisions.as_ref(),
+        (&def, &seated),
+        (&request, &report),
+    )
+    .await;
+    report.warnings.extend(warned);
     if let Some(persist) = state.persist() {
         commit_note::write(persist, request.session, &request.message, &report).await;
         if let Some(words) = &report.push_error {

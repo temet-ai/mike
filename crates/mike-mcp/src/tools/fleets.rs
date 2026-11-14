@@ -58,7 +58,11 @@ fn define_fleet_tool() -> Tool {
                         name is set (objects such as criteria, workers and tasks merge entry by \
                         entry, so naming one task leaves the others alone); an item you leave \
                         out stays as it is; an item set to null is removed. A list, such as \
-                        rules or a task's files, is replaced whole."
+                        rules or a task's files, is replaced whole. `decisions` {`stop_check`, \
+                        `wake_check`, `triage`, `commit_message`, `effort`: each `off`, \
+                        `shadow` or `on`, default `on`; in force only while mike's global \
+                        `decisions` toggle is on; `workers.<discipline>.decisions` sets the \
+                        same keys for one worker; an unknown key is rejected}."
                 }),
             ),
             (
@@ -89,7 +93,7 @@ fn define_fleet_tool() -> Tool {
              also `contract`}; `workers.<discipline>` {`model`, `agent`, `contract`}; \
              `tasks.<id>` {`name`, `discipline`, `criteria`, `files`, `brief`, `after`, `goal`}; \
              `goals` {`workers`: a /goal condition for every worker, `{task}`, `{name}`, \
-             `{criteria}` filled in; `tasks.<id>.goal` overrides it; control seats get none}. A fleet \
+             `{criteria}` filled in; `tasks.<id>.goal` overrides it; control seats get none}; A fleet \
              has at least two tasks, and no two tasks share a file. Setting `tasks.<id>.seat` and \
              `tasks.<id>.session` to null has mike start a fresh seat for that task. A task's \
              state is worked out by mike from its seat, reports and verdicts: a patch that sets \
@@ -284,6 +288,31 @@ mod tests {
             "Never launch its seats yourself",
         ] {
             assert!(text.contains(item), "the description must mention {item}");
+        }
+    }
+
+    #[test]
+    fn define_fleet_patch_parameter_names_the_decisions_keys() {
+        let tool = define_fleet_tool();
+        let patch = tool
+            .input_schema
+            .get("properties")
+            .and_then(|p| p.get("patch"))
+            .and_then(|p| p.get("description"))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        for key in [
+            "decisions",
+            "stop_check",
+            "wake_check",
+            "triage",
+            "commit_message",
+            "effort",
+        ] {
+            assert!(
+                patch.contains(key),
+                "the patch description must mention {key}"
+            );
         }
     }
 

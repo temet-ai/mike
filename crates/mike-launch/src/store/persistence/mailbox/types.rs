@@ -199,6 +199,7 @@ pub struct ThreadedMessageInsert<'a> {
     pub body: &'a str,
     pub thread_id: Option<i64>,
     pub in_reply_to_id: Option<i64>,
+    pub held: bool,
 }
 
 #[derive(Debug, Clone)]

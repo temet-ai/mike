@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.seat AS \"seat!\", COALESCE(e.label, 'unlabelled') AS \"label!\",\n                          count(*) AS \"requests!\",\n                          COALESCE(sum(p.input_tokens + p.output_tokens), 0)::bigint AS \"tokens!\"\n                     FROM launch.request_efforts e\n                     LEFT JOIN responses.responses p ON p.request_id = e.request_id\n                    WHERE e.run_id = $1\n                    GROUP BY e.seat, COALESCE(e.label, 'unlabelled')\n                    ORDER BY e.seat, 2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.request_efforts",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "66146c60ab5b00065d8b40cc65e8c2bd775b7a34bca7a4e4b0e6ad2f4aa4d8b0"
+}

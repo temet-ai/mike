@@ -427,6 +427,7 @@ mod tests {
                 effort: None,
                 agent: "rust-developer".into(),
                 contract: None,
+                decisions: None,
             },
         );
         def.tasks.insert(

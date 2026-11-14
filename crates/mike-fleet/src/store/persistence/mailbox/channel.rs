@@ -8,6 +8,16 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         to_session_uuid: uuid::Uuid,
         limit: i64,
     ) -> Result<Vec<ClaimedChannelMessageRow>, PersistError> {
+        self.claim_channel_messages_honouring(to_session_uuid, limit, false)
+            .await
+    }
+
+    pub async fn claim_channel_messages_honouring(
+        self,
+        to_session_uuid: uuid::Uuid,
+        limit: i64,
+        honour_held: bool,
+    ) -> Result<Vec<ClaimedChannelMessageRow>, PersistError> {
         crate::metrics::time_db("mailbox_claim_channel_messages", async move {
             let rows = sqlx::query!(
                 r#"WITH to_claim AS (
@@ -20,6 +30,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
                           AND m.channel_delivered_at IS NULL
                           AND m.consumed_at IS NULL
                           AND m.dead_lettered_at IS NULL
+                          AND (NOT $3 OR NOT m.held_until_turn)
                           -- Launch-brief mail is pushed over Remote Control only:
                           -- Claude Code frames a channel message as untrusted data
                           -- and will not act on a brief delivered that way.
@@ -64,6 +75,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
                   ORDER BY c.id ASC"#,
                 to_session_uuid,
                 limit,
+                honour_held,
             )
             .fetch_all(&self.pool)
             .await?;

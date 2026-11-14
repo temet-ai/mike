@@ -75,6 +75,7 @@ async fn insert_threaded_message_or_fail(
                 body: &ctx.body.message,
                 thread_id: Some(thread_id),
                 in_reply_to_id,
+                held: false,
             },
             &ctx.body.context,
         )

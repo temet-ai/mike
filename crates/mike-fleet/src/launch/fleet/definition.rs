@@ -36,6 +36,8 @@ pub struct FleetDefinition {
     pub staffing: StaffingDefinition,
     pub proposals: BTreeMap<String, ProposalDefinition>,
     pub goals: GoalsDefinition,
+    #[serde(skip_serializing_if = "super::decisions::DecisionsDefinition::is_default")]
+    pub decisions: super::decisions::DecisionsDefinition,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -201,6 +203,8 @@ pub struct WorkerDefinition {
     pub effort: Option<String>,
     pub agent: String,
     pub contract: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decisions: Option<super::decisions::DecisionsOverride>,
 }
 
 pub const WORKER_SKILL_CONTRACT: &str = ".claude/fleet/worker-contract.md";
