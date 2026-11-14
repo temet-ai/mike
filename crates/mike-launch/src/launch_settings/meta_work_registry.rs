@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const WAKE_MODE_KEY: &str = "work_registry.wake_mode";
 

@@ -180,8 +180,6 @@ impl Default for ProxyConfig {
             steerer: crate::config::steerer::SteererConfig::default(),
             session_judge: crate::config::session_judge::SessionJudgeConfig::default(),
             retention_sweep: crate::config::retention_sweep::RetentionSweepConfig::default(),
-            channel_link_sweep: crate::config::channel_link_sweep::ChannelLinkSweepConfig::default(
-            ),
             db_cost: crate::config::db_cost::DbCostConfig::default(),
             launch: super::launch::LaunchConfig::default(),
             sections: super::sections::ConfigSections::default(),

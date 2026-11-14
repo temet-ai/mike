@@ -16,7 +16,6 @@ pub fn base_entries() -> Vec<super::SettingMeta> {
     entries.extend(meta_llm_budget::entries());
     entries.extend(super::meta_llm_provider::entries());
     entries.extend(meta_assistants::entries());
-    entries.extend(super::meta_work_registry::entries());
     entries.extend(super::meta_dossier::entries());
     entries.extend(super::meta_session_end::entries());
     entries.extend(super::meta_eval::entries());

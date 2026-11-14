@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::channel_link_sweep::ChannelLinkSweepConfig;
+use crate::channel_link_settings::ChannelLinkSweepConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
@@ -25,7 +25,7 @@ pub fn spawn_channel_link_sweep(state: &AppState) {
         return;
     };
 
-    let cfg = state.config().channel_link_sweep.clone();
+    let cfg = state.config().sections.get::<ChannelLinkSweepConfig>();
     let toggles = state.feature_toggle_overlay.clone();
     let shutdown = state.shutdown();
     let tracker = state.tracker.clone();

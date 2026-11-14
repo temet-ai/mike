@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::config::ConfigSection;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ChannelLinkSweepConfig {
@@ -15,6 +17,10 @@ impl Default for ChannelLinkSweepConfig {
             batch_size: 200,
         }
     }
+}
+
+impl ConfigSection for ChannelLinkSweepConfig {
+    const KEY: &'static str = "channel_link_sweep";
 }
 
 #[cfg(test)]

@@ -171,9 +171,6 @@ pub struct ProxyConfig {
     pub retention_sweep: crate::config::retention_sweep::RetentionSweepConfig,
 
     #[serde(default)]
-    pub channel_link_sweep: crate::config::channel_link_sweep::ChannelLinkSweepConfig,
-
-    #[serde(default)]
     pub db_cost: crate::config::db_cost::DbCostConfig,
 
     #[serde(flatten)]

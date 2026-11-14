@@ -32,7 +32,6 @@ pub mod meta_session_scoped;
 pub mod meta_shell_output;
 pub mod meta_turn_guard;
 pub mod meta_turn_judge;
-pub mod meta_work_registry;
 pub mod meta_workers;
 pub mod overlay_apply;
 pub mod overlay_apply_provider;
