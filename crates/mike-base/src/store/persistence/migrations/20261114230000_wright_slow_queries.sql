@@ -73,6 +73,6 @@ SELECT 'query'::text AS scope,
   FROM judged j
  WHERE j.last_called_at >= now() - make_interval(hours => ($1->>'quiet_hours')::int)
  ORDER BY j.total_ms DESC
- LIMIT 50$q$,
+ LIMIT 200$q$,
  '{"min_calls": 20, "mean_ms": 500, "blocks_per_call": 100000, "quiet_hours": 24}')
 ON CONFLICT (name) DO NOTHING;
