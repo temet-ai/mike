@@ -207,7 +207,8 @@ async fn closure_evidence_moves_unknown_to_false_and_never_back() -> anyhow::Res
 }
 
 #[tokio::test]
-async fn closure_refuses_wrong_run_missing_id_and_unopened_reservations() -> anyhow::Result<()> {
+async fn closure_refuses_wrong_run_and_missing_id_but_closes_an_unopened_launch()
+-> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
@@ -233,27 +234,42 @@ async fn closure_refuses_wrong_run_missing_id_and_unopened_reservations() -> any
     let mut pending = NewLaunch::new("herdr", "/tmp/pending-closure");
     pending.run_id = Some(run.clone());
     let pending_id = f.handle.launch().insert_launch(&pending).await?;
-    assert!(
-        f.handle
-            .launch()
-            .record_fleet_launch_closure(pending_id, &run, "not opened", None)
-            .await
-            .is_err()
-    );
-    assert!(
-        f.handle
-            .launch()
-            .record_launch_closed(pending_id, "queued replay", Some(true))
-            .await
-            .is_err()
-    );
+    f.handle
+        .launch()
+        .record_fleet_launch_closure(pending_id, &run, "not opened", None)
+        .await?;
+    let unverified: (bool, String, bool) = sqlx::query_as(
+        "SELECT opened, result, closed_at IS NOT NULL FROM launch.launches WHERE id = $1",
+    )
+    .bind(pending_id)
+    .fetch_one(f.handle.pool())
+    .await?;
+    assert_eq!(unverified, (false, "pending".into(), true));
+    f.handle
+        .launch()
+        .record_launch_closed(pending_id, "queued replay", Some(true))
+        .await?;
     let pending_state: (bool, String, bool) = sqlx::query_as(
         "SELECT opened, result, closed_at IS NOT NULL FROM launch.launches WHERE id = $1",
     )
     .bind(pending_id)
     .fetch_one(f.handle.pool())
     .await?;
-    assert_eq!(pending_state, (false, "pending".into(), false));
+    assert_eq!(pending_state, (false, "failed".into(), true));
+    assert!(
+        f.handle
+            .launch()
+            .record_launch_closed(pending_id, "elsewhere", Some(true))
+            .await
+            .is_ok()
+    );
+    assert!(
+        f.handle
+            .launch()
+            .record_fleet_launch_closure(pending_id, "fleet-wrong", "wrong owner", Some(true))
+            .await
+            .is_err()
+    );
     let stopped = stopping(&f.handle, &row).await?;
     assert!(
         f.handle

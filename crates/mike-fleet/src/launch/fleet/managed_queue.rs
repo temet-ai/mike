@@ -54,12 +54,46 @@ pub enum Lane {
 }
 
 impl Lane {
-    fn slots(self) -> usize {
+    pub fn slots(self) -> usize {
         match self {
             Self::Gate => 1,
             Self::Check => super::gate_slot::CHECK_SLOT_NAMES.len(),
         }
     }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Gate => "gate",
+            Self::Check => "check",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Waiting {
+    pub receipt: i64,
+    pub seat: String,
+}
+
+pub fn waiting_in(repo: &str, lane: Lane) -> (usize, Vec<Waiting>) {
+    let key = lane_key(repo, lane);
+    let mut executing = 0;
+    let mut waiting = Vec::new();
+    for entry in entries().iter().filter(|entry| entry.lane == key) {
+        if entry.owner.cancelled().is_some() {
+            continue;
+        }
+        if entry.executing {
+            executing += 1;
+        } else {
+            waiting.push(Waiting {
+                receipt: *entry.key(),
+                seat: entry.seat.clone(),
+            });
+        }
+    }
+    waiting.sort_by_key(|queued| queued.receipt);
+    (executing, waiting)
 }
 
 pub struct Enlisted<'a> {

@@ -1,3 +1,4 @@
+pub mod adopt;
 pub mod carry;
 pub mod checks;
 pub mod events;
@@ -23,6 +24,7 @@ pub mod write;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod tests;
 
+pub use adopt::AdoptedLaunch;
 pub use carry::{CarryNote, CarryOutcome, NewCarry};
 pub use checks::TreeCheckRow;
 pub use introductions::SlowCommandRow;

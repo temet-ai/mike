@@ -17,6 +17,7 @@ use crate::store::persistence::PersistHandle;
 
 const OPEN_WAIT: Duration = Duration::from_secs(150);
 const OPEN_POLL: Duration = Duration::from_millis(500);
+pub const OPEN_UNCONFIRMED: &str = "fleet_open_unconfirmed";
 pub const SAVE_ATTEMPTS: usize = 5;
 pub const SAVE_RETRY: Duration = Duration::from_millis(500);
 
@@ -233,8 +234,7 @@ async fn wait_until_open(persist: &PersistHandle, session: Uuid) -> Result<(), S
         match row {
             Some(row) if row.opened => return Ok(()),
             Some(row)
-                if row.result == "failed"
-                    || row.reason.as_deref() == Some("fleet_open_unconfirmed") =>
+                if row.result == "failed" || row.reason.as_deref() == Some(OPEN_UNCONFIRMED) =>
             {
                 return Err(row
                     .stderr_text

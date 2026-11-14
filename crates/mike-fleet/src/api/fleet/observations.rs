@@ -4,7 +4,30 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::definition_view::DefinitionError;
+use crate::launch::fleet::status::FleetStatus;
+use crate::launch::fleet::{FleetDefinition, capacity, staff_limits};
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::fleet::FleetRow;
+
+pub async fn with_capacity(
+    persist: &PersistHandle,
+    row: &FleetRow,
+    status: &FleetStatus,
+    mut value: Value,
+) -> Value {
+    let (Some(run), Ok(def)) = (
+        row.run_id.as_deref(),
+        FleetDefinition::from_value(&row.definition),
+    ) else {
+        return value;
+    };
+    let seats_live = staff_limits::live_worker_seats(status);
+    let capacity = capacity::gather(persist, &def, run, seats_live).await;
+    if let Ok(capacity) = serde_json::to_value(capacity) {
+        value["capacity"] = capacity;
+    }
+    value
+}
 
 pub async fn with_observations(
     persist: &PersistHandle,
