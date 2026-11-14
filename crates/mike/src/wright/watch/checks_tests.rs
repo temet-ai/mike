@@ -254,6 +254,7 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
             "log_errors",
             "log_warnings",
             "mcp_tool_errors",
+            "orphan_launches",
             "page_client_errors",
             "request_failures",
             "scheduled_job_failures",

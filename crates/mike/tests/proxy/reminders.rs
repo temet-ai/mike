@@ -26,6 +26,7 @@ impl Drop for StartedRemindersProxy {
 }
 
 async fn start_proxy_with_reminders(upstream_url: &str) -> anyhow::Result<StartedRemindersProxy> {
+    mike::feature_settings::install();
     let tmp = tempfile::TempDir::new()?;
     let toml_path = tmp.path().join("config.toml");
     std::fs::write(

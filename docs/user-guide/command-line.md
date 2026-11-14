@@ -133,6 +133,18 @@ The sidecar lets Claude Code's Remote Control traffic be captured, and keeps Cla
 | `mike forward ca-path` | Prints where `mike claude` and `mike spawn` look for the certificate. |
 | `mike forward print-config` | Prints the sidecar's own settings. |
 
+## Wright, decisions and code checks
+
+| Command | What it does |
+|---|---|
+| `mike wright pair [--open]` | Prints the address of the [Wright page](pages.md#system) with the operator token that pairs a browser, so that browser can post in the conversation with Wright and undo its actions. `--open` also opens the address in your browser. The token is created on first use. |
+| `mike decisions export [--since <TIME>] [--point <POINT>] [--with-outcomes] [--out <FILE>]` | Writes the recorded answers of the small decision model, one per line, to a file or to the terminal. See [Decisions](decisions.md). |
+| `mike decisions loop [--force]` | Runs the daily review of those answers and prints its report. It does nothing when a run finished in the last 24 hours, unless you pass `--force`. |
+| `mike decisions ask <STATE> <QUESTIONS>` | Puts a set of questions, read from two JSON files, to the decision model and prints its answers. Needs the provider key described on the Decisions page. |
+| `mike decisions replay --point <POINT> --out <FILE> [--limit <N>] [--since <TIME>]` | Asks the model again the questions a decision point was asked earlier, and writes the new answers to a file. |
+| `mike decisions import-replay --kind <precheck\|seat\|replay> <FILE>` | Loads answers from a replay file into the database. |
+| `mike structural wiring [--range <A..B>] [--json] [--rules <FILE>]` | Run inside a git checkout. Lists code that nothing calls, registers or reads. With `--range`, lists only what the second commit adds. `--rules` names a different rules file; by default it uses `.mike/structural/wiring.yml` in the repository. |
+
 ## Remove mike
 
 `mike uninstall` removes the MCP entry, the shell function, the mods it added, the route choice and the background services. It keeps the database, its data and your configuration file. See [Back up and recover](backup-and-recovery.md) for what to do next.

@@ -34,12 +34,15 @@ mod forks_tests;
 mod logs_tests;
 #[cfg(test)]
 mod problems_tests;
+#[cfg(test)]
+mod schedule_tests;
 
 pub(crate) use catalogue::{WatchContext, run_check};
 
 const LEASE_ROLE: &str = "wright_watch";
 const TICK: Duration = Duration::from_secs(5 * 60);
 const EVENT_DEBOUNCE: Duration = Duration::from_secs(30);
+pub(crate) const TOGGLE_POLL: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Pass {
@@ -59,16 +62,11 @@ fn log_spawned() {
     tracing::info!(tick_secs = TICK.as_secs(), "wright: watch worker spawned");
 }
 
-fn log_disabled() {
-    tracing::info!(
-        "wright: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
+fn log_toggled(enabled: bool) {
+    tracing::info!(enabled, "wright: feature toggle changed");
 }
 
 pub fn spawn_wright_worker(state: &AppState) {
-    if !state.feature_toggle_overlay.load().wright {
-        return log_not_spawned("disabled by feature toggle");
-    }
     let Some(persist) = state.persist().cloned() else {
         return log_not_spawned("no persistence");
     };
@@ -114,8 +112,15 @@ async fn run(
         next_regular: Instant::now(),
         event_due: None,
     };
-    while toggles.load().wright {
-        let wake = schedule.wake();
+    let mut enabled = toggles.load().wright;
+    loop {
+        let now_enabled = toggles.load().wright;
+        if now_enabled != enabled {
+            log_toggled(now_enabled);
+            schedule.restart(now_enabled);
+            enabled = now_enabled;
+        }
+        let wake = schedule.wake(enabled);
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
@@ -125,11 +130,13 @@ async fn run(
                 continue;
             }
         }
+        if !enabled {
+            continue;
+        }
         if let Some(kind) = schedule.due(Instant::now()) {
             pass(&ctx, kind).await;
         }
     }
-    log_disabled();
 }
 
 struct Schedule {
@@ -139,9 +146,21 @@ struct Schedule {
 }
 
 impl Schedule {
-    fn wake(&self) -> Instant {
+    pub(crate) fn wake(&self, enabled: bool) -> Instant {
+        let toggle_check = Instant::now() + TOGGLE_POLL;
+        if !enabled {
+            return toggle_check;
+        }
         self.event_due
             .map_or(self.next_regular, |due| due.min(self.next_regular))
+            .min(toggle_check)
+    }
+
+    pub(crate) fn restart(&mut self, enabled: bool) {
+        self.event_due = None;
+        if enabled {
+            self.next_regular = Instant::now();
+        }
     }
 
     fn note(&mut self, event: &Result<ProxyEvent, RecvError>) {

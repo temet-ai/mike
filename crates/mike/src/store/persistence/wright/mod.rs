@@ -3,7 +3,20 @@ use serde::Serialize;
 use serde_json::Value;
 
 mod checks;
+pub(crate) mod conversation;
+pub(crate) mod conversation_steers;
+mod investigations;
 mod problems;
+pub(crate) mod remedies;
+
+mod repairs;
+
+pub(crate) use investigations::{
+    EngineerLimits, Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation,
+    PageQuery, Pick, Usage,
+};
+pub(crate) use remedies::{RemedyPatch, RemedyRow};
+pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

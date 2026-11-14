@@ -29,7 +29,8 @@
 		Scale,
 		ListChecks,
 		Sparkles,
-		BellRing
+		BellRing,
+		Hammer
 	} from '@lucide/svelte';
 	import { BookOpen, FilePen, ListTodo } from '@lucide/svelte';
 	import type { Component } from 'svelte';
@@ -70,6 +71,7 @@
 		| '/skills'
 		| '/proposals'
 		| '/diagnostics/memory'
+		| '/wright'
 		| '/settings'
 		| '/settings/steering'
 		| '/settings/workers'
@@ -244,6 +246,12 @@
 			caption: 'System',
 			accent: 'system',
 			items: [
+				{
+					label: 'Wright',
+					href: '/wright',
+					icon: Hammer,
+					hint: 'What is wrong in mike now and before, what Wright did about it, and a conversation with it'
+				},
 				{
 					label: 'Memory',
 					href: '/memory',
