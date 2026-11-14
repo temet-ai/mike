@@ -16,7 +16,7 @@
 		getFleetRecord,
 		getLaunchSeat
 	} from './api';
-	import { seatDecisionFigures, type SeatDecisionFigures } from './seatDecisions';
+	import { hasSeatRecord, seatDecisionFigures, type SeatDecisionFigures } from './seatDecisions';
 	import type { FleetAcceptanceStatus, FleetDecisionModes } from './types';
 
 	interface Props {
@@ -92,8 +92,7 @@
 			decisionsModes = modes;
 			decisionsReason = record === null ? 'Figures arrive when the run closes.' : null;
 			decisionsFigures = seatDecisionFigures(record, seat);
-			decisionsShown =
-				record === null || (seat !== null && record.effort_split?.by_seat?.[seat] !== undefined);
+			decisionsShown = record === null || hasSeatRecord(record, seat);
 		} catch (error) {
 			if (request === decisionsRequest) {
 				decisionsError = error instanceof Error ? error.message : String(error);
