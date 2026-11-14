@@ -249,6 +249,68 @@ points![
     ),
 ];
 
+pub struct FleetPoint {
+    pub point: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
+}
+
+pub const FLEET_POINTS: &[FleetPoint] = &[
+    FleetPoint {
+        point: "fleet_stop_check",
+        label: "Fleet stop check",
+        description: "Facts first, then Jev, decide whether a seat's stop goes through or is pushed back once.",
+    },
+    FleetPoint {
+        point: "fleet_wake_check",
+        label: "Fleet wake check",
+        description: "Jev decides whether a mail or wakeup wakes a seat now or waits for its next turn.",
+    },
+    FleetPoint {
+        point: "fleet_triage",
+        label: "Fleet check triage",
+        description: "Rules, then Jev, put a retry, fix-code or fix-environment line in a failed check's receipt.",
+    },
+    FleetPoint {
+        point: "fleet_commit_message",
+        label: "Fleet commit message",
+        description: "Jev warns when a fleet_commit message does not match its diff; it never refuses.",
+    },
+    FleetPoint {
+        point: "fleet_effort",
+        label: "Fleet effort split",
+        description: "Jev labels request content as work, machinery or waiting where the trigger does not decide it.",
+    },
+];
+
+pub fn area(point: &str) -> &'static str {
+    match point {
+        "turn_guard_precheck"
+        | "commit_message"
+        | "rule_check"
+        | "verifier_precheck"
+        | "wake_recheck"
+        | "step_class"
+        | "prod_detect"
+        | "ended_on"
+        | "criteria_contract"
+        | "steerer_checklist"
+        | "diagnostic_phrase"
+        | "weasel_after" => "steering",
+        "turn_judge"
+        | "correction_classifier"
+        | "session_judge"
+        | "supply_verdict"
+        | "label_prelabel" => "judges",
+        "lesson_supply" | "thread_pick" | "recall_topic" | "lesson_shape" | "topic_assign"
+        | "lesson_relation" | "lesson_relate" | "topic_merge" | "semantic_tag" | "search_grade"
+        | "repeats_group" | "skill_trigger" | "proposal_order" => "memory and lessons",
+        "text_origin" | "probe_session" | "directive" => "capture",
+        p if p.starts_with("fleet_") => "fleet",
+        _ => "launch, mail and tools",
+    }
+}
+
 pub fn point_setting(key: &str) -> Option<&'static PointSetting> {
     POINTS.iter().find(|p| p.mode_key == key)
 }

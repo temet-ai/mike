@@ -66,7 +66,7 @@ CREATE TABLE decisions.records (
     latency_ms        integer,
     http_status       integer,
     composed          jsonb,
-    applied           text        CHECK (applied IN ('sent', 'held', 'woken', 'warned', 'passed', 'none')),
+    applied           text        CHECK (applied IN ('sent', 'held', 'woken', 'warned', 'passed', 'chosen', 'skipped', 'suggested', 'ordered', 'labelled', 'none')),
     fail_open         boolean,
     facts_version     integer,
     facts             jsonb,

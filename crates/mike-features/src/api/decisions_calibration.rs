@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::llm::decisions::loop_store::PointCounts;
 use crate::settings::SettingsOverlay;
-use crate::settings::meta_decisions::POINTS;
+use crate::settings::meta_decisions::{FLEET_POINTS, POINTS, area};
 use crate::state::AppState;
 use crate::steerer::decisions_loop::{self, PointScore};
 
@@ -21,7 +21,9 @@ pub struct LayerState {
 pub struct PointRow {
     pub point: String,
     pub label: Option<&'static str>,
+    pub area: &'static str,
     pub mode: String,
+    pub mode_source: &'static str,
     pub score: Option<PointScore>,
 }
 
@@ -50,36 +52,54 @@ pub fn layer_state(toggle_on: bool, has_key: bool) -> LayerState {
     }
 }
 
-fn mode_of(overlay: &SettingsOverlay, point: &str) -> String {
+fn mode_of(overlay: &SettingsOverlay, point: &str) -> (String, &'static str) {
     if point == crate::steerer::precheck::POINT {
-        return overlay.decisions_turn_guard_mode.clone();
+        return (
+            overlay.decisions_turn_guard_mode.clone(),
+            "decisions.turn_guard.mode",
+        );
     }
-    overlay
+    if point.starts_with("fleet_") {
+        return (
+            "on".to_owned(),
+            "fleet definition (decisions key, default on)",
+        );
+    }
+    let mode = overlay
         .decisions_point_modes
         .get(point)
         .cloned()
-        .unwrap_or_else(|| "on".to_owned())
+        .unwrap_or_else(|| "on".to_owned());
+    (mode, "setting")
+}
+
+fn row(overlay: &SettingsOverlay, point: &str, label: Option<&'static str>) -> PointRow {
+    let (mode, mode_source) = mode_of(overlay, point);
+    PointRow {
+        point: point.to_owned(),
+        label,
+        area: area(point),
+        mode,
+        mode_source,
+        score: None,
+    }
 }
 
 pub fn rows(overlay: &SettingsOverlay, scores: Vec<PointScore>) -> Vec<PointRow> {
-    let mut out: Vec<PointRow> = POINTS
-        .iter()
-        .map(|p| PointRow {
-            point: p.point.to_owned(),
-            label: Some(p.label),
-            mode: mode_of(overlay, p.point),
-            score: None,
-        })
+    let pre = std::iter::once((crate::steerer::precheck::POINT, "Turn-guard pre-check"));
+    let mut out: Vec<PointRow> = pre
+        .chain(POINTS.iter().map(|p| (p.point, p.label)))
+        .chain(FLEET_POINTS.iter().map(|p| (p.point, p.label)))
+        .map(|(point, label)| row(overlay, point, Some(label)))
         .collect();
     for score in scores {
         match out.iter_mut().find(|r| r.point == score.counts.point) {
-            Some(row) => row.score = Some(score),
-            None => out.push(PointRow {
-                point: score.counts.point.clone(),
-                label: None,
-                mode: mode_of(overlay, &score.counts.point),
-                score: Some(score),
-            }),
+            Some(r) => r.score = Some(score),
+            None => {
+                let mut r = row(overlay, &score.counts.point, None);
+                r.score = Some(score);
+                out.push(r);
+            }
         }
     }
     out
@@ -166,11 +186,13 @@ mod tests {
             &[],
         );
         let out = rows(&overlay, vec![score]);
-        assert_eq!(out.len(), POINTS.len() + 1);
+        assert_eq!(out.len(), POINTS.len() + FLEET_POINTS.len() + 1);
         let judge = out.iter().find(|r| r.point == "turn_judge");
         assert_eq!(judge.map(|r| r.mode.as_str()), Some("shadow"));
-        assert!(judge.is_some_and(|r| r.score.is_none()));
+        assert!(judge.is_some_and(|r| r.score.is_none() && r.area == "judges"));
         let pre = out.iter().find(|r| r.point == "turn_guard_precheck");
         assert!(pre.is_some_and(|r| r.score.is_some() && r.mode == "on"));
+        let stop = out.iter().find(|r| r.point == "fleet_stop_check");
+        assert!(stop.is_some_and(|r| r.area == "fleet" && r.mode_source.starts_with("fleet")));
     }
 }
