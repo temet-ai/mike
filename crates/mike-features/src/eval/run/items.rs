@@ -1,11 +1,12 @@
 use crate::store::persistence::eval_repo::EvalPersist as _;
 use serde_json::Value;
 
+use super::slice_texts::load_slice_texts;
 use crate::analysis::judge::input_v2::INPUT_BUILDER_R3;
 use crate::analysis::judge::rubric::EffectiveRubric;
 use crate::analysis::judge::{JudgeOutcome, build_judge_user_message, run_judge_with_usage};
 use crate::judge_worker::v2_judge::{
-    V2InsertTarget, V2JudgeConfig, context_from_row, judge_turn_v2, verdict_usage,
+    V2InsertTarget, V2JudgeConfig, context_from_row, judge_turn_v2_sliced, verdict_usage,
 };
 use crate::llm::{CallUsage, LlmCallContext, LlmRuntimeSettings, OpenRouterClient};
 use crate::store::persistence::PersistHandle;
@@ -44,6 +45,13 @@ impl RunJudge {
         match self {
             Self::V2(cfg) => &cfg.model,
             Self::R3 { model, .. } => model,
+        }
+    }
+
+    pub fn slice_codes(&self) -> Vec<String> {
+        match self {
+            Self::V2(cfg) => crate::analysis::judge::slices::slice_codes(&cfg.slices),
+            Self::R3 { .. } => Vec::new(),
         }
     }
 
@@ -141,7 +149,15 @@ async fn judge_v2(job: &ItemJob<'_>, cfg: &V2JudgeConfig) -> anyhow::Result<Item
     let Some(ctx) = context_from_row(job.row) else {
         return Ok(ItemResult::Skipped);
     };
-    let judged = match judge_turn_v2(&attributed(job.llm, job.row), cfg, &ctx).await {
+    let texts = match load_slice_texts(job.persist, job.row, &cfg.slices).await {
+        Ok(texts) => texts,
+        Err(error) => {
+            tracing::warn!(turn_id = job.row.turn_id, error = %error, "eval run: history slices did not load");
+            return Ok(ItemResult::Failed);
+        }
+    };
+    let judged = match judge_turn_v2_sliced(&attributed(job.llm, job.row), cfg, &ctx, &texts).await
+    {
         Ok(judged) => judged,
         Err(outcome) => return Ok(failure(outcome)),
     };

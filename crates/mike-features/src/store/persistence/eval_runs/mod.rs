@@ -58,6 +58,7 @@ pub struct NewEvalRun<'a> {
     pub bundle_id: i64,
     pub rubric_version: &'a str,
     pub input_builder_version: &'a str,
+    pub slices: &'a [String],
     pub model: &'a str,
     pub split: &'a str,
     pub tiers: &'a [String],

@@ -22,6 +22,9 @@ pub mod rubric_tests;
 pub mod run_v2;
 #[cfg(test)]
 pub mod schema_tests;
+pub mod slices;
+#[cfg(test)]
+pub mod slices_tests;
 pub mod two_axis;
 #[cfg(test)]
 pub mod two_axis_tests;

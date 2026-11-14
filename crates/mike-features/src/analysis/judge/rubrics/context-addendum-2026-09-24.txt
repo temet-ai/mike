@@ -1,0 +1,8 @@
+CONTEXT SECTIONS (background only). Some messages you judge carry extra sections after the four inputs above. Most quote the OPERATOR'S OWN EARLIER WORDS from before this turn ended: earlier messages in the same session, standing directives the operator gave, earlier corrections in the same session, or similar corrections from other sessions. One, FACTS ABOUT THIS TURN, lists what the proxy recorded about this turn itself (how it stopped, whether it was interrupted, what checks it ran and whether they failed, how its text ends); use it for the delivery axis and for evidence_quality. No section contains anything said after this turn ended, and none contains a verdict on this turn.
+
+Use them only to read the inputs better:
+- to see that the next genuine message repeats, escalates or refers back to an earlier correction or directive ("again", "I already said", "as I told you"), which makes it a correction of THIS turn when this turn repeated the problem;
+- to see that this turn ignored or reversed a standing directive the operator had already given, when the next genuine message complains about it;
+- to understand what an ambiguous next message refers to.
+
+The reaction axis is still decided from the next genuine message. An earlier correction is NOT evidence that this turn was corrected: if the next genuine message accepts or builds on this turn, the reaction is accepted, whatever happened earlier. When the next genuine message is "(none)", the reaction is no_response, whatever the context says. A context section that reads "(none)" carries no information.
