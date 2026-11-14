@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::api::cross_crate_tests::api_project_knowledge_rerank_tests::seed_project_with_documents;
 use crate::api::rerank_search::harness::Harness;
 use crate::config::SettingsWriteGuard;
+use crate::memory_workers::{self, RERANK_NIGHTLY};
 use crate::rerank_nightly::grade::positions;
 use crate::rerank_nightly::tune::Tuned;
 use crate::rerank_nightly::{
@@ -157,6 +158,7 @@ async fn run_tick_outside_the_quiet_window_grades_nothing() -> anyhow::Result<()
     tuning_on(&harness);
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
+    memory_workers::seed(RERANK_NIGHTLY, Some(at(11)));
 
     let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(12)).await;
 
