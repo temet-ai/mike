@@ -1,4 +1,4 @@
-use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde::Serialize;
 use serde_json::json;
@@ -443,7 +443,7 @@ async fn write_handover_note(deps: &ProposerDeps<'_>, work: &ShapeWork, reason: 
     };
     if let Err(error) = deps
         .persist
-        .fleet()
+        .launch()
         .create_session_note(session_uuid, note)
         .await
     {

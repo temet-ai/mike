@@ -95,8 +95,11 @@ pub(crate) async fn enabled_job_models(
             &policy.resolve(Some(ModelTier::Fast), &settings.effective_model),
         ));
     }
-    if state.config.lesson_relations.enabled {
-        let relations = &state.config.lesson_relations;
+    let relations = state
+        .config
+        .sections
+        .get::<crate::lessons_settings::LessonRelationsConfig>();
+    if relations.enabled {
         models.push(job(
             LESSON_RELATIONS,
             &policy.resolve(Some(ModelTier::Strong), &relations.proposer_model),
@@ -111,7 +114,10 @@ pub(crate) async fn enabled_job_models(
 
 pub(crate) fn configured_model_refs(state: &AppState) -> Vec<ModelRef> {
     let overlay = state.settings_overlay.load();
-    let relations = &state.config.lesson_relations;
+    let relations = state
+        .config
+        .sections
+        .get::<crate::lessons_settings::LessonRelationsConfig>();
     let mut stored: Vec<String> = vec![
         overlay.live_steerer_model(&state.config.steerer.model),
         state.config.session_judge.model.clone(),

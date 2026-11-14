@@ -18,6 +18,7 @@ fn finding(rule: &str, fingerprint: &str) -> NewFinding {
         matched: "x".to_owned(),
         fix: None,
         fingerprint: fingerprint.to_owned(),
+        rule_source: "builtin".to_owned(),
     }
 }
 
@@ -59,7 +60,8 @@ async fn deliver_one_of_two(
         .fleet()
         .mark_code_findings_delivered(&[Delivered {
             finding_id: ready[0].id,
-            request_id: 4242,
+            request_id: Some(4242),
+            via: mike_base::code_notes::VIA_REQUEST,
         }])
         .await?;
     assert_eq!(delivered, 1);
@@ -187,10 +189,12 @@ async fn a_skipped_scan_closes_nothing_and_a_deleted_file_supersedes() -> anyhow
         .await?
         .context("skipped")?;
     assert_eq!(recorded.fixed, 0);
-    let mut deleted = scan_of(ids[2], &[], Vec::new());
-    deleted.deleted = true;
-    deleted.skipped = Some("deleted".to_owned());
-    f.handle.fleet().record_code_scan(&deleted).await?;
+    let superseded = f
+        .handle
+        .fleet()
+        .supersede_deleted_paths(CHECKOUT, &["src/a.rs".to_owned()])
+        .await?;
+    assert_eq!(superseded, 1);
     let rows = f
         .handle
         .fleet()
@@ -201,4 +205,140 @@ async fn a_skipped_scan_closes_nothing_and_a_deleted_file_supersedes() -> anyhow
         vec!["superseded"]
     );
     Ok(())
+}
+
+async fn told(handle: &crate::store::persistence::PersistHandle) -> anyhow::Result<Vec<i64>> {
+    let since = Utc::now() - Duration::hours(1);
+    let ids: Vec<i64> = handle
+        .fleet()
+        .list_code_findings(since, None, 50)
+        .await?
+        .iter()
+        .filter(|r| r.checkout == CHECKOUT)
+        .map(|r| r.id)
+        .collect();
+    let delivered: Vec<Delivered> = ids
+        .iter()
+        .map(|id| Delivered {
+            finding_id: *id,
+            request_id: None,
+            via: mike_base::code_notes::VIA_PUSH,
+        })
+        .collect();
+    handle
+        .fleet()
+        .mark_code_findings_delivered(&delivered)
+        .await?;
+    Ok(ids)
+}
+
+async fn outcomes(
+    handle: &crate::store::persistence::PersistHandle,
+) -> anyhow::Result<Vec<String>> {
+    let since = Utc::now() - Duration::hours(1);
+    Ok(handle
+        .fleet()
+        .list_code_findings(since, None, 50)
+        .await?
+        .into_iter()
+        .filter(|r| r.checkout == CHECKOUT)
+        .map(|r| r.outcome)
+        .collect())
+}
+
+#[tokio::test]
+async fn a_fix_by_another_session_and_a_commit_that_keeps_the_finding_are_told_apart()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let project_id = project(pool).await?;
+    let author = session(pool, project_id, None).await?;
+    let other = session(pool, project_id, None).await?;
+    let mut base = event(project_id, ChangeKind::Edit, &["src/a.rs"]);
+    base.session_id = Some(author);
+    let mut fixer = base.clone();
+    fixer.session_id = Some(other);
+    fixer.at += Duration::seconds(1);
+    let ids = f
+        .handle
+        .fleet()
+        .insert_change_events(&[base, fixer])
+        .await?;
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(
+            ids[0],
+            &["fp-a"],
+            vec![finding("rust-unsafe", "fp-a")],
+        ))
+        .await?;
+    told(&f.handle).await?;
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(ids[1], &[], Vec::new()))
+        .await?;
+    f.handle.fleet().settle_code_findings().await?;
+    assert_eq!(outcomes(&f.handle).await?, vec!["fixed_by_other"]);
+    let counts = f
+        .handle
+        .fleet()
+        .session_code_counts(session_uuid(pool, author).await?)
+        .await?;
+    assert_eq!((counts.found, counts.told, counts.files_scanned), (1, 1, 1));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_told_finding_still_there_at_commit_is_ignored_until_it_is_fixed() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let project_id = project(pool).await?;
+    let author = session(pool, project_id, None).await?;
+    let mut edit = event(project_id, ChangeKind::Edit, &["src/a.rs"]);
+    edit.session_id = Some(author);
+    let ids = f
+        .handle
+        .fleet()
+        .insert_change_events(&[edit.clone()])
+        .await?;
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(
+            ids[0],
+            &["fp-c"],
+            vec![finding("rust-temp-dir", "fp-c")],
+        ))
+        .await?;
+    told(&f.handle).await?;
+    let mut commit = event(project_id, ChangeKind::Commit, &["src/a.rs", "src/b.rs"]);
+    commit.at = Utc::now() + Duration::seconds(5);
+    let mut later = edit;
+    later.at = commit.at + Duration::seconds(1);
+    let more = f
+        .handle
+        .fleet()
+        .insert_change_events(&[commit, later])
+        .await?;
+    let settled = f.handle.fleet().settle_code_findings().await?;
+    assert!(settled.ignored >= 1);
+    assert_eq!(outcomes(&f.handle).await?, vec!["ignored"]);
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(more[1], &[], Vec::new()))
+        .await?;
+    assert_eq!(outcomes(&f.handle).await?, vec!["fixed"]);
+    Ok(())
+}
+
+async fn session_uuid(pool: &sqlx::PgPool, id: i64) -> anyhow::Result<uuid::Uuid> {
+    Ok(
+        sqlx::query_scalar("SELECT session_uuid FROM sessions.sessions WHERE id = $1")
+            .bind(id)
+            .fetch_one(pool)
+            .await?,
+    )
 }

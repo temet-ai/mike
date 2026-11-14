@@ -71,21 +71,30 @@ if [[ "$CX_CACHE_MODE" == mbx ]]; then
       exit 1
     fi
     # nextest reads CARGO for its builds, and mbx reads CARGO to find the real cargo,
-    # so CARGO=mbx makes mbx call itself without end. The cargo shim that `mbx setup`
-    # installs marks its calls, so mbx then runs the real cargo.
-    # mbx keeps the shim in its data directory: XDG_DATA_HOME when set, else
-    # ~/Library/Application Support on macOS and ~/.local/share elsewhere.
-    if [[ -n "${XDG_DATA_HOME:-}" ]]; then
-      cx_data="$XDG_DATA_HOME"
-    elif [[ "$(uname -s)" == Darwin ]]; then
-      cx_data="$HOME/Library/Application Support"
-    else
-      cx_data="$HOME/.local/share"
-    fi
-    cx_shim="$cx_data/mbx/bin/cargo"
-    if [[ ! -x "$cx_shim" ]]; then
-      echo "cx: mbx's cargo shim is missing ($cx_shim); run 'mbx setup' once, then 'mbx setup --uninstall' to keep only the shim" >&2
+    # so CARGO=mbx makes mbx call itself without end. A cargo shim like the one
+    # `mbx setup` installs marks its calls (MBX_CARGO_SHIM_MODE), so mbx then runs the
+    # real cargo. cx writes that shim itself, pointing at the mbx it found, so every
+    # machine, checkout and session has it without a setup step and it follows mbx
+    # when mbx moves or is upgraded.
+    cx_shim="${XDG_CACHE_HOME:-$HOME/.cache}/mike-cx/bin/cargo"
+    if [[ "$cx_shim$MBX_BIN" == *"'"* ]]; then
+      echo "cx: cannot write mbx's cargo shim: a quote in $cx_shim or $MBX_BIN" >&2
       exit 1
+    fi
+    cx_shim_text="#!/bin/sh
+# Written by scripts/cx: nextest's cargo, so its builds go through mbx without mbx calling itself.
+MBX_CARGO_SHIM_MODE=1
+MBX_CARGO_SHIM_PATH='$cx_shim'
+export MBX_CARGO_SHIM_MODE MBX_CARGO_SHIM_PATH
+exec '$MBX_BIN' \"\$@\""
+    if [[ ! -x "$cx_shim" || "$(cat "$cx_shim" 2>/dev/null)" != "$cx_shim_text" ]]; then
+      mkdir -p "$(dirname "$cx_shim")" &&
+        printf '%s\n' "$cx_shim_text" >"$cx_shim.$$" && chmod 755 "$cx_shim.$$" &&
+        mv -f "$cx_shim.$$" "$cx_shim" || {
+        rm -f "$cx_shim.$$"
+        echo "cx: cannot write mbx's cargo shim ($cx_shim)" >&2
+        exit 1
+      }
     fi
     cx_cmd=(env "CARGO=$cx_shim" "$cx_nextest" "$@")
   else

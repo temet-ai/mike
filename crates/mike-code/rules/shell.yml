@@ -1,40 +1,47 @@
 id: sh-pkill-pgrep-f
+url: 'mike:lesson/2327'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^(pkill|pgrep)\s+(-[A-Za-z]*f|--full)'}
 message: pkill/pgrep -f matches its own command line and other sessions' processes. Track and kill own pids.
 ---
 id: sh-no-verify
+url: '.claude/rules/workflow-and-documentation.md#finishing-work'
 language: bash
 severity: error
 rule: {kind: command, regex: '^git\s.*--no-verify'}
 message: Never skip the hooks; fix the failure the hook shows.
 ---
 id: sh-bak-copy
+url: 'mike:lesson/2275'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^(cp|mv)\s.*\.bak\b'}
 message: No .bak copies of binaries or artifacts; roll back by installing an earlier build.
 ---
 id: sh-flock
+url: 'mike:lesson/2522'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^flock\b'}
 message: No ad-hoc machine-wide locks; only the heavy-build lock that scripts/cx and deploy-proxy.sh take.
 ---
 id: sh-cargo-clean
+url: 'AGENTS.md#builds-go-through-mbx'
 language: bash
 severity: error
 rule: {kind: command, regex: '^cargo\s+(clean|sqlx\s+prepare)'}
 message: Never cargo clean; use scripts/sqlx-prepare, not cargo sqlx prepare.
 ---
 id: sh-raw-cargo
+url: 'AGENTS.md#builds-go-through-mbx'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^cargo\s+(build|check|test|clippy|nextest)\b'}
 message: Use scripts/cx so builds go through mbx and the build lock.
 ---
 id: sh-push-piped-to-tail
+url: 'mike:lesson/2483'
 language: bash
 severity: warning
 rule:
@@ -44,24 +51,28 @@ rule:
 message: A push piped to tail reports tail's exit code. Capture rc=$? from the push.
 ---
 id: sh-sed-inplace
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^sed\s+(-[A-Za-z]*i|--in-place)'}
 message: BSD sed has no -i. Write a temp file and mv it.
 ---
 id: sh-grep-perl
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^(r?)grep\s+(-[A-Za-z]*P|--perl-regexp)'}
 message: grep -P is GNU-only; use rg -P or ERE.
 ---
 id: sh-gnu-date-d
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^date\s+(-[A-Za-z]*d\b|--date)'}
 message: date -d is GNU-only.
 ---
 id: sh-gnu-readlink-stat-find
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule:
@@ -70,6 +81,7 @@ rule:
 message: GNU-only flag (readlink -f, stat -c, touch -d, find -printf); breaks on the Mac.
 ---
 id: sh-bash4-features
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule:
@@ -81,6 +93,7 @@ rule:
 message: Mac /bin/bash is 3.2; no mapfile or associative arrays.
 ---
 id: sh-shebang-env
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: warning
 rule: {kind: comment, regex: '^#!/bin/bash'}
@@ -88,6 +101,7 @@ message: Use #!/usr/bin/env bash.
 fix: '#!/usr/bin/env bash'
 ---
 id: sh-hardcoded-home-path
+url: '~/.claude/rules/portable-scripts.md'
 language: bash
 severity: hint
 rule:

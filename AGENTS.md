@@ -124,8 +124,9 @@ has merged, not after each PR.
 `MIKE_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`). mbx restores the units any
 earlier mbx build on this machine stored, from any checkout, worktree or directory,
 so a new worktree starts warm instead of building cold: crate `mike`'s library
-restores in seconds. `nextest` runs with `CARGO` pointing at mbx, so the test
-binaries it builds come from the store. You type nothing extra. Every heavy build
+restores in seconds. `nextest` runs with `CARGO` pointing at a cargo shim that cx
+writes for the mbx it found (`~/.cache/mike-cx/bin/cargo`), so the test binaries it
+builds come from the store; there is no setup step. You type nothing extra. Every heavy build
 (`check`, `clippy`, `build`, `test`, `nextest`) runs under `nice -n 19 ionice -c 3` on
 half the processors (`MIKE_BUILD_JOBS` overrides; `scripts/lib/heavy-build.sh`). A
 project hook (`.claude/hooks/raw-cargo-guard.sh`) refuses raw

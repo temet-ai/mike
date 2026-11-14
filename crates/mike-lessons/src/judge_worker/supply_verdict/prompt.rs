@@ -9,7 +9,7 @@ const NEXT_CHARS: usize = 2000;
 
 pub const VERDICTS: [&str; 3] = ["used", "corrected_anyway", "ignored"];
 
-pub use crate::settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT as SYSTEM;
+pub use crate::lessons_settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT as SYSTEM;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Answer {

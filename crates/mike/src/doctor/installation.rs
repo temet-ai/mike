@@ -12,7 +12,7 @@ pub(super) struct Check {
     required: bool,
     status: &'static str,
     code: &'static str,
-    detail: &'static str,
+    detail: String,
 }
 
 impl Check {
@@ -21,14 +21,14 @@ impl Check {
         required: bool,
         status: &'static str,
         code: &'static str,
-        detail: &'static str,
+        detail: impl Into<String>,
     ) -> Self {
         Self {
             id,
             required,
             status,
             code,
-            detail,
+            detail: detail.into(),
         }
     }
 }
@@ -132,4 +132,5 @@ async fn inspect(config: &ProxyConfig, report: &mut Report) {
     report.checks.push(probes::mcp(config).await);
     report.checks.push(probes::database(config).await);
     report.checks.push(probes::daemon(config).await);
+    report.checks.push(probes::code_scan(config).await);
 }

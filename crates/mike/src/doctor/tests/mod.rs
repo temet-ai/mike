@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::checks::evaluate;
+use super::code_scan::{BuiltinRules, CodeScanFacts};
 use super::observed::{
     BuildFacts, CapabilityFacts, ConfigFileFacts, ConnectionFacts, DatabaseFacts, EmbeddingFacts,
     ExtensionFacts, McpFacts, MigrationFacts, ModelFacts, Observed, RerankFacts, ServerFacts,
@@ -102,6 +103,18 @@ fn healthy() -> Observed {
         },
         rerank: RerankFacts::default(),
         launch_backend: "herdr".to_string(),
+        code_scan: Some(CodeScanFacts {
+            scanning: true,
+            delivering: false,
+            pushing: false,
+            grammars: vec!["bash".to_string(), "rust".to_string()],
+            rules: Some(BuiltinRules {
+                count: 42,
+                version: "abc123".to_string(),
+            }),
+            scans_24h: 12,
+            last_scan_at: Some("2026-11-14T09:00:00Z".to_string()),
+        }),
     }
 }
 
@@ -132,6 +145,7 @@ fn server_mut(observed: &mut Observed) -> anyhow::Result<&mut ServerFacts> {
 }
 
 mod background;
+mod code_scan;
 mod database;
 mod host;
 mod report;

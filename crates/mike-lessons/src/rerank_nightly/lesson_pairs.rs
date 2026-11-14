@@ -38,7 +38,13 @@ pub async fn pairs_phase(
             ));
         }
     };
-    let threshold = looser_threshold(state.config().lesson_relations.candidate_distance_threshold);
+    let threshold = looser_threshold(
+        state
+            .config()
+            .sections
+            .get::<crate::lessons_settings::LessonRelationsConfig>()
+            .candidate_distance_threshold,
+    );
     for project_id in projects {
         match project_pairs(state, persist, idle, project_id, threshold).await {
             Ok(Ok(upserted)) => *found += upserted,

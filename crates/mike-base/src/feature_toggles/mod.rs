@@ -101,6 +101,9 @@ pub struct FeatureToggles {
     #[serde(default)]
     pub code_findings: bool,
 
+    #[serde(default = "on")]
+    pub code_findings_push: bool,
+
     #[serde(default)]
     pub context_focus_question: bool,
 
@@ -184,6 +187,7 @@ impl Default for FeatureToggles {
             change_record_tail: false,
             code_scan: true,
             code_findings: false,
+            code_findings_push: true,
             context_focus_question: false,
             memory_keeper: false,
             seat_memory_index: false,
@@ -223,7 +227,6 @@ pub struct ResolvedToggles {
     pub reminders_max_lessons_to_inject: usize,
     pub weasel_intercept_forbidden_words: Vec<String>,
     pub weasel_intercept_correction_prompt: String,
-    pub recall_injector_max_lessons_per_topic: usize,
     pub file_read_compression_min_bytes: usize,
     pub file_read_compression_head_lines: usize,
     pub file_read_compression_tail_lines: usize,
@@ -242,6 +245,7 @@ pub struct ResolvedToggles {
     pub shell_output_compression_forward_share: usize,
     pub compression_dedup_enabled: bool,
     pub context_focus_question_mode: String,
+    pub features: crate::settings::FeatureOverlays,
 }
 
 impl ResolvedToggles {
@@ -263,7 +267,6 @@ impl ResolvedToggles {
             reminders_max_lessons_to_inject: settings.reminders_max_lessons_to_inject,
             weasel_intercept_forbidden_words: settings.weasel_intercept_forbidden_words.clone(),
             weasel_intercept_correction_prompt: settings.weasel_intercept_correction_prompt.clone(),
-            recall_injector_max_lessons_per_topic: settings.recall_injector_max_lessons_per_topic,
             file_read_compression_min_bytes: settings.file_read_compression_min_bytes,
             file_read_compression_head_lines: settings.file_read_compression_head_lines,
             file_read_compression_tail_lines: settings.file_read_compression_tail_lines,
@@ -288,6 +291,7 @@ impl ResolvedToggles {
             shell_output_compression_forward_share: settings.shell_output_compression_forward_share,
             compression_dedup_enabled: settings.compression_dedup_enabled,
             context_focus_question_mode: settings.context_focus_question_mode.clone(),
+            features: settings.features.clone(),
         }
     }
 }
@@ -316,6 +320,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "change_record" => Some(toggles.change_record),
         "change_record_tail" => Some(toggles.change_record_tail),
         "code_findings" => Some(toggles.code_findings),
+        "code_findings_push" => Some(toggles.code_findings_push),
         "code_scan" => Some(toggles.code_scan),
         "channel_link_sweep" => Some(toggles.channel_link_sweep),
         "context_focus_question" => Some(toggles.context_focus_question),
@@ -387,6 +392,7 @@ pub fn set_toggle_enabled(
         "change_record" => updated.change_record = enabled,
         "change_record_tail" => updated.change_record_tail = enabled,
         "code_findings" => updated.code_findings = enabled,
+        "code_findings_push" => updated.code_findings_push = enabled,
         "code_scan" => updated.code_scan = enabled,
         "channel_link_sweep" => updated.channel_link_sweep = enabled,
         "context_focus_question" => updated.context_focus_question = enabled,
@@ -433,13 +439,12 @@ pub fn set_toggle_enabled(
 pub fn build_feature_toggle_overlay(
     config: &crate::config::ProxyConfig,
 ) -> std::sync::Arc<arc_swap::ArcSwap<FeatureToggles>> {
-    std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(FeatureToggles {
+    let mut toggles = FeatureToggles {
         reminders: config.reminders.enabled,
-        recall_injector: config.recall_injector.enabled,
         weasel_intercept: config.weasel_intercept.enabled,
         steerer: config.steerer.enabled,
-        lesson_worker: config.lesson_worker.enabled,
-        harvester: config.harvester.enabled,
         ..FeatureToggles::default()
-    }))
+    };
+    crate::settings::registry::apply_boot_toggles(&config.sections, &mut toggles);
+    std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(toggles))
 }

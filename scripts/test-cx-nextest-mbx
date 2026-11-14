@@ -21,10 +21,15 @@ if ! command -v systemd-run >/dev/null 2>&1; then
   echo "CX-NEXTEST-MBX: SKIP systemd-run is not available to cap the run"; exit 0
 fi
 
+tmo="$(command -v gtimeout || command -v timeout || true)"
+if [[ -z "$tmo" ]]; then
+  echo "CX-NEXTEST-MBX: SKIP no timeout command to cap the run"; exit 0
+fi
+
 log="$(mktemp "${TMPDIR:-/tmp}/cx-nextest-mbx.XXXXXX")"
 trap 'rm -f "$log"' EXIT
 systemd-run --user --scope --quiet -p TasksMax=300 \
-  timeout 600 "$script_dir/cx" nextest list -p "$crate" >"$log" 2>&1
+  "$tmo" 600 "$script_dir/cx" nextest list -p "$crate" >"$log" 2>&1
 rc=$?
 
 if (( rc == 124 )); then

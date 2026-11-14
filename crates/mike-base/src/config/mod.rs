@@ -4,13 +4,11 @@ pub mod db_cost;
 pub mod db_fold;
 pub mod db_pool;
 pub mod launch;
-pub mod lesson_relations;
 pub mod load;
 pub mod memory_cap;
-pub mod memory_harvester;
-pub mod recall_injector;
 pub mod reminders;
 pub mod retention_sweep;
+pub mod sections;
 pub mod session_judge;
 pub mod steerer;
 
@@ -53,8 +51,8 @@ pub use bool_parse::{deserialize_permissive_bool, parse_permissive_bool_str};
 pub use launch::LaunchConfig;
 pub use overrides::apply_settings_overrides;
 pub use persist_bootstrap::{build_persist_handle, primary_tcp_unreachable};
-pub use proxy_config_defaults::LessonWorkerConfig;
 pub use schema::ProxyConfig;
+pub use sections::{ConfigSection, ConfigSections, SectionSpec};
 pub use write_guards::{
     FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
 };

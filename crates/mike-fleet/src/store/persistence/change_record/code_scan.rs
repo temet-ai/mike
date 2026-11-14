@@ -15,6 +15,7 @@ pub struct PendingChange {
 #[derive(Debug, Clone, Default)]
 pub struct NewFinding {
     pub rule_id: String,
+    pub rule_source: String,
     pub severity: String,
     pub message: String,
     pub line: i32,
@@ -38,7 +39,6 @@ pub struct NewCodeScan {
     pub error: Option<String>,
     pub findings_before: i32,
     pub findings_after: i32,
-    pub deleted: bool,
     pub present: Vec<String>,
     pub added: Vec<NewFinding>,
 }
@@ -69,6 +69,7 @@ pub struct CodeFindingRow {
     pub checkout: String,
     pub path: String,
     pub rule_id: String,
+    pub rule_source: String,
     pub severity: String,
     pub message: String,
     pub line: i32,
@@ -77,6 +78,7 @@ pub struct CodeFindingRow {
     pub fix: Option<String>,
     pub found_at: DateTime<Utc>,
     pub delivered_request_id: Option<i64>,
+    pub delivered_via: Option<String>,
     pub delivered_at: Option<DateTime<Utc>>,
     pub outcome: String,
     pub outcome_at: Option<DateTime<Utc>>,
@@ -98,11 +100,35 @@ pub struct CodeScanSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct RuleCount {
     pub rule_id: String,
+    pub source: String,
     pub found: i64,
     pub delivered: i64,
+    pub pushed: i64,
     pub fixed: i64,
     pub fixed_after_told: i64,
+    pub fixed_untold: i64,
+    pub fixed_by_other: i64,
+    pub ignored: i64,
     pub open: i64,
+    pub median_lag_s: Option<f64>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct SessionCodeCounts {
+    pub files_scanned: i64,
+    pub found: i64,
+    pub told: i64,
+    pub fixed_after_told: i64,
+    pub fixed: i64,
+    pub fixed_by_other: i64,
+    pub ignored: i64,
+    pub open: i64,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Settled {
+    pub fixed_by_other: i64,
+    pub ignored: i64,
 }
 
 impl crate::store::persistence::fleet_repo::FleetDb<'_> {
@@ -169,7 +195,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
                 return Ok(None);
             };
             let read_whole_file = scan.skipped.is_none() && scan.error.is_none();
-            let fixed = if scan.deleted || read_whole_file {
+            let fixed = if read_whole_file {
                 close_fixed(&mut tx, scan, scan_id).await?
             } else {
                 0
@@ -177,6 +203,57 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             insert_findings(&mut tx, scan, scan_id).await?;
             tx.commit().await?;
             Ok(Some(RecordedScan { scan_id, fixed }))
+        })
+        .await
+    }
+
+    pub async fn supersede_deleted_paths(
+        self,
+        checkout: &str,
+        paths: &[String],
+    ) -> Result<u64, PersistError> {
+        if paths.is_empty() {
+            return Ok(0);
+        }
+        crate::metrics::time_db("code_findings_supersede_deleted", async move {
+            let done = sqlx::query_file!(
+                "src/store/persistence/change_record/code_scan/supersede_deleted.sql",
+                checkout,
+                paths,
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(done.rows_affected())
+        })
+        .await
+    }
+
+    pub async fn settle_code_findings(self) -> Result<Settled, PersistError> {
+        crate::metrics::time_db("code_findings_settle", async move {
+            let row = sqlx::query_file!("src/store/persistence/change_record/code_scan/settle.sql")
+                .fetch_one(&self.pool)
+                .await?;
+            Ok(Settled {
+                fixed_by_other: row.fixed_by_other,
+                ignored: row.ignored,
+            })
+        })
+        .await
+    }
+
+    pub async fn session_code_counts(
+        self,
+        session: Uuid,
+    ) -> Result<SessionCodeCounts, PersistError> {
+        crate::metrics::time_db("code_findings_session_counts", async move {
+            let counts = sqlx::query_file_as!(
+                SessionCodeCounts,
+                "src/store/persistence/change_record/code_scan/session_counts.sql",
+                session,
+            )
+            .fetch_one(&self.pool)
+            .await?;
+            Ok(counts)
         })
         .await
     }
@@ -225,12 +302,14 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         delivered: &[mike_base::code_notes::Delivered],
     ) -> Result<u64, PersistError> {
         let findings: Vec<i64> = delivered.iter().map(|d| d.finding_id).collect();
-        let requests: Vec<i64> = delivered.iter().map(|d| d.request_id).collect();
+        let requests: Vec<Option<i64>> = delivered.iter().map(|d| d.request_id).collect();
+        let via: Vec<String> = delivered.iter().map(|d| d.via.to_string()).collect();
         crate::metrics::time_db("code_findings_mark_delivered", async move {
             let done = sqlx::query_file!(
                 "src/store/persistence/change_record/code_scan/mark_delivered.sql",
                 &findings,
-                &requests,
+                &requests as &[Option<i64>],
+                &via,
             )
             .execute(&self.pool)
             .await?;
@@ -295,7 +374,6 @@ async fn close_fixed(
         scan.checkout,
         scan.path,
         scan_id,
-        scan.deleted,
         &scan.present,
     )
     .fetch_one(&mut **tx)
@@ -313,6 +391,7 @@ async fn insert_findings(
     }
     let column = |pick: fn(&NewFinding) -> String| scan.added.iter().map(pick).collect::<Vec<_>>();
     let rule_ids = column(|f| f.rule_id.clone());
+    let sources = column(|f| f.rule_source.clone());
     let severities = column(|f| f.severity.clone());
     let messages = column(|f| f.message.clone());
     let matched = column(|f| f.matched.clone());
@@ -327,6 +406,7 @@ async fn insert_findings(
         scan.checkout,
         scan.path,
         &rule_ids,
+        &sources,
         &severities,
         &messages,
         &lines,

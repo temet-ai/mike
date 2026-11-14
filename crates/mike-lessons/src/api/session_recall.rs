@@ -38,7 +38,10 @@ pub async fn post_session_recall(
     let toggles = state.resolve_session_toggles(&id);
     let cfg = RecallInjectorConfig {
         enabled: toggles.recall_injector,
-        max_lessons_per_topic: toggles.recall_injector_max_lessons_per_topic,
+        max_lessons_per_topic: toggles
+            .features
+            .get::<crate::lessons_settings::RecallOverlay>()
+            .max_lessons_per_topic,
     };
     let answer = match state.persist.clone() {
         Some(persist) => {

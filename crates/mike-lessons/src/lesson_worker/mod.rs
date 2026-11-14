@@ -24,7 +24,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::LessonWorkerConfig;
+use crate::lessons_settings::LessonWorkerConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
@@ -68,7 +68,7 @@ pub fn spawn_lesson_worker(state: &AppState) {
 
     let embedding = state.embedding_service();
     let shutdown = state.shutdown();
-    let config = state.config.lesson_worker.clone();
+    let config = state.config.sections.get::<LessonWorkerConfig>();
     let cache = state.lesson_cache.clone();
     let toggles = state.feature_toggle_overlay.clone();
 
@@ -354,11 +354,12 @@ pub async fn consolidate_once(state: &AppState) {
     let Some(persist) = state.persist.as_ref() else {
         return;
     };
+    let worker_config = state.config.sections.get::<LessonWorkerConfig>();
     session_consolidation::run_session_consolidation(
         persist,
         &state.embedding_service(),
-        state.config.lesson_worker.session_consolidation_idle_secs,
-        state.config.lesson_worker.dedup_threshold,
+        worker_config.session_consolidation_idle_secs,
+        worker_config.dedup_threshold,
     )
     .await;
 }
@@ -369,7 +370,11 @@ pub async fn nightly_once(state: &AppState) {
     };
     nightly::run_nightly_consolidation(
         persist,
-        state.config.lesson_worker.max_lessons_per_project,
+        state
+            .config
+            .sections
+            .get::<LessonWorkerConfig>()
+            .max_lessons_per_project,
         "manual",
     )
     .await;

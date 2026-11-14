@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::analysis::AnalysisConfig;
 use crate::config::memory_cap::CapManagerConfig;
 
@@ -63,35 +61,6 @@ pub fn default_spa_origins() -> Vec<String> {
         "http://127.0.0.1:9990".to_string(),
         "http://localhost:9990".to_string(),
     ]
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct LessonWorkerConfig {
-    pub enabled: bool,
-
-    pub dedup_threshold: f32,
-
-    pub max_lessons_per_project: i64,
-
-    pub session_consolidation_idle_secs: u64,
-
-    pub nightly_consolidation_hour: u8,
-
-    pub gc_interval_secs: u64,
-}
-
-impl Default for LessonWorkerConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            dedup_threshold: 0.85,
-            max_lessons_per_project: 100,
-            session_consolidation_idle_secs: 300,
-            nightly_consolidation_hour: 3,
-            gc_interval_secs: 3600,
-        }
-    }
 }
 
 impl ProxyConfig {
@@ -208,17 +177,14 @@ impl Default for ProxyConfig {
             cap_manager: CapManagerConfig::default(),
             log_dir: None,
             log_max_files: 7,
-            lesson_worker: LessonWorkerConfig::default(),
-            recall_injector: crate::config::recall_injector::RecallInjectorConfig::default(),
-            harvester: crate::config::memory_harvester::HarvesterConfig::default(),
             steerer: crate::config::steerer::SteererConfig::default(),
             session_judge: crate::config::session_judge::SessionJudgeConfig::default(),
             retention_sweep: crate::config::retention_sweep::RetentionSweepConfig::default(),
             channel_link_sweep: crate::config::channel_link_sweep::ChannelLinkSweepConfig::default(
             ),
             db_cost: crate::config::db_cost::DbCostConfig::default(),
-            lesson_relations: crate::config::lesson_relations::LessonRelationsConfig::default(),
             launch: super::launch::LaunchConfig::default(),
+            sections: super::sections::ConfigSections::default(),
         }
     }
 }

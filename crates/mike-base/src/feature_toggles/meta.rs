@@ -61,6 +61,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
+        key: "code_findings_push",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "code_scan",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,

@@ -18,6 +18,7 @@
 		History,
 		Home,
 		LineChart,
+		ScanSearch,
 		MessageSquare,
 		Pin,
 		Search,
@@ -67,6 +68,7 @@
 		| '/agents'
 		| '/prompts'
 		| '/analysis'
+		| '/code-findings'
 		| '/tools#errors'
 		| '/diagnostics/agent-dispatches'
 		| '/diagnostics/memory'
@@ -207,6 +209,13 @@
 			description: 'Weasel-pattern findings across captured request bodies.',
 			href: '/analysis',
 			icon: LineChart
+		},
+		{
+			id: 'page:code-findings',
+			title: 'Code findings',
+			description: 'Which code rules fire and whether sessions fix them.',
+			href: '/code-findings',
+			icon: ScanSearch
 		},
 		{
 			id: 'page:tool-errors',

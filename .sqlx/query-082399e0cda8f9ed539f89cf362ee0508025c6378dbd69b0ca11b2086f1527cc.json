@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.code_findings f\n   SET outcome = 'superseded',\n       outcome_at = now()\n WHERE f.checkout = $1\n   AND f.path = ANY($2::text[])\n   AND f.outcome IN ('open', 'ignored')\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "082399e0cda8f9ed539f89cf362ee0508025c6378dbd69b0ca11b2086f1527cc"
+}

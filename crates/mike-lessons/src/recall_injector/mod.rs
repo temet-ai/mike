@@ -32,7 +32,7 @@ pub fn is_served(session_id: &str) -> bool {
     SERVED_BY_CLIENT.contains(session_id)
 }
 
-pub use crate::config::recall_injector::RecallInjectorConfig;
+pub use crate::lessons_settings::RecallInjectorConfig;
 
 #[derive(Debug)]
 pub enum RecallOutcome {

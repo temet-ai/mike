@@ -9,6 +9,7 @@ use super::DetectLessonRelationsArgs;
 use crate::config::ProxyConfig;
 use crate::config::load;
 use crate::config::persist_bootstrap::PersistLlmUsageSink;
+use crate::lessons_settings::LessonRelationsConfig;
 use crate::llm::provider::ModelTier;
 use crate::llm::{LlmRole, LlmUsageSink, OpenRouterClient};
 use crate::settings::SettingsOverlay;
@@ -45,18 +46,24 @@ fn resolve_models(
 ) -> Result<(String, String)> {
     let proposer_model = policy.resolve(
         Some(ModelTier::Strong),
-        &config.lesson_relations.proposer_model,
+        &config
+            .sections
+            .get::<LessonRelationsConfig>()
+            .proposer_model,
     );
     let adjudicator_model = policy.resolve(
         Some(ModelTier::Fast),
-        &config.lesson_relations.adjudicator_model,
+        &config
+            .sections
+            .get::<LessonRelationsConfig>()
+            .adjudicator_model,
     );
     crate::lesson_relations::assert_models_differ(&proposer_model, &adjudicator_model).map_err(
         |error| {
             anyhow::anyhow!(
                 "detect-lesson-relations: {error}. Change the stored setting lesson_relations.proposer_model (now {:?}) or lesson_relations.adjudicator_model (now {:?}) at /settings so the two differ",
-                config.lesson_relations.proposer_model,
-                config.lesson_relations.adjudicator_model
+                config.sections.get::<LessonRelationsConfig>().proposer_model,
+                config.sections.get::<LessonRelationsConfig>().adjudicator_model
             )
         },
     )?;
@@ -70,14 +77,20 @@ fn build_setup(config: &ProxyConfig, overlay: SettingsOverlay) -> Result<Relatio
         config.steerer.openrouter_api_key.as_ref(),
         &policy,
         Some(ModelTier::Strong),
-        &config.lesson_relations.proposer_model,
+        &config
+            .sections
+            .get::<LessonRelationsConfig>()
+            .proposer_model,
     )
     .map_err(|e| anyhow::anyhow!("detect-lesson-relations: {e}"))?;
     let adjudicator_key = crate::llm::key::cli_api_key(
         config.steerer.openrouter_api_key.as_ref(),
         &policy,
         Some(ModelTier::Fast),
-        &config.lesson_relations.adjudicator_model,
+        &config
+            .sections
+            .get::<LessonRelationsConfig>()
+            .adjudicator_model,
     )
     .map_err(|e| anyhow::anyhow!("detect-lesson-relations: {e}"))?;
     let api_key = if proposer_key.is_empty() {
@@ -106,7 +119,7 @@ pub(super) async fn detect_lesson_relations(
         .await
         .context("could not connect to the target database")?;
     let overlay = apply_stored(&mut config, stored_rows(&handle).await);
-    if !config.lesson_relations.enabled {
+    if !config.sections.get::<LessonRelationsConfig>().enabled {
         println!("lesson_relations.enabled is false — not running the detector.");
         return Ok(());
     }
@@ -151,7 +164,10 @@ async fn run_detection_with_clients(
         setup.proposer_model.clone(),
         None,
         Some(std::time::Duration::from_secs(
-            config.lesson_relations.request_timeout_secs,
+            config
+                .sections
+                .get::<LessonRelationsConfig>()
+                .request_timeout_secs,
         )),
     )?;
     let runtime_settings = crate::settings::resolve_shared_llm_settings(&setup.overlay);
@@ -213,7 +229,10 @@ async fn run_detection_with_clients(
     let report = crate::lesson_relations::run_detection(
         handle,
         &judge,
-        config.lesson_relations.candidate_distance_threshold,
+        config
+            .sections
+            .get::<LessonRelationsConfig>()
+            .candidate_distance_threshold,
         &project_ids,
         args.dry_run,
         &reranked.handled,

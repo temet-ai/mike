@@ -83,6 +83,18 @@ const PATTERNS = [
     null,
   ],
   ["Data", "Readout", "shared/InstrumentReadout.svelte", null],
+  [
+    "Feedback",
+    "Status text",
+    "ui/status-mark/status-mark.svelte",
+    "import { StatusMark } from '$lib/components/ui/status-mark'",
+  ],
+  [
+    "Data",
+    "Data table",
+    "ui/data-table/data-table.svelte",
+    "import { DataTable, DataTableRow, DataTableCell, DataTableGroupRow } from '$lib/components/ui/data-table'",
+  ],
   ["Surfaces", "Panel", "detail/SectionCard.svelte", null],
   [
     "Surfaces",

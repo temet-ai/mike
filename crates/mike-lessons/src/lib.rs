@@ -5,6 +5,7 @@ pub mod lesson_delivery;
 pub mod lesson_proposer;
 pub mod lesson_relations;
 pub mod lesson_worker;
+pub mod lessons_settings;
 pub mod memory_harvester;
 pub mod memory_keeper;
 pub mod quiescence_worker;

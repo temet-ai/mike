@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use super::{SYSTEM_PROMPT, prompt_from_rows};
-use crate::settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT_KEY;
+use crate::lessons_settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT_KEY;
 
 #[test]
 fn prompt_from_rows_without_the_setting_is_the_built_in_prompt() {

@@ -1,7 +1,28 @@
 use std::time::Duration;
 
 use super::state::Commit;
-use crate::change_record::watch::Git;
+
+struct Git<'a>(&'a str);
+
+impl Git<'_> {
+    async fn run(&self, args: &[&str]) -> std::io::Result<Vec<u8>> {
+        let output = tokio::process::Command::new("git")
+            .arg("-C")
+            .arg(self.0)
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .output()
+            .await?;
+        if output.status.success() {
+            Ok(output.stdout)
+        } else {
+            Err(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).into_owned(),
+            ))
+        }
+    }
+}
 
 const READ_TIMEOUT: Duration = Duration::from_secs(5);
 const FRESH_SECS: i64 = 900;
@@ -23,7 +44,7 @@ pub fn belongs_to_command(command: &str, message: &str, committed_at: i64, now: 
     !subject.is_empty() && command.contains(subject) && now - committed_at <= FRESH_SECS
 }
 
-async fn text(git: &Git, args: &[&str]) -> Option<String> {
+async fn text(git: &Git<'_>, args: &[&str]) -> Option<String> {
     let bytes = tokio::time::timeout(READ_TIMEOUT, git.run(args))
         .await
         .ok()?
@@ -32,7 +53,7 @@ async fn text(git: &Git, args: &[&str]) -> Option<String> {
 }
 
 pub async fn read(checkout: &str, command: &str, now: i64) -> Option<Commit> {
-    let git = Git::new(checkout);
+    let git = Git(checkout);
     let head = text(&git, &["log", "-1", "--format=%H%x00%ct%x00%B"]).await?;
     let (sha, message, committed_at) = parse_head(&head)?;
     if !belongs_to_command(command, &message, committed_at, now) {

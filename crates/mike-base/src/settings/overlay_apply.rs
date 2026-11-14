@@ -27,7 +27,10 @@ fn apply_one_row(overlay: &mut SettingsOverlay, key: &str, value: &serde_json::V
     if apply_worker_identity_row(overlay, key, value) {
         return;
     }
-    apply_global_llm_row(overlay, key, value);
+    if apply_global_llm_row(overlay, key, value) {
+        return;
+    }
+    super::registry::apply_overlay_row(&mut overlay.features, key, value);
 }
 
 fn apply_session_scoped_row(
@@ -45,13 +48,6 @@ fn apply_session_scoped_row(
         }
         "weasel_intercept.correction_prompt" => {
             set_prompt(&mut overlay.weasel_intercept_correction_prompt, key, value);
-        }
-        "recall_injector.max_lessons_per_topic" => {
-            set_usize(
-                &mut overlay.recall_injector_max_lessons_per_topic,
-                key,
-                value,
-            );
         }
         "file_read_compression.min_bytes" => {
             set_usize(&mut overlay.file_read_compression_min_bytes, key, value);
@@ -259,7 +255,7 @@ fn apply_global_llm_row(
     true
 }
 
-fn set_bool(field: &mut bool, key: &str, value: &serde_json::Value) {
+pub fn set_bool(field: &mut bool, key: &str, value: &serde_json::Value) {
     if let Some(b) = value.as_bool() {
         *field = b;
     } else {
@@ -270,7 +266,7 @@ fn set_bool(field: &mut bool, key: &str, value: &serde_json::Value) {
     }
 }
 
-fn set_usize(field: &mut usize, key: &str, value: &serde_json::Value) {
+pub fn set_usize(field: &mut usize, key: &str, value: &serde_json::Value) {
     if let Some(n) = value.as_u64() {
         *field = n as usize;
     } else {
@@ -281,7 +277,7 @@ fn set_usize(field: &mut usize, key: &str, value: &serde_json::Value) {
     }
 }
 
-fn set_i64(field: &mut i64, key: &str, value: &serde_json::Value) {
+pub fn set_i64(field: &mut i64, key: &str, value: &serde_json::Value) {
     if let Some(n) = value.as_i64() {
         *field = n;
     } else {
@@ -292,7 +288,7 @@ fn set_i64(field: &mut i64, key: &str, value: &serde_json::Value) {
     }
 }
 
-fn set_f64(field: &mut f64, key: &str, value: &serde_json::Value) {
+pub fn set_f64(field: &mut f64, key: &str, value: &serde_json::Value) {
     if let Some(f) = value.as_f64() {
         *field = f;
     } else {
@@ -303,7 +299,7 @@ fn set_f64(field: &mut f64, key: &str, value: &serde_json::Value) {
     }
 }
 
-fn set_string(field: &mut String, key: &str, value: &serde_json::Value) {
+pub fn set_string(field: &mut String, key: &str, value: &serde_json::Value) {
     if let Some(s) = value.as_str() {
         *field = s.to_owned();
     } else {
@@ -328,7 +324,7 @@ fn warn_prompt_blank(key: &str) {
     );
 }
 
-fn set_prompt(field: &mut String, key: &str, value: &serde_json::Value) {
+pub fn set_prompt(field: &mut String, key: &str, value: &serde_json::Value) {
     let Some(s) = value.as_str() else {
         warn_expected_string(key, value);
         return;
@@ -340,7 +336,7 @@ fn set_prompt(field: &mut String, key: &str, value: &serde_json::Value) {
     *field = s.to_owned();
 }
 
-fn set_string_list(field: &mut Vec<String>, key: &str, value: &serde_json::Value) {
+pub fn set_string_list(field: &mut Vec<String>, key: &str, value: &serde_json::Value) {
     if let Some(arr) = value.as_array() {
         *field = arr
             .iter()
@@ -354,7 +350,7 @@ fn set_string_list(field: &mut Vec<String>, key: &str, value: &serde_json::Value
     }
 }
 
-fn set_optional_string(field: &mut Option<String>, key: &str, value: &serde_json::Value) {
+pub fn set_optional_string(field: &mut Option<String>, key: &str, value: &serde_json::Value) {
     if let Some(s) = value.as_str() {
         *field = Some(s.to_owned());
     } else {
@@ -365,7 +361,7 @@ fn set_optional_string(field: &mut Option<String>, key: &str, value: &serde_json
     }
 }
 
-fn set_optional_prompt(field: &mut Option<String>, key: &str, value: &serde_json::Value) {
+pub fn set_optional_prompt(field: &mut Option<String>, key: &str, value: &serde_json::Value) {
     let Some(s) = value.as_str() else {
         warn_expected_string(key, value);
         return;
@@ -389,7 +385,7 @@ pub fn set_optional_i64(field: &mut Option<i64>, key: &str, value: &serde_json::
     }
 }
 
-fn set_optional_f32(field: &mut Option<f32>, key: &str, value: &serde_json::Value) {
+pub fn set_optional_f32(field: &mut Option<f32>, key: &str, value: &serde_json::Value) {
     if let Some(f) = value.as_f64() {
         *field = Some(f as f32);
     } else {
@@ -400,7 +396,7 @@ fn set_optional_f32(field: &mut Option<f32>, key: &str, value: &serde_json::Valu
     }
 }
 
-fn set_optional_usize(field: &mut Option<usize>, key: &str, value: &serde_json::Value) {
+pub fn set_optional_usize(field: &mut Option<usize>, key: &str, value: &serde_json::Value) {
     if let Some(n) = value.as_u64() {
         *field = Some(n as usize);
     } else {
@@ -411,7 +407,7 @@ fn set_optional_usize(field: &mut Option<usize>, key: &str, value: &serde_json::
     }
 }
 
-fn set_optional_u64(field: &mut Option<u64>, key: &str, value: &serde_json::Value) {
+pub fn set_optional_u64(field: &mut Option<u64>, key: &str, value: &serde_json::Value) {
     if let Some(n) = value.as_u64() {
         *field = Some(n);
     } else {

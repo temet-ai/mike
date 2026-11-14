@@ -76,7 +76,7 @@ pub(in super::super) fn plan_panel(inputs: &FeatureInputs) -> Panel<Preset> {
             Preset::Recommended,
             "Recommended",
             format!(
-                "Watch only, plus recall, lessons and reminders. Recall adds a note with lessons matched to the topic of the request. Lessons adds those of earlier sessions to the first turn of a session and to subagent turns. Reminders add a note built from the response analysis of the previous request. These notes are added to what Claude Code sends to Anthropic, and nothing leaves the machine for them.{}",
+                "Watch only, plus recall, lessons, reminders and code findings. Recall adds a note with lessons matched to the topic of the request. Lessons adds those of earlier sessions to the first turn of a session and to subagent turns. Reminders add a note built from the response analysis of the previous request. Code findings (\"Tell sessions what their edit added\") scans each file a session edits and tells the session what the edit added; it also switches on the change record and the code scan it needs. These notes are added to what Claude Code sends to Anthropic, and nothing leaves the machine for them.{}",
                 turns_off(inputs, Preset::Recommended)
             ),
         )

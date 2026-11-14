@@ -82,6 +82,7 @@ Defaults below are the ones in this build. "Rewrites" means the request mike for
 | `repeated_notices` | Removes repeats of Claude Code's standard notices from the copy sent on. |
 | `file_read_compression`, `shell_output_compression` | Shorten older file reads and command output in a conversation's history. Each starts in `shadow` mode, which only records what it would cut. See [Compression](compression.md). |
 | `reminder_on_token` | Replaces a marker some hooks add with a note. |
+| `code_findings` | Adds a note naming the code-check findings in the session's own recent edits. Needs `code_scan`. |
 
 ### Off by default: changes what you receive
 
@@ -136,6 +137,7 @@ These are off, and none of the first four sends text to another service:
 | `prompt_assistant` | The prompt assistant; its sign-in and limits are on `/settings/assistants`. |
 | `launch_brief` | Sends a started session's long brief as mail from mike and keeps it as the session's note. Off, the brief is written to a file the session is told to read. |
 | `client_serves_self_identity` | When a client such as a Claude Code mod supplies a session's identity note, mike stands aside for that session. |
+| `code_scan` | Checks each edit a session records with ast-grep and keeps the scans and findings. Nothing leaves the machine. |
 
 A switch can be on in this list and still do nothing. `semantic_context` needs an embedding service, and `embedding.enabled` is off in the boot defaults. If the settings page shows `embedding.enabled` or `lesson_relations.enabled` as on in a fresh install, that is the page's own default and the capability panel says whether it works.
 

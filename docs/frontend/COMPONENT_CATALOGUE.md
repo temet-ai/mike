@@ -296,6 +296,7 @@ fetching of its own.
 - `frontend/src/lib/components/skills/SkillRevisionList.svelte` — keep: every draft of one skill folder, newest first, each linking to its own page with the current one marked; a different row type (`SkillRevision`), not a label history.
 - `frontend/src/lib/components/improvement/GuardWakeList.svelte` — keep: one `.edge.mech-group` of `GuardWakeCard` bands (optional lead band, answerable nudges, then those not judged yet under their own header), shared between the Nudges tab and the guard page; an `emptyText` prop reports an empty result; a different row type (`GuardWake`), not a label history.
 - `frontend/src/lib/components/threads/ThreadList.svelte` — keep: the Threads page's per-project list of work threads with their state, each opening its thread; a different row type (work threads), not a label history.
+- `frontend/src/lib/components/code-findings/CodeFindingList.svelte` — keep: a session's code findings grouped by file and rule, each with its matched code, fix, delivery line and outcome; a different row type (`CodeFinding`), not a label history.
 
 ## Marker
 
@@ -402,6 +403,7 @@ since the 2026-09-08 session-page rework, and the message-view cards draw their 
 - `frontend/src/lib/components/judges/JudgeInUsePanel.svelte` — keep: the configuration a judge runs with now, as a label/value list inside a `.edge.mech-group` with an Edit action in its band header; domain-typed facts, not a raw-body viewer.
 - `frontend/src/lib/components/judges/JudgeAgreementPanel.svelte` — keep: the latest labelling accuracy of the configuration in use (how often the judge gave the right label in its newest accuracy run), with the turns left to review and a Review labels link; domain-typed figures, not a raw-body viewer.
 - `frontend/src/lib/components/improvement/GuardQuestionPanel.svelte` — keep: one turn-guard question in full (mode, fires this week, precision, holdback/effect, relapse-evidence progress, its delivered `GuardWakeList`) as an `.edge.mech-group` card on `/sessions/improvement/guard`; domain-typed figures, not a raw-body viewer.
+- `frontend/src/lib/components/code-findings/SessionCodeFindingsPanel.svelte` — keep: the session page's code findings band (seven counts and the grouped findings) inside the session `.mech-group`; loads `/api/code-findings?session=`, a different subject from a project detail panel.
 
 ## Popover
 
@@ -540,3 +542,6 @@ Highest importer count (3); a generic masked key/value table for HTTP headers.
   `TestRunCard`'s siblings on `/sessions/labelling/accuracy`), one `ActionEffectRow` per
   lesson/directive/guard question with its measured effect; prose-shaped content reads better as a
   band than as table cells, and it has neither HeadersTable's masking nor CallerTable's sorting.
+- `frontend/src/lib/components/code-findings/RuleOutcomeTable.svelte` — keep: the `/code-findings` rules table, one row per rule with told, pushed, fixed, ignored and open counts, a fix rate and a totals row; built on `ui/data-table`, a different row type (`CodeRuleCount`), not a headers table.
+- `frontend/src/lib/components/code-findings/RuleCatalogueTable.svelte` — keep: every code rule mike runs, grouped by language with severity, source and what each replaces; built on `ui/data-table`, a different row type (`CodeRuleInfo`).
+- `frontend/src/lib/components/code-findings/CheckoutRulesTable.svelte` — keep: the watched checkouts joined to the project rule files each loads, with the load error printed in full under its row; built on `ui/data-table`, a different row type (`CodeProjectRules`).

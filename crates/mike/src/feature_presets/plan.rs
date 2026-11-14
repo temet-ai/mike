@@ -2,7 +2,13 @@ use clap::ValueEnum;
 
 use crate::feature_toggles::{FeatureToggles, TOGGLE_META, get_toggle_enabled};
 
-pub(crate) const RECOMMENDED_ON: [&str; 3] = ["recall_injector", "agent_lessons", "reminders"];
+pub(crate) const RECOMMENDED_ON: [&str; 4] = [
+    "recall_injector",
+    "agent_lessons",
+    "reminders",
+    "code_findings",
+];
+pub(crate) const CODE_FINDINGS_PREREQUISITES: [&str; 2] = ["change_record", "code_scan"];
 pub(crate) const LESSONS_SETTING: &str = "reminders.inject_lessons";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -40,7 +46,7 @@ pub(crate) struct Plan {
 
 pub(crate) fn plan(preset: Preset) -> Plan {
     let defaults = FeatureToggles::default();
-    let toggles = TOGGLE_META
+    let mut toggles: Vec<(&'static str, bool)> = TOGGLE_META
         .iter()
         .map(|meta| {
             let default = get_toggle_enabled(&defaults, meta.key).unwrap_or(false);
@@ -52,9 +58,24 @@ pub(crate) fn plan(preset: Preset) -> Plan {
             (meta.key, wanted)
         })
         .collect();
+    require_code_findings_prerequisites(&mut toggles);
     Plan {
         toggles,
         session_lessons: preset != Preset::WatchOnly,
+    }
+}
+
+fn require_code_findings_prerequisites(toggles: &mut [(&'static str, bool)]) {
+    let wanted = toggles
+        .iter()
+        .any(|(key, on)| *on && *key == "code_findings");
+    if !wanted {
+        return;
+    }
+    for (key, on) in toggles.iter_mut() {
+        if CODE_FINDINGS_PREREQUISITES.contains(key) {
+            *on = true;
+        }
     }
 }
 

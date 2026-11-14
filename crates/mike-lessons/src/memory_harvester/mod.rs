@@ -2,7 +2,7 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod hook;
 pub mod parser;
 
-pub use crate::config::memory_harvester::HarvesterConfig;
+pub use crate::lessons_settings::HarvesterConfig;
 pub use hook::HarvesterHook;
 pub use parser::scan_update_tags;
 

@@ -55,10 +55,10 @@ async fn upsert_registration_row(
                       registered_at, lease_expires_at, released_at, pid, boot_id, reaped_at)
                  VALUES ($1, $2, $3, $4, $5, now(), $6, NULL, $7, $8, NULL)
                  ON CONFLICT (session_id) DO UPDATE
-                     SET project_id       = excluded.project_id,
-                         cwd              = excluded.cwd,
-                         worktree         = excluded.worktree,
-                         registered_via   = excluded.registered_via,
+                     SET project_id       = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.project_id ELSE excluded.project_id END,
+                         cwd              = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.cwd ELSE excluded.cwd END,
+                         worktree         = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.worktree ELSE excluded.worktree END,
+                         registered_via   = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.registered_via ELSE excluded.registered_via END,
                          registered_at    = now(),
                          lease_expires_at = excluded.lease_expires_at,
                          released_at      = NULL,
@@ -227,9 +227,12 @@ impl PersistHandle {
             let (session_id, flow_admission) =
                 super::flow_admission::resolve_registration_session(&mut tx, &input).await?;
             sqlx::query!(
-                "UPDATE sessions.sessions SET cwd = $2 WHERE id = $1",
+                "UPDATE sessions.sessions
+                    SET cwd = CASE WHEN $3 AND cwd IS NOT NULL THEN cwd ELSE $2 END
+                  WHERE id = $1",
                 session_id,
                 input.cwd,
+                registered_via == RegisteredVia::Passive,
             )
             .execute(&mut *tx)
             .await?;
@@ -423,3 +426,7 @@ impl PersistHandle {
         .await
     }
 }
+
+#[cfg(test)]
+#[path = "registration_passive_tests.rs"]
+mod passive_tests;

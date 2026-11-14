@@ -12,8 +12,8 @@ use chrono::{DateTime, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::lesson_proposer::ProposerSettings;
+use crate::lessons_settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT_KEY;
 use crate::llm::{LlmCallContext, LlmRole, OpenRouterClient};
-use crate::settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT_KEY;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::supplied_items::{NewVerdict, PendingVerdict};

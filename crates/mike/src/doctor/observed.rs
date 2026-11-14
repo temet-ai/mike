@@ -19,6 +19,7 @@ pub(crate) struct Observed {
     pub(crate) embeddings: EmbeddingFacts,
     pub(crate) rerank: RerankFacts,
     pub(crate) launch_backend: String,
+    pub(crate) code_scan: Option<super::code_scan::CodeScanFacts>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
+use crate::launch::open_changes::open_change_paths;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 use super::changed::mark_committed;
 use super::observation::Observation;
@@ -21,18 +21,8 @@ pub async fn mark_session_changes(
     let Some(checkout) = identity.cwd else {
         return;
     };
-    if !matches!(
-        persist.fleet().newest_change_event(&checkout).await,
-        Ok(Some(_))
-    ) {
+    let Some(open) = open_change_paths(persist, &checkout).await else {
         return;
-    }
-    let open = match persist.fleet().open_changes(&checkout).await {
-        Ok(rows) => rows.into_iter().map(|r| r.path).collect::<Vec<_>>(),
-        Err(error) => {
-            tracing::debug!(%error, "steering facts: open changes unavailable; committed left unknown");
-            return;
-        }
     };
     mark_committed(&mut observation.changed, &checkout, &open);
 }

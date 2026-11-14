@@ -22,6 +22,10 @@ fn rules() -> Result<&'static mike_code::RuleSet> {
     mike_code::RuleSet::builtin().map_err(|err| anyhow::anyhow!("{err}"))
 }
 
+fn active() -> Result<super::ActiveRules> {
+    Ok(super::ActiveRules::Builtin(rules()?))
+}
+
 #[tokio::test]
 async fn an_edit_records_only_the_findings_it_added() -> Result<()> {
     let (_dir, git, shas) = repo_with(&[
@@ -41,7 +45,7 @@ async fn an_edit_records_only_the_findings_it_added() -> Result<()> {
         before_sha: Some(shas[0].clone()),
         after_sha: Some(shas[1].clone()),
     };
-    let record = scan_change(&git, rules()?, git.root(), &change).await;
+    let record = scan_change(&git, active()?, git.root(), &change).await;
     assert_eq!(record.error, None);
     assert_eq!(record.language.as_deref(), Some("rust"));
     assert_eq!((record.findings_before, record.findings_after), (1, 2));
@@ -60,14 +64,13 @@ async fn a_deleted_file_and_an_unknown_blob_are_recorded_not_dropped() -> Result
         before_sha: Some("abc".to_string()),
         after_sha: None,
     };
-    let record = scan_change(&git, rules()?, git.root(), &deleted).await;
-    assert!(record.deleted);
+    let record = scan_change(&git, active()?, git.root(), &deleted).await;
     assert_eq!(record.skipped.as_deref(), Some("deleted"));
     let missing = PendingChange {
         after_sha: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
         ..deleted
     };
-    let record = scan_change(&git, rules()?, git.root(), &missing).await;
+    let record = scan_change(&git, active()?, git.root(), &missing).await;
     assert!(record.error.is_some());
     Ok(())
 }
@@ -111,4 +114,73 @@ fn findings_wait_below_an_unnamed_change_and_are_posted_once() {
     assert_eq!(again, vec![8], "9 was already posted; 8 was named later");
     poster.hand_over(Vec::new(), None);
     assert!(notes.take(session, 10).is_empty());
+}
+
+const NO_PRINTLN: &str = "id: no-println\nlanguage: rust\nseverity: warning\nrule:\n  pattern: println!($$$)\nmessage: Use tracing.\n";
+
+#[tokio::test]
+async fn project_rules_load_from_sgconfig_and_mike_dir_and_reload_when_changed() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().to_str().context("path")?.to_string();
+    std::fs::create_dir_all(dir.path().join("lint"))?;
+    std::fs::write(dir.path().join("sgconfig.yml"), "ruleDirs:\n  - lint\n")?;
+    std::fs::write(dir.path().join("lint/no-println.yml"), NO_PRINTLN)?;
+    let mut project = super::ProjectRules::new(rules()?);
+    let active = project.for_checkout(&root).await;
+    assert!(matches!(active, super::ActiveRules::Project(_)));
+    let found = mike_code::scan(active.get(), "src/a.rs", b"fn a() { println!(\"x\"); }\n");
+    assert!(
+        found
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "no-println" && f.source == "project")
+    );
+    let status = super::project_rules_status();
+    let mine = status
+        .iter()
+        .find(|s| s.checkout == root)
+        .context("no status")?;
+    assert_eq!(mine.files, vec!["lint/no-println.yml".to_string()]);
+    assert_eq!(mine.rules, vec!["no-println".to_string()]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_broken_project_rule_keeps_the_builtin_rules_and_reports_the_file() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().to_str().context("path")?.to_string();
+    std::fs::create_dir_all(dir.path().join(super::project_rules::MIKE_RULE_DIR))?;
+    std::fs::write(
+        dir.path()
+            .join(super::project_rules::MIKE_RULE_DIR)
+            .join("bad.yml"),
+        "id: x\nrule: [",
+    )?;
+    let mut project = super::ProjectRules::new(rules()?);
+    let active = project.for_checkout(&root).await;
+    assert!(matches!(active, super::ActiveRules::Builtin(_)));
+    let status = super::project_rules_status();
+    let mine = status
+        .iter()
+        .find(|s| s.checkout == root)
+        .context("no status")?;
+    assert!(mine.error.as_deref().is_some_and(|e| e.contains("bad.yml")));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_checkout_without_rule_files_uses_the_builtin_rules() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().to_str().context("path")?.to_string();
+    let mut project = super::ProjectRules::new(rules()?);
+    assert!(matches!(
+        project.for_checkout(&root).await,
+        super::ActiveRules::Builtin(_)
+    ));
+    assert!(
+        super::project_rules_status()
+            .iter()
+            .all(|s| s.checkout != root)
+    );
+    Ok(())
 }

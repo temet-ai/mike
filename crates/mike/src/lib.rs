@@ -1,4 +1,9 @@
+pub use mike_fleet::launch;
+pub use mike_fleet::*;
 pub use mike_lessons::*;
+pub use mike_lessons::{
+    analysis, dossier, extract, memory_cap, observability, settings, workspace,
+};
 pub mod api;
 pub mod app;
 pub mod claude;
@@ -9,6 +14,7 @@ pub mod db_listener;
 pub mod db_provision;
 pub mod doctor;
 pub mod feature_presets;
+pub mod feature_settings;
 pub mod forward;
 pub mod retention_worker;
 pub(crate) mod scheduled_jobs;

@@ -168,7 +168,7 @@ mbx_bin_path() {
 # The cargo subcommands mbx caches. Anything else mbx runs as plain cargo, and
 # plain cargo must never write into an mbx build directory (read-only hard
 # links into the store), so those are never sent through mbx. nextest builds its
-# test binaries through mbx (scripts/cx sets CARGO to mbx) and only runs them.
+# test binaries through mbx (scripts/cx sets CARGO to a cargo shim that runs mbx) and only runs them.
 MBX_CACHED_SUBCOMMANDS=" build check clippy test nextest "
 # What scripts/cx sends through mbx without being asked: all of them, except build
 # when MIKE_BUILD_IDENTITY=git asks for the commit to be compiled in (make install,

@@ -45,6 +45,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(mike::launch::fleet::timed_run(program, args));
     }
     mike::launch::cli::fleet_settings::install();
+    mike::feature_settings::install();
     mike::store::persistence::migrations::install(
         sqlx::migrate!("../mike-base/src/store/persistence/migrations"),
         sqlx::migrate!("../mike-base/src/store/persistence/migrations"),

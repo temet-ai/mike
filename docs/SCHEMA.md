@@ -4083,7 +4083,7 @@ allows.
 | `request_body` | `JSONB NULL` | Added in `20260902000001_llm_calls_request_body.sql`. The full outbound request body (system + messages + parameters) exactly as sent, captured once by `crates/mike/src/llm/openrouter.rs` and stored unchanged — never a slice or a summary. `NULL` on rows predating this column and on refused calls, which never build a body in the first place. This is what lets the session judge's related-sessions block (the neighbour-session context spliced into the judge prompt) be read back off the live system after the fact. |
 | `machine_uuid` | `UUID NULL` | Added in `20261014130000_llm_worker_leases.sql`. The `machine_uuid` from `machine.json` of the proxy that made the call, filled by `PersistHandle::insert_llm_call`. `NULL` on rows recorded before the column existed and on rows from a proxy with no machine identity file. Not indexed: the per-machine audit reads a bounded time window through `idx_llm_calls_created_at`. |
 
-Migration `20261114090000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
+Migration `20261114150000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
 
 **Indexes:**
 - `idx_llm_calls_created_at`: `created_at` (BRIN) — append-only time series
@@ -4148,7 +4148,7 @@ the roles another machine holds, with that machine's uuid and heartbeat age.
 
 ## Domain: `decisions`
 
-Added by `20261114090000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
+Added by `20261114150000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
 
 ### `decisions.records`
 
@@ -4216,7 +4216,7 @@ One row per `decisions_loop` run. The loop reads the newest `finished_at` to kno
 
 `wright.checks`: the migration seeds `decisions_health` (source `capture_db`, daily, params `max_failure_share` 0.2 and `window_hours` 24).
 
-The fleet layer's migration `20261114100000_fleet_decisions.sql` adds `mailbox.messages.held_until_turn`, `launch.tree_checks.triage` and `launch.request_efforts`, documented under their own tables.
+The fleet layer's migration `20261114160000_fleet_decisions.sql` adds `mailbox.messages.held_until_turn`, `launch.tree_checks.triage` and `launch.request_efforts`, documented under their own tables.
 
 ---
 
@@ -4645,7 +4645,7 @@ sends and SET NULL if the sending session is deleted.
 | `consumed_at` | `TIMESTAMPTZ NULL` | Stamped by `POST /api/sessions/{id}/messages/{uuid}/ack` — explicit recipient acknowledgment; stops redelivery |
 | `dead_lettered_at` | `TIMESTAMPTZ NULL` | Stamped when `delivery_attempts` reaches `mailbox_redelivery_max_attempts` without an ack — stops redelivery |
 | `delivery_attempts` | `INT NOT NULL DEFAULT 0` | Count of successful envelope injections (first send + every redelivery) |
-| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114100000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn |
+| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114160000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn |
 
 **Indexes:**
 - `idx_mailbox_messages_from_session`: `from_session_id WHERE NOT NULL` (BTree partial) — reply pointer queries
@@ -5615,7 +5615,7 @@ The whole output is kept. Written and read through `store/persistence/fleet/` (`
 | `told` | `TEXT[] NOT NULL DEFAULT '{}'` | The seats mike mailed because their file failed it |
 | `state_after` | `TEXT NULL` | The tree state when the check finished; when it differs from `state` the tree changed during the run, so the result belongs to neither state and is not served to a later asker |
 | `executing_at` | `TIMESTAMPTZ NULL` | When the managed command's process actually started (`launch/fleet/managed_command.rs`); NULL while queued |
-| `triage` | `TEXT NULL` | Added by `20261114100000_fleet_decisions.sql`. One line saying what a failed check needs (retry, fix the code, fix the environment) and why; computed once when the check completes and printed in the receipt |
+| `triage` | `TEXT NULL` | Added by `20261114160000_fleet_decisions.sql`. One line saying what a failed check needs (retry, fix the code, fix the environment) and why; computed once when the check completes and printed in the receipt |
 
 **Indexes:**
 - `idx_tree_checks_run_state`: `(run_id, state, id DESC)` (BTree)
@@ -5624,7 +5624,7 @@ The whole output is kept. Written and read through `store/persistence/fleet/` (`
 
 ### `launch.request_efforts`
 
-Added by `20261114100000_fleet_decisions.sql`. One row per request a fleet seat made, for the measured split of effort into work, machinery and waiting. Written by `launch/fleet/decisions/effort.rs` on each fleet tick through `store/persistence/fleet/effort.rs`; summed by the run record and `get_fleet_record`.
+Added by `20261114160000_fleet_decisions.sql`. One row per request a fleet seat made, for the measured split of effort into work, machinery and waiting. Written by `launch/fleet/decisions/effort.rs` on each fleet tick through `store/persistence/fleet/effort.rs`; summed by the run record and `get_fleet_record`.
 
 | Column | Type | Purpose |
 |---|---|---|

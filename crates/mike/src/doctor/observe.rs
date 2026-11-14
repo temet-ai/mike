@@ -79,6 +79,7 @@ pub(super) async fn observe(config: &ProxyConfig) -> Observed {
         embeddings,
         rerank,
         launch_backend: config.launch.backend.clone(),
+        code_scan: inspect.code_scan(),
     }
 }
 
@@ -122,6 +123,7 @@ fn config_file_facts() -> ConfigFileFacts {
 pub(crate) struct InspectView {
     health: Option<Value>,
     capabilities: Option<Value>,
+    code_findings: Option<Value>,
 }
 
 impl InspectView {
@@ -130,16 +132,23 @@ impl InspectView {
             return Self {
                 health: None,
                 capabilities: None,
+                code_findings: None,
             };
         };
-        let (health, capabilities) = tokio::join!(
+        let (health, capabilities, code_findings) = tokio::join!(
             get_json(&client, format!("http://{addr}/api/health")),
             get_json(&client, format!("http://{addr}/api/capabilities")),
+            get_json(&client, format!("http://{addr}{}", super::code_scan::ROUTE)),
         );
         Self {
             health,
             capabilities,
+            code_findings,
         }
+    }
+
+    fn code_scan(&self) -> Option<super::code_scan::CodeScanFacts> {
+        super::code_scan::CodeScanFacts::from_json(self.code_findings.as_ref()?)
     }
 
     pub(crate) fn build_sha(&self) -> Option<String> {

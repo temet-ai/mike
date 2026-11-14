@@ -1,6 +1,12 @@
 mod api_fleet_definition_db_tests;
 mod api_fleet_report_http_tests;
 mod api_handlers_project_identity_tests;
+mod api_launch_brief_delivery_tests;
+mod api_launch_fleet_admission_tests;
+mod api_launch_fleet_carry_tests;
+mod api_launch_fleet_run_notes_tests;
+mod api_launch_questions_tests;
 mod api_project_knowledge_registration_tests;
 mod proxy_engine_workspace_location_db_tests;
+mod reminders_change_record_tail_tests;
 mod web_base_host_guard_proxy_tests;

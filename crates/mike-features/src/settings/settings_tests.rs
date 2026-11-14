@@ -136,7 +136,6 @@ fn meta_default_string(key: &str) -> String {
 #[test]
 fn model_settings_registry_defaults_match_compiled_defaults() {
     let steerer = crate::config::steerer::SteererConfig::default();
-    let lesson_relations = crate::config::lesson_relations::LessonRelationsConfig::default();
     let session_judge = crate::config::session_judge::SessionJudgeConfig::default();
 
     assert_eq!(meta_default_string("steerer.model"), steerer.model);
@@ -147,14 +146,6 @@ fn model_settings_registry_defaults_match_compiled_defaults() {
     assert_eq!(
         meta_default_string("session_judge.model"),
         session_judge.model
-    );
-    assert_eq!(
-        meta_default_string("lesson_relations.proposer_model"),
-        lesson_relations.proposer_model
-    );
-    assert_eq!(
-        meta_default_string("lesson_relations.adjudicator_model"),
-        lesson_relations.adjudicator_model
     );
 }
 

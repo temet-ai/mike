@@ -1,4 +1,5 @@
 id: rust-query-in-loop
+url: '.claude/rules/rust-database-reliability.md#sql'
 language: rust
 severity: warning
 rule:

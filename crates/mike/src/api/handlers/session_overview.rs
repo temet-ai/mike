@@ -1,5 +1,7 @@
 use super::*;
+use crate::store::persistence::change_record::code_scan::SessionCodeCounts;
 use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -88,6 +90,7 @@ pub(crate) struct SessionOverviewDto {
     pub(crate) embedding: EmbeddingStatusDto,
     pub(crate) knowledge: Option<SessionKnowledgeDto>,
     pub(crate) related_sessions: Vec<SessionOverviewRelatedSessionDto>,
+    pub(crate) code_findings: Option<SessionCodeCounts>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -307,6 +310,20 @@ async fn fetch_overview_related_sessions(
     out
 }
 
+async fn fetch_overview_code_findings(
+    handle: &crate::store::persistence::PersistHandle,
+    session_id: &str,
+    session_uuid: uuid::Uuid,
+) -> Option<SessionCodeCounts> {
+    match handle.fleet().session_code_counts(session_uuid).await {
+        Ok(counts) => Some(counts),
+        Err(e) => {
+            tracing::warn!(session_id = %session_id, error = %e, "get_session_overview: code finding counts failed — reporting null");
+            None
+        }
+    }
+}
+
 pub(crate) async fn get_session_overview(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
@@ -337,6 +354,7 @@ pub(crate) async fn get_session_overview(
     let embedding = fetch_overview_embedding(handle, &state, &session_id, session_uuid).await;
     let knowledge = fetch_overview_knowledge(handle, &session_id, session_uuid).await;
     let related_sessions = fetch_overview_related_sessions(handle, &session_id, session_uuid).await;
+    let code_findings = fetch_overview_code_findings(handle, &session_id, session_uuid).await;
 
     Ok(Json(SessionOverviewDto {
         session_id,
@@ -351,5 +369,6 @@ pub(crate) async fn get_session_overview(
         embedding,
         knowledge,
         related_sessions,
+        code_findings,
     }))
 }

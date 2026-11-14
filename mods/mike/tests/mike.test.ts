@@ -184,12 +184,13 @@ test('the status line joins unread mail and the changes summary', async ($, on) 
   })
   on('http.fetch', async ($, e) => {
     if (e.url.includes('view=standing')) return reply({ uncommitted: ['a.rs', 'b.rs'], events_waiting: 3, events_waiting_capped: false })
+    if (e.url.includes('/api/code-findings')) return reply({ session_counts: { open: 1 } })
     if (e.url.endsWith('/messages')) return reply({ inbox: [{ from_session_uuid: '77009065-1dfb', consumed_at: null, dead_lettered_at: null }] })
     return reply({ roster: [] })
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  for (let i = 0; i < 300 && !status.some(s => s?.includes('unread') && s.includes('changes by others')); i++) await Promise.resolve()
-  expect(status).toContain('1 unread from 77009065 · 3 changes by others, 2 uncommitted')
+  for (let i = 0; i < 300 && !status.some(s => s?.includes('unread') && s.includes('code finding')); i++) await Promise.resolve()
+  expect(status).toContain('1 unread from 77009065 · 3 changes by others, 2 uncommitted, 1 code finding open')
 })
 
 test('at session start the mods this session loaded are posted to mike as a mods note', async ($, on) => {

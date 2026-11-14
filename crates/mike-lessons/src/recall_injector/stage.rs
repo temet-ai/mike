@@ -25,7 +25,11 @@ impl RequestStage for RecallInjectorStage {
         }
         let cfg = RecallInjectorConfig {
             enabled: ctx.session_toggles.recall_injector,
-            max_lessons_per_topic: ctx.session_toggles.recall_injector_max_lessons_per_topic,
+            max_lessons_per_topic: ctx
+                .session_toggles
+                .features
+                .get::<crate::lessons_settings::RecallOverlay>()
+                .max_lessons_per_topic,
         };
         let push_deps = ctx.state.push_deps();
         let decisions = ctx.state.decision_env();

@@ -16,6 +16,7 @@
 		Boxes,
 		ArrowDownWideNarrow,
 		ScanText,
+		ScanSearch,
 		Plug,
 		Settings,
 		HelpCircle,
@@ -62,6 +63,7 @@
 		| '/comms'
 		| '/threads'
 		| '/tools'
+		| '/code-findings'
 		| '/compression-review'
 		| '/diagnostics/agent-dispatches'
 		| '/memory'
@@ -222,6 +224,12 @@
 					href: '/tools',
 					icon: Wrench,
 					hint: 'Cross-session tool-call feed — every tool use captured, filterable by name and project, errors marked inline'
+				},
+				{
+					label: 'Code findings',
+					href: '/code-findings',
+					icon: ScanSearch,
+					hint: 'Which code rules fire, whether sessions are told, and whether they fix what they are told'
 				},
 				{
 					label: 'Agent dispatches',

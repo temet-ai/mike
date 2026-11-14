@@ -2,6 +2,7 @@ pub mod appender;
 pub mod change_record_tail;
 pub mod client_context;
 pub mod code_findings;
+pub mod code_findings_push;
 pub mod fork_prefix;
 pub mod formatter;
 pub mod git_read_hint;
@@ -14,8 +15,6 @@ pub mod workspace_briefing;
 
 #[cfg(test)]
 pub mod appender_tests;
-#[cfg(test)]
-pub mod change_record_tail_tests;
 #[cfg(test)]
 pub mod client_context_tests;
 #[cfg(test)]
