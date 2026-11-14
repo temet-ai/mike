@@ -61,10 +61,11 @@ pub async fn review_draft(
             );
         }
     };
-    changed(
-        persist.lessons().set_skill_draft_review(id, review).await,
-        "skill draft",
-    )
+    let found = persist.lessons().set_skill_draft_review(id, review).await;
+    if matches!(found, Ok(true)) {
+        super::order::record_review(persist, id, review).await;
+    }
+    changed(found, "skill draft")
 }
 
 #[derive(Debug, Deserialize)]

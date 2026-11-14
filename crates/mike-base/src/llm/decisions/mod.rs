@@ -182,6 +182,7 @@ pub mod loop_store;
 pub mod outcome_sync;
 mod outcome_sync_events;
 pub mod point;
+pub mod proposal_queue;
 pub mod record;
 pub mod text;
 

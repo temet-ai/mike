@@ -4,8 +4,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
+use super::order;
 use super::state::{Mode, SkillState, needs_you, skill_state};
 use super::{error, persist_failed, unavailable};
 use crate::state::AppState;
@@ -37,6 +39,7 @@ pub async fn list_projects(State(state): State<AppState>) -> Response {
 #[derive(Debug, Deserialize)]
 pub struct FolderParams {
     project: Uuid,
+    sort: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +56,8 @@ struct FoldersResponse {
     mode: String,
     mode_set: bool,
     skills: Vec<FolderView>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    suggested_accept: BTreeMap<i64, f64>,
 }
 
 pub async fn list_folders(
@@ -73,20 +78,29 @@ pub async fn list_folders(
         .list_project_skill_folders(params.project)
         .await
     {
-        Ok(rows) => Json(FoldersResponse {
-            project: params.project,
-            mode: mode_code,
-            mode_set,
-            skills: rows
-                .into_iter()
-                .map(|row| FolderView {
-                    state: skill_state(&row, mode),
-                    needs_you: needs_you(&row, mode),
-                    row,
-                })
-                .collect(),
-        })
-        .into_response(),
+        Ok(mut rows) => {
+            let mut suggested = BTreeMap::new();
+            if params.sort.as_deref() == Some("suggested") {
+                order::spawn_fill(state.decision_env(), &rows, mode);
+                suggested = order::cached(&rows, mode);
+                order::order_by_suggestion(&mut rows, &suggested, mode);
+            }
+            Json(FoldersResponse {
+                project: params.project,
+                mode: mode_code,
+                mode_set,
+                skills: rows
+                    .into_iter()
+                    .map(|row| FolderView {
+                        state: skill_state(&row, mode),
+                        needs_you: needs_you(&row, mode),
+                        row,
+                    })
+                    .collect(),
+                suggested_accept: suggested,
+            })
+            .into_response()
+        }
         Err(e) => persist_failed(&e),
     }
 }

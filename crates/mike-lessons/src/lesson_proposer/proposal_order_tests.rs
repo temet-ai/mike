@@ -2,6 +2,7 @@ use chrono::{TimeZone, Utc};
 
 use super::*;
 use crate::api::proposals::order_by_suggestion;
+use crate::llm::decisions::Answer;
 
 fn row(id: i64, decision: Option<&str>) -> PlacementProposalRow {
     PlacementProposalRow {

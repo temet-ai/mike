@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use crate::api::eval::labels::spa_origin;
 use crate::lesson_proposer::proposal_order;
+use crate::llm::decisions::proposal_queue;
 use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::lessons::placement_proposals::{
@@ -70,21 +71,8 @@ struct ProposalsResponse {
 }
 
 pub fn order_by_suggestion(rows: &mut [PlacementProposalRow], suggested: &BTreeMap<i64, f64>) {
-    rows.sort_by(|a, b| {
-        let key = |row: &PlacementProposalRow| {
-            (
-                row.decision.is_some(),
-                suggested.get(&row.lesson_id).map(|p| -p),
-            )
-        };
-        let (da, pa) = key(a);
-        let (db, pb) = key(b);
-        da.cmp(&db).then_with(|| match (pa, pb) {
-            (Some(x), Some(y)) => x.total_cmp(&y),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
-        })
+    proposal_queue::order_by_suggestion(rows, suggested, |row| {
+        (row.decision.is_some(), row.lesson_id)
     });
 }
 
