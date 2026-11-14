@@ -1,8 +1,11 @@
 use crate::extract::request::TurnOrigin;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_worker::{InjectableLesson, LessonSnapshot};
+use crate::llm::decisions::point::Decider;
 use crate::proxy::remote_control::inject::PushDeps;
 use crate::store::models::{ReminderSource, RequestId};
 
+use super::supply_floor::rows::keep_rows;
+use super::supply_floor::{Candidate, Context};
 use super::{RemindersOutcome, push_or_append_reminder};
 
 pub struct AgentLessonsRequest<'a> {
@@ -17,6 +20,21 @@ pub struct AgentLessonsRequest<'a> {
 }
 
 pub async fn apply_agent_lessons(req: AgentLessonsRequest<'_>) -> RemindersOutcome {
+    apply_agent_lessons_with_floor(req, None).await
+}
+
+fn lesson_candidate<'a>(lesson: &'a &InjectableLesson) -> Candidate<'a> {
+    Candidate {
+        id: lesson.id,
+        kind: &lesson.kind,
+        text: &lesson.text,
+    }
+}
+
+pub async fn apply_agent_lessons_with_floor(
+    req: AgentLessonsRequest<'_>,
+    floor: Option<&Decider>,
+) -> RemindersOutcome {
     let AgentLessonsRequest {
         body_bytes,
         session_id,
@@ -28,11 +46,7 @@ pub async fn apply_agent_lessons(req: AgentLessonsRequest<'_>) -> RemindersOutco
         push_deps,
     } = req;
 
-    if !agent_lessons_enabled {
-        return RemindersOutcome::Unchanged;
-    }
-
-    if !matches!(turn_origin, TurnOrigin::Subagent) {
+    if !agent_lessons_enabled || !matches!(turn_origin, TurnOrigin::Subagent) {
         return RemindersOutcome::Unchanged;
     }
 
@@ -52,11 +66,14 @@ pub async fn apply_agent_lessons(req: AgentLessonsRequest<'_>) -> RemindersOutco
     };
 
     let lessons = snapshot.agent_lessons_for(agent_id);
-    if lessons.is_empty() {
+    if lessons.is_empty() || !snapshot.mark_agent_lesson_injected(session_id, persona) {
         return RemindersOutcome::Unchanged;
     }
 
-    if !snapshot.mark_agent_lesson_injected(session_id, persona) {
+    let context_text = super::session_lessons_query::conversation_query(body_bytes).0;
+    let context = Context::for_request(session_id, request_id, &context_text);
+    let lessons = keep_rows(floor, &context, lessons.iter().collect(), lesson_candidate).await;
+    if lessons.is_empty() {
         return RemindersOutcome::Unchanged;
     }
 

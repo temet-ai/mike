@@ -1,7 +1,10 @@
 pub mod compose;
 pub mod questions;
+pub mod rows;
 pub mod state;
 
+#[cfg(test)]
+pub mod rows_tests;
 #[cfg(test)]
 mod tests;
 
@@ -51,6 +54,25 @@ pub struct Context<'a> {
     pub text: &'a str,
 }
 
+impl<'a> Context<'a> {
+    pub fn for_request(
+        session: &'a str,
+        request_id: crate::store::models::RequestId,
+        text: &'a str,
+    ) -> Self {
+        Self {
+            session,
+            request_id: i64::try_from(request_id.as_u64()).unwrap_or(0),
+            text,
+        }
+    }
+}
+
+async fn session_db_id(decider: &Decider, session: &str) -> Option<i64> {
+    let uuid = uuid::Uuid::parse_str(session).ok()?;
+    decider.persist().session_row_id(uuid).await.ok().flatten()
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Candidate<'a> {
     pub id: i64,
@@ -87,15 +109,17 @@ pub async fn apply(
     if ids.is_empty() {
         return ids;
     }
+    let subject = DecisionSubject {
+        session_id: session_db_id(decider, context.session).await,
+        request_id: Some(context.request_id),
+        ..DecisionSubject::default()
+    };
     let asked = decider
         .ask(
             QUESTION_SET,
             state::state(context.text, lessons),
             questions::questions(lessons),
-            DecisionSubject {
-                request_id: Some(context.request_id),
-                ..DecisionSubject::default()
-            },
+            subject,
             json!({ "floor": FLOOR }),
         )
         .await;

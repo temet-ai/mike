@@ -1,4 +1,6 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+#[cfg(test)]
+mod floor_tests;
 pub mod formatter;
 pub mod parser;
 #[cfg(test)]
@@ -13,8 +15,11 @@ use serde_json::Value;
 
 use crate::lazy_sections::has_thinking_blocks;
 use crate::llm::decisions::env::DecisionEnv;
+use crate::llm::decisions::point::Decider;
 use crate::proxy::remote_control::inject::{PushDeps, try_push_reminder};
 use crate::reminders::inject::{InjectBookkeeping, inject_system_reminder};
+use crate::reminders::supply_floor::rows::keep_rows;
+use crate::reminders::supply_floor::{self, Candidate, Context};
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
 use crate::store::persistence::PersistHandle;
 
@@ -108,6 +113,16 @@ pub async fn apply_recall_injection_with(
     else {
         return RecallOutcome::Declined("recall_no_lessons");
     };
+    let floor = SupplyFloor {
+        decisions,
+        session_id,
+        request_id,
+        text: &assistant_text,
+    };
+    let all_rows = floor.keep(all_rows).await;
+    if all_rows.is_empty() {
+        return RecallOutcome::Declined("recall_lessons_below_floor");
+    }
 
     let Some(reminder_text) = formatter::format_recall_reminder(&topics, &all_rows) else {
         return RecallOutcome::Declined("recall_nothing_to_format");
@@ -133,6 +148,32 @@ pub async fn apply_recall_injection_with(
         push_deps.gate.record_delivery(session_id, &probe);
     }
     outcome
+}
+
+struct SupplyFloor<'a> {
+    decisions: Option<&'a DecisionEnv>,
+    session_id: &'a str,
+    request_id: RequestId,
+    text: &'a str,
+}
+
+fn row_candidate(row: &LessonRow) -> Candidate<'_> {
+    Candidate {
+        id: row.id,
+        kind: &row.kind,
+        text: &row.text,
+    }
+}
+
+impl SupplyFloor<'_> {
+    async fn keep(&self, rows: Vec<LessonRow>) -> Vec<LessonRow> {
+        let decider = self
+            .decisions
+            .and_then(|env| env.decider(supply_floor::POINT))
+            .map(Decider::inline);
+        let context = Context::for_request(self.session_id, self.request_id, self.text);
+        keep_rows(decider.as_ref(), &context, rows, row_candidate).await
+    }
 }
 
 #[derive(Debug, Default)]
