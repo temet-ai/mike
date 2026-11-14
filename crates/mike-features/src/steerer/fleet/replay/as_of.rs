@@ -8,11 +8,12 @@ use crate::steerer::fleet::input_budget::{
 use crate::steerer::fleet::judge::build_judge_user_message;
 use crate::steerer::fleet::session_block::{BlockRequest, session_block, with_session_block};
 use crate::steerer::fleet::triggers::response_trigger::resolve_operator_ask_with;
-use crate::steerer::fleet::verifier_judge::{CriteriaFields, VerifierJudgeContext, is_linked};
+use crate::steerer::fleet::verifier_criteria::CriteriaInputs;
+use crate::steerer::fleet::verifier_judge::VerifierJudgeContext;
 use crate::steerer::gate::strip_harness_scaffold;
 use crate::steerer::note_policy::SessionNotes;
 use crate::steerer::verifier::{
-    build_accumulated_ask, build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
+    build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
     written_by_the_operator,
 };
 use crate::store::persistence::launch_repo::LaunchPersist as _;
@@ -131,21 +132,15 @@ async fn load_raw_context(
         .await?;
     let metas: Vec<TurnToolCallMetaRow> = calls.into_iter().map(Into::into).collect();
     let (action_rows, action_counts) = load_action_rows(ph, trigger, budget).await?;
-    let thread = ph
+    let threads = ph
         .launch()
-        .fetch_thread_criteria_for_session(
-            trigger.session_db_id,
-            &build_accumulated_ask(&ask_entries),
-        )
+        .fetch_linked_thread_criteria(trigger.session_db_id)
         .await?;
-    let intake = if is_linked(thread.as_ref()) {
-        None
-    } else {
-        ph.steerer()
-            .fetch_acceptance_criteria_as_of(trigger.session_db_id, trigger.trigger_at)
-            .await?
-    };
-    let criteria = CriteriaFields::from_sources(thread, intake);
+    let intake = ph
+        .steerer()
+        .fetch_acceptance_criteria_as_of(trigger.session_db_id, trigger.trigger_at)
+        .await?;
+    let criteria = CriteriaInputs::new(threads, intake).by_default();
     Ok(RawVerifierContext {
         ask_entries,
         trajectory_digest: build_trajectory_digest(&metas),

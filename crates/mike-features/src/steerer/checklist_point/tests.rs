@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use super::compose::compose;
 use super::questions::{key, questions};
-use super::state::{Criterion, Evidence, session_criteria, state, thread_criteria};
+use super::state::{Criterion, Evidence, intake_criteria, state, thread_criteria};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
 use crate::steerer::verdict::{Need, SteererVerdict};
@@ -44,7 +44,7 @@ fn intake_map(rows: &[(&str, Option<&str>)]) -> AcceptanceCriteriaMap {
 }
 
 #[test]
-fn session_criteria_intake_map_gives_one_criterion_per_stored_row() {
+fn intake_criteria_gives_one_criterion_per_stored_row() {
     let map = intake_map(&[
         ("The panel is reachable.", Some("no direct URL")),
         ("It uses shared primitives.", None),
@@ -52,14 +52,13 @@ fn session_criteria_intake_map_gives_one_criterion_per_stored_row() {
         ("It loads under a second.", Some("make it fast")),
     ]);
     assert_eq!(
-        session_criteria(None, Some(&map)),
+        intake_criteria(&map),
         vec![
             criterion("The panel is reachable.", false),
             criterion("It uses shared primitives.", true),
             criterion("It loads under a second.", false),
         ]
     );
-    assert!(session_criteria(None, None).is_empty());
 }
 
 #[test]
@@ -123,13 +122,6 @@ fn thread_criteria_reads_list_markers_and_the_inferred_tag() {
             criterion("It is fast.", true),
         ]
     );
-}
-
-#[test]
-fn session_criteria_linked_thread_beats_the_intake_map() {
-    let map = intake_map(&[("From intake.", None)]);
-    let found = session_criteria(Some("- From the thread."), Some(&map));
-    assert_eq!(found, vec![criterion("From the thread.", false)]);
 }
 
 #[test]

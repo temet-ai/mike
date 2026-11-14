@@ -73,17 +73,6 @@ pub fn intake_criteria(map: &AcceptanceCriteriaMap) -> Vec<Criterion> {
         .collect()
 }
 
-pub fn session_criteria(
-    linked_thread: Option<&str>,
-    intake: Option<&AcceptanceCriteriaMap>,
-) -> Vec<Criterion> {
-    match (linked_thread, intake) {
-        (Some(block), _) => thread_criteria(block),
-        (None, Some(map)) => intake_criteria(map),
-        (None, None) => Vec::new(),
-    }
-}
-
 pub fn state(criteria: &[Criterion], evidence: &Evidence<'_>) -> Value {
     let by_key: Map<String, Value> = criteria
         .iter()
