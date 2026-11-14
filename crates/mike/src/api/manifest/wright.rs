@@ -1,7 +1,7 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 
-use crate::api::wright::{checks, problems as api};
+use crate::api::wright::{checks, conversation, problems as api};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -43,6 +43,27 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "Written by the web page when a route fails to load or throws; sessions never report page errors",
         },
     ),
+    route(
+        "GET",
+        "/api/wright/messages",
+        Coverage::Exempt {
+            reason: "The operator's conversation with Wright, read by the Wright page; sessions never read or join it, since the operator is the only voice Wright takes instructions from",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/messages",
+        Coverage::Exempt {
+            reason: "Only the paired operator posts to Wright, with the operator Bearer token; an MCP tool would let a session speak as the operator",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/steers/{id}/undo",
+        Coverage::Exempt {
+            reason: "Undoing a steer is the operator's act on the Wright page and needs the operator Bearer token; sessions never undo Wright's changes",
+        },
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -58,4 +79,12 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             patch(checks::patch_check).delete(checks::delete_check),
         )
         .route("/api/wright/client-errors", post(api::report_client_error))
+        .route(
+            "/api/wright/messages",
+            get(conversation::list_messages).post(conversation::post_message),
+        )
+        .route(
+            "/api/wright/steers/{id}/undo",
+            post(conversation::undo_steer),
+        )
 }

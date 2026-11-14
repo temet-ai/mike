@@ -3,6 +3,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 mod checks;
+pub(crate) mod conversation;
+pub(crate) mod conversation_steers;
 mod problems;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
