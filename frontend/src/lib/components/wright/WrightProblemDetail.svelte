@@ -134,8 +134,8 @@
 			<p class="detail__text" id="run-{run.id}">
 				Run {run.id}: {humanise(run.state)}
 				{#if run.started_at}· started {dayAndTime(run.started_at)}{/if}
-				{#if run.finished_at}· finished {dayAndTime(run.finished_at)}{/if}
-				{#if run.reason}· {run.reason}{/if}
+				{#if run.ended_at}· finished {dayAndTime(run.ended_at)}{/if}
+				{#if run.end_reason}· {run.end_reason}{/if}
 				{#if run.session_uuid}
 					<LinkChipRow
 						items={[

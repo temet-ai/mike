@@ -268,8 +268,8 @@ export function investigationFixture(): WrightInvestigation {
 		state: 'finished',
 		session_uuid: SESSION,
 		started_at: ago(330),
-		finished_at: ago(300),
-		reason: null
+		ended_at: ago(300),
+		end_reason: null
 	};
 }
 

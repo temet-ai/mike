@@ -209,7 +209,7 @@ const REPAIR_PATH: { state: RepairState; label: string }[] = [
 /** A repair is a path from prepared to healthy; it can also stop at `gate_failed` or `refused`. */
 export function repairSteps(state: RepairState): RepairStep[] {
 	const at = REPAIR_PATH.findIndex((step) => step.state === state);
-	const reached = state === 'gate_failed' ? 1 : state === 'refused' ? 0 : at;
+	const reached = state === 'gate_failed' ? 1 : state === 'refused' || state === 'editing' ? 0 : at;
 	return REPAIR_PATH.map((step, i) => ({
 		...step,
 		status: i < reached ? 'done' : i === reached ? 'current' : 'todo'

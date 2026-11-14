@@ -141,8 +141,8 @@ export interface WrightInvestigation {
 	state: string;
 	session_uuid: string | null;
 	started_at: string | null;
-	finished_at: string | null;
-	reason: string | null;
+	ended_at: string | null;
+	end_reason: string | null;
 }
 
 export interface InvestigationsPage {
@@ -155,7 +155,7 @@ export interface EngineerLimits {
 }
 
 export type RepairState =
-	'prepared' | 'gating' | 'gate_failed' | 'refused' | 'landed' | 'deployed' | 'healthy';
+	'editing' | 'prepared' | 'gating' | 'gate_failed' | 'refused' | 'landed' | 'deployed' | 'healthy';
 
 export interface WrightRepair {
 	id: number;
