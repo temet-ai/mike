@@ -14,11 +14,13 @@ from common import ReleaseError, source_git
 from mod_assets import MAX_ASSET_BYTES, SCRIPTS_PREFIX, blob, is_asset
 
 SCRIPTS = (
-    # Scheduled jobs: learning-promote, learning-audit, compressor-loop, lesson-relations.
+    # Scheduled jobs: learning-promote, learning-audit, compressor-loop, lesson-relations,
+    # decisions-loop.
     "scripts/learning-promote",
     "scripts/learning-audit",
     "scripts/compressor-loop",
     "scripts/lesson-relations",
+    "scripts/decisions-loop",
     # Lesson sync, and the tool-reuse runner the generated skills name.
     "scripts/mike-knowledge",
     "scripts/tool-reuse",
