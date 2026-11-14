@@ -9,7 +9,9 @@ use super::load_step::{Fresh, Loaded, max_request_id, needs_fresh};
 use super::resolve::{ResolveContext, TurnRow, resolve_selective};
 use super::session_class::{
     ClassResult, LaneSummary, LaunchFacts, SessionClassInput, classify as classify_session,
+    probe_candidate,
 };
+use crate::dossier::probe_point::Candidate;
 use crate::store::persistence::turn_facts::{SessionRecord, TurnFactsRow, TurnRecord};
 use crate::wire::genuine::PromptKind;
 use crate::wire::genuine::stream::{StreamMessage, effective_kinds};
@@ -51,6 +53,7 @@ fn class_input(
     now: DateTime<Utc>,
 ) -> SessionClassInput {
     SessionClassInput {
+        probe_verdict: crate::dossier::probe_point::verdict(record.session_id),
         is_template_session: record.is_template_session,
         launches: serde_json::from_value::<Vec<LaunchFacts>>(record.launches.clone())
             .unwrap_or_default(),
@@ -64,6 +67,29 @@ fn class_input(
         role: record.role.clone(),
         later_genuine_turn_id: later_genuine_turn_id(stream, now),
     }
+}
+
+pub fn probe_candidates(
+    loaded: &Loaded,
+    session_ids: &[i64],
+    now: DateTime<Utc>,
+) -> Vec<Candidate> {
+    let empty = Vec::new();
+    session_ids
+        .iter()
+        .filter_map(|session_id| {
+            let record = loaded.sessions.get(session_id)?;
+            let stream = loaded.streams.get(session_id).unwrap_or(&empty);
+            let input = class_input(record, stream, now);
+            let reason = probe_candidate(&input)?;
+            Some(Candidate {
+                session_id: *session_id,
+                first_prompt: input.first_prompt?,
+                project_path: input.project_path,
+                reason,
+            })
+        })
+        .collect()
 }
 
 fn derived_for(loaded: &Loaded, fresh: &Fresh, turn: &TurnRecord) -> Option<Derived> {

@@ -129,6 +129,17 @@ fn relation_decision_dto(
     }
 }
 
+async fn record_decision_outcome(
+    handle: &crate::store::persistence::PersistHandle,
+    outcome: &RelationDecisionOutcome,
+    label: &str,
+) {
+    if let RelationDecisionOutcome::Decided(row) = outcome {
+        crate::lesson_relations::decide::record_operator_outcome(handle, &row.evidence_json, label)
+            .await;
+    }
+}
+
 fn relation_decision_error_response(error: RelationDecisionError) -> Response {
     match error {
         RelationDecisionError::NotFound => {
@@ -156,6 +167,7 @@ pub async fn confirm_lesson_relation(
             tracing::warn!(relation_id, error = %e, "confirm_lesson_relation: query failed");
             persist_error_response(e)
         })?;
+    record_decision_outcome(handle, &outcome, "right").await;
     relation_decision_dto(outcome)
         .map(Json)
         .map_err(relation_decision_error_response)
@@ -176,6 +188,7 @@ pub async fn reject_lesson_relation(
             tracing::warn!(relation_id, error = %e, "reject_lesson_relation: query failed");
             persist_error_response(e)
         })?;
+    record_decision_outcome(handle, &outcome, "wrong").await;
     relation_decision_dto(outcome)
         .map(Json)
         .map_err(relation_decision_error_response)

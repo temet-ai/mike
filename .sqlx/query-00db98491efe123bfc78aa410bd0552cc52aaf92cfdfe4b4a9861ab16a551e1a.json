@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.records\n                 (created_at, point, mode, question_set, question_set_hash, model_requested,\n                  state, questions, request_body, outcome, session_id, operator_turn_id,\n                  request_id, project_id, check_receipt_id, composed, applied)\n             VALUES (now() - ($1::int * interval '1 day'), $2, 'on', 'test_v1', 'h',\n                     'typesafe/jev-1.14', '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 'ok',\n                     $3, $4, $5, $6, $7, $8, $9)\n             RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "00db98491efe123bfc78aa410bd0552cc52aaf92cfdfe4b4a9861ab16a551e1a"
+}

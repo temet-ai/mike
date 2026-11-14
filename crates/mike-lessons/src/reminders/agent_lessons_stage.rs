@@ -3,7 +3,7 @@ use bytes::Bytes;
 use crate::extract::request::TurnOrigin;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::reminders::RemindersOutcome;
-use crate::reminders::agent_lessons::{AgentLessonsRequest, apply_agent_lessons};
+use crate::reminders::agent_lessons::{AgentLessonsRequest, apply_agent_lessons_with_floor};
 use crate::reminders::stage::{StageManifestCodes, record_outcome_without_body_change};
 use crate::wire::manifest::AppliedStage;
 
@@ -29,16 +29,23 @@ impl RequestStage for AgentLessonsStage {
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
         let push_deps = ctx.state.push_deps();
-        let outcome = apply_agent_lessons(AgentLessonsRequest {
-            body_bytes: body.body(),
-            session_id: ctx.session_id,
-            subagent_persona: ctx.subagent_persona,
-            turn_origin: ctx.turn_origin,
-            snapshot: ctx.lesson_snapshot,
-            agent_lessons_enabled: ctx.session_toggles.agent_lessons,
-            request_id: ctx.request_id,
-            push_deps: &push_deps,
-        })
+        let floor = ctx
+            .state
+            .decider(crate::reminders::supply_floor::POINT)
+            .map(crate::llm::decisions::point::Decider::inline);
+        let outcome = apply_agent_lessons_with_floor(
+            AgentLessonsRequest {
+                body_bytes: body.body(),
+                session_id: ctx.session_id,
+                subagent_persona: ctx.subagent_persona,
+                turn_origin: ctx.turn_origin,
+                snapshot: ctx.lesson_snapshot,
+                agent_lessons_enabled: ctx.session_toggles.agent_lessons,
+                request_id: ctx.request_id,
+                push_deps: &push_deps,
+            },
+            floor.as_ref(),
+        )
         .await;
         let RemindersOutcome::Appended {
             body: new_body,

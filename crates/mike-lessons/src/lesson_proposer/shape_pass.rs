@@ -96,7 +96,8 @@ async fn unchecked(deps: &ProposerDeps<'_>) -> Vec<(i64, Assessment)> {
             log_persist_failed("unchecked_lessons_for_shape", &error);
             Vec::new()
         });
-    rows.iter()
+    let mut findings: Vec<(i64, Assessment)> = rows
+        .iter()
         .map(|lesson| {
             let found = assess(
                 &lesson.text,
@@ -105,7 +106,9 @@ async fn unchecked(deps: &ProposerDeps<'_>) -> Vec<(i64, Assessment)> {
             );
             (lesson.id, found)
         })
-        .collect()
+        .collect();
+    super::shape_gate::clear_false_status(deps, &rows, &mut findings).await;
+    findings
 }
 
 async fn scan(deps: &ProposerDeps<'_>, report: &mut ShapeReport) {

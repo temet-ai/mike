@@ -20,6 +20,7 @@ pub(crate) mod bounded;
 pub(crate) mod catalogue;
 pub(crate) mod forks;
 pub(crate) mod logs;
+pub(crate) mod logs_jev;
 
 #[cfg(test)]
 mod catalogue_tests;

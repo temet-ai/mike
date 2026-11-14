@@ -129,6 +129,7 @@ pub async fn approve_proposal(
         )
             .into_response();
     }
+    super::cross_session_order::record_decision(persist, id, true).await;
     log_approval(persist, &headers, id, &body, &lessons).await;
     Json(json!({"id": id, "status": "approved", "lessons": lessons})).into_response()
 }

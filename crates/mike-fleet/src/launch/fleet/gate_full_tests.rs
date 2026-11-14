@@ -116,6 +116,7 @@ async fn startup_and_pushes_run_command_and_close_runs_full_command_once() -> an
             tracker: &tracker,
             run: &run,
             fleet,
+            decisions: None,
         };
         let (_, quick, verified) = managed::durable_gate(&runner, &def, &target).await?;
         assert!(verified);

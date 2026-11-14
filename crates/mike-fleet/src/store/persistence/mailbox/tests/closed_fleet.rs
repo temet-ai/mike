@@ -356,6 +356,7 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
                         body: "closed threaded",
                         thread_id: Some(thread.id),
                         in_reply_to_id: None,
+                        held: false,
                     },
                     context,
                 )
@@ -376,6 +377,7 @@ async fn shared_insert_guard_refuses_closed_recipients_with_or_without_context()
                     body: "post only",
                     thread_id: Some(thread.id),
                     in_reply_to_id: None,
+                    held: false,
                 },
                 &items,
             )

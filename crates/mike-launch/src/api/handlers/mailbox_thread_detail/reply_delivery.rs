@@ -28,6 +28,7 @@ pub async fn deliver_post_only(
                 body: &body.body,
                 thread_id: Some(ctx.thread_id),
                 in_reply_to_id: ctx.in_reply_to_id,
+                held: false,
             },
             &body.context,
         )
@@ -166,6 +167,7 @@ async fn insert_reply_message(
                 body: &body.body,
                 thread_id: Some(ctx.thread_id),
                 in_reply_to_id: ctx.in_reply_to_id,
+                held: false,
             },
             &body.context,
         )

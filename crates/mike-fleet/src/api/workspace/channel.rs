@@ -101,9 +101,10 @@ pub async fn claim_channel_messages(
     }
     let native_delivery = plan.native_delivery;
 
+    let honour_held = crate::launch::fleet::decisions::wake::honouring(&state, session_uuid).await;
     let claimed = handle
         .fleet()
-        .claim_channel_messages(session_uuid, CHANNEL_CLAIM_LIMIT)
+        .claim_channel_messages_honouring(session_uuid, CHANNEL_CLAIM_LIMIT, honour_held)
         .await
         .map_err(persist_error_response)?;
 

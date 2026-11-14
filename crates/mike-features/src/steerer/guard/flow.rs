@@ -350,7 +350,7 @@ async fn run(turn: &GuardTurn<'_>) -> GuardOutcome {
     let mut record = new_record(turn);
     abstain_all(&mut record, &questions, "pending");
     let mut fires = Vec::new();
-    let step = judge(turn, &questions, &mut record, &mut fires).await;
+    let step = judge(turn, &questions, &rows, &mut record, &mut fires).await;
     for fire in &mut fires {
         fire.evaluation = rows
             .iter()
@@ -358,6 +358,7 @@ async fn run(turn: &GuardTurn<'_>) -> GuardOutcome {
             .map(|(_, u)| *u);
         record.live.insert(fire.question, fire.decision);
     }
+    super::precheck_seam::mark_applied(turn, &record, &fires).await;
     GuardOutcome {
         step,
         fires,
@@ -411,9 +412,28 @@ fn exempt_split(
     open
 }
 
+async fn open_questions(
+    turn: &GuardTurn<'_>,
+    ctx: &mut TurnContext,
+    questions: &[Question],
+    fleet_seats: bool,
+    record: &mut GuardRecord,
+) -> Vec<Question> {
+    let open = exempt_split(turn, ctx, questions, fleet_seats, record);
+    if open.is_empty() {
+        return open;
+    }
+    super::jev_seam::refine_phrase(turn, ctx, &open).await;
+    if turn.trigger == Trigger::Quiescence {
+        record.idle_seconds = idle_seconds(turn).await;
+    }
+    open
+}
+
 async fn judge(
     turn: &GuardTurn<'_>,
     questions: &[Question],
+    rows: &Rows,
     record: &mut GuardRecord,
     fires: &mut Vec<LiveFire>,
 ) -> GuardStep {
@@ -426,10 +446,11 @@ async fn judge(
         live_request_id: turn.trigger_request_id,
         verifier_pattern: turn.verifier_pattern.as_deref().unwrap_or(""),
     };
-    let Some(ctx) = ok_or_warn(load_context(&request).await, "turn_guard.context") else {
+    let Some(mut ctx) = ok_or_warn(load_context(&request).await, "turn_guard.context") else {
         abstain_all(record, questions, "context_unavailable");
         return GuardStep::Continue;
     };
+    super::precheck_seam::mark_committed(turn, &mut ctx).await;
     record.facts = ctx.facts.clone();
     record.reach = Some(
         reach_at(
@@ -442,12 +463,9 @@ async fn judge(
         .await,
     );
     let settings = GuardSettings::load(turn.persist).await;
-    let open = exempt_split(turn, &ctx, questions, settings.fleet_seats, record);
+    let open = open_questions(turn, &mut ctx, questions, settings.fleet_seats, record).await;
     if open.is_empty() {
         return GuardStep::Continue;
-    }
-    if turn.trigger == Trigger::Quiescence {
-        record.idle_seconds = idle_seconds(turn).await;
     }
     let cfg = guard_config(turn.persist, turn.steerer_id).await;
     let gated = apply_gates(turn, &ctx, &cfg, settings.recall_sample_pct, &open, record);
@@ -470,6 +488,7 @@ async fn judge(
         return GuardStep::Continue;
     }
     let step = call_and_decide(turn, &ctx, &cfg, &gated, record).await;
+    super::precheck_seam::run_prechecks(turn, &ctx, rows, record).await;
     fires.extend(plan_live_fires(turn, &ctx, record).await);
     step
 }

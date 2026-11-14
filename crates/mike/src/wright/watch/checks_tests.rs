@@ -248,6 +248,7 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
         names,
         [
             "cold_forks",
+            "decisions_health",
             "hook_errors",
             "llm_role_errors",
             "log_errors",

@@ -29,9 +29,10 @@ pub const BUILDER_VERSION: &str = "turn-facts-v1";
 
 const UPSERT_CHUNK: usize = 500;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct BuildConfig {
     pub settle: Duration,
+    pub decisions: Option<crate::llm::decisions::env::DecisionEnv>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -92,6 +93,13 @@ pub async fn plan_sessions(
         .await?;
     plan.pending_classifications = pending.len() as u64;
     let mut loaded = load_step::load_batch(persist, session_ids, now).await?;
+    if let Some(env) = &cfg.decisions {
+        crate::dossier::probe_point::fill(
+            env,
+            session_step::probe_candidates(&loaded, session_ids, now),
+        )
+        .await;
+    }
     plan.opened_by = classify_step::derive_opened_by(&loaded.streams, &mut loaded.turns);
     let mut fresh = load_step::load_fresh(persist, &loaded, session_ids).await?;
     let stale = load_step::settled_stale_final_texts(&loaded, &fresh, now - cfg.settle);
@@ -184,8 +192,13 @@ pub async fn build_sessions(
         .dossier()
         .stamp_turn_facts_built_at(&plan.unchanged_turn_ids, now)
         .await?;
-    report.entries =
-        crate::dossier::entries::run_after_build(persist, session_ids, cfg.settle).await?;
+    report.entries = crate::dossier::entries::run_after_build(
+        persist,
+        session_ids,
+        cfg.settle,
+        cfg.decisions.as_ref(),
+    )
+    .await?;
     report.steering_facts = crate::dossier::steering_facts::for_closed_turns(persist, session_ids)
         .await?
         .written;

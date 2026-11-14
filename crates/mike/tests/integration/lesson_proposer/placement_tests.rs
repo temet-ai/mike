@@ -96,6 +96,7 @@ async fn a_created_lesson_carries_the_placement_the_verdict_chose() -> anyhow::R
     let empty = json!([]);
     let chosen = verdict(WriteAction::Store, Home::Skill, Some("deploy/SKILL.md"));
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed()?,
         embedding: Some(&embedded()),
@@ -146,6 +147,7 @@ async fn a_lesson_placed_nowhere_is_not_stored_and_the_evidence_names_the_docume
         Some(".claude/rules/testing.md"),
     );
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed()?,
         embedding: Some(&embedded()),

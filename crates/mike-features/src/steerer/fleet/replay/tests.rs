@@ -114,6 +114,7 @@ fn call_record(cost: Option<f64>) -> LlmCallRecord {
         steerer_id: None,
         operator_turn_id: None,
         request_body: Some(json!({"messages": []})),
+        response_body: None,
     }
 }
 

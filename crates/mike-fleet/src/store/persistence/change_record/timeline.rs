@@ -23,7 +23,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         Ok(Arc::unwrap_or_clone(rows))
     }
 
-    async fn newest_change_event(self, checkout: &str) -> Result<Option<i64>, PersistError> {
+    pub async fn newest_change_event(self, checkout: &str) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("change_record_newest_event", async move {
             let newest = sqlx::query_file_scalar!(
                 "src/store/persistence/change_record/newest_change_event.sql",

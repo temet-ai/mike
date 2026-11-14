@@ -32,17 +32,21 @@ impl RequestStage for RecallInjectorStage {
                 .max_lessons_per_topic,
         };
         let push_deps = ctx.state.push_deps();
-        let outcome = recall_injector::apply_recall_injection(RecallInjectionRequest {
-            raw: body.body(),
-            project_path: ctx
-                .lesson_snapshot
-                .project_for_session(ctx.session_id, ctx.project_path),
-            persist: &ctx.state.persist,
-            cfg: &cfg,
-            request_id: ctx.request_id,
-            session_id: ctx.session_id,
-            push_deps: &push_deps,
-        })
+        let decisions = ctx.state.decision_env();
+        let outcome = recall_injector::apply_recall_injection_with(
+            RecallInjectionRequest {
+                raw: body.body(),
+                project_path: ctx
+                    .lesson_snapshot
+                    .project_for_session(ctx.session_id, ctx.project_path),
+                persist: &ctx.state.persist,
+                cfg: &cfg,
+                request_id: ctx.request_id,
+                session_id: ctx.session_id,
+                push_deps: &push_deps,
+            },
+            decisions.as_ref(),
+        )
         .await;
         let (new_body, topics, lesson_count) = match &outcome {
             RecallOutcome::Injected {

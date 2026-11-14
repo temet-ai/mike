@@ -76,10 +76,56 @@ fn drop_unrecognised_provenance(
     None
 }
 
+pub struct IntakeJev<'a> {
+    pub decider: &'a crate::llm::decisions::point::Decider,
+    pub subject: crate::llm::decisions::record::DecisionSubject,
+}
+
+fn log_rejected_by_jev(criterion: &str) {
+    info!(
+        criterion = %criterion,
+        "intake criteria: rejected a criterion that does not describe an end state"
+    );
+}
+
+fn accepted_by_jev(accepted: &[bool], index: usize, criterion: &str) -> bool {
+    let ok = accepted.get(index).copied().unwrap_or(true);
+    if !ok {
+        log_rejected_by_jev(criterion);
+    }
+    ok
+}
+
+pub async fn apply_contract_with(
+    jev: Option<IntakeJev<'_>>,
+    authored: Vec<AuthoredCriterion>,
+) -> Vec<NewCriterion> {
+    let verdicts = match jev {
+        Some(jev) => {
+            let texts: Vec<&str> = authored.iter().map(|a| a.criterion.as_str()).collect();
+            crate::steerer::criteria_point::judge(jev.decider, &texts, jev.subject).await
+        }
+        None => None,
+    };
+    match verdicts {
+        Some(accepted) => keep_authored(authored, |i, criterion| {
+            accepted_by_jev(&accepted, i, criterion)
+        }),
+        None => apply_contract(authored),
+    }
+}
+
 pub fn apply_contract(authored: Vec<AuthoredCriterion>) -> Vec<NewCriterion> {
+    keep_authored(authored, |_, criterion| !is_rejected_by_contract(criterion))
+}
+
+fn keep_authored(
+    authored: Vec<AuthoredCriterion>,
+    accepts: impl Fn(usize, &str) -> bool,
+) -> Vec<NewCriterion> {
     let mut kept = Vec::with_capacity(authored.len());
-    for item in authored {
-        if is_rejected_by_contract(&item.criterion) {
+    for (index, item) in authored.into_iter().enumerate() {
+        if !accepts(index, &item.criterion) {
             continue;
         }
         let Some((provenance, operator_span)) = resolve_provenance(&item) else {
@@ -117,6 +163,17 @@ pub async fn author(
     project_path: &str,
     budget: IntakeInputBudget,
 ) -> Option<Vec<NewCriterion>> {
+    author_with(llm, entries, older_not_fetched, project_path, budget, None).await
+}
+
+pub async fn author_with(
+    llm: &OpenRouterClient,
+    entries: &[AskLedgerEntryRow],
+    older_not_fetched: usize,
+    project_path: &str,
+    budget: IntakeInputBudget,
+    jev: Option<IntakeJev<'_>>,
+) -> Option<Vec<NewCriterion>> {
     if entries.is_empty() {
         return None;
     }
@@ -131,7 +188,7 @@ pub async fn author(
             return None;
         }
     };
-    Some(apply_contract(authored.criteria))
+    Some(apply_contract_with(jev, authored.criteria).await)
 }
 
 #[cfg(test)]

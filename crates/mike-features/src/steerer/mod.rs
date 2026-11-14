@@ -1,7 +1,13 @@
 pub mod ac2_demo;
 pub mod anchor;
 pub mod arming;
+pub mod checklist_point;
+pub mod commit_message;
+pub mod correction_classifier;
 pub mod criteria_contract;
+pub mod criteria_point;
+pub mod decisions_loop;
+pub mod ended_on_point;
 pub mod enrolment_hook;
 pub mod fleet;
 pub mod gate;
@@ -12,16 +18,21 @@ pub mod inject;
 pub mod intake_criteria;
 pub mod model_catalogue;
 pub mod note_policy;
+pub mod precheck;
+pub mod prod_point;
 pub mod refocus;
 pub mod registry;
 pub mod reply_label;
 pub mod rollout_params;
+pub mod rule_check;
 pub mod service;
 pub mod stage;
 pub mod steer_author;
+pub mod step_class_point;
 pub mod structural;
 pub mod verdict;
 pub mod verifier;
+pub mod verifier_precheck;
 
 use crate::state::AppState;
 

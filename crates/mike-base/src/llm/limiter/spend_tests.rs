@@ -38,6 +38,7 @@ fn role_at_its_spend_slice_is_refused_while_a_role_with_unused_spend_still_calls
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -71,6 +72,7 @@ fn spend_slice_survives_another_role_borrowing_the_shared_pool() {
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -99,6 +101,7 @@ fn role_may_borrow_the_unreserved_spend_pool_until_it_is_gone() {
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -130,6 +133,7 @@ fn spend_check_precedes_the_call_ceiling() {
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -152,6 +156,7 @@ fn spend_blocked_role_has_no_budget_and_a_recheck_time() {
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });

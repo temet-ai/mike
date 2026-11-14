@@ -3,6 +3,7 @@ pub mod block;
 pub mod cards;
 pub mod deliver;
 pub mod health;
+pub mod pick;
 pub mod rebuild;
 pub mod record;
 pub mod refresh;

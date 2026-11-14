@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT label, label_source FROM decisions.outcomes\n              WHERE record_id = $1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.outcomes",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.outcomes",
+            "name": "label_source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bb8be1440bd4c5fa7ba600d26ca5cf31d670cc224cafefda06a0208bc5255c7b"
+}

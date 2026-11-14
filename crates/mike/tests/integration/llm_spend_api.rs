@@ -95,6 +95,7 @@ async fn insert_steerer_and_judge_worker_calls(
             steerer_id: None,
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     handle
@@ -114,6 +115,7 @@ async fn insert_steerer_and_judge_worker_calls(
             steerer_id: None,
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     Ok(())
@@ -228,6 +230,7 @@ async fn insert_two_steerer_calls_and_a_judge_call(
             steerer_id: Some(verifier_id),
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     handle
@@ -247,6 +250,7 @@ async fn insert_two_steerer_calls_and_a_judge_call(
             steerer_id: Some(verifier_id),
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     handle
@@ -266,6 +270,7 @@ async fn insert_two_steerer_calls_and_a_judge_call(
             steerer_id: Some(refocus_id),
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     handle
@@ -285,6 +290,7 @@ async fn insert_two_steerer_calls_and_a_judge_call(
             steerer_id: None,
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     Ok(())

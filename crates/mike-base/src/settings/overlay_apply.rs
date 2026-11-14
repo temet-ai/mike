@@ -18,6 +18,9 @@ fn apply_one_row(overlay: &mut SettingsOverlay, key: &str, value: &serde_json::V
     if super::overlay_apply_turn_judge::apply_turn_judge_row(overlay, key, value) {
         return;
     }
+    if super::overlay_apply_decisions::apply_decisions_row(overlay, key, value) {
+        return;
+    }
     if apply_session_scoped_row(overlay, key, value) {
         return;
     }

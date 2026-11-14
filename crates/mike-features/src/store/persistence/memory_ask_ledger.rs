@@ -66,6 +66,26 @@ impl crate::store::persistence::dossier_repo::DossierDb<'_> {
         .await
     }
 
+    pub async fn set_ask_kind_by_judge(
+        self,
+        request_id: i64,
+        kind: &str,
+    ) -> Result<u64, PersistError> {
+        crate::metrics::time_db("set_ask_kind_by_judge", async move {
+            let done = sqlx::query!(
+                "UPDATE memory.ask_ledger_entries
+    SET kind = $2, kind_source = 'judge', kind_updated_at = now()
+  WHERE request_id = $1 AND kind_source = 'keyword' AND kind <> 'initial'",
+                request_id,
+                kind,
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(done.rows_affected())
+        })
+        .await
+    }
+
     pub async fn fetch_ask_ledger(
         self,
         session_uuid: Uuid,

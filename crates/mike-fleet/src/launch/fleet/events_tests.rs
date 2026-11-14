@@ -77,6 +77,7 @@ fn one_of_each() -> Vec<EventPayload> {
             problem_id: id,
             reason: String::new(),
             question: String::new(),
+            routed: false,
         }),
         EventPayload::StopRequested(StopRequested {
             by: "operator".into(),

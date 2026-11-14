@@ -17,6 +17,7 @@ pub struct SeamTurn {
     pub text: String,
     pub toggle_on: bool,
     pub turn_judge_live: bool,
+    pub decisions_mode: Option<&'static str>,
 }
 
 pub async fn evaluate_guard_turn(
@@ -41,9 +42,21 @@ pub async fn evaluate_guard_turn(
     } else {
         Trigger::TurnEnd
     };
+    let overlay = crate::settings::SettingsOverlay {
+        decisions_turn_guard_mode: seam.decisions_mode.unwrap_or("off").to_owned(),
+        ..crate::settings::SettingsOverlay::default()
+    };
+    let decisions = super::precheck_seam::decisions_turn(
+        &llm,
+        persist,
+        seam.decisions_mode.is_some(),
+        &overlay,
+    );
     let turn = GuardTurn {
         persist,
         llm: &llm,
+        decisions,
+        jev: super::jev_seam::GuardDeciders::default(),
         steerer_id: steerer.id,
         bundle_id: None,
         session_db_id: seam.session_db_id,

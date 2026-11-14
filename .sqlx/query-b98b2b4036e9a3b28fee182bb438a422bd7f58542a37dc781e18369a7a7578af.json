@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lessons (kind_id, text, project_id)\n             SELECT id, 'a lesson', $1 FROM memory.lesson_kinds ORDER BY id LIMIT 1\n             RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b98b2b4036e9a3b28fee182bb438a422bd7f58542a37dc781e18369a7a7578af"
+}

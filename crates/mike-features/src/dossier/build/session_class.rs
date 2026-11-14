@@ -52,8 +52,11 @@ pub struct LaneSummary {
     pub workflow_agent_requests: i64,
 }
 
+pub const SHORT_PROMPT_CHARS: usize = 160;
+
 #[derive(Debug, Clone, Default)]
 pub struct SessionClassInput {
+    pub probe_verdict: Option<bool>,
     pub is_template_session: bool,
     pub launches: Vec<LaunchFacts>,
     pub project_path: Option<String>,
@@ -135,11 +138,35 @@ fn synthetic_rule(input: &SessionClassInput) -> Option<&'static str> {
     if input.project_path.as_deref().is_some_and(is_synthetic_path) {
         return Some("path");
     }
-    input
+    let matched = input
         .first_prompt
         .as_deref()
-        .is_some_and(|prompt| PROBE.is_match(prompt.trim_start()))
-        .then_some("probe")
+        .is_some_and(|prompt| PROBE.is_match(prompt.trim_start()));
+    match (matched, input.probe_verdict) {
+        (true, Some(false)) => None,
+        (true, _) => Some("probe"),
+        (false, Some(true)) => Some("jev_probe"),
+        (false, _) => None,
+    }
+}
+
+pub fn probe_candidate(input: &SessionClassInput) -> Option<crate::dossier::probe_point::Reason> {
+    use crate::dossier::probe_point::Reason;
+    let prompt = input.first_prompt.as_deref()?.trim_start();
+    let seat_or_template = input.is_template_session
+        || input
+            .launches
+            .iter()
+            .any(|l| is_template_launch(l) || is_seat_launch(l));
+    let synthetic_path = input.project_path.as_deref().is_some_and(is_synthetic_path);
+    if seat_or_template || synthetic_path || input.lanes.primary_without_agent_id == 0 {
+        return None;
+    }
+    if PROBE.is_match(prompt) {
+        return Some(Reason::RegexMatch);
+    }
+    (input.later_genuine_turn_id.is_none() && prompt.chars().count() <= SHORT_PROMPT_CHARS)
+        .then_some(Reason::ShortSingleTurn)
 }
 
 fn lane_class(lanes: &LaneSummary) -> Option<(SessionClass, &'static str)> {

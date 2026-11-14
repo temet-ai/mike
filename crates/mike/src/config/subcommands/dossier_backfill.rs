@@ -172,6 +172,7 @@ async fn facts_batch(
     let runtime = DossierRuntime::read(persist, DossierRuntime::default()).await;
     let cfg = BuildConfig {
         settle: runtime.settle,
+        decisions: None,
     };
     let (rows_written, reclassified, skipped) = if opts.execute {
         let report = build_sessions(persist, ids, now, &cfg).await?;

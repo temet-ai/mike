@@ -3,6 +3,7 @@ use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 mod audit;
+mod hold;
 mod legacy_send;
 mod threaded_send;
 mod validation;

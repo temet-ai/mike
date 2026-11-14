@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH judged AS (\n    SELECT r.id AS record_id, r.message_uuid,\n           r.composed -> 'verdict' ->> 'verdict' AS verdict\n      FROM decisions.records r\n     WHERE r.point = 'leaf_judge'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.message_uuid IS NOT NULL\n       AND r.composed -> 'verdict' ->> 'verdict' IN ('pass', 'fail')\n),\nacceptance AS (\n    SELECT j.record_id, j.verdict,\n           bool_and((e.payload ->> 'passed')::boolean) AS all_passed,\n           count(*) AS criteria\n      FROM judged j\n      JOIN launch.fleet_events e\n        ON e.kind = 'verdict_recorded'\n       AND e.payload ->> 'note_uuid' = j.message_uuid::text\n       AND e.session_uuid IS NOT NULL\n     GROUP BY j.record_id, j.verdict\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT a.record_id,\n       CASE WHEN (a.verdict = 'pass') = a.all_passed THEN 'right' ELSE 'wrong' END,\n       'acceptance_verdict',\n       jsonb_build_object('jev_verdict', a.verdict, 'acceptance_all_passed', a.all_passed,\n                          'acceptance_criteria', a.criteria)\n  FROM acceptance a\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = a.record_id AND o.label_source = 'acceptance_verdict')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f8bcf5a63dde235b2adc3c869a0206afd5f833f7c4f202edbbb8e679adec0ac2"
+}

@@ -53,6 +53,7 @@ impl OpenRouterClient {
             steerer_id: self.inner.call_context.steerer_id,
             operator_turn_id: self.inner.call_context.operator_turn_id,
             request_body: fields.request_body.cloned(),
+            response_body: None,
         });
     }
 

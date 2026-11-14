@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { userEvent, within, expect } from 'storybook/test';
 	import InterventionRow from './InterventionRow.svelte';
-	import type { SessionSteeringRow } from '$lib/api/steering';
+	import type { SessionEvaluationRow, SessionSteeringRow } from '$lib/api/steering';
 
 	const BASE_PATH = '/sessions/f47ac10b-58cc-4372-a567-0e02b2c3d479';
 
@@ -96,6 +96,60 @@
 		created_at: '2026-06-17T10:30:00Z'
 	});
 
+	const fullContentEvaluation: SessionEvaluationRow = {
+		id: 41,
+		uuid: 'a1b2c3d4-0000-4000-8000-000000000041',
+		steerer_id: 3,
+		steerer_name: 'turn-guard',
+		steerer_kind: 'guard',
+		operator_turn_id: 88,
+		status: 'resolved',
+		mode: 'live',
+		question: 'unobserved_done',
+		trigger_point: 'turn_end',
+		trigger_request_id: null,
+		bundle_id: null,
+		intervention_uuid: null,
+		dispatched_at: '2026-06-17T10:30:00Z',
+		resolved_at: '2026-06-17T10:30:08Z',
+		verdict_json: {
+			precheck: {
+				record_id: 9,
+				question_set: 'turn_guard_precheck_v2',
+				answers: {
+					already_disclosed: 0.12,
+					claims_checked: 0.81,
+					answer_not_change: 0.07,
+					invites_trial: 0.2
+				},
+				refusals: 0,
+				verdict: { send: true, score: 0.62, why: 'the message claims a check that did not run' },
+				fail_open: false,
+				error: null
+			},
+			facts: {
+				observation: {
+					changed: [
+						{
+							path: 'frontend/src/lib/components/shell/InterventionRow.svelte',
+							kind: 'ui',
+							added: 40,
+							removed: 12,
+							committed: false
+						},
+						{ path: 'docs/ARCHITECTURE.md', kind: 'doc', added: 3, removed: 0, committed: true }
+					]
+				}
+			}
+		},
+		confidence: null,
+		reason: null,
+		outcome_label: 'right',
+		label_source: 'labeller',
+		labelled_at: '2026-06-17T11:00:00Z',
+		label_evidence: null
+	};
+
 	const { Story } = defineMeta({
 		title: 'Components/Shell/InterventionRow',
 		component: InterventionRow,
@@ -122,12 +176,28 @@
 		await expect(conf).toBeTruthy();
 		await expect(conf?.textContent?.trim()).toBe('0.91');
 
-		const dot = canvasElement.querySelector('.iv-chip__dot');
-		await expect(dot).toBeTruthy();
-		await expect(dot?.getAttribute('aria-hidden')).toBe('true');
+		await expect(canvasElement.querySelector('.iv-chip__dot')).toBeNull();
+		await expect(canvasElement.querySelector('.iv-row__rail')).toBeNull();
+		await expect(canvasElement.querySelector('.iv-row__expand-cue')).toBeNull();
+		await expect(canvasElement.querySelector('.iv-row__outcome')?.textContent).toBe('sent right');
+		const metaBefore = canvasElement.querySelector('.iv-row__meta')?.getBoundingClientRect();
 
 		await userEvent.click(headerBtn);
 		await expect(headerBtn.getAttribute('aria-expanded')).toBe('true');
+		await expect(canvasElement.querySelector('.iv-row__meta')?.getBoundingClientRect().top).toBe(
+			metaBefore?.top
+		);
+
+		const precheckBlock = canvasElement.querySelector('[data-slot="precheck-answers"]');
+		await expect(precheckBlock?.textContent?.replace(/\s+/g, ' ')).toContain('SENT 0.62');
+		await expect(precheckBlock?.querySelectorAll('[data-answer]')).toHaveLength(4);
+		const changedBlock = canvasElement.querySelector('.fc-card');
+		await expect(changedBlock?.classList.contains('edge')).toBe(false);
+		await expect(changedBlock?.textContent).toContain('InterventionRow.svelte');
+		await expect(changedBlock?.textContent).toContain('uncommitted');
+		await expect(canvasElement.querySelector('.iv-labelled')?.textContent).toContain(
+			'Labelled labeller'
+		);
 
 		const proseParagraphs = Array.from(canvasElement.querySelectorAll('.iv-prose'));
 		const topicProse = proseParagraphs.find((p) => p.textContent?.includes('competitor pricing'));
@@ -169,7 +239,11 @@
 >
 	{#snippet template()}
 		<div class="wrap">
-			<InterventionRow row={fullContentRow} sessionBasePath={BASE_PATH} />
+			<InterventionRow
+				row={fullContentRow}
+				sessionBasePath={BASE_PATH}
+				evaluation={fullContentEvaluation}
+			/>
 		</div>
 	{/snippet}
 </Story>

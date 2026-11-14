@@ -111,6 +111,7 @@ pub async fn unchecked_at_close(
         tracker,
         run,
         fleet: row.fleet_uuid,
+        decisions: None,
     };
     match close_verdict(&runner, &full, &target.commit).await {
         Some(true) => None,

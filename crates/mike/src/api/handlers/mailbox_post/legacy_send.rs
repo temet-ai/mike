@@ -8,8 +8,10 @@ use crate::api::handlers::{
     PostSessionMessageResponse, fetch_mailbox_delivery_fields, mailbox_error, tail_for_sender,
 };
 use crate::state::AppState;
-use crate::store::persistence::PersistHandle;
+use crate::store::persistence::mailbox::ThreadedMessageInsert;
+use crate::store::persistence::{PersistError, PersistHandle};
 
+use super::hold::hold_directed;
 use super::{SendContext, record_failed_send};
 
 pub(super) async fn send(
@@ -17,26 +19,11 @@ pub(super) async fn send(
     state: &AppState,
     ctx: SendContext<'_>,
 ) -> Result<Response, Response> {
-    match handle
-        .launch()
-        .insert_message_with_context(
-            ctx.message_uuid,
-            ctx.to_session_uuid,
-            ctx.from_session_uuid,
-            &ctx.body.message,
-            &ctx.body.context,
-        )
-        .await
-    {
-        Ok(Some(inserted)) => Ok(queued_response(
-            handle,
-            state,
-            &ctx,
-            inserted.message_uuid,
-            inserted.from_session_uuid,
-            inserted.queued_at,
-        )
-        .await),
+    let held = hold_directed(handle, state, &ctx, None).await;
+    match insert(handle, &ctx, held).await {
+        Ok(Some((from_session_uuid, queued_at))) => {
+            Ok(queued_response(handle, state, &ctx, (from_session_uuid, queued_at), held).await)
+        }
         Ok(None) => Err(unqueued(handle, &ctx).await),
         Err(crate::store::persistence::PersistError::DataInvariant(msg)) => {
             record_failed_send(handle, None, ctx.to_session_uuid, "from_session_not_found").await;
@@ -66,6 +53,69 @@ pub(super) async fn send(
             ))
         }
     }
+}
+
+type Queued = (Option<uuid::Uuid>, chrono::DateTime<chrono::Utc>);
+
+async fn insert(
+    handle: &PersistHandle,
+    ctx: &SendContext<'_>,
+    held: bool,
+) -> Result<Option<Queued>, PersistError> {
+    if !held {
+        let inserted = handle
+            .launch()
+            .insert_message_with_context(
+                ctx.message_uuid,
+                ctx.to_session_uuid,
+                ctx.from_session_uuid,
+                &ctx.body.message,
+                &ctx.body.context,
+            )
+            .await?;
+        return Ok(inserted.map(|row| (row.from_session_uuid, row.queued_at)));
+    }
+    insert_held(handle, ctx).await
+}
+
+async fn insert_held(
+    handle: &PersistHandle,
+    ctx: &SendContext<'_>,
+) -> Result<Option<Queued>, PersistError> {
+    let from_session_id = match ctx.from_session_uuid {
+        Some(from) => match handle.launch().resolve_session_core(from).await? {
+            Some((id, _)) => Some(id),
+            None => {
+                return Err(PersistError::DataInvariant(format!(
+                    "insert_message_with_context: from_session_uuid {from} not found"
+                )));
+            }
+        },
+        None => None,
+    };
+    let Some((to_session_id, _)) = handle
+        .launch()
+        .resolve_session_core(ctx.to_session_uuid)
+        .await?
+    else {
+        return Ok(None);
+    };
+    let queued_at = handle
+        .launch()
+        .insert_threaded_message_with_context(
+            ThreadedMessageInsert {
+                message_uuid: ctx.message_uuid,
+                to_session_id: Some(to_session_id),
+                from_session_id,
+                body: &ctx.body.message,
+                thread_id: None,
+                in_reply_to_id: None,
+                held: true,
+            },
+            &ctx.body.context,
+        )
+        .await?;
+    Ok(queued_at.map(|at| (ctx.from_session_uuid, at)))
 }
 
 async fn unqueued(handle: &PersistHandle, ctx: &SendContext<'_>) -> Response {
@@ -128,10 +178,10 @@ async fn queued_response(
     handle: &PersistHandle,
     state: &AppState,
     ctx: &SendContext<'_>,
-    message_uuid: uuid::Uuid,
-    from_session_uuid: Option<uuid::Uuid>,
-    queued_at: chrono::DateTime<chrono::Utc>,
+    (from_session_uuid, queued_at): Queued,
+    held: bool,
 ) -> Response {
+    let message_uuid = ctx.message_uuid;
     let from = from_session_uuid.map(|u| u.to_string());
     let sender_label = match from_session_uuid {
         Some(u) => handle.fleet().sender_label(u).await,
@@ -152,18 +202,19 @@ async fn queued_response(
             from_session_uuid: from,
         },
     };
-    let pushed = crate::proxy::remote_control::inject::deliver_or_enqueue(
-        &state.push_deps(),
-        ctx.to_session_uuid,
-        reminder,
-    )
-    .await;
+    let pushed = !held
+        && crate::proxy::remote_control::inject::deliver_or_enqueue(
+            &state.push_deps(),
+            ctx.to_session_uuid,
+            reminder,
+        )
+        .await;
 
     let (recipient_last_request_at, recipient_last_eligible_turn_at, activity_state) =
         fetch_mailbox_delivery_fields(handle, state, ctx.to_session_uuid).await;
     let delivery_state = crate::api::handlers::mailbox_reads::delivery_state_after_send(
         pushed,
-        crate::mcp_channel::listeners().is_live(ctx.to_session_uuid),
+        !held && crate::mcp_channel::listeners().is_live(ctx.to_session_uuid),
         activity_state,
     );
 

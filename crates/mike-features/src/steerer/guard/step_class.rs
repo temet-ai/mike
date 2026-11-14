@@ -24,6 +24,28 @@ pub enum StepClass {
 }
 
 impl StepClass {
+    pub const ALL: [Self; 15] = [
+        Self::Commit,
+        Self::Push,
+        Self::Merge,
+        Self::Deploy,
+        Self::Pr,
+        Self::Proceed,
+        Self::FileIssue,
+        Self::FixFound,
+        Self::PickOption,
+        Self::RunCommand,
+        Self::Credentials,
+        Self::Physical,
+        Self::Destructive,
+        Self::External,
+        Self::Unknown,
+    ];
+
+    pub fn from_code(code: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|class| class.code() == code)
+    }
+
     pub fn code(self) -> &'static str {
         match self {
             Self::Commit => "commit",

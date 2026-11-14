@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.supplied_item_verdicts\n             (supplied_item_id, verdict, rationale, model, input_text,\n              hand_verdict, hand_checked_by, hand_checked_at)\n         VALUES ($1, $2, 'r', 'm', 'i', $3::text, 'operator',\n                 CASE WHEN $3::text IS NULL THEN NULL ELSE now() END)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2de85e81f1dceff038eaa159be94972215c1ce9f2a569810e3f43107e3ae2e93"
+}

@@ -2,6 +2,7 @@ use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use serde_json::Value;
 
 use super::first_ten::{Scored, first_ten_references, grade_first_ten, turn_query};
+use super::search_decide::SearchJev;
 use crate::api::project_knowledge::rerank_page::documents_for;
 use crate::api::project_knowledge::retrieval::query_vector;
 use crate::api::rerank_search::score;
@@ -26,6 +27,7 @@ pub async fn grade_event(
     state: &KnowledgeState,
     persist: &PersistHandle,
     event: &UngradedEvent,
+    jev: Option<&SearchJev>,
 ) -> Result<Graded, PersistError> {
     let vector = embed_query(state, &event.query).await;
     let input = KnowledgeQuery {
@@ -57,6 +59,10 @@ pub async fn grade_event(
         &Scored {
             candidates: &candidates,
             documents: &documents,
+            jev,
+            query: &event.query,
+            turn_prompt: event.turn_prompt.as_deref(),
+            used: &event.used_references,
         },
     )
     .await;

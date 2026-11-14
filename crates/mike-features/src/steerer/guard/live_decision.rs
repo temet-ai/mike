@@ -63,6 +63,10 @@ pub enum LiveDecision {
     Exempt {
         reason: &'static str,
     },
+    Held {
+        draw: f64,
+        anchor_turn_id: i64,
+    },
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]

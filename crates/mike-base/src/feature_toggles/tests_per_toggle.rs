@@ -20,6 +20,23 @@ fn turn_guard_meta_is_global_live_disable() {
 }
 
 #[test]
+fn decisions_defaults_off_and_applies_immediately() {
+    assert!(!FeatureToggles::default().decisions);
+    assert_eq!(
+        get_toggle_enabled(&FeatureToggles::default(), "decisions"),
+        Some(false)
+    );
+    let meta = TOGGLE_META.iter().find(|m| m.key == "decisions");
+    assert!(
+        meta.is_some_and(
+            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::Immediate
+        )
+    );
+    let updated = set_toggle_enabled(&FeatureToggles::default(), "decisions", true);
+    assert!(updated.is_some_and(|t| t.decisions));
+}
+
+#[test]
 fn session_end_shadow_defaults_off() {
     assert!(!FeatureToggles::default().session_end_shadow);
     assert_eq!(

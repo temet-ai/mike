@@ -126,6 +126,7 @@ async fn placement_pass_counts_on_the_maintenance_counter_and_leaves_the_propose
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = placement_pass::run_pass(&deps).await;
     assert!(!report.budget_exhausted, "{report:?}");
@@ -155,6 +156,7 @@ async fn placement_pass_refused_by_the_maintenance_cap_records_the_refusal() -> 
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = placement_pass::run_pass(&deps).await;
     assert!(report.budget_exhausted);
@@ -191,6 +193,7 @@ async fn placement_pass_refused_by_the_call_limiter_records_a_provider_refusal()
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = placement_pass::run_pass(&deps).await;
     assert!(report.budget_exhausted);
@@ -223,6 +226,7 @@ async fn shape_pass_refused_by_the_maintenance_cap_records_the_refusal() -> anyh
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = shape_pass::run_pass(&deps).await;
     assert!(report.flagged >= 1, "{report:?}");

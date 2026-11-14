@@ -7,14 +7,17 @@ pub mod flow;
 pub mod gates;
 pub mod holdback;
 pub mod input;
+pub mod jev_seam;
 pub mod label;
 pub mod label_call;
+pub mod label_prod;
 pub mod label_rules;
 pub mod live;
 pub mod live_decision;
 pub mod metrics;
 pub mod nudges;
 pub mod policy;
+pub mod precheck_seam;
 pub mod promotion;
 pub mod question_gates;
 pub mod reach;
@@ -30,6 +33,9 @@ pub mod threshold_select;
 #[cfg(test)]
 #[path = "tests/gates_tests.rs"]
 pub mod gates_tests;
+#[cfg(test)]
+#[path = "tests/label_prod_tests.rs"]
+pub mod label_prod_tests;
 #[cfg(test)]
 #[path = "tests/label_rules_tests.rs"]
 pub mod label_rules_tests;
@@ -133,6 +139,8 @@ pub enum GuardStep {
 pub struct GuardTurn<'a> {
     pub persist: &'a PersistHandle,
     pub llm: &'a OpenRouterClient,
+    pub decisions: Option<precheck_seam::DecisionsTurn>,
+    pub jev: jev_seam::GuardDeciders,
     pub steerer_id: i64,
     pub bundle_id: Option<i64>,
     pub session_db_id: i64,

@@ -1,0 +1,151 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.uuid AS \"evaluation_uuid!\", i.uuid AS \"intervention_uuid!\",\n                          e.session_id AS \"session_id!\", e.operator_turn_id AS \"operator_turn_id!\",\n                          i.trigger_request_id, e.outcome_label AS \"label!\",\n                          e.label_source AS \"label_source!\", i.payload_text AS \"nudge!\",\n                          i.verdict_json,\n                          COALESCE(ot.user_prompt, '') AS \"operator_ask!\",\n                          COALESCE(ot.final_assistant_text, '') AS \"turn_end!\",\n                          e.dispatched_at AS \"dispatched_at!\"\n                     FROM steering.interventions i\n                     JOIN steering.steerers st ON st.id = i.steerer_id AND st.kind = 'verifier'\n                     JOIN steering.evaluations e ON e.intervention_uuid = i.uuid\n                     JOIN memory.operator_turns ot ON ot.id = e.operator_turn_id\n                    WHERE e.status = 'resolved_correction'\n                      AND e.outcome_label IN ('right', 'wrong')\n                      AND i.payload_text IS NOT NULL\n                      AND e.dispatched_at >= $1\n                    ORDER BY e.id DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "evaluation_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "intervention_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "trigger_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "trigger_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "outcome_label"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "label_source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "label_source"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "nudge!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "verdict_json",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "verdict_json"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "operator_ask!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "turn_end!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "dispatched_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "dispatched_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "635c0eaf863782d31af2babd50015f2b052649f01364fe7f380e645a58b862c0"
+}

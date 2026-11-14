@@ -1,5 +1,7 @@
 pub use mike_features::reminders::*;
 pub mod agent_lessons;
+#[cfg(test)]
+pub mod agent_lessons_floor_tests;
 pub mod agent_lessons_stage;
 #[cfg(test)]
 pub mod agent_lessons_stage_tests;
@@ -14,3 +16,4 @@ pub mod session_lessons_stage;
 pub mod session_lessons_stage_tests;
 #[cfg(test)]
 pub mod session_lessons_tests;
+pub mod supply_floor;

@@ -33,7 +33,9 @@ pub async fn report(
     {
         tell_owners(persist, def, &verdict, Some(&who.seat)).await;
     }
-    answer(def, who, &verdict)
+    let mut report = answer(def, who, &verdict);
+    report.triage = triage_line(persist, &verdict.row).await;
+    report
 }
 
 pub fn answer(def: &FleetDefinition, who: &Asker, verdict: &Verdict) -> CheckReport {
@@ -76,7 +78,26 @@ pub fn answer(def: &FleetDefinition, who: &Asker, verdict: &Verdict) -> CheckRep
         output_tail,
         refused: None,
         started_at: Some(row.started_at),
+        triage: None,
     }
+}
+
+async fn triage_line(
+    persist: &PersistHandle,
+    row: &crate::store::persistence::fleet::TreeCheckRow,
+) -> Option<String> {
+    if row.finished_at.is_none() || row.passed() {
+        return None;
+    }
+    let stored = persist
+        .fleet()
+        .tree_check_triage(row.id)
+        .await
+        .ok()
+        .flatten();
+    stored.or_else(|| {
+        super::decisions::triage_rules::by_rules(row.exit_code, &row.output).map(|t| t.line())
+    })
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -421,6 +442,9 @@ pub fn text(report: &CheckReport) -> String {
         }));
     }
     listed("in files no task owns:", &report.unowned, &mut lines);
+    if let Some(triage) = &report.triage {
+        lines.push(triage.clone());
+    }
     let nothing_placed =
         report.mine.is_empty() && report.others.is_empty() && report.unowned.is_empty();
     if !report.passed && nothing_placed {

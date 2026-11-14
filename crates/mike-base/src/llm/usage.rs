@@ -10,11 +10,13 @@ pub enum LlmCallOutcome {
     RefusedCeiling,
     RefusedRate,
     RefusedSpend,
+    SchemaError,
 }
 
 impl LlmCallOutcome {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::SchemaError => "schema_error",
             Self::Ok => "ok",
             Self::HttpError => "http_error",
             Self::Timeout => "timeout",
@@ -27,7 +29,7 @@ impl LlmCallOutcome {
     }
 }
 
-pub const ROLE_COUNT: usize = 7;
+pub const ROLE_COUNT: usize = 8;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum LlmRole {
@@ -39,6 +41,7 @@ pub enum LlmRole {
     LessonProposer,
     #[default]
     Unattributed,
+    Decision,
 }
 
 impl LlmRole {
@@ -50,6 +53,7 @@ impl LlmRole {
         Self::Eval,
         Self::LessonProposer,
         Self::Unattributed,
+        Self::Decision,
     ];
 
     pub const fn slot(self) -> usize {
@@ -61,6 +65,7 @@ impl LlmRole {
             Self::Eval => 4,
             Self::LessonProposer => 5,
             Self::Unattributed => 6,
+            Self::Decision => 7,
         }
     }
 
@@ -76,6 +81,7 @@ impl LlmRole {
             Self::LessonRelations => Some("lesson_relations"),
             Self::Eval => Some("eval"),
             Self::LessonProposer => Some("lesson_proposer"),
+            Self::Decision => Some("decision"),
             Self::Unattributed => None,
         }
     }
@@ -164,6 +170,7 @@ pub struct LlmCallRecord {
     pub steerer_id: Option<i64>,
     pub operator_turn_id: Option<i64>,
     pub request_body: Option<serde_json::Value>,
+    pub response_body: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

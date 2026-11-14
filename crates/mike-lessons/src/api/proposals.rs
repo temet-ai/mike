@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
+use std::collections::BTreeMap;
+
 use crate::api::eval::labels::spa_origin;
+use crate::lesson_proposer::proposal_order;
+use crate::llm::decisions::proposal_queue;
 use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::lessons::placement_proposals::{
@@ -55,12 +59,21 @@ pub async fn list_projects(State(state): State<AppState>) -> Response {
 #[derive(Debug, Deserialize)]
 pub struct ProjectParams {
     project: Uuid,
+    sort: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct ProposalsResponse {
     project: Uuid,
     proposals: Vec<PlacementProposalRow>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    suggested_accept: BTreeMap<i64, f64>,
+}
+
+pub fn order_by_suggestion(rows: &mut [PlacementProposalRow], suggested: &BTreeMap<i64, f64>) {
+    proposal_queue::order_by_suggestion(rows, suggested, |row| {
+        (row.decision.is_some(), row.lesson_id)
+    });
 }
 
 pub async fn list_proposals(
@@ -75,11 +88,20 @@ pub async fn list_proposals(
         .list_placement_proposals(params.project)
         .await
     {
-        Ok(proposals) => Json(ProposalsResponse {
-            project: params.project,
-            proposals,
-        })
-        .into_response(),
+        Ok(mut proposals) => {
+            let mut suggested = BTreeMap::new();
+            if params.sort.as_deref() == Some("suggested") {
+                proposal_order::spawn_fill(state.decision_env(), &proposals);
+                suggested = proposal_order::cached(&proposals);
+                order_by_suggestion(&mut proposals, &suggested);
+            }
+            Json(ProposalsResponse {
+                project: params.project,
+                proposals,
+                suggested_accept: suggested,
+            })
+            .into_response()
+        }
         Err(e) => persist_failed(&e),
     }
 }
@@ -124,7 +146,18 @@ pub async fn decide(
         .set_placement_decision(lesson_id, decision)
         .await
     {
-        Ok(true) => Json(json!({ "ok": true })).into_response(),
+        Ok(true) => {
+            match decision {
+                PlacementDecision::Accepted => {
+                    proposal_order::record_operator_decision(persist, lesson_id, true).await;
+                }
+                PlacementDecision::Declined => {
+                    proposal_order::record_operator_decision(persist, lesson_id, false).await;
+                }
+                PlacementDecision::Cleared => {}
+            }
+            Json(json!({ "ok": true })).into_response()
+        }
         Ok(false) => error(
             StatusCode::NOT_FOUND,
             "no rule or agent proposal with that id",

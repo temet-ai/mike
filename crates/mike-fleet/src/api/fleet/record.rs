@@ -42,14 +42,14 @@ async fn record_of(
             run_record::write(persist, row, run_id).await?;
         }
     }
-    persist
-        .fleet()
-        .find_run_record(row.fleet_uuid)
-        .await?
-        .ok_or(DefinitionError::NotFound(format!(
-            "{} has no run record: it is written when the run closes",
-            row.slug
-        )))
+    let stored = persist.fleet().find_run_record(row.fleet_uuid).await?;
+    if let (None, "running", Some(run_id)) = (&stored, row.state.as_str(), row.run_id.as_deref()) {
+        return Ok(run_record::live(persist, row, run_id).await);
+    }
+    stored.ok_or(DefinitionError::NotFound(format!(
+        "{} has no run record: it is written when the run closes",
+        row.slug
+    )))
 }
 
 pub async fn get_fleet_record(

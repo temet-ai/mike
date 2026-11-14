@@ -6,16 +6,21 @@ pub mod maintenance;
 pub mod placement;
 pub mod placement_pass;
 pub mod prompt;
+pub mod proposal_order;
 pub mod purpose;
+pub mod purpose_pick;
 pub mod quiet_budget;
 pub mod relate;
+pub mod relate_pick;
 pub mod replay;
 pub mod select;
+pub mod shape_gate;
 pub mod shape_pass;
 pub mod shape_rewrite;
 pub mod skill_author;
 pub mod skill_eval;
 pub mod skill_findings;
+pub mod topic_pick;
 pub mod topics;
 pub mod write;
 
@@ -131,6 +136,7 @@ pub struct ProposerDeps<'a> {
     pub embedding: &'a EmbeddingService,
     pub semantic: &'a SemanticConfig,
     pub settings: &'a ProposerSettings,
+    pub decisions: Option<&'a crate::llm::decisions::env::DecisionEnv>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]

@@ -13,6 +13,30 @@ use crate::store::persistence::eval_runs::{
 const DEFAULT_LIMIT: i64 = 50;
 const MAX_LIMIT: i64 = 500;
 
+struct RunItems {
+    persist: crate::store::persistence::PersistHandle,
+    id: i64,
+}
+
+impl super::review_queue::PageReader for RunItems {
+    fn read<'a>(
+        &'a self,
+        scan: &'a RunItemsFilter,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        crate::store::persistence::eval_runs::RunItemsPage,
+                        crate::store::persistence::PersistError,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(self.persist.eval().eval_run_items_page(self.id, scan))
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 pub struct RunsQuery {
     pub status: Option<String>,
@@ -36,6 +60,7 @@ pub struct ItemsQuery {
     pub verdict_delivery: Option<String>,
     pub severity: Option<String>,
     pub reviewed: Option<bool>,
+    pub review: Option<String>,
     pub include: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -201,6 +226,10 @@ pub async fn list_eval_run_items(
         Ok(p) => p,
         Err(r) => return *r,
     };
+    let uncertain_only = match super::review_queue::parse(q.review.as_deref()) {
+        Ok(v) => v,
+        Err(message) => return error(StatusCode::BAD_REQUEST, message),
+    };
     let filter = match items_filter(q, limit, offset) {
         Ok(f) => f,
         Err(r) => return *r,
@@ -208,15 +237,33 @@ pub async fn list_eval_run_items(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.eval().eval_run_items_page(id, &filter).await {
-        Ok(p) => Json(ItemsPage {
-            items: p.items,
-            total: p.total,
-            reviewed: p.reviewed,
-            limit,
-            offset,
-        })
-        .into_response(),
+    let fetched = if uncertain_only {
+        let reader = RunItems {
+            persist: persist.clone(),
+            id,
+        };
+        super::review_queue::uncertain_page(&filter, &reader, super::prelabel::cached).await
+    } else {
+        persist.eval().eval_run_items_page(id, &filter).await
+    };
+    match fetched {
+        Ok(p) => {
+            let ids: Vec<i64> = p.items.iter().map(|i| i.operator_turn_id).collect();
+            super::prelabel::spawn_fill(state.decision_env(), persist.clone(), &ids);
+            let values: Vec<serde_json::Value> = p
+                .items
+                .iter()
+                .filter_map(|item| serde_json::to_value(item).ok())
+                .collect();
+            Json(ItemsPage {
+                items: super::prelabel::attach(values, &super::prelabel::cached(&ids)),
+                total: p.total,
+                reviewed: p.reviewed,
+                limit,
+                offset,
+            })
+            .into_response()
+        }
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("persistence error: {e}"),

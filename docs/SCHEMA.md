@@ -4083,6 +4083,8 @@ allows.
 | `request_body` | `JSONB NULL` | Added in `20260902000001_llm_calls_request_body.sql`. The full outbound request body (system + messages + parameters) exactly as sent, captured once by `crates/mike/src/llm/openrouter.rs` and stored unchanged — never a slice or a summary. `NULL` on rows predating this column and on refused calls, which never build a body in the first place. This is what lets the session judge's related-sessions block (the neighbour-session context spliced into the judge prompt) be read back off the live system after the fact. |
 | `machine_uuid` | `UUID NULL` | Added in `20261014130000_llm_worker_leases.sql`. The `machine_uuid` from `machine.json` of the proxy that made the call, filled by `PersistHandle::insert_llm_call`. `NULL` on rows recorded before the column existed and on rows from a proxy with no machine identity file. Not indexed: the per-machine audit reads a bounded time window through `idx_llm_calls_created_at`. |
 
+Migration `20261114180000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
+
 **Indexes:**
 - `idx_llm_calls_created_at`: `created_at` (BRIN) — append-only time series
 - `idx_llm_calls_role_created_at`: `(role, created_at)` (BTree) — backs the per-role spend rollup behind `GET /api/llm/spend`
@@ -4141,6 +4143,80 @@ event-driven worker does not write a row per event.
 
 **Read path:** `GET /api/capabilities` row `llm_worker_lease` lists the roles this machine holds and
 the roles another machine holds, with that machine's uuid and heartbeat age.
+
+---
+
+## Domain: `decisions`
+
+Added by `20261114180000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
+
+### `decisions.records`
+
+One row per Jev call, for every outcome, written by `OpenRouterClient::decide` after the reply is read and before the caller acts on it.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `point` | `TEXT NOT NULL` | The decision point, such as `turn_guard_precheck`, `turn_judge` or `fleet_effort`; CHECK `point ~ '^[a-z][a-z0-9_]{1,62}$'`. The registered points are `POINTS` and `FLEET_POINTS` in `crates/mike-base/src/settings/meta_decisions.rs` plus `turn_guard_precheck` |
+| `mode` | `TEXT NOT NULL` | CHECK `IN ('shadow', 'on', 'replay', 'cli')` |
+| `question_set`, `question_set_hash` | `TEXT NOT NULL` | The point's question-set name (bumped with every wording change) and the first 8 bytes of the SHA-256 of the questions sent |
+| `thresholds` | `JSONB NOT NULL DEFAULT '{}'` | The thresholds the caller composed with, such as `{"hold_below": 0.3}` |
+| `model_requested` | `TEXT NOT NULL` | The model named in the request |
+| `state`, `questions`, `request_body` | `JSONB NOT NULL` | The request, verbatim: the facts sent, the typed questions and the whole body |
+| `outcome` | `TEXT NOT NULL` | CHECK `IN ('ok', 'http_error', 'timeout', 'transport_error', 'schema_error', 'refused_ceiling', 'refused_rate', 'refused_spend', 'no_key')` |
+| `error`, `response_raw` | `TEXT NULL` | The error text and the reply exactly as received, kept when it does not parse |
+| `answers` | `JSONB NULL` | Parsed answers with every probability and confidence |
+| `question_refusals` | `INTEGER NOT NULL DEFAULT 0` | How many questions Jev refused |
+| `served_model`, `provider`, `generation_id` | `TEXT NULL` | What served the call |
+| `usage` | `JSONB NULL` | Token usage |
+| `cost_usd` | `DOUBLE PRECISION NULL` | Cost of the call in US dollars |
+| `latency_ms`, `http_status` | `INTEGER NULL` | |
+| `composed` | `JSONB NULL` | Set by the caller afterwards: the verdict and its reason |
+| `applied` | `TEXT NULL` | What the caller did with the answer. CHECK `IN ('sent', 'held', 'woken', 'warned', 'passed', 'chosen', 'skipped', 'suggested', 'ordered', 'labelled', 'pushed_back', 'let_through', 'none')` |
+| `fail_open` | `BOOLEAN NULL` | Whether a failure sent the caller down the path it had before the layer |
+| `facts_version`, `facts` | `INTEGER NULL`, `JSONB NULL` | The steering facts the state was built from |
+| `session_id`, `operator_turn_id`, `request_id`, `fleet_run_id`, `check_receipt_id`, `project_id` | `BIGINT NULL` | Subject ids; none has a foreign key |
+| `evaluation_uuid`, `intervention_uuid`, `message_uuid`, `machine_uuid` | `UUID NULL` | The steering evaluation and intervention, the mail message, and the machine that made the call |
+| `seat`, `commit_sha` | `TEXT NULL` | The fleet seat and the commit the decision concerns |
+| `source_ref` | `TEXT NULL` | Unique when set; replays and imports use it to stay idempotent |
+
+Indexes: `idx_decision_records_point_created` `(point, created_at)`; `idx_decision_records_evaluation` on `evaluation_uuid` where set; unique `idx_decision_records_source_ref` on `source_ref` where set.
+
+### `decisions.outcomes`
+
+Labels for records, many per record and never overwritten. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`, and writes downstream labels from the operator's reaction, supplied-item verdicts, lesson and placement reviews, later checks and project or thread changes (see "Jev decision points: where each outcome comes from" in [`ARCHITECTURE.md`](ARCHITECTURE.md)).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `record_id` | `BIGINT NOT NULL` | FK → `decisions.records(id)` |
+| `label` | `TEXT NOT NULL` | CHECK `btrim(label) <> ''` |
+| `label_source` | `TEXT NOT NULL` | CHECK `btrim(label_source) <> ''`; for example `turn_guard_label`, `tool_name_rule`, `jev_after_stream` |
+| `evidence` | `JSONB NOT NULL DEFAULT '{}'` | |
+| `labelled_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+UNIQUE `(record_id, label_source, label)`, so sources that disagree are all kept.
+
+### `decisions.loop_runs`
+
+One row per `decisions_loop` run. The loop reads the newest `finished_at` to know whether a run is overdue.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `started_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `finished_at` | `TIMESTAMPTZ NULL` | NULL while the run is going |
+| `machine_uuid` | `UUID NULL` | |
+| `report` | `JSONB NOT NULL DEFAULT '{}'` | Per-point counts, AUROC, holds labelled and how many held a wrong nudge with its Wilson lower bound, labels per day, days until 30 labels, findings |
+
+### Changes the same migration makes elsewhere
+
+`steering.evaluations`: `evaluations_arm_check` becomes `CHECK (arm IS NULL OR arm IN ('treated', 'holdback', 'precheck_held'))`, where `precheck_held` marks a live turn-guard fire the pre-check held and never delivered. `evaluations_auto_label_shadow_only` becomes `CHECK (label_source IS NULL OR label_source NOT IN ('next_message', 'session_end') OR mode = 'shadow' OR COALESCE(arm, '') IN ('holdback', 'precheck_held') OR intervention_uuid IS NULL)`, so a `precheck_held` row takes an automatic label like a holdback row. The partial index `idx_evaluations_unlabelled_precheck_held` on `(dispatched_at)` where `outcome_label IS NULL AND arm = 'precheck_held' AND status <> 'dispatched'` lets the labeller find those rows.
+
+`wright.checks`: the migration seeds `decisions_health` (source `capture_db`, daily, params `max_failure_share` 0.2 and `window_hours` 24).
+
+The fleet layer's migration `20261114190000_fleet_decisions.sql` adds `mailbox.messages.held_until_turn`, `launch.tree_checks.triage` and `launch.request_efforts`, documented under their own tables.
 
 ---
 
@@ -4569,6 +4645,7 @@ sends and SET NULL if the sending session is deleted.
 | `consumed_at` | `TIMESTAMPTZ NULL` | Stamped by `POST /api/sessions/{id}/messages/{uuid}/ack` — explicit recipient acknowledgment; stops redelivery |
 | `dead_lettered_at` | `TIMESTAMPTZ NULL` | Stamped when `delivery_attempts` reaches `mailbox_redelivery_max_attempts` without an ack — stops redelivery |
 | `delivery_attempts` | `INT NOT NULL DEFAULT 0` | Count of successful envelope injections (first send + every redelivery) |
+| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114190000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn |
 
 **Indexes:**
 - `idx_mailbox_messages_from_session`: `from_session_id WHERE NOT NULL` (BTree partial) — reply pointer queries
@@ -5538,9 +5615,30 @@ The whole output is kept. Written and read through `store/persistence/fleet/` (`
 | `told` | `TEXT[] NOT NULL DEFAULT '{}'` | The seats mike mailed because their file failed it |
 | `state_after` | `TEXT NULL` | The tree state when the check finished; when it differs from `state` the tree changed during the run, so the result belongs to neither state and is not served to a later asker |
 | `executing_at` | `TIMESTAMPTZ NULL` | When the managed command's process actually started (`launch/fleet/managed_command.rs`); NULL while queued |
+| `triage` | `TEXT NULL` | Added by `20261114190000_fleet_decisions.sql`. One line saying what a failed check needs (retry, fix the code, fix the environment) and why; computed once when the check completes and printed in the receipt |
 
 **Indexes:**
 - `idx_tree_checks_run_state`: `(run_id, state, id DESC)` (BTree)
+
+---
+
+### `launch.request_efforts`
+
+Added by `20261114190000_fleet_decisions.sql`. One row per request a fleet seat made, for the measured split of effort into work, machinery and waiting. Written by `launch/fleet/decisions/effort.rs` on each fleet tick through `store/persistence/fleet/effort.rs`; summed by the run record and `get_fleet_record`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `request_id` | `BIGINT PRIMARY KEY` | FK → `requests.requests(id)` ON DELETE CASCADE |
+| `run_id` | `TEXT NOT NULL` | The fleet run (soft reference) |
+| `seat` | `TEXT NOT NULL` | The seat that made the request |
+| `session_id` | `BIGINT NOT NULL` | `sessions.sessions.id` of the seat (no FK) |
+| `trigger` | `TEXT NOT NULL` | What started the turn: `operator`, `hook`, `mail`, `wakeup`, `tool_result`, `steering`; computed by code from the request |
+| `label` | `TEXT NULL` | `work`, `machinery` or `waiting`; NULL until labelled |
+| `decided_by` | `TEXT NULL` | `trigger` when the trigger decided the label, `jev` when the decision model did |
+| `record_id` | `BIGINT NULL` | `decisions.records.id` of the Jev call that labelled it (no FK) |
+| `created_at`, `labelled_at` | `TIMESTAMPTZ` | When the row was made and when it was labelled |
+
+**Indexes:** `idx_request_efforts_run_seat` `(run_id, seat)`; `idx_request_efforts_unlabelled` `(run_id, request_id) WHERE label IS NULL`.
 
 ---
 
@@ -5878,6 +5976,8 @@ mutation and egress toggles off on a database that has captured no requests yet.
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Last time the toggle was written; drives the settings UI's "last changed" display |
 
 **Indexes:** none beyond the PK — the table has ≤10 rows and is read at startup and on every settings-page load.
+
+The `decisions` key is the master switch of the Jev decisions layer (`crates/mike-base/src/feature_toggles/meta.rs`: scope global, applies immediately). It needs no migration and no seeded row. Its code default is off, because the questions carry captured text to OpenRouter. The per-point modes are `config.settings` keys (`decisions.<point>.mode`), not toggles.
 
 Migration `20260929000001_improvement_schema.sql` (JC21) adds `judge_lessons` to the closed key
 set (the lesson proposer, `crates/mike-lessons/src/lesson_proposer/`). It sends captured turn text to an

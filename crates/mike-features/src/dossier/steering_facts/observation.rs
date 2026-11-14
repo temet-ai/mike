@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+use super::changed::{ChangedPath, changed_paths};
 use super::read_back::{reads_back, written_paths};
 use super::tool_effect::{ObservationKind, READ_BACK_KIND, ToolEffect, classify};
 
@@ -21,6 +22,13 @@ pub struct Observation {
     pub last_observation_use_id: Option<i64>,
     pub last_observation_at: Option<DateTime<Utc>>,
     pub observation_kind: Option<&'static str>,
+    pub changed: Vec<ChangedPath>,
+}
+
+impl Observation {
+    pub fn change_summary(&self) -> Option<String> {
+        super::changed::summary(&self.changed)
+    }
 }
 
 fn observing(call: &CallFact) -> Option<ObservationKind> {
@@ -30,12 +38,16 @@ fn observing(call: &CallFact) -> Option<ObservationKind> {
     }
 }
 
-fn written_since_last_check(calls: &[CallFact], change_index: usize) -> Vec<String> {
+fn since_last_check(calls: &[CallFact], change_index: usize) -> &[CallFact] {
     let start = calls[..change_index]
         .iter()
         .rposition(|c| observing(c).is_some())
         .map_or(0, |i| i + 1);
-    calls[start..=change_index]
+    &calls[start..=change_index]
+}
+
+fn written_since_last_check(calls: &[CallFact], change_index: usize) -> Vec<String> {
+    since_last_check(calls, change_index)
         .iter()
         .filter(|c| c.has_result)
         .flat_map(written_paths)
@@ -68,5 +80,8 @@ pub fn observe(calls: &[CallFact]) -> Observation {
         last_observation_use_id: last_observation.map(|(c, _)| c.use_id),
         last_observation_at: last_observation.map(|(c, _)| c.at),
         observation_kind: last_observation.map(|(_, kind)| kind),
+        changed: last_change
+            .map(|(i, _)| changed_paths(since_last_check(calls, i)))
+            .unwrap_or_default(),
     }
 }

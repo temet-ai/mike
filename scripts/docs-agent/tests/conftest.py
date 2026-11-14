@@ -4,4 +4,14 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import client
+
+
+@pytest.fixture(autouse=True)
+def no_decisions_call(monkeypatch):
+    """No test reaches mike's decisions route unless it stubs the call."""
+    monkeypatch.setattr(client, "decide", lambda state, questions, point=None: None)

@@ -7,6 +7,7 @@ use super::tree::{historical_run, running};
 use crate::api::changes::{WithTail, since_you_last_looked};
 use crate::base_state::BaseState;
 use crate::launch::fleet::check::{CheckReport, CheckRequest, Runner, check};
+use crate::launch::fleet::decisions::FleetDecisions;
 use crate::launch::fleet::discovery::{Discovery, DiscoveryArgs, discover};
 use crate::launch::fleet::gate::{GateReport, GateRequest, gate};
 use crate::launch::fleet::seated::Seated;
@@ -22,11 +23,13 @@ pub async fn check_fleet(
         running(&state, &key).await?
     };
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
+    let decisions = FleetDecisions::from_state(&state);
     let runner = Runner {
         persist,
         tracker: &state.tracker,
         run: &run,
         fleet: row.fleet_uuid,
+        decisions: decisions.as_ref(),
     };
     let seated = Seated::of_run(persist, &run, &def).await;
     let prepared = crate::launch::fleet::ruling::prepare(&runner, &def, &seated, &request)
@@ -74,6 +77,7 @@ pub async fn gate_fleet(
         tracker: &state.tracker,
         run: &run,
         fleet: row.fleet_uuid,
+        decisions: None,
     };
     let seated = Seated::of_run(persist, &run, &def).await;
     Ok(Json(gate(runner, &def, &seated, &request).await))

@@ -3,6 +3,15 @@
 	import PageAlarms from '$lib/components/settings/PageAlarms.svelte';
 	import GuardQuestionsPanel from '$lib/components/settings/GuardQuestionsPanel.svelte';
 	import GuardCalibrationPanel from '$lib/components/settings/GuardCalibrationPanel.svelte';
+	import DecisionsSettings from '$lib/components/settings/DecisionsSettings.svelte';
+	import DecisionsCalibrationPanel from '$lib/components/settings/DecisionsCalibrationPanel.svelte';
+	import {
+		getDecisionsCalibration,
+		modeSettingKey,
+		type DecisionMode,
+		type DecisionsCalibration
+	} from '$lib/api/decisions';
+	import { invalidateApiCache } from '$lib/stores/cache/apiCache.svelte';
 
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -56,6 +65,10 @@
 	let providersError = $state<string | null>(null);
 	// Set only by picking OpenRouter in the provider list. It shows the paid catalogue; nothing is saved until a row is chosen.
 	let openrouterBrowse = $state(false);
+	let calibration = $state<DecisionsCalibration | null>(null);
+	let calibrationError = $state<string | null>(null);
+	let savingPoints = $state<string[]>([]);
+	let pointErrors = $state<Record<string, string | null>>({});
 
 	$effect(() => {
 		features = data.features ?? [];
@@ -75,6 +88,14 @@
 		if (data.modelsLoadError !== null) void loadModels();
 		void loadOpenRouterUsage();
 		void loadProviders();
+		void loadCalibration();
+		const e = onApiCacheUpdate(
+			'/api/decisions/calibration',
+			() => {
+				void loadCalibration();
+			},
+			{ prefix: true }
+		);
 		const a = onApiCacheUpdate(
 			'/api/settings/features',
 			() => {
@@ -108,8 +129,34 @@
 			b();
 			c();
 			d();
+			e();
 		};
 	});
+
+	async function loadCalibration(): Promise<void> {
+		calibrationError = null;
+		try {
+			calibration = await getDecisionsCalibration();
+		} catch (err) {
+			calibrationError = err instanceof ApiError ? err.message : String(err);
+		}
+	}
+	async function handleModeChange(point: string, mode: DecisionMode): Promise<void> {
+		savingPoints = [...savingPoints, point];
+		pointErrors = { ...pointErrors, [point]: null };
+		try {
+			await patchSetting(modeSettingKey(point), mode);
+			await invalidateApiCache('/api/decisions/calibration');
+			await loadCalibration();
+		} catch (err) {
+			pointErrors = {
+				...pointErrors,
+				[point]: err instanceof ApiError ? err.message : String(err)
+			};
+		} finally {
+			savingPoints = savingPoints.filter((p) => p !== point);
+		}
+	}
 
 	async function loadFeatures(): Promise<void> {
 		loadError = null;
@@ -383,6 +430,22 @@
 		<a class="st-env-link" href={resolve('/settings/workers')}>Workers page</a>.
 	{/snippet}
 
+	<DecisionsSettings
+		{features}
+		{settings}
+		rowLoading={{ ...rowLoading, ...settingRowLoading }}
+		rowError={{ ...rowError, ...settingRowError }}
+		onToggleFeature={(key, enabled) => void handleFeatureToggle(key, enabled)}
+		onSaveSetting={(key, value) => void handleSettingSave(key, value)}
+	/>
+	<DecisionsCalibrationPanel
+		{calibration}
+		loadError={calibrationError}
+		onRetry={() => void loadCalibration()}
+		onModeChange={(point, mode) => void handleModeChange(point, mode)}
+		{savingPoints}
+		rowErrors={pointErrors}
+	/>
 	<GuardQuestionsPanel />
 	<GuardCalibrationPanel />
 

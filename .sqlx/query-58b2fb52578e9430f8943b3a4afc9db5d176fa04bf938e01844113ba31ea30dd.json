@@ -1,0 +1,127 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH gold AS (\n                       SELECT DISTINCT ON (l.subject_id, l.axis)\n                              l.subject_id AS turn_id, l.axis, l.label\n                         FROM eval.labels_as_of('infinity'::timestamptz) l\n                        WHERE l.subject_kind = 'turn' AND l.tier = 'gold'\n                          AND l.axis IN ('reaction', 'delivery')\n                        ORDER BY l.subject_id, l.axis, l.created_at DESC, l.id DESC\n                   ),\n                   axes AS (\n                       SELECT g.turn_id,\n                              max(g.label) FILTER (WHERE g.axis = 'reaction') AS reaction,\n                              max(g.label) FILTER (WHERE g.axis = 'delivery') AS delivery\n                         FROM gold g\n                        GROUP BY g.turn_id\n                   )\n                   SELECT t.id AS \"turn_id!\", t.session_id AS \"session_id!\",\n                          t.closed_at AS \"closed_at!\", o.code AS \"outcome!\",\n                          a.reaction AS gold_reaction, a.delivery AS gold_delivery,\n                          v.reaction AS live_reaction, v.delivery AS live_delivery,\n                          v.legacy_label AS live_legacy_label, v.confidence AS \"live_confidence?\"\n                     FROM memory.operator_turns t\n                     JOIN memory.turn_outcomes o ON o.id = t.outcome_id\n                     JOIN axes a ON a.turn_id = t.id\n                     LEFT JOIN LATERAL (\n                         SELECT x.reaction, x.delivery, x.legacy_label, x.confidence\n                           FROM memory.turn_verdicts x\n                          WHERE x.operator_turn_id = t.id AND x.mode = 'live'\n                          ORDER BY x.created_at DESC, x.id DESC\n                          LIMIT 1\n                     ) v ON true\n                    WHERE t.outcome_source = 'operator'\n                      AND t.closed_at IS NOT NULL\n                      AND t.closed_at >= $1\n                    ORDER BY t.id DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "closed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "outcome!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "gold_reaction",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "gold_delivery",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "live_reaction",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "live_delivery",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "delivery"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "live_legacy_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "legacy_label"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "live_confidence?",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "confidence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null,
+      null,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "58b2fb52578e9430f8943b3a4afc9db5d176fa04bf938e01844113ba31ea30dd"
+}

@@ -84,6 +84,7 @@ impl LlmUsageSink for PersistLlmUsageSink {
                 steerer_id: call.steerer_id,
                 operator_turn_id: call.operator_turn_id,
                 request_body: call.request_body,
+                response_body: call.response_body,
             };
             if let Err(e) = persist.insert_llm_call(insert).await {
                 tracing::warn!(

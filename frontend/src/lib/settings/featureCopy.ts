@@ -41,6 +41,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'Claude Code adds the same notice to every message another session or mike sends to a session, and the same closing sentence to every message you send while a session is working. When on, a session is sent each of them once and later copies are removed before a request is sent. New sessions pick this up when they start; running ones when the proxy restarts. The full original is always captured.',
 		find: 'disclaimer permission laundering not from your user mid-turn message wrapper'
 	},
+	decisions: {
+		label: 'Jev decisions',
+		description:
+			"Asks Jev (typesafe/jev-1.14 on OpenRouter) narrow typed questions at mike's decision points, starting with whether a turn-guard nudge is worth sending. It sends the operator's ask, the end of the assistant's final message and the facts about what changed to OpenRouter. Each point has its own mode under Decisions (off, shadow or on); in shadow the answers are only recorded. When a call fails or there is no OpenRouter key, mike behaves as if this were off. Applies to the next decision.",
+		find: 'jev typesafe openrouter pre-check precheck shadow hold nudge'
+	},
 	change_record: {
 		label: 'Record of what changed',
 		description:

@@ -54,6 +54,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/projects/merge-suggestions",
+        Coverage::Exempt {
+            reason: "SPA project list shows which projects look like the same repository; suggestions only, the operator merges",
+        },
+    ),
+    route(
+        "GET",
         "/api/sessions/{id}/head",
         Coverage::Tool("get_session_head"),
     ),
@@ -111,6 +118,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/projects/{project_path}/merge",
             post(handlers::post_project_merge),
+        )
+        .route(
+            "/api/projects/merge-suggestions",
+            get(handlers::get_project_merge_suggestions),
         )
         .route("/api/sessions/{id}/head", get(handlers::get_session_head))
         .route(

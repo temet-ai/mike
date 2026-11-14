@@ -19,6 +19,7 @@ pub struct LlmCallInsert<'a> {
     pub steerer_id: Option<i64>,
     pub operator_turn_id: Option<i64>,
     pub request_body: Option<serde_json::Value>,
+    pub response_body: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
@@ -151,8 +152,9 @@ impl PersistHandle {
                        (role, model, generation_id, prompt_tokens, completion_tokens,
                         reasoning_tokens, cached_tokens, cost_usd, latency_ms, outcome,
                         http_status, session_id, steerer_id, operator_turn_id, request_body,
-                        machine_uuid)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        machine_uuid, response_body)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                           $17)
                    RETURNING id"#,
                 call.role,
                 call.model,
@@ -170,6 +172,7 @@ impl PersistHandle {
                 call.operator_turn_id,
                 call.request_body as Option<serde_json::Value>,
                 machine_uuid,
+                call.response_body as Option<serde_json::Value>,
             )
             .fetch_one(&self.pool)
             .await?;

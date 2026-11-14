@@ -37,6 +37,7 @@ async fn embedding_failure_retains_full_proposal_for_restart_without_new_model_c
     fx.handle.lessons().save_lesson_proposal(&saved).await?;
     fx.handle.lessons().save_lesson_proposal(&saved).await?;
     let mut decision = write::Decision {
+        prod: false,
         candidate: &saved.candidate,
         proposed: &saved.proposed,
         embedding: None,
@@ -341,6 +342,7 @@ async fn refused_limiter_does_not_consume_durable_proposer_allowance() -> anyhow
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = crate::lesson_proposer::run_tick(&deps).await;
     assert_eq!(report.candidates, 1);

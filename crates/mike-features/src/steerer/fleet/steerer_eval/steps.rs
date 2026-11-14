@@ -1,3 +1,4 @@
+use super::checklist_seam;
 use super::delivery_gate::delivery_gate;
 use super::gates::{already_fired_for_turn, debounce_allows_fire};
 use super::log::{
@@ -24,6 +25,7 @@ pub struct ResolvedVerdict {
     pub effective_llm: OpenRouterClient,
     pub system: String,
     pub user_msg: String,
+    pub jev_decided: bool,
 }
 
 pub fn gate_decline_reason(steerer: &Steerer) -> Abstention {
@@ -126,36 +128,23 @@ pub async fn resolve_verdict_for_steerer(
     .await;
     let user_msg = build_user_message(window, steerer, state).await;
     let effective_llm = resolve_effective_client(window.base_llm, steerer, window.scope());
-
-    let attempt = attempt_verdict(
-        &effective_llm,
-        &system,
-        &user_msg,
-        window.target,
-        steerer,
-        state.debounce,
-    )
-    .await;
-    let mut verdict = match attempt {
-        VerdictAttempt::Success(v) => v,
-        VerdictAttempt::Refused => {
-            state.outcome.refused = true;
-            state.outcome.abstain(steerer, Abstention::GovernorRefused);
-            return Err(Exit::not_judged(
-                StepOutcome::StopWindow,
-                Abstention::GovernorRefused,
-            ));
-        }
-        VerdictAttempt::Failed => {
-            state.outcome.failed = true;
-            state.outcome.abstain(steerer, Abstention::LlmCallFailed);
-            return Err(Exit::not_judged(
-                StepOutcome::Continue,
-                Abstention::LlmCallFailed,
-            ));
+    let jev = checklist_seam::run(window, steerer, state).await;
+    let (verdict, jev_decided) = match jev.as_ref().filter(|j| !j.fires()) {
+        Some(quiet) => (quiet.no_fire().await, true),
+        None => {
+            let written = written_verdict(
+                &effective_llm,
+                (system.as_str(), user_msg.as_str()),
+                (window, steerer),
+                state,
+            )
+            .await?;
+            match jev.as_ref() {
+                Some(jev) => (jev.fire_with(&written).await, true),
+                None => (evidence_gated(written), false),
+            }
         }
     };
-    apply_evidence_gate(&mut verdict);
     state.outcome.last_verdict = Some(verdict.clone());
 
     Ok(ResolvedVerdict {
@@ -163,7 +152,50 @@ pub async fn resolve_verdict_for_steerer(
         effective_llm,
         system,
         user_msg,
+        jev_decided,
     })
+}
+
+fn evidence_gated(mut verdict: SteererVerdict) -> SteererVerdict {
+    apply_evidence_gate(&mut verdict);
+    verdict
+}
+
+async fn written_verdict(
+    effective_llm: &OpenRouterClient,
+    prompts: (&str, &str),
+    scope: (&EvalWindow<'_>, &Steerer),
+    state: &mut WindowState<'_>,
+) -> Result<SteererVerdict, Exit> {
+    let (window, steerer) = scope;
+    let attempt = attempt_verdict(
+        effective_llm,
+        prompts.0,
+        prompts.1,
+        window.target,
+        steerer,
+        state.debounce,
+    )
+    .await;
+    match attempt {
+        VerdictAttempt::Success(v) => Ok(v),
+        VerdictAttempt::Refused => {
+            state.outcome.refused = true;
+            state.outcome.abstain(steerer, Abstention::GovernorRefused);
+            Err(Exit::not_judged(
+                StepOutcome::StopWindow,
+                Abstention::GovernorRefused,
+            ))
+        }
+        VerdictAttempt::Failed => {
+            state.outcome.failed = true;
+            state.outcome.abstain(steerer, Abstention::LlmCallFailed);
+            Err(Exit::not_judged(
+                StepOutcome::Continue,
+                Abstention::LlmCallFailed,
+            ))
+        }
+    }
 }
 
 pub async fn pre_verdict_decline(
@@ -237,7 +269,7 @@ pub async fn post_verdict_decline(
         }
         _ => {}
     }
-    if !forced {
+    if !forced && !resolved.jev_decided {
         let (votes_fire, votes_total) = confirm_quorum(
             &resolved.effective_llm,
             &resolved.system,

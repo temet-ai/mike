@@ -262,6 +262,7 @@ async fn startup_and_ordinary_gates_keep_their_own_commits_in_the_same_warm_slot
             tracker: &tracker,
             run: &ordinary_run,
             fleet,
+            decisions: None,
         };
         let (startup, ordinary) = tokio::join!(
             managed::startup_gate(&persist, &def, &facts, &first, &tracker),

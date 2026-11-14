@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::report_judge::{ReportToJudge, judge_report, tell_seat};
+use super::report_judge::{ReportToJudge, judge_report_with, tell_seat};
 use super::{LeafError, LeafModel};
 use crate::base_state::BaseState;
 use crate::launch::fleet::definition::FleetDefinition;
@@ -16,6 +16,7 @@ use crate::launch::fleet::floor::Outcome;
 use crate::launch::fleet::report::{Exercised, REPORT_KIND, REPORT_TAG};
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::told;
+use crate::llm::decisions::point::Decider;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{NoteOrder, SessionNoteFilter};
 
@@ -164,7 +165,19 @@ pub async fn pass(
         return;
     };
     match super::model(state) {
-        Some(model) => judge_pending(&model, persist, (def, run, fleet), &pending).await,
+        Some(model) => {
+            let decider = state
+                .decision_env()
+                .and_then(|env| env.decider(super::judge_jev::POINT));
+            judge_pending_with(
+                decider.as_ref(),
+                &model,
+                persist,
+                (def, run, fleet),
+                &pending,
+            )
+            .await;
+        }
         None => no_model(persist, run, &pending).await,
     }
 }
@@ -190,6 +203,16 @@ async fn awaiting(
 pub async fn judge_pending(
     model: &dyn LeafModel,
     persist: &PersistHandle,
+    ids: (&FleetDefinition, &str, &str),
+    pending: &[Pending],
+) {
+    judge_pending_with(None, model, persist, ids, pending).await;
+}
+
+pub async fn judge_pending_with(
+    decider: Option<&Decider>,
+    model: &dyn LeafModel,
+    persist: &PersistHandle,
     (def, run, fleet): (&FleetDefinition, &str, &str),
     pending: &[Pending],
 ) {
@@ -208,7 +231,7 @@ pub async fn judge_pending(
         let floor = Outcome::Passed {
             sha: report.sha.clone(),
         };
-        match judge_report(model, persist, def, &report, floor).await {
+        match judge_report_with(decider, model, persist, def, (&report, floor)).await {
             Ok(()) => {
                 attempts().remove(&p.note);
             }

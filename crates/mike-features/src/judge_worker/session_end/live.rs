@@ -8,6 +8,8 @@ use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::dossier::view::types::AsOf;
 use crate::judge_worker::session_poll::digest::outcome_code_to_id;
+use crate::judge_worker::session_poll::jev::SessionJev;
+use crate::judge_worker::session_poll::jev::live::{self as jev_live, ModelView};
 use crate::judge_worker::session_poll::verdict_write::{
     refresh_vector_post_verdict, write_knowledge, write_overview,
 };
@@ -31,6 +33,7 @@ pub struct LivePoll<'a> {
     pub batch: i64,
     pub turn_judge_live_bundle_id: i64,
     pub turn_confidence_threshold: f32,
+    pub jev: Option<&'a crate::llm::decisions::point::Decider>,
 }
 
 pub fn verdict_row<'a>(
@@ -44,7 +47,7 @@ pub fn verdict_row<'a>(
     SessionVerdictV3Row {
         session_db_id,
         outcome_id: outcome_code_to_id(&j.verdict.outcome),
-        quality_score: j.verdict.quality_score.clamp(0.0, 1.0),
+        quality_score: (!j.quality_unknown).then_some(j.verdict.quality_score.clamp(0.0, 1.0)),
         rationale: &j.verdict.rationale,
         judge_model: &cfg.model,
         rubric_version: RUBRIC_VERSION,
@@ -206,12 +209,13 @@ impl LivePoll<'_> {
         )
         .flatten()
         .map(|p| p.end_turn_id);
-        let judged = match judge_session_v3(self.persist, &llm, cfg, &subject).await {
+        let mut judged = match judge_session_v3(self.persist, &llm, cfg, &subject).await {
             Ok(j) => j,
             Err(SessionJudgeFailure::Refused) => return false,
             Err(e) => return self.on_failure(cfg, c, breaker, &e).await,
         };
         breaker.record(true, Instant::now());
+        let decided = self.apply_jev(c.session_db_id, &mut judged).await;
         let row = verdict_row(&judged, cfg, c.session_db_id, "live", Some(self.bundle_id));
         let stored = ok_or_warn(
             self.persist.eval().insert_session_verdict_v3(&row).await,
@@ -221,8 +225,26 @@ impl LivePoll<'_> {
         if let Some(verdict_id) = stored {
             self.after_store(c, &judged, verdict_id, previous_end_turn)
                 .await;
+            self.mark_jev(decided.as_ref()).await;
         }
         true
+    }
+
+    pub(super) async fn apply_jev(
+        &self,
+        session_db_id: i64,
+        judged: &mut SessionJudgementV3,
+    ) -> Option<(SessionJev, ModelView)> {
+        let decider = self.jev?;
+        let jev = jev_live::decide_live(decider, self.persist, session_db_id, judged).await?;
+        let before = jev_live::apply_live(judged, &jev.decision);
+        Some((jev, before))
+    }
+
+    async fn mark_jev(&self, decided: Option<&(SessionJev, ModelView)>) {
+        if let (Some(decider), Some((jev, before))) = (self.jev, decided) {
+            jev_live::mark_live(decider, jev, before).await;
+        }
     }
 
     pub async fn run(&self, breaker: &mut CircuitBreaker) -> usize {
@@ -258,3 +280,7 @@ impl LivePoll<'_> {
         judged
     }
 }
+
+#[cfg(test)]
+#[path = "live_jev_tests.rs"]
+mod live_jev_tests;

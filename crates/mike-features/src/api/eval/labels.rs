@@ -260,6 +260,15 @@ async fn check_review_run(persist: &PersistHandle, body: &GoldBody) -> Result<()
     }
 }
 
+async fn record_prelabel_outcome(persist: &PersistHandle, body: &GoldBody, entries: &[GoldEntry]) {
+    let SubjectBody::Turn { turn_id } = body.subject else {
+        return;
+    };
+    if let Some(reaction) = entries.iter().find(|e| e.axis == "reaction") {
+        super::prelabel::record_human_label(persist, turn_id, &reaction.label).await;
+    }
+}
+
 pub async fn post_gold_labels(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -297,6 +306,7 @@ pub async fn post_gold_labels(
     match persist.eval().write_gold_labels(&write).await {
         Ok(labels) => {
             super::projection::project_after_gold(&state, persist, &labels).await;
+            record_prelabel_outcome(persist, &body, &entries).await;
             (StatusCode::CREATED, Json(json!({ "labels": labels }))).into_response()
         }
         Err(e) => write_error(&e),

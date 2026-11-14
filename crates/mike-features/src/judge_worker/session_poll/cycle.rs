@@ -25,6 +25,8 @@ pub struct SessionPollDeps<'a> {
     pub embedding: &'a EmbeddingService,
     pub key_slot: &'a crate::llm::key::OpenRouterKeySlot,
     pub config: &'a SessionJudgeConfig,
+    pub toggles: &'a std::sync::Arc<arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>>,
+    pub settings: &'a std::sync::Arc<arc_swap::ArcSwap<crate::settings::SettingsOverlay>>,
 }
 
 pub async fn run_poll(
@@ -52,6 +54,13 @@ pub async fn run_poll(
         return;
     };
     let llm = llm.with_reservation(&reservation);
+    let jev = crate::llm::decisions::point::Decider::for_point(
+        &llm,
+        deps.persist,
+        deps.toggles.load().decisions,
+        &deps.settings.load(),
+        super::jev::POINT,
+    );
     let rubric_version = i32::try_from(deps.config.rubric_version).unwrap_or(1);
     let settled_before = settled_before_cutoff(runtime.min_session_age_secs);
 
@@ -83,6 +92,7 @@ pub async fn run_poll(
             embedding: deps.embedding,
             runtime,
             rubric_version,
+            jev: jev.as_ref(),
         };
         if judge_one_session(&ctx, breaker, session).await.is_break() {
             break;
@@ -105,6 +115,13 @@ async fn run_v3_poll(
         return;
     };
     let llm = llm.with_reservation(&reservation);
+    let jev = crate::llm::decisions::point::Decider::for_point(
+        &llm,
+        deps.persist,
+        deps.toggles.load().decisions,
+        &deps.settings.load(),
+        super::jev::POINT,
+    );
     let poll = crate::judge_worker::session_end::live::LivePoll {
         persist: deps.persist,
         llm: &llm,
@@ -115,6 +132,7 @@ async fn run_v3_poll(
         batch: i64::from(reservation.granted()),
         turn_judge_live_bundle_id: runtime.turn_judge_live_bundle_id,
         turn_confidence_threshold: runtime.turn_confidence_threshold,
+        jev: jev.as_ref(),
     };
     let judged = poll.run(breaker).await;
     if i64::try_from(judged).unwrap_or(0) < batch {
@@ -215,6 +233,7 @@ pub struct SessionJudgeCtx<'a> {
     pub embedding: &'a EmbeddingService,
     pub runtime: &'a SessionJudgeRuntime,
     pub rubric_version: i32,
+    pub jev: Option<&'a crate::llm::decisions::point::Decider>,
 }
 
 async fn judge_one_session(
@@ -239,11 +258,12 @@ async fn judge_one_session(
     let (neighbour_ids, related_contexts) =
         fetch_related_contexts(ctx.persist, session_uuid, session_id, has_vector).await;
 
-    let mut user_message = build_digest(
+    let digest_text = build_digest(
         &turns,
         ctx.runtime.max_turns_in_prompt,
         ctx.runtime.max_chars_per_turn,
     );
+    let mut user_message = digest_text.clone();
     user_message.push_str(&build_related_sessions_block(&related_contexts));
 
     let digest = digest_sha256(&ctx.runtime.system_prompt, &user_message);
@@ -251,6 +271,7 @@ async fn judge_one_session(
         return ControlFlow::Continue(());
     }
 
+    let jev = decide_with_jev(ctx, &session, &turns, &digest_text).await;
     let call = call_judge_llm(
         ctx.llm,
         breaker,
@@ -259,6 +280,7 @@ async fn judge_one_session(
         &user_message,
     )
     .await;
+    let call = super::jev::reconcile(call, jev.as_ref());
     match call {
         JudgeCall::Refused => ControlFlow::Break(()),
         JudgeCall::BreakerTripped => {
@@ -282,9 +304,34 @@ async fn judge_one_session(
             record_attempt(ctx, &session, attempted_at, !stored).await;
             if stored {
                 digest_repeat::remember(ctx, &session, &digest).await;
+                mark_jev_stored(ctx, jev.as_ref()).await;
             }
             ControlFlow::Continue(())
         }
+    }
+}
+
+async fn decide_with_jev(
+    ctx: &SessionJudgeCtx<'_>,
+    session: &SessionForJudgment,
+    turns: &[JudgeDigestRow],
+    digest_text: &str,
+) -> Option<super::jev::SessionJev> {
+    let decider = ctx.jev?;
+    let first_ask = turns.first().map_or("", |t| t.user_prompt.as_str());
+    super::jev::decide(
+        decider,
+        session.session_db_id,
+        first_ask,
+        digest_text,
+        turns.len(),
+    )
+    .await
+}
+
+async fn mark_jev_stored(ctx: &SessionJudgeCtx<'_>, jev: Option<&super::jev::SessionJev>) {
+    if let (Some(decider), Some(jev)) = (ctx.jev, jev) {
+        super::jev::mark_stored(decider, jev).await;
     }
 }
 

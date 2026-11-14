@@ -140,12 +140,33 @@ impl Candidate {
     }
 }
 
-pub fn resolve(input: &ResolveInput<'_>) -> Resolution {
-    let open: Vec<&ThreadFacts> = input
+fn open_threads<'a>(input: &'a ResolveInput<'a>) -> Vec<&'a ThreadFacts> {
+    input
         .threads
         .iter()
         .filter(|thread| OPEN_STATUSES.contains(&thread.status.as_str()))
+        .collect()
+}
+
+pub fn ranked_candidates(input: &ResolveInput<'_>, limit: usize) -> Vec<Pick> {
+    let open = open_threads(input);
+    let ctx = build_context(input, &open);
+    let mut picks: Vec<Pick> = open
+        .iter()
+        .map(|thread| score_thread(thread, &ctx).pick)
+        .filter(|pick| pick.score > 0.0)
         .collect();
+    picks.sort_by(|a, b| {
+        b.score
+            .total_cmp(&a.score)
+            .then_with(|| a.slug.cmp(&b.slug))
+    });
+    picks.truncate(limit);
+    picks
+}
+
+pub fn resolve(input: &ResolveInput<'_>) -> Resolution {
+    let open = open_threads(input);
     let ctx = build_context(input, &open);
     let mut candidates: Vec<Candidate> = open
         .iter()

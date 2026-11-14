@@ -92,6 +92,7 @@ impl Fixture {
             session_judge_bundle_id: 0,
             backoff_base_secs: 60,
             backoff_max_secs: 600,
+            jev: None,
         }
     }
 

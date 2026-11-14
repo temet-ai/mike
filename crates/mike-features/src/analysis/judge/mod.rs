@@ -9,6 +9,7 @@ use crate::store::persistence::operator_turns::JudgeCandidateRow;
 pub mod input_v2;
 #[cfg(test)]
 pub mod input_v2_tests;
+pub mod jev;
 #[cfg(test)]
 pub mod message_tests;
 pub mod outcome;

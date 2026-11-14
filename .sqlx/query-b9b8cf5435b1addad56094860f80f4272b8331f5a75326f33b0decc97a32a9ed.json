@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.fleet_events (run_id, task, session_uuid, kind, payload, occurred_at)\n         VALUES ($1, 'T1', $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Text",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b9b8cf5435b1addad56094860f80f4272b8331f5a75326f33b0decc97a32a9ed"
+}

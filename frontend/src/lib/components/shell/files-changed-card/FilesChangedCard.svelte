@@ -1,3 +1,23 @@
+<script lang="ts" module>
+	export interface FileFact {
+		kind: string;
+		added: number;
+		removed: number;
+		committed: boolean | null;
+	}
+
+	const KIND_LABELS: Record<string, string> = { ui: 'UI' };
+
+	export function kindLabel(kind: string): string {
+		return KIND_LABELS[kind] ?? kind;
+	}
+
+	export function commitLabel(committed: boolean | null): string {
+		if (committed === null) return '—';
+		return committed ? 'committed' : 'uncommitted';
+	}
+</script>
+
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -10,6 +30,8 @@
 		loading?: boolean;
 		error?: string | null;
 		onRetry: () => void;
+		facts?: Record<string, FileFact>;
+		embedded?: boolean;
 	}
 
 	interface FileNode {
@@ -57,7 +79,7 @@
 
 	const INITIAL_ROW_BUDGET = 16;
 
-	let { files, loading = false, error = null, onRetry }: Props = $props();
+	let { files, loading = false, error = null, onRetry, facts, embedded = false }: Props = $props();
 	let expansion = new SvelteMap<string, boolean>();
 
 	function mutableDirectory(name: string, path: string): MutableDirectory {
@@ -250,10 +272,19 @@
 	let hasDirectories = $derived(defaults.size > 0);
 </script>
 
-<div class="fc-card edge edge-blue">
-	<div class="fc-card-heading panel-hd">
-		<FileCode2 size={13} aria-hidden="true" />
-		Files changed <span class="fc-total">{files.length}</span>
+<div class="fc-card" class:edge={!embedded} class:edge-blue={!embedded}>
+	<div
+		class="fc-card-heading"
+		class:panel-hd={!embedded}
+		class:fc-card-heading--embedded={embedded}
+	>
+		{#if embedded}
+			<span class="machine fc-embedded-label">Files changed</span>
+		{:else}
+			<FileCode2 size={13} aria-hidden="true" />
+			Files changed
+		{/if}
+		<span class="fc-total">{files.length}</span>
 		{#if !loading && !error && hasDirectories}
 			<div class="fc-tree-actions">
 				<button
@@ -326,8 +357,10 @@
 						</button>
 					</li>
 				{:else if row.kind === 'file'}
+					{@const fact = facts?.[row.node.path]}
 					<li
 						class="fc-tree-row fc-file-row"
+						class:fc-file-row--facts={facts !== undefined}
 						style={`--tree-indent: ${row.depth * 14}px`}
 						role="treeitem"
 						aria-level={row.depth + 1}
@@ -338,6 +371,22 @@
 					>
 						<FileTypeIcon path={row.node.path} size={13} class="fc-file-icon" />
 						<span class="fc-file-name">{row.node.name}</span>
+						{#if facts !== undefined}
+							<span class="fc-fact fc-fact--kind">{fact ? kindLabel(fact.kind) : '—'}</span>
+							<span class="fc-fact fc-fact--diff">
+								{#if fact && (fact.added > 0 || fact.removed > 0)}
+									<span class="fc-added">+{fact.added}</span>
+									<span class="fc-removed">−{fact.removed}</span>
+								{:else}
+									—
+								{/if}
+							</span>
+							<span
+								class="fc-fact fc-fact--commit"
+								class:fc-fact--uncommitted={fact?.committed === false}
+								>{fact ? commitLabel(fact.committed) : '—'}</span
+							>
+						{/if}
 					</li>
 				{:else}
 					<li
@@ -362,6 +411,45 @@
 		align-items: center;
 		gap: 6px;
 		margin-bottom: 8px;
+	}
+
+	.fc-card-heading--embedded {
+		padding-bottom: var(--space-1);
+		border-bottom: var(--hairline) solid var(--border-subtle);
+	}
+
+	.fc-embedded-label {
+		font-size: var(--text-xs);
+		color: var(--text-3);
+	}
+
+	.fc-file-row.fc-file-row--facts {
+		grid-template-columns: 13px minmax(0, 1fr) 9ch 11ch 11ch;
+	}
+
+	.fc-fact {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
+		text-align: right;
+		white-space: nowrap;
+		color: var(--text-3);
+	}
+
+	.fc-fact--kind {
+		color: var(--text-2);
+	}
+
+	.fc-fact--uncommitted {
+		color: var(--text-1);
+	}
+
+	.fc-added {
+		color: var(--status-success-fg);
+	}
+
+	.fc-removed {
+		color: var(--status-danger-fg);
 	}
 
 	.fc-total {

@@ -3,6 +3,9 @@ pub mod decide;
 
 use chrono::Utc;
 
+use super::wake_recheck::{self, Checked};
+use crate::llm::decisions::point::Decider;
+
 use decide::{WakeAction, WakeFacts, classify_reach, decide_due_wake};
 
 use super::sweep::SweepContext;
@@ -120,7 +123,73 @@ async fn claim_rows(ctx: &SweepContext<'_>) -> Vec<DueWakeRow> {
     .unwrap_or_default()
 }
 
-async fn decide_row(ctx: &SweepContext<'_>, row: &DueWakeRow, cap: i64, pass: &mut DuePass) {
+struct WakeJev {
+    decider: Option<Decider>,
+    failed: bool,
+}
+
+impl WakeJev {
+    fn new(ctx: &SweepContext<'_>) -> Self {
+        let decider = super::sweep::build_base_llm_client(ctx)
+            .and_then(|base| crate::llm::key::keyed_client(&base, ctx.key_slot))
+            .and_then(|keyed| {
+                Decider::for_point(
+                    &keyed,
+                    ctx.persist,
+                    ctx.toggles.load().decisions,
+                    &ctx.settings.load(),
+                    wake_recheck::POINT,
+                )
+            });
+        Self {
+            decider,
+            failed: false,
+        }
+    }
+
+    async fn check(&mut self, ctx: &SweepContext<'_>, row: &DueWakeRow) -> Option<Checked> {
+        let decider = self.decider.as_ref().filter(|_| !self.failed)?;
+        let checked = wake_recheck::check(decider, ctx.persist, row).await;
+        if checked.is_none() && decider.applies() {
+            self.failed = true;
+        }
+        checked
+    }
+}
+
+async fn push_or_skip(ctx: &SweepContext<'_>, row: &DueWakeRow, jev: &mut WakeJev) -> WakeFinal {
+    let checked = jev.check(ctx, row).await;
+    let (Some(decider), Some(checked)) = (jev.decider.as_ref(), checked) else {
+        return WakeFinal {
+            id: row.id,
+            state: push(ctx, row).await,
+            expire: false,
+        };
+    };
+    if checked.recheck.skip {
+        wake_recheck::mark(decider, &checked, false).await;
+        return WakeFinal {
+            id: row.id,
+            state: "backed",
+            expire: true,
+        };
+    }
+    let state = push(ctx, row).await;
+    wake_recheck::mark(decider, &checked, state == "pushed").await;
+    WakeFinal {
+        id: row.id,
+        state,
+        expire: false,
+    }
+}
+
+async fn decide_row(
+    ctx: &SweepContext<'_>,
+    row: &DueWakeRow,
+    cap: i64,
+    pass: &mut DuePass,
+    jev: &mut WakeJev,
+) {
     let facts = facts_for(ctx, row, cap).await;
     pass.reach.push((row.evaluation_id, facts.reach.code()));
     match decide_due_wake(&facts) {
@@ -130,11 +199,7 @@ async fn decide_row(ctx: &SweepContext<'_>, row: &DueWakeRow, cap: i64, pass: &m
             expire,
         }),
         WakeAction::BackToPending => pass.back.push(row.id),
-        WakeAction::Push => pass.finals.push(WakeFinal {
-            id: row.id,
-            state: push(ctx, row).await,
-            expire: false,
-        }),
+        WakeAction::Push => pass.finals.push(push_or_skip(ctx, row, jev).await),
     }
 }
 
@@ -180,8 +245,9 @@ async fn process_rows(ctx: &SweepContext<'_>, rows: &[DueWakeRow]) {
         .await
         .wake_cap_per_session_hour;
     let mut pass = DuePass::default();
+    let mut jev = WakeJev::new(ctx);
     for row in rows {
-        decide_row(ctx, row, cap, &mut pass).await;
+        decide_row(ctx, row, cap, &mut pass, &mut jev).await;
     }
     write_pass(ctx, &pass).await;
     tracing::debug!(claimed = rows.len(), "due wakes: pass finished");

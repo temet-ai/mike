@@ -1,4 +1,6 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+#[cfg(test)]
+mod floor_tests;
 pub mod formatter;
 pub mod parser;
 #[cfg(test)]
@@ -6,13 +8,18 @@ pub mod push_delivery_tests;
 pub mod stage;
 #[cfg(test)]
 mod tests;
+pub mod topic;
 
 use bytes::Bytes;
 use serde_json::Value;
 
 use crate::lazy_sections::has_thinking_blocks;
+use crate::llm::decisions::env::DecisionEnv;
+use crate::llm::decisions::point::Decider;
 use crate::proxy::remote_control::inject::{PushDeps, try_push_reminder};
 use crate::reminders::inject::{InjectBookkeeping, inject_system_reminder};
+use crate::reminders::supply_floor::rows::keep_rows;
+use crate::reminders::supply_floor::{self, Candidate, Context};
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
 use crate::store::persistence::PersistHandle;
 
@@ -53,6 +60,13 @@ pub struct RecallInjectionRequest<'a> {
 }
 
 pub async fn apply_recall_injection(req: RecallInjectionRequest<'_>) -> RecallOutcome {
+    apply_recall_injection_with(req, None).await
+}
+
+pub async fn apply_recall_injection_with(
+    req: RecallInjectionRequest<'_>,
+    decisions: Option<&DecisionEnv>,
+) -> RecallOutcome {
     let RecallInjectionRequest {
         raw,
         project_path,
@@ -90,10 +104,25 @@ pub async fn apply_recall_injection(req: RecallInjectionRequest<'_>) -> RecallOu
         return RecallOutcome::Declined("recall_no_project");
     }
 
-    let Some(all_rows) = gather_lessons_for_topics(persist, project_path, &topics, cfg).await
+    let asking = i64::try_from(request_id.as_u64()).ok();
+    let near = decisions.map(|env| (env, assistant_text.as_str(), asking));
+    let Some(Gathered {
+        rows: all_rows,
+        topics,
+    }) = gather_lessons_for_topics(persist, project_path, &topics, cfg, near).await
     else {
         return RecallOutcome::Declined("recall_no_lessons");
     };
+    let floor = SupplyFloor {
+        decisions,
+        session_id,
+        request_id,
+        text: &assistant_text,
+    };
+    let all_rows = floor.keep(all_rows).await;
+    if all_rows.is_empty() {
+        return RecallOutcome::Declined("recall_lessons_below_floor");
+    }
 
     let Some(reminder_text) = formatter::format_recall_reminder(&topics, &all_rows) else {
         return RecallOutcome::Declined("recall_nothing_to_format");
@@ -121,6 +150,32 @@ pub async fn apply_recall_injection(req: RecallInjectionRequest<'_>) -> RecallOu
     outcome
 }
 
+struct SupplyFloor<'a> {
+    decisions: Option<&'a DecisionEnv>,
+    session_id: &'a str,
+    request_id: RequestId,
+    text: &'a str,
+}
+
+fn row_candidate(row: &LessonRow) -> Candidate<'_> {
+    Candidate {
+        id: row.id,
+        kind: &row.kind,
+        text: &row.text,
+    }
+}
+
+impl SupplyFloor<'_> {
+    async fn keep(&self, rows: Vec<LessonRow>) -> Vec<LessonRow> {
+        let decider = self
+            .decisions
+            .and_then(|env| env.decider(supply_floor::POINT))
+            .map(Decider::inline);
+        let context = Context::for_request(self.session_id, self.request_id, self.text);
+        keep_rows(decider.as_ref(), &context, rows, row_candidate).await
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct RecallAnswer {
     pub lesson_ids: Vec<i64>,
@@ -136,10 +191,12 @@ pub async fn answer_recall(
     if project_path.is_empty() || topics.is_empty() {
         return RecallAnswer::default();
     }
-    let Some(rows) = gather_lessons_for_topics(persist, project_path, topics, cfg).await else {
+    let Some(Gathered { rows, topics }) =
+        gather_lessons_for_topics(persist, project_path, topics, cfg, None).await
+    else {
         return RecallAnswer::default();
     };
-    match formatter::format_recall_reminder(topics, &rows) {
+    match formatter::format_recall_reminder(&topics, &rows) {
         Some(text) => RecallAnswer {
             lesson_ids: rows.iter().map(|row| row.id).collect(),
             text: Some(text),
@@ -148,34 +205,72 @@ pub async fn answer_recall(
     }
 }
 
-async fn gather_lessons_for_topics(
+struct Gathered {
+    rows: Vec<LessonRow>,
+    topics: Vec<String>,
+}
+
+async fn list_rows(
     persist: &PersistHandle,
     project_path: &str,
     topics: &[String],
-    cfg: &RecallInjectorConfig,
+    per_topic_limit: i64,
 ) -> Option<Vec<LessonRow>> {
-    let per_topic_limit = i64::try_from(cfg.max_lessons_per_topic).unwrap_or(i64::MAX);
-    let rows = match persist
+    match persist
         .lessons()
         .list_recall_lessons(project_path, topics, per_topic_limit)
         .await
     {
-        Ok(rows) => rows,
+        Ok(rows) => Some(rows),
         Err(e) => {
             tracing::warn!(
                 error = %e,
                 project_path,
                 "recall_injector: list_recall_lessons failed — skipping injection"
             );
-            return None;
+            None
         }
-    };
-    let all_rows = order_by_requested_topics(topics, rows);
-    if all_rows.is_empty() {
-        None
-    } else {
-        Some(all_rows)
     }
+}
+
+async fn gather_lessons_for_topics(
+    persist: &PersistHandle,
+    project_path: &str,
+    topics: &[String],
+    cfg: &RecallInjectorConfig,
+    near: Option<(&DecisionEnv, &str, Option<i64>)>,
+) -> Option<Gathered> {
+    let per_topic_limit = i64::try_from(cfg.max_lessons_per_topic).unwrap_or(i64::MAX);
+    let mut rows = list_rows(persist, project_path, topics, per_topic_limit).await?;
+    let mut requested = topics.to_vec();
+    if let Some((env, context, request)) = near {
+        let missing: Vec<String> = topics
+            .iter()
+            .filter(|t| !rows.iter().any(|r| r.topic.as_deref() == Some(t.as_str())))
+            .cloned()
+            .collect();
+        let mapped = topic::map_near_misses(
+            Some(env),
+            persist,
+            project_path,
+            &missing,
+            (context, request),
+        )
+        .await
+        .into_iter()
+        .map(|m| m.mapped)
+        .filter(|m| !requested.contains(m))
+        .collect::<Vec<_>>();
+        if !mapped.is_empty() {
+            rows.extend(list_rows(persist, project_path, &mapped, per_topic_limit).await?);
+            requested.extend(mapped);
+        }
+    }
+    let all_rows = order_by_requested_topics(&requested, rows);
+    (!all_rows.is_empty()).then_some(Gathered {
+        rows: all_rows,
+        topics: requested,
+    })
 }
 
 fn order_by_requested_topics(topics: &[String], rows: Vec<LessonRow>) -> Vec<LessonRow> {

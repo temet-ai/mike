@@ -157,6 +157,7 @@ pub fn start_run(
 ) {
     let (persist, run, fleet) = (runner.persist.clone(), runner.run.to_string(), runner.fleet);
     let tracker = runner.tracker.clone();
+    let decisions = runner.decisions.cloned();
     let context = started.managed.context;
     let registration = started.managed.registration;
     let owner = context.owner.clone();
@@ -191,6 +192,8 @@ pub fn start_run(
                     return;
                 }
             };
+            let mode = def.decision_mode(super::decisions::Point::Triage, None);
+            super::decisions::triage::store(&persist, decisions.as_ref(), mode, &row).await;
             let finish = events::Finish {
                 receipt: id,
                 sha: &started.at.commit,

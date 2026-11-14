@@ -43,6 +43,8 @@ pub struct ProblemStatus {
     pub detail: String,
     pub decisions: Vec<String>,
     pub escalated: bool,
+    #[serde(default)]
+    pub routed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -50,6 +52,8 @@ pub struct NeedsOperator {
     pub at: DateTime<Utc>,
     pub seat: String,
     pub title: String,
+    #[serde(default)]
+    pub routed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

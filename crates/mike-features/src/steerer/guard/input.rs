@@ -72,8 +72,7 @@ fn observation_block(facts: Option<&SteeringFacts>) -> String {
     };
     format!(
         "last change: {} at {}\nobserved after change: {}\nlast observation: {} ({}) at {}\n",
-        o.last_change_use_id
-            .map_or("none".to_owned(), |id| format!("tool {id}")),
+        crate::dossier::render::steerer_facts::last_change(o),
         o.last_change_at.map_or("-".to_owned(), |t| t.to_rfc3339()),
         o.observed_after_change
             .map_or("no change".to_owned(), |b| b.to_string()),

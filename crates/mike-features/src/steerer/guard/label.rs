@@ -11,9 +11,8 @@ use tokio::sync::RwLock;
 
 use super::Question;
 use super::label_call::{LabelRequest, call_labeller};
-use super::label_rules::{
-    GUARD_LABELLER_VERSION, LabelInput, Settlement, from_answer, is_prod, settle,
-};
+use super::label_prod::ProdAnswers;
+use super::label_rules::{GUARD_LABELLER_VERSION, LabelInput, Settlement, from_answer, settle};
 use super::policy::GuardSettings;
 use crate::llm::{LlmCallContext, OpenRouterClient};
 use crate::store::persistence::PersistHandle;
@@ -120,6 +119,7 @@ pub struct LabelPass<'a> {
     pub persist: &'a PersistHandle,
     pub llm: &'a OpenRouterClient,
     pub toggle_on: bool,
+    pub prod: ProdAnswers,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -150,7 +150,7 @@ fn exemption(c: &GuardLabelCandidate) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn evidence(c: &GuardLabelCandidate, end: Option<&str>, extra: Value) -> Value {
+fn evidence(c: &GuardLabelCandidate, end: Option<&str>, extra: Value, prod: Option<bool>) -> Value {
     let mut base = json!({
         "labeller_version": GUARD_LABELLER_VERSION,
         "turn_verdict_id": c.live_verdict_id,
@@ -158,7 +158,7 @@ fn evidence(c: &GuardLabelCandidate, end: Option<&str>, extra: Value) -> Value {
         "next_genuine_request_id": c.next_genuine_request_id,
         "next_genuine_after_secs": c.next_genuine_after_secs,
         "reaction": c.reaction,
-        "prod": c.next_genuine_text.as_deref().map(is_prod),
+        "prod": prod,
     });
     if let (Value::Object(map), Value::Object(more)) = (&mut base, extra) {
         map.extend(more);
@@ -252,6 +252,7 @@ async fn label_turn(
     )
     .await?;
     let end = ends.get(&first.operator_turn_id).map(String::as_str);
+    let prod = pass.prod.of(first).await;
     Ok(rows
         .iter()
         .filter_map(|c| {
@@ -261,7 +262,7 @@ async fn label_turn(
                 uuid: c.uuid,
                 label: from_answer(verdict_fired(c), &answer.corrects_this).to_owned(),
                 source: "next_message".to_owned(),
-                evidence: evidence(c, end, json!({"source": "label_call", "answer": answer.corrects_this, "quote": answer.quote, "reaction": verdict.reaction.clone().or_else(|| c.reaction.clone())})),
+                evidence: evidence(c, end, json!({"source": "label_call", "answer": answer.corrects_this, "quote": answer.quote, "reaction": verdict.reaction.clone().or_else(|| c.reaction.clone())}), prod),
             })
         })
         .collect())
@@ -379,12 +380,20 @@ pub async fn run_pass(pass: &LabelPass<'_>) -> LabelReport {
                 label,
                 source,
                 evidence: extra,
-            } => labels.push(EvaluationLabel {
-                uuid: c.uuid,
-                label: label.to_owned(),
-                source: source.to_owned(),
-                evidence: evidence(c, ends.get(&c.operator_turn_id).map(String::as_str), extra),
-            }),
+            } => {
+                let prod = pass.prod.of(c).await;
+                labels.push(EvaluationLabel {
+                    uuid: c.uuid,
+                    label: label.to_owned(),
+                    source: source.to_owned(),
+                    evidence: evidence(
+                        c,
+                        ends.get(&c.operator_turn_id).map(String::as_str),
+                        extra,
+                        prod,
+                    ),
+                });
+            }
             Settlement::NeedsCall => pending.entry(c.operator_turn_id).or_default().push(c),
             Settlement::Wait => report.waiting += 1,
         }

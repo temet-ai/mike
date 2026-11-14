@@ -134,6 +134,8 @@ pub struct V2Judged {
     pub verdict: TwoAxisVerdict,
     pub usage: CallUsage,
     pub input: JudgeInput,
+    pub model: Option<String>,
+    pub jev: Option<crate::analysis::judge::jev::JevVerdict>,
 }
 
 pub struct V2InsertTarget {
@@ -155,7 +157,7 @@ impl V2Judged {
             rubric_version: &cfg.rubric.id,
             input_builder_version: self.input.builder_version,
             slices: Vec::new(),
-            model: &cfg.model,
+            model: self.model.as_deref().unwrap_or(&cfg.model),
             judgement: VerdictJudgement {
                 shape: VerdictShape::TwoAxis {
                     reaction: v.reaction.code(),
@@ -225,6 +227,8 @@ pub async fn judge_turn_v2(
         verdict,
         usage,
         input,
+        model: None,
+        jev: None,
     })
 }
 

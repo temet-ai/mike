@@ -22,6 +22,7 @@ pub enum GuardCommand {
     Report(GuardReportArgs),
     ReplayGates(GuardReplayGatesArgs),
     Replay(GuardReplayArgs),
+    PrecheckReplay(super::guard_precheck_replay::PrecheckReplayArgs),
     Mode(GuardModeArgs),
 }
 
@@ -258,6 +259,7 @@ pub async fn run(command: GuardCommand, cli: CliOverrides) -> Result<()> {
         GuardCommand::Report(args) => report(args, cli).await,
         GuardCommand::ReplayGates(args) => replay_gates_cmd(args, cli).await,
         GuardCommand::Replay(args) => replay_cmd(args, cli).await,
+        GuardCommand::PrecheckReplay(args) => super::guard_precheck_replay::run(args, cli).await,
         GuardCommand::Mode(args) => mode(args, cli).await,
     }
 }
@@ -287,6 +289,10 @@ mod tests {
         assert!(matches!(
             Cli::try_parse_from(["x", "mode", "relapse", "off"])?.command,
             GuardCommand::Mode(_)
+        ));
+        assert!(matches!(
+            Cli::try_parse_from(["x", "precheck-replay", "--dump", "/tmp/x.jsonl"])?.command,
+            GuardCommand::PrecheckReplay(_)
         ));
         Ok(())
     }

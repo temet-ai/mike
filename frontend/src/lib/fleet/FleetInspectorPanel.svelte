@@ -9,8 +9,15 @@
 	import SessionIdentityCard from '$lib/comms/SessionIdentityCard.svelte';
 	import SessionNotebook from '$lib/comms/SessionNotebook.svelte';
 	import FleetAcceptance from './FleetAcceptance.svelte';
-	import { getFleetAcceptanceForSession } from './api';
-	import type { FleetAcceptanceStatus } from './types';
+	import SeatDecisions from './SeatDecisions.svelte';
+	import {
+		getFleetAcceptanceForSession,
+		getFleetDecisionModes,
+		getFleetRecord,
+		getLaunchSeat
+	} from './api';
+	import { hasSeatRecord, seatDecisionFigures, type SeatDecisionFigures } from './seatDecisions';
+	import type { FleetAcceptanceStatus, FleetDecisionModes } from './types';
 
 	interface Props {
 		node: CanvasNode | null;
@@ -61,6 +68,60 @@
 
 	function refreshAcceptance(): void {
 		if (node) void loadAcceptance(node.sessionId, ++acceptanceRequest);
+	}
+
+	const decisionsFleet = $derived(acceptanceStatus?.fleet ?? null);
+	let decisionsFigures = $state<SeatDecisionFigures | null>(null);
+	let decisionsModes = $state<FleetDecisionModes | null>(null);
+	let decisionsLoading = $state(false);
+	let decisionsError = $state<string | null>(null);
+	let decisionsReason = $state<string | null>(null);
+	let decisionsShown = $state(false);
+	let decisionsRequest = 0;
+
+	async function loadDecisions(sessionId: string, fleet: string, request: number): Promise<void> {
+		decisionsLoading = true;
+		decisionsError = null;
+		try {
+			const [seat, record, modes] = await Promise.all([
+				getLaunchSeat(sessionId),
+				getFleetRecord(fleet),
+				getFleetDecisionModes(fleet)
+			]);
+			if (request !== decisionsRequest) return;
+			decisionsModes = modes;
+			decisionsReason = record === null ? 'Figures arrive when the run closes.' : null;
+			decisionsFigures = seatDecisionFigures(record, seat);
+			decisionsShown = record === null || hasSeatRecord(record, seat);
+		} catch (error) {
+			if (request === decisionsRequest) {
+				decisionsError = error instanceof Error ? error.message : String(error);
+				decisionsShown = true;
+			}
+		} finally {
+			if (request === decisionsRequest) decisionsLoading = false;
+		}
+	}
+
+	$effect(() => {
+		const sessionId = acceptanceSessionId;
+		const fleet = decisionsFleet;
+		const request = ++decisionsRequest;
+		decisionsFigures = null;
+		decisionsModes = null;
+		decisionsError = null;
+		decisionsReason = null;
+		decisionsShown = false;
+		decisionsLoading = false;
+		if (sessionId && fleet) void loadDecisions(sessionId, fleet, request);
+		return () => {
+			decisionsRequest += 1;
+		};
+	});
+
+	function retryDecisions(): void {
+		if (node && decisionsFleet)
+			void loadDecisions(node.sessionId, decisionsFleet, ++decisionsRequest);
 	}
 </script>
 
@@ -176,6 +237,20 @@
 						<span class="badge-nx badge-muted">{node.quality.outcome}</span>
 						<span class="fleet-inspector__quality-rationale">{node.quality.rationale}</span>
 					</div>
+				</div>
+			{/if}
+
+			{#if decisionsLoading || decisionsShown}
+				<div class="fleet-inspector__grp" data-slot="fleet-inspector-decisions">
+					<h4>Decisions</h4>
+					<SeatDecisions
+						seat={decisionsFigures}
+						modes={decisionsModes}
+						loading={decisionsLoading}
+						error={decisionsError}
+						onRetry={retryDecisions}
+						unavailableReason={decisionsReason}
+					/>
 				</div>
 			{/if}
 

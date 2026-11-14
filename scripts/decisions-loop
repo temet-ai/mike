@@ -1,0 +1,12 @@
+#!/bin/sh
+# Score the Jev decision points once (#220); the decisions_loop scheduled job calls this every
+# hour. `mike decisions loop` returns at once when a run finished in the last 24 hours.
+set -eu
+mike_bin="${MIKE_BIN:-}"
+if [ -z "$mike_bin" ]; then
+    mike_bin="$(command -v mike 2>/dev/null || true)"
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$HOME/.local/bin/mike"
+fi
+exec "$mike_bin" decisions loop "$@"

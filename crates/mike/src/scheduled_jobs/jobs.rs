@@ -5,8 +5,9 @@ use chrono::Weekday;
 use super::schedule::{Cadence, Period};
 use crate::lessons_settings::meta_memory_loop::MEMORY_REVIEW_ENABLED_KEY;
 use crate::settings::meta_scheduled_jobs::{
-    COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY, LEARNING_PROMOTE_ENABLED_KEY,
-    LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    COMPRESSOR_LOOP_ENABLED_KEY, DECISIONS_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
+    LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
+    USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -194,7 +195,30 @@ pub(super) const MEMORY_REVIEW: Job = Job {
     failure_hint: "It runs `claude -p` (CLAUDE_BIN, else claude on PATH, else ~/.local/bin/claude) through the proxy on localhost:9988, so check that claude is logged in on this machine and that the proxy answers.",
 };
 
-pub(crate) static JOBS: [Job; 7] = [
+pub(super) const DECISIONS_LOOP: Job = Job {
+    name: "decisions_loop",
+    label: "Decisions loop",
+    description: "Scores every Jev decision point against its labels (AUROC, holds that were right, fail-open rate, spend), copies the turn guard's labels beside the decisions they settle, and files a finding on the jev-decisions thread for a point below its bar.",
+    script: "scripts/decisions-loop",
+    args: &[],
+    timeout: Duration::from_secs(10 * 60),
+    cadence: Cadence {
+        weekday: None,
+        hours: &[
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+        ],
+        minute: 40,
+        period: Period::Hour,
+    },
+    nice: 19,
+    leased: true,
+    alarm_exit: None,
+    enabled_key: DECISIONS_LOOP_ENABLED_KEY,
+    schedule_text: "every hour at :40, at any hour; it runs only when no run finished in the last 24 hours",
+    failure_hint: "It runs `mike decisions loop` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand with --force to see the error.",
+};
+
+pub(crate) static JOBS: [Job; 8] = [
     PROMOTE,
     AUDIT,
     COMPRESSOR_LOOP,
@@ -202,4 +226,5 @@ pub(crate) static JOBS: [Job; 7] = [
     USAGE_AUDIT,
     LESSON_RELATIONS,
     MEMORY_REVIEW,
+    DECISIONS_LOOP,
 ];

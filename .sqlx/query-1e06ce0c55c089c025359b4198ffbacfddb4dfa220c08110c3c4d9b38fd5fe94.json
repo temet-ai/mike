@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\", finished_at, exit_code, askers AS \"askers!\",\n                          triage AS \"triage!\"\n                     FROM launch.tree_checks\n                    WHERE run_id = $1 AND triage IS NOT NULL\n                    ORDER BY id DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "exit_code",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "exit_code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "askers!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "askers"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "triage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "triage"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "1e06ce0c55c089c025359b4198ffbacfddb4dfa220c08110c3c4d9b38fd5fe94"
+}

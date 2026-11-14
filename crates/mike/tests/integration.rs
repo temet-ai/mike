@@ -33,6 +33,8 @@ mod create_steerer_no_agent;
 mod cross_session;
 #[path = "integration/db_listener_run.rs"]
 mod db_listener_run;
+#[path = "integration/decisions_replay_db.rs"]
+mod decisions_replay_db;
 #[path = "integration/dossier_entries.rs"]
 mod dossier_entries;
 #[path = "integration/dossier_view.rs"]

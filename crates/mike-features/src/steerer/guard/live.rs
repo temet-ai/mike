@@ -89,9 +89,8 @@ fn nudge_for(question: Question, ctx: &TurnContext, record: &GuardRecord, anchor
         .find(|t| t.turn_id == anchor)
         .map_or("", |t| t.prompt.as_str());
     let observation = ctx.facts.as_ref().map(|f| &f.observation);
-    let change_tool = observation
-        .and_then(|o| o.last_change_use_id)
-        .map(|id| format!("tool {id}"))
+    let change = observation
+        .map(crate::dossier::render::steerer_facts::last_change)
         .unwrap_or_default();
     let change_at = observation
         .and_then(|o| o.last_change_at)
@@ -115,7 +114,7 @@ fn nudge_for(question: Question, ctx: &TurnContext, record: &GuardRecord, anchor
             ending_quote: quote,
             open_items: refs.iter().filter(|r| r.source == "work_item").count(),
             awaited_replies: refs.iter().filter(|r| r.source == "peer_reply").count(),
-            last_change_tool: &change_tool,
+            last_change: &change,
             last_change_at: &change_at,
             authorisation_class: directive.map_or("", |d| d.class.as_str()),
             authorisation_text: directive.map_or("", |d| d.text.as_str()),
@@ -176,9 +175,15 @@ pub async fn plan_live_fires(
             turn_end_at: turn_end_at(turn, record),
             now: turn.now,
         };
+        let decision = decide_live_fire(&live, &settings);
+        let decision = if super::precheck_seam::holds(turn, record, question) {
+            super::precheck_seam::held(decision)
+        } else {
+            decision
+        };
         fires.push(LiveFire {
             question,
-            decision: decide_live_fire(&live, &settings),
+            decision,
             nudge: nudge_for(question, ctx, record, anchor),
             evaluation: None,
         });
@@ -210,6 +215,16 @@ fn arm_write(fire: &LiveFire) -> Option<ArmWrite> {
             draw,
             anchor_turn_id,
             due_at: plan.deliver_after(),
+        }),
+        LiveDecision::Held {
+            draw,
+            anchor_turn_id,
+        } => Some(ArmWrite {
+            evaluation,
+            arm: "precheck_held",
+            draw,
+            anchor_turn_id,
+            due_at: None,
         }),
         _ => None,
     }

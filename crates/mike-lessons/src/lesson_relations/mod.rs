@@ -2,6 +2,7 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod evidence;
 
 pub mod adjudication;
+pub mod decide;
 pub mod detection;
 pub mod reranked;
 pub mod rules;
@@ -73,6 +74,10 @@ pub trait RelationJudge {
 
     fn proposer_model(&self) -> &str;
     fn adjudicator_model(&self) -> &str;
+
+    fn jev(&self) -> Option<&decide::PairJev> {
+        None
+    }
 }
 
 pub struct ModelPairJudge<'a> {

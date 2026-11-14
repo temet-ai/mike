@@ -15,7 +15,7 @@ RETURNING id";
 pub struct SessionVerdictV3Row<'a> {
     pub session_db_id: i64,
     pub outcome_id: i64,
-    pub quality_score: f64,
+    pub quality_score: Option<f64>,
     pub rationale: &'a str,
     pub judge_model: &'a str,
     pub rubric_version: i32,

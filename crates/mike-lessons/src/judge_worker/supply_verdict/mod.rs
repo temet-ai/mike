@@ -1,4 +1,5 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+pub mod jev;
 pub mod prompt;
 #[cfg(test)]
 mod prompt_settings_tests;
@@ -141,7 +142,11 @@ async fn judge_with_model(
         model: settings.effective_model,
         system: system_prompt(persist).await,
     };
-    Tick::Ran(judge_batch(persist, &judge, now).await)
+    let env = state.decision_env();
+    match jev::JevJudge::new(&judge, env.as_ref()) {
+        Some(decided) => Tick::Ran(judge_batch(persist, &decided, now).await),
+        None => Tick::Ran(judge_batch(persist, &judge, now).await),
+    }
 }
 
 async fn system_prompt(persist: &PersistHandle) -> String {

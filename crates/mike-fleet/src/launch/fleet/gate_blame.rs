@@ -4,8 +4,10 @@ use std::sync::OnceLock;
 use regex::Regex;
 
 use super::definition::FleetDefinition;
+use super::gate_blame_jev::{candidates_of, judged};
 use super::gate_queue::{commits_since, said};
 use super::watch::git;
+use crate::llm::decisions::point::Decider;
 
 const SEAT_TRAILER: &str = "--format=%(trailers:key=Fleet-Seat,valueonly)";
 
@@ -15,6 +17,7 @@ pub enum Evidence {
     Names(String),
     Located(String),
     Touches(String),
+    Judged { percent: u32 },
 }
 
 impl Evidence {
@@ -28,6 +31,9 @@ impl Evidence {
                 "changes `{file}`, where the failing output places an error, and adds a name the output quotes"
             ),
             Self::Touches(file) => format!("touches `{file}`, which the failing output names"),
+            Self::Judged { percent } => format!(
+                "is the commit Jev picked from the failing output and the files each commit changed ({percent}% sure)"
+            ),
         }
     }
 }
@@ -197,6 +203,16 @@ pub async fn blame(
     failed: &str,
     output: &str,
 ) -> Option<Blame> {
+    blame_with(def, passed, failed, output, None).await
+}
+
+pub async fn blame_with(
+    def: &FleetDefinition,
+    passed: Option<&str>,
+    failed: &str,
+    output: &str,
+    decider: Option<&Decider>,
+) -> Option<Blame> {
     let mut commits = Vec::new();
     for commit in commits_since(&def.repo, passed, failed).await {
         if let Some(seat) = fleet_seat(def, &commit).await {
@@ -211,7 +227,14 @@ pub async fn blame(
     for (commit, _) in &commits {
         changes.push(change_of(&def.repo, commit).await);
     }
-    let suspects: Vec<Suspect> = evidence(&changes, output)
+    let found = evidence(&changes, output);
+    if let Some(decider) = decider {
+        let candidates = candidates_of(&commits, &changes, &found);
+        if let Some(chosen) = judged(decider, &candidates, output, since).await {
+            return Some(chosen);
+        }
+    }
+    let suspects: Vec<Suspect> = found
         .into_iter()
         .map(|(index, evidence)| Suspect {
             commit: commits[index].0.clone(),

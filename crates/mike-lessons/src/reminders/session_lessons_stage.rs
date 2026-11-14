@@ -1,7 +1,7 @@
 use bytes::Bytes;
 
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
-use crate::reminders::session_lessons::{SessionLessonsRequest, apply_session_lessons};
+use crate::reminders::session_lessons::{SessionLessonsRequest, apply_session_lessons_with_floor};
 use crate::reminders::stage::{StageManifestCodes, record_outcome_without_body_change};
 use crate::reminders::{RemindersConfig, RemindersOutcome};
 use crate::wire::manifest::AppliedStage;
@@ -46,18 +46,25 @@ impl RequestStage for SessionLessonsStage {
             max_lessons_to_inject: ctx.session_toggles.reminders_max_lessons_to_inject,
         };
         let push_deps = ctx.state.push_deps();
-        let outcome = apply_session_lessons(SessionLessonsRequest {
-            body_bytes: body.body(),
-            session_id: ctx.session_id,
-            project_path: ctx.project_path,
-            is_tool_loop: ctx.is_tool_loop,
-            turn_origin: ctx.turn_origin,
-            snapshot: ctx.lesson_snapshot,
-            cfg: &cfg,
-            recall_injector_enabled: ctx.session_toggles.recall_injector,
-            request_id: ctx.request_id,
-            push_deps: &push_deps,
-        })
+        let floor = ctx
+            .state
+            .decider(crate::reminders::supply_floor::POINT)
+            .map(crate::llm::decisions::point::Decider::inline);
+        let outcome = apply_session_lessons_with_floor(
+            SessionLessonsRequest {
+                body_bytes: body.body(),
+                session_id: ctx.session_id,
+                project_path: ctx.project_path,
+                is_tool_loop: ctx.is_tool_loop,
+                turn_origin: ctx.turn_origin,
+                snapshot: ctx.lesson_snapshot,
+                cfg: &cfg,
+                recall_injector_enabled: ctx.session_toggles.recall_injector,
+                request_id: ctx.request_id,
+                push_deps: &push_deps,
+            },
+            floor.as_ref(),
+        )
         .await;
         let RemindersOutcome::Appended {
             body: new_body,

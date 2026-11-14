@@ -22,6 +22,7 @@ pub fn base_entries() -> Vec<super::SettingMeta> {
     entries.extend(super::meta_eval_alarms::entries());
     entries.extend(super::meta_turn_judge::entries());
     entries.extend(super::meta_turn_guard::entries());
+    entries.extend(super::meta_decisions::entries());
     entries.extend(super::meta_cross_session::entries());
     entries.extend(super::meta_improvement::entries());
     entries.extend(super::meta_scheduled_jobs::entries());

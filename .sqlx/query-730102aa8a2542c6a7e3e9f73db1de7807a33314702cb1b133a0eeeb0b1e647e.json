@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH suggested AS (\n    SELECT r.id AS record_id, r.created_at, th.status, th.updated_at\n      FROM decisions.records r\n      JOIN work.threads th\n        ON th.project_id = r.project_id\n       AND th.slug = r.composed -> 'verdict' ->> 'slug'\n     WHERE r.point = 'thread_status'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'suggested'\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT s.record_id,\n       CASE WHEN s.status IN ('done', 'parked') AND s.updated_at > s.created_at\n            THEN 'right' ELSE 'wrong' END,\n       'operator_status_change',\n       jsonb_build_object('status_now', s.status)\n  FROM suggested s\n WHERE ((s.status IN ('done', 'parked') AND s.updated_at > s.created_at)\n        OR s.created_at <= now() - interval '14 days')\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = s.record_id AND o.label_source = 'operator_status_change')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "730102aa8a2542c6a7e3e9f73db1de7807a33314702cb1b133a0eeeb0b1e647e"
+}

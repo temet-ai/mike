@@ -28,6 +28,18 @@ pub async fn evaluate_guard(window: &EvalWindow<'_>, steerer: &Steerer) -> StepO
     let turn = GuardTurn {
         persist,
         llm: window.base_llm,
+        decisions: crate::steerer::guard::precheck_seam::decisions_turn(
+            window.base_llm,
+            persist,
+            window.ctx.toggles.load().decisions,
+            &settings,
+        ),
+        jev: crate::steerer::guard::jev_seam::GuardDeciders::for_turn(
+            window.base_llm,
+            persist,
+            window.ctx.toggles.load().decisions,
+            &settings,
+        ),
         steerer_id: steerer.id,
         bundle_id: settings.bundles.steerer(steerer.id),
         session_db_id: scope.session_db_id,
@@ -55,6 +67,9 @@ pub async fn evaluate_guard(window: &EvalWindow<'_>, steerer: &Steerer) -> StepO
         }
     }
     let step = finish(&turn, outcome, &delivered).await;
+    if trigger == Trigger::TurnEnd {
+        super::turn_notes::after_turn(window, steerer, &turn).await;
+    }
     match step {
         GuardStep::Continue => StepOutcome::Continue,
         GuardStep::StopWindow => StepOutcome::StopWindow,

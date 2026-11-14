@@ -1,6 +1,7 @@
 pub mod cycle;
 pub mod digest;
 pub mod digest_repeat;
+pub mod jev;
 pub mod related;
 pub mod verdict_write;
 
@@ -136,6 +137,8 @@ async fn run_session_loop(deps: SessionJudgeWorkerDeps) {
         embedding: &embedding,
         key_slot: &key_slot,
         config: &config,
+        toggles: &toggles,
+        settings: &settings,
     };
 
     loop {
@@ -282,6 +285,8 @@ pub async fn run_session_judge_once(state: &AppState) -> anyhow::Result<()> {
         embedding: &embedding,
         key_slot: &state.steerer_openrouter_key,
         config: &config,
+        toggles: &state.feature_toggle_overlay,
+        settings: &state.settings_overlay,
     };
     run_poll(&deps, &runtime, &mut breaker).await;
     Ok(())

@@ -206,6 +206,7 @@ impl Rig {
             embedding: &self.embedding,
             semantic: &self.semantic,
             settings: &self.settings,
+            decisions: None,
         }
     }
 

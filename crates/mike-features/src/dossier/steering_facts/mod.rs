@@ -1,9 +1,14 @@
 use crate::store::persistence::dossier_repo::DossierPersist as _;
+pub mod changed;
+pub mod committed;
 pub mod observation;
 pub mod read_back;
 pub mod tool_effect;
 pub mod wait_backing;
 
+#[cfg(test)]
+#[path = "tests/changed_tests.rs"]
+pub mod changed_tests;
 #[cfg(test)]
 #[path = "tests/observation_tests.rs"]
 pub mod observation_tests;

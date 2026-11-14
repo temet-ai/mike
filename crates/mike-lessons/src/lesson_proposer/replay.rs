@@ -1,8 +1,12 @@
 use super::dedupe::Embedded;
-use super::relate::{self, NewLessonContext, WriteTimeVerdict};
+use super::relate::{self, NewLessonContext, RelateAnswer, WriteTimeVerdict};
+use super::relate_pick::{self, Jev};
 use super::{ProposerDeps, ProposerReport, WriteOutcome, embedding_for_rule, guidance, write};
+use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::lessons::proposals::queue::SavedProposal;
+use crate::store::persistence::lessons::write_time::NeighbourLesson;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use crate::store::persistence::project_knowledge::GuidanceRow;
 
 pub async fn retry_pending(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {
     let pending = match deps.persist.lessons().pending_lesson_proposals(40).await {
@@ -29,6 +33,62 @@ async fn retry_one(deps: &ProposerDeps<'_>, report: &mut ProposerReport, saved: 
     }
 }
 
+async fn model_answer(
+    deps: &ProposerDeps<'_>,
+    rule: &str,
+    neighbours: &[NeighbourLesson],
+    shown: &[GuidanceRow],
+) -> Result<RelateAnswer, String> {
+    let daily_limit = deps
+        .settings
+        .quiet
+        .effective_limit(deps.persist, deps.settings.max_per_day)
+        .await;
+    let reserved = deps
+        .persist
+        .lessons()
+        .reserve_lesson_proposer_call(daily_limit)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !reserved {
+        return Err("the lesson proposer's daily call budget is spent; the write-time decision waits for the next tick".to_owned());
+    }
+    let (answer, _usage) = relate::call(deps.llm, rule, neighbours, shown, deps.settings.max_chars)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(answer)
+}
+
+async fn decided_answer(
+    deps: &ProposerDeps<'_>,
+    saved: &SavedProposal,
+    rule: &str,
+    neighbours: &[NeighbourLesson],
+    shown: &[GuidanceRow],
+) -> Result<RelateAnswer, String> {
+    let subject = DecisionSubject {
+        session_id: Some(saved.candidate.session_id),
+        operator_turn_id: Some(saved.candidate.operator_turn_id),
+        project_id: Some(saved.candidate.project_id),
+        ..DecisionSubject::default()
+    };
+    let jev = Jev::new(deps.decisions);
+    let decided = match jev.as_ref() {
+        Some(jev) => relate_pick::relate_answer(jev, rule, neighbours, shown, subject).await,
+        None => None,
+    };
+    let Some(mut answer) = decided else {
+        return model_answer(deps, rule, neighbours, shown).await;
+    };
+    if relate_pick::needs_replacement(&answer) {
+        answer.replacement = model_answer(deps, rule, neighbours, shown)
+            .await
+            .map(|m| m.replacement)
+            .unwrap_or_default();
+    }
+    Ok(answer)
+}
+
 async fn related_verdict(
     deps: &ProposerDeps<'_>,
     saved: &SavedProposal,
@@ -47,24 +107,7 @@ async fn related_verdict(
         .await
         .map_err(|e| e.to_string())?;
     let shown = guidance::closest_to_text(deps, saved.candidate.project_id, rule).await;
-    let daily_limit = deps
-        .settings
-        .quiet
-        .effective_limit(deps.persist, deps.settings.max_per_day)
-        .await;
-    let reserved = deps
-        .persist
-        .lessons()
-        .reserve_lesson_proposer_call(daily_limit)
-        .await
-        .map_err(|e| e.to_string())?;
-    if !reserved {
-        return Err("the lesson proposer's daily call budget is spent; the write-time decision waits for the next tick".to_owned());
-    }
-    let (answer, _usage) =
-        relate::call(deps.llm, rule, &neighbours, &shown, deps.settings.max_chars)
-            .await
-            .map_err(|e| e.to_string())?;
+    let answer = decided_answer(deps, saved, rule, &neighbours, &shown).await?;
     let context = NewLessonContext {
         verdict_id: saved.candidate.verdict_id,
         source_turn_id: saved.candidate.operator_turn_id,
@@ -81,11 +124,42 @@ async fn related_verdict(
     Ok(verdict)
 }
 
-fn wants_relation(deps: &ProposerDeps<'_>, saved: &SavedProposal) -> Option<String> {
+fn wants_relation(deps: &ProposerDeps<'_>, saved: &SavedProposal, prod: bool) -> Option<String> {
     if saved.candidate.confidence < deps.settings.min_confidence {
         return None;
     }
-    write::accepted_rule(&saved.candidate, &saved.proposed).map(str::to_owned)
+    write::accepted_rule(&saved.proposed, prod).map(str::to_owned)
+}
+
+static PROD_ANSWERS: std::sync::LazyLock<dashmap::DashMap<i64, bool>> =
+    std::sync::LazyLock::new(dashmap::DashMap::new);
+
+async fn is_prod_message(deps: &ProposerDeps<'_>, saved: &SavedProposal) -> bool {
+    let candidate = &saved.candidate;
+    let Some(message) = candidate.correcting_message.as_deref() else {
+        return false;
+    };
+    if let Some(known) = PROD_ANSWERS.get(&candidate.verdict_id) {
+        return *known;
+    }
+    let decider = deps
+        .decisions
+        .and_then(|env| env.decider(crate::steerer::prod_point::POINT));
+    let answer = crate::steerer::prod_point::detect(
+        decider.as_ref(),
+        message,
+        DecisionSubject {
+            session_id: Some(candidate.session_id),
+            operator_turn_id: Some(candidate.operator_turn_id),
+            ..DecisionSubject::default()
+        },
+    )
+    .await;
+    if PROD_ANSWERS.len() > 10_000 {
+        PROD_ANSWERS.clear();
+    }
+    PROD_ANSWERS.insert(candidate.verdict_id, answer);
+    answer
 }
 
 pub async fn apply_saved(
@@ -97,7 +171,8 @@ pub async fn apply_saved(
         .touch_lesson_proposal(saved.candidate.verdict_id)
         .await
         .map_err(|e| e.to_string())?;
-    let rule = wants_relation(deps, saved);
+    let prod = is_prod_message(deps, saved).await;
+    let rule = wants_relation(deps, saved, prod);
     let embedded = embedding_for_rule(deps.embedding, rule.as_deref()).await;
     let verdict = match (rule.as_deref(), &embedded) {
         (Some(rule), Some(embedded)) => Some(related_verdict(deps, saved, rule, embedded).await?),
@@ -108,6 +183,7 @@ pub async fn apply_saved(
         None => embedded,
     };
     let decision = write::Decision {
+        prod,
         candidate: &saved.candidate,
         proposed: &saved.proposed,
         embedding: stored_embedding.as_ref(),

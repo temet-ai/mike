@@ -55,6 +55,7 @@ fn seam(f: &Fixture, turn: i64, toggle_on: bool) -> SeamTurn {
         text: WAIT_ENDING.to_owned(),
         toggle_on,
         turn_judge_live: false,
+        decisions_mode: None,
     }
 }
 

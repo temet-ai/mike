@@ -243,6 +243,8 @@ pub struct ProblemEscalated {
     pub reason: String,
     #[serde(default)]
     pub question: String,
+    #[serde(default)]
+    pub routed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

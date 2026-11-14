@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT r.id,\n       CASE WHEN v.hand_verdict = r.composed -> 'verdict' ->> 'verdict' THEN 'right' ELSE 'wrong' END,\n       'hand_verdict',\n       jsonb_build_object('supplied_item_id', v.supplied_item_id,\n                          'hand_verdict', v.hand_verdict,\n                          'jev_verdict', r.composed -> 'verdict' ->> 'verdict',\n                          'checked_by', v.hand_checked_by)\n  FROM decisions.records r\n  JOIN memory.supplied_item_verdicts v\n    ON v.supplied_item_id = (r.composed -> 'verdict' ->> 'item_id')::bigint\n WHERE r.point = 'supply_verdict'\n   AND r.created_at >= now() - interval '30 days'\n   AND r.applied = 'labelled'\n   AND r.composed -> 'verdict' ->> 'verdict' IS NOT NULL\n   AND v.hand_verdict IS NOT NULL\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = r.id AND o.label_source = 'hand_verdict')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "df43712ca3decd8514624be4002fd835861e9670e8b28345cf9d895441ffa8dc"
+}

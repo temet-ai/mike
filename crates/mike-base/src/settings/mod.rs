@@ -7,6 +7,7 @@ pub mod llm_runtime;
 pub mod meta;
 pub mod meta_assistants;
 pub mod meta_cross_session;
+pub mod meta_decisions;
 pub mod meta_dossier;
 pub mod meta_eval;
 pub mod meta_eval_alarms;
@@ -29,6 +30,7 @@ pub mod meta_turn_guard;
 pub mod meta_turn_judge;
 pub mod meta_workers;
 pub mod overlay_apply;
+pub mod overlay_apply_decisions;
 pub mod overlay_apply_provider;
 pub mod overlay_apply_session_end;
 pub mod overlay_apply_turn_judge;
@@ -240,6 +242,17 @@ pub struct SettingsOverlay {
 
     pub llm_budget_other_share_pct: i64,
 
+    pub llm_budget_decision_share_pct: i64,
+
+    pub decisions_model: String,
+    pub decisions_timeout_ms: i64,
+    pub decisions_turn_guard_mode: String,
+    pub decisions_turn_guard_hold_below: f64,
+    pub decisions_point_modes: std::collections::BTreeMap<String, String>,
+    pub decisions_rate_per_minute: i64,
+    pub decisions_max_calls_per_hour: i64,
+    pub decisions_daily_spend_ceiling_usd: f64,
+
     pub llm_provider: std::sync::Arc<crate::llm::provider::ProviderPolicy>,
 
     pub steerer_model: Option<String>,
@@ -354,7 +367,16 @@ impl Default for SettingsOverlay {
             llm_budget_lesson_relations_share_pct: 5,
             llm_budget_lesson_proposer_share_pct: 10,
             llm_budget_eval_share_pct: 0,
-            llm_budget_other_share_pct: 10,
+            llm_budget_other_share_pct: 5,
+            llm_budget_decision_share_pct: 5,
+            decisions_model: meta_decisions::DEFAULT_MODEL.to_owned(),
+            decisions_timeout_ms: meta_decisions::DEFAULT_TIMEOUT_MS,
+            decisions_turn_guard_mode: "on".to_owned(),
+            decisions_turn_guard_hold_below: meta_decisions::DEFAULT_TURN_GUARD_HOLD_BELOW,
+            decisions_point_modes: std::collections::BTreeMap::new(),
+            decisions_rate_per_minute: meta_decisions::DEFAULT_RATE_PER_MINUTE,
+            decisions_max_calls_per_hour: meta_decisions::DEFAULT_MAX_CALLS_PER_HOUR,
+            decisions_daily_spend_ceiling_usd: meta_decisions::DEFAULT_DAILY_SPEND_CEILING_USD,
             llm_provider: std::sync::Arc::new(crate::llm::provider::ProviderPolicy::default()),
             steerer_model: None,
             steerer_reasoning_effort: "inherit".to_owned(),

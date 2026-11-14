@@ -12,6 +12,7 @@ pub mod fleet;
 pub mod herdr;
 pub mod herdr_core;
 pub mod local_root;
+pub mod open_changes;
 pub mod output;
 pub mod process;
 pub mod reap;

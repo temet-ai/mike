@@ -150,6 +150,8 @@ fn install_governor(stored: &SettingsOverlay, sink: &Arc<dyn LlmUsageSink>) {
     crate::llm::limiter::install_runtime(shared, Some(sink.clone()));
 }
 
+const PAIR_CALLS_PER_RUN: usize = 150;
+
 async fn run_detection_with_clients(
     config: &ProxyConfig,
     handle: &PersistHandle,
@@ -197,9 +199,25 @@ async fn run_detection_with_clients(
             .list_project_ids_with_embedded_lessons()
             .await?
     };
-    let judge = crate::lesson_relations::ModelPairJudge {
+    let model_judge = crate::lesson_relations::ModelPairJudge {
         proposer: &proposer,
         adjudicator: &adjudicator,
+    };
+    let decisions_on = handle
+        .fetch_feature_toggles()
+        .await
+        .map(|rows| rows.iter().any(|(key, on, _)| key == "decisions" && *on))
+        .unwrap_or(false);
+    let env = crate::llm::decisions::env::DecisionEnv::new(
+        proposer_client.clone(),
+        handle.clone(),
+        decisions_on,
+        Arc::new(setup.overlay.clone()),
+    );
+    let pair_jev = crate::lesson_relations::decide::PairJev::new(Some(&env), PAIR_CALLS_PER_RUN);
+    let judge = crate::lesson_relations::decide::JevJudge {
+        inner: &model_judge,
+        jev: pair_jev.as_ref(),
     };
     let reranked = crate::lesson_relations::run_detection_on_reranked(
         handle,

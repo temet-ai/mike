@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.request_id AS \"request_id!\", e.seat AS \"seat!\", e.trigger AS \"trigger!\",\n                          left(q.human_prompt, 800) AS \"text!\",\n                          COALESCE(t.tools, '') AS \"tools!\"\n                     FROM launch.request_efforts e\n                     JOIN requests.requests q ON q.id = e.request_id\n                     JOIN responses.responses p ON p.request_id = e.request_id\n                     LEFT JOIN LATERAL (\n                          SELECT string_agg(\n                                     u.tool_name || ': ' || left(COALESCE(u.input->>'command', u.input->>'file_path', u.input->>'pattern', ''), 120),\n                                     E'\\n' ORDER BY u.id) AS tools\n                            FROM tools.uses u\n                           WHERE u.request_id = e.request_id\n                     ) t ON true\n                    WHERE e.run_id = $1 AND e.label IS NULL\n                    ORDER BY e.request_id\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.request_efforts",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.request_efforts",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "trigger!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.request_efforts",
+            "name": "trigger"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "tools!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "e8e0bad0aca2d15cee62c04d32b64c57178fd60be4f0e1c9b115a3bef1785ed9"
+}

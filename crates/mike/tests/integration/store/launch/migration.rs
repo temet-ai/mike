@@ -48,6 +48,7 @@ async fn launch_migration_applied_twice_converges() -> anyhow::Result<()> {
             "fleets",
             "introductions",
             "launches",
+            "request_efforts",
             "run_records",
             "runs",
             "templates",

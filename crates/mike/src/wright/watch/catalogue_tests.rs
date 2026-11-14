@@ -70,7 +70,7 @@ async fn due_runs_event_checks_on_the_regular_pass_and_slow_checks_daily() -> an
     assert_eq!(due_names(&db, &["event"]).await?, ["request_failures"]);
     assert_eq!(
         due_names(&db, &["daily"]).await?,
-        ["cold_forks", "scheduled_job_failures"]
+        ["cold_forks", "decisions_health", "scheduled_job_failures"]
     );
     db.cleanup().await
 }

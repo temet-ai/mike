@@ -11,6 +11,7 @@ use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::mailbox::ThreadResolution;
 
+use super::hold::hold_directed;
 use super::{SendContext, record_failed_send};
 
 pub(super) struct ThreadingParams<'a> {
@@ -38,43 +39,68 @@ pub(super) async fn send(
         created_by_session_id,
     )
     .await?;
+    let held = hold_directed(handle, state, &ctx, in_reply_to_id).await;
     let queued_at = insert_threaded_message_or_fail(
         handle,
         &ctx,
-        to_session_id,
-        thread_id,
-        created_by_session_id,
-        in_reply_to_id,
+        ThreadedRow {
+            to_session_id,
+            thread_id,
+            created_by_session_id,
+            in_reply_to_id,
+            held,
+        },
     )
     .await?;
+    attach_tags(handle, &ctx, thread_id, thread_uuid).await;
+    Ok(queued_response(
+        handle,
+        state,
+        &ctx,
+        queued_at,
+        (&subject, thread_uuid, held),
+    )
+    .await)
+}
 
-    if let Some(tags) = ctx.body.tags.as_deref().filter(|t| !t.is_empty())
-        && let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await
-    {
+async fn attach_tags(
+    handle: &PersistHandle,
+    ctx: &SendContext<'_>,
+    thread_id: i64,
+    thread_uuid: uuid::Uuid,
+) {
+    let Some(tags) = ctx.body.tags.as_deref().filter(|t| !t.is_empty()) else {
+        return;
+    };
+    if let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await {
         tracing::warn!(error = %e, %thread_uuid, "post_session_message: tag attach failed");
     }
+}
 
-    Ok(queued_response(handle, state, &ctx, queued_at, &subject, thread_uuid).await)
+struct ThreadedRow {
+    to_session_id: i64,
+    thread_id: i64,
+    created_by_session_id: Option<i64>,
+    in_reply_to_id: Option<i64>,
+    held: bool,
 }
 
 async fn insert_threaded_message_or_fail(
     handle: &PersistHandle,
     ctx: &SendContext<'_>,
-    to_session_id: i64,
-    thread_id: i64,
-    created_by_session_id: Option<i64>,
-    in_reply_to_id: Option<i64>,
+    row: ThreadedRow,
 ) -> Result<chrono::DateTime<chrono::Utc>, Response> {
     match handle
         .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid: ctx.message_uuid,
-                to_session_id: Some(to_session_id),
-                from_session_id: created_by_session_id,
+                to_session_id: Some(row.to_session_id),
+                from_session_id: row.created_by_session_id,
                 body: &ctx.body.message,
-                thread_id: Some(thread_id),
-                in_reply_to_id,
+                thread_id: Some(row.thread_id),
+                in_reply_to_id: row.in_reply_to_id,
+                held: row.held,
             },
             &ctx.body.context,
         )
@@ -270,8 +296,7 @@ async fn queued_response(
     state: &AppState,
     ctx: &SendContext<'_>,
     queued_at: chrono::DateTime<chrono::Utc>,
-    subject: &str,
-    thread_uuid: uuid::Uuid,
+    (subject, thread_uuid, held): (&str, uuid::Uuid, bool),
 ) -> Response {
     let from = ctx.from_session_uuid.map(|u| u.to_string());
     let sender_label = match ctx.from_session_uuid {
@@ -293,18 +318,19 @@ async fn queued_response(
             from_session_uuid: from,
         },
     };
-    let pushed = crate::proxy::remote_control::inject::deliver_or_enqueue(
-        &state.push_deps(),
-        ctx.to_session_uuid,
-        reminder,
-    )
-    .await;
+    let pushed = !held
+        && crate::proxy::remote_control::inject::deliver_or_enqueue(
+            &state.push_deps(),
+            ctx.to_session_uuid,
+            reminder,
+        )
+        .await;
 
     let (recipient_last_request_at, recipient_last_eligible_turn_at, activity_state) =
         fetch_mailbox_delivery_fields(handle, state, ctx.to_session_uuid).await;
     let delivery_state = crate::api::handlers::mailbox_reads::delivery_state_after_send(
         pushed,
-        crate::mcp_channel::listeners().is_live(ctx.to_session_uuid),
+        !held && crate::mcp_channel::listeners().is_live(ctx.to_session_uuid),
         activity_state,
     );
 

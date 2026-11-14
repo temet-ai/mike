@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n                       SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at\n                         FROM launch.launches l\n                         JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n                        WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n                        ORDER BY s.id, l.created_at, l.id\n                   ), seen AS (\n                       SELECT COALESCE(MAX(request_id), 0) AS last FROM launch.request_efforts WHERE run_id = $1\n                   )\n                   SELECT q.id AS \"request_id!\", st.seat AS \"seat!\", st.sid AS \"session_id!\",\n                          tt.code AS \"turn_type!\", ak.code AS \"author_kind!\",\n                          orig.code AS \"turn_origin!\", left(q.human_prompt, 1500) AS \"text!\"\n                     FROM seats st\n                     CROSS JOIN seen\n                     JOIN requests.requests q ON q.session_id = st.sid AND q.created_at >= st.launched_at\n                     JOIN requests.turn_types tt ON tt.id = q.turn_type_id\n                     JOIN requests.author_kinds ak ON ak.id = q.author_kind_id\n                     JOIN requests.turn_origins orig ON orig.id = q.turn_origin_id\n                    WHERE q.id > seen.last\n                    ORDER BY q.id\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "turn_type!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "author_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.author_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "turn_origin!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_origins",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "f6fc377d1991ec7468cab8f4e17d8f4066aa5afc70b9608feff26f4cd5bd46cc"
+}

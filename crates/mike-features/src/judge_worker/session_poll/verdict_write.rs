@@ -175,7 +175,7 @@ async fn insert_verdict(
         .insert_session_verdict(crate::store::persistence::judge::SessionVerdictInsert {
             session_db_id: session.session_db_id,
             outcome_id,
-            quality_score: Some(quality_score),
+            quality_score: (!verdict.quality_unknown).then_some(quality_score),
             rationale: Some(verdict.rationale.as_str()),
             judge_model: &ctx.runtime.model,
             rubric_version: ctx.rubric_version,

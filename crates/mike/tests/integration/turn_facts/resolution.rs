@@ -12,6 +12,7 @@ const PEER: &str = "<teammate-message teammate_id=\"peer\">status update please<
 pub(crate) fn cfg() -> BuildConfig {
     BuildConfig {
         settle: Duration::minutes(30),
+        decisions: None,
     }
 }
 

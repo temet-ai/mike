@@ -1,6 +1,6 @@
 use super::clock::hour_and_minute;
 use super::ink::{FAINT, INK, ORANGE, RED, paint};
-use crate::launch::fleet::status::FleetStatus;
+use crate::launch::fleet::status::{FleetStatus, NeedsOperator};
 
 pub fn attention(status: &FleetStatus) -> Vec<String> {
     let mut lines = Vec::new();
@@ -20,17 +20,19 @@ pub fn attention(status: &FleetStatus) -> Vec<String> {
             lines.push(format!("  {}", paint(issue, RED, false)));
         }
     }
-    if !status.needs_operator.is_empty() {
+    let (routed, open): (Vec<&NeedsOperator>, Vec<&NeedsOperator>) =
+        status.needs_operator.iter().partition(|entry| entry.routed);
+    if !open.is_empty() {
         lines.push(format!(" {}", paint("NEEDS YOU", RED, true)));
     }
-    lines.extend(status.needs_operator.iter().map(|entry| {
-        format!(
-            "  {}  {}  {}",
-            paint(&hour_and_minute(entry.at), FAINT, false),
-            paint(&entry.seat, ORANGE, false),
-            paint(&entry.title, INK, false)
-        )
-    }));
+    lines.extend(open.into_iter().map(operator_line));
+    if !routed.is_empty() {
+        lines.push(format!(
+            " {}",
+            paint("ROUTED TO THE COORDINATOR", ORANGE, true)
+        ));
+    }
+    lines.extend(routed.into_iter().map(operator_line));
     if let Some(seconds) = status.every_seat_idle_seconds {
         lines.push(format!(
             " {}  {}",
@@ -46,8 +48,18 @@ pub fn attention(status: &FleetStatus) -> Vec<String> {
     lines
 }
 
+fn operator_line(entry: &NeedsOperator) -> String {
+    format!(
+        "  {}  {}  {}",
+        paint(&hour_and_minute(entry.at), FAINT, false),
+        paint(&entry.seat, ORANGE, false),
+        paint(&entry.title, INK, false)
+    )
+}
+
 fn problem_line(problem: &crate::launch::fleet::status::ProblemStatus) -> String {
     let standing = match (problem.escalated, problem.decisions.last()) {
+        (true, _) if problem.routed => paint("routed to the coordinator", ORANGE, false),
         (true, _) => paint("escalated to you", RED, false),
         (false, Some(decision)) => paint(&format!("decided: {decision}"), INK, false),
         (false, None) => paint("waiting for the problem-solver", FAINT, false),
@@ -74,6 +86,37 @@ mod tests {
     use super::attention;
     use crate::launch::fleet::render::strip;
     use crate::launch::fleet::status::{FleetStatus, NeedsOperator};
+
+    fn raised(at: DateTime<Utc>, seat: &str, title: &str, routed: bool) -> NeedsOperator {
+        NeedsOperator {
+            at,
+            seat: seat.to_string(),
+            title: title.to_string(),
+            routed,
+        }
+    }
+
+    #[test]
+    fn a_routed_question_is_shown_apart_from_the_ones_that_need_the_operator() -> anyhow::Result<()>
+    {
+        let now: DateTime<Utc> = "2026-10-01T16:30:00Z".parse()?;
+        let mut waiting = status(now);
+        waiting.needs_operator.push(raised(
+            "2026-10-01T15:59:00Z".parse()?,
+            "worker-T1",
+            "which file owns the parser",
+            true,
+        ));
+        let lines: Vec<String> = attention(&waiting).iter().map(|l| strip(l)).collect();
+        assert_eq!(
+            lines,
+            vec![
+                " ROUTED TO THE COORDINATOR".to_string(),
+                "  15:59  worker-T1  which file owns the parser".to_string(),
+            ]
+        );
+        Ok(())
+    }
 
     fn status(now: DateTime<Utc>) -> FleetStatus {
         FleetStatus {
@@ -112,11 +155,12 @@ mod tests {
     -> anyhow::Result<()> {
         let now: DateTime<Utc> = "2026-10-01T16:30:00Z".parse()?;
         let mut waiting = status(now);
-        waiting.needs_operator.push(NeedsOperator {
-            at: "2026-10-01T15:59:00Z".parse()?,
-            seat: "coordinator".to_string(),
-            title: "OPERATOR: commits are refused in a cycle".to_string(),
-        });
+        waiting.needs_operator.push(raised(
+            "2026-10-01T15:59:00Z".parse()?,
+            "coordinator",
+            "OPERATOR: commits are refused in a cycle",
+            false,
+        ));
         waiting.every_seat_idle_seconds = Some(1_620);
         let lines: Vec<String> = attention(&waiting).iter().map(|l| strip(l)).collect();
         assert_eq!(

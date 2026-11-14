@@ -53,6 +53,7 @@ async fn each_new_commit_is_checked_without_an_ask_and_the_committer_gets_the_ve
             tracker: &tracker,
             run,
             fleet,
+            decisions: None,
         };
 
         Box::pin(queue(&runner, &def)).await;

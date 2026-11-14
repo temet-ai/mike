@@ -101,6 +101,10 @@ fn status_finding(text: &str, topic: Option<&str>) -> Option<String> {
         .or_else(|| commit_sha_subject(text))
 }
 
+pub fn opens_with_status_word(text: &str) -> bool {
+    opening_status_word(text).is_some()
+}
+
 fn opening_status_word(text: &str) -> Option<String> {
     let skipped = text.chars().take_while(|c| !c.is_alphanumeric()).count();
     let body: String = text.chars().skip(skipped).collect();

@@ -244,6 +244,7 @@ async fn insert_llm_call_records_the_machine_that_made_the_call() -> anyhow::Res
             steerer_id: None,
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     let older: i64 = sqlx::query_scalar(

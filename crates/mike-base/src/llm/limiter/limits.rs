@@ -47,6 +47,23 @@ impl LimiterLimits {
         }
     }
 
+    pub fn for_decisions(overlay: &SettingsOverlay) -> Self {
+        let n = |v: i64| u32::try_from(v.max(1)).unwrap_or(1);
+        Self {
+            daily_spend_ceiling_usd: overlay.decisions_daily_spend_ceiling_usd.max(0.0),
+            shares: RoleShares::from_pcts(RoleSharePcts {
+                decision: 100,
+                ..RoleSharePcts::default()
+            }),
+            ..Self::fixed(
+                n(overlay.decisions_rate_per_minute),
+                RATE_WINDOW,
+                n(overlay.decisions_max_calls_per_hour),
+                DEFAULT_CEILING_WINDOW,
+            )
+        }
+    }
+
     pub fn from_overlay(overlay: &SettingsOverlay) -> Self {
         let share = |pct: i64| u32::try_from(pct).unwrap_or(0);
         Self {
@@ -65,6 +82,7 @@ impl LimiterLimits {
                 lesson_proposer: share(overlay.llm_budget_lesson_proposer_share_pct),
                 eval: share(overlay.llm_budget_eval_share_pct),
                 other: share(overlay.llm_budget_other_share_pct),
+                decision: share(overlay.llm_budget_decision_share_pct),
             }),
         }
     }

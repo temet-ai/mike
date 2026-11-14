@@ -239,8 +239,9 @@ pub fn progress_line(status: &FleetStatus) -> String {
         .filter(|s| !s.closed && s.context_tokens.is_some_and(|t| t >= REPLACE_AT))
         .count();
     let mut line = format!("{passed} of {} passed", status.tasks.len());
-    if !status.needs_operator.is_empty() {
-        line.push_str(&format!(" · {} need you", status.needs_operator.len()));
+    let waiting = status.needs_operator.iter().filter(|n| !n.routed).count();
+    if waiting > 0 {
+        line.push_str(&format!(" · {waiting} need you"));
     }
     if let Some(seconds) = status.every_seat_idle_seconds {
         line.push_str(&format!(" · every seat idle {}m", seconds / 60));

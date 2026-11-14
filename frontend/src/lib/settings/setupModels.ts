@@ -51,6 +51,32 @@ export const MODEL_JOBS: readonly ModelJob[] = [
 	}
 ];
 
+export const DECISIONS_MODEL_KEY = 'decisions.model';
+export const DECISIONS_DEFAULT_MODEL = 'typesafe/jev-1.14';
+
+export interface DecisionsModelRow {
+	on: boolean;
+	model: string;
+	status: string;
+}
+
+export function decisionsModelRow(
+	features: FeatureDto[],
+	settings: SettingMeta[],
+	providers: LlmProvider[]
+): DecisionsModelRow {
+	const stored = settings.find((s) => s.key === DECISIONS_MODEL_KEY)?.value;
+	const model =
+		typeof stored === 'string' && stored.trim() !== '' ? stored.trim() : DECISIONS_DEFAULT_MODEL;
+	if (!features.some((f) => f.key === 'decisions' && f.enabled)) {
+		return { on: false, model, status: 'off: the decisions toggle is off' };
+	}
+	if (!providers.some((p) => p.id === 'openrouter' && p.available)) {
+		return { on: false, model, status: 'off: no OpenRouter key' };
+	}
+	return { on: true, model, status: 'On' };
+}
+
 export function providerOf(ref: string): string {
 	if (ref.startsWith('claude/')) return 'claude';
 	if (ref.startsWith('codex/')) return 'codex';

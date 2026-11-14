@@ -156,6 +156,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                         body,
                         thread_id: None,
                         in_reply_to_id: None,
+                        held: false,
                     },
                     context,
                 )
@@ -222,6 +223,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             params.body,
             params.thread_id,
             params.in_reply_to_id,
+            params.held,
         )
         .fetch_optional(executor)
         .await?;

@@ -6,6 +6,8 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
+use super::logs_jev::{Groups, POINT, merge};
+use crate::llm::decisions::point::Decider;
 use crate::wright::Finding;
 use crate::wright::definition::int_param;
 
@@ -92,14 +94,13 @@ fn is_panic(line: &LogLine) -> bool {
     line.message.contains("panicked")
 }
 
-pub(crate) fn findings_from(
-    lines: &[LogLine],
+pub(crate) fn group_lines<'a>(
+    lines: &'a [LogLine],
     now: DateTime<Utc>,
-    file: &Path,
     params: &LogParams,
-) -> Vec<Finding> {
+) -> Groups<'a> {
     let since = now - Duration::minutes(params.window_minutes);
-    let mut grouped: BTreeMap<(String, String), Vec<&LogLine>> = BTreeMap::new();
+    let mut grouped: Groups<'a> = BTreeMap::new();
     for line in lines
         .iter()
         .filter(|l| l.level == params.level && l.at >= since)
@@ -109,6 +110,23 @@ pub(crate) fn findings_from(
             .or_default()
             .push(line);
     }
+    grouped
+}
+
+pub(crate) async fn findings_with(
+    decider: Option<&Decider>,
+    lines: &[LogLine],
+    now: DateTime<Utc>,
+    (file, params): (&Path, &LogParams),
+) -> Vec<Finding> {
+    let grouped = group_lines(lines, now, params);
+    match decider {
+        Some(decider) => findings_of(merge(decider, grouped, params.repeats).await, file, params),
+        None => findings_of(grouped, file, params),
+    }
+}
+
+fn findings_of(grouped: Groups<'_>, file: &Path, params: &LogParams) -> Vec<Finding> {
     grouped
         .into_iter()
         .filter(|(_, hits)| hits.len() >= params.repeats || hits.iter().any(|l| is_panic(l)))
@@ -201,5 +219,6 @@ pub(crate) async fn check(
             file.display()
         ));
     }
-    Ok(findings_from(&lines, now, &file, &params))
+    let decider = crate::llm::decisions::ambient::decider(POINT);
+    Ok(findings_with(decider.as_ref(), &lines, now, (&file, &params)).await)
 }

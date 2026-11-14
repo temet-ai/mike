@@ -210,6 +210,7 @@ mod tests {
             output_tail: String::new(),
             refused: None,
             started_at: None,
+            triage: None,
         };
         assert_eq!(
             check_report::text(&report),
@@ -239,6 +240,7 @@ mod tests {
             output_tail: String::new(),
             refused: None,
             started_at: "2026-10-02T13:00:05Z".parse().ok(),
+            triage: None,
         };
         assert_eq!(
             check_report::text(&running),

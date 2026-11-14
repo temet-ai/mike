@@ -60,6 +60,7 @@ pub fn judge_budget(overlay: &SettingsOverlay) -> JudgeBudget {
         overlay.llm_budget_lesson_relations_share_pct,
         overlay.llm_budget_eval_share_pct,
         overlay.llm_budget_other_share_pct,
+        overlay.llm_budget_decision_share_pct,
     ];
     let pct = |v: i64| v.clamp(0, 100) as f64 / 100.0;
     let pool = (100 - shares.iter().sum::<i64>()).max(0);

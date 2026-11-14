@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.ask_ledger_entries\n    SET kind = $2, kind_source = 'judge', kind_updated_at = now()\n  WHERE request_id = $1 AND kind_source = 'keyword' AND kind <> 'initial'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ce3b434fa757c503f0ae7546cfca8ee5fdd930fc0f3da02294aa096795a8bf70"
+}

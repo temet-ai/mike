@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::cross_session_order as order;
 use crate::change_log::current_build;
 use crate::cross_session::CrossSessionSnapshot;
 use crate::cross_session::calibration_block::calibration_block;
@@ -75,6 +76,7 @@ pub struct PageQuery {
     pub cursor: Option<i64>,
     pub limit: Option<i64>,
     pub steerer_id: Option<i64>,
+    pub sort: Option<String>,
 }
 
 pub async fn get_thresholds(State(state): State<AppState>, Query(q): Query<PageQuery>) -> Response {
@@ -126,11 +128,22 @@ pub async fn list_proposals(State(state): State<AppState>, Query(q): Query<PageQ
         .list_directive_proposals(q.status.as_deref(), q.cursor, limit)
         .await
     {
-        Ok(rows) => {
+        Ok(mut rows) => {
             let next = (i64::try_from(rows.len()).unwrap_or(0) == limit)
                 .then(|| rows.last().map(|r| r.id))
                 .flatten();
-            Json(json!({"proposals": rows, "next_cursor": next})).into_response()
+            if q.sort.as_deref() != Some("suggested") {
+                return Json(json!({"proposals": rows, "next_cursor": next})).into_response();
+            }
+            order::spawn_fill(state.decision_env(), &rows);
+            let suggested = order::cached(&rows);
+            order::order_by_suggestion(&mut rows, &suggested);
+            Json(json!({
+                "proposals": rows,
+                "next_cursor": next,
+                "suggested_accept": suggested,
+            }))
+            .into_response()
         }
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -194,6 +207,7 @@ pub async fn reject_proposal(
             );
         }
     }
+    order::record_decision(persist, id, false).await;
     let source = change_source_from_headers(&headers).to_setting_json(&current_build());
     let key = format!("proposal:{id}");
     let old = json!("open");

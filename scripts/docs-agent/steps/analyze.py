@@ -24,10 +24,71 @@ _FALLBACK_ANALYSIS = {
 }
 
 
+_CATEGORY_QUESTIONS = {
+    "architecture": (
+        "Does this change alter system design, port layout, data flows, component "
+        "responsibilities, or MCP tool count or shape, so that the architecture documentation "
+        "needs updating?"
+    ),
+    "schema": (
+        "Does this change add or alter a database migration or table definition, so that the "
+        "schema documentation needs updating?"
+    ),
+    "guides": (
+        "Does this change alter scripts, the Makefile, cargo configuration or developer-workflow "
+        "files, so that the developer guides need updating?"
+    ),
+    "ui_help": (
+        "Does this change add or remove a frontend route or page component, so that the UI "
+        "help pages need updating?"
+    ),
+}
+_YES_AT = 0.5
+
+
+def _noul_questions() -> dict:
+    return {
+        name: {
+            "type": "noul",
+            "instructions": text,
+            "criteria": {
+                "true": "Yes, the documentation category needs updating.",
+                "false": "No, the documentation category is unaffected.",
+            },
+        }
+        for name, text in _CATEGORY_QUESTIONS.items()
+    }
+
+
+def classify_with_jev(files: list[str], stat: str, diff_head: str) -> dict | None:
+    """Per-category Noul answers from Jev, composed into the same dict the chat
+    path returns. None when the call fails or an answer is missing or malformed,
+    so the caller falls back to the chat-completions classifier."""
+    state = {"changed_files": files, "diff_summary": stat, "diff_head": diff_head}
+    answers = client.decide(state, _noul_questions())
+    if answers is None:
+        return None
+    affected = {}
+    for name in _CATEGORY_QUESTIONS:
+        answer = answers.get(name)
+        value = answer.get("noul") if isinstance(answer, dict) else None
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+            print(f"  analyze: Jev gave no usable answer for {name!r} — using the chat classifier")
+            return None
+        affected[name] = value >= _YES_AT
+    top = sorted({f.split("/")[0] for f in files})
+    summary = f"{len(files)} file(s) changed under {', '.join(top[:4]) or 'no folder'}"
+    return {"summary": summary, **affected}
+
+
 def run() -> dict:
     files = git_util.changed_files()
     stat = git_util.diff_stat()
     diff_head = git_util.diff_full()[:6000]
+
+    jev = classify_with_jev(files, stat, diff_head)
+    if jev is not None:
+        return jev
 
     user = f"""Changed files:
 {chr(10).join(files)}

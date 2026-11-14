@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH woken AS (\n    SELECT r.id AS record_id, m.id AS message_id, m.to_session_id, m.queued_at,\n           m.consumed_at, m.sent_request_id, m.sent_at\n      FROM decisions.records r\n      JOIN mailbox.messages m ON m.message_uuid = r.message_uuid\n     WHERE r.point = 'fleet_wake_check'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'sent'\n       AND m.queued_at <= now() - interval '10 minutes'\n),\nacted AS (\n    SELECT w.record_id,\n           COALESCE(w.consumed_at <= w.queued_at + interval '10 minutes', false) AS consumed,\n           COALESCE(w.sent_request_id IS NOT NULL\n                    AND w.sent_at <= w.queued_at + interval '10 minutes', false) AS carried,\n           reply.id IS NOT NULL AS replied\n      FROM woken w\n      LEFT JOIN LATERAL (\n          SELECT x.id\n            FROM mailbox.messages x\n           WHERE x.in_reply_to_id = w.message_id\n             AND x.from_session_id = w.to_session_id\n             AND x.queued_at <= w.queued_at + interval '10 minutes'\n           LIMIT 1\n      ) reply ON true\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT a.record_id,\n       CASE WHEN a.consumed AND (a.carried OR a.replied) THEN 'right' ELSE 'wrong' END,\n       'woken_seat_acted',\n       jsonb_build_object('consumed_in_10_min', a.consumed, 'carried_by_request', a.carried,\n                          'replied', a.replied)\n  FROM acted a\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = a.record_id AND o.label_source = 'woken_seat_acted')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a011cd5277f57474344941b3ac4afe6c101402c39427d01edb6ee006cee445a7"
+}

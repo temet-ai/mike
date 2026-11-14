@@ -39,20 +39,27 @@ fn wait_line(facts: &SteeringFacts) -> String {
     format!("- wait_backing: {} ({evidence})", facts.wait_backing.code())
 }
 
+pub fn last_change(o: &Observation) -> String {
+    o.change_summary().unwrap_or_else(|| {
+        o.last_change_use_id
+            .map_or_else(|| "none".to_owned(), |id| format!("tool {id}"))
+    })
+}
+
 fn observation_line(o: &Observation) -> String {
     match o.observed_after_change {
         None => "- observed_after_change: not applicable (no mutating call in the turn)".to_owned(),
         Some(true) => format!(
-            "- observed_after_change: true (last change tool {} at {}; {} call {} at {} after it)",
-            o.last_change_use_id.unwrap_or(0),
+            "- observed_after_change: true (last change: {} at {}; {} call {} at {} after it)",
+            last_change(o),
             at(o.last_change_at),
             o.observation_kind.unwrap_or("?"),
             o.last_observation_use_id.unwrap_or(0),
             at(o.last_observation_at)
         ),
         Some(false) => format!(
-            "- observed_after_change: false (last change tool {} at {}; no test, build, lint, run, http, browser or render call after it)",
-            o.last_change_use_id.unwrap_or(0),
+            "- observed_after_change: false (last change: {} at {}; no test, build, lint, run, http, browser or render call after it)",
+            last_change(o),
             at(o.last_change_at)
         ),
     }
@@ -123,7 +130,36 @@ mod tests {
         assert_eq!(lines.len(), 3);
         assert!(lines[0].starts_with("- wait_backing: none ("));
         assert!(
-            lines[1].contains("false (last change tool 88213"),
+            lines[1].contains("false (last change: tool 88213"),
+            "{}",
+            lines[1]
+        );
+    }
+
+    #[test]
+    fn unobserved_change_names_the_changed_file_when_known() {
+        let mut f = facts(Some(false));
+        f.observation.changed = vec![
+            crate::dossier::steering_facts::changed::ChangedPath {
+                path: "frontend/src/lib/Card.svelte".to_owned(),
+                kind: crate::dossier::steering_facts::changed::PathKind::Ui,
+                added: 12,
+                removed: 3,
+                committed: Some(false),
+            },
+            crate::dossier::steering_facts::changed::ChangedPath {
+                path: "docs/x.md".to_owned(),
+                kind: crate::dossier::steering_facts::changed::PathKind::Doc,
+                added: 1,
+                removed: 0,
+                committed: None,
+            },
+        ];
+        let lines = fact_lines(Some(&f));
+        assert!(
+            lines[1].contains(
+                "last change: frontend/src/lib/Card.svelte (UI, +12 \u{2212}3, uncommitted) and 1 more at"
+            ),
             "{}",
             lines[1]
         );

@@ -19,6 +19,13 @@ pub struct SessionLessonsRequest<'a> {
 }
 
 pub async fn apply_session_lessons(req: SessionLessonsRequest<'_>) -> RemindersOutcome {
+    apply_session_lessons_with_floor(req, None).await
+}
+
+pub async fn apply_session_lessons_with_floor(
+    req: SessionLessonsRequest<'_>,
+    floor: Option<&crate::llm::decisions::point::Decider>,
+) -> RemindersOutcome {
     let SessionLessonsRequest {
         body_bytes,
         session_id,
@@ -61,11 +68,23 @@ pub async fn apply_session_lessons(req: SessionLessonsRequest<'_>) -> RemindersO
                 .iter(),
         )
         .filter(|lesson| seen.insert(lesson.id))
+        .filter(|lesson| floor.is_none() || !super::supply_floor::is_held(session_id, lesson.id))
         .collect();
-    let all_lessons =
+    let selected =
         snapshot
             .relevance
             .select(&candidates, session_id, &query, cfg.max_lessons_to_inject);
+    let all_lessons = match floor {
+        Some(decider) => {
+            let context = super::supply_floor::Context {
+                session: session_id,
+                request_id: i64::try_from(request_id.as_u64()).unwrap_or(0),
+                text: &query,
+            };
+            super::supply_floor::keep_above_floor(decider, &context, selected).await
+        }
+        None => selected,
+    };
 
     if all_lessons.is_empty() {
         return RemindersOutcome::Unchanged;

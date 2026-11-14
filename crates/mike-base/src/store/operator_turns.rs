@@ -240,10 +240,17 @@ pub struct PromptKindClassificationInput<'a> {
     pub has_agent_id: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct RecordedPrompt {
+    pub class: crate::wire::genuine::PromptClass,
+    pub request_id: i64,
+    pub session_db_id: i64,
+}
+
 pub async fn record_prompt_kind_classification(
     persist: Option<&PersistHandle>,
     input: PromptKindClassificationInput<'_>,
-) {
+) -> Option<RecordedPrompt> {
     use crate::extract::request::{TurnOrigin, TurnType};
     use crate::wire::genuine::repeat::repeat_key;
     use crate::wire::genuine::{PromptInput, classify_prompt};
@@ -253,14 +260,10 @@ pub async fn record_prompt_kind_classification(
         TurnOrigin::Primary | TurnOrigin::PrimaryFirst
     ) && *input.turn_type == TurnType::UserPrompt;
     if !is_operator_turn_opener {
-        return;
+        return None;
     }
-    let Some(persist) = persist else {
-        return;
-    };
-    let Some(db_id) = input.session_db_id else {
-        return;
-    };
+    let persist = persist?;
+    let db_id = input.session_db_id?;
     let class = classify_prompt(&PromptInput {
         text: input.human_prompt,
         last_user_message: Some(input.last_user_message),
@@ -268,13 +271,9 @@ pub async fn record_prompt_kind_classification(
         has_agent_id: input.has_agent_id,
     });
     let key = repeat_key(input.human_prompt);
+    let request_id = input.request_id.as_u64() as i64;
     if let Err(e) = persist
-        .write_prompt_classification(
-            input.request_id.as_u64() as i64,
-            db_id,
-            &class,
-            key.as_deref(),
-        )
+        .write_prompt_classification(request_id, db_id, &class, key.as_deref())
         .await
     {
         tracing::warn!(
@@ -283,7 +282,13 @@ pub async fn record_prompt_kind_classification(
             error = %e,
             "prompt_kind classification write failed (non-fatal)"
         );
+        return None;
     }
+    Some(RecordedPrompt {
+        class,
+        request_id,
+        session_db_id: db_id,
+    })
 }
 
 #[cfg(test)]

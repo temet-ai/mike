@@ -70,6 +70,7 @@ async fn held_back_would_fire_is_live_with_no_intervention_and_gets_a_label_cand
         text: ENDING.to_owned(),
         toggle_on: true,
         turn_judge_live: false,
+        decisions_mode: None,
     };
     evaluate_guard_turn(&f.handle, &server.uri(), seam).await?;
     let (mode, arm, intervention, due, verdict): (
@@ -169,6 +170,7 @@ async fn a_session_at_its_note_limit_is_still_judged_but_gets_no_guard_note() ->
         text: ENDING.to_owned(),
         toggle_on: true,
         turn_judge_live: false,
+        decisions_mode: None,
     };
 
     let quiet_session_turn = wait_turn(&f, 71_001).await?;

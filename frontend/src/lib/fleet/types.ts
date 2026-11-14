@@ -100,6 +100,72 @@ export interface FleetCriterionStatus {
 	ready?: number;
 }
 
+export interface EffortCell {
+	requests: number;
+	tokens: number;
+	share_percent: number | null;
+}
+
+export interface EffortCells {
+	tokens: number;
+	labels: Record<string, EffortCell>;
+}
+
+export interface FleetEffortSplit {
+	basis?: string;
+	all_seats?: EffortCells;
+	by_seat?: Record<string, EffortCells>;
+	error?: string;
+}
+
+export interface FleetMailWakeCounts {
+	basis?: string;
+	by_seat?: Record<string, Record<string, number>>;
+}
+
+export interface FleetSeatDecisionRow {
+	id: number;
+	created_at: string;
+	seat: string;
+	point: string;
+	applied: string | null;
+	fail_open: boolean | null;
+	verdict: { verdict?: { score?: number | null } | null; error?: string | null } | null;
+}
+
+export interface FleetCheckTriageRow {
+	id: number;
+	finished_at: string | null;
+	exit_code: number | null;
+	askers: string[];
+	triage: string;
+}
+
+export interface FleetSeatDecisions {
+	basis?: string;
+	limit?: number;
+	by_seat?: Record<string, Record<string, FleetSeatDecisionRow[]>>;
+	check_triage?: FleetCheckTriageRow[];
+}
+
+export interface FleetRecord {
+	live?: boolean;
+	note?: string;
+	effort_split?: FleetEffortSplit;
+	mail_wake_counts?: FleetMailWakeCounts;
+	seat_decisions?: FleetSeatDecisions;
+}
+
+export type FleetDecisionMode = 'off' | 'shadow' | 'on';
+
+export interface FleetDecisionModes {
+	stop_check: FleetDecisionMode;
+	wake_check: FleetDecisionMode;
+	triage: FleetDecisionMode;
+	commit_message: FleetDecisionMode;
+	effort: FleetDecisionMode;
+}
+
 export interface FleetAcceptanceStatus {
 	fleet: string;
 	slug: string;

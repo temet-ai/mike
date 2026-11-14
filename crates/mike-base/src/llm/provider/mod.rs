@@ -81,7 +81,7 @@ impl ModelTier {
             LlmRole::SessionJudge | LlmRole::LessonProposer => Some(Self::Fast),
             LlmRole::JudgeWorker => Some(Self::Standard),
             LlmRole::Steerer | LlmRole::LessonRelations => Some(Self::Strong),
-            LlmRole::Eval | LlmRole::Unattributed => None,
+            LlmRole::Eval | LlmRole::Unattributed | LlmRole::Decision => None,
         }
     }
 }

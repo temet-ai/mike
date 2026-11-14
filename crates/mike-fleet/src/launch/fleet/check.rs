@@ -89,6 +89,8 @@ pub struct CheckReport {
     pub refused: Option<String>,
     #[serde(default)]
     pub started_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub triage: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,6 +190,7 @@ pub struct Runner<'a> {
     pub tracker: &'a TaskTracker,
     pub run: &'a str,
     pub fleet: Uuid,
+    pub decisions: Option<&'a super::decisions::FleetDecisions>,
 }
 
 enum Outcome {

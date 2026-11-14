@@ -21,6 +21,7 @@ pub mod call;
 pub mod claude_call;
 pub mod cli_call;
 pub mod codex_call;
+pub mod jev_call;
 pub mod key_guard;
 pub mod recording;
 
@@ -68,6 +69,7 @@ struct Inner {
     tier: Option<ModelTier>,
     call_context: LlmCallContext,
     reservation: Option<Reservation>,
+    decision_store: Option<crate::store::persistence::PersistHandle>,
 }
 
 #[derive(Clone)]
@@ -111,6 +113,7 @@ impl OpenRouterClient {
                 tier: None,
                 call_context: LlmCallContext::default(),
                 reservation: None,
+                decision_store: None,
             }),
         })
     }
@@ -161,6 +164,14 @@ impl OpenRouterClient {
     pub fn with_usage_sink(&self, sink: Arc<dyn LlmUsageSink>) -> Self {
         let mut inner = (*self.inner).clone();
         inner.usage_sink = Some(sink);
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
+    pub fn with_limiter(&self, limiter: Arc<CallLimiter>) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.limiter = limiter;
         Self {
             inner: Arc::new(inner),
         }

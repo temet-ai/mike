@@ -6,6 +6,7 @@ pub const COMPRESSOR_LOOP_ENABLED_KEY: &str = "compressor_loop.enabled";
 pub const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
+pub const DECISIONS_LOOP_ENABLED_KEY: &str = "decisions_loop.enabled";
 
 pub fn enabled_entry(
     key: &'static str,
@@ -95,6 +96,15 @@ pub fn entries() -> Vec<SettingMeta> {
             lesson consolidation then retires the older lesson of each contradiction the \
             adjudicator agreed with. One machine per database runs it (the job lease). Read \
             on every check, once a minute; a run already under way finishes.",
+        ),
+        enabled_entry(
+            DECISIONS_LOOP_ENABLED_KEY,
+            "Decisions loop",
+            "Every hour, at any hour, run scripts/decisions-loop, which scores the Jev \
+            decision points against their labels when no run finished in the last 24 hours \
+            and files a finding on the jev-decisions thread for a point below its bar. It \
+            reads and writes the capture database only and makes no model call. One machine \
+            per database runs it (the job lease). Read on every check, once a minute.",
         ),
     ]
 }

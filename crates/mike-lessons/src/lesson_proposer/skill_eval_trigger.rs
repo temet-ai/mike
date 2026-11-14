@@ -4,6 +4,7 @@ use std::fmt::Write as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use super::pick::{self as skill_eval_pick, JevTrigger};
 use super::progress::in_chunks;
 use super::{EvalError, TriggerQuery};
 use crate::llm::OpenRouterClient;
@@ -187,11 +188,21 @@ pub fn matched(
 
 async fn ask_batch(
     llm: &OpenRouterClient,
+    jev: Option<&JevTrigger>,
     offer: &Offer<'_>,
     batch: usize,
     queries: &[&TriggerQuery],
 ) -> Result<Vec<QueryResult>, EvalError> {
     let messages: Vec<&str> = queries.iter().map(|q| q.query.as_str()).collect();
+    if let Some(jev) = jev
+        && let Some(picked) = skill_eval_pick::ask_batch(jev, offer, &messages).await
+    {
+        let results = matched(queries, picked.choices, offer.name)?;
+        let right = results.iter().filter(|r| r.correct).count();
+        skill_eval_pick::label_against_expected(jev, picked.record_id, (right, results.len()))
+            .await;
+        return Ok(results);
+    }
     let input = offer_input(offer, batch, &messages);
     let reply: Answers = llm.verdict(PROMPT, &input, schema()).await?;
     matched(queries, reply.answers, offer.name)
@@ -216,6 +227,7 @@ pub fn entries(
 
 pub async fn run_batches(
     llm: &OpenRouterClient,
+    jev: Option<&JevTrigger>,
     offer: &Offer<'_>,
     queries: &[TriggerQuery],
     batches: &[usize],
@@ -227,8 +239,12 @@ pub async fn run_batches(
                 .into_iter()
                 .filter_map(|index| queries.get(index))
                 .collect();
-            async move { ask_batch(llm, offer, batch, &picked).await }
+            async move { ask_batch(llm, jev, offer, batch, &picked).await }
         })
         .collect();
     in_chunks(tasks).await
 }
+
+#[cfg(test)]
+#[path = "skill_eval_label_tests.rs"]
+mod label_tests;

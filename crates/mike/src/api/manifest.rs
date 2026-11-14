@@ -315,7 +315,8 @@ mod tests {
                 "lessons_commit",
                 "usage_audit",
                 "lesson_relations",
-                "memory_review"
+                "memory_review",
+                "decisions_loop"
             ]
         );
         for job in body["jobs"].as_array().into_iter().flatten() {
