@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH closed AS (\n    UPDATE workspace.code_findings f\n       SET outcome = 'fixed',\n           outcome_scan_id = $3,\n           outcome_at = now()\n     WHERE f.checkout = $1\n       AND f.path = $2\n       AND f.outcome IN ('open', 'ignored')\n       AND NOT (f.fingerprint = ANY($4::text[]))\n    RETURNING f.id\n)\nUPDATE workspace.code_scans s\n   SET findings_fixed = (SELECT count(*) FROM closed)\n WHERE s.id = $3\nRETURNING s.findings_fixed AS \"fixed!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fixed!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_scans",
+            "name": "findings_fixed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "21edeb341c0cd23b9ce5b3cd8739beacb9acb56b25d3a1cec5a5f77c79c90de8"
+}

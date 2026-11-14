@@ -1,0 +1,159 @@
+id: go-tls-verification-off
+language: go
+severity: error
+rule:
+  kind: keyed_element
+  regex: '^InsecureSkipVerify\s*:\s*true$'
+message: TLS certificate checks are turned off (InsecureSkipVerify).
+---
+id: go-shell-command
+language: go
+severity: warning
+rule:
+  pattern: exec.Command($SH, "-c", $CMD)
+constraints:
+  SH:
+    regex: '^"(sh|bash|zsh)"$'
+  CMD:
+    regex: '^[^"`]'
+message: A shell command line is built from a value. Pass the program and its arguments to exec.Command directly.
+---
+id: c-unsafe-string-call
+language: c
+severity: warning
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: '^(gets|strcpy|strcat|sprintf|vsprintf)$'
+message: This call writes without a length limit. Use the bounded form (fgets, snprintf, strncpy with an explicit terminator).
+---
+id: cpp-unsafe-string-call
+language: cpp
+severity: warning
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: '^(std::)?(gets|strcpy|strcat|sprintf|vsprintf)$'
+message: This call writes without a length limit. Use std::string, snprintf or a bounded copy.
+---
+id: c-system-from-value
+language: c
+severity: warning
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        regex: '^(std::)?system$'
+    - has:
+        field: arguments
+        regex: '^\(\s*[^"\s]'
+message: A shell command line built from a value is run with system(). Use execv with an argument list.
+---
+id: cpp-system-from-value
+language: cpp
+severity: warning
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        regex: '^(std::)?system$'
+    - has:
+        field: arguments
+        regex: '^\(\s*[^"\s]'
+message: A shell command line built from a value is run with system(). Use execv or QProcess with an argument list.
+---
+id: java-exec-from-value
+language: java
+severity: warning
+rule:
+  pattern: Runtime.getRuntime().exec($CMD)
+constraints:
+  CMD:
+    regex: '^[^"]'
+message: A command line built from a value is run through Runtime.exec. Use ProcessBuilder with an argument list.
+---
+id: kotlin-exec-from-value
+language: kotlin
+severity: warning
+rule:
+  pattern: Runtime.getRuntime().exec($CMD)
+constraints:
+  CMD:
+    regex: '^[^"]'
+message: A command line built from a value is run through Runtime.exec. Use ProcessBuilder with an argument list.
+---
+id: lua-run-from-value
+language: lua
+severity: warning
+rule:
+  any:
+    - pattern: os.execute($CMD)
+    - pattern: io.popen($CMD)
+    - pattern: loadstring($CMD)
+    - pattern: load($CMD)
+constraints:
+  CMD:
+    regex: '^[^"\x27\[]'
+message: A command or a chunk of code built from a value is run. Pass fixed text, or check the value against a list first.
+---
+id: ruby-eval
+language: ruby
+severity: error
+rule:
+  any:
+    - pattern: eval($CODE)
+    - pattern: instance_eval($CODE)
+    - pattern: Marshal.load($CODE)
+constraints:
+  CODE:
+    regex: '^[^"\x27]'
+message: Code or a marshalled object built from a value is run (eval/Marshal.load).
+---
+id: ruby-shell-interpolation
+language: ruby
+severity: warning
+rule:
+  any:
+    - pattern: system($CMD)
+    - pattern: exec($CMD)
+    - pattern: spawn($CMD)
+constraints:
+  CMD:
+    regex: '#\{'
+message: A shell command line is built by interpolation. Pass the program and its arguments separately, system("ls", dir).
+---
+id: swift-force-try
+language: swift
+severity: warning
+rule:
+  kind: try_expression
+  regex: '^try!'
+message: try! crashes the app when the call throws. Use do/catch, or try? with a fallback.
+---
+id: elixir-eval-string
+language: elixir
+severity: error
+rule:
+  pattern: Code.eval_string($$$)
+message: Code built from a string is run (Code.eval_string).
+---
+id: elixir-atom-from-value
+language: elixir
+severity: warning
+rule:
+  pattern: String.to_atom($VALUE)
+constraints:
+  VALUE:
+    regex: '^[^"]'
+message: Atoms are never freed, so atoms made from values can exhaust the atom table. Use String.to_existing_atom.
+---
+id: zig-catch-unreachable
+language: zig
+severity: warning
+rule:
+  pattern: $CALL catch unreachable
+message: catch unreachable turns an error into undefined behaviour in release builds. Handle the error, or catch it with @panic and a reason.

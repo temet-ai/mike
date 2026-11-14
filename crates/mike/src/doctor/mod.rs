@@ -4,6 +4,7 @@ mod probes;
 mod check_background;
 mod check_claude;
 mod checks;
+mod code_scan;
 mod observe;
 mod observe_db;
 mod observed;

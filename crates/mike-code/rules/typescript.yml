@@ -1,4 +1,5 @@
 id: ts-no-import-actual-api
+url: '.claude/rules/frontend-development.md'
 language: typescript
 severity: warning
 rule:

@@ -228,6 +228,31 @@ pub(super) async fn daemon(config: &ProxyConfig) -> Check {
     }
 }
 
+pub(super) async fn code_scan(config: &ProxyConfig) -> Check {
+    let facts = fetch_code_scan(config).await;
+    super::code_scan::probe_check(facts.as_ref())
+}
+
+async fn fetch_code_scan(config: &ProxyConfig) -> Option<super::code_scan::CodeScanFacts> {
+    let endpoint = crate::config::endpoint::inspect_url(config).ok()?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .ok()?;
+    let response = client
+        .get(format!("{endpoint}{}", super::code_scan::ROUTE))
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let body = health_metadata(response).await.ok()?;
+    super::code_scan::CodeScanFacts::from_json(&body)
+}
+
 pub(super) async fn mcp(config: &ProxyConfig) -> Check {
     match crate::setup::mcp::check(config).await {
         Ok(probe) => {

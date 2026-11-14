@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT f.id AS \"id!\", s.session_uuid AS \"session!\", f.path AS \"path!\", f.line AS \"line!\",\n       f.rule_id AS \"rule_id!\", f.message AS \"message!\", f.fix\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.checkout = ANY($1::text[])\n   AND f.id > $2\n   AND f.delivered_request_id IS NULL\n   AND f.outcome = 'open'\n   AND f.severity = ANY($3::text[])\n   AND f.found_at > now() - interval '1 hour'\n ORDER BY f.id\n LIMIT 200\n",
+  "query": "SELECT f.id AS \"id!\", s.session_uuid AS \"session!\", f.path AS \"path!\", f.line AS \"line!\",\n       f.rule_id AS \"rule_id!\", f.message AS \"message!\", f.fix\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.checkout = ANY($1::text[])\n   AND f.id > $2\n   AND f.delivered_at IS NULL\n   AND f.outcome = 'open'\n   AND f.severity = ANY($3::text[])\n   AND f.found_at > now() - interval '1 hour'\n ORDER BY f.id\n LIMIT 200\n",
   "describe": {
     "columns": [
       {
@@ -98,5 +98,5 @@
       true
     ]
   },
-  "hash": "b9ed5dae4dea49751fb35ddbf0dcef9858037e10a41dec32b82fc10b769b09bd"
+  "hash": "795fadc47d8664f69fd46caae0bdbef652dda2d6e1ea1abc5b2cba501f04bf22"
 }

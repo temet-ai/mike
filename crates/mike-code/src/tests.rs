@@ -16,17 +16,30 @@ fn builtin_rules_load_with_a_stable_version() -> Result<()> {
     let rules = builtin()?;
     assert!(rules.ids().len() >= 25, "{} rules", rules.ids().len());
     assert_eq!(rules.version().len(), 12);
+    let comments = rules
+        .catalogue()
+        .iter()
+        .find(|r| r.id == "rust-no-comments")
+        .context("rust-no-comments missing")?;
+    assert_eq!(comments.language, "rust");
+    assert!(
+        comments
+            .replaces
+            .as_deref()
+            .is_some_and(|u| u.contains("rust-database-reliability"))
+    );
     Ok(())
 }
 
 fn assert_each_fires(cases: &[(&str, &str, &str)]) -> Result<()> {
+    let mut missed = Vec::new();
     for (path, source, rule) in cases {
         let hit = rules_hit(path, source)?;
-        assert!(
-            hit.iter().any(|id| id == rule),
-            "{rule} on {path}: got {hit:?}"
-        );
+        if !hit.iter().any(|id| id == rule) {
+            missed.push(format!("{rule} on {path}: got {hit:?}"));
+        }
     }
+    assert!(missed.is_empty(), "{missed:#?}");
     Ok(())
 }
 
@@ -230,5 +243,168 @@ fn a_fix_is_rendered_for_rules_that_have_one() -> Result<()> {
         .and_then(|f| f.fix.clone())
         .context("no fix")?;
     assert_eq!(fix, "#[ignore = \"why\"]");
+    Ok(())
+}
+
+#[test]
+fn each_systems_language_rule_fires_on_its_sample() -> Result<()> {
+    assert_each_fires(&[
+        (
+            "main.go",
+            "package main\nfunc f() { _ = &tls.Config{InsecureSkipVerify: true} }\n",
+            "go-tls-verification-off",
+        ),
+        (
+            "main.go",
+            "package main\nfunc f(c string) { exec.Command(\"sh\", \"-c\", c).Run() }\n",
+            "go-shell-command",
+        ),
+        (
+            "a.c",
+            "void f(char *s) { char b[8]; strcpy(b, s); }\n",
+            "c-unsafe-string-call",
+        ),
+        (
+            "a.c",
+            "void f(char *s) { system(s); }\n",
+            "c-system-from-value",
+        ),
+        (
+            "a.cpp",
+            "void f(char *s) { char b[8]; sprintf(b, \"%s\", s); }\n",
+            "cpp-unsafe-string-call",
+        ),
+        (
+            "a.cpp",
+            "void f(char *s) { system(s); }\n",
+            "cpp-system-from-value",
+        ),
+        (
+            "A.java",
+            "class A { void f(String c) throws Exception { Runtime.getRuntime().exec(c); } }\n",
+            "java-exec-from-value",
+        ),
+        (
+            "a.kt",
+            "fun f(c: String) { Runtime.getRuntime().exec(c) }\n",
+            "kotlin-exec-from-value",
+        ),
+        (
+            "a.lua",
+            "local function f(c) os.execute(c) end\n",
+            "lua-run-from-value",
+        ),
+        ("a.rb", "def f(c)\n  eval(c)\nend\n", "ruby-eval"),
+        (
+            "a.rb",
+            "def f(c)\n  system(\"ls #{c}\")\nend\n",
+            "ruby-shell-interpolation",
+        ),
+        (
+            "a.swift",
+            "func f() { let x = try! g() }\n",
+            "swift-force-try",
+        ),
+        (
+            "a.ex",
+            "defmodule A do\n  def f(c), do: Code.eval_string(c)\nend\n",
+            "elixir-eval-string",
+        ),
+        (
+            "a.ex",
+            "defmodule A do\n  def f(c), do: String.to_atom(c)\nend\n",
+            "elixir-atom-from-value",
+        ),
+        (
+            "a.zig",
+            "fn f() void { const x = g() catch unreachable; _ = x; }\n",
+            "zig-catch-unreachable",
+        ),
+    ])
+}
+
+#[test]
+fn systems_language_clean_samples_have_no_findings() -> Result<()> {
+    let cases = [
+        (
+            "main.go",
+            "package main\nfunc f() { exec.Command(\"ls\", \"-l\").Run() }\n",
+        ),
+        ("a.c", "void f(void) { system(\"ls\"); }\n"),
+        ("a.lua", "local function f() os.execute(\"ls\") end\n"),
+        ("a.rb", "def f(d)\n  system(\"ls\", d)\nend\n"),
+        ("a.swift", "func f() { let y = try? g() }\n"),
+        (
+            "a.ex",
+            "defmodule A do\n  def f(c), do: String.to_existing_atom(c)\nend\n",
+        ),
+    ];
+    for (path, source) in cases {
+        let hit = rules_hit(path, source)?;
+        assert!(hit.is_empty(), "{path}: {hit:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn languages_are_named_by_extension_and_shebang() {
+    let cases = [
+        ("a.go", "", Some("go")),
+        ("a.kt", "", Some("kotlin")),
+        ("a.hpp", "", Some("cpp")),
+        ("a.zig", "", Some("zig")),
+        ("a.exs", "", Some("elixir")),
+        ("a.js", "", Some("typescript")),
+        ("bin/x", "#!/usr/bin/env ruby\n", Some("ruby")),
+        ("bin/x", "#!/usr/bin/env bun\n", Some("typescript")),
+        ("a.ml", "", None),
+        ("a.gleam", "", None),
+        ("a.nim", "", None),
+    ];
+    for (path, head, expected) in cases {
+        let got = crate::language_for(path, head.as_bytes()).map(crate::language_name);
+        assert_eq!(got.as_deref(), expected, "{path}");
+    }
+    assert!(crate::grammars().len() >= 15);
+}
+
+#[test]
+fn project_rules_join_the_builtin_set_and_are_named_project() -> Result<()> {
+    let project = vec![(
+        "rules/no-println.yml".to_string(),
+        "id: no-println\nlanguage: rust\nseverity: warning\nrule:\n  pattern: println!($$$)\nmessage: Use tracing.\n"
+            .to_string(),
+    )];
+    let rules = RuleSet::with_project(&project).map_err(|err| anyhow::anyhow!("{err}"))?;
+    assert_ne!(rules.version(), builtin()?.version());
+    let found = scan(&rules, "src/a.rs", b"fn a() { println!(\"x\"); }\n");
+    let hit = found
+        .findings
+        .iter()
+        .find(|f| f.rule_id == "no-println")
+        .context("project rule did not fire")?;
+    assert_eq!(hit.source, crate::SOURCE_PROJECT);
+    assert!(
+        found
+            .findings
+            .iter()
+            .filter(|f| f.rule_id != "no-println")
+            .all(|f| f.source == crate::SOURCE_BUILTIN)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_broken_project_rule_file_is_an_error_naming_the_file() {
+    let project = vec![("rules/bad.yml".to_string(), "id: x\nrule: [".to_string())];
+    let err = RuleSet::with_project(&project).err().map(|e| e.to_string());
+    assert!(err.is_some_and(|e| e.contains("rules/bad.yml")));
+}
+
+#[test]
+fn sgconfig_rule_dirs_are_read() -> Result<()> {
+    let dirs = crate::sgconfig_rule_dirs("ruleDirs:\n  - rules\n  - lint/ast\n")
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+    assert_eq!(dirs, vec!["rules".to_string(), "lint/ast".to_string()]);
     Ok(())
 }

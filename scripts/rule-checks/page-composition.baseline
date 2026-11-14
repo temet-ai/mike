@@ -12,7 +12,6 @@
 0	16	3	frontend/src/routes/help/guides/+page.svelte
 0	0	1	frontend/src/routes/help/guides/anomalies/+page.svelte
 0	0	2	frontend/src/routes/help/guides/filter-rules/+page.svelte
-0	0	1	frontend/src/routes/help/guides/getting-started/+page.svelte
 4	0	1	frontend/src/routes/help/guides/inspecting-requests/+page.svelte
 0	5	3	frontend/src/routes/help/guides/retention/+page.svelte
 0	5	5	frontend/src/routes/help/guides/steering-concepts/+page.svelte

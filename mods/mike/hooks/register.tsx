@@ -125,6 +125,12 @@ async function refreshChangeSummary($: EngineInterface) {
   const bits: string[] = []
   if (waiting > 0) bits.push(`${waiting}${body.events_waiting_capped ? '+' : ''} changes by others`)
   if (mine > 0) bits.push(`${mine} uncommitted`)
+  const code = await fetchJson<{ session_counts?: { open?: number } | null }>(
+    $,
+    '/api/code-findings?hours=24&limit=1&session=' + encodeURIComponent(self),
+  )
+  const open = code?.session_counts?.open ?? 0
+  if (open > 0) bits.push(`${open} code finding${open === 1 ? '' : 's'} open`)
   changesText = bits.length === 0 ? undefined : bits.join(', ')
   showStatus($)
 }

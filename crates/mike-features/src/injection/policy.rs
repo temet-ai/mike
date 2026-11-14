@@ -43,6 +43,12 @@ pub fn policy_for(source: &ReminderSource) -> InjectionPolicy {
             may_wake: false,
         },
         ReminderSource::WorkspaceBriefing => proxy_authored_context("workspace_briefing"),
+        ReminderSource::CodeFindings => InjectionPolicy {
+            source_kind: "code_findings",
+            repeat: RepeatRule::Always,
+            min_wake_interval: None,
+            may_wake: true,
+        },
     }
 }
 

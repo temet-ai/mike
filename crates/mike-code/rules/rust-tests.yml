@@ -1,4 +1,5 @@
 id: rust-test-unwrap
+url: '.claude/rules/rust-database-reliability.md#tests'
 language: rust
 severity: hint
 files: ["**/tests/**/*.rs", "**/*_tests.rs", "**/tests.rs"]
@@ -7,6 +8,7 @@ rule:
 message: Do not unwrap() in test setup; return a Result and use ?.
 ---
 id: rust-test-name-shape
+url: '.claude/rules/rust-database-reliability.md#tests'
 language: rust
 severity: hint
 rule:

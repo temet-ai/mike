@@ -28,7 +28,7 @@ fn watch_only_leaves_every_switch_at_its_default() {
 }
 
 #[test]
-fn recommended_adds_recall_lessons_and_reminders_to_the_defaults_and_nothing_else() {
+fn recommended_adds_recall_lessons_reminders_and_code_findings_to_the_defaults_and_nothing_else() {
     let recommended = plan(Preset::Recommended);
     let watch = plan(Preset::WatchOnly);
     let extra: Vec<&str> = recommended
@@ -38,6 +38,7 @@ fn recommended_adds_recall_lessons_and_reminders_to_the_defaults_and_nothing_els
         .map(|(key, _)| *key)
         .collect();
     let mut expected = RECOMMENDED_ON.to_vec();
+    expected.push("change_record");
     expected.sort_unstable();
     let mut got = extra;
     got.sort_unstable();

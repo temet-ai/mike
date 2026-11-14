@@ -99,6 +99,9 @@ pub struct FeatureToggles {
     #[serde(default)]
     pub code_findings: bool,
 
+    #[serde(default = "on")]
+    pub code_findings_push: bool,
+
     #[serde(default)]
     pub context_focus_question: bool,
 
@@ -181,6 +184,7 @@ impl Default for FeatureToggles {
             change_record_tail: false,
             code_scan: true,
             code_findings: false,
+            code_findings_push: true,
             context_focus_question: false,
             memory_keeper: false,
             seat_memory_index: false,
@@ -313,6 +317,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "change_record" => Some(toggles.change_record),
         "change_record_tail" => Some(toggles.change_record_tail),
         "code_findings" => Some(toggles.code_findings),
+        "code_findings_push" => Some(toggles.code_findings_push),
         "code_scan" => Some(toggles.code_scan),
         "channel_link_sweep" => Some(toggles.channel_link_sweep),
         "context_focus_question" => Some(toggles.context_focus_question),
@@ -383,6 +388,7 @@ pub fn set_toggle_enabled(
         "change_record" => updated.change_record = enabled,
         "change_record_tail" => updated.change_record_tail = enabled,
         "code_findings" => updated.code_findings = enabled,
+        "code_findings_push" => updated.code_findings_push = enabled,
         "code_scan" => updated.code_scan = enabled,
         "channel_link_sweep" => updated.channel_link_sweep = enabled,
         "context_focus_question" => updated.context_focus_question = enabled,

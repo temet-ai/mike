@@ -8,6 +8,7 @@ pub enum PushSource {
     Lesson,
     Diagnostic,
     Recall,
+    CodeFindings,
 }
 
 impl PushSource {
@@ -18,6 +19,7 @@ impl PushSource {
             PushSource::Lesson => "lesson",
             PushSource::Diagnostic => "diagnostic",
             PushSource::Recall => "recall",
+            PushSource::CodeFindings => "code_findings",
         }
     }
 }
@@ -55,19 +57,20 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 .fetch_optional(&self.pool)
                 .await?
                 .map(|row| row.created_at),
-                PushSource::Lesson | PushSource::Diagnostic | PushSource::Recall => {
-                    sqlx::query_file!(
-                        "src/store/persistence/remote_control/reserve_unclaimed_injection.sql",
-                        cse_id,
-                        session_uuid,
-                        source.kind(),
-                        event_id,
-                        frame,
-                    )
-                    .fetch_optional(&self.pool)
-                    .await?
-                    .map(|row| row.created_at)
-                }
+                PushSource::Lesson
+                | PushSource::Diagnostic
+                | PushSource::Recall
+                | PushSource::CodeFindings => sqlx::query_file!(
+                    "src/store/persistence/remote_control/reserve_unclaimed_injection.sql",
+                    cse_id,
+                    session_uuid,
+                    source.kind(),
+                    event_id,
+                    frame,
+                )
+                .fetch_optional(&self.pool)
+                .await?
+                .map(|row| row.created_at),
             };
             Ok(reserved)
         })

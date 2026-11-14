@@ -23,7 +23,12 @@ fn recommended_turns_on_recall_lessons_and_reminders_over_watch_only() {
     let presets = feature_presets();
     let watch = toggles_of(&presets, "watch-only");
     let recommended = toggles_of(&presets, "recommended");
-    for key in ["recall_injector", "agent_lessons", "reminders"] {
+    for key in [
+        "recall_injector",
+        "agent_lessons",
+        "reminders",
+        "code_findings",
+    ] {
         assert_eq!(enabled(recommended, key), Some(true), "{key}");
     }
     assert_eq!(enabled(watch, "recall_injector"), Some(false));

@@ -27,7 +27,7 @@
 		recommended: {
 			label: 'Recommended',
 			description:
-				'Watch only, plus recall, lessons and reminders. They add notes to what Claude Code sends to Anthropic, and nothing leaves this machine for them.'
+				'Watch only, plus recall, lessons, reminders and notes on what an edit added. They add notes to what Claude Code sends to Anthropic, and nothing leaves this machine for them.'
 		},
 		everything: {
 			label: 'Everything',
@@ -37,14 +37,10 @@
 	};
 
 	const current = $derived(currentPreset(presets, features));
-	let picked = $state('');
+	let picked = $derived(current ?? '');
 	let busy = $state(false);
 	let error = $state<string | null>(null);
 	let result = $state<string | null>(null);
-
-	$effect(() => {
-		picked = current ?? '';
-	});
 
 	const chosen = $derived(presets.find((p) => p.id === picked) ?? null);
 	const turnsOff = $derived(chosen ? switchesTurnedOff(chosen, features) : []);

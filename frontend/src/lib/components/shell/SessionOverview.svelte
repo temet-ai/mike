@@ -29,6 +29,7 @@
 	import SessionOverviewSummary from '$lib/components/shell/SessionOverviewSummary.svelte';
 	import SessionControlsPanel from '$lib/components/shell/SessionControlsPanel.svelte';
 	import AnalysisToolsCard from '$lib/components/shell/AnalysisToolsCard.svelte';
+	import SessionCodeFindingsPanel from '$lib/components/code-findings/SessionCodeFindingsPanel.svelte';
 	import SessionMemoryActions from '$lib/components/memory/SessionMemoryActions.svelte';
 	import SessionLessonsPanel from '$lib/components/memory/SessionLessonsPanel.svelte';
 	import SessionDeliveryPanel from '$lib/components/memory/SessionDeliveryPanel.svelte';
@@ -524,6 +525,8 @@
 			{findingsError}
 			analysisHref={`/analysis?session=${encodeURIComponent(sessionId)}`}
 		/>
+
+		<SessionCodeFindingsPanel grouped {sessionId} {now} />
 
 		<SessionMemoryActions grouped {sessionId} />
 

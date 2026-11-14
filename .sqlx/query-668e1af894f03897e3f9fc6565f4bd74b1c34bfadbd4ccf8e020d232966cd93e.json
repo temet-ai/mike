@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT f.id AS \"id!\", f.scan_id AS \"scan_id!\", f.change_event_id AS \"change_event_id!\",\n       s.session_uuid AS \"session_id?\", f.checkout AS \"checkout!\", f.path AS \"path!\",\n       f.rule_id AS \"rule_id!\", f.severity AS \"severity!\", f.message AS \"message!\",\n       f.line AS \"line!\", f.col AS \"col!\", f.matched AS \"matched!\", f.fix,\n       f.found_at AS \"found_at!\", f.delivered_request_id, f.delivered_at,\n       f.outcome AS \"outcome!\", f.outcome_at\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  LEFT JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.found_at >= $1\n   AND ($2::uuid IS NULL OR s.session_uuid = $2)\n ORDER BY f.id DESC\n LIMIT $3\n",
+  "query": "SELECT f.id AS \"id!\", f.scan_id AS \"scan_id!\", f.change_event_id AS \"change_event_id!\",\n       s.session_uuid AS \"session_id?\", f.checkout AS \"checkout!\", f.path AS \"path!\",\n       f.rule_id AS \"rule_id!\", f.rule_source AS \"rule_source!\", f.severity AS \"severity!\",\n       f.message AS \"message!\", f.line AS \"line!\", f.col AS \"col!\", f.matched AS \"matched!\", f.fix,\n       f.found_at AS \"found_at!\", f.delivered_request_id, f.delivered_via, f.delivered_at,\n       f.outcome AS \"outcome!\", f.outcome_at\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  LEFT JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.found_at >= $1\n   AND ($2::uuid IS NULL OR s.session_uuid = $2)\n ORDER BY f.id DESC\n LIMIT $3\n",
   "describe": {
     "columns": [
       {
@@ -82,6 +82,17 @@
       },
       {
         "ordinal": 7,
+        "name": "rule_source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "rule_source"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
         "name": "severity!",
         "type_info": "Text",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "message!",
         "type_info": "Text",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "line!",
         "type_info": "Int4",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "col!",
         "type_info": "Int4",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "matched!",
         "type_info": "Text",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "fix",
         "type_info": "Text",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "found_at!",
         "type_info": "Timestamptz",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "delivered_request_id",
         "type_info": "Int8",
         "origin": {
@@ -169,7 +180,18 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
+        "name": "delivered_via",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "delivered_via"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
         "name": "delivered_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +202,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 18,
         "name": "outcome!",
         "type_info": "Text",
         "origin": {
@@ -191,7 +213,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 19,
         "name": "outcome_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -222,13 +244,15 @@
       false,
       false,
       false,
+      false,
       true,
       false,
+      true,
       true,
       true,
       false,
       true
     ]
   },
-  "hash": "e0225a36015593fe5e1fcffa971dae2b08c1054a87d0491d066ac93baa9f2649"
+  "hash": "668e1af894f03897e3f9fc6565f4bd74b1c34bfadbd4ccf8e020d232966cd93e"
 }

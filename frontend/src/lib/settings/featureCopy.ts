@@ -143,6 +143,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'Adds a short note naming each warning or error a session’s own edit just added, with the fix when the rule has one. Off, findings are only recorded.',
 		find: 'mike-code ast-grep findings reminder fix'
 	},
+	code_findings_push: {
+		label: 'Push findings to idle sessions',
+		description:
+			'When a session has stopped before reading what its edit added, sends the findings over Remote Control so it fixes them now instead of on its next turn.',
+		find: 'mike-code findings remote control push idle wake'
+	},
 	file_read_compression: {
 		label: 'File-read compression',
 		description:

@@ -39,7 +39,12 @@ fn the_choices_explain_themselves_in_plain_words() {
     assert!(
         panel.choices[1]
             .why
-            .contains("recall, lessons and reminders")
+            .contains("recall, lessons, reminders and code findings")
+    );
+    assert!(
+        panel.choices[1]
+            .why
+            .contains("Tell sessions what their edit added")
     );
     assert!(panel.choices[1].why.contains("nothing leaves the machine"));
     assert!(panel.choices[2].why.contains("OpenRouter"));
@@ -47,6 +52,26 @@ fn the_choices_explain_themselves_in_plain_words() {
         "All {} switches",
         plan(Preset::Everything).toggles.len()
     )));
+}
+
+#[test]
+fn recommended_and_everything_switch_on_code_findings_with_its_prerequisites() {
+    for preset in [Preset::Recommended, Preset::Everything] {
+        let chosen = plan(preset);
+        for key in ["code_findings", "change_record", "code_scan"] {
+            assert!(
+                chosen.toggles.iter().any(|(k, on)| *k == key && *on),
+                "{preset:?} leaves {key} off"
+            );
+        }
+    }
+    let watch = plan(Preset::WatchOnly);
+    assert!(
+        watch
+            .toggles
+            .iter()
+            .any(|(k, on)| *k == "code_findings" && !*on)
+    );
 }
 
 #[test]
