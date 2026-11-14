@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::settings::meta_semantic as keys;
+use crate::knowledge_settings::meta_semantic as keys;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

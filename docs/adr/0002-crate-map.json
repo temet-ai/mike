@@ -413,6 +413,7 @@
   "change_feed": "db",
   "change_log": "model",
   "change_record": "fleet",
+  "channel_link_settings": "proxy",
   "channel_link_sweep": "proxy",
   "circuit_breaker": "core",
   "code_notes": "core",
@@ -454,7 +455,9 @@
   "injection": "proxy",
   "judge_worker": "eval",
   "knowledge_scan": "knowledge",
+  "knowledge_settings": "knowledge",
   "launch": "launch",
+  "launch_settings": "launch",
   "api/workspace/channel": "fleet",
   "launch/cli/seat_health": "fleet",
   "launch/cross_crate_tests/runtime_observation_tests": "fleet",
@@ -769,7 +772,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 348,
+  "crate_seams": 336,
   "foreign_writes": 105
  }
 }

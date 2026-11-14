@@ -12,7 +12,6 @@ pub mod meta_eval;
 pub mod meta_eval_alarms;
 pub mod meta_global;
 pub mod meta_improvement;
-pub mod meta_knowledge_embedding;
 pub mod meta_launch;
 pub mod meta_llm_budget;
 pub mod meta_llm_provider;
@@ -23,16 +22,11 @@ pub mod meta_rerank_nightly;
 #[cfg(test)]
 pub mod meta_rerank_tests;
 pub mod meta_scheduled_jobs;
-pub mod meta_search_ranking;
-#[cfg(test)]
-pub mod meta_search_ranking_tests;
-pub mod meta_semantic;
 pub mod meta_session_end;
 pub mod meta_session_scoped;
 pub mod meta_shell_output;
 pub mod meta_turn_guard;
 pub mod meta_turn_judge;
-pub mod meta_work_registry;
 pub mod meta_workers;
 pub mod overlay_apply;
 pub mod overlay_apply_provider;

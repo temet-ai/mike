@@ -314,9 +314,10 @@ feature's, in registration order.
 3. `overrides.rs`: `apply_override(&mut ConfigSections, key, value) -> bool`, the
    `apply_settings_overrides` arms rewritten as
    `sections.update::<X>(|cfg| …)`. Return `false` for any key you don't own. Also
-   `boot_toggles(&ConfigSections, &mut FeatureToggles)`, holding the lines that
-   `build_feature_toggle_overlay` used to read from your sections (`toggles.x =
-   sections.get::<XConfig>().enabled`).
+   `boot_toggles(&ConfigSections) -> Vec<(&'static str, bool)>`, the toggle names and
+   values that `build_feature_toggle_overlay` used to read from your sections
+   (`("x", sections.get::<XConfig>().enabled)`); it applies them by name, so the
+   registry never names `FeatureToggles`.
 4. `overlay.rs` (when the feature has live, `NextMessage`/`NewSessions` settings): one
    `#[derive(Debug, Clone, PartialEq)] struct` with a `Default` holding the old
    `SettingsOverlay::default()` values, `impl OverlaySection`, and

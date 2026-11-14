@@ -2,6 +2,7 @@ pub use mike_knowledge::*;
 pub mod analysis;
 pub mod api;
 pub mod capture;
+pub mod channel_link_settings;
 pub mod channel_link_sweep;
 pub mod compose_prompt;
 pub mod compress;
