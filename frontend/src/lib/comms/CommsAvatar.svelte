@@ -13,7 +13,7 @@
 		agentType?: string | null;
 		size?: CommsAvatarSize;
 		decorative?: boolean;
-		sender?: 'session' | 'mike';
+		sender?: 'session' | 'mike' | 'operator';
 	}
 
 	const {
@@ -26,15 +26,20 @@
 		sender = 'session'
 	}: Props = $props();
 
-	const tokens = $derived(
-		sender === 'mike'
-			? {
-					fg: 'var(--ident-mike-fg)',
-					bg: 'var(--ident-mike-fill)',
-					border: 'var(--ident-mike-line)'
-				}
-			: roleTokens(role)
-	);
+	const SENDER_TOKENS = {
+		mike: {
+			fg: 'var(--ident-mike-fg)',
+			bg: 'var(--ident-mike-fill)',
+			border: 'var(--ident-mike-line)'
+		},
+		operator: {
+			fg: 'var(--ident-session-fg)',
+			bg: 'var(--ident-session-fill)',
+			border: 'var(--ident-session-line)'
+		}
+	} as const;
+
+	const tokens = $derived(sender === 'session' ? roleTokens(role) : SENDER_TOKENS[sender]);
 	const accessibleName = $derived(label ?? shortSessionId(sessionUuid));
 
 	function firstTwoChars(word: string): string {

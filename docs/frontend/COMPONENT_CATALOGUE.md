@@ -167,6 +167,10 @@ inventing its own), so it is the reference point if any Band component is genera
   summary for whatever is currently selected (actor/phase/source); a grouped `SectionCard` member,
   not a list section.
 
+- `frontend/src/lib/components/wright/WrightBand.svelte` — keep: one collapsible band of the Wright
+  page's right-hand stack (a `band-hd` header with a remembered open or closed choice and a held-rows
+  "N new" slot); a section of a `.mech-group`, not one of the Home page's domain bands.
+
 ## Banner
 
 Canonical: `frontend/src/lib/components/shared/LoadErrorBanner.svelte`
@@ -248,6 +252,10 @@ progress — see its own entry below.
 - `frontend/src/lib/components/judges/TestRunCard.svelte` — keep: one labelling accuracy run as a `.edge.mech-group` with a static band header (the run, named by date, configuration and model, as a link) and a fixed body (a label/value list of what was measured, a per-question score grid with Review labels links, an accuracy-bar disclosure); used on `/sessions/labelling/accuracy` and `/sessions/labelling/accuracy/{run}`. Not collapsible and its header is a link, so not SectionCard's title+collapse shape.
 - `frontend/src/lib/components/improvement/LessonCandidateCard.svelte` — keep: one lesson candidate as a collapsible band inside `LessonCandidateList`'s `.mech-group` — the rule in full as the toggle, approve/reject beside it, a source line, and when expanded the full ask and correction quotes; once decided it stays in place showing Approved or Rejected. A band of a section stack, not SectionCard's standalone framed card.
 - `frontend/src/lib/components/improvement/GuardWakeCard.svelte` — keep: one delivered guard nudge as a collapsible band (the question as the toggle, Right/Wrong beside it, an outcome tag, and when expanded the full note and outcome sentence), shared between the Nudges tab on What the judge did and the guard page via `GuardWakeList`; a band of a section stack, not SectionCard-shaped.
+
+- `frontend/src/lib/components/wright/WrightChangeCard.svelte` — keep: the change a Wright steer made
+  ("Paused: ...") with its Undo slot, drawn under Wright's reply in the conversation; not a
+  collapsible `SectionCard`.
 
 ## Drawer
 
@@ -469,6 +477,18 @@ thirteen genuinely different list contexts, and none is a stripped-down or exten
   `ActionEffectTable`'s `.mech-group` — a lesson/directive/guard-question's own label (linked) and
   scope in the header, its `EffectVerdict` in the body; not SettingRow's label+control+description
   layout.
+
+- `frontend/src/lib/components/shared/LinkChipRow.svelte` — keep: the row of small link, action or
+  label chips under a message or a row (extracted from `CommsTranscript`'s context chips, shared with
+  the Wright page); a wrapping list of chips, not SettingRow's label+control layout.
+- `frontend/src/lib/components/wright/WrightActionRow.svelte` — keep: one action Wright took (time, what
+  it did, its state, what it changed, Undo); not SettingRow's label+control layout.
+- `frontend/src/lib/components/wright/WrightFixRow.svelte` — keep: one known fix with its verdict and
+  limits; read-only text and a badge, no control.
+- `frontend/src/lib/components/wright/WrightMessageRow.svelte` — keep: one message in Wright's
+  conversation (avatar, sender, body, steer card, evidence chips), the way `CommsTranscript` draws one.
+- `frontend/src/lib/components/wright/WrightProblemRow.svelte` — keep: one problem with its latest
+  evidence and a header that toggles its detail; not SettingRow's label+control layout.
 
 ## Section
 

@@ -49,6 +49,8 @@
 
 		await expect(canvas.getAllByText('A1')).toHaveLength(2);
 
+		await expect(canvas.getByText('YO')).toBeVisible();
+
 		const decorative = canvasElement.querySelectorAll(
 			'[data-slot="comms-avatar"][aria-hidden="true"]'
 		);
@@ -70,6 +72,7 @@
 						decorative={session.label === 'Coordinator' ? false : true}
 					/>
 				{/each}
+				<CommsAvatar sessionUuid="operator" label="You" sender="operator" />
 			</div>
 			<div style="display: flex; align-items: center; gap: 8px;">
 				{#each SESSIONS as session (session.sessionUuid)}
