@@ -12,6 +12,7 @@ const TURN_END_CHARS: usize = 1_200;
 pub struct Criterion {
     pub text: String,
     pub inferred: bool,
+    pub operator_words: Option<String>,
 }
 
 pub struct Evidence<'a> {
@@ -33,30 +34,58 @@ fn strip_marker(line: &str) -> &str {
     }
 }
 
+fn strip_tag(text: &str) -> (bool, &str) {
+    if let Some(rest) = text.strip_prefix("[inferred") {
+        return (true, rest.split_once(']').map_or(rest, |(_, after)| after));
+    }
+    (false, text.strip_prefix("[operator asked]").unwrap_or(text))
+}
+
 fn parse_line(line: &str) -> Option<Criterion> {
-    let text = strip_marker(line);
-    let (inferred, text) = match text.strip_prefix("[inferred") {
-        Some(rest) => (true, rest.split_once(']').map_or(rest, |(_, after)| after)),
-        None => (false, text),
-    };
+    let (inferred, text) = strip_tag(strip_marker(line));
     let text = text.trim();
     (!text.is_empty()).then(|| Criterion {
         text: text.to_owned(),
         inferred,
+        operator_words: None,
     })
 }
 
+fn has_marker(line: &str) -> bool {
+    strip_marker(line).len() != line.trim().len()
+}
+
+fn their_words(line: &str) -> Option<String> {
+    let rest = line.trim().strip_prefix("(their words:")?;
+    let rest = rest.strip_suffix(')').unwrap_or(rest).trim();
+    let rest = rest.strip_prefix('"').unwrap_or(rest);
+    Some(rest.strip_suffix('"').unwrap_or(rest).to_owned())
+}
+
+fn parse_block(block: &str) -> Vec<Criterion> {
+    if !block.lines().any(has_marker) {
+        return block
+            .lines()
+            .filter_map(parse_line)
+            .take(MAX_CRITERIA)
+            .collect();
+    }
+    let mut found: Vec<Criterion> = Vec::new();
+    for line in block.lines() {
+        if let Some(words) = their_words(line) {
+            if let Some(last) = found.last_mut() {
+                last.operator_words = Some(words);
+            }
+        } else if has_marker(line) {
+            found.extend(parse_line(line));
+        }
+    }
+    found.truncate(MAX_CRITERIA);
+    found
+}
+
 pub fn parse_criteria(thread: Option<&str>, intake: Option<&str>) -> Vec<Criterion> {
-    thread
-        .or(intake)
-        .map(|block| {
-            block
-                .lines()
-                .filter_map(parse_line)
-                .take(MAX_CRITERIA)
-                .collect()
-        })
-        .unwrap_or_default()
+    thread.or(intake).map(parse_block).unwrap_or_default()
 }
 
 pub fn state(criteria: &[Criterion], evidence: &Evidence<'_>) -> Value {

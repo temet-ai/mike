@@ -11,7 +11,79 @@ fn criterion(text: &str, inferred: bool) -> Criterion {
     Criterion {
         text: text.to_owned(),
         inferred,
+        operator_words: None,
     }
+}
+
+#[test]
+fn parse_criteria_thread_block_keeps_list_items_or_every_plain_line() {
+    let headed = parse_criteria(
+        Some("Acceptance criteria:\n- It ships.\n- It is proven."),
+        None,
+    );
+    assert_eq!(
+        headed,
+        vec![
+            criterion("It ships.", false),
+            criterion("It is proven.", false)
+        ]
+    );
+    let plain = parse_criteria(Some("It ships.\nIt is proven."), None);
+    assert_eq!(
+        plain,
+        vec![
+            criterion("It ships.", false),
+            criterion("It is proven.", false)
+        ]
+    );
+}
+
+#[test]
+fn parse_criteria_rendered_intake_map_gives_one_criterion_per_row() {
+    use crate::steerer::fleet::verifier_judge::render_intake_criteria;
+    use crate::store::persistence::acceptance_criteria::{
+        AcceptanceCriteriaMap, AcceptanceCriterionRow,
+    };
+    let row = |ord: i32, text: &str, span: Option<&str>| AcceptanceCriterionRow {
+        ord,
+        criterion: text.to_owned(),
+        provenance: if span.is_some() {
+            "operator"
+        } else {
+            "inferred"
+        }
+        .to_owned(),
+        operator_span: span.map(str::to_owned),
+    };
+    let map = AcceptanceCriteriaMap {
+        id: 1,
+        version: 1,
+        ask_entry_count: 3,
+        model: None,
+        output_tokens: None,
+        created_at: chrono::Utc::now(),
+        criteria: vec![
+            row(0, "The panel is reachable.", Some("no direct URL")),
+            row(1, "It uses shared primitives.", None),
+            row(2, "It loads under a second.", Some("make it fast")),
+        ],
+    };
+    let found = parse_criteria(None, Some(&render_intake_criteria(&map)));
+    let words = |w: &str| Some(w.to_owned());
+    assert_eq!(
+        found,
+        vec![
+            Criterion {
+                operator_words: words("no direct URL"),
+                ..criterion("The panel is reachable.", false)
+            },
+            criterion("It uses shared primitives.", true),
+            Criterion {
+                operator_words: words("make it fast"),
+                ..criterion("It loads under a second.", false)
+            },
+        ]
+    );
 }
 
 fn answered(ps: &[f64]) -> Asked {
