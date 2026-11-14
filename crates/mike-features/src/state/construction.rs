@@ -200,6 +200,7 @@ impl Wired {
             llm_usage_sink: self.llm_usage_sink,
             steerer_openrouter_key: self.steerer_openrouter_key,
             mail_push,
+            code_notes: Arc::new(mike_base::code_notes::CodeNotes::default()),
         };
         (base, remote_control_streams, injection_gate)
     }

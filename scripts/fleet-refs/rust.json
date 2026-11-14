@@ -1,6 +1,6 @@
 {
   "name": "fleet-ref-rust",
-  "note": "Rust reference fleet: mike itself at a pinned commit in the long-lived slot .claude/worktrees/fleet-ref, which keeps its target/ between runs (one cold build, never seeded by a copy). prepare checks the slot out on a new branch at `pin`, reverts `answers` on it in one commit, and builds nothing. The known answers are those commits: scripts/fleet-ref keeps them out of the briefs. T4, T5 and T6 are in crates/mike-features/src/launch/fleet, so the shared tree and commit-before-branch paths are exercised; T1 (mike-mcp), T2 (api) and T3 (frontend) are in different crates and areas. All six reverts apply cleanly one after another (checked with git merge-tree on 2026-10-21).",
+  "note": "Rust reference fleet: mike itself at a pinned commit in the long-lived slot .claude/worktrees/fleet-ref, which keeps its target/ between runs (one cold build, never seeded by a copy). prepare checks the slot out on a new branch at `pin`, reverts `answers` on it in one commit, and builds nothing. The known answers are those commits: scripts/fleet-ref keeps them out of the briefs. T4, T5 and T6 are in crates/mike/src/launch/fleet, so the shared tree and commit-before-branch paths are exercised; T1 (mike-mcp), T2 (api) and T3 (frontend) are in different crates and areas. All six reverts apply cleanly one after another (checked with git merge-tree on 2026-10-21).",
   "repository": {
     "kind": "pinned-worktree",
     "pin": "c102c57580b12585d2f3639ba8f2424d97cbb075",
@@ -22,15 +22,15 @@
         "crates/mike-mcp/src/tools/dispatch.rs",
         "crates/mike-mcp/src/tools/fleet_record.rs",
         "crates/mike-mcp/src/tools/fleet_record_tests.rs",
-        "crates/mike-features/src/api/manifest/fleets.rs",
+        "crates/mike/src/api/manifest/fleets.rs",
         "docs/MCP_BRIDGE.md"
       ]
     },
     "T2": {
       "commit": "541b2b62d475cb39a70692358228d772a58e6ba8",
       "files": [
-        "crates/mike-features/src/api/fleet/definition_patch.rs",
-        "crates/mike-features/src/api/fleet/definition_tests.rs"
+        "crates/mike/src/api/fleet/definition_patch.rs",
+        "crates/mike/src/api/fleet/definition_tests.rs"
       ]
     },
     "T3": {
@@ -44,24 +44,24 @@
     "T4": {
       "commit": "cbf8566004eef90aaf1c96e4a227be96500b2015",
       "files": [
-        "crates/mike-features/src/launch/fleet/checks.rs",
-        "crates/mike-features/src/launch/fleet/checks_scope.rs",
-        "crates/mike-features/src/launch/fleet/checks_scope_tests.rs"
+        "crates/mike/src/launch/fleet/checks.rs",
+        "crates/mike/src/launch/fleet/checks_scope.rs",
+        "crates/mike/src/launch/fleet/checks_scope_tests.rs"
       ]
     },
     "T5": {
       "commit": "7ccb318488668e00bb30252e8141105433ef31d8",
       "files": [
-        "crates/mike-features/src/launch/fleet/check_run.rs",
-        "crates/mike-features/src/launch/fleet/check_run_tests.rs",
-        "crates/mike-features/src/launch/fleet/gate_execution.rs"
+        "crates/mike/src/launch/fleet/check_run.rs",
+        "crates/mike/src/launch/fleet/check_run_tests.rs",
+        "crates/mike/src/launch/fleet/gate_execution.rs"
       ]
     },
     "T6": {
       "commit": "58400fda5a163e8f6c643f49916c0eb7ef7913d8",
       "files": [
-        "crates/mike-features/src/launch/fleet/report_proof.rs",
-        "crates/mike-features/src/launch/fleet/report_proof_tests.rs"
+        "crates/mike/src/launch/fleet/report_proof.rs",
+        "crates/mike/src/launch/fleet/report_proof_tests.rs"
       ]
     }
   },
@@ -104,7 +104,7 @@
           "crates/mike-mcp/src/tools/dispatch.rs",
           "crates/mike-mcp/src/tools/fleet_record.rs",
           "crates/mike-mcp/src/tools/fleet_record_tests.rs",
-          "crates/mike-features/src/api/manifest/fleets.rs",
+          "crates/mike/src/api/manifest/fleets.rs",
           "docs/MCP_BRIDGE.md"
         ]
       },
@@ -112,8 +112,8 @@
         "text": "define_fleet keeps a starting seat works and is tested",
         "check": "Derived: the task's done_when command exits 0",
         "paths": [
-          "crates/mike-features/src/api/fleet/definition_patch.rs",
-          "crates/mike-features/src/api/fleet/definition_tests.rs"
+          "crates/mike/src/api/fleet/definition_patch.rs",
+          "crates/mike/src/api/fleet/definition_tests.rs"
         ]
       },
       "C3": {
@@ -129,26 +129,26 @@
         "text": "Fleet definition scope checks works and is tested",
         "check": "Derived: the task's done_when command exits 0",
         "paths": [
-          "crates/mike-features/src/launch/fleet/checks.rs",
-          "crates/mike-features/src/launch/fleet/checks_scope.rs",
-          "crates/mike-features/src/launch/fleet/checks_scope_tests.rs"
+          "crates/mike/src/launch/fleet/checks.rs",
+          "crates/mike/src/launch/fleet/checks_scope.rs",
+          "crates/mike/src/launch/fleet/checks_scope_tests.rs"
         ]
       },
       "C5": {
         "text": "Checks queue on their own checkout works and is tested",
         "check": "Derived: the task's done_when command exits 0",
         "paths": [
-          "crates/mike-features/src/launch/fleet/check_run.rs",
-          "crates/mike-features/src/launch/fleet/check_run_tests.rs",
-          "crates/mike-features/src/launch/fleet/gate_execution.rs"
+          "crates/mike/src/launch/fleet/check_run.rs",
+          "crates/mike/src/launch/fleet/check_run_tests.rs",
+          "crates/mike/src/launch/fleet/gate_execution.rs"
         ]
       },
       "C6": {
         "text": "Slice report receipts stay small works and is tested",
         "check": "Derived: the task's done_when command exits 0",
         "paths": [
-          "crates/mike-features/src/launch/fleet/report_proof.rs",
-          "crates/mike-features/src/launch/fleet/report_proof_tests.rs"
+          "crates/mike/src/launch/fleet/report_proof.rs",
+          "crates/mike/src/launch/fleet/report_proof_tests.rs"
         ]
       }
     },
@@ -199,7 +199,7 @@
           "crates/mike-mcp/src/tools.rs",
           "crates/mike-mcp/src/tools/catalogue.rs",
           "crates/mike-mcp/src/tools/dispatch.rs",
-          "crates/mike-features/src/api/manifest/fleets.rs",
+          "crates/mike/src/api/manifest/fleets.rs",
           "docs/MCP_BRIDGE.md"
         ],
         "new_files": [
@@ -207,7 +207,7 @@
           "crates/mike-mcp/src/tools/fleet_record_tests.rs"
         ],
         "after": [],
-        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add the MCP tool get_fleet_record to crates/mike-mcp: it reads GET /api/fleets/{fleet}/record on the inspect API through a new InspectClient method in client/fleets.rs. Arguments: fleet (slug or uuid, required), against (another run to compare with, optional) and recompute (bool, optional); against and recompute go on the query string only when given. An unknown fleet answers with an error that names the fleet. Mark the inspect route as covered in crates/mike-features/src/api/manifest/fleets.rs and describe the tool in docs/MCP_BRIDGE.md. Register it in tools.rs, tools/catalogue.rs, tools/dispatch.rs and profiles.rs the way the neighbouring fleet tools are, in the new file tools/fleet_record.rs, with tests in tools/fleet_record_tests.rs named get_fleet_record_reads_the_stored_record_without_a_query, get_fleet_record_passes_against_and_recompute, get_fleet_record_names_the_fleet_when_it_is_unknown and the_tool_takes_fleet_against_and_recompute. Done when `scripts/cx nextest run -p mike-mcp fleet_record` exits 0 and `scripts/cx nextest run -p mike-mcp --test manifest_coverage` exits 0."
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add the MCP tool get_fleet_record to crates/mike-mcp: it reads GET /api/fleets/{fleet}/record on the inspect API through a new InspectClient method in client/fleets.rs. Arguments: fleet (slug or uuid, required), against (another run to compare with, optional) and recompute (bool, optional); against and recompute go on the query string only when given. An unknown fleet answers with an error that names the fleet. Mark the inspect route as covered in crates/mike/src/api/manifest/fleets.rs and describe the tool in docs/MCP_BRIDGE.md. Register it in tools.rs, tools/catalogue.rs, tools/dispatch.rs and profiles.rs the way the neighbouring fleet tools are, in the new file tools/fleet_record.rs, with tests in tools/fleet_record_tests.rs named get_fleet_record_reads_the_stored_record_without_a_query, get_fleet_record_passes_against_and_recompute, get_fleet_record_names_the_fleet_when_it_is_unknown and the_tool_takes_fleet_against_and_recompute. Done when `scripts/cx nextest run -p mike-mcp fleet_record` exits 0 and `scripts/cx nextest run -p mike-mcp --test manifest_coverage` exits 0."
       },
       "T2": {
         "name": "define_fleet keeps a starting seat",
@@ -216,8 +216,8 @@
           "C2"
         ],
         "files": [
-          "crates/mike-features/src/api/fleet/definition_patch.rs",
-          "crates/mike-features/src/api/fleet/definition_tests.rs"
+          "crates/mike/src/api/fleet/definition_patch.rs",
+          "crates/mike/src/api/fleet/definition_tests.rs"
         ],
         "new_files": [],
         "after": [],
@@ -246,11 +246,11 @@
           "C4"
         ],
         "files": [
-          "crates/mike-features/src/launch/fleet/checks.rs"
+          "crates/mike/src/launch/fleet/checks.rs"
         ],
         "new_files": [
-          "crates/mike-features/src/launch/fleet/checks_scope.rs",
-          "crates/mike-features/src/launch/fleet/checks_scope_tests.rs"
+          "crates/mike/src/launch/fleet/checks_scope.rs",
+          "crates/mike/src/launch/fleet/checks_scope_tests.rs"
         ],
         "after": [],
         "brief": "Fleet reference task. Read .claude/fleet/project.md first. check_definition (launch/fleet/checks.rs) should list as missing (a) a task whose brief asks for a live exercise (words live, served, running app, in the app, matched as whole words) but names no seed, fixture, demo, sample, mock, stub or story that shows it, and (b) a task that mentions removing (remove, delete, retire, rip out) across more than 20 paths (files plus new_files), with a message that asks for slices that each compile on their own. Put it in the new file checks_scope.rs (scope, live_without_seed, removal_too_wide) called from check_definition, with tests a_live_exercise_must_name_what_makes_it_appear and a_wide_removal_must_be_split_into_compiling_slices in checks_scope_tests.rs. Done when `scripts/cx nextest run -p mike --lib checks_scope` exits 0."
@@ -262,9 +262,9 @@
           "C5"
         ],
         "files": [
-          "crates/mike-features/src/launch/fleet/check_run.rs",
-          "crates/mike-features/src/launch/fleet/check_run_tests.rs",
-          "crates/mike-features/src/launch/fleet/gate_execution.rs"
+          "crates/mike/src/launch/fleet/check_run.rs",
+          "crates/mike/src/launch/fleet/check_run_tests.rs",
+          "crates/mike/src/launch/fleet/gate_execution.rs"
         ],
         "new_files": [],
         "after": [],
@@ -277,8 +277,8 @@
           "C6"
         ],
         "files": [
-          "crates/mike-features/src/launch/fleet/report_proof.rs",
-          "crates/mike-features/src/launch/fleet/report_proof_tests.rs"
+          "crates/mike/src/launch/fleet/report_proof.rs",
+          "crates/mike/src/launch/fleet/report_proof_tests.rs"
         ],
         "new_files": [],
         "after": [],

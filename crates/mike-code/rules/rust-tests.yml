@@ -1,0 +1,22 @@
+id: rust-test-unwrap
+language: rust
+severity: hint
+files: ["**/tests/**/*.rs", "**/*_tests.rs", "**/tests.rs"]
+rule:
+  pattern: $X.unwrap()
+message: Do not unwrap() in test setup; return a Result and use ?.
+---
+id: rust-test-name-shape
+language: rust
+severity: hint
+rule:
+  kind: function_item
+  follows:
+    kind: attribute_item
+    regex: '^#\[(tokio::)?test'
+    stopBy: neighbor
+  has:
+    field: name
+    kind: identifier
+    regex: '^[a-z0-9]+(_[a-z0-9]+){0,1}$'
+message: Name tests {what}_{condition}_{expected}; this name has fewer than three parts.

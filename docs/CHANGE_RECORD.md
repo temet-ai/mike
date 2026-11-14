@@ -171,6 +171,28 @@ how long ago; picking a file shows its recorded history (`/changes` opens the pa
 A check or gate event names no session; its subject says which check, whether it passed and
 at which commit, and its paths are the failing files.
 
+## mike-code scans
+
+With `code_scan` on (the default) and `change_record` on, each file change event is scanned
+with ast-grep by the machine that recorded it, using the rules built into `crates/mike-code/rules/`.
+
+- `workspace.code_scans` holds one row per event, kept whether or not it found anything: the
+  language, the rule set version, how many rules ran, the bytes, the scan time in microseconds,
+  the findings before and after the change, how many the change added and how many it fixed,
+  or `skipped` (`no_grammar`, `too_large` over 256 KB, `not_utf8`, `deleted`) or `error`.
+- `workspace.code_findings` holds one row per finding the change added (only what the change
+  added: a file's older findings are not repeated). Its session is the change event's session.
+  `outcome` is `open`, `fixed` (a later scan of the file no longer has it) or `superseded`
+  (the file was deleted).
+- With `code_findings` on, the stage of that name adds up to three of the session's open
+  warnings and errors from the last hour to its next request, tool loops included, and sets
+  `delivered_request_id`. Hints are recorded and never delivered.
+- `GET /api/code-findings?hours=24&session=<uuid>&limit=200` returns the summary (scans,
+  skipped, failed, added, fixed, median and longest scan), per-rule counts (found, delivered,
+  fixed, fixed after the session was told, open) and the findings.
+
+The scan starts at the newest event when it first sees a checkout; nothing earlier is scanned.
+
 ## What is not recorded
 
 - A change made by something that does not pass through mike (the operator's editor, a

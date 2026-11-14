@@ -1,7 +1,8 @@
 # The push hook's semgrep rules (scripts/semgrep-new reads this file; no registry
-# download). Each rule covers a risk clippy and cargo-deny do not see: clippy
-# lints Rust style and correctness, cargo-deny audits dependencies, and neither
-# looks at TLS settings, temp paths, new unsafe code or the frontend's sinks.
+# download). Each rule covers a risk clippy, cargo-deny, ruff and shellcheck do
+# not see: TLS settings, predictable temp paths, new unsafe code, SQL and shell
+# command lines built from values, and the frontend's HTML and code sinks.
+# Bash and Python cover scripts/ (extensionless scripts are scanned by shebang).
 rules:
   - id: mike.rust.unsafe
     languages: [rust]
@@ -124,6 +125,155 @@ rules:
               patterns:
                 - pattern-not: '"..."'
       - pattern: '$F(..., {..., shell: true, ...})'
+
+  - id: mike.rust.sql-from-string
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      SQL is built from a runtime string, so sqlx's literal-only check is
+      switched off. Use query!/query_as! or a literal with bind parameters.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: AssertSqlSafe($X)
+              - pattern: sqlx::AssertSqlSafe($X)
+          - pattern-not: AssertSqlSafe("...")
+          - pattern-not: sqlx::AssertSqlSafe("...")
+      - patterns:
+          - pattern: sqlx::raw_sql($X)
+          - pattern-not: sqlx::raw_sql("...")
+
+  - id: mike.rust.shell-command
+    languages: [rust]
+    mode: taint
+    severity: ERROR
+    message: >-
+      A shell command line is built from a formatted or outside value. Run the
+      program directly with Command::new(program).args(list).
+    pattern-sources:
+      - pattern: format!(...)
+      - pattern: std::env::var(...)
+      - pattern: std::env::args()
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $C.arg("-c").arg($X)
+              - pattern: $C.args(["-c", $X])
+          - focus-metavariable: $X
+
+  - id: mike.python.shell-command
+    languages: [python]
+    mode: taint
+    severity: ERROR
+    message: >-
+      A shell command line is built from an outside value (arguments,
+      environment, input or parsed data). Pass an argument list without
+      shell=True, or quote it with shlex.quote.
+    pattern-sources:
+      - pattern: sys.argv
+      - pattern: os.environ
+      - pattern: os.environ.get(...)
+      - pattern: os.getenv(...)
+      - pattern: input(...)
+      - pattern: json.load(...)
+      - pattern: json.loads(...)
+      - pattern: $P.parse_args(...)
+    pattern-sanitizers:
+      - pattern: shlex.quote(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: subprocess.$F($X, ..., shell=True, ...)
+              - pattern: os.system($X)
+              - pattern: os.popen($X, ...)
+          - focus-metavariable: $X
+
+  - id: mike.python.code-from-value
+    languages: [python]
+    severity: ERROR
+    message: Code or objects are built from a value (eval, exec, pickle, yaml.load).
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: eval($X, ...)
+              - pattern: exec($X, ...)
+          - pattern-not: eval("...", ...)
+          - pattern-not: exec("...", ...)
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - patterns:
+          - pattern: yaml.load(...)
+          - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+          - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader, ...)
+
+  - id: mike.python.tls-verification-off
+    languages: [python]
+    severity: ERROR
+    message: Certificate verification is turned off.
+    pattern-either:
+      - pattern: $F(..., verify=False, ...)
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: $CTX.verify_mode = ssl.CERT_NONE
+
+  - id: mike.python.temp-path
+    languages: [python]
+    severity: WARNING
+    message: >-
+      tempfile.mktemp names a file another user can create first. Use
+      tempfile.mkstemp, NamedTemporaryFile or TemporaryDirectory.
+    pattern: tempfile.mktemp(...)
+
+  - id: mike.shared-tmp-path
+    languages: [generic]
+    paths:
+      include: ["*.sh", "*.bash", "*.py"]
+    severity: WARNING
+    message: >-
+      A fixed name under /tmp can be predicted and pre-created by another user.
+      Use mktemp (or tempfile), $XDG_RUNTIME_DIR or a per-user state directory.
+    pattern-regex: '(?<![\w$.{-])/tmp/(?![\w.-]*XXX)[\w.-]*[A-Za-z0-9_]'
+
+  - id: mike.bash.download-into-shell
+    languages: [generic]
+    paths:
+      include: ["*.sh", "*.bash"]
+    severity: ERROR
+    message: A download is piped straight into a shell; download, check, then run it.
+    pattern-regex: '\b(curl|wget)\b[^|\n]*\|\s*(sudo\s+)?(ba|z)?sh\b'
+
+  - id: mike.bash.eval
+    languages: [generic]
+    paths:
+      include: ["*.sh", "*.bash"]
+    severity: WARNING
+    message: >-
+      eval runs a string as shell code; build an array and run "${cmd[@]}"
+      instead.
+    pattern-regex: '(^|[;&|({]\s*|\bthen\s+|\bdo\s+)eval\s'
+
+  - id: mike.bash.tls-verification-off
+    languages: [generic]
+    paths:
+      include: ["*.sh", "*.bash"]
+    severity: ERROR
+    message: Certificate verification is turned off.
+    pattern-regex: '\b(curl\b[^\n]*\s(-k|--insecure)\b|wget\b[^\n]*\s--no-check-certificate\b)'
+
+  - id: mike.svelte.script-sink
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      A script block in a component executes or writes HTML from a value
+      (innerHTML, insertAdjacentHTML, document.write, eval, new Function) or
+      posts to any origin. Render text, or sanitise first.
+    paths:
+      include: ["*.svelte"]
+    pattern-either:
+      - pattern-regex: '\.(inner|outer)HTML\s*=(?!=)(?!\s*["''`][^"''`$]*["''`]\s*;?\s*$)'
+      - pattern-regex: '\b(insertAdjacentHTML|document\.write)\s*\('
+      - pattern-regex: '(?<![\w.])eval\s*\((?!\s*["''][^"'']*["'']\s*\))'
+      - pattern-regex: '\bnew\s+Function\s*\('
+      - pattern-regex: '\.postMessage\([^)]*,\s*["'']\*["'']'
 
   - id: mike.bidi-control-character
     languages: [generic]

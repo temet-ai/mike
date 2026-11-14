@@ -269,6 +269,8 @@ fn toggle_meta_covers_all_keys() {
             "client_serves_self_identity",
             "client_serves_weasel_guard",
             "client_serves_workspace_briefing",
+            "code_findings",
+            "code_scan",
             "context_focus_question",
             "db_resync",
             "decisions",

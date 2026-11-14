@@ -198,7 +198,7 @@ pub fn is_session_own_lane(ctx: &StageContext<'_>) -> bool {
     ) && !ctx.has_agent_id
 }
 
-pub const STAGE_ORDER: [&str; 19] = [
+pub const STAGE_ORDER: [&str; 20] = [
     "filter",
     "reminder_on_token",
     "lazy_sections",
@@ -210,6 +210,7 @@ pub const STAGE_ORDER: [&str; 19] = [
     "agent_lessons",
     "reminders",
     "change_record_tail",
+    "code_findings",
     "git_read_hint",
     "steerer",
     "repeated_notices",
@@ -245,6 +246,7 @@ pub fn stages_before_steerer(lessons: &dyn LessonHooks) -> Vec<Box<dyn RequestSt
         Some(Box::new(
             crate::reminders::change_record_tail::ChangeRecordTailStage,
         )),
+        Some(Box::new(crate::reminders::code_findings::CodeFindingsStage)),
         Some(Box::new(crate::reminders::git_read_hint::GitReadHintStage)),
     ];
     stages.into_iter().flatten().collect()

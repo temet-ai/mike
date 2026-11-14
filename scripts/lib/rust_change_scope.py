@@ -104,6 +104,48 @@ def path_area(root, path, package):
     return ["--tests"], expression
 
 
+# Words too common in path and test-module names to tie a lower crate's change to
+# a test in crate mike.
+GENERIC_WORDS = {
+    "src", "mod", "lib", "main", "rs", "test", "tests", "store", "persistence", "api", "launch",
+    "handler", "handlers", "cli", "db", "http", "worker", "session", "model", "type", "types",
+    "util", "state", "repo", "run", "live", "support", "cross", "crate", "config", "service",
+}
+
+
+def words(name):
+    return {word[:-1] if word.endswith("s") and len(word) > 3 else word
+            for word in re.split(r"[_/.\-]", name) if word} - GENERIC_WORDS
+
+
+def mike_tests_of(root, path, package, packages):
+    """Tests in crate mike for a lower split crate's file: the integration modules and
+    cross_crate_tests files whose names share a word with the file's path."""
+    if package["name"] == "mike" or package["name"] not in SPLIT_CRATES:
+        return None
+    mike = next((p for p in packages if p["name"] == "mike"), None)
+    if mike is None:
+        return None
+    directory = Path(package["manifest_path"]).resolve().parent
+    relative = (root / path).relative_to(directory).as_posix()
+    if not (relative.startswith("src/") and relative.endswith(".rs")):
+        return None
+    changed = words(relative[4:-3])
+    mike_root = Path(mike["manifest_path"]).resolve().parent
+    integration = sorted({entry.name.removesuffix(".rs")
+                          for entry in (mike_root / "tests/integration").glob("*")
+                          if words(entry.name.removesuffix(".rs")) & changed})
+    cross = sorted({entry.stem for entry in mike_root.glob("src/**/cross_crate_tests/*.rs")
+                    if entry.stem != "mod" and words(entry.stem) & changed})
+    found = []
+    if integration and any(t["name"] == "integration" for t in mike["targets"]):
+        found.append((["--test", "integration"],
+                      f"binary(=integration) & test(/^({'|'.join(integration)})::/)"))
+    if cross:
+        found.append((["--lib"], f"test(/(^|::)cross_crate_tests::({'|'.join(cross)})::/)"))
+    return found
+
+
 def area_commands(root, paths, packages):
     prefix = [str(root / "scripts/cx"), "nextest", "run"]
     area_paths = [path for path in paths if not global_change(path)
@@ -132,6 +174,11 @@ def area_commands(root, paths, packages):
                 group["targets"].append(target)
             index += len(target)
         group["filters"].add(expression)
+        for targets, expression in mike_tests_of(root, path, package, packages) or []:
+            mike_group = groups.setdefault("mike", {"targets": [], "filters": set()})
+            if targets not in mike_group["targets"] and ["--tests"] not in mike_group["targets"]:
+                mike_group["targets"].append(targets)
+            mike_group["filters"].add(expression)
     if any(path.startswith("crates/mike/src/api/manifest") for path in area_paths) \
             and any(p["name"] == "mike-mcp" for p in packages):
         # mike-mcp checks that every inspect route in mike's manifest has MCP coverage.

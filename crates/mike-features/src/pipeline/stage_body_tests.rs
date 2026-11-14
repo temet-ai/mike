@@ -29,6 +29,7 @@ fn stage_order_matches_documented_pipeline_sequence() {
             "agent_lessons",
             "reminders",
             "change_record_tail",
+            "code_findings",
             "git_read_hint",
             "steerer",
             "repeated_notices",

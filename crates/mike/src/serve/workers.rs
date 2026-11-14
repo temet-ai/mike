@@ -62,6 +62,7 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     crate::launch::fleet::display::spawn_fleet_display(state);
 
     crate::change_record::watch::spawn_change_record_watcher(state);
+    crate::change_record::code_scan::spawn_code_scanner(state);
 
     crate::launch::fleet::brief_version::spawn_brief_refresh(state);
 

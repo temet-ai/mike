@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"scans!\",\n       count(*) FILTER (WHERE sc.skipped IS NULL AND sc.error IS NULL) AS \"scanned!\",\n       count(*) FILTER (WHERE sc.skipped IS NOT NULL) AS \"skipped!\",\n       count(*) FILTER (WHERE sc.error IS NOT NULL) AS \"failed!\",\n       COALESCE(sum(sc.findings_new), 0)::bigint AS \"findings_new!\",\n       COALESCE(sum(sc.findings_fixed), 0)::bigint AS \"findings_fixed!\",\n       COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY sc.duration_us), 0)::bigint AS \"median_us!\",\n       COALESCE(max(sc.duration_us), 0)::bigint AS \"max_us!\",\n       max(sc.scanned_at) AS last_scan_at\n  FROM workspace.code_scans sc\n WHERE sc.scanned_at >= $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "scans!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "scanned!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "skipped!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "failed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "findings_new!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "findings_fixed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "median_us!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "max_us!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "last_scan_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "4899c1966ab25f748e9fb3f40abcccc3ccedcb7f2e20400f8cd32774ba138e7e"
+}

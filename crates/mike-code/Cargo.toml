@@ -1,0 +1,18 @@
+[package]
+name = "mike-code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+ast-grep-config = "=0.51.2"
+ast-grep-core = "=0.51.2"
+ast-grep-language = { version = "=0.51.2", default-features = false, features = ["tree-sitter-rust", "tree-sitter-typescript", "tree-sitter-bash", "tree-sitter-python"] }
+hex = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

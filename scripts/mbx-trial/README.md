@@ -45,7 +45,9 @@ With `MIKE_BUILD_CACHE=mbx`:
 - sccache and `RUSTC_WRAPPER` are off, and the lld `--config` arguments cx adds
   for plain cargo are not passed;
 - `MBX_TARGET_VIEWS=0`, `MBX_GC_AUTO=0` and `MBX_TARGET_SEED=0` are set, so mbx
-  never moves, links or collects a real `target/`.
+  never moves, links or collects a real `target/`;
+- `MBX_SHARE_WORKSPACE_ROOT=1` is set, so a workspace crate compiles to the same
+  bytes in every checkout (see "14 November 2026" below).
 
 - `crates/mike/build.rs` gives the build a fixed identity (sha, short sha and
   time `mbx-build`, dirty `false`) instead of the commit and the clock. Without
@@ -171,3 +173,37 @@ So the fix works for the library: a second build directory restores crate
 miss left is the crate's own test build (`--tests`), which is compiled again in
 the second directory; its cause is not established. A seat's narrow loop
 (`cx check --lib`) gets the restore; a check with `--tests` does not yet.
+
+## 14 November 2026: why a new worktree rebuilt every workspace crate
+
+On the Mac (mbx 1.22.0, `cx check -p mike --lib`), a new worktree restored
+everything when the last build of that command was of the same source: 83 hits,
+0 misses. It rebuilt every workspace crate when another checkout had built changed
+source in between. That is the everyday case, a branch in the main checkout and a
+worktree on main. Omit behaves the same way.
+
+There are two causes. mbx looks a unit up only by a key it predicts from the last
+recorded build of the same command. A new checkout inherits those predictions, so
+when that build had a different file list for `mike-base` (one added module is
+enough), the predicted key misses and `mike-base` compiles again. That costs one
+crate. The second cause makes it cost all of them. `mike-base` embeds its checkout
+path, through the absolute `.sql` paths that `query_file!` includes. So the
+recompiled library differs in bytes from the stored one (mbx: "result was not
+stored: local action key already has a different result"), and every crate that
+depends on it gets a new key.
+
+`MBX_SHARE_WORKSPACE_ROOT=1` removes the second cause. The same three steps on the
+Mac were these: build the commit in worktree A, build A's commit plus one empty
+module in worktree B, then build A's commit in a new worktree.
+
+| Setting | New worktree's report | Crates compiled |
+| --- | --- | --- |
+| unset | 631 hits, 9 misses; 1m 5s compiling | `mike_base`, `mike_launch`, `mike_fleet`, `mike_features`, `mike` and the rest |
+| `MBX_SHARE_WORKSPACE_ROOT=1` | 638 hits, 2 misses; 18 s | `mike_base` only (10.4 s), plus `mime_guess` |
+
+The tests that read files through `CARGO_MANIFEST_DIR` (`mike-base`
+`analysis::corpus`, including the committed-file comparison) pass with the setting.
+The setting is part of every workspace crate's key, so the first build after it
+changes compiles the workspace crates once, and a checkout without it (a branch
+that has not merged main) keeps separate entries. The test builds of a crate that
+reads `CARGO_MANIFEST_DIR` stay keyed to their checkout.

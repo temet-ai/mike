@@ -137,6 +137,18 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'Adds a few lines saying what other sessions changed since a session last looked to the answers it already gets when it commits or asks for a check. Needs the record of what changed. Off, answers are exactly as they were.',
 		find: 'since you last looked what changed tail'
 	},
+	code_scan: {
+		label: 'Scan edited code',
+		description:
+			'Scans each file a session changes with the built-in ast-grep rules and records what the change added or fixed. Needs the record of what changed; nothing leaves the machine.',
+		find: 'mike-code ast-grep scan edit findings rules'
+	},
+	code_findings: {
+		label: 'Tell sessions what their edit added',
+		description:
+			'Adds a short note naming each warning or error a session’s own edit just added, with the fix when the rule has one. Off, findings are only recorded.',
+		find: 'mike-code ast-grep findings reminder fix'
+	},
 	file_read_compression: {
 		label: 'File-read compression',
 		description:

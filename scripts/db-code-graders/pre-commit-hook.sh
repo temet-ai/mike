@@ -14,6 +14,8 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 GRADERS="$REPO_ROOT/scripts/db-code-graders"
+out="$(mktemp -d)"
+trap 'rm -rf "$out"' EXIT
 
 # Private words (word list outside the repo) never enter a commit.
 "$REPO_ROOT/scripts/private-words-check" --staged || exit 1
@@ -57,14 +59,14 @@ echo "🔍 Running DB↔Code graders before commit..."
 # --commit-scope cached: this hook runs after staging, so the index IS the
 # commit. Blocks only when the commit itself carries SQL; otherwise the finding
 # is printed and the commit proceeds, so a peer's migration does not freeze it.
-if ! bash "$GRADERS/g3_untracked_migrations.sh" --commit-scope cached > /tmp/g3_out.txt 2>&1; then
+if ! bash "$GRADERS/g3_untracked_migrations.sh" --commit-scope cached > "$out/g3.txt" 2>&1; then
     failures+=("G3")
-    untracked=$(grep -E '^\s+!!' /tmp/g3_out.txt | sed 's/.*!!\s*//' | xargs -n1 basename 2>/dev/null | sed -n '1,3p' | tr '\n' ', ' | sed 's/,$//')
+    untracked=$(grep -E '^\s+!!' "$out/g3.txt" | sed 's/.*!!\s*//' | xargs -n1 basename 2>/dev/null | sed -n '1,3p' | tr '\n' ', ' | sed 's/,$//')
     messages+=("G3 — untracked migrations: ${untracked}")
-elif grep -qE '^WARN — (Untracked|Modified)' /tmp/g3_out.txt; then
+elif grep -qE '^WARN — (Untracked|Modified)' "$out/g3.txt"; then
     echo ""
     echo "⚠ G3 raised a finding this commit does not have to fix:"
-    sed 's/^/  /' /tmp/g3_out.txt
+    sed 's/^/  /' "$out/g3.txt"
     echo "  It belongs to whoever wrote the file — tell them, don't move it (mike#163)."
     echo ""
 fi
@@ -76,24 +78,24 @@ fi
 # This is the gate that would have stopped 2026-08-29, where a Cargo.toml naming
 # five [[test]] entry points landed without the files, and cargo test, clippy
 # --all-targets and nextest all broke from a clean checkout.
-if ! bash "$GRADERS/g7_declared_targets_tracked.sh" --commit-scope cached > /tmp/g7_out.txt 2>&1; then
+if ! bash "$GRADERS/g7_declared_targets_tracked.sh" --commit-scope cached > "$out/g7.txt" 2>&1; then
     failures+=("G7")
-    g7_hits=$(grep -E '^\s+!!' /tmp/g7_out.txt | sed -n '1,3p' | sed 's/^[[:space:]]*//')
+    g7_hits=$(grep -E '^\s+!!' "$out/g7.txt" | sed -n '1,3p' | sed 's/^[[:space:]]*//')
     messages+=("G7 — this commit declares a build target whose file is not staged. git add it, or drop the declaration:"$'\n'"$g7_hits")
-elif grep -qE '^WARN — ' /tmp/g7_out.txt; then
+elif grep -qE '^WARN — ' "$out/g7.txt"; then
     echo ""
     echo "⚠ G7 raised a finding this commit does not have to fix:"
-    sed 's/^/  /' /tmp/g7_out.txt
+    sed 's/^/  /' "$out/g7.txt"
     echo ""
 fi
 
 # ── G1: INSERT completeness (diff mode — only this commit's migrations) ────────
 exit_code=0
-python3 "$GRADERS/g1_insert_completeness.py" --diff > /tmp/g1_out.txt 2>&1 || exit_code=$?
+python3 "$GRADERS/g1_insert_completeness.py" --diff > "$out/g1.txt" 2>&1 || exit_code=$?
 if [ "$exit_code" -ne 0 ]; then
     if [ "$exit_code" -eq 1 ]; then
         failures+=("G1")
-        fail_lines=$(grep 'FAIL:' /tmp/g1_out.txt | sed -n '1,3p' | sed 's/^[[:space:]]*//')
+        fail_lines=$(grep 'FAIL:' "$out/g1.txt" | sed -n '1,3p' | sed 's/^[[:space:]]*//')
         messages+=("G1 — INSERT sites missing new NOT NULL column:"$'\n'"$fail_lines")
     fi
     # exit 2 = SKIP (no relevant migrations) — not a failure
@@ -112,15 +114,15 @@ fi
 # adds, and reports a pre-existing one as a non-blocking advisory instead.
 # Exit 1 = a HIGH site added by this commit (block); exit 2 = MEDIUM-only
 # warnings (non-blocking); exit 0 = clean or pre-existing-only.
-bash "$GRADERS/g4_raw_queries.sh" --commit-scope cached > /tmp/g4_out.txt 2>&1 && g4_exit=0 || g4_exit=$?
+bash "$GRADERS/g4_raw_queries.sh" --commit-scope cached > "$out/g4.txt" 2>&1 && g4_exit=0 || g4_exit=$?
 if [ "${g4_exit:-0}" -eq 1 ]; then
     failures+=("G4")
-    g4_hits=$(grep -E '^\s+L[0-9]+:' /tmp/g4_out.txt | sed -n '1,3p' | sed 's/^[[:space:]]*//')
+    g4_hits=$(grep -E '^\s+L[0-9]+:' "$out/g4.txt" | sed -n '1,3p' | sed 's/^[[:space:]]*//')
     messages+=("G4 — raw sqlx::query() in persistence (migrate to sqlx::query!() or add a documented // grader-allow: marker):"$'\n'"$g4_hits")
-elif grep -qE '^PASS \(advisory\)' /tmp/g4_out.txt; then
+elif grep -qE '^PASS \(advisory\)' "$out/g4.txt"; then
     echo ""
     echo "⚠ G4 raised a finding this commit does not have to fix:"
-    grep -E '^(PASS \(advisory\)|  Not this commit)' /tmp/g4_out.txt | sed 's/^/  /'
+    grep -E '^(PASS \(advisory\)|  Not this commit)' "$out/g4.txt" | sed 's/^/  /'
     echo ""
 fi
 
