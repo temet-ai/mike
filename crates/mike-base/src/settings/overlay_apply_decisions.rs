@@ -42,6 +42,10 @@ pub fn apply_decisions_row(
             Some(n) => overlay.decisions_max_calls_per_hour = n,
             None => keep_default(key, value),
         },
+        super::meta_decisions::DAILY_SPEND_KEY => match value.as_f64() {
+            Some(usd) => overlay.decisions_daily_spend_ceiling_usd = usd,
+            None => keep_default(key, value),
+        },
         SHARE_KEY => match value.as_i64() {
             Some(pct) => overlay.llm_budget_decision_share_pct = pct,
             None => keep_default(key, value),

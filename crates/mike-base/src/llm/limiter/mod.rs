@@ -398,7 +398,32 @@ pub fn decisions_limiter(overlay: &SettingsOverlay) -> Arc<CallLimiter> {
         .store(Arc::new(LimitSource::Fixed(LimiterLimits::for_decisions(
             overlay,
         ))));
+    let shared = global_limiter()
+        .spend
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    limiter.set_spend_source(
+        shared.map(|sink| Arc::new(DecisionSpend(sink)) as Arc<dyn LlmUsageSink>),
+    );
     limiter
+}
+
+struct DecisionSpend(Arc<dyn LlmUsageSink>);
+
+impl LlmUsageSink for DecisionSpend {
+    fn record(&self, call: super::usage::LlmCallRecord) {
+        self.0.record(call);
+    }
+
+    fn spent_today(&self) -> RoleSpend {
+        let mut own = RoleSpend::default();
+        own.add(
+            LlmRole::Decision,
+            self.0.spent_today().of(LlmRole::Decision),
+        );
+        own
+    }
 }
 
 pub fn install_runtime(

@@ -12,6 +12,8 @@ pub const RATE_KEY: &str = "decisions.rate_per_minute";
 pub const HOURLY_KEY: &str = "decisions.max_calls_per_hour";
 pub const DEFAULT_RATE_PER_MINUTE: i64 = 120;
 pub const DEFAULT_MAX_CALLS_PER_HOUR: i64 = 3000;
+pub const DAILY_SPEND_KEY: &str = "decisions.daily_spend_ceiling_usd";
+pub const DEFAULT_DAILY_SPEND_CEILING_USD: f64 = 5.0;
 
 pub struct PointSetting {
     pub point: &'static str,
@@ -371,6 +373,17 @@ fn fixed_entries() -> Vec<SettingMeta> {
                 HOURLY_KEY,
                 "Decisions per hour",
                 "The hourly ceiling of the decisions limiter.",
+            )
+        },
+        SettingMeta {
+            kind: SettingKind::Float,
+            default: serde_json::Value::from(DEFAULT_DAILY_SPEND_CEILING_USD),
+            min_f64: Some(0.0),
+            max_f64: Some(1_000.0),
+            ..base(
+                DAILY_SPEND_KEY,
+                "Decisions daily spend ceiling (USD)",
+                "Once Jev calls have cost this much today (UTC), every decision point takes its off path and the call is recorded as refused_spend. 0 turns the ceiling off.",
             )
         },
         SettingMeta {

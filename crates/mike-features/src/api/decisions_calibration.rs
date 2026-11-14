@@ -27,9 +27,41 @@ pub struct PointRow {
     pub score: Option<PointScore>,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct SpendState {
+    pub today_usd: f64,
+    pub ceiling_usd: f64,
+    pub reached: bool,
+}
+
+pub fn spend_state(today_usd: f64, ceiling_usd: f64) -> SpendState {
+    SpendState {
+        today_usd,
+        ceiling_usd,
+        reached: ceiling_usd > 0.0 && today_usd >= ceiling_usd,
+    }
+}
+
+async fn decision_spend_today(
+    persist: &crate::store::persistence::PersistHandle,
+) -> Result<f64, crate::store::persistence::PersistError> {
+    let day_start = Utc::now()
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .map(|naive| naive.and_utc());
+    let rows = persist.llm_spend_by_role(day_start, None).await?;
+    let decision = crate::llm::LlmRole::Decision.as_db_value();
+    Ok(rows
+        .iter()
+        .filter(|r| Some(r.key.as_str()) == decision)
+        .map(|r| r.cost_usd)
+        .sum())
+}
+
 #[derive(Debug, Serialize)]
 pub struct Calibration {
     pub layer: LayerState,
+    pub spend: SpendState,
     pub window_days: i64,
     pub last_loop_at: Option<DateTime<Utc>>,
     pub points: Vec<PointRow>,
@@ -135,12 +167,14 @@ pub async fn get_calibration(State(state): State<AppState>) -> Response {
         let last = crate::llm::decisions::store(persist)
             .last_decision_loop_at()
             .await?;
-        Ok::<_, crate::store::persistence::PersistError>((scored, last))
+        let spent = decision_spend_today(persist).await?;
+        Ok::<_, crate::store::persistence::PersistError>((scored, last, spent))
     }
     .await;
     match result {
-        Ok((scored, last_loop_at)) => Json(Calibration {
+        Ok((scored, last_loop_at, spent)) => Json(Calibration {
             layer: layer_state(toggle_on, has_key),
+            spend: spend_state(spent, overlay.decisions_daily_spend_ceiling_usd),
             window_days: decisions_loop::WINDOW.num_days(),
             last_loop_at,
             points: rows(&overlay, scored),
@@ -169,6 +203,13 @@ mod tests {
             Some("off: no OpenRouter key")
         );
         assert!(layer_state(true, true).on);
+    }
+
+    #[test]
+    fn spend_state_is_reached_at_the_ceiling_and_never_when_the_ceiling_is_zero() {
+        assert!(!spend_state(4.99, 5.0).reached);
+        assert!(spend_state(5.0, 5.0).reached);
+        assert!(!spend_state(500.0, 0.0).reached);
     }
 
     #[test]

@@ -50,6 +50,7 @@ impl LimiterLimits {
     pub fn for_decisions(overlay: &SettingsOverlay) -> Self {
         let n = |v: i64| u32::try_from(v.max(1)).unwrap_or(1);
         Self {
+            daily_spend_ceiling_usd: overlay.decisions_daily_spend_ceiling_usd.max(0.0),
             shares: RoleShares::from_pcts(RoleSharePcts {
                 decision: 100,
                 ..RoleSharePcts::default()

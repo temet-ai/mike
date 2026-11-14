@@ -350,3 +350,35 @@ fn proposer_share_overlay_applies_to_live_limiter() {
         0
     );
 }
+
+fn decisions_limiter_with(spend: &[(LlmRole, f64)], ceiling_usd: f64) -> CallLimiter {
+    let overlay = SettingsOverlay {
+        decisions_daily_spend_ceiling_usd: ceiling_usd,
+        ..SettingsOverlay::default()
+    };
+    let limiter = CallLimiter::with_limits(LimiterLimits::for_decisions(&overlay));
+    limiter.set_spend_source(Some(Arc::new(DecisionSpend(LedgerSink::with(spend)))));
+    limiter
+}
+
+#[test]
+fn decisions_spend_ceiling_reached_refuses_every_decision() {
+    let limiter = decisions_limiter_with(&[(LlmRole::Decision, 5.0)], 5.0);
+    assert!(matches!(
+        limiter.admit(LlmRole::Decision, None),
+        Err(LlmError::SpendCeilingExceeded { .. })
+    ));
+}
+
+#[test]
+fn decisions_spend_ceiling_counts_only_decision_spend() {
+    let limiter =
+        decisions_limiter_with(&[(LlmRole::Decision, 1.0), (LlmRole::Steerer, 40.0)], 5.0);
+    assert!(limiter.admit(LlmRole::Decision, None).is_ok());
+}
+
+#[test]
+fn decisions_spend_ceiling_of_zero_never_refuses() {
+    let limiter = decisions_limiter_with(&[(LlmRole::Decision, 500.0)], 0.0);
+    assert!(limiter.admit(LlmRole::Decision, None).is_ok());
+}

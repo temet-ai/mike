@@ -1,13 +1,21 @@
 use axum::Router;
-use axum::routing::{get, patch};
+use axum::routing::{get, patch, post};
 
 use crate::api::{
-    decisions_calibration, steering_evaluations, steering_guard, steering_guard_effect,
+    decisions_ask, decisions_calibration, steering_evaluations, steering_guard,
+    steering_guard_effect,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
+    route(
+        "POST",
+        "/api/decisions/ask",
+        Coverage::Exempt {
+            reason: "scripts/docs-agent only: records its Jev calls through the decisions recorder",
+        },
+    ),
     route(
         "GET",
         "/api/decisions/calibration",
@@ -66,6 +74,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
+        .route("/api/decisions/ask", post(decisions_ask::post_ask))
         .route(
             "/api/decisions/calibration",
             get(decisions_calibration::get_calibration),
