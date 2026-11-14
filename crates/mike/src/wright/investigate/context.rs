@@ -183,21 +183,53 @@ pub(crate) fn runs_dir() -> Result<PathBuf, String> {
         .join("runs"))
 }
 
-pub(crate) fn running_binary(pid: u32, installed: &Path) -> PathBuf {
-    let live = PathBuf::from(format!("/proc/{pid}/exe"));
-    if is_elf(&live) {
-        live
-    } else {
-        installed.to_path_buf()
+fn copy_name(live: &Path) -> Result<String, String> {
+    use std::os::unix::fs::MetadataExt as _;
+    let meta = std::fs::metadata(live)
+        .map_err(|e| format!("cannot read the running mike at {}: {e}", live.display()))?;
+    Ok(format!("mike-{}-{}-{}", meta.dev(), meta.ino(), meta.len()))
+}
+
+fn remove_other_copies(dir: &Path, keep: &str) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        if name != keep && name.to_string_lossy().starts_with("mike-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
     }
+}
+
+pub(crate) fn binary_copy(live: &Path, dir: &Path) -> Result<PathBuf, String> {
+    let name = copy_name(live)?;
+    let copy = dir.join(&name);
+    if is_elf(&copy) {
+        return Ok(copy);
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    let partial = dir.join(format!(".{name}.partial"));
+    std::fs::copy(live, &partial)
+        .and_then(|_| std::fs::rename(&partial, &copy))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&partial);
+            format!("cannot copy the running mike into {}: {e}", dir.display())
+        })?;
+    remove_other_copies(dir, &name);
+    Ok(copy)
+}
+
+fn bin_dir(runs: &Path) -> PathBuf {
+    runs.parent().unwrap_or(runs).join("bin")
 }
 
 pub(crate) fn resolve_paths() -> Result<EnginePaths, String> {
     let repo = resolve_repo()?;
     let installed =
         std::env::current_exe().map_err(|e| format!("mike's own path is unknown: {e}"))?;
-    let mike = running_binary(std::process::id(), &installed);
     let runs = runs_dir()?;
+    let mike = binary_copy(Path::new("/proc/self/exe"), &bin_dir(&runs))?;
     Ok(EnginePaths {
         slot: repo.join(SLOT),
         refresh_slot: true,

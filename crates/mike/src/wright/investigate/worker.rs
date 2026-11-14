@@ -132,12 +132,17 @@ fn log_no_finding(outcome: &RunOutcome, reason: &str) {
 fn log_refused(refused: &StartRefused) {
     match refused {
         StartRefused::Launch { .. } | StartRefused::Unavailable(_) => log_refused_warn(refused),
+        StartRefused::DailyLimit { .. } | StartRefused::Disabled => log_refused_info(refused),
         _ => log_refused_debug(refused),
     }
 }
 
 fn log_refused_warn(refused: &StartRefused) {
     tracing::warn!(%refused, "wright: engineer run not started");
+}
+
+fn log_refused_info(refused: &StartRefused) {
+    tracing::info!(%refused, "wright: engineer run not started");
 }
 
 fn log_refused_debug(refused: &StartRefused) {
