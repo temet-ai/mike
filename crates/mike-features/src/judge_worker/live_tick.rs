@@ -17,6 +17,7 @@ pub struct LiveTick<'a> {
     pub shared: &'a LiveJudgeShared,
     pub overlay: &'a SettingsOverlay,
     pub judge_cfg: &'a JudgeConfig,
+    pub decisions_on: bool,
 }
 
 pub const QUEUE_RECONCILE_SECS: i64 = 3_600;
@@ -47,6 +48,13 @@ pub async fn run_live_tick(t: LiveTick<'_>, breaker: &mut CircuitBreaker) -> Liv
         session_judge_bundle_id: t.overlay.session_judge_live_bundle_id,
         backoff_base_secs: t.judge_cfg.backoff_base_secs,
         backoff_max_secs: t.judge_cfg.backoff_max_secs,
+        jev: crate::llm::decisions::point::Decider::for_point(
+            t.llm,
+            t.persist,
+            t.decisions_on,
+            t.overlay,
+            crate::analysis::judge::jev::POINT,
+        ),
     };
     let batch = t
         .overlay

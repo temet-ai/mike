@@ -61,6 +61,9 @@ pub async fn evaluate_guard(window: &EvalWindow<'_>, steerer: &Steerer) -> StepO
         }
     }
     let step = finish(&turn, outcome, &delivered).await;
+    if trigger == Trigger::TurnEnd {
+        super::turn_notes::after_turn(window, steerer, &turn).await;
+    }
     match step {
         GuardStep::Continue => StepOutcome::Continue,
         GuardStep::StopWindow => StepOutcome::StopWindow,

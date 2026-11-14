@@ -8,6 +8,8 @@ use crate::store::persistence::judge::JudgeDigestRow;
 pub struct JudgeVerdict {
     pub outcome: String,
     pub quality_score: f64,
+    #[serde(skip)]
+    pub quality_unknown: bool,
     pub rationale: String,
     pub overview: String,
     #[serde(default)]

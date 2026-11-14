@@ -53,6 +53,13 @@ pub async fn run_judge_once_with_breaker(
         backoff_base_secs: judge_cfg.backoff_base_secs,
         backoff_max_secs: judge_cfg.backoff_max_secs,
         bundle_id: live_settings.bundles.turn_judge,
+        decisions: crate::llm::decisions::point::Decider::for_point(
+            &effective_llm,
+            &persist,
+            state.feature_toggle_overlay.load().decisions,
+            &live_settings,
+            crate::analysis::judge::jev::POINT,
+        ),
     };
 
     Ok(run_judge_sweep(&persist, &effective_llm, breaker, &params)
@@ -105,6 +112,7 @@ pub async fn run_live_judge_once(state: &AppState) -> anyhow::Result<(usize, usi
         shared: &shared,
         overlay: &overlay,
         judge_cfg: &judge_cfg,
+        decisions_on: state.feature_toggle_overlay.load().decisions,
     };
     let LiveTickReport {
         promoted, rejudged, ..

@@ -71,6 +71,34 @@ impl super::DecisionStore<'_> {
         .await
     }
 
+    pub async fn sync_intervention_outcomes(&self, point: &str) -> Result<u64, PersistError> {
+        crate::metrics::time_db("sync_intervention_outcomes", async move {
+            Ok(sqlx::query_file!(
+                "src/llm/decisions/sql/sync_intervention_outcomes.sql",
+                point
+            )
+            .execute(self.0.pool())
+            .await?
+            .rows_affected())
+        })
+        .await
+    }
+
+    pub async fn sync_operator_label_outcomes(&self) -> Result<u64, PersistError> {
+        crate::metrics::time_db("sync_operator_label_outcomes", async move {
+            let turns = sqlx::query_file!("src/llm/decisions/sql/sync_turn_judge_outcomes.sql")
+                .execute(self.0.pool())
+                .await?
+                .rows_affected();
+            let kinds = sqlx::query_file!("src/llm/decisions/sql/sync_correction_outcomes.sql")
+                .execute(self.0.pool())
+                .await?
+                .rows_affected();
+            Ok(turns + kinds)
+        })
+        .await
+    }
+
     pub async fn last_decision_loop_at(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("last_decision_loop_at", async move {
             Ok(sqlx::query_scalar::<_, Option<DateTime<Utc>>>(

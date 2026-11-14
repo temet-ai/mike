@@ -27,6 +27,7 @@ impl SessionVerdictV3 {
         JudgeVerdict {
             outcome: self.outcome.clone(),
             quality_score: self.quality_score,
+            quality_unknown: false,
             rationale: self.rationale.clone(),
             overview: self.overview.clone(),
             topics: self.topics.clone(),

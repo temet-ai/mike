@@ -73,6 +73,10 @@ impl Decider {
         self.mode == DecisionMode::On
     }
 
+    pub fn model(&self) -> &str {
+        self.client.model()
+    }
+
     pub fn persist(&self) -> &PersistHandle {
         &self.persist
     }

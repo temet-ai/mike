@@ -65,6 +65,20 @@ async fn gather_user_prompt_context(
     Some((turn_origin, subagent_persona))
 }
 
+fn correction_decider(
+    ctx: &FleetCtx,
+    ph: &crate::store::persistence::PersistHandle,
+) -> Option<crate::llm::decisions::point::Decider> {
+    let keyed = crate::llm::key::keyed_client(&ctx.llm, &ctx.key_slot)?;
+    crate::llm::decisions::point::Decider::for_point(
+        &keyed,
+        ph,
+        ctx.toggles.load().decisions,
+        &ctx.settings.load(),
+        crate::steerer::correction_classifier::POINT,
+    )
+}
+
 async fn accrete_ask_ledger(
     ctx: &FleetCtx,
     session_uuid: uuid::Uuid,
@@ -75,7 +89,15 @@ async fn accrete_ask_ledger(
         return;
     };
     let raw_id = i64::try_from(raw_id).unwrap_or(i64::MAX);
-    append_ask_ledger_entry_for_turn(ph, session_uuid, raw_id, stripped_user_text).await;
+    let decider = correction_decider(ctx, ph);
+    append_ask_ledger_entry_for_turn(
+        ph,
+        session_uuid,
+        raw_id,
+        stripped_user_text,
+        decider.as_ref(),
+    )
+    .await;
     reauthor_intake_criteria(ctx, ph, session_uuid).await;
 }
 

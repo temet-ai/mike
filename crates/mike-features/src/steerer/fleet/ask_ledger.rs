@@ -58,6 +58,7 @@ pub async fn append_ask_ledger_entry_for_turn(
     session_uuid: Uuid,
     raw_id: i64,
     text: &str,
+    decider: Option<&crate::llm::decisions::point::Decider>,
 ) {
     if !is_operator_ask(text) {
         return;
@@ -75,13 +76,44 @@ pub async fn append_ask_ledger_entry_for_turn(
         kind_source: "keyword",
         content: text,
     };
-    if let Err(e) = ph.dossier().append_ask_ledger_entry(&entry).await {
-        warn!(
-            session_id = %session_uuid,
-            kind,
-            error = %e,
-            "steerer fleet: ask-ledger append failed"
-        );
+    match ph.dossier().append_ask_ledger_entry(&entry).await {
+        Ok(Some(_)) if kind != "initial" => {
+            refine_kind_with_jev(ph, decider, session_db_id, raw_id, text).await;
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!(
+                session_id = %session_uuid,
+                kind,
+                error = %e,
+                "steerer fleet: ask-ledger append failed"
+            );
+        }
+    }
+}
+
+async fn refine_kind_with_jev(
+    ph: &PersistHandle,
+    decider: Option<&crate::llm::decisions::point::Decider>,
+    session_db_id: i64,
+    raw_id: i64,
+    text: &str,
+) {
+    use crate::steerer::correction_classifier as classifier;
+    let Some(decider) = decider else {
+        return;
+    };
+    let Some(prior) = classifier::prior_turn_end(ph, session_db_id, raw_id).await else {
+        return;
+    };
+    let message = classifier::Message {
+        session_db_id,
+        request_id: raw_id,
+        operator_text: text,
+        prior_turn: &prior,
+    };
+    if let Some(classified) = classifier::classify(decider, &message).await {
+        classifier::store(ph, raw_id, &classified).await;
     }
 }
 

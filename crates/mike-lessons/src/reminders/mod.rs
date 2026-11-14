@@ -14,3 +14,4 @@ pub mod session_lessons_stage;
 pub mod session_lessons_stage_tests;
 #[cfg(test)]
 pub mod session_lessons_tests;
+pub mod supply_floor;
