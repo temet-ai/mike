@@ -43,6 +43,28 @@ fn assert_each_fires(cases: &[(&str, &str, &str)]) -> Result<()> {
     Ok(())
 }
 
+fn hits_rule(source: &str, rule: &str) -> Result<bool> {
+    Ok(rules_hit("src/a.rs", source)?.iter().any(|id| id == rule))
+}
+
+#[test]
+fn argument_and_file_size_rules_match_the_push_limits() -> Result<()> {
+    let seven = "fn a(a: A, b: B, c: C, d: D, e: E, f: F, g: G) {}\n";
+    assert!(hits_rule(seven, "rust-too-many-arguments")?);
+    assert!(!hits_rule(
+        "fn a(a: A, b: B, c: C, d: D, e: E, f: F) {}\n",
+        "rust-too-many-arguments"
+    )?);
+    let in_trait_impl = format!("impl T for S {{\n    {seven}}}\n");
+    assert!(!hits_rule(&in_trait_impl, "rust-too-many-arguments")?);
+    assert!(hits_rule(&"fn a() {}\n".repeat(501), "rust-file-too-long")?);
+    assert!(!hits_rule(
+        &"fn a() {}\n".repeat(500),
+        "rust-file-too-long"
+    )?);
+    Ok(())
+}
+
 #[test]
 fn each_rust_rule_fires_on_its_sample() -> Result<()> {
     assert_each_fires(&[

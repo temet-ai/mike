@@ -74,3 +74,34 @@ rule:
   regex: '^#\[ignore\]$'
 message: '#[ignore] needs a reason: write #[ignore = "why"].'
 fix: '#[ignore = "why"]'
+---
+id: rust-too-many-arguments
+url: 'scripts/lint-rust'
+language: rust
+severity: error
+rule:
+  kind: parameters
+  inside:
+    kind: function_item
+  has:
+    any:
+      - kind: parameter
+      - kind: self_parameter
+    nthChild: 7
+  not:
+    inside:
+      kind: impl_item
+      stopBy: end
+      has:
+        field: trait
+        regex: '.'
+message: This function takes more than 6 arguments; clippy::too_many_arguments fails the push (scripts/lint-rust). Group related arguments into a struct.
+---
+id: rust-file-too-long
+url: 'scripts/lint-rust-size'
+language: rust
+severity: error
+rule:
+  kind: source_file
+  regex: '^(?:[^\n]*\n){500}[\s\S]'
+message: This file is over 500 lines; scripts/lint-rust-size fails the push. Split it into modules by responsibility.
