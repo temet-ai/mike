@@ -20,6 +20,8 @@
 		label: string;
 		tone: StatusMarkTone;
 		size?: number;
+		/** Turns the icon, for work in progress. Honours reduced motion. */
+		spin?: boolean;
 	};
 
 	let {
@@ -29,6 +31,7 @@
 		label,
 		tone,
 		size = 12,
+		spin = false,
 		...restProps
 	}: StatusMarkProps = $props();
 </script>
@@ -40,7 +43,11 @@
 	class={cn('status-mark', className)}
 	{...restProps}
 >
-	<span class="status-mark__glyph" style="--status-mark-size: {size}px;">
+	<span
+		class="status-mark__glyph"
+		style="--status-mark-size: {size}px;"
+		data-motion={spin ? 'wait wait-spin' : undefined}
+	>
 		<Glyph {size} aria-hidden="true" />
 	</span>
 	<span class="status-mark__label">{label}</span>

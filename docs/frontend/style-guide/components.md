@@ -317,6 +317,7 @@ Props:
 - `label: string`
 - `tone: StatusMarkTone`
 - `size?: number`
+- `spin?: boolean`
 
 Story: UI/StatusMark
 

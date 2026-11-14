@@ -1,159 +1,176 @@
 <script lang="ts">
-	import { Loader, Play } from '@lucide/svelte';
+	import { Play } from '@lucide/svelte';
+	import { resolve } from '$app/paths';
 	import type { ScheduledJob } from '$lib/api/scheduledJobs';
-	import Badge from '$lib/components/shared/Badge.svelte';
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { StatusMark } from '$lib/components/ui/status-mark';
+	import { Switch } from '$lib/components/ui/switch';
 	import { fixSegments } from './fixLinks';
-	import {
-		isBusy,
-		isRunning,
-		isTurnedOff,
-		isUnavailable,
-		lastRanText,
-		nextText,
-		runIsTheFix,
-		runsOnAnotherMachine,
-		stateView
-	} from './scheduledJobs';
+	import { offsetMinutes, stampText, windowRange, type Segment } from './jobClock';
+	import ScheduledJobLane from './ScheduledJobLane.svelte';
+	import { rowView, runsOnAnotherMachine } from './scheduledJobs';
 
 	interface Props {
 		job: ScheduledJob;
 		machineUuid: string | null;
 		now: number;
+		timeZone: string;
 		open: boolean;
 		onToggle: () => void;
 		/** A "Run now" press was accepted and the row has not reported the run yet. */
 		queued?: boolean;
-		/** Why the last press was refused; replaces the last-ran and next-run cells. */
+		/** Why the last press was refused; replaces the next-run line. */
 		runError?: string | null;
 		onRun?: () => void;
+		/** The position the switch was just set to, while the change is being saved. */
+		switchPending?: boolean | null;
+		/** Why the last switch change was refused; replaces the next-run line. */
+		switchError?: string | null;
+		onSetEnabled?: (on: boolean) => void;
+		/** What runs with the hovered job; lit in every lane. */
+		highlight?: Segment[];
+		onLaneHover?: (segments: Segment[]) => void;
 	}
 
 	const {
 		job,
 		machineUuid,
 		now,
+		timeZone,
 		open,
 		onToggle,
 		queued = false,
 		runError = null,
-		onRun
+		onRun,
+		switchPending = null,
+		switchError = null,
+		onSetEnabled,
+		highlight = [],
+		onLaneHover
 	}: Props = $props();
 
-	const view = $derived(stateView(job.state));
-	const remote = $derived(runsOnAnotherMachine(job, machineUuid));
+	const view = $derived(rowView(job, { queued, machineUuid, now, timeZone }));
 	const detailId = $derived(`sj-more-${job.id}`);
-	const busy = $derived(isBusy(job, queued));
-	const turnedOff = $derived(isTurnedOff(job));
-	const unavailable = $derived(isUnavailable(job));
-	const runTip = $derived(
-		busy
-			? isRunning(job)
-				? 'Running now.'
-				: 'Queued. It starts shortly.'
-			: turnedOff
-				? 'This job is turned off. Turn it on in Settings, under Scheduled jobs.'
-				: 'Runs this job once now. Its schedule does not change.'
+	const shownOn = $derived(switchPending ?? job.enabled);
+	const switchLocked = $derived(job.enabled_key === null || switchPending !== null);
+	const switchTip = $derived(
+		job.enabled_key === null
+			? 'This mike does not say which setting turns the job on.'
+			: shownOn
+				? 'Runs on its schedule. Turn off to stop scheduled runs.'
+				: 'Turn on to run on its schedule again.'
+	);
+	const showLocal = $derived(offsetMinutes(now, timeZone) !== 0);
+	const windowText = $derived(
+		job.window && job.window.hours_utc.length > 0
+			? windowRange(job.window, now, timeZone, showLocal)
+			: '—'
+	);
+	const remote = $derived(runsOnAnotherMachine(job, machineUuid));
+	const startedBy = $derived(
+		job.last_trigger === 'schedule' ? 'schedule' : job.last_trigger === 'manual' ? 'hand' : '—'
+	);
+	const alert = $derived(
+		switchError ? `Not changed. ${switchError}` : runError ? `Not started. ${runError}` : null
 	);
 </script>
-
-{#snippet line()}
-	<span class="sj-label">
-		{#if view.needsAttention}
-			{job.label}
-		{:else}
-			<Tooltip text={job.description || job.label}>
-				{#snippet child({ props })}
-					<span {...props}>{job.label}</span>
-				{/snippet}
-			</Tooltip>
-		{/if}
-	</span>
-	<span class="sj-state">
-		<Badge variant={view.variant} data-slot="scheduled-job-state" data-state={job.state}>
-			{view.label}
-		</Badge>
-	</span>
-	{#if remote}
-		<span class="sj-when sj-when--remote" data-slot="scheduled-job-remote"
-			>runs on another machine</span
-		>
-	{:else if unavailable}
-		<span class="sj-when sj-when--remote" data-slot="scheduled-job-unavailable">
-			<Tooltip text={job.detail || 'This mike has no scripts folder to run the job from.'}>
-				{#snippet child({ props })}
-					<span {...props}>this mike has no job scripts</span>
-				{/snippet}
-			</Tooltip>
-		</span>
-	{:else if runError}
-		<span class="sj-when sj-when--remote sj-error" role="alert" data-slot="scheduled-job-run-error"
-			>Not started. {runError}</span
-		>
-	{:else}
-		<span class="sj-when" data-slot="scheduled-job-last">{lastRanText(job, now)}</span>
-		<span class="sj-when" data-slot="scheduled-job-next">{nextText(job, now)}</span>
-	{/if}
-{/snippet}
-
-{#snippet action()}
-	<span class="sj-action" data-slot="scheduled-job-action">
-		{#if !remote && !unavailable}
-			<Tooltip text={runTip}>
-				{#snippet child({ props })}
-					<span {...props} class="sj-run-tip">
-						<Button
-							size="sm"
-							variant={runIsTheFix(job) ? 'default' : 'outline'}
-							disabled={busy || turnedOff}
-							aria-label="Run {job.label} now"
-							aria-busy={busy}
-							data-slot="scheduled-job-run"
-							onclick={onRun}
-						>
-							{#if busy}
-								<Loader data-icon="inline-start" data-motion="wait wait-spin" aria-hidden="true" />
-							{:else}
-								<Play data-icon="inline-start" aria-hidden="true" />
-							{/if}
-							Run now
-						</Button>
-					</span>
-				{/snippet}
-			</Tooltip>
-		{/if}
-	</span>
-{/snippet}
 
 <li
 	class="sj-row"
 	data-slot="scheduled-job"
 	data-job-id={job.id}
 	data-state={job.state}
-	style="--sj-border: {view.border};"
+	data-status={view.status}
+	data-open={open ? '' : undefined}
 >
-	<div class="sj-top">
-		{#if view.needsAttention}
-			<button
-				type="button"
-				class="sj-line sj-line--button"
-				data-motion="hover press"
-				aria-expanded={open}
-				aria-controls={detailId}
-				onclick={onToggle}
+	<div class="sj-name-cell">
+		<button
+			type="button"
+			class="sj-name"
+			data-slot="scheduled-job-name"
+			data-motion="hover press"
+			aria-expanded={open}
+			aria-controls={detailId}
+			onclick={onToggle}>{job.label}</button
+		>
+		{#if job.group === 'learning_and_memory'}
+			<a class="sj-loop-link" data-slot="scheduled-job-loop-link" href={resolve('/memory')}
+				>See it in the loop</a
 			>
-				{@render line()}
-			</button>
-		{:else}
-			<div class="sj-line">
-				{@render line()}
-			</div>
 		{/if}
-		{@render action()}
 	</div>
-	{#if view.needsAttention}
-		<div class="sj-note" data-slot="scheduled-job-note">
+	<span class="sj-status">
+		<Tooltip text={view.statusTip}>
+			{#snippet child({ props })}
+				<span {...props} class="sj-status-tip">
+					<StatusMark
+						icon={view.icon}
+						label={view.word}
+						tone={view.tone}
+						spin={view.spin}
+						data-slot="scheduled-job-state"
+						data-status={view.status}
+					/>
+				</span>
+			{/snippet}
+		</Tooltip>
+	</span>
+	<div class="sj-lane-cell">
+		<ScheduledJobLane
+			{job}
+			tone={view.laneTone}
+			{now}
+			{timeZone}
+			{highlight}
+			onHover={onLaneHover}
+		/>
+	</div>
+	<div class="sj-when" data-slot="scheduled-job-when">
+		<span class="sj-when-last" data-slot="scheduled-job-last">{view.lastRan}</span>
+		{#if alert}
+			<span class="sj-when-next sj-error" role="alert" data-slot="scheduled-job-error">{alert}</span
+			>
+		{:else}
+			<span class="sj-when-next" data-slot="scheduled-job-next">{view.next}</span>
+		{/if}
+	</div>
+	<span class="sj-switch" data-slot="scheduled-job-switch-cell">
+		<Tooltip text={switchTip}>
+			{#snippet child({ props })}
+				<span {...props} class="sj-tip">
+					<Switch
+						bind:checked={() => shownOn, (on) => onSetEnabled?.(on)}
+						disabled={switchLocked}
+						aria-label="{job.label} on schedule"
+						data-slot="scheduled-job-switch"
+					/>
+				</span>
+			{/snippet}
+		</Tooltip>
+	</span>
+	<span class="sj-run" data-slot="scheduled-job-action">
+		<Tooltip text={view.runTip}>
+			{#snippet child({ props })}
+				<span {...props} class="sj-tip">
+					<Button
+						size="sm"
+						variant={view.runVariant}
+						disabled={view.runDisabled}
+						aria-label="Run {job.label} now"
+						aria-busy={view.status === 'running' || view.status === 'queued'}
+						data-slot="scheduled-job-run"
+						onclick={onRun}
+					>
+						<Play data-icon="inline-start" aria-hidden="true" />
+						Run now
+					</Button>
+				</span>
+			{/snippet}
+		</Tooltip>
+	</span>
+	{#if open}
+		<div class="sj-more" id={detailId} data-slot="scheduled-job-more">
 			{#if job.detail}<p class="sj-detail">{job.detail}</p>{/if}
 			{#if job.fix}
 				<p class="sj-fix">
@@ -173,115 +190,167 @@
 					{/each}
 				</p>
 			{/if}
+			{#if job.description}<p class="sj-description">{job.description}</p>{/if}
+			<dl class="sj-facts">
+				<dt>Schedule</dt>
+				<dd>{job.schedule || '—'}</dd>
+				<dt>Window</dt>
+				<dd data-slot="scheduled-job-window">{windowText}</dd>
+				<dt>Started by</dt>
+				<dd>{startedBy}</dd>
+				<dt>Last started</dt>
+				<dd>{stampText(job.last_started_at, timeZone, showLocal)}</dd>
+				<dt>Last finished</dt>
+				<dd>{stampText(job.last_finished_at, timeZone, showLocal)}</dd>
+				<dt>Exit code</dt>
+				<dd data-slot="scheduled-job-exit">{job.last_exit_code ?? '—'}</dd>
+				<dt>Failures in a row</dt>
+				<dd>{job.consecutive_failures}</dd>
+				<dt>Runs on</dt>
+				<dd>{remote ? `machine ${job.owner_machine_uuid}` : 'this machine'}</dd>
+			</dl>
+			<p class="sj-output-title">Output</p>
+			{#if job.last_output_tail}
+				<!-- A scroll region must be reachable by keyboard to be read. -->
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<pre
+					class="sj-output"
+					tabindex="0"
+					data-slot="scheduled-job-output">{job.last_output_tail}</pre>
+			{:else}
+				<p class="sj-description">No output was captured.</p>
+			{/if}
 		</div>
-		{#if open}
-			<div class="sj-more" id={detailId} data-slot="scheduled-job-more">
-				{#if job.description}<p class="sj-description">{job.description}</p>{/if}
-				<dl class="sj-facts">
-					<dt>Schedule</dt>
-					<dd>{job.schedule || '—'}</dd>
-					<dt>Exit code</dt>
-					<dd data-slot="scheduled-job-exit">{job.last_exit_code ?? '—'}</dd>
-					<dt>Failures in a row</dt>
-					<dd>{job.consecutive_failures}</dd>
-					<dt>Last started</dt>
-					<dd>{job.last_started_at ?? '—'}</dd>
-					<dt>Last finished</dt>
-					<dd>{job.last_finished_at ?? '—'}</dd>
-				</dl>
-				<p class="sj-output-title">Output</p>
-				{#if job.last_output_tail}
-					<!-- A scroll region must be reachable by keyboard to be read. -->
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-					<pre
-						class="sj-output"
-						tabindex="0"
-						data-slot="scheduled-job-output">{job.last_output_tail}</pre>
-				{:else}
-					<p class="sj-description">No output was captured.</p>
-				{/if}
-			</div>
-		{/if}
 	{/if}
 </li>
 
 <style>
 	.sj-row {
-		--sj-action-w: 8rem;
+		position: relative;
+		display: grid;
+		grid-template-columns: 8.5rem minmax(0, 1fr) auto auto;
+		align-items: center;
+		column-gap: var(--space-3);
+		row-gap: var(--space-1);
+		margin: 0;
+		padding: var(--space-2) 0;
+		list-style: none;
+	}
+	.sj-row::before {
+		content: '';
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline: calc(-1 * var(--space-3));
+		border-top: var(--hairline) solid var(--border-subtle);
+	}
+	.sj-row:first-child::before {
+		display: none;
+	}
+	.sj-name-cell {
+		grid-column: 1 / 3;
+		grid-row: 1;
+		justify-self: start;
 		display: flex;
 		flex-direction: column;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		background: var(--surface-card);
-		border: 1px solid var(--sj-border);
-		border-radius: var(--r-tol);
+		align-items: flex-start;
+		min-inline-size: 0;
+		margin-inline-start: calc(-1 * var(--space-2));
 	}
-	.sj-top {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) var(--sj-action-w);
-		align-items: center;
+	.sj-loop-link {
+		padding-inline: var(--space-2);
+		color: var(--text-3);
+		font-size: var(--text-xs);
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
-	.sj-action {
-		display: flex;
-		justify-content: flex-end;
-		padding-right: var(--space-3);
+	.sj-loop-link:hover {
+		color: var(--text-1);
 	}
-	.sj-run-tip {
-		display: inline-flex;
+	.sj-loop-link:focus-visible {
+		outline: 2px solid var(--interactive-focus-ring);
+		outline-offset: 2px;
 	}
-	.sj-line {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) 6.5rem 14rem 11rem;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-2) var(--space-3);
-		min-height: var(--control-h);
-		font-size: var(--text-sm);
-		color: var(--text-2);
-		text-align: left;
-	}
-	.sj-line--button {
-		width: 100%;
+	.sj-name {
+		min-inline-size: 0;
+		padding: var(--space-1) var(--space-2);
 		border: none;
 		background: transparent;
+		color: var(--text-1);
 		font: inherit;
 		font-size: var(--text-sm);
+		font-weight: var(--weight-medium);
+		text-align: left;
+		overflow-wrap: anywhere;
 		cursor: pointer;
-		border-radius: var(--r-tol);
 	}
-	.sj-line--button:hover {
+	.sj-name:hover,
+	.sj-row[data-open] .sj-name {
 		background: var(--surface-2);
 	}
-	.sj-line--button:focus-visible {
+	.sj-row[data-open] .sj-name {
+		color: var(--text-strong);
+	}
+	.sj-name:focus-visible {
 		outline: 2px solid var(--interactive-focus-ring);
 		outline-offset: -2px;
 	}
-	.sj-label {
-		min-width: 0;
-		color: var(--text-1);
-		font-weight: var(--weight-medium);
-		overflow-wrap: anywhere;
-	}
-	.sj-state {
+	.sj-switch {
+		grid-column: 3;
+		grid-row: 1;
 		display: flex;
-		align-items: center;
+		justify-content: center;
+	}
+	.sj-run {
+		grid-column: 4;
+		grid-row: 1;
+		display: flex;
+		justify-content: flex-end;
+	}
+	.sj-tip {
+		display: inline-flex;
+	}
+	.sj-status {
+		grid-column: 1;
+		grid-row: 2;
+		align-self: start;
+	}
+	.sj-status-tip {
+		display: inline-flex;
 	}
 	.sj-when {
-		color: var(--text-3);
+		grid-column: 2 / -1;
+		grid-row: 2;
+		display: flex;
+		flex-direction: column;
+		min-inline-size: 0;
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+		line-height: var(--leading-body);
 	}
-	.sj-when--remote {
-		grid-column: span 2;
+	.sj-when-last {
+		color: var(--text-2);
+	}
+	.sj-when-next {
+		min-block-size: calc(var(--text-sm) * var(--leading-body));
+		color: var(--text-3);
 	}
 	.sj-error {
 		color: var(--status-danger-fg);
 		overflow-wrap: anywhere;
 	}
-	.sj-note {
+	.sj-lane-cell {
+		grid-column: 1 / -1;
+		grid-row: 3;
+		min-inline-size: 0;
+	}
+	.sj-more {
+		grid-column: 1 / -1;
+		grid-row: 4;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1);
-		padding: 0 var(--space-3) var(--space-2);
+		gap: var(--space-2);
+		padding: var(--space-2) 0 var(--space-3);
+		border-top: var(--hairline) solid var(--border-subtle);
 	}
 	.sj-detail,
 	.sj-fix,
@@ -303,13 +372,6 @@
 		color: inherit;
 		text-decoration: underline;
 		text-underline-offset: 2px;
-	}
-	.sj-more {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3) var(--space-3);
-		border-top: 1px solid var(--border-subtle);
 	}
 	.sj-description {
 		color: var(--text-2);
@@ -339,7 +401,7 @@
 		max-height: 18rem;
 		overflow: auto;
 		background: var(--surface-bg);
-		border: 1px solid var(--border-subtle);
+		border: var(--hairline) solid var(--border-subtle);
 		color: var(--text-1);
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
@@ -350,14 +412,44 @@
 		outline: 2px solid var(--interactive-focus-ring);
 		outline-offset: 2px;
 	}
-	@media (max-width: 64rem) {
-		.sj-line {
-			grid-template-columns: minmax(0, 1fr) 6.5rem;
-			row-gap: var(--space-1);
-		}
-		.sj-when,
-		.sj-when--remote {
+
+	@container (min-width: 64rem) {
+		.sj-row {
 			grid-column: 1 / -1;
+			grid-template-columns: subgrid;
+			row-gap: 0;
+		}
+		.sj-name-cell {
+			grid-column: 1;
+			grid-row: 1;
+			justify-self: stretch;
+			align-items: stretch;
+		}
+		.sj-status {
+			grid-column: 2;
+			grid-row: 1;
+			align-self: center;
+		}
+		.sj-lane-cell {
+			grid-column: 3;
+			grid-row: 1;
+		}
+		.sj-when {
+			grid-column: 4;
+			grid-row: 1;
+		}
+		.sj-switch {
+			grid-column: 5;
+			grid-row: 1;
+			inline-size: auto;
+		}
+		.sj-run {
+			grid-column: 6;
+			grid-row: 1;
+			inline-size: auto;
+		}
+		.sj-more {
+			grid-row: 2;
 		}
 	}
 </style>
