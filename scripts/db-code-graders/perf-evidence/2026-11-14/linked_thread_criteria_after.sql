@@ -1,0 +1,1 @@
+SELECT t.slug, COALESCE(t.title, '') AS title, c.criteria_text FROM sessions.sessions s JOIN work.thread_sessions ts ON ts.session_uuid = s.session_uuid JOIN work.threads t ON t.id = ts.thread_id JOIN work.thread_acceptance_criteria c ON c.thread_id = t.id WHERE s.id = 2217087 AND btrim(COALESCE(c.criteria_text, '')) <> '' ORDER BY ts.last_seen_at DESC, t.id DESC LIMIT 6;

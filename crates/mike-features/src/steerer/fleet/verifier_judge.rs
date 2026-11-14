@@ -1,13 +1,15 @@
 use crate::store::persistence::dossier_repo::DossierPersist as _;
-use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::steerer_repo::SteererPersist as _;
-use tracing::{debug, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 use super::input_budget::{RawVerifierContext, VerifierInputBudget, project_verifier_context};
-use crate::steerer::verifier::{
-    build_accumulated_ask, build_trajectory_digest, written_by_the_operator,
-};
+use super::verifier_criteria::load_criteria_inputs;
+use crate::llm::decisions::point::Decider;
+use crate::llm::decisions::record::DecisionSubject;
+use crate::steerer::checklist_point::Criterion;
+use crate::steerer::verifier::{build_trajectory_digest, written_by_the_operator};
+use crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap;
 use crate::store::persistence::memory_ask_ledger::AskLedgerEntryRow;
 use crate::store::persistence::session_action_list::{SessionActionCounts, SessionActionRow};
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -19,6 +21,7 @@ pub struct VerifierJudgeContext {
     pub prior_fires_digest: String,
     pub thread_criteria: Option<String>,
     pub intake_criteria: Option<String>,
+    pub checklist_criteria: Vec<Criterion>,
     pub session_action_list: String,
     pub budget: VerifierInputBudget,
 }
@@ -188,88 +191,36 @@ fn log_action_counts_unavailable(session_uuid: Uuid, e: &PersistError) {
     );
 }
 
-async fn fetch_thread_criteria(
-    ph: &PersistHandle,
-    session_uuid: Uuid,
-    session_db_id: Option<i64>,
-    accumulated_ask: &str,
-) -> Option<String> {
-    let session_db_id = session_db_id?;
-    match ph
-        .launch()
-        .fetch_thread_criteria_for_session(session_db_id, accumulated_ask)
-        .await
-    {
-        Ok(found) => found.map(|thread| {
-            debug!(
-                session_id = %session_uuid,
-                thread_slug = %thread.thread_slug,
-                found_via = ?thread.via,
-                "steerer fleet: acceptance criteria read from the work thread"
-            );
-            thread.criteria_text
-        }),
-        Err(e) => {
-            warn!(
-                session_id = %session_uuid,
-                error = %e,
-                "steerer fleet: work-thread criteria lookup failed — falling back to the generated checklist"
-            );
-            None
-        }
-    }
-}
-
-async fn fetch_intake_criteria(
-    ph: &PersistHandle,
-    session_uuid: Uuid,
-    session_db_id: Option<i64>,
-) -> Option<String> {
-    let session_db_id = session_db_id?;
-    match ph
-        .steerer()
-        .fetch_current_acceptance_criteria(session_db_id)
-        .await
-    {
-        Ok(Some(map)) if !map.criteria.is_empty() => Some(render_intake_criteria(&map)),
-        Ok(_) => None,
-        Err(e) => {
-            warn!(
-                session_id = %session_uuid,
-                error = %e,
-                "steerer fleet: intake-criteria lookup failed — judge generates its own checklist"
-            );
-            None
-        }
-    }
-}
-
 async fn load_raw_verifier_context(
     ph: &PersistHandle,
     session_uuid: Uuid,
     session_db_id: Option<i64>,
     turn_id_override: Option<i64>,
     budget: VerifierInputBudget,
+    decider: Option<&Decider>,
 ) -> RawVerifierContext {
     let ask_entries = fetch_ask_entries(ph, session_uuid).await;
     let trajectory_digest =
         fetch_trajectory_digest(ph, session_uuid, session_db_id, turn_id_override).await;
     let (action_rows, action_counts) =
         fetch_action_rows(ph, session_uuid, session_db_id, budget).await;
-    let full_ask = build_accumulated_ask(&ask_entries);
-    let thread_criteria = fetch_thread_criteria(ph, session_uuid, session_db_id, &full_ask).await;
-    let intake_criteria = if thread_criteria.is_some() {
-        None
-    } else {
-        fetch_intake_criteria(ph, session_uuid, session_db_id).await
+    let subject = DecisionSubject {
+        session_id: session_db_id,
+        operator_turn_id: turn_id_override,
+        ..DecisionSubject::default()
     };
+    let criteria = load_criteria_inputs(ph, session_uuid, session_db_id)
+        .await
+        .picked(decider, &ask_entries, subject)
+        .await;
     RawVerifierContext {
         ask_entries,
         trajectory_digest,
         action_rows,
         action_counts,
-        thread_criteria,
-        intake_criteria,
+        thread_criteria: criteria.thread_criteria,
+        intake_criteria: criteria.intake_criteria,
+        checklist_criteria: criteria.checklist_criteria,
     }
 }
 
@@ -279,15 +230,21 @@ pub async fn build_verifier_judge_context(
     session_db_id: Option<i64>,
     turn_id_override: Option<i64>,
     budget: VerifierInputBudget,
+    decider: Option<&Decider>,
 ) -> VerifierJudgeContext {
-    let raw =
-        load_raw_verifier_context(ph, session_uuid, session_db_id, turn_id_override, budget).await;
+    let raw = load_raw_verifier_context(
+        ph,
+        session_uuid,
+        session_db_id,
+        turn_id_override,
+        budget,
+        decider,
+    )
+    .await;
     project_verifier_context(&raw, budget)
 }
 
-pub fn render_intake_criteria(
-    map: &crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap,
-) -> String {
+pub fn render_intake_criteria(map: &AcceptanceCriteriaMap) -> String {
     let mut out = String::from(
         "Acceptance criteria for this session, written from the operator's own words by a \
          worker that never saw this session's plan or restatement.\n",

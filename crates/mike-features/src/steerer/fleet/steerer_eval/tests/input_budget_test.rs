@@ -88,6 +88,7 @@ async fn context_builder_under_v1_issues_recent_and_counts_not_full_list() -> an
         Some(session_db_id),
         None,
         VerifierInputBudget::V1,
+        None,
     )
     .await;
     let first = ctx.session_action_list.lines().next().unwrap_or_default();
@@ -133,6 +134,7 @@ async fn context_builder_uncapped_issues_full_list() -> anyhow::Result<()> {
         Some(session_db_id),
         None,
         VerifierInputBudget::Uncapped,
+        None,
     )
     .await;
     assert_eq!(
