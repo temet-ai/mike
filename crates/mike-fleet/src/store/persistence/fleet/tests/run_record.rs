@@ -299,3 +299,40 @@ async fn a_run_that_does_not_exist_is_refused_and_a_fleet_without_a_record_reads
     );
     run.f.db.cleanup().await
 }
+
+#[tokio::test]
+async fn relaunches_count_relaunch_events_not_worker_launches_beyond_the_tasks()
+-> anyhow::Result<()> {
+    use crate::launch::fleet::events::{EventPayload, NewFleetEvent, SeatClosed};
+    use crate::launch::fleet::supervise::RELAUNCHED;
+
+    let Some(run) = closed_run().await? else {
+        return Ok(());
+    };
+    seed_launch(
+        &run.f.handle,
+        &run.run_id,
+        "db-dev-T7",
+        Some(Uuid::new_v4()),
+        true,
+    )
+    .await?;
+    assert_eq!(run.f.handle.fleet().relaunch_events(&run.run_id).await?, 0);
+
+    for reason in [RELAUNCHED, RELAUNCHED, "replaced: context full"] {
+        run.f
+            .handle
+            .fleet()
+            .append_fleet_event(&NewFleetEvent {
+                run_id: run.run_id.clone(),
+                task: Some("T7".to_string()),
+                session_uuid: Some(Uuid::new_v4()),
+                payload: EventPayload::SeatClosed(SeatClosed {
+                    reason: reason.to_string(),
+                }),
+            })
+            .await?;
+    }
+    assert_eq!(run.f.handle.fleet().relaunch_events(&run.run_id).await?, 2);
+    run.f.db.cleanup().await
+}

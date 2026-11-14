@@ -68,6 +68,7 @@ fn measures() -> RunMeasures {
             hand_starts: 2,
             task_count: 3,
             worker_launches: 4,
+            relaunches: 2,
         },
         tokens: vec![token("coordinator", 100), token("worker", 200)],
         interventions: InterventionMeasure {
@@ -122,7 +123,10 @@ fn the_token_and_intervention_numbers_are_stated_with_their_parts() {
 fn the_counts_explain_relaunches_replacements_and_unread_mail() {
     let doc = summarise(&measures());
     assert_eq!(doc["counts"]["seats_per_task"], 1.3);
-    assert_eq!(doc["counts"]["relaunches"], 1);
+    assert_eq!(doc["counts"]["relaunches"], 2);
+    let mut no_events = measures();
+    no_events.timing.relaunches = 0;
+    assert_eq!(summarise(&no_events)["counts"]["relaunches"], 0);
     assert_eq!(doc["counts"]["context_replacements"], 0);
     assert_eq!(doc["counts"]["unread_messages_at_close"], 1);
     assert_eq!(doc["counts"]["problems_opened"], 0);

@@ -109,8 +109,7 @@ impl Effects for Live<'_> {
                 session,
                 attempt,
             } => {
-                self.close(task, *session, "launch not confirmed; relaunched")
-                    .await;
+                self.close(task, *session, super::RELAUNCHED).await;
                 let state = format!(
                     "relaunching (attempt {attempt} of {}): the seat made no first request in time",
                     super::RELAUNCHES

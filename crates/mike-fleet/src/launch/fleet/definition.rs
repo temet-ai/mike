@@ -43,6 +43,8 @@ pub struct FleetDefinition {
 pub struct StaffingDefinition {
     pub adopt_unowned: bool,
     pub warm_siblings: bool,
+    pub max_seats: Option<usize>,
+    pub min_free_memory_gb: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -19,6 +19,7 @@ pub const LAUNCH_DEADLINE: Duration = Duration::from_secs(90);
 pub const SILENT_AFTER: Duration = Duration::from_secs(300);
 pub const WAKE_GRACE: Duration = Duration::from_secs(120);
 pub const RELAUNCHES: u32 = 2;
+pub const RELAUNCHED: &str = "launch not confirmed; relaunched";
 pub const CHECK_REQUEUES: u32 = 1;
 pub const STOP_KILLS: u32 = 3;
 

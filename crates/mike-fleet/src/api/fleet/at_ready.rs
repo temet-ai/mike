@@ -3,6 +3,7 @@ use serde::Serialize;
 use super::definition_patch::{STATE_DRAFT, STATE_FAILED, STATE_READY, environment_problems};
 use super::definition_view::FleetView;
 use crate::base_state::BaseState;
+use crate::launch::fleet::capacity::{self, Planned};
 use crate::launch::fleet::plan::ready_tasks;
 use crate::launch::fleet::{FleetDefinition, Missing, Starts, starts};
 use crate::store::persistence::fleet::FleetRow;
@@ -13,6 +14,7 @@ const AGENTS_DIR: &str = ".claude/agents";
 #[derive(Debug, Serialize)]
 pub struct AtReady {
     starts: Starts,
+    capacity: Option<Planned>,
     machine: Vec<Missing>,
     missing: Vec<ReadyWarning>,
     notes: Vec<&'static str>,
@@ -105,10 +107,12 @@ pub async fn view(state: &BaseState, row: &FleetRow) -> FleetView {
         return view;
     };
     let planned = starts(&def);
+    let capacity = capacity::plan(state.persist(), &def, planned.most_at_once).await;
     view.with_at_ready(AtReady {
         notes: notes(&def).await,
         missing: warnings(&def, &planned),
         starts: planned,
+        capacity: Some(capacity),
         machine: environment_problems(state, row.fleet_uuid, &def).await,
     })
 }
@@ -135,6 +139,7 @@ mod tests {
         let warnings = cold_start_warnings(&def, &planned);
         let Ok(value) = serde_json::to_value(AtReady {
             starts: planned,
+            capacity: None,
             machine: Vec::new(),
             missing: warnings,
             notes: Vec::new(),

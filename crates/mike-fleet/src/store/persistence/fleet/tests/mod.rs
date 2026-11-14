@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub mod acceptance_notes;
 #[cfg(test)]
+pub mod adopt;
+#[cfg(test)]
 pub mod comms_thread;
 #[cfg(test)]
 pub mod crud;
