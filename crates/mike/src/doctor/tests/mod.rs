@@ -104,38 +104,46 @@ fn healthy() -> Observed {
         },
         rerank: RerankFacts::default(),
         launch_backend: "herdr".to_string(),
-        code_scan: Some(CodeScanFacts {
-            scanning: true,
-            delivering: false,
-            pushing: false,
-            grammars: vec!["bash".to_string(), "rust".to_string()],
-            rules: Some(BuiltinRules {
-                count: 42,
-                version: "abc123".to_string(),
-            }),
-            scans_24h: 12,
-            last_scan_at: Some("2026-11-14T09:00:00Z".to_string()),
+        code_scan: Some(healthy_code_scan()),
+        features: healthy_features(),
+    }
+}
+
+fn healthy_code_scan() -> CodeScanFacts {
+    CodeScanFacts {
+        scanning: true,
+        delivering: false,
+        pushing: false,
+        grammars: vec!["bash".to_string(), "rust".to_string()],
+        rules: Some(BuiltinRules {
+            count: 42,
+            version: "abc123".to_string(),
         }),
-        features: FeatureFacts {
-            jobs: JobFacts {
-                runnable: 4,
-                missing: Vec::new(),
-                needs_checkout: vec!["lessons_commit"],
-            },
-            worker_provider: WorkerProviderFacts {
-                claude_on_service_path: Some(PathBuf::from("/home/ada/.local/bin/claude")),
-                openrouter_key_variable: None,
-            },
-            codex: CodexFacts {
-                on_path: false,
-                home: Some(PathBuf::from("/home/ada/.codex")),
-                hooks_installed: false,
-            },
-            prompt_assistant: PromptAssistantFacts {
-                enabled: true,
-                addr: "127.0.0.1:9985".to_string(),
-                answering: true,
-            },
+        scans_24h: 12,
+        last_scan_at: Some("2026-11-14T09:00:00Z".to_string()),
+    }
+}
+
+fn healthy_features() -> FeatureFacts {
+    FeatureFacts {
+        jobs: JobFacts {
+            runnable: 4,
+            missing: Vec::new(),
+            needs_checkout: vec!["lessons_commit"],
+        },
+        worker_provider: WorkerProviderFacts {
+            claude_on_service_path: Some(PathBuf::from("/home/ada/.local/bin/claude")),
+            openrouter_key_variable: None,
+        },
+        codex: CodexFacts {
+            on_path: false,
+            home: Some(PathBuf::from("/home/ada/.codex")),
+            hooks_installed: false,
+        },
+        prompt_assistant: PromptAssistantFacts {
+            enabled: true,
+            addr: "127.0.0.1:9985".to_string(),
+            answering: true,
         },
     }
 }
