@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.session_registrations\n                     (session_id, project_id, cwd, worktree, registered_via,\n                      registered_at, lease_expires_at, released_at, pid, boot_id, reaped_at)\n                 VALUES ($1, $2, $3, $4, $5, now(), $6, NULL, $7, $8, NULL)\n                 ON CONFLICT (session_id) DO UPDATE\n                     SET project_id       = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.project_id ELSE excluded.project_id END,\n                         cwd              = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.cwd ELSE excluded.cwd END,\n                         worktree         = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.worktree ELSE excluded.worktree END,\n                         registered_via   = CASE WHEN (excluded.registered_via = 'passive' AND workspace.session_registrations.registered_via <> 'passive') THEN workspace.session_registrations.registered_via ELSE excluded.registered_via END,\n                         registered_at    = now(),\n                         lease_expires_at = excluded.lease_expires_at,\n                         released_at      = NULL,\n                         -- COALESCE, not overwrite: most re-registrations\n                         -- (any hook call until H3 ships) carry no pid, and\n                         -- clobbering a previously-known-good pid/boot_id\n                         -- with NULL on every such re-register would make a\n                         -- reaped row's self-heal (A5) permanently\n                         -- non-reapable again.\n                         pid              = COALESCE(excluded.pid, workspace.session_registrations.pid),\n                         boot_id          = COALESCE(excluded.boot_id, workspace.session_registrations.boot_id),\n                         reaped_at        = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ce86f132b1bbc6918d94102a023069ee917366ae09803595ebcc96d246d17341"
+}
