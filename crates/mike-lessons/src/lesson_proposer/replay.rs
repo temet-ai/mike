@@ -124,11 +124,42 @@ async fn related_verdict(
     Ok(verdict)
 }
 
-fn wants_relation(deps: &ProposerDeps<'_>, saved: &SavedProposal) -> Option<String> {
+fn wants_relation(deps: &ProposerDeps<'_>, saved: &SavedProposal, prod: bool) -> Option<String> {
     if saved.candidate.confidence < deps.settings.min_confidence {
         return None;
     }
-    write::accepted_rule(&saved.candidate, &saved.proposed).map(str::to_owned)
+    write::accepted_rule(&saved.proposed, prod).map(str::to_owned)
+}
+
+static PROD_ANSWERS: std::sync::LazyLock<dashmap::DashMap<i64, bool>> =
+    std::sync::LazyLock::new(dashmap::DashMap::new);
+
+async fn is_prod_message(deps: &ProposerDeps<'_>, saved: &SavedProposal) -> bool {
+    let candidate = &saved.candidate;
+    let Some(message) = candidate.correcting_message.as_deref() else {
+        return false;
+    };
+    if let Some(known) = PROD_ANSWERS.get(&candidate.verdict_id) {
+        return *known;
+    }
+    let decider = deps
+        .decisions
+        .and_then(|env| env.decider(crate::steerer::prod_point::POINT));
+    let answer = crate::steerer::prod_point::detect(
+        decider.as_ref(),
+        message,
+        DecisionSubject {
+            session_id: Some(candidate.session_id),
+            operator_turn_id: Some(candidate.operator_turn_id),
+            ..DecisionSubject::default()
+        },
+    )
+    .await;
+    if PROD_ANSWERS.len() > 10_000 {
+        PROD_ANSWERS.clear();
+    }
+    PROD_ANSWERS.insert(candidate.verdict_id, answer);
+    answer
 }
 
 pub async fn apply_saved(
@@ -140,7 +171,8 @@ pub async fn apply_saved(
         .touch_lesson_proposal(saved.candidate.verdict_id)
         .await
         .map_err(|e| e.to_string())?;
-    let rule = wants_relation(deps, saved);
+    let prod = is_prod_message(deps, saved).await;
+    let rule = wants_relation(deps, saved, prod);
     let embedded = embedding_for_rule(deps.embedding, rule.as_deref()).await;
     let verdict = match (rule.as_deref(), &embedded) {
         (Some(rule), Some(embedded)) => Some(related_verdict(deps, saved, rule, embedded).await?),
@@ -151,6 +183,7 @@ pub async fn apply_saved(
         None => embedded,
     };
     let decision = write::Decision {
+        prod,
         candidate: &saved.candidate,
         proposed: &saved.proposed,
         embedding: stored_embedding.as_ref(),

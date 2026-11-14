@@ -91,6 +91,35 @@ impl PersistHandle {
         .await
     }
 
+    pub async fn apply_prompt_origin(
+        &self,
+        request_id: i64,
+        kind_code: &str,
+        clear_repeat_key: bool,
+    ) -> Result<u64, PersistError> {
+        crate::metrics::time_db("apply_prompt_origin", async move {
+            let rows = sqlx::query!(
+                "UPDATE prompt_kinds.classifications c
+                    SET kind_id = k.id,
+                        repeat_key = CASE WHEN $3 THEN NULL ELSE c.repeat_key END
+                   FROM prompt_kinds.kinds k, prompt_kinds.kinds unmatched_kind
+                  WHERE k.code = $2
+                    AND unmatched_kind.code = 'operator'
+                    AND c.request_id = $1
+                    AND c.kind_id = unmatched_kind.id
+                    AND c.rule IS NULL",
+                request_id,
+                kind_code,
+                clear_repeat_key,
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+            Ok(rows)
+        })
+        .await
+    }
+
     pub async fn reclassify_batch(
         &self,
         rows: &[ReclassifyRow],

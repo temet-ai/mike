@@ -282,7 +282,7 @@ async fn run_post_mint_attribution(args: PostMintAttributionArgs<'_>) {
         classification_lane.is_tool_loop,
         classification_lane.has_agent_id,
     );
-    crate::store::operator_turns::record_prompt_kind_classification(
+    let recorded = crate::store::operator_turns::record_prompt_kind_classification(
         state.persist.as_ref(),
         crate::store::operator_turns::PromptKindClassificationInput {
             turn_origin,
@@ -297,6 +297,42 @@ async fn run_post_mint_attribution(args: PostMintAttributionArgs<'_>) {
         },
     )
     .await;
+    spawn_text_origin(
+        state,
+        recorded,
+        human_prompt_for_classification,
+        &classification_lane,
+        author,
+    );
+}
+
+fn spawn_text_origin(
+    state: &AppState,
+    recorded: Option<crate::store::operator_turns::RecordedPrompt>,
+    text: &str,
+    lane: &ClassificationLane<'_>,
+    author: &str,
+) {
+    use crate::wire::genuine::PromptKind;
+    let Some(recorded) =
+        recorded.filter(|r| r.class.kind == PromptKind::Genuine && r.class.rule.is_none())
+    else {
+        return;
+    };
+    let Some(env) = state.decision_env() else {
+        return;
+    };
+    let input = crate::llm::text_origin::Unmatched {
+        request_id: recorded.request_id,
+        session_db_id: recorded.session_db_id,
+        text: text.to_owned(),
+        last_user_message: lane.last_user_message.to_owned(),
+        author: author.to_owned(),
+        has_agent_id: lane.has_agent_id,
+    };
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
+        crate::llm::text_origin::classify(&env, &input).await;
+    });
 }
 
 struct CaptureFinishArgs<'a> {

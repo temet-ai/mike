@@ -1,3 +1,4 @@
+pub mod after;
 pub mod correction;
 pub mod corrector;
 pub mod evidence;
@@ -177,6 +178,13 @@ async fn answer_cut(cut: Cut, stitch: StitchPoint, body_tx: ClientTx, ctx: Forwa
         }
         Cut::Word { word, text } => {
             record_intercept(&ctx, InterceptOutcome::WeaselCorrection, &word);
+            after::spawn_ask(
+                ctx.state.decision_env(),
+                &ctx.state.tracker,
+                ctx.original_request_id,
+                &word,
+                &text,
+            );
             correction::run_weasel_correction(
                 correction::WeaselCorrectionCtx {
                     state: ctx.state,

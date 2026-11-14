@@ -56,6 +56,7 @@ pub async fn evaluate_guard_turn(
         persist,
         llm: &llm,
         decisions,
+        jev: super::jev_seam::GuardDeciders::default(),
         steerer_id: steerer.id,
         bundle_id: None,
         session_db_id: seam.session_db_id,

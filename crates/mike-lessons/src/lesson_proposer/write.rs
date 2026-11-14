@@ -2,7 +2,6 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::Value;
 
 use crate::lesson_shape::assess;
-use crate::steerer::guard::label_rules::is_prod;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::placement::PlacementWrite;
@@ -25,6 +24,7 @@ pub enum WriteOutcome {
 }
 
 pub struct Decision<'a> {
+    pub prod: bool,
     pub candidate: &'a CorrectionCandidate,
     pub proposed: &'a ProposedLesson,
     pub embedding: Option<&'a Embedded>,
@@ -35,11 +35,7 @@ pub struct Decision<'a> {
     pub similar: &'a Value,
 }
 
-pub fn accepted_rule<'a>(
-    candidate: &CorrectionCandidate,
-    proposed: &'a ProposedLesson,
-) -> Option<&'a str> {
-    let prod = candidate.correcting_message.as_deref().is_some_and(is_prod);
+pub fn accepted_rule(proposed: &ProposedLesson, prod: bool) -> Option<&str> {
     if prod {
         return None;
     }
@@ -61,7 +57,7 @@ impl Decision<'_> {
     }
 
     fn accepted_rule(&self) -> Option<&str> {
-        accepted_rule(self.candidate, self.proposed)
+        accepted_rule(self.proposed, self.prod)
     }
 }
 

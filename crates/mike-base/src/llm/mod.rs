@@ -13,6 +13,7 @@ pub mod openrouter;
 pub mod outage;
 pub mod provider;
 pub mod runtime;
+pub mod text_origin;
 pub mod usage;
 
 pub use error::LlmError;

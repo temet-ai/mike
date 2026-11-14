@@ -1,3 +1,4 @@
+pub mod checklist_seam;
 pub mod delivery_gate;
 pub mod done_claim;
 pub mod gate_probe;

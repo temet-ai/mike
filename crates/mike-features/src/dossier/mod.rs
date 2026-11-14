@@ -1,6 +1,8 @@
 pub use mike_base::dossier::*;
 pub mod build;
+pub mod directive_point;
 pub mod entries;
+pub mod probe_point;
 pub mod render;
 pub mod steering_facts;
 pub mod view;

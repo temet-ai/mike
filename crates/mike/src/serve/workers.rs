@@ -24,6 +24,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::dossier::worker::spawn_dossier_builder(state);
 
+    crate::analysis::phrase_worker::spawn_phrase_filter(&state.base);
+
     crate::memory_keeper::worker::spawn_memory_keeper(state);
 
     crate::steerer::spawn_steerer_fleet(state);

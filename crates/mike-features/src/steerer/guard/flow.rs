@@ -412,6 +412,24 @@ fn exempt_split(
     open
 }
 
+async fn open_questions(
+    turn: &GuardTurn<'_>,
+    ctx: &mut TurnContext,
+    questions: &[Question],
+    fleet_seats: bool,
+    record: &mut GuardRecord,
+) -> Vec<Question> {
+    let open = exempt_split(turn, ctx, questions, fleet_seats, record);
+    if open.is_empty() {
+        return open;
+    }
+    super::jev_seam::refine_phrase(turn, ctx, &open).await;
+    if turn.trigger == Trigger::Quiescence {
+        record.idle_seconds = idle_seconds(turn).await;
+    }
+    open
+}
+
 async fn judge(
     turn: &GuardTurn<'_>,
     questions: &[Question],
@@ -445,12 +463,9 @@ async fn judge(
         .await,
     );
     let settings = GuardSettings::load(turn.persist).await;
-    let open = exempt_split(turn, &ctx, questions, settings.fleet_seats, record);
+    let open = open_questions(turn, &mut ctx, questions, settings.fleet_seats, record).await;
     if open.is_empty() {
         return GuardStep::Continue;
-    }
-    if turn.trigger == Trigger::Quiescence {
-        record.idle_seconds = idle_seconds(turn).await;
     }
     let cfg = guard_config(turn.persist, turn.steerer_id).await;
     let gated = apply_gates(turn, &ctx, &cfg, settings.recall_sample_pct, &open, record);

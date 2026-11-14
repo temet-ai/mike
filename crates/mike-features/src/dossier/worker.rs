@@ -29,6 +29,7 @@ const BREAKER_COOLDOWN_BASE: Duration = Duration::from_secs(30);
 const BREAKER_COOLDOWN_MAX: Duration = Duration::from_secs(600);
 
 pub struct DossierWorkerDeps {
+    pub base: Option<crate::base_state::BaseState>,
     pub persist: PersistHandle,
     pub toggles: Arc<ArcSwap<FeatureToggles>>,
     pub shutdown: CancellationToken,
@@ -41,6 +42,7 @@ pub fn spawn_dossier_builder(state: &AppState) {
     };
     let rx = state.event_tx.subscribe();
     let deps = DossierWorkerDeps {
+        base: Some(state.base.clone()),
         persist,
         toggles: state.feature_toggle_overlay.clone(),
         shutdown: state.shutdown(),
@@ -155,6 +157,11 @@ impl BuilderLoop {
         }
         let cfg = BuildConfig {
             settle: self.runtime.settle,
+            decisions: self
+                .deps
+                .base
+                .as_ref()
+                .and_then(crate::base_state::BaseState::decision_env),
         };
         let outcome = build_sessions(&self.deps.persist, sessions, Utc::now(), &cfg).await;
         self.breaker
@@ -209,6 +216,7 @@ async fn build_sessions_now(
     let runtime = DossierRuntime::read(persist, DossierRuntime::default()).await;
     let cfg = BuildConfig {
         settle: runtime.settle,
+        decisions: None,
     };
     build_sessions(persist, session_ids, Utc::now(), &cfg).await
 }

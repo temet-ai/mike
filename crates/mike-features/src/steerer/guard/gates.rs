@@ -1,54 +1,11 @@
-use std::sync::LazyLock;
-
 use regex::Regex;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+use super::step_class::StepClass;
+use crate::dossier::build::ended_on::{DONE_VOCAB, HANDBACK, NEXT_STEP, WAIT};
+
 pub const GATE_VERSION: &str = "gate-v1";
-
-static WAIT: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    Regex::new(concat!(
-        r"(?i)\b(i'?ll|i will|we'?ll)\s+(report|check( back| in)?|come back|get back|follow up|pick (this|it) up|",
-        r"let you know|ping you|post|update you|resume|watch|monitor)\b|\b(waiting (for|on)|awaiting|",
-        r"once (it|they|that|the [\w-]+) (finish|finishes|completes?|lands?|reports?|returns?)|",
-        r"when (it|they|that) (finish|finishes|completes?|lands?|reports?)|next wake|still running|",
-        r"in the background|standing by|will be back)\b"
-    ))
-    .ok()
-});
-
-static NEXT_STEP: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    Regex::new(
-        r"(?i)(^|\n|[.!]\s+)(now\s+)?(let me|let's|next,? i'?ll|i'?m going to|i'?ll now|now i'?ll|then i'?ll)\b",
-    )
-    .ok()
-});
-
-static HANDBACK: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    Regex::new(concat!(
-        r"(?i)\b(want me to|shall i|should i|would you like( me)? to|do you want( me)? to|",
-        r"let me know if you('d)? (like|want)|say the word|if you('d)? like,? i|your call|",
-        r"needs? your (decision|go-?ahead|approval|input)|awaiting your|which (option|one|approach) ",
-        r"(do|would) you|ok to (proceed|push|commit|merge|deploy))\b"
-    ))
-    .ok()
-});
-
-pub const DONE_VOCAB: [&str; 13] = [
-    "done",
-    "complete",
-    "completed",
-    "finished",
-    "shipped",
-    "landed",
-    "merged",
-    "deployed",
-    "implemented",
-    "resolved",
-    "verified",
-    "fixed",
-    "ready",
-];
 
 pub const ARMING_MARKERS: [&str; 15] = [
     "all tests pass",
@@ -101,6 +58,8 @@ pub struct PhraseGates {
     pub handback_match: Option<String>,
     pub wait_match: Option<String>,
     pub done_match: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_class: Option<StepClass>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -187,10 +146,8 @@ pub fn last_line(text: &str) -> &str {
         .unwrap_or("")
 }
 
-fn find(re: &LazyLock<Option<Regex>>, text: &str) -> Option<String> {
-    re.as_ref()
-        .and_then(|r| r.find(text))
-        .map(|m| m.as_str().to_owned())
+fn find(re: &Regex, text: &str) -> Option<String> {
+    re.find(text).map(|m| m.as_str().to_owned())
 }
 
 fn done_match(tail: &str, verifier_pattern: &str) -> Option<String> {
@@ -248,5 +205,6 @@ pub fn phrase_gates(text: &str, verifier_pattern: &str) -> PhraseGates {
         handback_match,
         wait_match,
         done_match: done,
+        step_class: None,
     }
 }

@@ -179,7 +179,11 @@ pub fn handback_gate(ctx: &GateContext<'_>) -> QuestionGate {
     if !ctx.phrase.g3 {
         return QuestionGate::plain(GateOutcome::closed("g3", "no_handback_ending", json!({})));
     }
-    let Some(class) = classify_ending(ctx.ending) else {
+    let Some(class) = ctx
+        .phrase
+        .step_class
+        .or_else(|| classify_ending(ctx.ending))
+    else {
         return QuestionGate::plain(GateOutcome::closed("g3", "no_step_class", json!({})));
     };
     let used = |extra: Value| json!({"step_class": class.code(), "authorisation": extra});

@@ -262,6 +262,20 @@ fn log_no_usable_key_for_reauthoring(session_uuid: Uuid) {
     );
 }
 
+fn criteria_decider(
+    ctx: &FleetCtx,
+    ph: &PersistHandle,
+) -> Option<crate::llm::decisions::point::Decider> {
+    let keyed = crate::llm::key::keyed_client(&ctx.llm, &ctx.key_slot)?;
+    crate::llm::decisions::point::Decider::for_point(
+        &keyed,
+        ph,
+        ctx.toggles.load().decisions,
+        &ctx.settings.load(),
+        crate::steerer::criteria_point::POINT,
+    )
+}
+
 pub async fn reauthor_intake_criteria(ctx: &FleetCtx, ph: &PersistHandle, session_uuid: Uuid) {
     let Some(session_db_id) = ph
         .resolve_session_db_id(&session_uuid.to_string())
@@ -303,12 +317,21 @@ pub async fn reauthor_intake_criteria(ctx: &FleetCtx, ph: &PersistHandle, sessio
     let budget = intake_criteria::IntakeInputBudget::from_setting(
         &ctx.settings.load().steerer_intake_criteria_input_budget,
     );
-    let Some(criteria) = intake_criteria::author(
+    let decider = criteria_decider(ctx, ph);
+    let jev = decider.as_ref().map(|decider| intake_criteria::IntakeJev {
+        decider,
+        subject: crate::llm::decisions::record::DecisionSubject {
+            session_id: Some(session_db_id),
+            ..crate::llm::decisions::record::DecisionSubject::default()
+        },
+    });
+    let Some(criteria) = intake_criteria::author_with(
         &llm,
         &ledger.entries,
         older_not_fetched,
         &project_path,
         budget,
+        jev,
     )
     .await
     else {

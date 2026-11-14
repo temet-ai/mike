@@ -58,6 +58,7 @@ async fn evidence_only_when_the_model_finds_no_generalising_rule() -> anyhow::Re
     let candidate = seed_corrected_turn(&f, 40_100).await?;
     let empty = json!([]);
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed("", false),
         embedding: None,
@@ -86,6 +87,7 @@ async fn evidence_only_when_the_correcting_message_is_a_prod() -> anyhow::Result
     candidate.correcting_message = Some("?".to_owned());
     let empty = json!([]);
     let decision = Decision {
+        prod: true,
         candidate: &candidate,
         proposed: &proposed("always run the tests before claiming they pass", true),
         embedding: Some(&embedded()),
@@ -111,6 +113,7 @@ async fn evidence_only_when_the_verdict_confidence_is_below_the_threshold() -> a
     let embedded = embedded();
     let empty = json!([]);
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed("always run the tests before claiming they pass", true),
         embedding: Some(&embedded),
@@ -150,6 +153,7 @@ async fn creates_a_raw_lesson_and_leaves_it_pending_below_the_promotion_threshol
     let embedded = embedded();
     let empty = json!([]);
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed("always run the tests before claiming they pass", true),
         embedding: Some(&embedded),
@@ -194,6 +198,7 @@ async fn promotes_the_lesson_once_evidence_reaches_the_configured_minimum() -> a
     let embedded = embedded();
     let empty = json!([]);
     let decision = Decision {
+        prod: false,
         candidate: &candidate,
         proposed: &proposed("always run the tests before claiming they pass", true),
         embedding: Some(&embedded),
@@ -221,6 +226,7 @@ async fn reinforces_an_existing_lesson_instead_of_writing_a_new_one() -> anyhow:
     let embedded = embedded();
     let empty = json!([]);
     let first_decision = Decision {
+        prod: false,
         candidate: &first,
         proposed: &proposed("always run the tests before claiming they pass", true),
         embedding: Some(&embedded),
@@ -250,6 +256,7 @@ async fn reinforces_an_existing_lesson_instead_of_writing_a_new_one() -> anyhow:
         notes: Vec::new(),
     };
     let second_decision = Decision {
+        prod: false,
         candidate: &second,
         proposed: &proposed("run the tests before saying they pass", true),
         embedding: Some(&embedded),

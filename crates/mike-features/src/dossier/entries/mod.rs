@@ -84,6 +84,15 @@ pub async fn run_entries_step(
     session_ids: &[i64],
     settle: Duration,
 ) -> Result<EntriesReport, PersistError> {
+    run_entries_step_with(persist, session_ids, settle, None).await
+}
+
+pub async fn run_entries_step_with(
+    persist: &PersistHandle,
+    session_ids: &[i64],
+    settle: Duration,
+    decisions: Option<&crate::llm::decisions::env::DecisionEnv>,
+) -> Result<EntriesReport, PersistError> {
     let mut report = EntriesReport::default();
     if session_ids.is_empty() {
         return Ok(report);
@@ -92,7 +101,12 @@ pub async fn run_entries_step(
         .dossier()
         .load_directive_sources(session_ids)
         .await?;
-    let directives = directives::entries_for(&directive_sources);
+    let directives = crate::dossier::directive_point::refine(
+        decisions,
+        &directive_sources,
+        directives::entries_for(&directive_sources),
+    )
+    .await;
     report.entries_written += persist
         .dossier()
         .insert_dossier_entries(&directives)
@@ -117,11 +131,12 @@ pub async fn run_after_build(
     persist: &PersistHandle,
     session_ids: &[i64],
     settle: Duration,
+    decisions: Option<&crate::llm::decisions::env::DecisionEnv>,
 ) -> Result<EntriesReport, PersistError> {
     let since = persist.dossier().ledger_builder_since().await?;
     let mut report = link_ledger_step(persist, session_ids, since).await?;
     if entries_enabled(persist).await? {
-        let entries = run_entries_step(persist, session_ids, settle).await?;
+        let entries = run_entries_step_with(persist, session_ids, settle, decisions).await?;
         report.absorb(&entries);
     }
     Ok(report)

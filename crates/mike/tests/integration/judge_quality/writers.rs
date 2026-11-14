@@ -50,6 +50,7 @@ async fn a_projected_corrected_turn_stays_corrected_after_the_builder_runs() -> 
         Utc::now() + Duration::hours(1),
         &mike::dossier::build::BuildConfig {
             settle: Duration::minutes(30),
+            decisions: None,
         },
     )
     .await?;

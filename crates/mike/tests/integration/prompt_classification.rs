@@ -12,6 +12,8 @@ use sqlx::PgPool;
 
 #[path = "prompt_classification/migration.rs"]
 mod migration;
+#[path = "prompt_classification/origin.rs"]
+mod origin;
 #[path = "prompt_classification/streams.rs"]
 mod streams;
 

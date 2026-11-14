@@ -48,6 +48,7 @@ async fn lagged_broadcast_is_recovered_by_backstop() -> anyhow::Result<()> {
     }
     let shutdown = CancellationToken::new();
     let deps = DossierWorkerDeps {
+        base: None,
         persist: f.handle.clone(),
         toggles: Arc::new(ArcSwap::from_pointee(FeatureToggles {
             dossier_builder: true,

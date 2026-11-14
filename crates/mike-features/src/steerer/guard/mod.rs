@@ -7,6 +7,7 @@ pub mod flow;
 pub mod gates;
 pub mod holdback;
 pub mod input;
+pub mod jev_seam;
 pub mod label;
 pub mod label_call;
 pub mod label_rules;
@@ -135,6 +136,7 @@ pub struct GuardTurn<'a> {
     pub persist: &'a PersistHandle,
     pub llm: &'a OpenRouterClient,
     pub decisions: Option<precheck_seam::DecisionsTurn>,
+    pub jev: jev_seam::GuardDeciders,
     pub steerer_id: i64,
     pub bundle_id: Option<i64>,
     pub session_db_id: i64,
