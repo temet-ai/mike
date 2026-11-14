@@ -176,9 +176,16 @@ pub async fn judged(
         (Some(_), true) => "chosen",
         _ => "none",
     };
-    decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
-        .await;
+    let picked = match &pick {
+        Some(Pick::Candidate { index, .. }) => candidates.get(*index),
+        _ => None,
+    };
+    let verdict = json!({
+        "score": score,
+        "picked_seat": picked.map(|c| c.seat),
+        "picked_commit": picked.map(|c| c.commit),
+    });
+    decider.mark(&asked, asked.composed(verdict), applied).await;
     pick.filter(|_| decider.applies())
         .map(|pick| blame_of(&pick, candidates, since))
 }

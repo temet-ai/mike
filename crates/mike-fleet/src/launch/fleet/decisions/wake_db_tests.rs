@@ -64,6 +64,7 @@ fn mail<'a>(fx: &DecisionsFixture, from: Option<Uuid>, body: &'a str) -> Mail<'a
         in_reply_to_id: None,
         body,
         sender_label: Some("worker-T2"),
+        message_uuid: None,
     }
 }
 

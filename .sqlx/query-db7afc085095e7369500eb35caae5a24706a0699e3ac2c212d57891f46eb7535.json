@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH answers AS (\n    SELECT r.id AS record_id, r.created_at,\n           (s ->> 'session_id')::bigint AS session_id,\n           (s ->> 'is_probe')::boolean AS is_probe\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_array_elements(\n               COALESCE(r.composed -> 'verdict' -> 'sessions', '[]'::jsonb)\n           ) s\n     WHERE r.point = 'probe_session'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n),\nlater AS (\n    SELECT a.record_id, a.created_at, a.is_probe,\n           EXISTS (SELECT 1 FROM memory.operator_turns t\n                    WHERE t.session_id = a.session_id\n                      AND t.opened_by = 'operator'\n                      AND t.created_at > a.created_at) AS operator_turns\n      FROM answers a\n),\njudged AS (\n    SELECT l.record_id,\n           CASE\n               WHEN l.is_probe AND l.operator_turns THEN 'wrong'\n               WHEN l.is_probe AND l.created_at <= now() - interval '24 hours' THEN 'right'\n               WHEN NOT l.is_probe AND l.operator_turns THEN 'right'\n           END AS label\n      FROM later l\n),\nper_record AS (\n    SELECT j.record_id,\n           CASE WHEN bool_or(j.label = 'wrong') THEN 'wrong' ELSE 'right' END AS label,\n           count(*) AS sessions\n      FROM judged j\n     WHERE j.label IS NOT NULL\n     GROUP BY j.record_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT p.record_id, p.label, 'later_operator_turns',\n       jsonb_build_object('judged_sessions', p.sessions)\n  FROM per_record p\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = p.record_id AND o.label_source = 'later_operator_turns')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "db7afc085095e7369500eb35caae5a24706a0699e3ac2c212d57891f46eb7535"
+}

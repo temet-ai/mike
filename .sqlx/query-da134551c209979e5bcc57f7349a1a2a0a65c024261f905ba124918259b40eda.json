@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.launches (backend, folder, run_id, session_uuid, seat)\n         VALUES ('herdr', '/tmp/outcomes', $1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da134551c209979e5bcc57f7349a1a2a0a65c024261f905ba124918259b40eda"
+}

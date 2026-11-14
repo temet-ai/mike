@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH blamed AS (\n    SELECT r.id AS record_id, r.created_at, r.commit_sha AS failed_sha,\n           r.composed -> 'verdict' ->> 'picked_seat' AS seat\n      FROM decisions.records r\n     WHERE r.point = 'gate_blame'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.commit_sha IS NOT NULL\n       AND r.composed -> 'verdict' ->> 'picked_seat' IS NOT NULL\n),\nfailed AS (\n    SELECT DISTINCT ON (b.record_id) b.record_id, b.seat, ce.run_id, ce.at AS failed_at\n      FROM blamed b\n      JOIN workspace.change_events ce\n        ON ce.kind = 'check'\n       AND ce.run_id IS NOT NULL\n       AND ce.after_sha = b.failed_sha\n       AND ce.detail ->> 'label' = 'gate'\n       AND (ce.detail ->> 'passed')::boolean = false\n     ORDER BY b.record_id, abs(extract(epoch FROM ce.at - b.created_at))\n),\npassed AS (\n    SELECT DISTINCT ON (f.record_id) f.record_id, f.seat, f.run_id, f.failed_at, ce.at AS passed_at\n      FROM failed f\n      JOIN workspace.change_events ce\n        ON ce.kind = 'check'\n       AND ce.run_id = f.run_id\n       AND ce.detail ->> 'label' = 'gate'\n       AND (ce.detail ->> 'passed')::boolean = true\n       AND ce.at > f.failed_at\n     ORDER BY f.record_id, ce.at\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT p.record_id,\n       CASE WHEN EXISTS (\n                SELECT 1\n                  FROM launch.launches l\n                  JOIN launch.fleet_events fe\n                    ON fe.session_uuid = l.session_uuid\n                   AND fe.run_id = p.run_id\n                   AND fe.kind = 'commit_landed'\n                 WHERE l.run_id = p.run_id\n                   AND l.seat = p.seat\n                   AND fe.occurred_at > p.failed_at\n                   AND fe.occurred_at <= p.passed_at\n            ) THEN 'right' ELSE 'wrong' END,\n       'next_gate_pass',\n       jsonb_build_object('run_id', p.run_id, 'seat', p.seat,\n                          'failed_at', p.failed_at, 'passed_at', p.passed_at)\n  FROM passed p\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = p.record_id AND o.label_source = 'next_gate_pass')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "e1f14b17d0c7e84caae84a37b0ab411786cc947cd7125d9fb854243b3b064f40"
+}

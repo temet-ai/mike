@@ -140,7 +140,7 @@ async fn jev_judge_on_answers_that_show_every_criterion_passes() -> anyhow::Resu
     )
     .await;
     let decider = jev_decider(&server, &fx.handle, POINT, DecisionMode::On)?;
-    let judged = jev_judge(&decider, &input(Some(0), &[])).await;
+    let judged = jev_judge(&decider, &input(Some(0), &[]), uuid::Uuid::new_v4()).await;
     assert_eq!(judged.map(|j| j.answer.verdict), Some(JudgeVerdict::Pass));
     fx.finish().await
 }
@@ -152,7 +152,8 @@ async fn jev_judge_with_a_failing_client_leaves_the_judgement_to_the_model() -> 
     };
     let server = stub_jev(500, json!({})).await;
     let decider = jev_decider(&server, &fx.handle, POINT, DecisionMode::On)?;
-    assert_eq!(jev_judge(&decider, &input(Some(0), &[])).await, None);
+    let note = uuid::Uuid::new_v4();
+    assert_eq!(jev_judge(&decider, &input(Some(0), &[]), note).await, None);
     fx.finish().await
 }
 
@@ -173,7 +174,10 @@ async fn jev_judge_below_the_floor_asks_nothing() -> anyhow::Result<()> {
         code: FailCode::Check,
         line: "make test failed".to_owned(),
     };
-    assert_eq!(jev_judge(&decider, &failed).await, None);
+    assert_eq!(
+        jev_judge(&decider, &failed, uuid::Uuid::new_v4()).await,
+        None
+    );
     assert!(
         server
             .received_requests()

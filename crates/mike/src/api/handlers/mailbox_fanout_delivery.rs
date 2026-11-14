@@ -40,6 +40,7 @@ async fn deliver_one_fanout_recipient(
     to_uuid: uuid::Uuid,
 ) -> Result<ThreadDeliveryDto, FailedDeliveryDto> {
     let to_session_id = resolve_fanout_recipient_id(handle, to_uuid).await?;
+    let message_uuid = uuid::Uuid::new_v4();
     let held = crate::launch::fleet::decisions::wake::hold(
         &state.base,
         &crate::launch::fleet::decisions::wake::Mail {
@@ -48,11 +49,12 @@ async fn deliver_one_fanout_recipient(
             in_reply_to_id: None,
             body: &args.body.message,
             sender_label: args.sender_label,
+            message_uuid: Some(message_uuid),
         },
     )
     .await;
-    let (message_uuid, queued_at) =
-        insert_fanout_message(handle, args, (to_session_id, to_uuid), held).await?;
+    let queued_at =
+        insert_fanout_message(handle, args, (to_session_id, to_uuid, message_uuid), held).await?;
     let reminder = crate::store::models::SystemReminder {
         payload: crate::store::persistence::mailbox::MailboxEnvelope {
             from_session_uuid: Some(&args.from_session_uuid.to_string()),
@@ -99,10 +101,9 @@ async fn resolve_fanout_recipient_id(
 async fn insert_fanout_message(
     handle: &crate::store::persistence::PersistHandle,
     args: &FanoutDeliveryArgs<'_>,
-    (to_session_id, to_uuid): (i64, uuid::Uuid),
+    (to_session_id, to_uuid, message_uuid): (i64, uuid::Uuid, uuid::Uuid),
     held: bool,
-) -> Result<(uuid::Uuid, chrono::DateTime<chrono::Utc>), FailedDeliveryDto> {
-    let message_uuid = uuid::Uuid::new_v4();
+) -> Result<chrono::DateTime<chrono::Utc>, FailedDeliveryDto> {
     match handle
         .launch()
         .insert_threaded_message_with_context(
@@ -119,7 +120,7 @@ async fn insert_fanout_message(
         )
         .await
     {
-        Ok(Some(queued_at)) => Ok((message_uuid, queued_at)),
+        Ok(Some(queued_at)) => Ok(queued_at),
         Ok(None) => Err(failed_delivery(to_uuid, "recipient_closed")),
         Err(e) => {
             tracing::warn!(error = %e, %to_uuid, "post_session_message_role_fanout: insert failed");

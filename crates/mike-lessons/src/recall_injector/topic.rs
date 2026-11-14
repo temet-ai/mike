@@ -81,9 +81,9 @@ pub fn compose(asked: &Asked, missing: &[String], catalog: &[String]) -> Vec<Map
         .collect()
 }
 
-async fn catalog(persist: &PersistHandle, project_path: &str) -> Vec<String> {
+async fn catalog(persist: &PersistHandle, project_path: &str) -> (Option<i64>, Vec<String>) {
     let Ok(Some(project_id)) = persist.project_id_for_path(project_path).await else {
-        return Vec::new();
+        return (None, Vec::new());
     };
     let mut topics = persist
         .lessons()
@@ -91,7 +91,7 @@ async fn catalog(persist: &PersistHandle, project_path: &str) -> Vec<String> {
         .await
         .unwrap_or_default();
     topics.truncate(MAX_CATALOG);
-    topics
+    (Some(project_id), topics)
 }
 
 pub async fn map_near_misses(
@@ -99,7 +99,7 @@ pub async fn map_near_misses(
     persist: &PersistHandle,
     project_path: &str,
     missing: &[String],
-    context: &str,
+    (context, request_id): (&str, Option<i64>),
 ) -> Vec<Mapping> {
     let Some(decider) = env.and_then(|e| e.decider(POINT)) else {
         return Vec::new();
@@ -108,7 +108,7 @@ pub async fn map_near_misses(
     if missing.is_empty() {
         return Vec::new();
     }
-    let catalog = catalog(persist, project_path).await;
+    let (project_id, catalog) = catalog(persist, project_path).await;
     if catalog.is_empty() {
         return Vec::new();
     }
@@ -117,7 +117,11 @@ pub async fn map_near_misses(
             QUESTION_SET,
             state(&missing, &catalog, context),
             questions(&missing, &catalog),
-            DecisionSubject::default(),
+            DecisionSubject {
+                request_id,
+                project_id,
+                ..DecisionSubject::default()
+            },
             json!({ "min_map": MIN_MAP }),
         )
         .await;
@@ -128,8 +132,13 @@ pub async fn map_near_misses(
     } else {
         "chosen"
     };
+    let mapped: Vec<&str> = mappings.iter().map(|m| m.mapped.as_str()).collect();
     decider
-        .mark(&asked, asked.composed(json!({ "score": score })), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({ "score": score, "mapped_topics": mapped })),
+            applied,
+        )
         .await;
     if decider.applies() {
         mappings

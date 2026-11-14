@@ -72,6 +72,7 @@ fn state_carries_the_task_files_and_the_message_tail() {
         in_reply_to_id: None,
         body: "heads up",
         sender_label: Some("worker-T2"),
+        message_uuid: None,
     };
     let value = state(&seat, &mail);
     assert_eq!(value["seat_task"], "Parser");

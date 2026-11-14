@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH mapped AS (\n    SELECT r.id AS record_id, r.request_id, r.project_id, t.topic\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_array_elements_text(\n               COALESCE(r.composed -> 'verdict' -> 'mapped_topics', '[]'::jsonb)\n           ) t(topic)\n     WHERE r.point = 'recall_topic'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.request_id IS NOT NULL\n       AND r.project_id IS NOT NULL\n),\nverdicts AS (\n    SELECT m.record_id,\n           bool_or(COALESCE(v.hand_verdict, v.verdict) = 'used') AS useful,\n           count(*) AS items\n      FROM mapped m\n      JOIN memory.lessons ls ON ls.project_id = m.project_id AND ls.topic = m.topic\n      JOIN memory.supplied_items si\n        ON si.request_id = m.request_id\n       AND si.item_kind = 'lesson'\n       AND si.lesson_id = ls.id\n      JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = si.id\n     GROUP BY m.record_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT v.record_id,\n       CASE WHEN v.useful THEN 'right' ELSE 'wrong' END,\n       'recalled_lesson_verdict',\n       jsonb_build_object('judged_items', v.items, 'any_used', v.useful)\n  FROM verdicts v\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = v.record_id AND o.label_source = 'recalled_lesson_verdict')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "4762aaba38e7b03b90bde2768073d2568d19de16b9a0daddd5be3c1162fa8cb7"
+}

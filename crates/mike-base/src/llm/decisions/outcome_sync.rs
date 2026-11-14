@@ -24,6 +24,7 @@ impl super::DecisionStore<'_> {
         synced += self.sync_session_and_supply_outcomes().await?;
         synced += self.sync_lesson_outcomes().await?;
         synced += self.sync_fleet_and_project_outcomes().await?;
+        synced += self.sync_event_outcomes().await?;
         Ok(synced)
     }
 

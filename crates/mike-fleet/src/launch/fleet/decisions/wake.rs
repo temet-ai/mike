@@ -29,6 +29,7 @@ pub struct Mail<'a> {
     pub in_reply_to_id: Option<i64>,
     pub body: &'a str,
     pub sender_label: Option<&'a str>,
+    pub message_uuid: Option<Uuid>,
 }
 
 pub struct SeatContext {
@@ -177,6 +178,7 @@ async fn judge(
         session_id,
         fleet_run_id: Some(seat.fleet_id),
         seat: Some(seat.seat.clone()),
+        message_uuid: mail.message_uuid,
         ..DecisionSubject::default()
     };
     let asked = decider

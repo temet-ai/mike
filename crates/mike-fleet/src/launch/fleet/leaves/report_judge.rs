@@ -61,7 +61,7 @@ pub async fn judge_report_with(
     let earlier = earlier_rounds(&events, &report.task);
     let input = input_for(persist, def, report, floor, earlier.clone()).await;
     let by_jev = match decider {
-        Some(decider) => jev_judge(decider, &input).await,
+        Some(decider) => jev_judge(decider, &input, report.note).await,
         None => None,
     };
     let judged = match by_jev {

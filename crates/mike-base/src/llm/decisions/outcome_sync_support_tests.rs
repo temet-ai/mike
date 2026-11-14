@@ -28,6 +28,8 @@ pub(super) struct NewRecord<'a> {
     pub request_id: Option<i64>,
     pub project_id: Option<i64>,
     pub check_receipt_id: Option<i64>,
+    pub commit_sha: Option<String>,
+    pub message_uuid: Option<Uuid>,
     pub age_days: i32,
 }
 
@@ -42,6 +44,8 @@ impl<'a> NewRecord<'a> {
             request_id: None,
             project_id: None,
             check_receipt_id: None,
+            commit_sha: None,
+            message_uuid: None,
             age_days: 0,
         }
     }
@@ -128,10 +132,11 @@ impl Env {
             "INSERT INTO decisions.records
                  (created_at, point, mode, question_set, question_set_hash, model_requested,
                   state, questions, request_body, outcome, session_id, operator_turn_id,
-                  request_id, project_id, check_receipt_id, composed, applied)
+                  request_id, project_id, check_receipt_id, composed, applied, commit_sha,
+                  message_uuid)
              VALUES (now() - ($1::int * interval '1 day'), $2, 'on', 'test_v1', 'h',
                      'typesafe/jev-1.14', '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 'ok',
-                     $3, $4, $5, $6, $7, $8, $9)
+                     $3, $4, $5, $6, $7, $8, $9, $10, $11)
              RETURNING id",
             new.age_days,
             new.point,
@@ -142,6 +147,8 @@ impl Env {
             new.check_receipt_id,
             new.composed,
             new.applied,
+            new.commit_sha,
+            new.message_uuid,
         )
         .fetch_one(self.handle.pool())
         .await?)

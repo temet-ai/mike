@@ -160,7 +160,7 @@ fn unmet_text(unmet: &[(String, f64)], input: &JudgeInput) -> String {
         .join(" ")
 }
 
-pub async fn jev_judge(decider: &Decider, input: &JudgeInput) -> Option<Judged> {
+pub async fn jev_judge(decider: &Decider, input: &JudgeInput, note: uuid::Uuid) -> Option<Judged> {
     if !input.floor.reaches_judge() {
         return None;
     }
@@ -171,6 +171,7 @@ pub async fn jev_judge(decider: &Decider, input: &JudgeInput) -> Option<Judged> 
             questions(&input.criteria),
             DecisionSubject {
                 commit_sha: Some(input.floor.sha().to_owned()),
+                message_uuid: Some(note),
                 ..DecisionSubject::default()
             },
             json!({"pass_at": PASS_AT, "fail_at": FAIL_AT}),
@@ -184,8 +185,17 @@ pub async fn jev_judge(decider: &Decider, input: &JudgeInput) -> Option<Judged> 
         Composed::Check => 0.0,
     };
     let applied = if answer.is_some() { "chosen" } else { "none" };
+    let verdict = match &composed {
+        Composed::Pass { .. } => Some("pass"),
+        Composed::Fail { .. } => Some("fail"),
+        Composed::Check => None,
+    };
     decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({"score": score, "verdict": verdict})),
+            applied,
+        )
         .await;
     answer.map(|answer| Judged {
         answer,

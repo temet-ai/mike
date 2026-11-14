@@ -205,8 +205,15 @@ impl<M: LeafModel> Solver for JevSolver<M> {
             None => None,
         };
         let applied = if decision.is_some() { "chosen" } else { "none" };
+        let kind = composed.map(|(kind, _)| kind.as_str());
         self.decider
-            .mark(&asked, asked.composed(json!({"score": score})), applied)
+            .mark(
+                &asked,
+                asked.composed(
+                    json!({"score": score, "problem_id": dossier.problem_id, "decision": kind}),
+                ),
+                applied,
+            )
             .await;
         match decision {
             Some(decision) => Ok(decision),

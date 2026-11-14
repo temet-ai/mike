@@ -99,7 +99,8 @@ pub async fn apply_recall_injection_with(
         return RecallOutcome::Declined("recall_no_project");
     }
 
-    let near = decisions.map(|env| (env, assistant_text.as_str()));
+    let asking = i64::try_from(request_id.as_u64()).ok();
+    let near = decisions.map(|env| (env, assistant_text.as_str(), asking));
     let Some(Gathered {
         rows: all_rows,
         topics,
@@ -196,23 +197,29 @@ async fn gather_lessons_for_topics(
     project_path: &str,
     topics: &[String],
     cfg: &RecallInjectorConfig,
-    near: Option<(&DecisionEnv, &str)>,
+    near: Option<(&DecisionEnv, &str, Option<i64>)>,
 ) -> Option<Gathered> {
     let per_topic_limit = i64::try_from(cfg.max_lessons_per_topic).unwrap_or(i64::MAX);
     let mut rows = list_rows(persist, project_path, topics, per_topic_limit).await?;
     let mut requested = topics.to_vec();
-    if let Some((env, context)) = near {
+    if let Some((env, context, request)) = near {
         let missing: Vec<String> = topics
             .iter()
             .filter(|t| !rows.iter().any(|r| r.topic.as_deref() == Some(t.as_str())))
             .cloned()
             .collect();
-        let mapped = topic::map_near_misses(Some(env), persist, project_path, &missing, context)
-            .await
-            .into_iter()
-            .map(|m| m.mapped)
-            .filter(|m| !requested.contains(m))
-            .collect::<Vec<_>>();
+        let mapped = topic::map_near_misses(
+            Some(env),
+            persist,
+            project_path,
+            &missing,
+            (context, request),
+        )
+        .await
+        .into_iter()
+        .map(|m| m.mapped)
+        .filter(|m| !requested.contains(m))
+        .collect::<Vec<_>>();
         if !mapped.is_empty() {
             rows.extend(list_rows(persist, project_path, &mapped, per_topic_limit).await?);
             requested.extend(mapped);

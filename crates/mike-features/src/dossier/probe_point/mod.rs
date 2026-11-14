@@ -83,8 +83,16 @@ pub async fn fill(env: &DecisionEnv, candidates: Vec<Candidate>) {
             remember(&found);
             "chosen"
         };
+        let sessions: Vec<_> = found
+            .iter()
+            .map(|v| json!({ "session_id": v.session_id, "is_probe": v.is_probe }))
+            .collect();
         decider
-            .mark(&asked, asked.composed(json!({ "score": score })), applied)
+            .mark(
+                &asked,
+                asked.composed(json!({ "score": score, "sessions": sessions })),
+                applied,
+            )
             .await;
     }
 }

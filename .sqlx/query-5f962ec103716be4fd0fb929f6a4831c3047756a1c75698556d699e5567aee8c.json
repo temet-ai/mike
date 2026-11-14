@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH decided AS (\n    SELECT r.id AS record_id, r.created_at,\n           r.composed -> 'verdict' ->> 'problem_id' AS problem_id,\n           r.composed -> 'verdict' ->> 'decision' AS decision\n      FROM decisions.records r\n     WHERE r.point = 'problem_solver'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.composed -> 'verdict' ->> 'problem_id' IS NOT NULL\n),\nfollowed AS (\n    SELECT d.record_id, d.created_at,\n           EXISTS (SELECT 1 FROM launch.fleet_events e\n                    WHERE e.kind = 'problem_opened'\n                      AND e.payload ->> 'problem_id' = d.problem_id\n                      AND e.occurred_at > d.created_at\n                      AND e.occurred_at <= d.created_at + interval '24 hours') AS reopened,\n           EXISTS (SELECT 1 FROM launch.fleet_events e\n                    WHERE e.kind = 'problem_escalated'\n                      AND e.payload ->> 'problem_id' = d.problem_id\n                      AND e.occurred_at > d.created_at\n                      AND e.occurred_at <= d.created_at + interval '24 hours') AS escalated,\n           d.decision\n      FROM decided d\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT f.record_id,\n       CASE WHEN f.reopened OR (f.escalated AND f.decision <> 'escalate')\n            THEN 'wrong' ELSE 'right' END,\n       'problem_after_24h',\n       jsonb_build_object('reopened', f.reopened, 'escalated_after', f.escalated,\n                          'decision', f.decision)\n  FROM followed f\n WHERE (f.reopened OR (f.escalated AND f.decision <> 'escalate')\n        OR f.created_at <= now() - interval '24 hours')\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = f.record_id AND o.label_source = 'problem_after_24h')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "5f962ec103716be4fd0fb929f6a4831c3047756a1c75698556d699e5567aee8c"
+}
