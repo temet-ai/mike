@@ -109,8 +109,7 @@ impl Effects for Live<'_> {
                 session,
                 attempt,
             } => {
-                self.close(task, *session, "launch not confirmed; relaunched")
-                    .await;
+                self.close(task, *session, super::RELAUNCHED).await;
                 let state = format!(
                     "relaunching (attempt {attempt} of {}): the seat made no first request in time",
                     super::RELAUNCHES
@@ -265,7 +264,7 @@ pub async fn pass(
         persist,
         run: run_id,
         fleet: row.fleet_uuid,
-        coordinator: ControlSeats::recorded(def).map(|c| c.coordinator),
+        coordinator: ControlSeats::recorded(def).coordinator,
     };
     let stopping = row.state == STOPPING;
     let mut seats = Vec::new();

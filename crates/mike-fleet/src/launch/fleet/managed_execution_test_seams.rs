@@ -78,7 +78,7 @@ impl Execution {
         let command = command.into_managed(&context.ledger);
         tokio::spawn(managed_command::scope(context, async move {
             let _held = if queued {
-                match managed_command::hold_checkout(&command.slot, command.budget.0).await {
+                match managed_command::hold_checkout(&command.slot, Some(command.budget.0)).await {
                     Ok(held) => Some(held),
                     Err(why) => return (None, why),
                 }
@@ -139,7 +139,8 @@ impl Execution {
     ) -> JoinHandle<Result<String, String>> {
         let context = self.inner.context();
         tokio::spawn(managed_command::scope(context, async move {
-            let _checkout = managed_command::hold_checkout(&repo, Duration::from_secs(10)).await?;
+            let _checkout =
+                managed_command::hold_checkout(&repo, Some(Duration::from_secs(10))).await?;
             let context = managed_command::current()?;
             let _file = context.resources.retain(file);
             let args = args.iter().map(String::as_str).collect::<Vec<_>>();

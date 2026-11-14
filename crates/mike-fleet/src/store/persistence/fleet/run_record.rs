@@ -4,6 +4,14 @@ use uuid::Uuid;
 
 use crate::store::persistence::PersistError;
 
+const RELAUNCH_EVENTS: &str = "
+SELECT count(*)
+  FROM launch.fleet_events
+ WHERE run_id = $1
+   AND kind = 'seat_closed'
+   AND payload->>'reason' = $2
+";
+
 #[cfg(test)]
 #[path = "run_record_tests.rs"]
 mod tests;
@@ -43,6 +51,7 @@ pub struct TimingMeasure {
     pub hand_starts: i64,
     pub task_count: i64,
     pub worker_launches: i64,
+    pub relaunches: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -148,6 +157,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         )
         .fetch_one(&self.pool)
         .await?;
+        let relaunches = self.relaunch_events(run_id).await?;
         Ok(TimingMeasure {
             time_to_done_minutes: row.time_to_done_minutes,
             stop_minutes: row.stop_minutes,
@@ -157,7 +167,16 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             hand_starts: row.hand_starts,
             task_count: row.task_count,
             worker_launches: row.worker_launches,
+            relaunches,
         })
+    }
+
+    pub async fn relaunch_events(self, run_id: &str) -> Result<i64, PersistError> {
+        Ok(sqlx::query_scalar::<_, i64>(RELAUNCH_EVENTS)
+            .bind(run_id)
+            .bind(crate::launch::fleet::supervise::RELAUNCHED)
+            .fetch_one(&self.pool)
+            .await?)
     }
 
     async fn token_measures(self, run_id: &str) -> Result<Vec<TokenMeasure>, PersistError> {

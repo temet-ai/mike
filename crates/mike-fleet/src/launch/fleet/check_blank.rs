@@ -23,6 +23,7 @@ pub fn blank(seat: &str, check: &CheckDefinition, how: &str) -> CheckReport {
         refused: None,
         started_at: None,
         triage: None,
+        queue: None,
     }
 }
 

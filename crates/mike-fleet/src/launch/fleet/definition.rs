@@ -45,6 +45,8 @@ pub struct FleetDefinition {
 pub struct StaffingDefinition {
     pub adopt_unowned: bool,
     pub warm_siblings: bool,
+    pub max_seats: Option<usize>,
+    pub min_free_memory_gb: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -233,6 +235,8 @@ pub struct TaskDefinition {
     pub new_files: Vec<String>,
     pub required_paths: BTreeMap<String, String>,
     pub brief: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub system_prompt: String,
     pub goal: String,
     pub after: Vec<String>,
     pub stub_by: Option<u32>,

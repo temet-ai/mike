@@ -74,6 +74,20 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
     }
     let asker = session(persist, &body.from, "from").await?;
     let to = destination(persist, asker, &body.to).await?;
+    let known = persist
+        .session_row_id(to.session)
+        .await
+        .map_err(|err| Box::new(database(err)))?;
+    if known.is_none() {
+        return Err(Box::new(problem(
+            StatusCode::NOT_FOUND,
+            format!(
+                "recipient session {} (to `{}`) does not exist, so nothing was asked; ask a seat that is running, or the fleet's author",
+                to.session,
+                body.to.trim()
+            ),
+        )));
+    }
     if let Some(closed) = persist
         .fleet()
         .closed_fleet_seat(to.session)
@@ -127,3 +141,7 @@ pub async fn post_question(State(state): State<BaseState>, Json(body): Json<AskB
     )
         .into_response()
 }
+
+#[cfg(test)]
+#[path = "ask_tests.rs"]
+mod tests;

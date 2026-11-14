@@ -46,10 +46,7 @@ fn a_fleet_records_no_observer_and_opens_no_control_seat() {
         "coordinator": {"session": Uuid::from_u128(1)},
         "acceptance": {"session": Uuid::from_u128(2)},
     }));
-    assert_eq!(
-        ControlSeats::recorded(&def).map(|seats| seats.observer),
-        Some(None)
-    );
+    assert_eq!(ControlSeats::recorded(&def).observer, None);
     assert_eq!(super::environment::starts(&def).control_seats, 0);
     assert!(
         super::check_definition(&def)
@@ -84,7 +81,10 @@ fn missing_observer_does_not_disable_coordinator_digests() {
         |_| false,
     );
     assert_eq!(sent.len(), 2);
-    assert!(sent.iter().any(|notice| notice.to == seats.coordinator));
+    assert!(
+        sent.iter()
+            .any(|notice| Some(notice.to) == seats.coordinator)
+    );
 }
 
 #[test]
@@ -122,12 +122,12 @@ fn snapshot_has_independent_identity_and_no_nested_previous_job() -> anyhow::Res
 }
 
 #[test]
-fn read_only_launch_has_no_shell_edits_hooks_or_inherited_settings() -> anyhow::Result<()> {
+fn default_launch_has_no_edit_tools_hooks_or_inherited_settings() -> anyhow::Result<()> {
     let def = FleetDefinition::default();
     let args = super::retrospective_launch::args(&def, &job());
     assert!(
         args.windows(2)
-            .any(|pair| pair == ["--tools", "Read,Glob,Grep"])
+            .any(|pair| pair == ["--tools", "Read,Glob,Grep,Bash"])
     );
     assert!(
         args.windows(2)
@@ -142,7 +142,7 @@ fn read_only_launch_has_no_shell_edits_hooks_or_inherited_settings() -> anyhow::
         .ok_or_else(|| anyhow::anyhow!("missing settings argument"))?;
     assert!(settings.contains("\"disableAllHooks\":true"));
     assert!(settings.contains("\"MIKE_MCP_PROFILE\":\"retrospective\""));
-    assert!(!settings.contains("Bash"));
+    assert!(!settings.contains("Bash(*"));
     assert!(!settings.contains("send_session_message"));
     Ok(())
 }

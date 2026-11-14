@@ -23,6 +23,7 @@ use crate::launch::fleet::report::{
     acceptance_mail, acceptance_session, check_at_commit, check_report, newest_commit_of,
     report_body, report_data, report_title,
 };
+use crate::launch::fleet::report_commit;
 use crate::launch::fleet::seated::Seated;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{
@@ -69,13 +70,18 @@ async fn newest_commit(persist: &PersistHandle, session: Uuid, task: &str) -> Op
 
 async fn check_word(
     persist: &PersistHandle,
-    checkout: &str,
+    def: &FleetDefinition,
     sha: Option<&str>,
     on: bool,
 ) -> String {
     let Some(sha) = sha else {
         return CHECK_NO_COMMIT.to_string();
     };
+    let checkout = def.repo.as_str();
+    let changed = report_commit::changed_files(checkout, sha).await;
+    if report_commit::outside_check(&changed, &report_commit::check_paths(def)) {
+        return report_commit::CHECK_NOT_COVERED.to_string();
+    }
     if !on {
         return CHECK_RECORD_OFF.to_string();
     }
@@ -112,7 +118,7 @@ pub async fn commit_facts(
         None => own,
     };
     let on = change_record_enabled(persist).await;
-    let check = check_word(persist, &def.repo, commit.as_deref(), on).await;
+    let check = check_word(persist, def, commit.as_deref(), on).await;
     let checked_after_last_change = match persist.resolve_session_db_id(&session.to_string()).await
     {
         Ok(Some(id)) if on => check_after_last_change(persist, id, &def.repo).await.ok(),

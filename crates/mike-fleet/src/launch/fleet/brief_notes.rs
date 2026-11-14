@@ -101,7 +101,11 @@ fn run_pointer(def: &FleetDefinition, facts: &FleetFacts, run_note: Option<Uuid>
     format!(
         "The run's part of every brief (the goal, the operator's ask, the criteria, the rules, how the project is built and checked, the shared files and how to report) is {named}, kind \"{BRIEF_KIND}\", tags {fleet} and {PART_RUN}, in the coordinator's notebook. It is already in your context from the template you were forked from; if you do not find it above, read it with list_session_notes (session_id={coordinator}, kind=\"{BRIEF_KIND}\", tag=\"{PART_RUN}\"). The other seats are not listed here: read them with get_fleet (fleet {fleet_id}, view \"seat\", your own session id). The one checkout is {repo}.",
         fleet = fleet_tag(&facts.fleet),
-        coordinator = facts.seats.coordinator,
+        coordinator = facts
+            .seats
+            .coordinator
+            .map(|session| session.to_string())
+            .unwrap_or_default(),
         fleet_id = facts.fleet,
         repo = def.repo,
     )

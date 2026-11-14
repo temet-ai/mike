@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 use super::bundle;
 use super::definition::{FleetDefinition, merge};
-use super::environment::contract_path;
 use super::events::{EventPayload, NewFleetEvent, SeatLaunchFailed, SeatLaunchRequested};
 use super::fork_seat;
 use super::plan::SeatPlan;
@@ -18,6 +17,7 @@ use crate::store::persistence::PersistHandle;
 
 const OPEN_WAIT: Duration = Duration::from_secs(150);
 const OPEN_POLL: Duration = Duration::from_millis(500);
+pub const OPEN_UNCONFIRMED: &str = "fleet_open_unconfirmed";
 pub const SAVE_ATTEMPTS: usize = 5;
 pub const SAVE_RETRY: Duration = Duration::from_millis(500);
 
@@ -26,40 +26,7 @@ pub struct Begun {
     pub forked_from: Option<String>,
 }
 
-pub fn claude_args(def: &FleetDefinition, seat: &SeatPlan) -> Vec<String> {
-    let mut args = vec!["--model".to_string(), seat.model.clone()];
-    if let Some(level) = effort(seat) {
-        args.push("--effort".to_string());
-        args.push(level);
-    }
-    if !seat.agent.trim().is_empty() {
-        args.push("--agent".to_string());
-        args.push(seat.agent.clone());
-    }
-    args.push("--settings".to_string());
-    args.push(seat_settings::for_seat(def, &seat.seat).to_string());
-    if let Some(file) = seat.contract.as_deref().filter(|f| !f.trim().is_empty()) {
-        args.push("--append-system-prompt-file".to_string());
-        let state = bundle::default_state_dir(&bundle::home());
-        let path = bundle::resolve_contract(&def.repo, &state, file)
-            .unwrap_or_else(|| contract_path(&def.repo, file));
-        args.push(path.to_string_lossy().into_owned());
-    }
-    args
-}
-
-fn effort(seat: &SeatPlan) -> Option<String> {
-    let named = seat
-        .effort
-        .as_deref()
-        .map(str::trim)
-        .filter(|l| !l.is_empty());
-    match named {
-        Some(level) => Some(level.to_string()),
-        None if seat.model.contains("haiku") => Some("medium".to_string()),
-        None => None,
-    }
-}
+pub use super::seat_args::claude_args;
 
 pub async fn begin(
     state: &BaseState,
@@ -98,6 +65,22 @@ pub async fn begin(
     }
     let forked_from = template.as_ref().map(|t| t.name.clone());
     let template_id = template.as_ref().map(|t| t.id);
+    let scratch =
+        seat_settings::scratch_dir(&bundle::default_state_dir(&bundle::home()), &def.repo);
+    let args = match super::task_prompt::apply(
+        def,
+        seat,
+        args,
+        &super::task_prompt::prompts_dir(&scratch),
+    ) {
+        Ok(args) => args,
+        Err(problem) => {
+            return Begun {
+                started: Err(problem),
+                forked_from: None,
+            };
+        }
+    };
     let args = match &template {
         Some(row) => fork_seat::fork_args(row, seat.session, args),
         None => fork_seat::cold_args(seat.session, args),
@@ -251,8 +234,7 @@ async fn wait_until_open(persist: &PersistHandle, session: Uuid) -> Result<(), S
         match row {
             Some(row) if row.opened => return Ok(()),
             Some(row)
-                if row.result == "failed"
-                    || row.reason.as_deref() == Some("fleet_open_unconfirmed") =>
+                if row.result == "failed" || row.reason.as_deref() == Some(OPEN_UNCONFIRMED) =>
             {
                 return Err(row
                     .stderr_text
@@ -404,7 +386,7 @@ mod tests {
             fleet: Uuid::nil().to_string(),
             slug: "slug".into(),
             run_id: "fleet-slug-00000000".into(),
-            seats: super::super::plan::ControlSeats::fresh(),
+            seats: super::super::plan::ControlSeats::answering(None, None),
             paths: super::super::bundle::FleetPaths {
                 rules: "/r/rules.md".into(),
                 checks: "/r/checks.sh".into(),

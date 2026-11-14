@@ -139,6 +139,7 @@ async fn isolated_checks_and_gates_share_the_preparation_execution_and_verificat
                 command,
                 isolated::Operation::Check {
                     timeout: Duration::from_secs(5),
+                    declared: None,
                     configured: true,
                 },
             ),

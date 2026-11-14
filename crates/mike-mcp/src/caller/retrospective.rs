@@ -20,7 +20,13 @@ pub(crate) fn authorize(
     if profile != Profile::Retrospective {
         return Ok(arguments);
     }
-    if !matches!(name, "write_session_note" | "end_workspace_registration") {
+    if !matches!(
+        name,
+        "write_session_note"
+            | "end_workspace_registration"
+            | "work_thread_checkpoint"
+            | "work_thread_add_entry"
+    ) {
         return Ok(arguments);
     }
     let session = session
@@ -37,6 +43,11 @@ pub(crate) fn authorize(
     arguments.insert("session_id".to_string(), Value::String(session.to_string()));
     if name == "write_session_note" {
         findings_only(&mut arguments)?;
+    }
+    if name == "work_thread_add_entry"
+        && arguments.get("kind").is_some_and(|kind| kind != "finding")
+    {
+        return Err(denied("work thread entries must have kind finding"));
     }
     Ok(Some(arguments))
 }

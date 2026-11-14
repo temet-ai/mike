@@ -74,8 +74,8 @@ fn status() -> FleetStatus {
 
 fn control() -> ControlSeats {
     ControlSeats {
-        coordinator: Uuid::from_u128(1),
-        acceptance: Uuid::from_u128(2),
+        coordinator: Some(Uuid::from_u128(1)),
+        acceptance: Some(Uuid::from_u128(2)),
         observer: Some(Uuid::from_u128(3)),
     }
 }
@@ -104,11 +104,7 @@ fn the_first_digest_names_each_task_its_seat_idle_time_passes_fails_and_the_slot
     let to: Vec<Uuid> = sent.iter().map(|n| n.to).collect();
     assert_eq!(
         to,
-        vec![
-            control().coordinator,
-            control().acceptance,
-            Uuid::from_u128(3)
-        ]
+        vec![Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(3)]
     );
     let text = &sent[0].body;
     assert!(text.starts_with("[mike digest] Fleet core-game-4 at 10:42:00Z."));

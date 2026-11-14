@@ -25,7 +25,7 @@ fn a_full_surface_cap_is_named_in_the_tasks_state_and_does_not_unseat_them() {
 }
 use super::start::control_patch;
 use super::status::{FleetHeader, build};
-pub use super::test_fixtures::{facts, seats};
+pub use super::test_fixtures::{acceptance, coordinator, facts, seats};
 use super::tests::{changed, complete, parsed};
 
 fn set(ids: &[&str]) -> BTreeSet<String> {
@@ -209,9 +209,12 @@ fn a_template_loads_the_rules_and_the_definition_and_stops() {
 #[test]
 fn the_sessions_mike_chose_are_read_back_from_the_definition() {
     let mut value = complete();
-    assert_eq!(ControlSeats::recorded(&parsed(&value)), None);
+    assert_eq!(
+        ControlSeats::recorded(&parsed(&value)),
+        ControlSeats::answering(None, None)
+    );
     super::definition::merge(&mut value, &control_patch(&seats()));
-    assert_eq!(ControlSeats::recorded(&parsed(&value)), Some(seats()));
+    assert_eq!(ControlSeats::recorded(&parsed(&value)), seats());
 }
 
 #[test]

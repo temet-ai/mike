@@ -7,15 +7,25 @@ use crate::launch::fleet::gate::Target;
 use super::{GATE_TIMEOUT, OUTPUT_FILE, managed_directory, prepare, run_check, run_gate_logged};
 
 pub enum Operation {
-    Check { timeout: Duration, configured: bool },
-    Gate { completion_log: Option<PathBuf> },
+    Check {
+        timeout: Duration,
+        declared: Option<Duration>,
+        configured: bool,
+    },
+    Gate {
+        completion_log: Option<PathBuf>,
+    },
 }
 
 impl Operation {
-    fn timeout(&self) -> Duration {
+    fn queue_limit(&self) -> Option<Duration> {
         match self {
-            Self::Check { timeout, .. } => *timeout,
-            Self::Gate { .. } => GATE_TIMEOUT,
+            Self::Check { declared, .. } => {
+                crate::launch::fleet::managed_queue::waiting_limit(*declared)
+            }
+            Self::Gate { .. } => {
+                crate::launch::fleet::managed_queue::waiting_limit(Some(GATE_TIMEOUT))
+            }
         }
     }
 
@@ -24,6 +34,7 @@ impl Operation {
             Self::Check {
                 timeout,
                 configured,
+                ..
             } => run_check(&at.slot, command, run, (*timeout, "the check"), *configured).await,
             Self::Gate { .. } => {
                 run_gate_logged(&at.slot, command, run, &at.slot.join(OUTPUT_FILE)).await
@@ -270,6 +281,16 @@ async fn verified_result(
     }
 }
 
+async fn bounded<T>(
+    limit: Option<Duration>,
+    work: impl std::future::Future<Output = T>,
+) -> Option<T> {
+    match limit {
+        Some(limit) => tokio::time::timeout(limit, work).await.ok(),
+        None => Some(work.await),
+    }
+}
+
 pub async fn execute(
     repo: &str,
     at: &Target,
@@ -285,12 +306,12 @@ pub async fn execute(
     let held = tokio::select! {
         biased;
         _ = context.owner.token().cancelled() => return (None, crate::launch::fleet::managed_command::cancelled(&context.owner), false),
-        held = tokio::time::timeout(crate::launch::fleet::managed_queue::waiting_limit(operation.timeout()), lock(repo, &names)) => held,
+        held = bounded(operation.queue_limit(), lock(repo, &names)) => held,
     };
     let (_held, name) = match held {
-        Ok(Ok(held)) => held,
-        Ok(Err(why)) => return (None, why, false),
-        Err(_) => {
+        Some(Ok(held)) => held,
+        Some(Err(why)) => return (None, why, false),
+        None => {
             return (
                 None,
                 "timed out waiting for the isolated checkout".into(),
