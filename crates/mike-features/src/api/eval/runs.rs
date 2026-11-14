@@ -13,6 +13,30 @@ use crate::store::persistence::eval_runs::{
 const DEFAULT_LIMIT: i64 = 50;
 const MAX_LIMIT: i64 = 500;
 
+struct RunItems {
+    persist: crate::store::persistence::PersistHandle,
+    id: i64,
+}
+
+impl super::review_queue::PageReader for RunItems {
+    fn read<'a>(
+        &'a self,
+        scan: &'a RunItemsFilter,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        crate::store::persistence::eval_runs::RunItemsPage,
+                        crate::store::persistence::PersistError,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(self.persist.eval().eval_run_items_page(self.id, scan))
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 pub struct RunsQuery {
     pub status: Option<String>,
@@ -214,12 +238,11 @@ pub async fn list_eval_run_items(
         return unavailable();
     };
     let fetched = if uncertain_only {
-        super::review_queue::uncertain_page(
-            &filter,
-            async |scan| persist.eval().eval_run_items_page(id, scan).await,
-            super::prelabel::cached,
-        )
-        .await
+        let reader = RunItems {
+            persist: persist.clone(),
+            id,
+        };
+        super::review_queue::uncertain_page(&filter, &reader, super::prelabel::cached).await
     } else {
         persist.eval().eval_run_items_page(id, &filter).await
     };

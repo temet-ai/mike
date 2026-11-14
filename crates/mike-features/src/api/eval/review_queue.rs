@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+use std::future::Future;
+use std::pin::Pin;
 
 use super::prelabel::Prelabel;
 use crate::store::persistence::PersistError;
@@ -27,13 +29,19 @@ pub fn window<T>(items: Vec<T>, limit: i64, offset: i64) -> Vec<T> {
         .collect()
 }
 
-pub async fn uncertain_page<F, L>(
+pub trait PageReader: Sync {
+    fn read<'a>(
+        &'a self,
+        scan: &'a RunItemsFilter,
+    ) -> Pin<Box<dyn Future<Output = Result<RunItemsPage, PersistError>> + Send + 'a>>;
+}
+
+pub async fn uncertain_page<L>(
     filter: &RunItemsFilter,
-    fetch: F,
+    reader: &dyn PageReader,
     prelabels_for: L,
 ) -> Result<RunItemsPage, PersistError>
 where
-    F: AsyncFn(&RunItemsFilter) -> Result<RunItemsPage, PersistError>,
     L: Fn(&[i64]) -> BTreeMap<i64, Prelabel>,
 {
     let mut scan = RunItemsFilter {
@@ -44,7 +52,7 @@ where
     let mut rows: Vec<EvalRunItemRow> = Vec::new();
     let mut reviewed = 0;
     loop {
-        let page = fetch(&scan).await?;
+        let page = reader.read(&scan).await?;
         if scan.offset == 0 {
             reviewed = page.reviewed;
         }

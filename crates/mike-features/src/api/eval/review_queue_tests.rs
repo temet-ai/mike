@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use chrono::Utc;
 
@@ -47,17 +47,46 @@ fn store(turns: i64) -> Vec<EvalRunItemRow> {
     (1..=turns).map(row).collect()
 }
 
-async fn serve(
-    all: &[EvalRunItemRow],
-    scan: &RunItemsFilter,
-) -> Result<RunItemsPage, PersistError> {
-    let from = usize::try_from(scan.offset).unwrap_or(0).min(all.len());
-    let to = (from + usize::try_from(scan.limit).unwrap_or(0)).min(all.len());
-    Ok(RunItemsPage {
-        items: all[from..to].to_vec(),
-        total: i64::try_from(all.len()).unwrap_or(0),
-        reviewed: 7,
-    })
+struct Stub {
+    all: Vec<EvalRunItemRow>,
+    calls: AtomicUsize,
+    fail: bool,
+}
+
+impl Stub {
+    fn of(all: Vec<EvalRunItemRow>) -> Self {
+        Self {
+            all,
+            calls: AtomicUsize::new(0),
+            fail: false,
+        }
+    }
+
+    fn page(&self, scan: &RunItemsFilter) -> Result<RunItemsPage, PersistError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        if self.fail {
+            return Err(PersistError::MissingDatabaseUrl);
+        }
+        let from = usize::try_from(scan.offset)
+            .unwrap_or(0)
+            .min(self.all.len());
+        let to = (from + usize::try_from(scan.limit).unwrap_or(0)).min(self.all.len());
+        Ok(RunItemsPage {
+            items: self.all[from..to].to_vec(),
+            total: i64::try_from(self.all.len()).unwrap_or(0),
+            reviewed: 7,
+        })
+    }
+}
+
+impl PageReader for Stub {
+    fn read<'a>(
+        &'a self,
+        scan: &'a RunItemsFilter,
+    ) -> Pin<Box<dyn Future<Output = Result<RunItemsPage, PersistError>> + Send + 'a>> {
+        let page = self.page(scan);
+        Box::pin(async move { page })
+    }
 }
 
 fn ids(page: &RunItemsPage) -> Vec<i64> {
@@ -85,17 +114,12 @@ fn needs_review_keeps_uncertain_and_missing_and_drops_confident() {
 
 #[tokio::test]
 async fn uncertain_page_with_no_prelabels_returns_every_item() -> anyhow::Result<()> {
-    let all = store(5);
+    let stub = Stub::of(store(5));
     let filter = RunItemsFilter {
         limit: 50,
         ..RunItemsFilter::default()
     };
-    let page = uncertain_page(
-        &filter,
-        async |scan| serve(&all, scan).await,
-        |_| BTreeMap::new(),
-    )
-    .await?;
+    let page = uncertain_page(&filter, &stub, |_| BTreeMap::new()).await?;
     assert_eq!(ids(&page), vec![1, 2, 3, 4, 5]);
     assert_eq!(page.total, 5);
     assert_eq!(page.reviewed, 7);
@@ -104,7 +128,7 @@ async fn uncertain_page_with_no_prelabels_returns_every_item() -> anyhow::Result
 
 #[tokio::test]
 async fn uncertain_page_drops_confident_items_and_pages_over_the_rest() -> anyhow::Result<()> {
-    let all = store(6);
+    let stub = Stub::of(store(6));
     let lookup = |_: &[i64]| {
         BTreeMap::from([
             (1, prelabel(false)),
@@ -117,7 +141,7 @@ async fn uncertain_page_drops_confident_items_and_pages_over_the_rest() -> anyho
         offset: 0,
         ..RunItemsFilter::default()
     };
-    let page = uncertain_page(&first, async |scan| serve(&all, scan).await, lookup).await?;
+    let page = uncertain_page(&first, &stub, lookup).await?;
     assert_eq!(ids(&page), vec![2, 3]);
     assert_eq!(page.total, 4);
     let second = RunItemsFilter {
@@ -125,30 +149,21 @@ async fn uncertain_page_drops_confident_items_and_pages_over_the_rest() -> anyho
         offset: 2,
         ..RunItemsFilter::default()
     };
-    let page = uncertain_page(&second, async |scan| serve(&all, scan).await, lookup).await?;
+    let page = uncertain_page(&second, &stub, lookup).await?;
     assert_eq!(ids(&page), vec![5, 6]);
     Ok(())
 }
 
 #[tokio::test]
 async fn uncertain_page_reads_every_batch_of_a_long_run() -> anyhow::Result<()> {
-    let all = store(BATCH * 2 + 30);
-    let calls = Cell::new(0);
+    let stub = Stub::of(store(BATCH * 2 + 30));
     let filter = RunItemsFilter {
         limit: 10,
         offset: 0,
         ..RunItemsFilter::default()
     };
-    let page = uncertain_page(
-        &filter,
-        async |scan| {
-            calls.set(calls.get() + 1);
-            serve(&all, scan).await
-        },
-        |_| BTreeMap::new(),
-    )
-    .await?;
-    assert_eq!(calls.get(), 3);
+    let page = uncertain_page(&filter, &stub, |_| BTreeMap::new()).await?;
+    assert_eq!(stub.calls.load(Ordering::Relaxed), 3);
     assert_eq!(page.total, BATCH * 2 + 30);
     assert_eq!(page.items.len(), 10);
     Ok(())
@@ -160,11 +175,10 @@ async fn uncertain_page_passes_a_failed_read_through() {
         limit: 10,
         ..RunItemsFilter::default()
     };
-    let outcome = uncertain_page(
-        &filter,
-        async |_| Err(PersistError::MissingDatabaseUrl),
-        |_| BTreeMap::new(),
-    )
-    .await;
+    let stub = Stub {
+        fail: true,
+        ..Stub::of(Vec::new())
+    };
+    let outcome = uncertain_page(&filter, &stub, |_| BTreeMap::new()).await;
     assert!(outcome.is_err());
 }

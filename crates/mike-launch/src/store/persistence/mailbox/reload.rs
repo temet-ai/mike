@@ -68,6 +68,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     AND m.claimed_at IS NULL
                     AND m.consumed_at IS NULL
                     AND m.dead_lettered_at IS NULL
+                    AND NOT m.held_until_turn
                   ORDER BY m.id ASC
                   LIMIT $2"#,
                 to_session_uuid,
