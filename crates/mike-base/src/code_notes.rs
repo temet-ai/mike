@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 const PER_SESSION: usize = 20;
+const SENT_LIMIT: usize = 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeNote {
@@ -24,6 +25,7 @@ pub struct Delivered {
 #[derive(Debug, Default)]
 pub struct CodeNotes {
     waiting: Mutex<HashMap<Uuid, Vec<CodeNote>>>,
+    sent: Mutex<HashMap<u64, Vec<i64>>>,
     delivered: Mutex<Vec<Delivered>>,
 }
 
@@ -58,11 +60,28 @@ impl CodeNotes {
         self.post(session, notes);
     }
 
-    pub fn mark_delivered(&self, ids: &[i64], request_id: i64) {
+    pub fn mark_sent(&self, ids: &[i64], pipeline_request: u64) {
+        if let Ok(mut sent) = self.sent.lock() {
+            if sent.len() >= SENT_LIMIT {
+                sent.clear();
+            }
+            sent.insert(pipeline_request, ids.to_vec());
+        }
+    }
+
+    pub fn bind_capture_id(&self, pipeline_request: u64, capture_request_id: i64) {
+        let Some(ids) = self
+            .sent
+            .lock()
+            .ok()
+            .and_then(|mut sent| sent.remove(&pipeline_request))
+        else {
+            return;
+        };
         if let Ok(mut delivered) = self.delivered.lock() {
             delivered.extend(ids.iter().map(|finding_id| Delivered {
                 finding_id: *finding_id,
-                request_id,
+                request_id: capture_request_id,
             }));
         }
     }
@@ -108,8 +127,17 @@ mod tests {
     #[test]
     fn delivered_ids_are_drained_once() {
         let notes = CodeNotes::default();
-        notes.mark_delivered(&[4, 5], 77);
-        assert_eq!(notes.drain_delivered().len(), 2);
+        notes.mark_sent(&[4, 5], 11);
+        assert!(
+            notes.drain_delivered().is_empty(),
+            "not delivered until the capture id is known"
+        );
+        notes.bind_capture_id(12, 900);
+        assert!(notes.drain_delivered().is_empty());
+        notes.bind_capture_id(11, 797_027);
+        let delivered = notes.drain_delivered();
+        assert_eq!(delivered.len(), 2);
+        assert!(delivered.iter().all(|d| d.request_id == 797_027));
         assert!(notes.drain_delivered().is_empty());
     }
 }
