@@ -24,6 +24,7 @@ use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db
 const CHECKOUT: &str = "/tmp/mail-fleet";
 
 mod closed_delivery;
+mod wake_hold;
 
 struct Env {
     db: TestDbHandle,
@@ -39,12 +40,12 @@ struct Seat {
 }
 
 impl Env {
-    async fn boot() -> anyhow::Result<Option<Self>> {
+    async fn boot_with(jev_base_url: Option<&str>) -> anyhow::Result<Option<Self>> {
         let Some(db) = acquire_ephemeral_db().await? else {
             eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
             return Ok(None);
         };
-        let config = ProxyConfig::try_parse_from([
+        let mut config = ProxyConfig::try_parse_from([
             "mike",
             "--upstream-url",
             "https://api.anthropic.com",
@@ -57,6 +58,10 @@ impl Env {
             "--database-url",
             &db.database_url,
         ])?;
+        if let Some(url) = jev_base_url {
+            config.set_openrouter_base_url(url.to_owned());
+            config.set_openrouter_api_key("sk-test".to_owned());
+        }
         let state = AppState::new(config).await?;
         let persist = state
             .persist()
@@ -212,7 +217,11 @@ struct Fleet {
 }
 
 async fn fleet() -> anyhow::Result<Option<Fleet>> {
-    let Some(env) = Env::boot().await? else {
+    fleet_with(None).await
+}
+
+async fn fleet_with(jev_base_url: Option<&str>) -> anyhow::Result<Option<Fleet>> {
+    let Some(env) = Env::boot_with(jev_base_url).await? else {
         return Ok(None);
     };
     let lead = env.seat("coordinator").await?;
