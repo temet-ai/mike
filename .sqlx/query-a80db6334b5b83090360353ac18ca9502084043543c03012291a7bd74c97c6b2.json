@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages m\n                    SET held_until_turn = false\n                   FROM sessions.sessions s\n                  WHERE s.id = m.to_session_id\n                    AND s.session_uuid = $1\n                    AND m.held_until_turn\n                    AND m.sent_request_id IS NULL\n                    AND m.channel_delivered_at IS NULL\n                    AND m.consumed_at IS NULL\n                    AND m.dead_lettered_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a80db6334b5b83090360353ac18ca9502084043543c03012291a7bd74c97c6b2"
+}

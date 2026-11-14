@@ -194,6 +194,7 @@ async fn simultaneous_gate_asks_join_one_execution_and_keep_both_receipts() -> a
             tracker: &tracker,
             run: &run,
             fleet,
+            decisions: None,
         };
         let request = GateRequest {
             session: Uuid::new_v4(),
@@ -279,6 +280,7 @@ async fn gate_receipt_failure_never_starts_the_command_or_registers_a_flight() -
             tracker: &tracker,
             run: "gate-no-receipt",
             fleet,
+            decisions: None,
         };
         let outcome = start(&runner, &def, "acceptance", &target).await;
         assert!(outcome.is_err_and(|why| why.contains("not queued")));
@@ -312,6 +314,7 @@ async fn identical_gate_in_another_fleet_is_busy_without_joining_its_receipt() -
             tracker: &tracker,
             run: &run,
             fleet,
+            decisions: None,
         };
         let slot = admission::key(&target.slot).to_string_lossy().into_owned();
         let (_sender, receiver) = watch::channel(None);

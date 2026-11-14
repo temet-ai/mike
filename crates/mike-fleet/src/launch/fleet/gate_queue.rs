@@ -96,6 +96,7 @@ pub async fn queue(state: &BaseState, persist: &PersistHandle, row: &FleetRow) {
         tracker: &state.tracker,
         run,
         fleet: row.fleet_uuid,
+        decisions: None,
     };
     check_run::queue(&runner, &def).await;
     queue_gate(&runner, &def).await;

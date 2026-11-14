@@ -14,6 +14,7 @@ fn the_tick_runs_staff_before_it_tells_anyone_and_closes_last() {
             "problems",
             "introduce",
             "wake",
+            "effort",
             "tell",
             "escalate",
             "close"

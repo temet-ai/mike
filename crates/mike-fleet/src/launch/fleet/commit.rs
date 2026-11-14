@@ -335,7 +335,7 @@ fn text(out: Option<Vec<u8>>) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-async fn changed_paths(repo: &str) -> Result<Vec<String>, String> {
+pub(super) async fn changed_paths(repo: &str) -> Result<Vec<String>, String> {
     let raw = git(
         repo,
         &["status", "--porcelain=v2", "-z", "--untracked-files=all"],

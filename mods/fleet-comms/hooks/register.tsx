@@ -14,6 +14,7 @@ import type {
 import type { FleetMessage, FleetPanel, FleetThread, Link } from "../types";
 import { INK, fleetStateColour, roleColour } from "./ink";
 import { isControlSeat, ownGoal } from "./goal";
+import { askStopCheck, probeStopCheck } from "./stop-check";
 import { countGoalContinuation, freshGoalBudget, goalBudgetKey, goalBudgetStopReason, readGoalBudget, renewsGoalBudget, reportGoalPause } from "./goal-budget";
 import { drawNeed, drawPanel } from "./panel";
 import { headWidth } from "./head";
@@ -1278,6 +1279,14 @@ async function armGoal($: EngineInterface): Promise<void> {
   }
   const goal = ownGoal(panel, session);
   if (goal === null) return;
+  if (panel !== null && (await probeStopCheck($, INSPECT, panel.fleet, session))) {
+    if ((await read($, goalArmed)) !== null && !(await read($, goalCleared))) {
+      await $.command.run({ command: "goal", args: "clear" });
+      await update($, goalCleared, () => true);
+      await update($, goalArmed, () => null);
+    }
+    return;
+  }
   const budget = await readGoalBudget($, session, goal);
   if (budget.exhausted) {
     if (!(await read($, goalCleared))) {
@@ -1302,6 +1311,13 @@ export const register: Register = (on) => {
     if (seatRun === null || e.agent_id || e.session_id !== session) return next(e);
     if (!(await read($, fleetStatus)).isLoaded) await refreshStatus($);
     const panel = (await read($, fleetStatus)).panel;
+    if (panel !== null && panel.isOwn && !isControlSeat(panel, session)) {
+      const said = (e as unknown as { last_assistant_message?: string }).last_assistant_message;
+      const verdict = await askStopCheck($, INSPECT, panel.fleet, session, said, e.stop_hook_active === true);
+      if (verdict !== null) {
+        return verdict.decision === "push_back" ? { block: verdict.reason } : next(e);
+      }
+    }
     const goal = ownGoal(panel, session);
     if (goal === null || isControlSeat(panel, session)) return next(e);
     try {

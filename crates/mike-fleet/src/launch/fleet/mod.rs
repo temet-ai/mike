@@ -35,6 +35,7 @@ pub mod commit_modules;
 pub mod commit_note;
 pub mod commit_paths;
 pub mod commit_verify;
+pub mod decisions;
 pub mod definition;
 pub mod diagnostics;
 pub mod discovery;

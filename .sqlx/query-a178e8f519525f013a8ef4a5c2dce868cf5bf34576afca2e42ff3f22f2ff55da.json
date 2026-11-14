@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests SET human_prompt = 'Stop hook feedback: keep going' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a178e8f519525f013a8ef4a5c2dce868cf5bf34576afca2e42ff3f22f2ff55da"
+}

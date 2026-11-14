@@ -120,6 +120,7 @@ async fn unverified_automatic_check_never_records_proof_or_blames_a_seat() -> an
             tracker: &tracker,
             run: &run,
             fleet,
+            decisions: None,
         };
         let row = queued_check(&runner, &def, &tracker, &persist, &run).await?;
         assert_eq!(row.exit_code, None);

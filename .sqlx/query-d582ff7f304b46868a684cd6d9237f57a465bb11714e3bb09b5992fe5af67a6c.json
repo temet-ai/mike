@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests SET human_prompt = 'please start', author_kind_id = 1 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d582ff7f304b46868a684cd6d9237f57a465bb11714e3bb09b5992fe5af67a6c"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT triage FROM launch.tree_checks WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "triage",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "triage"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5e5736d941b8787fb41af81372885ebb8b662fa271564bc57682668b0795551f"
+}

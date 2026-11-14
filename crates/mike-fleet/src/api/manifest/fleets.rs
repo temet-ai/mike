@@ -130,6 +130,13 @@ pub const ROUTES: &[RouteEntry] = &[
                      missing items are already returned by get_fleet",
         },
     ),
+    route(
+        "POST",
+        "/api/fleets/{fleet}/seats/{session}/stop-facts",
+        Coverage::Exempt {
+            reason: "fleet-comms mod only",
+        },
+    ),
 ];
 
 pub fn register<S>(router: Router<S>) -> Router<S>
@@ -163,6 +170,10 @@ where
             post(fleet::integrate_fleet),
         )
         .route("/api/fleets/{fleet}/where", get(fleet::where_in_fleet))
+        .route(
+            "/api/fleets/{fleet}/seats/{session}/stop-facts",
+            post(fleet::post_stop_facts),
+        )
         .route("/api/fleets/{fleet}/propose", post(fleet::propose_task))
         .route("/api/fleets/{fleet}/split", post(fleet::split_task))
         .route("/api/fleets/{fleet}/report", post(fleet::report_slice))
