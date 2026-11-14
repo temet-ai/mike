@@ -5,6 +5,10 @@ use crate::analysis::judge::input_v2::{
 };
 use crate::analysis::judge::rubric::{EffectiveRubric, RubricFamily, effective_rubric, rubric};
 use crate::analysis::judge::run_v2::run_judge_v2;
+use crate::analysis::judge::slices::{
+    ADDENDUM_ID, JudgeSlice, SliceTexts, apply_slices, compose_system_prompt, needs_addendum,
+    parse_slice_codes, slice_codes,
+};
 use crate::analysis::judge::two_axis::{TwoAxisVerdict, two_axis_verdict_schema};
 use crate::analysis::judge::{JudgeFailure, JudgeOutcome};
 use crate::llm::{CallUsage, LlmRuntimeSettings, OpenRouterClient};
@@ -32,8 +36,10 @@ pub enum V2ConfigError {
     RubricMismatch { stated: String, computed: String },
     #[error("bundle components name input builder `{0}`, which is not a v2 builder")]
     UnknownBuilder(String),
-    #[error("bundle components ask for history slices {0:?}; no slice is approved")]
+    #[error("bundle components ask for history slices {0:?}; live judging is slice-free")]
     SlicesNotSupported(Vec<String>),
+    #[error("bundle components name history slice `{0}`, which is not in the slice vocabulary")]
+    UnknownSlice(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +48,7 @@ pub struct V2JudgeConfig {
     pub builder: &'static str,
     pub model: String,
     pub llm_settings: LlmRuntimeSettings,
+    pub slices: Vec<JudgeSlice>,
 }
 
 fn string_key<'a>(c: &'a Value, key: &'static str) -> Result<&'a str, V2ConfigError> {
@@ -50,17 +57,13 @@ fn string_key<'a>(c: &'a Value, key: &'static str) -> Result<&'a str, V2ConfigEr
         .ok_or(V2ConfigError::MissingKey(key))
 }
 
-fn requested_slices(c: &Value) -> Vec<String> {
-    c.get("slices")
+fn requested_slices(c: &Value) -> Result<Vec<JudgeSlice>, V2ConfigError> {
+    let codes: Vec<&str> = c
+        .get("slices")
         .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default()
+        .map(|items| items.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    parse_slice_codes(&codes).map_err(|e| V2ConfigError::UnknownSlice(e.0))
 }
 
 fn resolve_rubric(c: &Value) -> Result<EffectiveRubric, V2ConfigError> {
@@ -98,10 +101,7 @@ fn llm_settings_from(c: &Value) -> LlmRuntimeSettings {
 
 impl V2JudgeConfig {
     pub fn from_bundle_components(c: &Value) -> Result<Self, V2ConfigError> {
-        let slices = requested_slices(c);
-        if !slices.is_empty() {
-            return Err(V2ConfigError::SlicesNotSupported(slices));
-        }
+        let slices = requested_slices(c)?;
         let rubric = resolve_rubric(c)?;
         let builder_raw = string_key(c, "input_builder")?;
         let builder = builder_for(builder_raw)
@@ -111,21 +111,34 @@ impl V2JudgeConfig {
             builder,
             model: string_key(c, "model")?.to_owned(),
             llm_settings: llm_settings_from(c),
+            slices,
         })
     }
 
+    pub fn ensure_live(&self) -> Result<(), V2ConfigError> {
+        if self.slices.is_empty() {
+            Ok(())
+        } else {
+            Err(V2ConfigError::SlicesNotSupported(slice_codes(&self.slices)))
+        }
+    }
+
     pub fn to_bundle_components(&self) -> Value {
-        json!({
+        let mut components = json!({
             "components_version": V2_COMPONENTS_VERSION,
             "rubric_version": self.rubric.id,
             "system_prompt": self.rubric.system_prompt,
             "output_schema": two_axis_verdict_schema(),
             "input_builder": self.builder,
-            "slices": Vec::<String>::new(),
+            "slices": slice_codes(&self.slices),
             "model": self.model,
             "reasoning_effort": self.llm_settings.reasoning_effort,
             "max_output_tokens": self.llm_settings.max_output_tokens,
-        })
+        });
+        if needs_addendum(&self.slices) {
+            components["slice_addendum"] = json!(ADDENDUM_ID);
+        }
+        components
     }
 }
 
@@ -156,7 +169,7 @@ impl V2Judged {
             bundle_id: target.bundle_id,
             rubric_version: &cfg.rubric.id,
             input_builder_version: self.input.builder_version,
-            slices: Vec::new(),
+            slices: slice_codes(&cfg.slices),
             model: self.model.as_deref().unwrap_or(&cfg.model),
             judgement: VerdictJudgement {
                 shape: VerdictShape::TwoAxis {
@@ -217,12 +230,26 @@ pub async fn judge_turn_v2(
     cfg: &V2JudgeConfig,
     ctx: &JudgeTurnContext,
 ) -> Result<V2Judged, JudgeOutcome> {
+    if let Err(error) = cfg.ensure_live() {
+        tracing::warn!(%error, "judge v2: refusing a config with history slices on the live path");
+        return Err(JudgeOutcome::Failed(JudgeFailure::Permanent));
+    }
+    judge_turn_v2_sliced(llm, cfg, ctx, &SliceTexts::default()).await
+}
+
+pub async fn judge_turn_v2_sliced(
+    llm: &OpenRouterClient,
+    cfg: &V2JudgeConfig,
+    ctx: &JudgeTurnContext,
+    texts: &SliceTexts,
+) -> Result<V2Judged, JudgeOutcome> {
     let llm = llm
         .with_model(cfg.model.clone())
         .map_err(|_| JudgeOutcome::Failed(JudgeFailure::Permanent))?
         .with_runtime_settings(cfg.llm_settings.clone());
-    let input = build_judge_input_v2(ctx, cfg.builder);
-    let (verdict, usage) = run_judge_v2(&llm, &cfg.rubric, &input, ctx.turn_id).await?;
+    let input = apply_slices(build_judge_input_v2(ctx, cfg.builder), &cfg.slices, texts);
+    let system = compose_system_prompt(&cfg.rubric.system_prompt, &cfg.slices);
+    let (verdict, usage) = run_judge_v2(&llm, &cfg.rubric, &system, &input, ctx.turn_id).await?;
     Ok(V2Judged {
         verdict,
         usage,
@@ -237,6 +264,7 @@ mod tests {
     use super::{V2ConfigError, V2JudgeConfig};
     use crate::analysis::judge::input_v2::INPUT_BUILDER_V2;
     use crate::analysis::judge::rubric::{V2_2026_09_23, effective_rubric};
+    use crate::analysis::judge::slices::JudgeSlice;
     use crate::llm::LlmRuntimeSettings;
 
     fn config() -> V2JudgeConfig {
@@ -245,6 +273,14 @@ mod tests {
             builder: INPUT_BUILDER_V2,
             model: "google/gemini-3.5-flash".to_owned(),
             llm_settings: LlmRuntimeSettings::default(),
+            slices: Vec::new(),
+        }
+    }
+
+    fn sliced() -> V2JudgeConfig {
+        V2JudgeConfig {
+            slices: vec![JudgeSlice::Asks, JudgeSlice::Turnfacts],
+            ..config()
         }
     }
 
@@ -257,12 +293,58 @@ mod tests {
     }
 
     #[test]
-    fn components_with_a_slice_are_refused() {
+    fn bundle_components_with_slices_round_trip_and_record_the_addendum() -> anyhow::Result<()> {
+        let cfg = sliced();
+        let components = cfg.to_bundle_components();
+        assert_eq!(
+            components["slices"],
+            serde_json::json!(["asks", "turnfacts"])
+        );
+        assert_eq!(
+            components["slice_addendum"],
+            serde_json::json!("context-addendum-2026-09-24")
+        );
+        assert_eq!(V2JudgeConfig::from_bundle_components(&components)?, cfg);
+        Ok(())
+    }
+
+    #[test]
+    fn components_without_slices_carry_no_addendum_key() {
+        assert!(
+            config()
+                .to_bundle_components()
+                .get("slice_addendum")
+                .is_none()
+        );
+        let withheld = V2JudgeConfig {
+            slices: vec![JudgeSlice::WithholdNext],
+            ..config()
+        };
+        assert!(
+            withheld
+                .to_bundle_components()
+                .get("slice_addendum")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn components_with_an_unknown_slice_are_refused() {
         let mut c = config().to_bundle_components();
-        c["slices"] = serde_json::json!(["turnfacts"]);
+        c["slices"] = serde_json::json!(["turnfacts", "hunches"]);
         assert_eq!(
             V2JudgeConfig::from_bundle_components(&c),
+            Err(V2ConfigError::UnknownSlice("hunches".to_owned()))
+        );
+    }
+
+    #[test]
+    fn ensure_live_refuses_slices_and_passes_a_slice_free_config() {
+        assert_eq!(config().ensure_live(), Ok(()));
+        assert_eq!(
+            sliced().ensure_live(),
             Err(V2ConfigError::SlicesNotSupported(vec![
+                "asks".to_owned(),
                 "turnfacts".to_owned()
             ]))
         );

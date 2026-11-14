@@ -128,6 +128,7 @@ pub fn default_v2_bundle_components(model: &str) -> serde_json::Value {
         builder: INPUT_BUILDER_V2,
         model: model.to_owned(),
         llm_settings: crate::llm::LlmRuntimeSettings::default(),
+        slices: Vec::new(),
     }
     .to_bundle_components()
 }
