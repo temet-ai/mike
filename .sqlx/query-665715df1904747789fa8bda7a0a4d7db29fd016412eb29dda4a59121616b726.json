@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.label, o.label_source FROM decisions.outcomes o\n           JOIN decisions.records r ON r.id = o.record_id\n          WHERE r.point = 'skill_trigger'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.outcomes",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.outcomes",
+            "name": "label_source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "665715df1904747789fa8bda7a0a4d7db29fd016412eb29dda4a59121616b726"
+}

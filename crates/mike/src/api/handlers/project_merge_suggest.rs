@@ -156,7 +156,11 @@ async fn probability_of(decider: &Decider, pair: &Pair<'_>, pace: &mut Pace) -> 
     decider
         .mark(
             &asked,
-            asked.composed(json!({"score": probability.unwrap_or(1.0)})),
+            asked.composed(json!({
+                "score": probability.unwrap_or(1.0),
+                "source_project_id": pair.source.id,
+                "target_project_id": pair.target.id,
+            })),
             applied,
         )
         .await;

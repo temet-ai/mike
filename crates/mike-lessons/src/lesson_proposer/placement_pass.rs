@@ -104,7 +104,7 @@ async fn decided(
         project_id: Some(lesson.project_id),
         ..DecisionSubject::default()
     };
-    relate_pick::placement_answer(jev?, &subject, shown, ids).await
+    relate_pick::placement_answer(jev?, &subject, shown, (lesson.id, ids)).await
 }
 
 async fn place_one(

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_placement_reviews (lesson_id, decision, decided_at)\n             VALUES ($1, $2, now() + interval '1 minute')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c8e6f4e6893036b3c463f344df271abfccd692af5dee6fe213c9979ccd01d506"
+}

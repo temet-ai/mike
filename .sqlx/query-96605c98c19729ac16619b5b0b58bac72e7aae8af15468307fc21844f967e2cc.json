@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH subjects AS (\n    SELECT r.id AS record_id, r.created_at, l.id::bigint AS lesson_id\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_array_elements_text(\n               COALESCE(r.composed -> 'verdict' -> 'lesson_ids', '[]'::jsonb)\n           ) l(id)\n     WHERE r.point = ANY($1)\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n),\nstates AS (\n    SELECT s.record_id, s.created_at,\n           bool_or(ar.code IN ('operator', 'rejected_by_operator', 'not_a_lesson')) AS rejected,\n           count(*) AS lessons\n      FROM subjects s\n      JOIN memory.lessons ls ON ls.id = s.lesson_id\n      LEFT JOIN memory.lesson_archived_reasons ar ON ar.id = ls.archived_reason_id\n     GROUP BY s.record_id, s.created_at\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT st.record_id,\n       CASE WHEN COALESCE(st.rejected, false) THEN 'wrong' ELSE 'right' END,\n       'lesson_operator_verdict',\n       jsonb_build_object('lessons', st.lessons, 'rejected_by_operator', COALESCE(st.rejected, false))\n  FROM states st\n WHERE (COALESCE(st.rejected, false) OR st.created_at <= now() - interval '7 days')\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = st.record_id AND o.label_source = 'lesson_operator_verdict')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "96605c98c19729ac16619b5b0b58bac72e7aae8af15468307fc21844f967e2cc"
+}

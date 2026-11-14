@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH placed AS (\n    SELECT r.id AS record_id, r.created_at, l.id::bigint AS lesson_id\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_array_elements_text(\n               COALESCE(r.composed -> 'verdict' -> 'lesson_ids', '[]'::jsonb)\n           ) l(id)\n     WHERE r.point = 'lesson_relate'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT p.record_id,\n       CASE WHEN pr.decision = 'accepted' THEN 'right' ELSE 'wrong' END,\n       'placement_review',\n       jsonb_build_object('lesson_id', p.lesson_id, 'decision', pr.decision)\n  FROM placed p\n  JOIN memory.lesson_placement_reviews pr\n    ON pr.lesson_id = p.lesson_id\n   AND pr.decided_at >= p.created_at\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = p.record_id AND o.label_source = 'placement_review')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "051c99311a0cacbfef425c6a893097240d97250eddde120a938d6f2ef0ed2759"
+}

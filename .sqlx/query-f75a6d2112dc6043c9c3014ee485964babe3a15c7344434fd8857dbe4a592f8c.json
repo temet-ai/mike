@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH judged AS (\n    SELECT r.id AS record_id, r.session_id,\n           r.composed -> 'verdict' ->> 'outcome' AS outcome\n      FROM decisions.records r\n     WHERE r.point = 'session_judge'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied IS NOT NULL\n       AND r.applied <> 'none'\n       AND r.session_id IS NOT NULL\n),\nmix AS (\n    SELECT t.session_id,\n           count(*) FILTER (WHERE toc.code IN ('accepted', 'shipped')) AS accepted,\n           count(*) FILTER (WHERE toc.code = 'corrected') AS corrected\n      FROM memory.operator_turns t\n      JOIN memory.turn_outcomes toc ON toc.id = t.outcome_id\n     WHERE t.outcome_source = 'operator'\n       AND t.session_id IN (SELECT session_id FROM judged)\n     GROUP BY t.session_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT j.record_id,\n       CASE j.outcome\n           WHEN 'success' THEN CASE WHEN m.accepted > m.corrected THEN 'right' ELSE 'wrong' END\n           WHEN 'failure' THEN CASE WHEN m.corrected > m.accepted THEN 'right' ELSE 'wrong' END\n           ELSE CASE WHEN m.accepted > 0 AND m.corrected > 0 THEN 'right' ELSE 'wrong' END\n       END,\n       'operator_turn_mix',\n       jsonb_build_object('accepted_turns', m.accepted, 'corrected_turns', m.corrected,\n                          'jev_outcome', j.outcome)\n  FROM judged j\n  JOIN mix m ON m.session_id = j.session_id\n WHERE j.outcome IN ('success', 'partial', 'failure')\n   AND m.accepted + m.corrected >= 2\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = j.record_id AND o.label_source = 'operator_turn_mix')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f75a6d2112dc6043c9c3014ee485964babe3a15c7344434fd8857dbe4a592f8c"
+}

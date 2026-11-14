@@ -189,6 +189,7 @@ async fn sync_outcomes(persist: &PersistHandle) -> Result<u64, PersistError> {
         .sync_intervention_outcomes(crate::quiescence_worker::wake_recheck::POINT)
         .await?;
     synced += store.sync_operator_label_outcomes().await?;
+    synced += store.sync_downstream_outcomes().await?;
     Ok(synced)
 }
 

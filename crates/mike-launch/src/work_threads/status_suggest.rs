@@ -186,7 +186,11 @@ pub async fn run(decider: &Decider, persist: &PersistHandle, project: i64, slug:
     let score = suggestion.as_ref().map_or(1.0, |found| found.probability);
     let applied = if written { "suggested" } else { "none" };
     decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({"score": score, "slug": detail.thread.slug})),
+            applied,
+        )
         .await;
 }
 

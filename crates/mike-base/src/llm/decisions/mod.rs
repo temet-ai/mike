@@ -179,10 +179,19 @@ pub mod env;
 pub mod export;
 pub mod fleet_counts;
 pub mod loop_store;
+pub mod outcome_sync;
 pub mod point;
 pub mod record;
 pub mod text;
 
+#[cfg(test)]
+mod outcome_sync_fleet_tests;
+#[cfg(test)]
+mod outcome_sync_supply_tests;
+#[cfg(test)]
+mod outcome_sync_support;
+#[cfg(test)]
+mod outcome_sync_tests;
 #[cfg(test)]
 mod retention_tests;
 #[cfg(test)]

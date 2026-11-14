@@ -119,8 +119,15 @@ impl<'a, J: SupplyJudge> JevJudge<'a, J> {
         let composed = compose(&asked);
         let applied = composed.as_ref().map_or("none", |_| "labelled");
         let score = composed.as_ref().map_or(0.0, |(_, p)| *p);
+        let chosen = composed.as_ref().map(|(a, _)| a.verdict.as_str());
         self.decider
-            .mark(&asked, asked.composed(json!({ "score": score })), applied)
+            .mark(
+                &asked,
+                asked.composed(
+                    json!({ "score": score, "item_id": item.item_id, "verdict": chosen }),
+                ),
+                applied,
+            )
             .await;
         composed.filter(|_| self.decider.applies()).map(|(a, _)| a)
     }

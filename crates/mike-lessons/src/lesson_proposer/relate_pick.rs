@@ -317,7 +317,7 @@ pub async fn placement_answer(
     jev: &Jev,
     lesson: &LessonToPlace<'_>,
     shown: &[GuidanceRow],
-    subject: DecisionSubject,
+    (lesson_id, subject): (i64, DecisionSubject),
 ) -> Option<PlacementAnswer> {
     if jev.is_tripped() {
         return None;
@@ -346,7 +346,11 @@ pub async fn placement_answer(
     let applied = composed.as_ref().map_or("none", |_| "chosen");
     let score = asked.choice(HOME_KEY).map_or(0.0, |(_, p)| p);
     jev.decider
-        .mark(&asked, asked.composed(json!({ "score": score })), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({ "score": score, "lesson_ids": [lesson_id] })),
+            applied,
+        )
         .await;
     composed.filter(|_| jev.decider.applies())
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH triaged AS (\n    SELECT r.id AS record_id, r.check_receipt_id, tc.run_id, tc.state, tc.command\n      FROM decisions.records r\n      JOIN launch.tree_checks tc ON tc.id = r.check_receipt_id\n     WHERE r.point = 'fleet_triage'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.composed -> 'verdict' ->> 'triage' = 'retry'\n),\nnext_check AS (\n    SELECT DISTINCT ON (t.record_id) t.record_id, n.id AS next_id, n.exit_code\n      FROM triaged t\n      JOIN launch.tree_checks n\n        ON n.run_id = t.run_id\n       AND n.command = t.command\n       AND n.state = t.state\n       AND n.id > t.check_receipt_id\n       AND n.finished_at IS NOT NULL\n     ORDER BY t.record_id, n.id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT n.record_id,\n       CASE WHEN n.exit_code = 0 THEN 'right' ELSE 'wrong' END,\n       'next_check_same_tree',\n       jsonb_build_object('next_check_id', n.next_id, 'exit_code', n.exit_code)\n  FROM next_check n\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = n.record_id AND o.label_source = 'next_check_same_tree')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "681f15a28a0cf9d711541a1dfa85d797b456eef4b1d19abbbbe0e2c17983110d"
+}

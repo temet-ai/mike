@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.threads (project_id, slug, title, status, updated_at)\n             VALUES ($1, $2, $2, $3, now() + interval '1 hour')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "375088d25b5cb57a7579497d504f74334c941877c2a05f5d8f3b7386ac913f5c"
+}

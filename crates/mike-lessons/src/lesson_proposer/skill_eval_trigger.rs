@@ -195,9 +195,13 @@ async fn ask_batch(
 ) -> Result<Vec<QueryResult>, EvalError> {
     let messages: Vec<&str> = queries.iter().map(|q| q.query.as_str()).collect();
     if let Some(jev) = jev
-        && let Some(choices) = skill_eval_pick::ask_batch(jev, offer, &messages).await
+        && let Some(picked) = skill_eval_pick::ask_batch(jev, offer, &messages).await
     {
-        return matched(queries, choices, offer.name);
+        let results = matched(queries, picked.choices, offer.name)?;
+        let right = results.iter().filter(|r| r.correct).count();
+        skill_eval_pick::label_against_expected(jev, picked.record_id, (right, results.len()))
+            .await;
+        return Ok(results);
     }
     let input = offer_input(offer, batch, &messages);
     let reply: Answers = llm.verdict(PROMPT, &input, schema()).await?;
@@ -240,3 +244,7 @@ pub async fn run_batches(
         .collect();
     in_chunks(tasks).await
 }
+
+#[cfg(test)]
+#[path = "skill_eval_label_tests.rs"]
+mod label_tests;

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns\n                SET outcome_id = (SELECT id FROM memory.turn_outcomes WHERE code = $2),\n                    outcome_source = $3\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5c713a5e841f596d67b4a7a9554e182ad85ee4cfe3f7db7d47cbd7614f52fa9a"
+}

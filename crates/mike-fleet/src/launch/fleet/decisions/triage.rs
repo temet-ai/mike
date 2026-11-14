@@ -81,16 +81,14 @@ async fn jev_step(
         .await;
     let composed = compose(&asked);
     let score = composed.as_ref().map_or(1.0, |(_, p)| *p);
+    let action = composed.as_ref().map(|(triage, _)| triage.action.key());
+    let verdict = json!({"score": score, "triage": action});
     if !decider.applies() {
-        decider
-            .mark(&asked, asked.composed(json!({"score": score})), "none")
-            .await;
+        decider.mark(&asked, asked.composed(verdict), "none").await;
         return None;
     }
     let applied = if composed.is_some() { "chosen" } else { "none" };
-    decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
-        .await;
+    decider.mark(&asked, asked.composed(verdict), applied).await;
     composed.map(|(triage, _)| triage)
 }
 

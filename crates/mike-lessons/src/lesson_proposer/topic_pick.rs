@@ -119,8 +119,13 @@ pub async fn assign_to_existing(
             picked.iter().map(|(_, _, p)| p).sum::<f64>() / picked.len() as f64
         };
         let applied = if picked.is_empty() { "none" } else { "chosen" };
+        let lesson_ids: Vec<i64> = picked.iter().map(|(id, _, _)| *id).collect();
         decider
-            .mark(&asked, asked.composed(json!({ "score": score })), applied)
+            .mark(
+                &asked,
+                asked.composed(json!({ "score": score, "lesson_ids": lesson_ids })),
+                applied,
+            )
             .await;
         if decider.applies() {
             for (id, topic, _) in picked {

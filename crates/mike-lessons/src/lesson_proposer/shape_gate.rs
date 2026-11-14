@@ -132,8 +132,13 @@ pub async fn clear_false_status(
         let rules = compose(&asked, group);
         let score = applied_score(&asked, group);
         let applied = if rules.is_empty() { "none" } else { "chosen" };
+        let lesson_ids: Vec<i64> = rules.iter().map(|(id, _)| *id).collect();
         decider
-            .mark(&asked, asked.composed(json!({ "score": score })), applied)
+            .mark(
+                &asked,
+                asked.composed(json!({ "score": score, "lesson_ids": lesson_ids })),
+                applied,
+            )
             .await;
         if !decider.applies() {
             continue;

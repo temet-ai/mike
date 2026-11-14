@@ -4185,7 +4185,7 @@ Indexes: `idx_decision_records_point_created` `(point, created_at)`; `idx_decisi
 
 ### `decisions.outcomes`
 
-Labels for records, many per record and never overwritten. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`.
+Labels for records, many per record and never overwritten. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`, and writes downstream labels from the operator's reaction, supplied-item verdicts, lesson and placement reviews, later checks and project or thread changes (see "Jev decision points: where each outcome comes from" in [`ARCHITECTURE.md`](ARCHITECTURE.md)).
 
 | Column | Type | Notes |
 |---|---|---|

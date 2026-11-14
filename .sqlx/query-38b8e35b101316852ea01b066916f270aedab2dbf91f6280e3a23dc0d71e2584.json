@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH linked AS (\n    SELECT r.id AS record_id, r.operator_turn_id AS turn_id\n      FROM decisions.records r\n     WHERE r.point = ANY($1)\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied IS NOT NULL\n       AND r.applied <> 'none'\n       AND ($2 = false OR r.applied = 'warned')\n       AND r.operator_turn_id IS NOT NULL\n    UNION ALL\n    SELECT r.id, t.id\n      FROM decisions.records r\n      JOIN requests.requests rq ON rq.id = r.request_id\n      JOIN memory.operator_turns t\n        ON t.session_id = rq.session_id\n       AND r.request_id BETWEEN t.start_request_id AND t.end_request_id\n     WHERE r.point = ANY($1)\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied IS NOT NULL\n       AND r.applied <> 'none'\n       AND ($2 = false OR r.applied = 'warned')\n       AND r.operator_turn_id IS NULL\n       AND r.request_id IS NOT NULL\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT DISTINCT ON (l.record_id)\n       l.record_id,\n       CASE WHEN (toc.code = 'corrected') = $2 THEN 'right' ELSE 'wrong' END,\n       $3,\n       jsonb_build_object('operator_turn_id', t.id,\n                          'turn_outcome', toc.code,\n                          'outcome_source', t.outcome_source)\n  FROM linked l\n  JOIN memory.operator_turns t ON t.id = l.turn_id\n  JOIN memory.turn_outcomes toc ON toc.id = t.outcome_id\n WHERE toc.code IN ('accepted', 'shipped', 'corrected')\n   AND t.outcome_source IN ('operator', 'judge')\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = l.record_id AND o.label_source = $3)\n ORDER BY l.record_id, t.id\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "38b8e35b101316852ea01b066916f270aedab2dbf91f6280e3a23dc0d71e2584"
+}

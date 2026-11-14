@@ -107,11 +107,36 @@ fn mean_score(asked: &Asked, count: usize) -> f64 {
     scores.iter().sum::<f64>() / scores.len() as f64
 }
 
-pub async fn ask_batch(
+pub struct Picked {
+    pub choices: Vec<Choice>,
+    pub record_id: Option<i64>,
+}
+
+pub async fn label_against_expected(
     jev: &JevTrigger,
-    offer: &Offer<'_>,
-    messages: &[&str],
-) -> Option<Vec<Choice>> {
+    record_id: Option<i64>,
+    correct: (usize, usize),
+) {
+    let Some(id) = record_id else {
+        return;
+    };
+    let (right, total) = correct;
+    let label = if right * 4 >= total * 3 {
+        "right"
+    } else {
+        "wrong"
+    };
+    crate::llm::decisions::point::record_outcome(
+        jev.decider.persist(),
+        id,
+        label,
+        "expected_trigger",
+        json!({ "correct": right, "queries": total }),
+    )
+    .await;
+}
+
+pub async fn ask_batch(jev: &JevTrigger, offer: &Offer<'_>, messages: &[&str]) -> Option<Picked> {
     if jev.tripped.load(Ordering::Relaxed) {
         return None;
     }
@@ -140,7 +165,12 @@ pub async fn ask_batch(
             applied,
         )
         .await;
-    composed.filter(|_| jev.decider.applies())
+    composed
+        .filter(|_| jev.decider.applies())
+        .map(|choices| Picked {
+            choices,
+            record_id: asked.record_id,
+        })
 }
 
 #[cfg(test)]

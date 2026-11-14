@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.supplied_items\n             (session_id, request_id, item_kind, lesson_id, thread_id, card_hash, route,\n              item_text, supplied_at)\n         VALUES ($1, $2, $3, $4, $5, $6, 'proxy', 'text', $7)\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fc1a0d713cc05f2e6cea401c7d57e413454ebd81f6b9190b798b5b614f119922"
+}
