@@ -1,4 +1,4 @@
-use super::source_tree::SourceFile;
+use mike_code::SourceFile;
 
 struct RawElementRule {
     needle: &'static str,
@@ -55,8 +55,8 @@ pub fn check_current_primitives(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::super::source_tree::read_source_tree;
     use super::*;
+    use mike_code::read_source_tree;
 
     fn repo_root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

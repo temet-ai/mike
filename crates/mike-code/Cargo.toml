@@ -10,6 +10,7 @@ ast-grep-config = "=0.51.2"
 ast-grep-core = "=0.51.2"
 ast-grep-language = { version = "=0.51.2", default-features = false, features = ["tree-sitter-rust", "tree-sitter-typescript", "tree-sitter-bash", "tree-sitter-python", "tree-sitter-go", "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-java", "tree-sitter-kotlin", "tree-sitter-lua", "tree-sitter-ruby", "tree-sitter-swift", "tree-sitter-elixir", "tree-sitter-zig"] }
 hex = { workspace = true }
+regex = "1"
 serde = { workspace = true }
 serde-saphyr = "=2.1.1"
 sha2 = { workspace = true }
