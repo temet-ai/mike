@@ -15,6 +15,9 @@ mod relevance_tests;
 const QUERY_CAPACITY: usize = 128;
 const SESSION_CAPACITY: usize = 1024;
 const MAX_QUERY_BYTES: usize = 8192;
+const ABSOLUTE_FLOOR: f32 = 0.05;
+const RELATIVE_FLOOR: f32 = 0.5;
+const RESEND_AFTER_REQUESTS: u64 = 40;
 
 #[derive(Debug, Default)]
 pub struct LessonRelevance {
@@ -27,8 +30,8 @@ struct State {
     pending: VecDeque<(String, String, String)>,
     queries: HashMap<String, Vec<f32>>,
     documents: HashMap<i64, Vec<f32>>,
-    delivered: HashMap<String, HashSet<String>>,
-    context_sizes: HashMap<String, usize>,
+    delivered: HashMap<String, HashMap<String, u64>>,
+    requests: HashMap<String, u64>,
     mod_sessions: HashSet<String>,
     vectors_key: Option<VectorsKey>,
     outcomes: outcome::Outcomes,
@@ -45,7 +48,7 @@ impl LessonRelevance {
     pub fn forget_session(&self, session: &str) {
         if let Ok(mut state) = self.state.try_lock() {
             state.delivered.remove(session);
-            state.context_sizes.remove(session);
+            state.requests.remove(session);
         }
     }
 
@@ -90,12 +93,13 @@ impl LessonRelevance {
                     score(state.as_deref(), session, &key, &weights, lesson),
                 )
             })
-            .filter(|(_, relevance)| query.is_empty() || *relevance > 0.0)
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
+        let floor = supply_floor(query, &ranked);
         let mut remaining = 6000usize;
         let chosen: Vec<_> = ranked
             .into_iter()
+            .take_while(|(_, relevance)| *relevance >= floor)
             .filter(|(lesson, _)| {
                 if lesson.text.len() > remaining {
                     return false;
@@ -109,24 +113,18 @@ impl LessonRelevance {
         chosen.into_iter().map(|(lesson, _)| lesson).collect()
     }
 
-    pub fn observe_context(&self, session: &str, messages: usize) {
+    pub fn observe_request(&self, session: &str) {
         let Ok(mut state) = self.state.try_lock() else {
             return;
         };
-        if state.context_sizes.len() >= SESSION_CAPACITY
-            && !state.context_sizes.contains_key(session)
-            && let Some(oldest) = state.context_sizes.keys().next().cloned()
+        if state.requests.len() >= SESSION_CAPACITY
+            && !state.requests.contains_key(session)
+            && let Some(oldest) = state.requests.keys().next().cloned()
         {
-            state.context_sizes.remove(&oldest);
+            state.requests.remove(&oldest);
             state.delivered.remove(&oldest);
         }
-        if state
-            .context_sizes
-            .insert(session.to_owned(), messages)
-            .is_some_and(|previous| messages < previous)
-        {
-            state.delivered.remove(session);
-        }
+        *state.requests.entry(session.to_owned()).or_default() += 1;
     }
 
     pub fn query_ready(&self, session: &str, query: &str) -> bool {
@@ -148,11 +146,12 @@ impl LessonRelevance {
         {
             state.delivered.remove(&key);
         }
+        let now = state.requests.get(session).copied().unwrap_or_default();
         let delivered = state.delivered.entry(session.to_owned()).or_default();
         if delivered.len() >= 256 {
-            delivered.clear();
+            delivered.retain(|_, at| now.saturating_sub(*at) < RESEND_AFTER_REQUESTS);
         }
-        delivered.extend(lessons.iter().map(|lesson| lesson_key(lesson)));
+        delivered.extend(lessons.iter().map(|lesson| (lesson_key(lesson), now)));
     }
 
     pub async fn replace_outcomes(&self, rows: Vec<LessonOutcome>) {
@@ -241,9 +240,23 @@ fn queue_query(state: &mut State, session: &str, key: &str, query: &str) {
 }
 
 fn already_delivered(state: Option<&State>, session: &str, lesson: &InjectableLesson) -> bool {
+    let Some(state) = state else {
+        return false;
+    };
+    let now = state.requests.get(session).copied().unwrap_or_default();
     state
-        .and_then(|s| s.delivered.get(session))
-        .is_some_and(|ids| ids.contains(&lesson_key(lesson)))
+        .delivered
+        .get(session)
+        .and_then(|keys| keys.get(&lesson_key(lesson)))
+        .is_some_and(|at| now.saturating_sub(*at) < RESEND_AFTER_REQUESTS)
+}
+
+fn supply_floor(query: &str, ranked: &[(&InjectableLesson, f32)]) -> f32 {
+    if query.is_empty() {
+        return f32::NEG_INFINITY;
+    }
+    let best = ranked.first().map_or(0.0, |(_, relevance)| *relevance);
+    ABSOLUTE_FLOOR.max(best * RELATIVE_FLOOR)
 }
 
 fn lesson_key(lesson: &InjectableLesson) -> String {
