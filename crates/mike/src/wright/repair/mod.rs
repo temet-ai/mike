@@ -187,28 +187,51 @@ impl Worker {
             return;
         };
         if !self.recovered {
-            match follow::recover(ctx).await {
-                Ok(interrupted) => {
-                    tracing::info!(
-                        interrupted,
-                        "wright repair: settled repairs a stop interrupted"
-                    );
-                    self.recovered = true;
-                }
-                Err(e) => {
-                    return tracing::warn!(error = %e, "wright repair: recovering interrupted repairs failed");
-                }
+            self.recovered = recovered(ctx).await;
+            if !self.recovered {
+                return;
             }
         }
-        match tick(ctx, self.backoff.open(Instant::now())).await {
-            Ok(report) => {
-                self.backoff
-                    .note(report.attempted.map(|(_, end)| end), Instant::now());
-                log_tick(&report);
-            }
-            Err(e) => tracing::warn!(error = %e, "wright repair: the tick failed"),
+        run_tick(ctx, &mut self.backoff).await;
+    }
+}
+
+async fn recovered(ctx: &LiveContext) -> bool {
+    match follow::recover(ctx).await {
+        Ok(interrupted) => {
+            log_recovered(interrupted);
+            true
+        }
+        Err(e) => {
+            log_recover_failed(&e);
+            false
         }
     }
+}
+
+async fn run_tick(ctx: &LiveContext, backoff: &mut Backoff) {
+    match tick(ctx, backoff.open(Instant::now())).await {
+        Ok(report) => {
+            backoff.note(report.attempted.map(|(_, end)| end), Instant::now());
+            log_tick(&report);
+        }
+        Err(e) => log_tick_failed(&e),
+    }
+}
+
+fn log_recovered(interrupted: usize) {
+    tracing::info!(
+        interrupted,
+        "wright repair: settled repairs a stop interrupted"
+    );
+}
+
+fn log_recover_failed(error: &PersistError) {
+    tracing::warn!(error = %error, "wright repair: recovering interrupted repairs failed");
+}
+
+fn log_tick_failed(error: &PersistError) {
+    tracing::warn!(error = %error, "wright repair: the tick failed");
 }
 
 fn log_tick(report: &TickReport) {

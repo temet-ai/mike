@@ -42,12 +42,14 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | Fleet | `/fleet` | [Fleets](fleets/README.md), [Projects](projects.md) |
 | Compression review | `/compression-review` | [Compression](compression.md) |
 | Tools | `/tools` (tool errors are on the same page) | [Prompts, agents and tools](prompts-and-agents.md) |
+| Code findings | `/code-findings` | [Settings](settings.md) (the `code_scan` and `code_findings` switches) |
 | Agent dispatches | `/diagnostics/agent-dispatches` | [Prompts, agents and tools](prompts-and-agents.md) |
 
 ### System
 
 | Page | Route | Guide |
 |---|---|---|
+| Wright | `/wright` | [Settings](settings.md) (the `wright` switch); `mike wright pair --open` pairs your browser for the conversation and undo ([command line](command-line.md#wright-decisions-and-code-checks)) |
 | Memory | `/memory` | [Memory](memory.md) |
 | Skills | `/skills`, and a skill at `/skills/<skill>` | [Memory](memory.md) |
 | Proposals | `/proposals` | [Memory](memory.md) |

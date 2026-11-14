@@ -24,6 +24,8 @@ const PICK_PROBLEM: &str = include_str!("sql/engineer/pick_problem.sql");
 const ONE_EPISODE: &str = include_str!("sql/engineer/one_episode.sql");
 const ONE_LIVE_INDEX: &str = "uq_wright_investigations_one_live";
 
+type StartedRow = (i64, Option<i64>, DateTime<Utc>);
+
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub(crate) struct InvestigationRow {
     pub(crate) id: i64,
@@ -177,16 +179,15 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         self,
         run: &NewInvestigation<'_>,
     ) -> Result<Inserted, PersistError> {
-        let row: Result<Option<(i64, Option<i64>, DateTime<Utc>)>, sqlx::Error> =
-            sqlx::query_as(INSERT_RUN) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
-                .bind(run.mode)
-                .bind(run.problem_id)
-                .bind(run.session_uuid)
-                .bind(run.host)
-                .bind(run.machine_uuid)
-                .bind(run.owner_pid)
-                .fetch_optional(self.pool())
-                .await;
+        let row: Result<Option<StartedRow>, sqlx::Error> = sqlx::query_as(INSERT_RUN) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
+            .bind(run.mode)
+            .bind(run.problem_id)
+            .bind(run.session_uuid)
+            .bind(run.host)
+            .bind(run.machine_uuid)
+            .bind(run.owner_pid)
+            .fetch_optional(self.pool())
+            .await;
         match row {
             Ok(Some((id, episode_id, deadline_at))) => Ok(Inserted::Started {
                 id,

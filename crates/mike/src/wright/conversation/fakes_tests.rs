@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use axum::http::{HeaderMap, HeaderValue, header};
 use serde_json::{Value, json};
 
 use super::token::OperatorToken;
@@ -15,37 +14,28 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use crate::store::persistence::wright::conversation::{NewOperatorMessage, Posted};
 
-pub(super) const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+pub(crate) const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-pub(super) fn operator_token() -> anyhow::Result<OperatorToken> {
+pub(crate) fn operator_token() -> anyhow::Result<OperatorToken> {
     OperatorToken::from_text(TOKEN).ok_or_else(|| anyhow::anyhow!("the test token is empty"))
 }
 
-pub(super) fn bearer(token: &str) -> anyhow::Result<HeaderMap> {
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        header::AUTHORIZATION,
-        HeaderValue::from_str(&format!("Bearer {token}"))?,
-    );
-    Ok(headers)
-}
-
 #[derive(Default)]
-pub(super) struct FakeEngine {
+pub(crate) struct FakeEngine {
     answers: Mutex<VecDeque<Result<Value, EngineError>>>,
-    pub(super) calls: AtomicUsize,
-    pub(super) requests: Mutex<Vec<AnswerRequest>>,
+    pub(crate) calls: AtomicUsize,
+    pub(crate) requests: Mutex<Vec<AnswerRequest>>,
 }
 
 impl FakeEngine {
-    pub(super) fn answering(answers: Vec<Result<Value, EngineError>>) -> Arc<Self> {
+    pub(crate) fn answering(answers: Vec<Result<Value, EngineError>>) -> Arc<Self> {
         Arc::new(Self {
             answers: Mutex::new(answers.into()),
             ..Self::default()
         })
     }
 
-    pub(super) fn calls(&self) -> usize {
+    pub(crate) fn calls(&self) -> usize {
         self.calls.load(Ordering::SeqCst)
     }
 }
@@ -71,7 +61,7 @@ impl AnswerEngine for FakeEngine {
 }
 
 #[derive(Default)]
-pub(super) struct FakeSteers {
+pub(crate) struct FakeSteers {
     resources: Mutex<HashMap<String, Value>>,
 }
 
@@ -85,7 +75,7 @@ fn key(change: &Change) -> Option<String> {
 }
 
 impl FakeSteers {
-    pub(super) fn state(&self, key: &str) -> Value {
+    pub(crate) fn state(&self, key: &str) -> Value {
         self.resources
             .lock()
             .ok()
@@ -93,7 +83,7 @@ impl FakeSteers {
             .unwrap_or_else(|| json!({"paused": false}))
     }
 
-    pub(super) fn touch(&self, key: &str, value: Value) {
+    pub(crate) fn touch(&self, key: &str, value: Value) {
         if let Ok(mut map) = self.resources.lock() {
             map.insert(key.to_owned(), value);
         }
@@ -140,13 +130,13 @@ impl SteerApply for FakeSteers {
     }
 }
 
-pub(super) struct Db {
-    pub(super) db: TestDbHandle,
-    pub(super) handle: PersistHandle,
+pub(crate) struct Db {
+    pub(crate) db: TestDbHandle,
+    pub(crate) handle: PersistHandle,
 }
 
 impl Db {
-    pub(super) async fn boot() -> anyhow::Result<Self> {
+    pub(crate) async fn boot() -> anyhow::Result<Self> {
         let db = acquire_ephemeral_db()
             .await?
             .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
@@ -154,7 +144,7 @@ impl Db {
         Ok(Self { db, handle })
     }
 
-    pub(super) fn convo(
+    pub(crate) fn convo(
         &self,
         engine: Arc<dyn AnswerEngine>,
         steers: Arc<dyn SteerApply>,
@@ -166,7 +156,7 @@ impl Db {
         }
     }
 
-    pub(super) async fn ask(&self, client_msg_id: &str, body: &str) -> anyhow::Result<i64> {
+    pub(crate) async fn ask(&self, client_msg_id: &str, body: &str) -> anyhow::Result<i64> {
         let posted = self
             .handle
             .web()
@@ -182,7 +172,7 @@ impl Db {
         }
     }
 
-    pub(super) async fn replies_to(&self, message_id: i64) -> anyhow::Result<i64> {
+    pub(crate) async fn replies_to(&self, message_id: i64) -> anyhow::Result<i64> {
         Ok(sqlx::query_scalar(
             "SELECT count(*) FROM wright.messages WHERE author = 'wright' AND reply_to = $1",
         )
@@ -191,7 +181,7 @@ impl Db {
         .await?)
     }
 
-    pub(super) async fn job_of(&self, message_id: i64) -> anyhow::Result<(String, i32)> {
+    pub(crate) async fn job_of(&self, message_id: i64) -> anyhow::Result<(String, i32)> {
         Ok(
             sqlx::query_as("SELECT state, attempts FROM wright.reply_jobs WHERE message_id = $1")
                 .bind(message_id)
@@ -200,7 +190,7 @@ impl Db {
         )
     }
 
-    pub(super) async fn cleanup(self) -> anyhow::Result<()> {
+    pub(crate) async fn cleanup(self) -> anyhow::Result<()> {
         self.db.cleanup().await
     }
 }

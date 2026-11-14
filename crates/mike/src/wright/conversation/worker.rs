@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
@@ -24,16 +25,29 @@ pub(crate) fn wake() {
 }
 
 fn ensure_operator_token() {
-    let path = match token::default_path() {
-        Ok(path) => path,
-        Err(reason) => return tracing::warn!(reason = %reason, "wright: no operator token written"),
-    };
-    match token::ensure(&path) {
-        Ok(_) => tracing::info!(path = %path.display(), "wright: operator token ready"),
-        Err(e) => {
-            tracing::warn!(error = %e, path = %path.display(), "wright: cannot write the operator token")
-        }
+    match token::default_path() {
+        Ok(path) => write_operator_token(&path),
+        Err(reason) => log_no_token_path(&reason),
     }
+}
+
+fn write_operator_token(path: &Path) {
+    match token::ensure(path) {
+        Ok(_) => log_token_ready(path),
+        Err(e) => log_token_unwritable(&e, path),
+    }
+}
+
+fn log_no_token_path(reason: &str) {
+    tracing::warn!(reason = %reason, "wright: no operator token written");
+}
+
+fn log_token_ready(path: &Path) {
+    tracing::info!(path = %path.display(), "wright: operator token ready");
+}
+
+fn log_token_unwritable(error: &std::io::Error, path: &Path) {
+    tracing::warn!(error = %error, path = %path.display(), "wright: cannot write the operator token");
 }
 
 pub fn spawn_conversation_worker(state: &AppState) {

@@ -136,16 +136,7 @@ where
             ));
         }
     };
-    ctx.persist
-        .web()
-        .advance_wright_repair(&RepairUpdate {
-            id: claim.id,
-            to: states::EDITING,
-            from: &[states::EDITING],
-            base_sha: Some(base.clone()),
-            ..RepairUpdate::default()
-        })
-        .await?;
+    record_base(ctx, claim, &base).await?;
     match ctx.engineer.run_in_worktree(&job(claim, path)).await {
         RepairRun {
             not_started: None,
@@ -154,28 +145,73 @@ where
         RepairRun {
             not_started: None,
             failure: Some(reason),
-        } => {
-            let reason = format!("the engineer run failed: {reason}");
-            Ok(Next::Stop(
-                end(ctx, claim, states::REFUSED, reason, true).await?,
-            ))
-        }
+        } => run_failed(ctx, claim, &reason).await,
         RepairRun {
             not_started: Some(reason),
             ..
-        } => {
-            tracing::info!(
-                repair = claim.id,
-                reason,
-                "wright repair: the engineer run did not start"
-            );
-            if let Err(e) = worktree::abandon(&ctx.runner, &ctx.repo, path, &claim.branch).await {
-                tracing::warn!(error = %e, repair = claim.id, "wright repair: removing an unused worktree failed");
-            }
-            ctx.persist.web().unclaim_wright_repair(claim.id).await?;
-            Ok(Next::Stop(AttemptEnd::NotStarted))
-        }
+        } => not_started(ctx, claim, path, &reason).await,
     }
+}
+
+async fn record_base<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claim: &ClaimedRepair,
+    base: &str,
+) -> Result<(), PersistError> {
+    ctx.persist
+        .web()
+        .advance_wright_repair(&RepairUpdate {
+            id: claim.id,
+            to: states::EDITING,
+            from: &[states::EDITING],
+            base_sha: Some(base.to_owned()),
+            ..RepairUpdate::default()
+        })
+        .await?;
+    Ok(())
+}
+
+async fn run_failed<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claim: &ClaimedRepair,
+    reason: &str,
+) -> Result<Next<String>, PersistError>
+where
+    R: CommandRunner,
+{
+    let reason = format!("the engineer run failed: {reason}");
+    Ok(Next::Stop(
+        end(ctx, claim, states::REFUSED, reason, true).await?,
+    ))
+}
+
+async fn not_started<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claim: &ClaimedRepair,
+    path: &Path,
+    reason: &str,
+) -> Result<Next<String>, PersistError>
+where
+    R: CommandRunner,
+{
+    log_not_started(claim, reason);
+    if let Err(e) = worktree::abandon(&ctx.runner, &ctx.repo, path, &claim.branch).await {
+        log_abandon_failed(claim, &e);
+    }
+    ctx.persist.web().unclaim_wright_repair(claim.id).await?;
+    Ok(Next::Stop(AttemptEnd::NotStarted))
+}
+
+fn log_not_started(claim: &ClaimedRepair, reason: &str) {
+    tracing::info!(
+        repair = claim.id,
+        reason,
+        "wright repair: the engineer run did not start"
+    );
+}
+
+fn log_abandon_failed(claim: &ClaimedRepair, error: &impl std::fmt::Display) {
+    tracing::warn!(error = %error, repair = claim.id, "wright repair: removing an unused worktree failed");
 }
 
 async fn prepare<R, E, B>(

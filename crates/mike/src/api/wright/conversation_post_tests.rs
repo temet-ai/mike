@@ -1,20 +1,11 @@
 use axum::body::Bytes;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
-use axum::response::Response;
 use serde_json::{Value, json};
 
-use super::fakes_tests::{Db, TOKEN, bearer, operator_token};
-use crate::api::wright::conversation::post_message_with;
+use super::conversation::post_message_with;
+use super::conversation_tests::{bearer, read};
 use crate::store::persistence::PersistHandle;
-
-async fn read(response: Response) -> anyhow::Result<(StatusCode, Value)> {
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await?;
-    Ok((
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    ))
-}
+use crate::wright::conversation::fakes_tests::{Db, TOKEN, operator_token};
 
 async fn post(
     handle: &PersistHandle,

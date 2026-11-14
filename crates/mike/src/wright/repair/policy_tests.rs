@@ -154,7 +154,7 @@ fn repair_policy_refuses_binary_and_oversized_patches() {
 
 #[test]
 fn repair_numstat_parses_paths_counts_and_binaries() {
-    let raw = "3\t1\tsrc/calc.sh\0-\t-\tassets/logo.png\00\t5\tscripts/check.sh\0";
+    let raw = "3\t1\tsrc/calc.sh\0-\t-\tassets/logo.png\x000\t5\tscripts/check.sh\0";
     let files = parse_numstat(raw);
     assert_eq!(
         files,

@@ -53,16 +53,27 @@ fn conflict(reason: &str) -> Response {
         .into_response()
 }
 
-fn unauthorized(reason: &str) -> Response {
-    let mut response = (
-        StatusCode::UNAUTHORIZED,
-        Json(json!({"error": "unauthorized", "reason": reason})),
-    )
-        .into_response();
-    response
-        .headers_mut()
-        .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
-    response
+#[derive(Debug)]
+pub(crate) struct Unauthorized(String);
+
+impl IntoResponse for Unauthorized {
+    fn into_response(self) -> Response {
+        let mut response = (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "unauthorized", "reason": self.0})),
+        )
+            .into_response();
+        response
+            .headers_mut()
+            .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
+        response
+    }
+}
+
+impl From<Unauthorized> for Response {
+    fn from(refusal: Unauthorized) -> Self {
+        refusal.into_response()
+    }
 }
 
 fn operator_token() -> Option<OperatorToken> {
@@ -70,18 +81,31 @@ fn operator_token() -> Option<OperatorToken> {
     token::load(&path).ok().flatten()
 }
 
-pub(crate) fn require_operator(headers: &HeaderMap) -> Result<(), Response> {
-    token::authorize(headers, operator_token().as_ref()).map_err(|reason| unauthorized(&reason))
+pub(super) fn authorization(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
 }
 
-fn parse_json<T: serde::de::DeserializeOwned>(bytes: &Bytes) -> Result<T, Response> {
+pub(super) fn authorize_headers(
+    headers: &HeaderMap,
+    expected: Option<&OperatorToken>,
+) -> Result<(), Unauthorized> {
+    token::authorize(authorization(headers), expected).map_err(Unauthorized)
+}
+
+pub(crate) fn require_operator(headers: &HeaderMap) -> Result<(), Unauthorized> {
+    authorize_headers(headers, operator_token().as_ref())
+}
+
+fn parse_json<T: serde::de::DeserializeOwned>(bytes: &Bytes) -> Result<T, String> {
     serde_json::from_slice(bytes).map_err(|e| {
-        bad_request(format!(
+        format!(
             "the request body is not the expected JSON (line {}, column {}): {e}; body was `{}`",
             e.line(),
             e.column(),
             String::from_utf8_lossy(bytes)
-        ))
+        )
     })
 }
 
@@ -212,8 +236,8 @@ pub(crate) async fn post_message_with(
     headers: &HeaderMap,
     bytes: &Bytes,
 ) -> Result<Response, Response> {
-    token::authorize(headers, expected).map_err(|reason| unauthorized(&reason))?;
-    let body: PostBody = parse_json(bytes)?;
+    authorize_headers(headers, expected)?;
+    let body: PostBody = parse_json(bytes).map_err(bad_request)?;
     validate(&body).map_err(bad_request)?;
     let web = handle.web();
     if let Some(reply_to) = body.reply_to
@@ -285,8 +309,8 @@ pub(crate) async fn undo_steer_with(
     id: i64,
     bytes: &Bytes,
 ) -> Result<Response, Response> {
-    token::authorize(headers, expected).map_err(|reason| unauthorized(&reason))?;
-    let body: UndoBody = parse_json(bytes)?;
+    authorize_headers(headers, expected)?;
+    let body: UndoBody = parse_json(bytes).map_err(bad_request)?;
     match steering::undo(convo, id, body.version).await {
         Ok(row) => {
             Ok((StatusCode::OK, Json(json!({"steer": steer_row_json(&row)}))).into_response())

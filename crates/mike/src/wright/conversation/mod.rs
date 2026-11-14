@@ -18,17 +18,13 @@ pub(crate) mod token;
 pub(crate) mod worker;
 
 #[cfg(test)]
-mod fakes_tests;
+pub(crate) mod fakes_tests;
 #[cfg(test)]
 mod job_tests;
-#[cfg(test)]
-mod post_tests;
 #[cfg(test)]
 mod steer_tests;
 #[cfg(test)]
 mod token_tests;
-#[cfg(test)]
-mod undo_tests;
 
 pub use worker::spawn_conversation_worker;
 

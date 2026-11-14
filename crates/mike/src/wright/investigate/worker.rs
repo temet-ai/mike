@@ -13,10 +13,18 @@ pub(crate) const MAX_ATTEMPTS_PER_EPISODE: i64 = 2;
 
 pub fn spawn_engineer_worker(state: &AppState) {
     if state.persist().is_none() {
-        return tracing::debug!("wright: engineer worker not spawned: no persistence");
+        return log_not_spawned();
     }
     let owned = state.clone();
     state.tracker.spawn(run(owned));
+    log_spawned();
+}
+
+fn log_not_spawned() {
+    tracing::debug!("wright: engineer worker not spawned: no persistence");
+}
+
+fn log_spawned() {
     tracing::info!(
         tick_secs = TICK.as_secs(),
         "wright: engineer worker spawned; it idles while the wright toggle is off"
@@ -32,27 +40,42 @@ async fn run(state: AppState) {
             () = shutdown.cancelled() => return,
             () = tokio::time::sleep(TICK) => {}
         }
-        if !state.feature_toggle_overlay.load().wright {
-            continue;
-        }
-        let Some(persist) = state.persist() else {
+        if !pass_once(&state, &mut last_unavailable).await {
             return;
-        };
-        if !persist.holds_worker_role(LEASE_ROLE, TICK).await {
-            continue;
-        }
-        match EngineerContext::from_state(&state).await {
-            Ok(ctx) => {
-                last_unavailable = None;
-                tick(&ctx).await;
-            }
-            Err(reason) if last_unavailable.as_ref() != Some(&reason) => {
-                tracing::warn!(error = %reason, "wright: the engineer cannot run on this machine");
-                last_unavailable = Some(reason);
-            }
-            Err(_) => {}
         }
     }
+}
+
+async fn pass_once(state: &AppState, last_unavailable: &mut Option<String>) -> bool {
+    if !state.feature_toggle_overlay.load().wright {
+        return true;
+    }
+    let Some(persist) = state.persist() else {
+        return false;
+    };
+    if !persist.holds_worker_role(LEASE_ROLE, TICK).await {
+        return true;
+    }
+    match EngineerContext::from_state(state).await {
+        Ok(ctx) => {
+            *last_unavailable = None;
+            tick(&ctx).await;
+        }
+        Err(reason) => note_unavailable(last_unavailable, reason),
+    }
+    true
+}
+
+fn note_unavailable(last_unavailable: &mut Option<String>, reason: String) {
+    if last_unavailable.as_ref() == Some(&reason) {
+        return;
+    }
+    log_unavailable(&reason);
+    *last_unavailable = Some(reason);
+}
+
+fn log_unavailable(reason: &str) {
+    tracing::warn!(error = %reason, "wright: the engineer cannot run on this machine");
 }
 
 pub(crate) async fn request_for(
@@ -74,63 +97,101 @@ pub(crate) async fn request_for(
 }
 
 fn log_outcome(outcome: &RunOutcome) {
+    match &outcome.output {
+        Ok(_) => log_finding(outcome),
+        Err(reason) => log_no_finding(outcome, reason),
+    }
+}
+
+fn log_finding(outcome: &RunOutcome) {
     let out = outcome.out_dir.display().to_string();
     let end = format!("{:?}", outcome.end);
-    match &outcome.output {
-        Ok(_) => tracing::info!(
-            investigation = outcome.investigation_id,
-            finding = outcome.finding_id,
-            session_id = %outcome.session_uuid,
-            %out,
-            %end,
-            "wright: engineer run recorded a finding"
-        ),
-        Err(reason) => tracing::warn!(
-            investigation = outcome.investigation_id,
-            error = %reason,
-            session_id = %outcome.session_uuid,
-            %out,
-            %end,
-            "wright: engineer run ended without a finding"
-        ),
-    }
+    tracing::info!(
+        investigation = outcome.investigation_id,
+        finding = outcome.finding_id,
+        session_id = %outcome.session_uuid,
+        %out,
+        %end,
+        "wright: engineer run recorded a finding"
+    );
+}
+
+fn log_no_finding(outcome: &RunOutcome, reason: &str) {
+    let out = outcome.out_dir.display().to_string();
+    let end = format!("{:?}", outcome.end);
+    tracing::warn!(
+        investigation = outcome.investigation_id,
+        error = %reason,
+        session_id = %outcome.session_uuid,
+        %out,
+        %end,
+        "wright: engineer run ended without a finding"
+    );
 }
 
 fn log_refused(refused: &StartRefused) {
     match refused {
-        StartRefused::Launch { .. } | StartRefused::Unavailable(_) => {
-            tracing::warn!(%refused, "wright: engineer run not started");
-        }
-        _ => tracing::debug!(%refused, "wright: engineer run not started"),
+        StartRefused::Launch { .. } | StartRefused::Unavailable(_) => log_refused_warn(refused),
+        _ => log_refused_debug(refused),
     }
 }
 
-pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
-    if let Err(e) = reconcile::reconcile(&ctx.persist, &ctx.machine).await {
-        tracing::warn!(error = %e, "wright: engineer runs could not be reconciled");
-        return None;
-    }
-    let pick = match ctx
+fn log_refused_warn(refused: &StartRefused) {
+    tracing::warn!(%refused, "wright: engineer run not started");
+}
+
+fn log_refused_debug(refused: &StartRefused) {
+    tracing::debug!(%refused, "wright: engineer run not started");
+}
+
+fn log_reconcile_failed(error: &PersistError) {
+    tracing::warn!(error = %error, "wright: engineer runs could not be reconciled");
+}
+
+fn log_pick_failed(error: &PersistError) {
+    tracing::warn!(error = %error, "wright: the next problem could not be picked");
+}
+
+fn log_read_failed(error: &PersistError) {
+    tracing::warn!(error = %error, "wright: the picked problem could not be read");
+}
+
+async fn next_pick(ctx: &EngineerContext) -> Option<Pick> {
+    match ctx
         .persist
         .web()
         .pick_wright_problem(MAX_ATTEMPTS_PER_EPISODE)
         .await
     {
-        Ok(Some(pick)) => pick,
-        Ok(None) => return None,
+        Ok(pick) => pick,
         Err(e) => {
-            tracing::warn!(error = %e, "wright: the next problem could not be picked");
-            return None;
+            log_pick_failed(&e);
+            None
         }
-    };
-    let request = match request_for(&ctx.persist, pick).await {
-        Ok(Some(request)) => request,
-        Ok(None) => return None,
+    }
+}
+
+async fn read_request(ctx: &EngineerContext, pick: Pick) -> Option<RunRequest> {
+    match request_for(&ctx.persist, pick).await {
+        Ok(request) => request,
         Err(e) => {
-            tracing::warn!(error = %e, "wright: the picked problem could not be read");
-            return None;
+            log_read_failed(&e);
+            None
         }
-    };
+    }
+}
+
+pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
+    if let Err(e) = reconcile::reconcile(&ctx.persist, &ctx.machine).await {
+        log_reconcile_failed(&e);
+        return None;
+    }
+    let pick = next_pick(ctx).await?;
+    let request = read_request(ctx, pick).await?;
+    run_request(ctx, request).await
+}
+
+async fn run_request(ctx: &EngineerContext, request: RunRequest) -> Option<RunOutcome> {
     match super::start_run(ctx, request).await {
         Ok(handle) => {
             let outcome = super::wait(handle).await;

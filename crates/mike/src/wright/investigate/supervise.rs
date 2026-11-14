@@ -82,19 +82,31 @@ impl Watch<'_> {
     fn pace(&mut self) {
         let busy = admission::machine_busy(&self.ctx.paths.locks());
         match (&busy, self.paused) {
-            (Some(reason), false) => {
-                tracing::info!(investigation = self.id, %reason, "wright: pausing the engineer run");
-                process::pause_tree(self.root);
-                self.paused = true;
-            }
-            (None, true) => {
-                tracing::info!(investigation = self.id, "wright: resuming the engineer run");
-                process::resume_tree(self.root);
-                self.paused = false;
-            }
+            (Some(reason), false) => self.pause(reason),
+            (None, true) => self.resume(),
             _ => {}
         }
     }
+
+    fn pause(&mut self, reason: &str) {
+        log_pausing(self.id, reason);
+        process::pause_tree(self.root);
+        self.paused = true;
+    }
+
+    fn resume(&mut self) {
+        log_resuming(self.id);
+        process::resume_tree(self.root);
+        self.paused = false;
+    }
+}
+
+fn log_pausing(investigation: i64, reason: &str) {
+    tracing::info!(investigation, %reason, "wright: pausing the engineer run");
+}
+
+fn log_resuming(investigation: i64) {
+    tracing::info!(investigation, "wright: resuming the engineer run");
 }
 
 async fn stop(child: &mut Child, root: i32, reason: String) -> RunEnd {

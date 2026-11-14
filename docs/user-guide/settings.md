@@ -101,6 +101,7 @@ All of these need a model provider, such as an OpenRouter key, except where note
 | `session_judge` | Judges whole sessions. |
 | `judge_lessons`, `session_end_shadow` | Further judging jobs. The settings page describes each; treat them as sending captured text to your provider when on. |
 | `turn_guard` | Checks a turn's closing text against a few questions. |
+| `decisions` | Asks a small model, Jev, narrow yes or no questions at mike's decision points, such as whether a turn-guard nudge is worth sending. Sends your ask, the end of the answer and what changed to OpenRouter. Each point has its own mode of off, shadow or on. See [Decisions](decisions.md). |
 | `steerer.correction.enabled` | Decides whether you were correcting the model. |
 | `lesson_relations.enabled` | Compares stored lessons. |
 | `embedding.enabled` | Embeds turns and lessons for search by meaning. Needs no key. Text goes to the address in `embedding.url`, `http://127.0.0.1:7997` unless you change it. |
@@ -117,7 +118,7 @@ These are off, and none of the first four sends text to another service:
 | `change_record_tail` | Adds a few lines saying what others changed to some answers inside a fleet. Needs `change_record`. |
 | `memory_keeper` | Keeps a short card for each open work thread: where it stands, what is next, blockers, the last handoff and decisions since. Built from the database; nothing leaves the machine. Turning it back on needs a restart. |
 | `seat_memory_index` | Knowledge search also finds fleet seats' briefs, reports and mail, labelled by seat and run and ranked below your own material. Turning it back on needs a restart. |
-| `wright` | Wright watches mike's own signals (tool errors, hook errors, failed jobs) and records each recurring fault as a problem with its episodes. Reads only this machine's database. Turning it off stops the checks at once. The checks are stored rows, not code: list, add, change, disable and remove them while mike runs with the `wright_checks` tool. |
+| `wright` | Wright watches mike's own signals (tool errors, hook errors, failed jobs) and records each recurring fault as a problem with its episodes. Reads only this machine's database. Known fixes tidy known leftovers by themselves, inside daily limits. For a problem with no known fix, one sandboxed Claude run traces it to the part of mike that owns it and records a finding; a finding that names a code defect gets a narrow fix that reaches `main` only through the push hook, and Wright never deploys. The `/wright` page shows problems, findings, actions with undo, repairs and a conversation; posting and undoing need a browser paired with `mike wright pair --open`. Turning it off stops the checks at once. The checks are stored rows, not code: list, add, change, disable and remove them while mike runs with the `wright_checks` tool. |
 | `codex_diagnostic_capture` | Keeps the complete request and response bodies of Codex sessions for diagnosis, within the byte, row and age limits shown on the settings page. Off, Codex sessions keep only bounded facts. Nothing leaves the machine. |
 
 `workspace_briefing`, `context_focus_question`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
@@ -138,6 +139,7 @@ These are off, and none of the first four sends text to another service:
 | `launch_brief` | Sends a started session's long brief as mail from mike and keeps it as the session's note. Off, the brief is written to a file the session is told to read. |
 | `client_serves_self_identity` | When a client such as a Claude Code mod supplies a session's identity note, mike stands aside for that session. |
 | `code_scan` | Checks each edit a session records with ast-grep and keeps the scans and findings. Nothing leaves the machine. |
+| `code_findings_push` | When a session has stopped before reading the code findings its edit added, sends them over Remote Control so it fixes them now rather than on its next turn. Needs `code_scan` and `code_findings`. |
 
 A switch can be on in this list and still do nothing. `semantic_context` needs an embedding service, and `embedding.enabled` is off in the boot defaults. If the settings page shows `embedding.enabled` or `lesson_relations.enabled` as on in a fresh install, that is the page's own default and the capability panel says whether it works.
 

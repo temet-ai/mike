@@ -103,6 +103,11 @@ fn log_not_spawned(reason: &str) {
 }
 
 fn log_pass(report: &PassReport) {
+    log_turned_off(report);
+    log_totals(report);
+}
+
+fn log_turned_off(report: &PassReport) {
     for measured in report.measured.iter().filter(|m| m.turned_off) {
         tracing::warn!(
             remedy = %measured.remedy,
@@ -110,6 +115,9 @@ fn log_pass(report: &PassReport) {
             "wright: a known fix did not move its measure and was turned off"
         );
     }
+}
+
+fn log_totals(report: &PassReport) {
     tracing::info!(
         verified = report.verified,
         refused = report.refused,
@@ -156,7 +164,7 @@ async fn run_loop(
 async fn tick(owners: &Owners, wake: &mut Wake) {
     let latest = match owners.persist.web().latest_wright_check_run().await {
         Ok(latest) => latest,
-        Err(e) => return tracing::warn!(error = %e, "wright: cannot read the latest check run"),
+        Err(e) => return log_latest_failed(&e),
     };
     if !wake.due(latest, Instant::now()) {
         return;
@@ -164,8 +172,20 @@ async fn tick(owners: &Owners, wake: &mut Wake) {
     if !owners.persist.holds_worker_role(LEASE_ROLE, MAX_GAP).await {
         return;
     }
+    run_pass(owners).await;
+}
+
+async fn run_pass(owners: &Owners) {
     match pass(owners).await {
         Ok(report) => log_pass(&report),
-        Err(e) => tracing::warn!(error = %e, "wright: remedies pass failed"),
+        Err(e) => log_pass_failed(&e),
     }
+}
+
+fn log_latest_failed(error: &impl std::fmt::Display) {
+    tracing::warn!(error = %error, "wright: cannot read the latest check run");
+}
+
+fn log_pass_failed(error: &impl std::fmt::Display) {
+    tracing::warn!(error = %error, "wright: remedies pass failed");
 }

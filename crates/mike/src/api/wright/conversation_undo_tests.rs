@@ -6,11 +6,12 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use serde_json::{Value, json};
 
-use super::Conversation;
-use super::fakes_tests::{Db, FakeEngine, FakeSteers, TOKEN, bearer, operator_token};
-use super::steer_apply::Steers;
-use super::worker::tick;
-use crate::api::wright::conversation::{MessagesQuery, list_messages_with, undo_steer_with};
+use super::conversation::{MessagesQuery, list_messages_with, undo_steer_with};
+use super::conversation_tests::{bearer, read};
+use crate::wright::conversation::fakes_tests::{Db, FakeEngine, FakeSteers, TOKEN, operator_token};
+use crate::wright::conversation::steer_apply::Steers;
+use crate::wright::conversation::worker::tick;
+use crate::wright::conversation::{Conversation, SteerApply};
 
 const REMEDY: &str = "remedy:judge_mail";
 
@@ -31,15 +32,9 @@ async fn undo(
 ) -> anyhow::Result<(StatusCode, Value)> {
     let token = operator_token()?;
     let bytes = Bytes::from(serde_json::to_vec(&json!({"version": version}))?);
-    let response = match undo_steer_with(convo, Some(&token), headers, id, &bytes).await {
-        Ok(response) | Err(response) => response,
-    };
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await?;
-    Ok((
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    ))
+    match undo_steer_with(convo, Some(&token), headers, id, &bytes).await {
+        Ok(response) | Err(response) => read(response).await,
+    }
 }
 
 async fn last_steer(db: &Db) -> anyhow::Result<Value> {
@@ -165,7 +160,7 @@ async fn open_problem_steer_opens_an_operator_problem_and_undoes_it() -> anyhow:
     let steers = Steers {
         persist: db.handle.clone(),
     };
-    let steers: Arc<dyn super::SteerApply> = Arc::new(steers);
+    let steers: Arc<dyn SteerApply> = Arc::new(steers);
     let answer = json!({"body": "Opened it.", "steer": {"kind": "open_problem", "check": "conversation_probe", "resource": "forks"}});
     db.ask("open", "look at why forks start cold").await?;
     let convo = db.convo(FakeEngine::answering(vec![Ok(answer)]), steers);

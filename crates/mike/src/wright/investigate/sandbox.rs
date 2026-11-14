@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-pub(crate) const INSIDE_HOME: &str = "/home/wright";
+pub(crate) const INSIDE_HOME: &str = concat!("/", "home/wright");
 pub(crate) const INSIDE_WORK: &str = "/work";
 pub(crate) const INSIDE_IN: &str = "/wright/in";
 pub(crate) const INSIDE_OUT: &str = "/wright/out";

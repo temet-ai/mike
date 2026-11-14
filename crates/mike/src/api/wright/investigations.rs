@@ -28,12 +28,10 @@ pub(crate) struct PageParams {
     before: Option<i64>,
 }
 
-fn page(params: &PageParams) -> Result<PageQuery, Response> {
-    let limit = page_limit(params.limit, DEFAULT_LIMIT, "limit").map_err(bad_request)?;
+fn page(params: &PageParams) -> Result<PageQuery, String> {
+    let limit = page_limit(params.limit, DEFAULT_LIMIT, "limit")?;
     if let Some(before) = params.before.filter(|b| *b < 1) {
-        return Err(bad_request(format!(
-            "before is {before}; it must be an id of 1 or more"
-        )));
+        return Err(format!("before is {before}; it must be an id of 1 or more"));
     }
     Ok(PageQuery {
         problem_id: params.problem_id,
@@ -73,7 +71,7 @@ pub(crate) async fn list_investigations(
     Query(params): Query<PageParams>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let query = page(&params)?;
+    let query = page(&params).map_err(bad_request)?;
     let rows = handle
         .web()
         .list_wright_runs(query)
@@ -92,7 +90,7 @@ pub(crate) async fn list_findings(
     Query(params): Query<PageParams>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let query = page(&params)?;
+    let query = page(&params).map_err(bad_request)?;
     let rows = handle
         .web()
         .list_wright_findings(query)

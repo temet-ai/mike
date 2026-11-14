@@ -1,8 +1,6 @@
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
-use axum::http::HeaderMap;
-use axum::http::header::AUTHORIZATION;
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
 
@@ -86,9 +84,8 @@ pub(crate) fn ensure(path: &Path) -> std::io::Result<OperatorToken> {
     Ok(token)
 }
 
-pub(crate) fn bearer(headers: &HeaderMap) -> Option<&str> {
-    let value = headers.get(AUTHORIZATION)?.to_str().ok()?.trim();
-    let (scheme, token) = value.split_once(' ')?;
+pub(crate) fn bearer(authorization: Option<&str>) -> Option<&str> {
+    let (scheme, token) = authorization?.trim().split_once(' ')?;
     scheme
         .eq_ignore_ascii_case("bearer")
         .then(|| token.trim())
@@ -96,7 +93,7 @@ pub(crate) fn bearer(headers: &HeaderMap) -> Option<&str> {
 }
 
 pub(crate) fn authorize(
-    headers: &HeaderMap,
+    authorization: Option<&str>,
     expected: Option<&OperatorToken>,
 ) -> Result<(), String> {
     let Some(expected) = expected else {
@@ -104,7 +101,7 @@ pub(crate) fn authorize(
             "mike has no operator token yet; it creates {FILE_NAME} in its state directory when `mike serve` starts"
         ));
     };
-    match bearer(headers) {
+    match bearer(authorization) {
         None => Err("this route needs `Authorization: Bearer <operator token>`; run `mike wright pair` to pair the page".to_owned()),
         Some(given) if expected.matches(given) => Ok(()),
         Some(_) => Err("the Bearer token is not the operator token; run `mike wright pair` to pair the page again".to_owned()),
