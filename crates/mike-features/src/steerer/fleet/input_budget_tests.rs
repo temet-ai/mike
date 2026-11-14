@@ -188,6 +188,7 @@ fn uncapped_context_keeps_unabridged_headings_and_full_list() {
         action_counts: None,
         thread_criteria: None,
         intake_criteria: None,
+        checklist_criteria: Vec::new(),
     };
     let ctx = project_verifier_context(&raw, VerifierInputBudget::Uncapped);
     assert_eq!(ctx.session_action_list, build_session_action_list(&rows));
@@ -372,6 +373,7 @@ fn capped_headings_replace_the_unabridged_wording() {
         action_counts: None,
         thread_criteria: None,
         intake_criteria: None,
+        checklist_criteria: Vec::new(),
     };
     let ctx = project_verifier_context(&raw, VerifierInputBudget::V1);
     assert_eq!(ctx.budget, VerifierInputBudget::V1);

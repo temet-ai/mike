@@ -5,12 +5,15 @@ use tracing::{debug, warn};
 use uuid::Uuid;
 
 use super::input_budget::{RawVerifierContext, VerifierInputBudget, project_verifier_context};
+use crate::steerer::checklist_point::{Criterion, session_criteria};
 use crate::steerer::verifier::{
     build_accumulated_ask, build_trajectory_digest, written_by_the_operator,
 };
+use crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap;
 use crate::store::persistence::memory_ask_ledger::AskLedgerEntryRow;
 use crate::store::persistence::session_action_list::{SessionActionCounts, SessionActionRow};
 use crate::store::persistence::{PersistError, PersistHandle};
+use mike_launch::store::persistence::work_threads::criteria::{CriteriaSource, ThreadCriteria};
 
 #[derive(Default)]
 pub struct VerifierJudgeContext {
@@ -19,6 +22,7 @@ pub struct VerifierJudgeContext {
     pub prior_fires_digest: String,
     pub thread_criteria: Option<String>,
     pub intake_criteria: Option<String>,
+    pub checklist_criteria: Vec<Criterion>,
     pub session_action_list: String,
     pub budget: VerifierInputBudget,
 }
@@ -193,21 +197,20 @@ async fn fetch_thread_criteria(
     session_uuid: Uuid,
     session_db_id: Option<i64>,
     accumulated_ask: &str,
-) -> Option<String> {
+) -> Option<ThreadCriteria> {
     let session_db_id = session_db_id?;
     match ph
         .launch()
         .fetch_thread_criteria_for_session(session_db_id, accumulated_ask)
         .await
     {
-        Ok(found) => found.map(|thread| {
+        Ok(found) => found.inspect(|thread| {
             debug!(
                 session_id = %session_uuid,
                 thread_slug = %thread.thread_slug,
                 found_via = ?thread.via,
                 "steerer fleet: acceptance criteria read from the work thread"
             );
-            thread.criteria_text
         }),
         Err(e) => {
             warn!(
@@ -220,19 +223,18 @@ async fn fetch_thread_criteria(
     }
 }
 
-async fn fetch_intake_criteria(
+async fn fetch_intake_map(
     ph: &PersistHandle,
     session_uuid: Uuid,
     session_db_id: Option<i64>,
-) -> Option<String> {
+) -> Option<AcceptanceCriteriaMap> {
     let session_db_id = session_db_id?;
     match ph
         .steerer()
         .fetch_current_acceptance_criteria(session_db_id)
         .await
     {
-        Ok(Some(map)) if !map.criteria.is_empty() => Some(render_intake_criteria(&map)),
-        Ok(_) => None,
+        Ok(map) => map,
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
@@ -257,19 +259,54 @@ async fn load_raw_verifier_context(
     let (action_rows, action_counts) =
         fetch_action_rows(ph, session_uuid, session_db_id, budget).await;
     let full_ask = build_accumulated_ask(&ask_entries);
-    let thread_criteria = fetch_thread_criteria(ph, session_uuid, session_db_id, &full_ask).await;
-    let intake_criteria = if thread_criteria.is_some() {
+    let thread = fetch_thread_criteria(ph, session_uuid, session_db_id, &full_ask).await;
+    let intake = if is_linked(thread.as_ref()) {
         None
     } else {
-        fetch_intake_criteria(ph, session_uuid, session_db_id).await
+        fetch_intake_map(ph, session_uuid, session_db_id).await
     };
+    let criteria = CriteriaFields::from_sources(thread, intake);
     RawVerifierContext {
         ask_entries,
         trajectory_digest,
         action_rows,
         action_counts,
-        thread_criteria,
-        intake_criteria,
+        thread_criteria: criteria.thread_criteria,
+        intake_criteria: criteria.intake_criteria,
+        checklist_criteria: criteria.checklist_criteria,
+    }
+}
+
+pub fn is_linked(thread: Option<&ThreadCriteria>) -> bool {
+    thread.is_some_and(|t| t.via == CriteriaSource::LinkedSession)
+}
+
+pub struct CriteriaFields {
+    pub thread_criteria: Option<String>,
+    pub intake_criteria: Option<String>,
+    pub checklist_criteria: Vec<Criterion>,
+}
+
+impl CriteriaFields {
+    pub fn from_sources(
+        thread: Option<ThreadCriteria>,
+        intake: Option<AcceptanceCriteriaMap>,
+    ) -> Self {
+        let intake = intake.filter(|m| !m.criteria.is_empty());
+        let linked = thread
+            .as_ref()
+            .filter(|t| is_linked(Some(t)))
+            .map(|t| t.criteria_text.as_str());
+        let checklist_criteria = session_criteria(linked, intake.as_ref());
+        let thread_criteria = thread.map(|t| t.criteria_text);
+        let intake_criteria = intake
+            .filter(|_| thread_criteria.is_none())
+            .map(|m| render_intake_criteria(&m));
+        Self {
+            thread_criteria,
+            intake_criteria,
+            checklist_criteria,
+        }
     }
 }
 
@@ -285,9 +322,7 @@ pub async fn build_verifier_judge_context(
     project_verifier_context(&raw, budget)
 }
 
-pub fn render_intake_criteria(
-    map: &crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap,
-) -> String {
+pub fn render_intake_criteria(map: &AcceptanceCriteriaMap) -> String {
     let mut out = String::from(
         "Acceptance criteria for this session, written from the operator's own words by a \
          worker that never saw this session's plan or restatement.\n",
@@ -346,6 +381,77 @@ mod tests {
         assert!(
             rendered.contains("never saw this session's plan or restatement"),
             "the judge should know where these came from"
+        );
+    }
+
+    fn one_row_map() -> AcceptanceCriteriaMap {
+        use crate::store::persistence::acceptance_criteria::AcceptanceCriterionRow;
+        AcceptanceCriteriaMap {
+            id: 1,
+            version: 1,
+            ask_entry_count: 1,
+            model: None,
+            output_tokens: None,
+            created_at: chrono::Utc::now(),
+            criteria: vec![AcceptanceCriterionRow {
+                ord: 0,
+                criterion: "This session's own criterion.".to_string(),
+                provenance: "operator".to_string(),
+                operator_span: Some("my words".to_string()),
+            }],
+        }
+    }
+
+    fn thread(via: CriteriaSource) -> ThreadCriteria {
+        ThreadCriteria {
+            thread_slug: "other-work".to_string(),
+            criteria_text: "- Another thread's criterion.".to_string(),
+            via,
+        }
+    }
+
+    #[test]
+    fn criteria_fields_mentioned_thread_never_reaches_the_checklist() {
+        let fields = CriteriaFields::from_sources(
+            Some(thread(CriteriaSource::MentionedInAsk)),
+            Some(one_row_map()),
+        );
+        let texts: Vec<&str> = fields
+            .checklist_criteria
+            .iter()
+            .map(|c| c.text.as_str())
+            .collect();
+        assert_eq!(texts, vec!["This session's own criterion."]);
+        assert_eq!(
+            fields.thread_criteria.as_deref(),
+            Some("- Another thread's criterion."),
+            "the judge prompt keeps what it saw before"
+        );
+        assert!(fields.intake_criteria.is_none());
+    }
+
+    #[test]
+    fn criteria_fields_linked_thread_feeds_the_checklist() {
+        let fields =
+            CriteriaFields::from_sources(Some(thread(CriteriaSource::LinkedSession)), None);
+        let texts: Vec<&str> = fields
+            .checklist_criteria
+            .iter()
+            .map(|c| c.text.as_str())
+            .collect();
+        assert_eq!(texts, vec!["Another thread's criterion."]);
+    }
+
+    #[test]
+    fn criteria_fields_intake_only_renders_for_the_judge_and_keeps_rows_for_the_checklist() {
+        let fields = CriteriaFields::from_sources(None, Some(one_row_map()));
+        assert_eq!(fields.checklist_criteria.len(), 1);
+        assert!(!fields.checklist_criteria[0].inferred);
+        assert!(
+            fields
+                .intake_criteria
+                .as_deref()
+                .is_some_and(|t| t.contains("[operator asked] This session's own criterion."))
         );
     }
 

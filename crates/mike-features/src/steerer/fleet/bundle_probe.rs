@@ -67,6 +67,7 @@ fn verifier_context(budget: VerifierInputBudget) -> VerifierJudgeContext {
         prior_fires_digest: "no prior fires".to_owned(),
         thread_criteria: Some("the retry backs off".to_owned()),
         intake_criteria: Some("tests pass".to_owned()),
+        checklist_criteria: Vec::new(),
         session_action_list: "Edit src/client.rs\nBash cargo test".to_owned(),
         budget,
     }

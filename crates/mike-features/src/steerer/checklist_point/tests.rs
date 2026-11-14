@@ -2,25 +2,69 @@ use std::collections::BTreeMap;
 
 use super::compose::compose;
 use super::questions::{key, questions};
-use super::state::{Criterion, Evidence, parse_criteria, state};
+use super::state::{Criterion, Evidence, session_criteria, state, thread_criteria};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
 use crate::steerer::verdict::{Need, SteererVerdict};
+use crate::store::persistence::acceptance_criteria::{
+    AcceptanceCriteriaMap, AcceptanceCriterionRow,
+};
 
 fn criterion(text: &str, inferred: bool) -> Criterion {
     Criterion {
         text: text.to_owned(),
         inferred,
-        operator_words: None,
+    }
+}
+
+fn intake_map(rows: &[(&str, Option<&str>)]) -> AcceptanceCriteriaMap {
+    AcceptanceCriteriaMap {
+        id: 1,
+        version: 1,
+        ask_entry_count: 1,
+        model: None,
+        output_tokens: None,
+        created_at: chrono::Utc::now(),
+        criteria: rows
+            .iter()
+            .zip(0..)
+            .map(|((text, span), ord)| AcceptanceCriterionRow {
+                ord,
+                criterion: (*text).to_owned(),
+                provenance: if span.is_some() {
+                    "operator"
+                } else {
+                    "inferred"
+                }
+                .to_owned(),
+                operator_span: span.map(str::to_owned),
+            })
+            .collect(),
     }
 }
 
 #[test]
-fn parse_criteria_thread_block_keeps_list_items_or_every_plain_line() {
-    let headed = parse_criteria(
-        Some("Acceptance criteria:\n- It ships.\n- It is proven."),
-        None,
+fn session_criteria_intake_map_gives_one_criterion_per_stored_row() {
+    let map = intake_map(&[
+        ("The panel is reachable.", Some("no direct URL")),
+        ("It uses shared primitives.", None),
+        ("  ", None),
+        ("It loads under a second.", Some("make it fast")),
+    ]);
+    assert_eq!(
+        session_criteria(None, Some(&map)),
+        vec![
+            criterion("The panel is reachable.", false),
+            criterion("It uses shared primitives.", true),
+            criterion("It loads under a second.", false),
+        ]
     );
+    assert!(session_criteria(None, None).is_empty());
+}
+
+#[test]
+fn thread_criteria_keeps_list_items_or_every_plain_line() {
+    let headed = thread_criteria("Acceptance criteria:\n- It ships.\n- It is proven.");
     assert_eq!(
         headed,
         vec![
@@ -28,60 +72,12 @@ fn parse_criteria_thread_block_keeps_list_items_or_every_plain_line() {
             criterion("It is proven.", false)
         ]
     );
-    let plain = parse_criteria(Some("It ships.\nIt is proven."), None);
+    let plain = thread_criteria("It ships.\nIt is proven.");
     assert_eq!(
         plain,
         vec![
             criterion("It ships.", false),
             criterion("It is proven.", false)
-        ]
-    );
-}
-
-#[test]
-fn parse_criteria_rendered_intake_map_gives_one_criterion_per_row() {
-    use crate::steerer::fleet::verifier_judge::render_intake_criteria;
-    use crate::store::persistence::acceptance_criteria::{
-        AcceptanceCriteriaMap, AcceptanceCriterionRow,
-    };
-    let row = |ord: i32, text: &str, span: Option<&str>| AcceptanceCriterionRow {
-        ord,
-        criterion: text.to_owned(),
-        provenance: if span.is_some() {
-            "operator"
-        } else {
-            "inferred"
-        }
-        .to_owned(),
-        operator_span: span.map(str::to_owned),
-    };
-    let map = AcceptanceCriteriaMap {
-        id: 1,
-        version: 1,
-        ask_entry_count: 3,
-        model: None,
-        output_tokens: None,
-        created_at: chrono::Utc::now(),
-        criteria: vec![
-            row(0, "The panel is reachable.", Some("no direct URL")),
-            row(1, "It uses shared primitives.", None),
-            row(2, "It loads under a second.", Some("make it fast")),
-        ],
-    };
-    let found = parse_criteria(None, Some(&render_intake_criteria(&map)));
-    let words = |w: &str| Some(w.to_owned());
-    assert_eq!(
-        found,
-        vec![
-            Criterion {
-                operator_words: words("no direct URL"),
-                ..criterion("The panel is reachable.", false)
-            },
-            criterion("It uses shared primitives.", true),
-            Criterion {
-                operator_words: words("make it fast"),
-                ..criterion("It loads under a second.", false)
-            },
         ]
     );
 }
@@ -115,12 +111,9 @@ fn writer(fires: bool, nudge: &str) -> SteererVerdict {
 }
 
 #[test]
-fn parse_criteria_reads_list_markers_and_the_inferred_tag() {
-    let found = parse_criteria(
-        None,
-        Some(
-            "- The page loads.\n2. It renders.\n- [inferred, not stated by the operator] It is fast.\n\n",
-        ),
+fn thread_criteria_reads_list_markers_and_the_inferred_tag() {
+    let found = thread_criteria(
+        "- The page loads.\n2. It renders.\n- [inferred, not stated by the operator] It is fast.\n\n",
     );
     assert_eq!(
         found,
@@ -133,8 +126,9 @@ fn parse_criteria_reads_list_markers_and_the_inferred_tag() {
 }
 
 #[test]
-fn parse_criteria_prefers_the_thread_criteria_over_the_intake_map() {
-    let found = parse_criteria(Some("- From the thread."), Some("- From intake."));
+fn session_criteria_linked_thread_beats_the_intake_map() {
+    let map = intake_map(&[("From intake.", None)]);
+    let found = session_criteria(Some("- From the thread."), Some(&map));
     assert_eq!(found, vec![criterion("From the thread.", false)]);
 }
 

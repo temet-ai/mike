@@ -9,7 +9,7 @@ use serde_json::json;
 
 pub use compose::{Checklist, Item, NOT_DONE_AT, compose};
 pub use questions::{POINT, QUESTION_SET};
-pub use state::{Criterion, Evidence, parse_criteria};
+pub use state::{Criterion, Evidence, session_criteria};
 
 use crate::llm::decisions::point::{Asked, Decider};
 use crate::llm::decisions::record::DecisionSubject;
