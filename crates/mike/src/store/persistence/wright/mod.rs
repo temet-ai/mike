@@ -11,6 +11,9 @@ pub(crate) use investigations::{
     Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation, PageQuery,
     Pick, Usage,
 };
+mod repairs;
+
+pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

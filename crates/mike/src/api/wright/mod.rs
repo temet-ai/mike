@@ -7,6 +7,7 @@ pub(crate) mod checks;
 pub(crate) mod investigations;
 pub(crate) mod problems;
 pub(crate) mod remedies;
+pub(crate) mod repairs;
 
 #[cfg(test)]
 mod checks_tests;

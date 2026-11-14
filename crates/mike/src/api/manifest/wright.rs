@@ -3,6 +3,7 @@ use axum::routing::{get, patch, post};
 
 use crate::api::wright::{checks, investigations, problems as api};
 use crate::api::wright::{checks, problems as api, remedies};
+use crate::api::wright::{checks, problems as api, repairs};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -107,6 +108,20 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "Operator-only control of the engineer's limits; no session may change Wright's limits",
         },
     ),
+    route(
+        "GET",
+        "/api/wright/repairs",
+        Coverage::Exempt {
+            reason: "Wright's code repairs and their states for the Wright page; no session workflow reads them yet",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/repairs/{id}",
+        Coverage::Exempt {
+            reason: "One Wright code repair with its patch, gate result and merge for the Wright page; no session workflow reads it yet",
+        },
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -139,4 +154,6 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             "/api/wright/engineer-limits",
             get(investigations::get_limits).patch(investigations::patch_limits),
         )
+        .route("/api/wright/repairs", get(repairs::list_repairs))
+        .route("/api/wright/repairs/{id}", get(repairs::get_repair))
 }

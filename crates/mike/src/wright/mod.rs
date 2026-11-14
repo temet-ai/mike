@@ -7,6 +7,7 @@ pub mod cli;
 pub(crate) mod definition;
 pub mod investigate;
 pub mod remedies;
+pub mod repair;
 pub mod watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
