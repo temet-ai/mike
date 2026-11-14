@@ -2,6 +2,24 @@ use std::path::{Path, PathBuf};
 
 use super::jobs::Job;
 
+fn package_shares(exe: &Path) -> Vec<PathBuf> {
+    [Some(exe.to_path_buf()), std::fs::canonicalize(exe).ok()]
+        .into_iter()
+        .flatten()
+        .filter_map(|bin| bin.parent().map(Path::to_path_buf))
+        .flat_map(|directory| {
+            [
+                Some(directory.clone()),
+                directory.parent().map(Path::to_path_buf),
+            ]
+            .into_iter()
+            .flatten()
+            .map(|prefix| prefix.join("share").join("mike"))
+            .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Presence {
     Present,
@@ -47,7 +65,7 @@ pub(crate) fn locate_in(job: &Job, exe: Option<&Path>, cwd: Option<&Path>) -> Lo
     }
     let package = exe
         .into_iter()
-        .flat_map(crate::claude_code::mods::package_dirs)
+        .flat_map(package_shares)
         .find(|share| has_script(share, job));
     match package {
         Some(root) => found(root),
