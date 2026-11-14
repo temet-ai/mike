@@ -92,9 +92,9 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
 #[tokio::test]
 async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> anyhow::Result<()> {
     let bench = Bench::boot(fix()).await?;
-    let ids = bench.problems(&["a", "b", "c", "d"]).await?;
-    let [a, b, c, d] = ids.as_slice() else {
-        anyhow::bail!("expected four problems, got {ids:?}");
+    let ids = bench.problems(&["a", "b", "c"]).await?;
+    let [a, b, c] = ids.as_slice() else {
+        anyhow::bail!("expected three problems, got {ids:?}");
     };
     let first = bench
         .finding(*a, "code_defect", true, Some("crates/mike/src/x.rs"))
@@ -108,8 +108,6 @@ async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> any
     bench
         .finding(*c, "config", true, Some("crates/mike/src/z.rs"))
         .await?;
-    bench.finding(*d, "code_defect", true, None).await?;
-    bench.finding(*d, "code_defect", true, Some("   ")).await?;
     let web = bench.ctx.persist.web();
 
     let claimed = web

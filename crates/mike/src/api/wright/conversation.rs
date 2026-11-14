@@ -70,6 +70,10 @@ fn operator_token() -> Option<OperatorToken> {
     token::load(&path).ok().flatten()
 }
 
+pub(crate) fn require_operator(headers: &HeaderMap) -> Result<(), Response> {
+    token::authorize(headers, operator_token().as_ref()).map_err(|reason| unauthorized(&reason))
+}
+
 fn parse_json<T: serde::de::DeserializeOwned>(bytes: &Bytes) -> Result<T, Response> {
     serde_json::from_slice(bytes).map_err(|e| {
         bad_request(format!(
@@ -266,7 +270,7 @@ pub(crate) async fn undo_steer(
         steers: Arc::new(Steers {
             persist: handle.clone(),
         }),
-        engine: Arc::new(EngineerAnswers::default()),
+        engine: Arc::new(EngineerAnswers::for_state(&state)),
         persist: handle,
     };
     match undo_steer_with(&convo, operator_token().as_ref(), &headers, id, &bytes).await {
@@ -292,9 +296,6 @@ pub(crate) async fn undo_steer_with(
             &format!("no Wright steer has id {id}"),
         )),
         Err(UndoError::Conflict(reason)) => Err(conflict(&reason)),
-        Err(UndoError::NotAvailable(reason)) => {
-            Err(refuse(StatusCode::SERVICE_UNAVAILABLE, &reason))
-        }
         Err(UndoError::Failed(reason)) => Err(refuse(StatusCode::INTERNAL_SERVER_ERROR, &reason)),
     }
 }

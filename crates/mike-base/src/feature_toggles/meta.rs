@@ -243,6 +243,6 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "wright",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
 ];

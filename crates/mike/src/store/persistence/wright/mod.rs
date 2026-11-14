@@ -9,12 +9,13 @@ mod investigations;
 mod problems;
 pub(crate) mod remedies;
 
-pub(crate) use investigations::{
-    Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation, PageQuery,
-    Pick, Usage,
-};
 mod repairs;
 
+pub(crate) use investigations::{
+    EngineerLimits, Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation,
+    PageQuery, Pick, Usage,
+};
+pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

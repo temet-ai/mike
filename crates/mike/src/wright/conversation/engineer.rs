@@ -1,46 +1,59 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use async_trait::async_trait;
 use serde_json::Value;
 
 use super::{AnswerEngine, AnswerRequest, EngineError};
+use crate::state::AppState;
+use crate::wright::investigate::{
+    self, EngineerContext, RunEnd, RunMode, RunRequest, StartRefused,
+};
 
-pub(crate) const NOT_AVAILABLE: &str = "Wright's engineer run is not in this build yet: answers need investigate::start_run with RunMode::Answer (temet-ai/mike#73)";
-
-#[derive(Debug, Default)]
 pub(crate) struct EngineerAnswers {
-    in_flight: AtomicBool,
-}
-
-struct InFlight<'a>(&'a AtomicBool);
-
-impl Drop for InFlight<'_> {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
-    }
+    state: AppState,
 }
 
 impl EngineerAnswers {
-    fn claim(&self) -> Result<InFlight<'_>, EngineError> {
-        self.in_flight
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .map(|_| InFlight(&self.in_flight))
-            .map_err(|_| {
-                EngineError::Busy("another answer run is in flight in this process".to_owned())
-            })
+    pub(crate) fn for_state(state: &AppState) -> Self {
+        Self {
+            state: state.clone(),
+        }
+    }
+}
+
+fn refused(refusal: StartRefused) -> EngineError {
+    match refusal {
+        StartRefused::Busy | StartRefused::Overloaded(_) | StartRefused::DailyLimit { .. } => {
+            EngineError::Busy(refusal.to_string())
+        }
+        StartRefused::Disabled | StartRefused::Unavailable(_) => {
+            EngineError::NotAvailable(refusal.to_string())
+        }
+        StartRefused::Launch { .. } => EngineError::Failed(refusal.to_string()),
+    }
+}
+
+fn settled(end: RunEnd, output: Result<Value, String>) -> Result<Value, EngineError> {
+    match end {
+        RunEnd::Killed { reason } => Err(EngineError::Failed(format!(
+            "the answer run was stopped: {reason}"
+        ))),
+        RunEnd::Exited { .. } => output.map_err(EngineError::Failed),
     }
 }
 
 #[async_trait]
 impl AnswerEngine for EngineerAnswers {
     async fn answer(&self, request: AnswerRequest) -> Result<Value, EngineError> {
-        let _running = self.claim()?;
-        tracing::info!(
-            job = request.job_id,
-            message = request.message_id,
-            inputs = request.inputs.len(),
-            "wright: an answer run was asked for, but the engineer run is not in this build"
-        );
-        Err(EngineError::NotAvailable(NOT_AVAILABLE.to_owned()))
+        let ctx = EngineerContext::from_state(&self.state)
+            .await
+            .map_err(EngineError::NotAvailable)?;
+        let run = RunRequest {
+            mode: RunMode::Answer,
+            problem_id: None,
+            brief: request.brief,
+            inputs: request.inputs,
+        };
+        let handle = investigate::start_run(&ctx, run).await.map_err(refused)?;
+        let outcome = investigate::wait(handle).await;
+        settled(outcome.end, outcome.output)
     }
 }

@@ -12,6 +12,7 @@ pub struct WrightArgs {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum WrightCommand {
+    Pair(crate::wright::conversation::pair::PairArgs),
     #[command(hide = true)]
     SandboxRelay(SandboxRelayArgs),
 }
@@ -28,6 +29,13 @@ pub struct SandboxRelayArgs {
 
 pub async fn run(args: WrightArgs) -> i32 {
     match args.command {
+        WrightCommand::Pair(pair) => match crate::wright::conversation::pair::run(&pair) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("mike wright pair: {e:#}");
+                1
+            }
+        },
         WrightCommand::SandboxRelay(relay) => {
             crate::wright::investigate::relay_inside::run(relay.socket, relay.listen, relay.command)
                 .await

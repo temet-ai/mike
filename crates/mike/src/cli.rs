@@ -62,10 +62,7 @@ pub enum Command {
 
     Structural(structural::StructuralArgs),
 
-    #[command(hide = true)]
     Wright(crate::wright::cli::WrightArgs),
-
-    Wright(crate::wright::conversation::pair::WrightArgs),
 }
 
 #[derive(Debug, Clone, Args)]

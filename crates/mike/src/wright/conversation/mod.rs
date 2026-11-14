@@ -12,6 +12,7 @@ pub(crate) mod notice;
 pub mod pair;
 pub(crate) mod steer;
 pub(crate) mod steer_apply;
+mod steer_owners;
 pub(crate) mod steering;
 pub(crate) mod token;
 pub(crate) mod worker;
@@ -60,8 +61,6 @@ pub(crate) trait AnswerEngine: Send + Sync {
 pub(crate) enum SteerError {
     #[error("{0}")]
     Refused(String),
-    #[error("{0}")]
-    NotAvailable(String),
     #[error("{0}")]
     Conflict(String),
     #[error("{0}")]

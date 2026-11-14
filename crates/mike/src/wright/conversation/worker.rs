@@ -45,7 +45,7 @@ pub fn spawn_conversation_worker(state: &AppState) {
         steers: Arc::new(Steers {
             persist: persist.clone(),
         }),
-        engine: Arc::new(EngineerAnswers::default()),
+        engine: Arc::new(EngineerAnswers::for_state(state)),
         persist,
     };
     let toggles = state.feature_toggle_overlay.clone();

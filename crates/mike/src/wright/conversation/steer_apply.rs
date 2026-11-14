@@ -3,12 +3,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
+use super::steer_owners as owners;
 use super::{Change, SteerApply, SteerError};
 use crate::store::persistence::wright::conversation_steers::OperatorProblemUndo;
 use crate::store::persistence::{PersistError, PersistHandle};
-
-pub(crate) const REMEDIES_NOT_AVAILABLE: &str = "known fixes are not in this build yet: pausing and resuming a remedy needs the remedies code (temet-ai/mike#74)";
-pub(crate) const LIMITS_NOT_AVAILABLE: &str = "engineer limits are not in this build yet: changing one needs wright.engineer_limits (temet-ai/mike#73)";
 
 pub(crate) struct Steers {
     pub(crate) persist: PersistHandle,
@@ -126,12 +124,10 @@ impl Steers {
 impl SteerApply for Steers {
     async fn read(&self, change: &Change) -> Result<Value, SteerError> {
         match change {
-            Change::PauseRemedy { .. } | Change::ResumeRemedy { .. } => {
-                Err(SteerError::NotAvailable(REMEDIES_NOT_AVAILABLE.to_owned()))
+            Change::PauseRemedy { name, .. } | Change::ResumeRemedy { name } => {
+                owners::read_remedy(&self.persist, name).await
             }
-            Change::SetEngineerLimit { .. } => {
-                Err(SteerError::NotAvailable(LIMITS_NOT_AVAILABLE.to_owned()))
-            }
+            Change::SetEngineerLimit { .. } => owners::read_limits(&self.persist).await,
             Change::OpenProblem { check, resource } => {
                 self.read_open_problem(check, resource).await
             }
@@ -141,11 +137,14 @@ impl SteerApply for Steers {
 
     async fn apply(&self, steer_id: i64, change: &Change) -> Result<Value, SteerError> {
         match change {
-            Change::PauseRemedy { .. } | Change::ResumeRemedy { .. } => {
-                Err(SteerError::NotAvailable(REMEDIES_NOT_AVAILABLE.to_owned()))
+            Change::PauseRemedy { name, .. } => {
+                owners::set_remedy_enabled(&self.persist, name, false).await
             }
-            Change::SetEngineerLimit { .. } => {
-                Err(SteerError::NotAvailable(LIMITS_NOT_AVAILABLE.to_owned()))
+            Change::ResumeRemedy { name } => {
+                owners::set_remedy_enabled(&self.persist, name, true).await
+            }
+            Change::SetEngineerLimit { field, value } => {
+                owners::set_limit(&self.persist, *field, *value).await
             }
             Change::OpenProblem { check, resource } => {
                 self.open_problem(steer_id, check, resource).await
@@ -164,10 +163,10 @@ impl SteerApply for Steers {
     ) -> Result<Value, SteerError> {
         match change {
             Change::PauseRemedy { .. } | Change::ResumeRemedy { .. } => {
-                Err(SteerError::NotAvailable(REMEDIES_NOT_AVAILABLE.to_owned()))
+                owners::undo_remedy(&self.persist, prior, effect).await
             }
-            Change::SetEngineerLimit { .. } => {
-                Err(SteerError::NotAvailable(LIMITS_NOT_AVAILABLE.to_owned()))
+            Change::SetEngineerLimit { field, .. } => {
+                owners::undo_limit(&self.persist, *field, prior, effect).await
             }
             Change::OpenProblem { .. } => self.undo_open_problem(prior, effect).await,
             Change::SkipProblem { .. } => Ok(prior.clone()),

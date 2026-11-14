@@ -73,6 +73,16 @@ fn remedy_patch(body: PatchRemedyBody) -> Result<RemedyPatch, String> {
     Ok(patch)
 }
 
+pub(crate) async fn patch_remedy_as_operator(
+    state: State<AppState>,
+    name: Path<String>,
+    headers: axum::http::HeaderMap,
+    body: Json<PatchRemedyBody>,
+) -> Result<Json<Value>, Response> {
+    crate::api::wright::conversation::require_operator(&headers)?;
+    patch_remedy(state, name, body).await
+}
+
 pub(crate) async fn patch_remedy(
     State(state): State<AppState>,
     Path(name): Path<String>,
@@ -130,6 +140,15 @@ fn conflict(reason: &str) -> Response {
         Json(json!({"error": "conflict", "reason": reason})),
     )
         .into_response()
+}
+
+pub(crate) async fn undo_action_as_operator(
+    state: State<AppState>,
+    id: Path<i64>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, Response> {
+    crate::api::wright::conversation::require_operator(&headers)?;
+    undo_action(state, id).await
 }
 
 pub(crate) async fn undo_action(

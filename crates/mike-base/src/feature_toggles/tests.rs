@@ -321,7 +321,6 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
         "channel_link_sweep",
         "memory_keeper",
         "seat_memory_index",
-        "wright",
     ] {
         let meta = TOGGLE_META
             .iter()
@@ -333,6 +332,15 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
             "{key} must report LiveDisable now that its loop re-reads the toggle"
         );
     }
+}
+
+#[test]
+fn wright_applies_immediately_in_both_directions() {
+    let meta = TOGGLE_META
+        .iter()
+        .find(|m| m.key == "wright")
+        .unwrap_or_else(|| panic!("wright missing from TOGGLE_META"));
+    assert_eq!(meta.applies, ToggleApplies::Immediate);
 }
 
 #[test]

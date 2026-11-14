@@ -44,7 +44,7 @@ impl LimitField {
             LimitField::DailyStarts => (0, 20),
             LimitField::WallSeconds => (60, 7_200),
             LimitField::ToolCalls => (1, 500),
-            LimitField::Tokens => (1_000, 5_000_000),
+            LimitField::Tokens => (10_000, 5_000_000),
         }
     }
 

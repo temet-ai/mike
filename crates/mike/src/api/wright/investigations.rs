@@ -191,6 +191,15 @@ pub(crate) fn validate_limits(body: &LimitsBody) -> Result<LimitsPatch, String> 
     Ok(patch)
 }
 
+pub(crate) async fn patch_limits_as_operator(
+    state: State<AppState>,
+    headers: axum::http::HeaderMap,
+    body: Json<LimitsBody>,
+) -> Result<Json<Value>, Response> {
+    crate::api::wright::conversation::require_operator(&headers)?;
+    patch_limits(state, body).await
+}
+
 pub(crate) async fn patch_limits(
     State(state): State<AppState>,
     Json(body): Json<LimitsBody>,

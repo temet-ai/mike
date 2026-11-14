@@ -37,7 +37,7 @@ fn parse_out_of_range_values_are_refused() {
         &json!({"kind": "set_engineer_limit", "field": "tokens", "value": 10}),
         now,
     );
-    assert!(limit.is_err_and(|r| r.contains("between 1000 and 5000000")));
+    assert!(limit.is_err_and(|r| r.contains("between 10000 and 5000000")));
     let unknown = parse(
         &json!({"kind": "set_engineer_limit", "field": "budget", "value": 10}),
         now,

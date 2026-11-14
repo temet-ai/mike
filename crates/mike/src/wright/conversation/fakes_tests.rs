@@ -104,13 +104,13 @@ impl FakeSteers {
 impl SteerApply for FakeSteers {
     async fn read(&self, change: &Change) -> Result<Value, SteerError> {
         let key = key(change)
-            .ok_or_else(|| SteerError::NotAvailable("the fake knows only remedies".to_owned()))?;
+            .ok_or_else(|| SteerError::Refused("the fake knows only remedies".to_owned()))?;
         Ok(self.state(&key))
     }
 
     async fn apply(&self, steer_id: i64, change: &Change) -> Result<Value, SteerError> {
         let key = key(change)
-            .ok_or_else(|| SteerError::NotAvailable("the fake knows only remedies".to_owned()))?;
+            .ok_or_else(|| SteerError::Refused("the fake knows only remedies".to_owned()))?;
         let effect = match change {
             Change::PauseRemedy { until, .. } => {
                 json!({"paused": true, "until": until, "steer": steer_id})
@@ -128,7 +128,7 @@ impl SteerApply for FakeSteers {
         effect: &Value,
     ) -> Result<Value, SteerError> {
         let key = key(change)
-            .ok_or_else(|| SteerError::NotAvailable("the fake knows only remedies".to_owned()))?;
+            .ok_or_else(|| SteerError::Refused("the fake knows only remedies".to_owned()))?;
         let current = self.state(&key);
         if &current != effect {
             return Err(SteerError::Conflict(format!(

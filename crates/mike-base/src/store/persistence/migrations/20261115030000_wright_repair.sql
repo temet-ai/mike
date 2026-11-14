@@ -14,15 +14,12 @@
 --
 -- gate_output is the push hook's whole output; gate_output_bytes is its size. An output over
 -- the executor's limit is not kept (gate_output NULL, gate_output_bytes set), never clipped.
---
--- finding_id has no foreign key yet: wright.findings comes with the engineer-run migration
--- (20261115020000_wright_investigate.sql, temet-ai/mike#73) on its own branch.
 
 SET LOCAL lock_timeout = '10s';
 
 CREATE TABLE wright.repairs (
     id           bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    finding_id   bigint      NOT NULL,
+    finding_id   bigint      NOT NULL REFERENCES wright.findings(id) ON DELETE CASCADE,
     problem_id   bigint      NOT NULL REFERENCES wright.problems(id) ON DELETE CASCADE,
     owning_part  text        NOT NULL CHECK (btrim(owning_part) <> ''),
     state        text        NOT NULL CHECK (state IN ('editing', 'prepared', 'gating', 'gate_failed',

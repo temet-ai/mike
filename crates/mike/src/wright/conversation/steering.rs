@@ -14,8 +14,6 @@ pub(crate) enum UndoError {
     #[error("{0}")]
     Conflict(String),
     #[error("{0}")]
-    NotAvailable(String),
-    #[error("{0}")]
     Failed(String),
 }
 
@@ -107,7 +105,6 @@ pub(crate) async fn undo(
         Err(SteerError::Conflict(reason) | SteerError::Refused(reason)) => {
             return Err(UndoError::Conflict(reason));
         }
-        Err(SteerError::NotAvailable(reason)) => return Err(UndoError::NotAvailable(reason)),
         Err(SteerError::Failed(reason)) => return Err(UndoError::Failed(reason)),
     }
     web.mark_wright_steer_undone(id, version)

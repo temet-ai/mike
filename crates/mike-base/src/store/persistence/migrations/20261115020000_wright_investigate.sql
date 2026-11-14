@@ -13,10 +13,10 @@
 -- wright.findings: what an investigate run concluded, validated before it is stored. A
 -- finding either names the confirmed cause and the owning part, or says the cause was not
 -- established; it always lists its evidence.
--- wright_session_uuids(): the sessions Wright itself started, so the measures Wright is
--- judged on and its checks can leave them out.
--- wright.has_enabled_remedy(check): whether a known fix answers a check. The remedies table
--- belongs to temet-ai/mike#74; the function reads it only when it exists.
+-- wright.wright_session_uuids(): the sessions Wright itself started, so the measures Wright
+-- is judged on and its checks can leave them out. Replaces the empty placeholder the
+-- remedies migration created.
+-- wright.has_enabled_remedy(check): whether a known fix answers a check.
 
 SET LOCAL lock_timeout = '10s';
 
@@ -90,17 +90,12 @@ CREATE TABLE wright.findings (
 CREATE INDEX idx_wright_findings_problem ON wright.findings (problem_id, id DESC) WHERE problem_id IS NOT NULL;
 CREATE INDEX idx_wright_findings_episode ON wright.findings (episode_id) WHERE episode_id IS NOT NULL;
 
-CREATE FUNCTION public.wright_session_uuids() RETURNS SETOF uuid
+CREATE OR REPLACE FUNCTION wright.wright_session_uuids() RETURNS SETOF uuid
     LANGUAGE sql STABLE AS $$ SELECT session_uuid FROM wright.investigations $$;
 
 CREATE FUNCTION wright.has_enabled_remedy(p_check text) RETURNS boolean
-    LANGUAGE plpgsql STABLE AS $$
-BEGIN
-    IF to_regclass('wright.remedies') IS NULL THEN
-        RETURN false;
-    END IF;
-    RETURN EXISTS (SELECT 1 FROM wright.remedies r WHERE r.check_name = p_check AND r.enabled);
-END
+    LANGUAGE sql STABLE AS $$
+    SELECT EXISTS (SELECT 1 FROM wright.remedies r WHERE r.check_name = p_check AND r.enabled)
 $$;
 
 COMMENT ON TABLE wright.investigations IS

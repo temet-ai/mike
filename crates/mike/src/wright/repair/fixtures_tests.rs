@@ -79,20 +79,6 @@ impl LiveBuild for FixedLive {
     }
 }
 
-const FINDINGS_UNTIL_INVESTIGATE_LANDS: &str = "CREATE TABLE IF NOT EXISTS wright.findings (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    investigation_id bigint,
-    problem_id bigint NOT NULL REFERENCES wright.problems(id) ON DELETE CASCADE,
-    symptom text NOT NULL,
-    suspected_cause text NOT NULL,
-    confirmed_cause text,
-    cause_established boolean NOT NULL,
-    owning_part text,
-    kind text NOT NULL,
-    remedy text NOT NULL,
-    evidence jsonb NOT NULL DEFAULT '[]'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now())";
-
 pub(super) type Ctx = RepairContext<ScratchGh, WritesFiles, FixedLive>;
 
 pub(super) struct Bench {
@@ -107,9 +93,6 @@ impl Bench {
             .await?
             .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
         let persist = PersistHandle::connect(&db.database_url).await?;
-        sqlx::query(FINDINGS_UNTIL_INVESTIGATE_LANDS)
-            .execute(persist.pool())
-            .await?;
         let scratch = Arc::new(Scratch::create()?);
         let repo = RepoLayout::discover(&ProcessRunner, &scratch.root).await?;
         let ctx = RepairContext {
@@ -164,10 +147,19 @@ impl Bench {
         part: Option<&str>,
     ) -> anyhow::Result<i64> {
         Ok(sqlx::query_scalar(
-            "INSERT INTO wright.findings (problem_id, symptom, suspected_cause, confirmed_cause,
-                                          cause_established, owning_part, kind, remedy)
-             VALUES ($1, 'requests fail', 'calc subtracts', CASE WHEN $2 THEN 'add uses minus' END,
-                     $2, $3, $4, 'use plus')
+            "WITH run AS (
+                 INSERT INTO wright.investigations (mode, problem_id, session_uuid, state, host,
+                                                    deadline_at, ended_at)
+                 VALUES ('investigate', $1, gen_random_uuid(), 'finished', 'test', now(), now())
+                 RETURNING id
+             )
+             INSERT INTO wright.findings (investigation_id, problem_id, symptom, suspected_cause,
+                                          confirmed_cause, cause_established, owning_part, kind,
+                                          remedy, evidence)
+             SELECT run.id, $1, 'requests fail', 'calc subtracts',
+                    CASE WHEN $2 THEN 'add uses minus' END, $2, $3, $4, 'use plus',
+                    '[{\"kind\": \"problem\", \"ref\": \"fixture\"}]'::jsonb
+               FROM run
              RETURNING id",
         )
         .bind(problem)

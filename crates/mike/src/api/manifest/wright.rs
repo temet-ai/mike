@@ -1,10 +1,9 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 
-use crate::api::wright::{checks, conversation, problems as api};
-use crate::api::wright::{checks, investigations, problems as api};
-use crate::api::wright::{checks, problems as api, remedies};
-use crate::api::wright::{checks, problems as api, repairs};
+use crate::api::wright::{
+    checks, conversation, investigations, problems as api, remedies, repairs,
+};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -160,9 +159,15 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         )
         .route("/api/wright/client-errors", post(api::report_client_error))
         .route("/api/wright/remedies", get(remedies::list_remedies))
-        .route("/api/wright/remedies/{name}", patch(remedies::patch_remedy))
+        .route(
+            "/api/wright/remedies/{name}",
+            patch(remedies::patch_remedy_as_operator),
+        )
         .route("/api/wright/actions", get(remedies::list_actions))
-        .route("/api/wright/actions/{id}/undo", post(remedies::undo_action))
+        .route(
+            "/api/wright/actions/{id}/undo",
+            post(remedies::undo_action_as_operator),
+        )
         .route(
             "/api/wright/investigations",
             get(investigations::list_investigations),
@@ -174,7 +179,7 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         )
         .route(
             "/api/wright/engineer-limits",
-            get(investigations::get_limits).patch(investigations::patch_limits),
+            get(investigations::get_limits).patch(investigations::patch_limits_as_operator),
         )
         .route("/api/wright/repairs", get(repairs::list_repairs))
         .route("/api/wright/repairs/{id}", get(repairs::get_repair))

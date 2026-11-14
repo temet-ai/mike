@@ -114,7 +114,6 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
         }
         Some(Command::Structural(args)) => mike::cli::structural::run(args),
         Some(Command::Wright(args)) => std::process::exit(mike::wright::cli::run(args).await),
-        Some(Command::Wright(args)) => mike::wright::conversation::pair::run(args),
     }
 }
 
