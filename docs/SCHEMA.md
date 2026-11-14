@@ -4156,32 +4156,67 @@ One row per Jev call, for every outcome, written by `OpenRouterClient::decide` a
 
 | Column | Type | Notes |
 |---|---|---|
-| `id`, `created_at` | `BIGSERIAL`, `TIMESTAMPTZ` | |
-| `point` | `TEXT NOT NULL` | The decision point, such as `turn_guard_precheck`, `cli_ask`, `effort_split` |
-| `mode` | `TEXT NOT NULL` | `on`, `shadow`, `replay` or `cli` |
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `point` | `TEXT NOT NULL` | The decision point, such as `turn_guard_precheck`, `turn_judge` or `fleet_effort`; CHECK `point ~ '^[a-z][a-z0-9_]{1,62}$'`. The registered points are `POINTS` and `FLEET_POINTS` in `crates/mike-base/src/settings/meta_decisions.rs` plus `turn_guard_precheck` |
+| `mode` | `TEXT NOT NULL` | CHECK `IN ('shadow', 'on', 'replay', 'cli')` |
 | `question_set`, `question_set_hash` | `TEXT NOT NULL` | The point's question-set name (bumped with every wording change) and the first 8 bytes of the SHA-256 of the questions sent |
-| `thresholds` | `JSONB NOT NULL` | The thresholds the caller composed with, such as `{"hold_below": 0.3}` |
-| `model_requested`, `state`, `questions`, `request_body` | `TEXT`, `JSONB` | The request, verbatim |
-| `outcome` | `TEXT NOT NULL` | `ok`, `http_error`, `timeout`, `transport_error`, `schema_error`, `refused_ceiling`, `refused_rate`, `refused_spend` or `no_key` |
+| `thresholds` | `JSONB NOT NULL DEFAULT '{}'` | The thresholds the caller composed with, such as `{"hold_below": 0.3}` |
+| `model_requested` | `TEXT NOT NULL` | The model named in the request |
+| `state`, `questions`, `request_body` | `JSONB NOT NULL` | The request, verbatim: the facts sent, the typed questions and the whole body |
+| `outcome` | `TEXT NOT NULL` | CHECK `IN ('ok', 'http_error', 'timeout', 'transport_error', 'schema_error', 'refused_ceiling', 'refused_rate', 'refused_spend', 'no_key')` |
 | `error`, `response_raw` | `TEXT NULL` | The error text and the reply exactly as received, kept when it does not parse |
-| `answers`, `question_refusals` | `JSONB NULL`, `INTEGER` | Parsed answers with every probability and confidence, and how many questions Jev refused |
-| `served_model`, `provider`, `generation_id`, `usage`, `cost_usd`, `latency_ms`, `http_status` | | What served the call and what it cost |
-| `composed`, `applied`, `fail_open` | `JSONB`, `TEXT`, `BOOLEAN` | Set by the caller afterwards: the verdict and its reason, what it did (`sent`, `held`, `woken`, `warned`, `passed`, `none`), and whether a failure sent it down the off path |
-| `facts_version`, `facts` | | The steering facts the state was built from |
-| `session_id` … `project_id`, `machine_uuid` | | Subject ids: session, operator turn, request, evaluation, intervention, fleet run, seat, message, check receipt, commit, project, and the machine that called |
+| `answers` | `JSONB NULL` | Parsed answers with every probability and confidence |
+| `question_refusals` | `INTEGER NOT NULL DEFAULT 0` | How many questions Jev refused |
+| `served_model`, `provider`, `generation_id` | `TEXT NULL` | What served the call |
+| `usage` | `JSONB NULL` | Token usage |
+| `cost_usd` | `DOUBLE PRECISION NULL` | Cost of the call in US dollars |
+| `latency_ms`, `http_status` | `INTEGER NULL` | |
+| `composed` | `JSONB NULL` | Set by the caller afterwards: the verdict and its reason |
+| `applied` | `TEXT NULL` | What the caller did with the answer. CHECK `IN ('sent', 'held', 'woken', 'warned', 'passed', 'chosen', 'skipped', 'suggested', 'ordered', 'labelled', 'pushed_back', 'let_through', 'none')` |
+| `fail_open` | `BOOLEAN NULL` | Whether a failure sent the caller down the path it had before the layer |
+| `facts_version`, `facts` | `INTEGER NULL`, `JSONB NULL` | The steering facts the state was built from |
+| `session_id`, `operator_turn_id`, `request_id`, `fleet_run_id`, `check_receipt_id`, `project_id` | `BIGINT NULL` | Subject ids; none has a foreign key |
+| `evaluation_uuid`, `intervention_uuid`, `message_uuid`, `machine_uuid` | `UUID NULL` | The steering evaluation and intervention, the mail message, and the machine that made the call |
+| `seat`, `commit_sha` | `TEXT NULL` | The fleet seat and the commit the decision concerns |
 | `source_ref` | `TEXT NULL` | Unique when set; replays and imports use it to stay idempotent |
 
-Indexes: `(point, created_at)`, `evaluation_uuid` where set, unique `source_ref` where set.
+Indexes: `idx_decision_records_point_created` `(point, created_at)`; `idx_decision_records_evaluation` on `evaluation_uuid` where set; unique `idx_decision_records_source_ref` on `source_ref` where set.
 
 ### `decisions.outcomes`
 
-Labels for records, many per record and never overwritten: `record_id` (FK), `label`, `label_source` (`turn_guard_label`, `tool_name_rule`, …), `evidence`, `labelled_at`; UNIQUE `(record_id, label_source, label)`. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`.
+Labels for records, many per record and never overwritten. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `record_id` | `BIGINT NOT NULL` | FK → `decisions.records(id)` |
+| `label` | `TEXT NOT NULL` | CHECK `btrim(label) <> ''` |
+| `label_source` | `TEXT NOT NULL` | CHECK `btrim(label_source) <> ''`; for example `turn_guard_label`, `tool_name_rule`, `jev_after_stream` |
+| `evidence` | `JSONB NOT NULL DEFAULT '{}'` | |
+| `labelled_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+UNIQUE `(record_id, label_source, label)`, so sources that disagree are all kept.
 
 ### `decisions.loop_runs`
 
-One row per `decisions_loop` run: `started_at`, `finished_at`, `machine_uuid` and the `report` (per-point counts, AUROC, holds labelled and how many held a wrong nudge with its Wilson lower bound, labels per day, days until 30 labels, findings). The loop reads the newest `finished_at` to know whether a run is overdue.
+One row per `decisions_loop` run. The loop reads the newest `finished_at` to know whether a run is overdue.
 
-The same migration widens `steering.evaluations_arm_check` with `precheck_held` (a live turn-guard fire the pre-check held), lets such a row carry an automatic label like a holdback row (`evaluations_auto_label_shadow_only`), adds the partial index `idx_evaluations_unlabelled_precheck_held`, and seeds the `decisions_health` wright check.
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `started_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `finished_at` | `TIMESTAMPTZ NULL` | NULL while the run is going |
+| `machine_uuid` | `UUID NULL` | |
+| `report` | `JSONB NOT NULL DEFAULT '{}'` | Per-point counts, AUROC, holds labelled and how many held a wrong nudge with its Wilson lower bound, labels per day, days until 30 labels, findings |
+
+### Changes the same migration makes elsewhere
+
+`steering.evaluations`: `evaluations_arm_check` becomes `CHECK (arm IS NULL OR arm IN ('treated', 'holdback', 'precheck_held'))`, where `precheck_held` marks a live turn-guard fire the pre-check held and never delivered. `evaluations_auto_label_shadow_only` becomes `CHECK (label_source IS NULL OR label_source NOT IN ('next_message', 'session_end') OR mode = 'shadow' OR COALESCE(arm, '') IN ('holdback', 'precheck_held') OR intervention_uuid IS NULL)`, so a `precheck_held` row takes an automatic label like a holdback row. The partial index `idx_evaluations_unlabelled_precheck_held` on `(dispatched_at)` where `outcome_label IS NULL AND arm = 'precheck_held' AND status <> 'dispatched'` lets the labeller find those rows.
+
+`wright.checks`: the migration seeds `decisions_health` (source `capture_db`, daily, params `max_failure_share` 0.2 and `window_hours` 24).
+
+The fleet layer's migration `20261114100000_fleet_decisions.sql` adds `mailbox.messages.held_until_turn`, `launch.tree_checks.triage` and `launch.request_efforts`, documented under their own tables.
 
 ---
 
@@ -5941,6 +5976,8 @@ mutation and egress toggles off on a database that has captured no requests yet.
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Last time the toggle was written; drives the settings UI's "last changed" display |
 
 **Indexes:** none beyond the PK — the table has ≤10 rows and is read at startup and on every settings-page load.
+
+The `decisions` key is the master switch of the Jev decisions layer (`crates/mike-base/src/feature_toggles/meta.rs`: scope global, applies immediately). It needs no migration and no seeded row. Its code default is off, because the questions carry captured text to OpenRouter. The per-point modes are `config.settings` keys (`decisions.<point>.mode`), not toggles.
 
 Migration `20260929000001_improvement_schema.sql` (JC21) adds `judge_lessons` to the closed key
 set (the lesson proposer, `crates/mike-features/src/lesson_proposer/`). It sends captured turn text to an
