@@ -71,7 +71,14 @@ export interface EvalVerdictDto {
 	[key: string]: unknown;
 }
 
+export interface ItemPrelabel {
+	label: string;
+	probability: number;
+	uncertain: boolean;
+}
+
 export interface EvalRunItemDto {
+	prelabel?: ItemPrelabel | null;
 	run_id: number;
 	operator_turn_id: number;
 	reaction_label_id: number | null;
@@ -181,6 +188,7 @@ export interface RunItemsQuery {
 	verdict_delivery?: string;
 	severity?: string;
 	reviewed?: boolean;
+	review?: 'uncertain';
 	include?: Array<'verdict' | 'review'>;
 	limit?: number;
 	offset?: number;

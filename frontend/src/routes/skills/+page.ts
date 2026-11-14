@@ -1,6 +1,8 @@
 import type { PageLoad } from './$types';
 import { getProjectSkills, getSkillProjects } from '$lib/api/skills';
 import type { SkillFoldersResponse, SkillProject } from '$lib/api/skills';
+import { ORDER_PARAM, orderFromParam } from '$lib/suggestedOrder';
+import type { ListOrder } from '$lib/suggestedOrder';
 
 export interface SkillsPageData {
 	projects: SkillProject[] | null;
@@ -8,6 +10,7 @@ export interface SkillsPageData {
 	selected: string | null;
 	skills: SkillFoldersResponse | null;
 	skillsError: string | null;
+	order: ListOrder;
 }
 
 function message(e: unknown): string {
@@ -20,6 +23,7 @@ function pick(projects: SkillProject[], asked: string | null): string | null {
 }
 
 export const load: PageLoad = async ({ url }): Promise<SkillsPageData> => {
+	const order = orderFromParam(url.searchParams.get(ORDER_PARAM));
 	let projects: SkillProject[];
 	try {
 		projects = (await getSkillProjects()).projects;
@@ -29,17 +33,25 @@ export const load: PageLoad = async ({ url }): Promise<SkillsPageData> => {
 			projectsError: message(e),
 			selected: null,
 			skills: null,
-			skillsError: null
+			skillsError: null,
+			order
 		};
 	}
 	const selected = pick(projects, url.searchParams.get('project'));
 	if (selected === null) {
-		return { projects, projectsError: null, selected, skills: null, skillsError: null };
+		return { projects, projectsError: null, selected, skills: null, skillsError: null, order };
 	}
 	try {
-		const skills = await getProjectSkills(selected);
-		return { projects, projectsError: null, selected, skills, skillsError: null };
+		const skills = await getProjectSkills(selected, order);
+		return { projects, projectsError: null, selected, skills, skillsError: null, order };
 	} catch (e) {
-		return { projects, projectsError: null, selected, skills: null, skillsError: message(e) };
+		return {
+			projects,
+			projectsError: null,
+			selected,
+			skills: null,
+			skillsError: message(e),
+			order
+		};
 	}
 };

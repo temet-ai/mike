@@ -16,25 +16,49 @@ has no page-level `load()` for this data and no layout-shift contract to keep.
 	import { listProposals } from '$lib/api/directiveProposals';
 	import type { DirectiveProposal } from '$lib/api/directiveProposals';
 	import DirectiveProposalCard from './DirectiveProposalCard.svelte';
+	import ListOrderSelect from '$lib/components/shared/ListOrderSelect.svelte';
+	import { chanceFor } from '$lib/suggestedOrder';
+	import type { AcceptChances, ListOrder } from '$lib/suggestedOrder';
 
 	interface Props {
 		proposals?: DirectiveProposal[];
 		error?: string | null;
 		emptyText?: string;
 		onDecided?: () => void;
+		order?: ListOrder;
+		suggestedAccept?: AcceptChances;
+		onOrderChange?: (order: ListOrder) => void;
 	}
 
 	let {
 		proposals: controlledProposals,
 		error: controlledError,
 		emptyText,
-		onDecided
+		onDecided,
+		order: controlledOrder,
+		suggestedAccept: controlledChances,
+		onOrderChange
 	}: Props = $props();
 
 	const controlled = $derived(controlledProposals !== undefined);
 
 	let fetchedProposals = $state<DirectiveProposal[]>([]);
 	let fetchError = $state<string | null>(null);
+	let ownOrder = $state<ListOrder>('default');
+	let fetchedChances = $state<AcceptChances | undefined>(undefined);
+
+	const order = $derived(controlled ? (controlledOrder ?? 'default') : ownOrder);
+	const chances = $derived(controlled ? controlledChances : fetchedChances);
+	const canOrder = $derived(controlled ? onOrderChange !== undefined : true);
+
+	function changeOrder(next: ListOrder): void {
+		if (controlled) {
+			onOrderChange?.(next);
+			return;
+		}
+		ownOrder = next;
+		void load();
+	}
 
 	const proposals = $derived(controlled ? (controlledProposals ?? []) : fetchedProposals);
 	const loadError = $derived(controlled ? (controlledError ?? null) : fetchError);
@@ -42,7 +66,9 @@ has no page-level `load()` for this data and no layout-shift contract to keep.
 
 	async function load(): Promise<void> {
 		try {
-			fetchedProposals = (await listProposals('open')).proposals ?? [];
+			const page = await listProposals('open', ownOrder);
+			fetchedProposals = page.proposals ?? [];
+			fetchedChances = page.suggested_accept;
 			fetchError = null;
 		} catch (e) {
 			fetchError = e instanceof Error ? e.message : String(e);
@@ -78,6 +104,9 @@ has no page-level `load()` for this data and no layout-shift contract to keep.
 				Instructions you had to give more than once, and steps you confirmed were already
 				authorised.
 			</p>
+			{#if canOrder && !loadError && proposals.length > 0}
+				<ListOrderSelect {order} onChange={changeOrder} />
+			{/if}
 			{#if loadError}
 				<p class="dps-error" role="alert">Could not load proposals: {loadError}</p>
 			{:else if proposals.length === 0}
@@ -86,7 +115,12 @@ has no page-level `load()` for this data and no layout-shift contract to keep.
 		</div>
 		{#if !loadError}
 			{#each proposals as p (p.id)}
-				<DirectiveProposalCard proposal={p} onDecided={decided} />
+				<DirectiveProposalCard
+					proposal={p}
+					onDecided={decided}
+					showChance={order === 'suggested'}
+					chance={chanceFor(chances, p.id)}
+				/>
 			{/each}
 		{/if}
 	</section>

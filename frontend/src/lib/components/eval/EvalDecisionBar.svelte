@@ -29,6 +29,7 @@ height never changes with it.
 
 	interface Props {
 		questions: BarQuestion[];
+		suggestion?: { label: string; probability: number } | null;
 		savedAt: string | null;
 		busy: boolean;
 		status: BarStatus | null;
@@ -41,6 +42,7 @@ height never changes with it.
 
 	let {
 		questions,
+		suggestion,
 		savedAt,
 		busy,
 		status,
@@ -55,6 +57,14 @@ height never changes with it.
 	let noteOpen = $state(false);
 
 	const single = $derived(questions.length === 1);
+	const suggests = $derived(
+		suggestion !== undefined && questions.some((q) => q.axis === 'reaction')
+	);
+	const suggestionText = $derived(
+		suggestion
+			? `Jev suggests ${wordFor(suggestion.label)}, ${Math.round(suggestion.probability * 100)}%`
+			: '—'
+	);
 	const pending = $derived(note.trim() !== '');
 
 	function chosen(q: BarQuestion): string | null {
@@ -143,6 +153,17 @@ height never changes with it.
 	<section class="eb edge" aria-label="Which is right?" data-testid="decision-bar">
 		<div class="band-hd band-hd--static">
 			<span class="machine eb-ask">Which is right?</span>
+			{#if suggests}
+				<Tooltip
+					text="Jev's guess at how you reacted. It is a suggestion only; no answer is chosen for you."
+				>
+					{#snippet child({ props })}
+						<span {...props} class="eb-suggest" data-testid="prelabel-suggestion"
+							>{suggestionText}</span
+						>
+					{/snippet}
+				</Tooltip>
+			{/if}
 			<span class="band-hd__meta eb-meta">
 				<span
 					class="eb-status"
@@ -250,6 +271,13 @@ height never changes with it.
 	.eb-ask {
 		font-size: var(--text-xs);
 		color: var(--text-1);
+	}
+	.eb-suggest {
+		min-width: 24ch;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-2);
+		cursor: help;
 	}
 	.eb-meta {
 		min-width: 0;

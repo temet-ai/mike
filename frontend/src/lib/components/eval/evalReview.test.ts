@@ -127,6 +127,19 @@ describe('filters and URL state', () => {
 		expect(paramsFor(DEFAULT_FILTERS, null).toString()).toBe('');
 	});
 
+	it('keeps the uncertain choice only when it was made', () => {
+		expect(filtersFromParams(new URLSearchParams('uncertain=1')).uncertain).toBe(true);
+		expect(filtersFromParams(new URLSearchParams('uncertain=0')).uncertain).toBe(false);
+		expect(filtersFromParams(new URLSearchParams('uncertain=maybe')).uncertain).toBeUndefined();
+		expect(paramsFor({ ...DEFAULT_FILTERS, uncertain: true }, null).toString()).toBe('uncertain=1');
+		expect(paramsFor({ ...DEFAULT_FILTERS, uncertain: false }, null).toString()).toBe(
+			'uncertain=0'
+		);
+		expect(queueQuery({ ...DEFAULT_FILTERS, uncertain: true }).review).toBe('uncertain');
+		expect(queueQuery({ ...DEFAULT_FILTERS, uncertain: false }).review).toBeUndefined();
+		expect(queueQuery(DEFAULT_FILTERS).review).toBeUndefined();
+	});
+
 	it('asks the server for this tab only, on this tab’s labels', () => {
 		expect(
 			queueQuery({ mode: 'delivery', gold: 'partial', judge: 'delivered', agree: false })
