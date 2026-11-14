@@ -274,6 +274,10 @@ prepare_mbx_build_cache() {
   export MBX_CACHE_DIR="${MBX_CACHE_DIR:-$HOME/.cache/mike-mbx}"
   export MBX_TARGET_VIEWS=0 MBX_GC_AUTO=0 MBX_TARGET_SEED=0
   export MBX_LEARNED_INCREMENTAL=0
+  # Workspace crates such as mike-base embed their checkout path (query_file! .sql
+  # paths), so a recompile in another checkout gives different bytes and every crate
+  # above it misses. Sharing the workspace root makes those bytes the same everywhere.
+  export MBX_SHARE_WORKSPACE_ROOT=1
   # crates/build_identity.rs gives an mbx build a fixed identity only when it sees
   # this; without it every commit changes crate mike's key and nothing restores.
   export MIKE_BUILD_CACHE=mbx

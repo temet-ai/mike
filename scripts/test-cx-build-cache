@@ -100,10 +100,10 @@ out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a 
 [[ "$out" == done ]] && chk pass "set: a relative build directory is accepted" \
   || chk fail "set: a relative build directory is accepted ($out)"
 
-out="$(env -u MBX_LEARNED_INCREMENTAL -u MBX_CACHE_DIR bash -c "
+out="$(env -u MBX_LEARNED_INCREMENTAL -u MBX_SHARE_WORKSPACE_ROOT -u MBX_CACHE_DIR bash -c "
   source '$root/scripts/lib/preflight-toolchain.sh'
-  MBX_BIN='$fake' prepare_mbx_build_cache '$root' target/mbx-a && echo \"li=\$MBX_LEARNED_INCREMENTAL bc=\$MIKE_BUILD_CACHE\"" 2>&1)"
-[[ "$out" == "li=0 bc=mbx" ]] && chk pass "set: learned incremental reuse is off and build.rs sees mbx, so crate mike is stored and keyed stably" \
+  MBX_BIN='$fake' prepare_mbx_build_cache '$root' target/mbx-a && echo \"li=\$MBX_LEARNED_INCREMENTAL sw=\$MBX_SHARE_WORKSPACE_ROOT bc=\$MIKE_BUILD_CACHE\"" 2>&1)"
+[[ "$out" == "li=0 sw=1 bc=mbx" ]] && chk pass "set: learned incremental reuse is off, the workspace root is shared and build.rs sees mbx, so workspace crates are stored and keyed the same in every checkout" \
   || chk fail "set: learned incremental reuse is off ($out)"
 
 # The default when mbx is installed.
