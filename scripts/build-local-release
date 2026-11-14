@@ -100,7 +100,7 @@ if command -v rustup >/dev/null && ! rustup target list --installed --toolchain 
 fi
 if [ -n "$glibc" ]; then
   command -v cargo-zigbuild >/dev/null || die "install cargo-zigbuild (cargo install --locked cargo-zigbuild)"
-  if [ -z "${CARGO_ZIGBUILD_ZIG_PATH:-}" ] && ! command -v zig >/dev/null; then
+  if [ -z "${CARGO_ZIGBUILD_ZIG_PATH:-}" ] && ! zig version >/dev/null 2>&1; then
     command -v python-zig >/dev/null || die "need zig: install it, or uv tool install ziglang"
     export CARGO_ZIGBUILD_ZIG_PATH="$(command -v python-zig)"
   fi
