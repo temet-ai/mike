@@ -227,7 +227,8 @@ class RustChangeScopeTests(unittest.TestCase):
         self.push()
         calls = self.calls()
         packages = ["-p", "mike", "-p", "mike-codex", "-p", "mike-mcp"]
-        self.assertIn(["lint-rust", *packages], calls)
+        self.assertIn(["lint-rust", "-p", "mike-codex"], calls)
+        self.assertIn(["cx", "check", "-p", "mike", "-p", "mike-mcp"], calls)
         self.assertNotIn(["cx", "nextest", "run", *packages, "--no-fail-fast"], calls)
         focused = calls[-1]
         self.assertEqual(focused[1:6], ["nextest", "run", "-p", "mike-codex", "--tests"])
@@ -244,7 +245,8 @@ class RustChangeScopeTests(unittest.TestCase):
         self.install_runner()
         self.write(".sqlx/query-example.json", "{}")
         self.push()
-        self.assertIn(["lint-rust", "-p", "mike", "-p", "mike-mcp"], self.calls())
+        self.assertIn(["lint-rust", "-p", "mike"], self.calls())
+        self.assertIn(["cx", "check", "-p", "mike-mcp"], self.calls())
         self.assertEqual(len([call for call in self.calls() if call[1:3] == ["nextest", "run"]]), 1)
 
     def test_script_only_push_runs_scope_regressions(self):

@@ -58,6 +58,25 @@ def changed_packages(root, paths, packages):
     return selected
 
 
+def package_args(names):
+    return [arg for name in sorted(names) for arg in ("-p", name)]
+
+
+def lint_args(root, paths, packages):
+    """The crates whose own files changed: only their source has anything new to lint."""
+    selected = changed_packages(root, paths, packages)
+    return ["--workspace"] if selected is None else package_args(selected)
+
+
+def dependent_args(root, paths, packages):
+    """The crates that depend on a changed crate, for a compile check without lints or tests."""
+    selected = changed_packages(root, paths, packages)
+    if not selected:
+        return []
+    affected = affected_args(root, paths, packages)
+    return package_args(set(affected[1::2]) - selected)
+
+
 def affected_args(root, paths, packages):
     selected = changed_packages(root, paths, packages)
     if selected is None:
@@ -72,7 +91,7 @@ def affected_args(root, paths, packages):
         if added <= selected:
             break
         selected |= added
-    return [arg for name in sorted(selected) for arg in ("-p", name)]
+    return package_args(selected)
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -208,7 +227,7 @@ def git_paths(root, base):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["packages", "area"])
+    parser.add_argument("mode", choices=["packages", "dependents", "area"])
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--print", action="store_true", dest="print_filter")
     parser.add_argument("--print-command", action="store_true")
@@ -217,7 +236,8 @@ def main():
     parser.add_argument("base", nargs="?", default="origin/main")
     args = parser.parse_args()
     root = args.root.resolve()
-    paths = sys.stdin.read().splitlines() if args.mode == "packages" else git_paths(root, args.base)
+    from_stdin = args.mode in ("packages", "dependents")
+    paths = sys.stdin.read().splitlines() if from_stdin else git_paths(root, args.base)
     try:
         packages = metadata(root)
     except (OSError, subprocess.CalledProcessError, ValueError, KeyError) as error:
@@ -225,7 +245,10 @@ def main():
         packages = []
         paths = ["Cargo.toml"]
     if args.mode == "packages":
-        print(" ".join(affected_args(root, paths, packages)))
+        print(" ".join(lint_args(root, paths, packages)))
+        return 0
+    if args.mode == "dependents":
+        print(" ".join(dependent_args(root, paths, packages)))
         return 0
     commands = area_commands(root, paths, packages)
     if args.skip_default_checks:

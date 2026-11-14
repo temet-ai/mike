@@ -91,9 +91,15 @@ if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rus
     echo "pre-push: fix the failures above; lint-rust and the tests did not run" >&2
     exit 1
   fi
+  # Clippy runs on the crates whose files changed. The crates that depend on them get
+  # a plain build of their library and binaries: their source did not change, so it has
+  # nothing new to lint, and the build still catches a lower crate's change that breaks them.
   packages=$(python3 "$root/scripts/lib/rust_change_scope.py" packages <<<"$changed") || exit 1
+  dependents=$(python3 "$root/scripts/lib/rust_change_scope.py" dependents <<<"$changed") || exit 1
   # shellcheck disable=SC2086
-  "$root/scripts/lint-rust" $packages || status=1
+  [ -z "$packages" ] || "$root/scripts/lint-rust" $packages || status=1
+  # shellcheck disable=SC2086
+  [ -z "$dependents" ] || "$root/scripts/cx" check $dependents || status=1
   # The tests of the areas the push changed, in every tier. A change no area owns
   # (the workspace manifest or lockfile, a crate manifest, .sqlx, a file outside
   # every crate) runs the affected crates' whole fast tier instead; the rest of the
