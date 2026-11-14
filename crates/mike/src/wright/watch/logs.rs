@@ -77,6 +77,10 @@ pub(crate) fn parse_line(raw: &str) -> Option<LogLine> {
         .pointer("/fields/message")
         .and_then(Value::as_str)
         .unwrap_or("");
+    let message = match value.pointer("/fields/summary").and_then(Value::as_str) {
+        Some(summary) => format!("{message}: {summary}"),
+        None => message.to_owned(),
+    };
     Some(LogLine {
         at,
         level: value.get("level")?.as_str()?.to_owned(),
@@ -85,7 +89,7 @@ pub(crate) fn parse_line(raw: &str) -> Option<LogLine> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_owned(),
-        message: message.to_owned(),
+        message,
         raw: raw.to_owned(),
     })
 }

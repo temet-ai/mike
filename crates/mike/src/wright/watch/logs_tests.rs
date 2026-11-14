@@ -34,6 +34,30 @@ fn shape_replaces_numbers_and_keeps_the_first_line() {
 }
 
 #[test]
+fn parse_line_slow_statements_with_summaries_group_by_their_sql() {
+    let slow = |summary: &str| {
+        json!({
+            "timestamp": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            "level": "WARN",
+            "fields": {"message": "slow statement: execution time exceeded alert threshold",
+                       "summary": summary},
+            "target": "sqlx::query",
+        })
+        .to_string()
+    };
+    let first = parse_line(&slow("WITH candidates AS ( SELECT s.source_kind, …"));
+    let second = parse_line(&slow("SELECT DISTINCT ON (m.id) m.body …"));
+    let (Some(first), Some(second)) = (first, second) else {
+        panic!("both slow statement lines must parse");
+    };
+    assert_eq!(
+        first.message,
+        "slow statement: execution time exceeded alert threshold: WITH candidates AS ( SELECT s.source_kind, …"
+    );
+    assert_ne!(shape(&first.message), shape(&second.message));
+}
+
+#[test]
 fn parse_line_reads_the_json_format_and_skips_pretty_lines() {
     let now = Utc::now();
     let parsed = parse_line(&line(now, "ERROR", "mike::proxy", "boom"));
