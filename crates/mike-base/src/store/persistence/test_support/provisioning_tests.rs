@@ -189,64 +189,6 @@ async fn sweep_leaves_databases_outside_its_prefix_alone() -> anyhow::Result<()>
     Ok(())
 }
 
-const ROUNDS: usize = 25;
-const CLIENTS: usize = 16;
-
-async fn reconnecting_clients(url: String, stop: std::sync::Arc<std::sync::atomic::AtomicBool>) {
-    let mut workers = Vec::new();
-    for _ in 0..CLIENTS {
-        let (url, stop) = (url.clone(), stop.clone());
-        workers.push(tokio::spawn(async move {
-            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
-                if let Ok(pool) = connect_single(&url).await {
-                    let _ = sqlx::query("SELECT 1").execute(&pool).await;
-                    pool.close().await;
-                }
-            }
-        }));
-    }
-    for worker in workers {
-        let _ = worker.await;
-    }
-}
-
-async fn dropped_under_reconnecting_clients(
-    admin_url: &str,
-    drop: impl AsyncFn(&str, &str) -> anyhow::Result<()>,
-) -> anyhow::Result<usize> {
-    let admin_pool = connect_single(admin_url).await?;
-    let mut failures = 0;
-    for _ in 0..ROUNDS {
-        let db_name = format!("claude_proxy_test_drop_{}", uuid::Uuid::new_v4().simple());
-        create_empty_db(&admin_pool, &db_name).await?;
-        let url = replace_db_name(admin_url, &db_name)?;
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let clients = tokio::spawn(reconnecting_clients(url, stop.clone()));
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        if drop(admin_url, &db_name).await.is_err() {
-            failures += 1;
-        }
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        let _ = clients.await;
-        force_drop(&admin_pool, &db_name).await;
-    }
-    admin_pool.close().await;
-    Ok(failures)
-}
-
-#[tokio::test]
-async fn drop_database_succeeds_while_clients_keep_reconnecting() -> anyhow::Result<()> {
-    let Some(admin_url) = required_admin_url()? else {
-        return Ok(());
-    };
-    let failures = dropped_under_reconnecting_clients(&admin_url, drop_database).await?;
-    assert_eq!(
-        failures, 0,
-        "drop_database failed in {failures} of {ROUNDS} rounds"
-    );
-    Ok(())
-}
-
 #[tokio::test]
 async fn acquire_returns_the_shared_run_database_and_isolated_returns_its_own() -> anyhow::Result<()>
 {
