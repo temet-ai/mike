@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                    SET cwd = CASE WHEN $3 AND cwd IS NOT NULL THEN cwd ELSE $2 END\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36fc1ebd8a96d03aadaee4f2a13edbbe80afef103ce7fcd399d5cf4a90a5a416"
+}
