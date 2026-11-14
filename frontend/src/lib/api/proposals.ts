@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/api';
+import type { AcceptChances, ListOrder } from '$lib/suggestedOrder';
 
 /**
  * Client for the Proposals page: lessons mike placed as a rule or an agent statement, which mike
@@ -42,6 +43,7 @@ export interface Proposal {
 export interface ProposalsResponse {
 	project: string;
 	proposals: Proposal[];
+	suggested_accept?: AcceptChances;
 }
 
 async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -67,8 +69,12 @@ export function getProposalProjects(): Promise<ProposalProjectsResponse> {
 	return send('GET', '/api/proposals/projects');
 }
 
-export function getProposals(projectUuid: string): Promise<ProposalsResponse> {
-	return send('GET', `/api/proposals?project=${encodeURIComponent(projectUuid)}`);
+export function getProposals(
+	projectUuid: string,
+	order: ListOrder = 'default'
+): Promise<ProposalsResponse> {
+	const sort = order === 'suggested' ? '&sort=suggested' : '';
+	return send('GET', `/api/proposals?project=${encodeURIComponent(projectUuid)}${sort}`);
 }
 
 export function decideProposal(

@@ -13,6 +13,9 @@ artifacts/2026-10-14/learned-skills-ui/design.md.
 	import * as Tabs from '$lib/components/ui/tabs';
 	import SkillModeControl from '$lib/components/skills/SkillModeControl.svelte';
 	import SkillFolderRow from '$lib/components/skills/SkillFolderRow.svelte';
+	import ListOrderSelect from '$lib/components/shared/ListOrderSelect.svelte';
+	import { chanceFor, sortQuery } from '$lib/suggestedOrder';
+	import type { ListOrder } from '$lib/suggestedOrder';
 	import { setSkillMode, type SkillMode } from '$lib/api/skills';
 	import type { SkillsPageData } from './+page';
 
@@ -20,10 +23,16 @@ artifacts/2026-10-14/learned-skills-ui/design.md.
 
 	const project = $derived(data.projects?.find((p) => p.project_uuid === data.selected) ?? null);
 
+	function go(uuid: string, order: ListOrder): void {
+		const sort = sortQuery(order);
+		void goto(
+			`${resolve('/skills')}?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`,
+			{ reset: false }
+		);
+	}
+
 	function choose(uuid: string): void {
-		void goto(`${resolve('/skills')}?project=${encodeURIComponent(uuid)}`, {
-			reset: false
-		});
+		go(uuid, data.order);
 	}
 
 	async function saveMode(mode: SkillMode): Promise<void> {
@@ -102,9 +111,19 @@ artifacts/2026-10-14/learned-skills-ui/design.md.
 									onRetry={() => void invalidateAll()}
 								/>
 							{:else if data.skills}
+								<ListOrderSelect
+									order={data.order}
+									onChange={(order) => go(project.project_uuid, order)}
+								/>
 								<div class="sk-rows">
 									{#each data.skills.skills as skill (skill.folder)}
-										<SkillFolderRow {skill} />
+										<SkillFolderRow
+											{skill}
+											showChance={data.order === 'suggested'}
+											chance={skill.needs_you
+												? chanceFor(data.skills.suggested_accept, skill.draft_id)
+												: null}
+										/>
 									{/each}
 								</div>
 							{/if}

@@ -17,7 +17,12 @@
 	import type { OperatorTurnDto, SessionSummary } from '$lib/types';
 	import { listEvalLabels, postGoldLabels } from '$lib/api/eval';
 	import type { EvalLabelDto } from '$lib/api/eval';
-	import { getEvalReviewDetail, getOperatorTurnFacts, listEvalRunItems } from '$lib/api/evalRuns';
+	import {
+		getEvalReviewDetail,
+		getOperatorTurnFacts,
+		itemsQueryString,
+		listEvalRunItems
+	} from '$lib/api/evalRuns';
 	import type {
 		EvalReviewDetailDto,
 		EvalRunItemDto,
@@ -109,6 +114,8 @@
 	let reviewed = $state(0);
 	let queueState = $state<'loading' | 'ok' | 'error'>('loading');
 	let queueError = $state<string | null>(null);
+	let prelabelsSeen = $state(false);
+	let unfilteredTotal = $state<number | null>(null);
 
 	let selected = $state<number | null>(null);
 	let shown = $state.raw<Loaded | null>(null);
@@ -147,6 +154,7 @@
 	const mode = $derived(filters.mode);
 	const otherMode = $derived<ReviewMode>(mode === 'reaction' ? 'delivery' : 'reaction');
 	const query = $derived(queueQuery(filters));
+	const queryKey = $derived(itemsQueryString(query));
 	const filterCount = $derived(activeFilterCount(filters));
 	const percent = $derived(total > 0 ? Math.round((reviewed / total) * 100) : 0);
 	const runTitle = $derived(data.run ? runName(data.run) : null);
@@ -462,6 +470,12 @@
 		try {
 			const result = await listEvalRunItems(data.runId, query);
 			if (token !== queueToken) return;
+			const withPrelabel = result.items.some((i) => i.prelabel);
+			if (withPrelabel) prelabelsSeen = true;
+			if (fresh && filters.uncertain === undefined) {
+				filters = { ...filters, uncertain: withPrelabel };
+				if (withPrelabel) return;
+			}
 			total = result.total;
 			reviewed = result.reviewed;
 			queueError = null;
@@ -484,9 +498,32 @@
 	}
 
 	$effect(() => {
-		void query;
+		void queryKey;
 		untrack(() => void loadQueue(true));
 	});
+
+	$effect(() => {
+		const confident = filters.uncertain === true;
+		void queryKey;
+		untrack(() => {
+			unfilteredTotal = null;
+			if (!confident || !data.run) return;
+			listEvalRunItems(data.runId, { ...queueQuery({ ...filters, uncertain: false }), limit: 1 })
+				.then((r) => (unfilteredTotal = r.total))
+				.catch(() => (unfilteredTotal = null));
+		});
+	});
+
+	const hiddenConfident = $derived(
+		filters.uncertain === true && unfilteredTotal !== null
+			? Math.max(0, unfilteredTotal - total)
+			: 0
+	);
+	const prelabelShown = $derived(
+		prelabelsSeen && shown
+			? (queue.find((r) => r.operator_turn_id === shown?.turn)?.prelabel ?? null)
+			: undefined
+	);
 
 	$effect(() => {
 		const search = paramsFor(filters, selected).toString();
@@ -512,7 +549,13 @@
 
 	function setMode(value: ReviewMode) {
 		if (value === filters.mode) return;
-		filters = { mode: value, gold: '', judge: '', agree: filters.agree };
+		filters = {
+			mode: value,
+			gold: '',
+			judge: '',
+			agree: filters.agree,
+			uncertain: filters.uncertain
+		};
 	}
 
 	function setFilter<K extends keyof ReviewFilters>(key: K, value: ReviewFilters[K]) {
@@ -520,7 +563,13 @@
 	}
 
 	function clearFilters() {
-		filters = { mode: filters.mode, gold: '', judge: '', agree: false };
+		filters = {
+			mode: filters.mode,
+			gold: '',
+			judge: '',
+			agree: false,
+			uncertain: filters.uncertain
+		};
 		filtersOpen = false;
 	}
 
@@ -707,6 +756,26 @@
 					>
 				</div>
 				<div class="jd-tools">
+					<Tooltip
+						text="Hides the turns Jev is confident about. Turns Jev has not looked at yet stay in the list."
+					>
+						{#snippet child({ props })}
+							<label class="jd-switch" {...props}>
+								<Switch
+									disabled={!prelabelsSeen && filters.uncertain !== true}
+									bind:checked={
+										() => filters.uncertain === true, (next) => setFilter('uncertain', next)
+									}
+								/>
+								Only uncertain
+							</label>
+						{/snippet}
+					</Tooltip>
+					<span class="jd-hidden jd-quiet" role="status" data-testid="hidden-confident"
+						>{hiddenConfident > 0
+							? `${hiddenConfident} confident pre-label${hiddenConfident === 1 ? '' : 's'} hidden`
+							: ''}</span
+					>
 					<Tooltip text="Previous turn in this list · k">
 						{#snippet child({ props })}
 							<Button
@@ -950,6 +1019,7 @@
 						bind:note
 						bind:height={panelHeight}
 						questions={barQuestions}
+						suggestion={prelabelShown}
 						savedAt={saved?.at ?? null}
 						busy={busy || loadingTurn !== null}
 						{status}
@@ -1173,6 +1243,11 @@
 		font-size: var(--text-sm);
 		color: var(--text-1);
 		cursor: pointer;
+	}
+	.jd-hidden {
+		flex: none;
+		width: 34ch;
+		white-space: nowrap;
 	}
 	.jd-filters-foot {
 		display: flex;

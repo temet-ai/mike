@@ -51,6 +51,18 @@ fn compose_gap_already_disclosed_in_an_answer_is_held() {
 }
 
 #[test]
+fn compose_sends_only_a_clearly_unfinished_ask_whatever_the_other_answers_say() {
+    assert_eq!(
+        compose(&answered(0.7, 0.0, 0.0)).map(|v| v.send),
+        Some(false)
+    );
+    assert_eq!(
+        compose(&answered(0.85, 0.9, 0.9)).map(|v| v.send),
+        Some(true)
+    );
+}
+
+#[test]
 fn compose_failed_ask_is_none_so_the_fire_is_sent_as_today() {
     assert!(compose(&Asked::failed_with("timeout")).is_none());
 }

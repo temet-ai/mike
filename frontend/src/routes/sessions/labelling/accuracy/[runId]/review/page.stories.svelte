@@ -4,7 +4,7 @@
 	import ReviewPage from './+page.svelte';
 	import type { EvalReviewPageData } from './+page';
 	import type { EvalLabelDto } from '$lib/api/eval';
-	import type { EvalReviewDetailDto, EvalRunItemDto } from '$lib/api/evalRuns';
+	import type { EvalReviewDetailDto, EvalRunItemDto, ItemPrelabel } from '$lib/api/evalRuns';
 	import type { OperatorTurnDto, SessionSummary } from '$lib/types';
 	import {
 		DETAIL_10487,
@@ -45,6 +45,16 @@
 			runRow(30000 + i, ['corrected', 'delivered'], ['accepted', 'delivered'])
 		)
 	];
+	const PRELABELS: Record<number, ItemPrelabel> = {
+		10571: { label: 'redirected', probability: 0.55, uncertain: true },
+		30034: { label: 'corrected', probability: 0.61, uncertain: true },
+		...Object.fromEntries(
+			Array.from({ length: 34 }, (_, i) => [
+				30000 + i,
+				{ label: 'corrected', probability: 0.93, uncertain: false } satisfies ItemPrelabel
+			])
+		)
+	};
 	const DETAILS: Record<number, EvalReviewDetailDto> = {
 		10487: DETAIL_10487,
 		10571: DETAIL_10571,
@@ -139,8 +149,16 @@
 				return found ? json(found) : json({ error: 'no item' }, 404);
 			}
 			if (url.startsWith('/api/eval/runs/3/items')) {
-				const rows = (url.includes('disagreement=reaction') ? REACTION : DELIVERY).map(withReviews);
-				return json(runItemsPage(rows));
+				const rows = (url.includes('disagreement=reaction') ? REACTION : DELIVERY)
+					.map(withReviews)
+					.map((r) => {
+						const prelabel = PRELABELS[r.operator_turn_id];
+						return prelabel ? { ...r, prelabel } : r;
+					});
+				const only = url.includes('review=uncertain');
+				return json(
+					runItemsPage(only ? rows.filter((r) => !r.prelabel || r.prelabel.uncertain) : rows)
+				);
 			}
 			if (url.startsWith('/api/eval/labels') && init?.method === 'POST') {
 				const body = JSON.parse(String(init.body)) as Post;
@@ -413,5 +431,54 @@
 		await userEvent.keyboard('{Alt>}1{/Alt}');
 		await waitFor(() => expect(server.posts).toHaveLength(3));
 		await expect(server.posts[2]?.labels).toEqual([{ axis: 'reaction', label: 'unclear' }]);
+	}}
+/>
+
+<Story
+	name="Only uncertain pre-labels"
+	parameters={{
+		sveltekit_experimental: {
+			state: {
+				page: {
+					url: new URL('http://localhost/sessions/labelling/accuracy/3/review?mode=reaction'),
+					params: { runId: '3' }
+				}
+			}
+		}
+	}}
+	loaders={[
+		async () => {
+			server = fakeServer();
+			globalThis.fetch = server.fetchStub as typeof globalThis.fetch;
+			return {};
+		}
+	]}
+	args={{ data: DATA }}
+	play={async ({ canvasElement }) => {
+		const c = within(canvasElement);
+		const hidden = () => c.getByTestId('hidden-confident');
+		const only = () => c.getByRole('switch', { name: /Only uncertain/ });
+
+		await waitFor(() => expect(only()).toHaveAttribute('aria-checked', 'true'));
+		await waitFor(() => expect(hidden().textContent).toBe('34 confident pre-labels hidden'));
+		await waitFor(() =>
+			expect(c.getByTestId('review-progress').textContent).toMatch(/of\s+4\s+reviewed/)
+		);
+		await waitFor(() =>
+			expect(c.getByTestId('prelabel-suggestion').textContent).toBe('Jev suggests Redirected, 55%')
+		);
+		await expect(
+			canvasElement.querySelectorAll('[data-testid="decision-bar"] button[aria-pressed="true"]')
+		).toHaveLength(0);
+
+		const slot = hidden().getBoundingClientRect();
+		await press(only());
+		await waitFor(() => expect(only()).toHaveAttribute('aria-checked', 'false'));
+		await waitFor(() =>
+			expect(c.getByTestId('review-progress').textContent).toMatch(/of\s+38\s+reviewed/)
+		);
+		await expect(hidden().textContent).toBe('');
+		await expect(hidden().getBoundingClientRect().width).toBe(slot.width);
+		await expect(server.posts).toHaveLength(0);
 	}}
 />

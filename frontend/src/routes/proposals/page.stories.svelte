@@ -15,7 +15,14 @@
 		projectsError: null,
 		selected: PROPOSAL_PROJECT_UUID,
 		proposals: PROJECT_PROPOSALS,
-		proposalsError: null
+		proposalsError: null,
+		order: 'default'
+	};
+
+	const SUGGESTED: ProposalsPageData = {
+		...DATA,
+		order: 'suggested',
+		proposals: { ...PROJECT_PROPOSALS, suggested_accept: { '1303': 0.62 } }
 	};
 
 	let decision: { url: string; body: unknown } | null = null;
@@ -65,5 +72,31 @@
 				body: { decision: 'decline' }
 			})
 		);
+	}}
+/>
+
+<Story
+	name="Suggested order"
+	loaders={[
+		async () => {
+			decision = null;
+			stubFetchJsonRouter(router);
+			return {};
+		}
+	]}
+	args={{ data: SUGGESTED }}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(canvas.getByLabelText('Order')).toHaveValue('suggested');
+		const chances = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot="accept-chance"]')];
+		await expect(chances.map((c) => c.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+			'accept 62%',
+			'accept —',
+			'accept —'
+		]);
+		await expect(
+			new Set(chances.map((c) => Math.round(c.getBoundingClientRect().width))).size
+		).toBe(1);
+		await expect(decision).toBeNull();
 	}}
 />

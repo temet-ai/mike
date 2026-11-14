@@ -1,6 +1,8 @@
 import type { PageLoad } from './$types';
 import { getProposalProjects, getProposals } from '$lib/api/proposals';
 import type { ProposalProject, ProposalsResponse } from '$lib/api/proposals';
+import { ORDER_PARAM, orderFromParam } from '$lib/suggestedOrder';
+import type { ListOrder } from '$lib/suggestedOrder';
 
 export interface ProposalsPageData {
 	projects: ProposalProject[] | null;
@@ -8,6 +10,7 @@ export interface ProposalsPageData {
 	selected: string | null;
 	proposals: ProposalsResponse | null;
 	proposalsError: string | null;
+	order: ListOrder;
 }
 
 function message(e: unknown): string {
@@ -20,6 +23,7 @@ function pick(projects: ProposalProject[], asked: string | null): string | null 
 }
 
 export const load: PageLoad = async ({ url }): Promise<ProposalsPageData> => {
+	const order = orderFromParam(url.searchParams.get(ORDER_PARAM));
 	let projects: ProposalProject[];
 	try {
 		projects = (await getProposalProjects()).projects;
@@ -29,17 +33,32 @@ export const load: PageLoad = async ({ url }): Promise<ProposalsPageData> => {
 			projectsError: message(e),
 			selected: null,
 			proposals: null,
-			proposalsError: null
+			proposalsError: null,
+			order
 		};
 	}
 	const selected = pick(projects, url.searchParams.get('project'));
 	if (selected === null) {
-		return { projects, projectsError: null, selected, proposals: null, proposalsError: null };
+		return {
+			projects,
+			projectsError: null,
+			selected,
+			proposals: null,
+			proposalsError: null,
+			order
+		};
 	}
 	try {
-		const proposals = await getProposals(selected);
-		return { projects, projectsError: null, selected, proposals, proposalsError: null };
+		const proposals = await getProposals(selected, order);
+		return { projects, projectsError: null, selected, proposals, proposalsError: null, order };
 	} catch (e) {
-		return { projects, projectsError: null, selected, proposals: null, proposalsError: message(e) };
+		return {
+			projects,
+			projectsError: null,
+			selected,
+			proposals: null,
+			proposalsError: message(e),
+			order
+		};
 	}
 };

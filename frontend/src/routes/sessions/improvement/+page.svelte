@@ -45,6 +45,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 		labelGuardEvaluation
 	} from '$lib/api/guardEffect';
 	import { listProposals } from '$lib/api/directiveProposals';
+	import type { AcceptChances, ListOrder } from '$lib/suggestedOrder';
 	import type { DirectiveProposal } from '$lib/api/directiveProposals';
 	import type { ImprovementPageData } from './+page';
 
@@ -68,6 +69,8 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 	let directiveProposals = $state<DirectiveProposal[] | null>(data.proposals);
 	// svelte-ignore state_referenced_locally -- see note above
 	let proposalsError = $state<string | null>(data.proposalsError);
+	let proposalOrder = $state<ListOrder>('default');
+	let proposalChances = $state<AcceptChances | undefined>(undefined);
 	// svelte-ignore state_referenced_locally -- see note above
 	let guardWakes = $state<GuardWake[] | null>(data.wakes);
 	// svelte-ignore state_referenced_locally -- see note above
@@ -175,7 +178,9 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 	async function retryProposals(): Promise<void> {
 		proposalsError = null;
 		try {
-			directiveProposals = (await listProposals('open')).proposals;
+			const page = await listProposals('open', proposalOrder);
+			directiveProposals = page.proposals;
+			proposalChances = page.suggested_accept;
 		} catch (e) {
 			proposalsError = e instanceof Error ? e.message : String(e);
 		}
@@ -286,6 +291,12 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 							error={proposalsError}
 							emptyText="No standing directives are waiting on you."
 							onDecided={proposalDecided}
+							order={proposalOrder}
+							suggestedAccept={proposalChances}
+							onOrderChange={(next) => {
+								proposalOrder = next;
+								void retryProposals();
+							}}
 						/>
 					{/snippet}
 				</WaitingForYou>
