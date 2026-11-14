@@ -61,6 +61,7 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 - [Start and manage sessions](sessions.md): open Claude Code sessions from mike.
 - [Work threads](threads.md): keep work going across sessions.
 - [Mods](mods.md): the panes and buttons mike adds inside Claude Code.
+- [Codex sessions](codex.md): what mike sees of OpenAI Codex, and how to connect it.
 
 **Fleets**
 

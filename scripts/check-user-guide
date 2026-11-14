@@ -27,7 +27,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="${GUIDE_DIR:-$ROOT/docs/user-guide}"
-MAP="README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md fleets/README.md fleets/first-fleet.md fleets/definition.md fleets/how-a-fleet-runs.md fleets/working-together.md fleets/shared-checkout.md fleets/acceptance.md fleets/watch-and-recover.md fleets/after-a-run.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md"
+MAP="README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md codex.md fleets/README.md fleets/first-fleet.md fleets/definition.md fleets/how-a-fleet-runs.md fleets/working-together.md fleets/shared-checkout.md fleets/acceptance.md fleets/watch-and-recover.md fleets/after-a-run.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md"
 
 complete=0
 files=()
