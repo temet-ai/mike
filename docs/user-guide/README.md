@@ -52,6 +52,7 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 - [Memory](memory.md): lessons, recall and reminders that carry a correction to later sessions.
 - [Steering](steering.md): steerers that watch a session and send a correction.
 - [The judge](judge.md): how mike labels turns and sessions, and how you check it.
+- [Decisions](decisions.md): a small model that answers mike's quick yes or no questions.
 - [Filter rules](filters.md): rewrite parts of the system prompt before it is sent.
 - [Compression](compression.md): what mike can shorten, and what it does today.
 
