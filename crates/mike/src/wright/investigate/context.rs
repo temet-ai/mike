@@ -183,9 +183,20 @@ pub(crate) fn runs_dir() -> Result<PathBuf, String> {
         .join("runs"))
 }
 
+pub(crate) fn running_binary(pid: u32, installed: &Path) -> PathBuf {
+    let live = PathBuf::from(format!("/proc/{pid}/exe"));
+    if is_elf(&live) {
+        live
+    } else {
+        installed.to_path_buf()
+    }
+}
+
 pub(crate) fn resolve_paths() -> Result<EnginePaths, String> {
     let repo = resolve_repo()?;
-    let mike = std::env::current_exe().map_err(|e| format!("mike's own path is unknown: {e}"))?;
+    let installed =
+        std::env::current_exe().map_err(|e| format!("mike's own path is unknown: {e}"))?;
+    let mike = running_binary(std::process::id(), &installed);
     let runs = runs_dir()?;
     Ok(EnginePaths {
         slot: repo.join(SLOT),
@@ -198,7 +209,7 @@ pub(crate) fn resolve_paths() -> Result<EnginePaths, String> {
         bwrap: bwrap_path()?,
         binaries: Binaries {
             claude: resolve_claude()?,
-            mike_mcp: resolve_mike_mcp(&mike)?,
+            mike_mcp: resolve_mike_mcp(&installed)?,
             mike,
         },
         repo,
