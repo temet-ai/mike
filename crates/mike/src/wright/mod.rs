@@ -3,7 +3,9 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
+pub mod cli;
 pub(crate) mod definition;
+pub mod investigate;
 pub mod watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

@@ -61,6 +61,9 @@ pub enum Command {
     ExportAnalysisCorpus(ExportAnalysisCorpusArgs),
 
     Structural(structural::StructuralArgs),
+
+    #[command(hide = true)]
+    Wright(crate::wright::cli::WrightArgs),
 }
 
 #[derive(Debug, Clone, Args)]

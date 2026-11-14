@@ -4,10 +4,13 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 pub(crate) mod checks;
+pub(crate) mod investigations;
 pub(crate) mod problems;
 
 #[cfg(test)]
 mod checks_tests;
+#[cfg(test)]
+mod investigations_tests;
 
 pub(crate) const PAGE_MAX_LIMIT: i64 = 500;
 
