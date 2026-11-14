@@ -7,5 +7,6 @@ pub mod projection;
 pub mod rejudge_runs;
 pub mod relay;
 pub mod review;
+pub mod review_queue;
 pub mod runs;
 pub mod session_end_items;

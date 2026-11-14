@@ -36,6 +36,7 @@ pub struct ItemsQuery {
     pub verdict_delivery: Option<String>,
     pub severity: Option<String>,
     pub reviewed: Option<bool>,
+    pub review: Option<String>,
     pub include: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -201,6 +202,10 @@ pub async fn list_eval_run_items(
         Ok(p) => p,
         Err(r) => return *r,
     };
+    let uncertain_only = match super::review_queue::parse(q.review.as_deref()) {
+        Ok(v) => v,
+        Err(message) => return error(StatusCode::BAD_REQUEST, message),
+    };
     let filter = match items_filter(q, limit, offset) {
         Ok(f) => f,
         Err(r) => return *r,
@@ -208,7 +213,17 @@ pub async fn list_eval_run_items(
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    match persist.eval().eval_run_items_page(id, &filter).await {
+    let fetched = if uncertain_only {
+        super::review_queue::uncertain_page(
+            &filter,
+            async |scan| persist.eval().eval_run_items_page(id, scan).await,
+            super::prelabel::cached,
+        )
+        .await
+    } else {
+        persist.eval().eval_run_items_page(id, &filter).await
+    };
+    match fetched {
         Ok(p) => {
             let ids: Vec<i64> = p.items.iter().map(|i| i.operator_turn_id).collect();
             super::prelabel::spawn_fill(state.decision_env(), persist.clone(), &ids);

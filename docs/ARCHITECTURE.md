@@ -1592,7 +1592,7 @@ Every point below asks through `llm/decisions/point.rs`, so each call lands in `
 - **Repeats grouping** (`repeats_group`, `api/improvement/repeats/pairs.rs`). A yes/no for pairs whose cosine is within a band around the threshold, written back into the similarity matrix before the groups are formed.
 - **Skill trigger** (`skill_trigger`, `lesson_proposer/skill_eval_pick.rs`). A choice per test message over the skills plus `none`, replacing the model's `load` list.
 - **Proposal order** (`proposal_order`, `lesson_proposer/proposal_order.rs`). `GET /api/proposals?sort=suggested` orders the undecided proposals by the guessed chance of acceptance and adds `suggested_accept`. It never accepts. Guesses are filled in the background and kept in memory until the operator decides.
-- **Label pre-label** (`label_prelabel`, `api/eval/prelabel.rs`). Items of `GET /api/eval/runs/{id}/items` carry a `prelabel` (label, probability, uncertain) once a background pass has filled it. The operator's gold label is recorded as the outcome.
+- **Label pre-label** (`label_prelabel`, `api/eval/prelabel.rs`). Items of `GET /api/eval/runs/{id}/items` carry a `prelabel` (label, probability, uncertain) once a background pass has filled it. `?review=uncertain` on the same route (the queue behind `/sessions/labelling/accuracy/{run}/review`) returns only items whose pre-label is uncertain or not filled yet, so the operator reviews those; a confident item is left out of the queue but keeps its `prelabel`. `total` counts the filtered items. With the layer off or a failed call no item has a pre-label, so the filter returns everything. A pre-label never becomes a gold label; the operator's gold label is recorded as the outcome.
 
 ### Jev decision points: capture and steering
 
