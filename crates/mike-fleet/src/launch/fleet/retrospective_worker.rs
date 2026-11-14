@@ -203,7 +203,7 @@ fn transient(err: &LaunchError) -> bool {
     )
 }
 
-async fn cleanup(
+pub(super) async fn cleanup(
     persist: &PersistHandle,
     row: &FleetRow,
     mut job: Job,
@@ -219,6 +219,9 @@ async fn cleanup(
         save(persist, row, &job).await?;
         return Ok(());
     }
+    if job.problem.is_none() {
+        job.problem = super::retrospective_outcome::verdict(persist, row, &def, &job).await?;
+    }
     persist.launch().close_run(&job.run_id).await?;
     super::cleanup::after_close(persist, row, &def, &job.source_run).await;
     job.phase = if job.problem.is_some() {
@@ -227,6 +230,9 @@ async fn cleanup(
         Phase::Finished
     };
     save(persist, row, &job).await?;
+    if let Some(problem) = &job.problem {
+        super::retrospective_outcome::tell(persist, row, &def, problem).await;
+    }
     Ok(())
 }
 

@@ -45,17 +45,18 @@ fn the_default_profile_is_core() {
 }
 
 #[test]
-fn retrospective_lists_only_inspection_and_its_two_bounded_writes() {
+fn retrospective_lists_only_inspection_and_its_bounded_writes() {
     let expected = RETROSPECTIVE_TOOLS
         .iter()
         .map(|name| name.to_string())
         .collect();
     assert_eq!(names(Profile::Retrospective), expected);
-    assert_eq!(RETROSPECTIVE_TOOLS.len(), 8);
+    assert_eq!(RETROSPECTIVE_TOOLS.len(), 12);
     for name in [
         "write_session_note",
         "end_workspace_registration",
         "get_request_body",
+        "work_thread_add_entry",
     ] {
         assert!(names(Profile::Retrospective).contains(name));
     }

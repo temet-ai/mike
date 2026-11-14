@@ -83,6 +83,9 @@ pub mod report_commit;
 pub mod report_proof;
 pub mod retrospective;
 pub mod retrospective_launch;
+pub mod retrospective_outcome;
+#[cfg(test)]
+pub mod retrospective_outcome_tests;
 #[cfg(test)]
 pub mod retrospective_tests;
 pub mod retrospective_worker;

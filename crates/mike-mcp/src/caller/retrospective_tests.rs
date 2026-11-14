@@ -10,7 +10,12 @@ fn args(value: Value) -> Option<Map<String, Value>> {
 
 #[test]
 fn restricted_writes_bind_omitted_or_matching_identity() -> anyhow::Result<()> {
-    for tool in ["write_session_note", "end_workspace_registration"] {
+    for tool in [
+        "write_session_note",
+        "end_workspace_registration",
+        "work_thread_checkpoint",
+        "work_thread_add_entry",
+    ] {
         for input in [json!({}), json!({"session_id": SESSION.to_uppercase()})] {
             let output = authorize(Profile::Retrospective, tool, args(input), Some(SESSION))?
                 .ok_or_else(|| anyhow::anyhow!("missing arguments"))?;
@@ -22,7 +27,12 @@ fn restricted_writes_bind_omitted_or_matching_identity() -> anyhow::Result<()> {
 
 #[test]
 fn restricted_writes_reject_explicit_identity_mismatch_or_missing_context() {
-    for tool in ["write_session_note", "end_workspace_registration"] {
+    for tool in [
+        "write_session_note",
+        "end_workspace_registration",
+        "work_thread_checkpoint",
+        "work_thread_add_entry",
+    ] {
         for identity in [json!(OTHER), Value::Null, json!(""), json!(42)] {
             let result = authorize(
                 Profile::Retrospective,
@@ -134,4 +144,17 @@ fn ordinary_profiles_preserve_explicit_session_ids_and_unlisted_mutations() -> a
         }
     }
     Ok(())
+}
+
+#[test]
+fn work_thread_entries_must_be_findings() {
+    for input in [json!({"kind": "decision"}), json!({"kind": null})] {
+        let result = authorize(
+            Profile::Retrospective,
+            "work_thread_add_entry",
+            args(input.clone()),
+            Some(SESSION),
+        );
+        assert!(result.is_err(), "accepted {input}");
+    }
 }
