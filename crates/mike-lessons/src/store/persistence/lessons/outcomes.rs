@@ -77,6 +77,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn supersede_contradicted_lessons(self) -> Result<u64, PersistError> {
         crate::metrics::time_db("supersede_contradicted_lessons", async move {
             let ids: Vec<i64> = sqlx::query_scalar(SUPERSEDE_CONTRADICTED)
+                .bind(crate::lesson_relations::DETECTOR_VERSION)
                 .fetch_all(&self.pool)
                 .await?;
             Ok(ids.len() as u64)

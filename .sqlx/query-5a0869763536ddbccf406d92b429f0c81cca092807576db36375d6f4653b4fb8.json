@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.lesson_relations r\n USING memory.lesson_relation_methods m, memory.lesson_relation_statuses s, memory.lessons a\n WHERE m.id = r.method_id AND m.code = 'adjudicated'\n   AND s.id = r.status_id AND s.code = 'proposed'\n   AND a.id = r.from_lesson_id AND a.project_id = $1\n   AND r.detector_version IS DISTINCT FROM $2\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5a0869763536ddbccf406d92b429f0c81cca092807576db36375d6f4653b4fb8"
+}

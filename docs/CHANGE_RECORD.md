@@ -198,7 +198,9 @@ and the checkout's own rules.
   file no longer has it), `fixed_by_other` (that later change was another session's),
   `ignored` (the session was told and the finding was still there when the path was
   committed, or 30 minutes after it was told; a later fix still moves it to `fixed`) or
-  `superseded` (the file was deleted).
+  `superseded` (the file was deleted). `reply` holds the session's answer on the request that
+  delivered the finding, copied whole a minute after delivery: when a session keeps flagged code
+  it says why here, which is where a rule's false positives show.
 - With `code_findings` on, the stage of that name adds up to three of the session's open
   warnings and errors from the last hour to its next request, tool loops included, and sets
   `delivered_request_id` with `delivered_via = 'request'`. Hints are recorded and never

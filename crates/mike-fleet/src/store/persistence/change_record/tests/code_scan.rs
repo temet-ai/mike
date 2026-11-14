@@ -342,3 +342,40 @@ async fn session_uuid(pool: &sqlx::PgPool, id: i64) -> anyhow::Result<uuid::Uuid
             .await?,
     )
 }
+
+#[tokio::test]
+async fn a_delivered_finding_gets_its_reply_read_once_after_a_minute() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let project_id = project(pool).await?;
+    let ids = f
+        .handle
+        .fleet()
+        .insert_change_events(&[event(project_id, ChangeKind::Edit, &["src/r.rs"])])
+        .await?;
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(
+            ids[0],
+            &["fp-r"],
+            vec![finding("rust-unsafe", "fp-r")],
+        ))
+        .await?;
+    told(&f.handle).await?;
+    sqlx::query("UPDATE workspace.code_findings SET delivered_request_id = 987654321, delivered_at = now() - interval '2 minutes' WHERE checkout = $1")
+        .bind(CHECKOUT)
+        .execute(pool)
+        .await?;
+    assert!(f.handle.fleet().record_code_finding_replies().await? >= 1);
+    assert_eq!(f.handle.fleet().record_code_finding_replies().await?, 0);
+    let (reply, read): (Option<String>, bool) = sqlx::query_as(
+        "SELECT reply, reply_at IS NOT NULL FROM workspace.code_findings WHERE checkout = $1",
+    )
+    .bind(CHECKOUT)
+    .fetch_one(pool)
+    .await?;
+    assert_eq!((reply, read), (None, true));
+    Ok(())
+}
