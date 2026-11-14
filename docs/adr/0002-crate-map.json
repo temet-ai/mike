@@ -441,6 +441,7 @@
   "explained": "core",
   "explained_tests": "core",
   "extract": "wire",
+  "features_settings": "proxy",
   "extract/signals": "proxy",
   "feature_presets": "cli",
   "feature_toggles": "db",

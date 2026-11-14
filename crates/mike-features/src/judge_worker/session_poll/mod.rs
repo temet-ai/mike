@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::session_judge::SessionJudgeConfig;
 use crate::feature_toggles::FeatureToggles;
+use crate::features_settings::sections::session_judge::SessionJudgeConfig;
 use crate::llm::{LlmRole, OpenRouterClient};
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
@@ -41,7 +41,7 @@ pub fn spawn_session_judge_worker(state: &AppState) {
         return;
     };
 
-    let config = state.config.session_judge.clone();
+    let config = state.config.sections.get::<SessionJudgeConfig>();
 
     let llm = match crate::llm::OpenRouterClient::new(
         String::new(),
@@ -258,7 +258,7 @@ pub async fn run_session_judge_once(state: &AppState) -> anyhow::Result<()> {
         return Ok(());
     };
     let embedding = state.embedding_service();
-    let config = state.config().session_judge.clone();
+    let config = state.config().sections.get::<SessionJudgeConfig>();
     let llm = crate::llm::OpenRouterClient::new(
         String::new(),
         config.model.clone(),

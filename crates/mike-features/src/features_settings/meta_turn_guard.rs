@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const MAX_CALLS_PER_DAY_KEY: &str = "steerer.turn_guard.max_calls_per_day";
 pub const MAX_LABEL_CALLS_PER_DAY_KEY: &str = "steerer.turn_guard.max_label_calls_per_day";

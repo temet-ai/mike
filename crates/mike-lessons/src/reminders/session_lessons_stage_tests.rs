@@ -14,7 +14,9 @@ async fn session_lessons_enabled_requires_toggle_and_primary_turn() -> anyhow::R
     let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-lessons-stage-enabled-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
-    toggles_on.reminders_inject_lessons = true;
+    toggles_on
+        .features
+        .update::<crate::features_settings::RemindersOverlay>(|o| o.inject_lessons = true);
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
     let primary = TurnOrigin::Primary;
@@ -80,7 +82,9 @@ async fn session_lessons_apply_injects_from_snapshot_and_records_manifest() -> a
     let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-lessons-stage-apply-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
-    toggles_on.reminders_inject_lessons = true;
+    toggles_on
+        .features
+        .update::<crate::features_settings::RemindersOverlay>(|o| o.inject_lessons = true);
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::from_pairs([(
         "my-project".to_string(),
@@ -153,7 +157,9 @@ async fn session_lessons_enabled_only_on_session_own_lane_without_agent_id() -> 
     let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session_lessons-own-lane-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
-    toggles_on.reminders_inject_lessons = true;
+    toggles_on
+        .features
+        .update::<crate::features_settings::RemindersOverlay>(|o| o.inject_lessons = true);
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
     let primary = TurnOrigin::Primary;

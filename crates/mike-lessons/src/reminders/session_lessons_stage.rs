@@ -1,5 +1,6 @@
 use bytes::Bytes;
 
+use crate::features_settings::RemindersOverlay;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::session_lessons::{SessionLessonsRequest, apply_session_lessons};
 use crate::reminders::stage::{StageManifestCodes, record_outcome_without_body_change};
@@ -23,7 +24,11 @@ impl RequestStage for SessionLessonsStage {
     }
 
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
-        ctx.session_toggles.reminders_inject_lessons && is_session_own_lane(ctx)
+        ctx.session_toggles
+            .features
+            .get::<RemindersOverlay>()
+            .inject_lessons
+            && is_session_own_lane(ctx)
     }
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
@@ -40,10 +45,11 @@ impl RequestStage for SessionLessonsStage {
             );
             return;
         }
+        let reminders = ctx.session_toggles.features.get::<RemindersOverlay>();
         let cfg = RemindersConfig {
             enabled: ctx.session_toggles.reminders,
-            inject_lessons: ctx.session_toggles.reminders_inject_lessons,
-            max_lessons_to_inject: ctx.session_toggles.reminders_max_lessons_to_inject,
+            inject_lessons: reminders.inject_lessons,
+            max_lessons_to_inject: reminders.max_lessons_to_inject,
         };
         let push_deps = ctx.state.push_deps();
         let outcome = apply_session_lessons(SessionLessonsRequest {

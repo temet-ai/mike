@@ -6,12 +6,14 @@ use tokio::sync::Mutex;
 use crate::test_db::TestDb;
 
 use mike::config::SettingsWriteGuard;
+use mike::features_settings::RemindersOverlay;
 use mike::settings::SettingsOverlay;
 use mike::settings::service::{SettingsService, SettingsServiceError};
 use mike::store::persistence::PersistHandle;
 
 #[tokio::test]
 async fn reconcile_seeds_overlay_from_empty_db() -> anyhow::Result<()> {
+    mike::feature_settings::install();
     let Some(factory) = TestDb::bootstrap().await? else {
         return Ok(());
     };
@@ -22,12 +24,12 @@ async fn reconcile_seeds_overlay_from_empty_db() -> anyhow::Result<()> {
     let write_lock = Arc::new(Mutex::new(SettingsWriteGuard));
     let _svc = SettingsService::reconcile_on_startup(overlay.clone(), write_lock, handle).await?;
 
-    let current = overlay.load();
+    let current = overlay.load().features.get::<RemindersOverlay>();
     assert!(
-        !current.reminders_inject_lessons,
+        !current.inject_lessons,
         "default must be false (toggle-off-by-default contract)"
     );
-    assert_eq!(current.reminders_max_lessons_to_inject, 5);
+    assert_eq!(current.max_lessons_to_inject, 5);
 
     db.cleanup().await?;
     Ok(())
@@ -35,6 +37,7 @@ async fn reconcile_seeds_overlay_from_empty_db() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn set_updates_db_and_overlay_for_session_scoped_key() -> anyhow::Result<()> {
+    mike::feature_settings::install();
     let Some(factory) = TestDb::bootstrap().await? else {
         return Ok(());
     };
@@ -54,9 +57,9 @@ async fn set_updates_db_and_overlay_for_session_scoped_key() -> anyhow::Result<(
         .await?;
     assert_eq!(result, serde_json::json!(10));
 
-    let current = overlay.load();
+    let current = overlay.load().features.get::<RemindersOverlay>();
     assert_eq!(
-        current.reminders_max_lessons_to_inject, 10,
+        current.max_lessons_to_inject, 10,
         "overlay must reflect the flip before any DB re-read"
     );
 

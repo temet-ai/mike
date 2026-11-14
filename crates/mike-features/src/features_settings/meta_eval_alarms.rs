@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const EVAL_ROLLUP_ENABLED: &str = "eval.rollup.enabled";
 pub const EVAL_ROLLUP_HOUR_UTC: &str = "eval.rollup.hour_utc";

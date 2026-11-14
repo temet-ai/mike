@@ -64,7 +64,11 @@ pub fn guarded_by_client(session_id: &str) -> bool {
 
 pub fn weasel_armed(toggles: &ResolvedToggles, session_id: &str) -> bool {
     toggles.weasel_intercept
-        && !toggles.weasel_intercept_forbidden_words.is_empty()
+        && !toggles
+            .features
+            .get::<crate::features_settings::WeaselOverlay>()
+            .forbidden_words
+            .is_empty()
         && !guarded_by_client(session_id)
 }
 

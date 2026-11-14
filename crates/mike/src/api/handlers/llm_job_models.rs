@@ -83,7 +83,11 @@ pub(crate) async fn enabled_job_models(
         models.push(job(TURN_JUDGE, &runtime.model));
     }
     if toggles.session_judge {
-        let runtime = resolve_session_judge_runtime(&overlay, &state.config.session_judge);
+        let session_judge = state
+            .config
+            .sections
+            .get::<crate::features_settings::SessionJudgeConfig>();
+        let runtime = resolve_session_judge_runtime(&overlay, &session_judge);
         models.push(job(SESSION_JUDGE, &runtime.model));
     }
     if toggles.judge_lessons
@@ -120,7 +124,11 @@ pub(crate) fn configured_model_refs(state: &AppState) -> Vec<ModelRef> {
         .get::<crate::lessons_settings::LessonRelationsConfig>();
     let mut stored: Vec<String> = vec![
         overlay.live_steerer_model(&state.config.steerer.model),
-        state.config.session_judge.model.clone(),
+        state
+            .config
+            .sections
+            .get::<crate::features_settings::SessionJudgeConfig>()
+            .model,
         relations.proposer_model.clone(),
         relations.adjudicator_model.clone(),
     ];

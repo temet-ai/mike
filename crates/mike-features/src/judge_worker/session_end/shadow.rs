@@ -32,7 +32,11 @@ pub fn spawn_session_end_shadow(state: &AppState) {
         return;
     };
 
-    let timeout_secs = state.config().session_judge.request_timeout_secs;
+    let timeout_secs = state
+        .config()
+        .sections
+        .get::<crate::features_settings::SessionJudgeConfig>()
+        .request_timeout_secs;
     let llm = match OpenRouterClient::new(
         String::new(),
         String::new(),
@@ -52,7 +56,10 @@ pub fn spawn_session_end_shadow(state: &AppState) {
         .load()
         .session_end_shadow_interval_secs
         .max(60);
-    let cfg = state.config().session_judge.clone();
+    let cfg = state
+        .config()
+        .sections
+        .get::<crate::features_settings::SessionJudgeConfig>();
 
     let deps = ShadowWorkerDeps {
         persist,

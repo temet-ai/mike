@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const DEFAULT_MIN_RESULT_BYTES: usize = 1500;
 pub const DEFAULT_HEAD_LINES: usize = 20;

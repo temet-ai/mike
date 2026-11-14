@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::compress::cache_gate::CacheGate;
 use crate::compress::file_reads;
 use crate::feature_toggles::ResolvedToggles;
+use crate::features_settings::FileReadCompressionOverlay;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::wire::manifest::{AppliedStage, StageEntry, StageOutcome, TargetEntry, UnchangedStage};
 
@@ -55,16 +56,13 @@ fn shadow_record(stage: StageEntry, original_bytes: usize, candidate_bytes: usiz
     }
 }
 
-pub fn session_policy(toggles: &ResolvedToggles) -> file_reads::FileReadPolicy<'_> {
+pub fn session_policy(settings: &FileReadCompressionOverlay) -> file_reads::FileReadPolicy<'_> {
     file_reads::FileReadPolicy::new(
-        toggles.file_read_compression_min_bytes,
-        (
-            toggles.file_read_compression_head_lines,
-            toggles.file_read_compression_tail_lines,
-        ),
-        toggles.file_read_compression_grace_turns,
-        &toggles.file_read_compression_enabled_producers,
-        &toggles.file_read_compression_protected_paths,
+        settings.min_bytes,
+        (settings.head_lines, settings.tail_lines),
+        settings.grace_turns,
+        &settings.enabled_producers,
+        &settings.protected_paths,
     )
 }
 
@@ -72,12 +70,13 @@ pub const ARM_FORWARD: &str = "forward";
 pub const ARM_CONTROL: &str = "control";
 
 pub fn session_arm(toggles: &ResolvedToggles, session_id: &str) -> &'static str {
-    if toggles.file_read_compression_forward {
+    let settings = toggles.features.get::<FileReadCompressionOverlay>();
+    if settings.forward() {
         return ARM_FORWARD;
     }
     let digest = crate::wire::manifest::sha256_hex(session_id.as_bytes());
     let bucket = u64::from_str_radix(&digest[..8], 16).unwrap_or(0) % 100;
-    if bucket < toggles.file_read_compression_forward_share as u64 {
+    if bucket < settings.forward_share as u64 {
         ARM_FORWARD
     } else {
         ARM_CONTROL
@@ -176,7 +175,8 @@ impl RequestStage for FileReadCompressionStage {
         let toggles = ctx.session_toggles;
         let arm = session_arm(toggles, ctx.session_id);
         let gate = (arm == ARM_FORWARD).then(|| open_gate(body.body()));
-        let policy = session_policy(toggles)
+        let settings = toggles.features.get::<FileReadCompressionOverlay>();
+        let policy = session_policy(&settings)
             .with_capture(body.original())
             .with_warm_cuts(gate.as_ref().and_then(CacheGate::warm_cuts));
         let reduction = file_reads::reduce_file_reads(body.body().as_ref(), &policy);

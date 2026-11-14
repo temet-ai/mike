@@ -16,8 +16,8 @@ use super::components::{
 };
 use super::{BundleCandidate, BundleCause, BundleIds, BundleRole};
 use crate::config::SettingsWriteGuard;
-use crate::config::session_judge::SessionJudgeConfig;
 use crate::config::steerer::JudgeConfig;
+use crate::features_settings::sections::session_judge::SessionJudgeConfig;
 use crate::settings::SettingsOverlay;
 use crate::steerer::refocus::{block2_or_default, build_verdict_system_prompt};
 use crate::steerer::registry::{Steerer, SteererRegistry};
