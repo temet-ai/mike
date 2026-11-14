@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::outcome_sync_support::{Env, NewRecord, pair};
+use super::outcome_sync_support_tests::{Env, NewRecord, pair};
 
 #[tokio::test]
 async fn request_linked_points_take_the_outcome_of_the_turn_holding_the_request()

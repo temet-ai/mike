@@ -1,7 +1,7 @@
 use chrono::{Duration, Utc};
 use serde_json::json;
 
-use super::outcome_sync_support::{Env, NewRecord, pair};
+use super::outcome_sync_support_tests::{Env, NewRecord, pair};
 
 enum Item {
     Lesson(i64),

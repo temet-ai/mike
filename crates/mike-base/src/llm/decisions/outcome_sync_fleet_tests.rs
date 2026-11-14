@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::outcome_sync_support::{Env, NewRecord, pair};
+use super::outcome_sync_support_tests::{Env, NewRecord, pair};
 use crate::store::persistence::test_support::seed_project;
 
 async fn check(env: &Env, run: &str, state: &str, exit: i32) -> anyhow::Result<i64> {

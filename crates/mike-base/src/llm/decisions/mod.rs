@@ -189,7 +189,7 @@ mod outcome_sync_fleet_tests;
 #[cfg(test)]
 mod outcome_sync_supply_tests;
 #[cfg(test)]
-mod outcome_sync_support;
+mod outcome_sync_support_tests;
 #[cfg(test)]
 mod outcome_sync_tests;
 #[cfg(test)]
