@@ -201,6 +201,7 @@ pub mod build_admission_root;
 pub mod managed_command;
 pub mod managed_process;
 pub mod managed_queue;
+pub mod managed_receipt_commit;
 pub mod nextest_filter;
 pub mod owned_execution;
 pub mod owned_spawn_fence;

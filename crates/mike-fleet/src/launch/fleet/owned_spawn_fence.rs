@@ -31,11 +31,22 @@ pub struct SpawnFence {
     transaction: Transaction<'static, Postgres>,
 }
 
-impl Identity {
-    const FENCE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+#[cfg(test)]
+tokio::task_local! {
+    pub static FENCE_TIMEOUT_OVERRIDE: std::time::Duration;
+}
 
+pub fn fence_timeout() -> std::time::Duration {
+    #[cfg(test)]
+    if let Ok(timeout) = FENCE_TIMEOUT_OVERRIDE.try_with(|timeout| *timeout) {
+        return timeout;
+    }
+    std::time::Duration::from_secs(10)
+}
+
+impl Identity {
     pub async fn lock(&self) -> Result<SpawnFence, String> {
-        tokio::time::timeout(Self::FENCE_TIMEOUT, self.lock_inner())
+        tokio::time::timeout(fence_timeout(), self.lock_inner())
             .await
             .map_err(|_| "managed spawn fence timed out".to_string())?
     }
@@ -91,7 +102,7 @@ impl SpawnFence {
     }
 
     pub async fn commit(self) -> Result<(), String> {
-        tokio::time::timeout(Identity::FENCE_TIMEOUT, self.transaction.commit())
+        tokio::time::timeout(fence_timeout(), self.transaction.commit())
             .await
             .map_err(|_| "managed fence commit outcome unknown after timeout".to_string())?
             .map_err(|error| error.to_string())

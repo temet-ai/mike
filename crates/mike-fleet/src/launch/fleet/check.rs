@@ -89,6 +89,8 @@ pub struct CheckReport {
     pub refused: Option<String>,
     #[serde(default)]
     pub started_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub queue: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -250,6 +252,15 @@ pub async fn check(
             commit,
             seconds: (Utc::now() - started_at).num_seconds(),
             started_at: Some(started_at),
+            queue: (how == WAITING)
+                .then(|| {
+                    super::managed_queue::place(
+                        id,
+                        super::managed_queue::measured(&def.check.command),
+                    )
+                })
+                .flatten()
+                .map(|place| place.describe()),
             ..blank(&who.seat, &def.check, how)
         },
         Ok(Outcome::NotRun { state, commit }) => CheckReport {

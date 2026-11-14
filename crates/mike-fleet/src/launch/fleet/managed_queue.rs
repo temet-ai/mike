@@ -16,8 +16,8 @@ const PATIENCE_PER_RUN: u32 = 3;
 pub const RESERVED_FOR_CHECK: &str = "#reserved-for-the-commit-check";
 pub const QUEUE_WAIT: Duration = PATIENCE_CEILING;
 
-pub fn waiting_limit(run_budget: Duration) -> Duration {
-    run_budget.max(QUEUE_WAIT)
+pub fn waiting_limit(declared_timeout: Option<Duration>) -> Option<Duration> {
+    declared_timeout.map(|declared| declared.max(QUEUE_WAIT))
 }
 
 pub fn reserve_for_commit_check(
@@ -250,8 +250,61 @@ pub fn expected_wait(depth: Depth, measured: Duration) -> Duration {
     measured.saturating_mul(rounds)
 }
 
-pub fn admit(depth: Depth, measured: Option<Duration>, patience: Duration) -> Result<(), String> {
-    let Some(measured) = measured else {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Place {
+    pub ahead_running: usize,
+    pub ahead_waiting: usize,
+    pub expected_wait: Option<Duration>,
+}
+
+impl Place {
+    pub fn describe(&self) -> String {
+        let wait = self.expected_wait.map_or_else(String::new, |wait| {
+            format!(", expected wait about {} s", wait.as_secs())
+        });
+        format!(
+            "place {} in line ({} running and {} waiting ahead){wait}",
+            self.ahead_waiting + 1,
+            self.ahead_running,
+            self.ahead_waiting
+        )
+    }
+}
+
+pub fn place(receipt: i64, measured: Option<Duration>) -> Option<Place> {
+    let key = entries().get(&receipt).map(|entry| entry.lane.clone())?;
+    let (mut ahead_running, mut ahead_waiting) = (0, 0);
+    for entry in entries()
+        .iter()
+        .filter(|entry| entry.lane == key && *entry.key() != receipt)
+    {
+        if entry.owner.cancelled().is_some() {
+            continue;
+        }
+        if entry.executing {
+            ahead_running += 1;
+        } else if *entry.key() < receipt {
+            ahead_waiting += 1;
+        }
+    }
+    let depth = Depth {
+        waiting: ahead_waiting,
+        executing: ahead_running,
+        slots: key.1.slots(),
+    };
+    Some(Place {
+        ahead_running,
+        ahead_waiting,
+        expected_wait: measured.map(|measured| expected_wait(depth, measured)),
+    })
+}
+
+pub fn admit(
+    depth: Depth,
+    measured: Option<Duration>,
+    patience: Option<Duration>,
+) -> Result<(), String> {
+    let (Some(measured), Some(patience)) = (measured, patience) else {
         return Ok(());
     };
     let expected = expected_wait(depth, measured);
@@ -274,6 +327,11 @@ pub fn patience_from(measured: Option<Duration>) -> Duration {
             .saturating_mul(PATIENCE_PER_RUN)
             .clamp(PATIENCE_FLOOR, PATIENCE_CEILING)
     })
+}
+
+#[cfg(test)]
+pub(super) fn remember_measurement(command: &str, run: Duration) {
+    measurements().insert(command.trim().to_string(), run);
 }
 
 pub fn measured(command: &str) -> Option<Duration> {

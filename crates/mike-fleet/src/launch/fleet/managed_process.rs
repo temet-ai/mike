@@ -86,15 +86,21 @@ async fn supervise(_context: Context, _command: Command) -> (Option<i32>, String
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 async fn supervise(context: Context, command: Command) -> (Option<i32>, String) {
-    let permit = match tokio::time::timeout(
-        super::managed_queue::waiting_limit(command.budget.0),
-        managed_command::admit(&context),
-    )
-    .await
-    {
-        Ok(Ok(permit)) => permit,
-        Ok(Err(why)) => return (None, why),
-        Err(_) => return (None, "timed out waiting for operation resources".into()),
+    let declared = context
+        .operation
+        .as_ref()
+        .and_then(|op| op.timeout_seconds)
+        .map(Duration::from_secs);
+    let admitted = match super::managed_queue::waiting_limit(declared) {
+        Some(limit) => tokio::time::timeout(limit, managed_command::admit(&context))
+            .await
+            .ok(),
+        None => Some(managed_command::admit(&context).await),
+    };
+    let permit = match admitted {
+        Some(Ok(permit)) => permit,
+        Some(Err(why)) => return (None, why),
+        None => return (None, "timed out waiting for operation resources".into()),
     };
     if let Err(why) = context.owner.hold_permit(permit) {
         return quarantine(&context.owner, &why).await;

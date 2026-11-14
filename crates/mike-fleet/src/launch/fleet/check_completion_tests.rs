@@ -29,7 +29,7 @@ fn locked<T>(value: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 impl CompletionStore for Store {
-    async fn latest(&self, _run: &str) -> Result<Option<TreeCheckRow>, PersistError> {
+    async fn receipt(&self, _run: &str, _id: i64) -> Result<Option<TreeCheckRow>, PersistError> {
         locked(&self.reads)
             .pop_front()
             .unwrap_or_else(|| Err(PersistError::DataInvariant("no scripted read".into())))
@@ -237,21 +237,22 @@ fn terminal_status_retains_outcome_and_names_its_output_location() {
     assert_eq!(phase(&run), None);
     assert!(blocked(&run).is_ok());
     pending().insert(
-        run.clone(),
+        123,
         Pending {
+            run: run.clone(),
             captured: Arc::new(outcome()),
             log: Ok(PathBuf::from("/project/execution.log")),
             blocked: None,
         },
     );
     assert_eq!(phase(&run), Some(RECORDING));
-    let why = mark_blocked(&run, &PersistError::Database(sqlx::Error::PoolClosed));
+    let why = mark_blocked(123, &PersistError::Database(sqlx::Error::PoolClosed));
     assert!(why.contains("receipt 123"));
     assert!(why.contains("/project/execution.log"));
     assert!(why.contains("restart replay is not supported"));
     assert_eq!(phase(&run), Some(BLOCKED));
     assert_eq!(blocked(&run), Err(why));
-    let retained = pending().remove(&run).map(|(_, value)| value.captured);
+    let retained = pending().remove(&123).map(|(_, value)| value.captured);
     assert_eq!(retained.as_deref(), Some(&outcome()));
 }
 

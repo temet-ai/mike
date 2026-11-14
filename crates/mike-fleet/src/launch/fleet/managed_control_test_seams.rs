@@ -124,7 +124,7 @@ pub async fn hold_checkout(
     repo: &Path,
     patience: Duration,
 ) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
-    crate::launch::fleet::managed_command::hold_checkout_owned(&owner.0, repo, patience).await
+    crate::launch::fleet::managed_command::hold_checkout_owned(&owner.0, repo, Some(patience)).await
 }
 
 pub async fn raw_checkout_hold(repo: &Path) -> tokio::sync::OwnedMutexGuard<()> {

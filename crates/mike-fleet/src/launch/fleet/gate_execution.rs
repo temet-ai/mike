@@ -191,7 +191,7 @@ async fn execute_logged(
         .unwrap_or_else(|| std::path::PathBuf::from(&def.repo));
     let _held = match crate::launch::fleet::managed_command::hold_checkout(
         &checkout,
-        std::time::Duration::from_secs(7200),
+        Some(std::time::Duration::from_secs(7200)),
     )
     .await
     {

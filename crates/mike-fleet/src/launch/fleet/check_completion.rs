@@ -25,29 +25,41 @@ pub struct Captured {
     pub state_after: String,
 }
 
+impl Captured {
+    fn cancelled(&self) -> bool {
+        self.state_after.starts_with("cancelled:")
+    }
+}
+
 struct Pending {
+    run: String,
     captured: Arc<Captured>,
     log: Result<PathBuf, String>,
     blocked: Option<String>,
 }
 
-fn pending() -> &'static DashMap<String, Pending> {
-    static PENDING: OnceLock<DashMap<String, Pending>> = OnceLock::new();
+fn pending() -> &'static DashMap<i64, Pending> {
+    static PENDING: OnceLock<DashMap<i64, Pending>> = OnceLock::new();
     PENDING.get_or_init(DashMap::new)
 }
 
 pub fn phase(run: &str) -> Option<&'static str> {
-    pending().get(run).map(|item| {
+    let mut found = None;
+    for item in pending().iter().filter(|item| item.run == run) {
         if item.blocked.is_some() {
-            BLOCKED
-        } else {
-            RECORDING
+            return Some(BLOCKED);
         }
-    })
+        found = Some(RECORDING);
+    }
+    found
 }
 
 pub fn blocked(run: &str) -> Result<(), String> {
-    match pending().get(run).and_then(|item| item.blocked.clone()) {
+    let why = pending()
+        .iter()
+        .filter(|item| item.run == run)
+        .find_map(|item| item.blocked.clone());
+    match why {
         Some(why) => Err(why),
         None => Ok(()),
     }
@@ -84,9 +96,11 @@ pub async fn record(
     captured: Captured,
 ) -> Result<TreeCheckRow, String> {
     let captured = Arc::new(captured);
+    let id = captured.id;
     pending().insert(
-        run.to_string(),
+        id,
         Pending {
+            run: run.to_string(),
             captured: captured.clone(),
             log: Err("output log is being written".into()),
             blocked: None,
@@ -99,10 +113,17 @@ pub async fn record(
     };
     match result {
         Ok(row) => {
-            pending().remove(run);
+            pending().remove(&id);
             Ok(row)
         }
-        Err(err) => Err(mark_blocked(run, &err)),
+        Err(err) if captured.cancelled() => {
+            pending().remove(&id);
+            tracing::warn!(%run, receipt = id, error = %err, "fleet: a cancelled receipt's result could not be recorded; later checks are not blocked by it");
+            Err(format!(
+                "receipt {id} was cancelled and its result could not be recorded: {err}"
+            ))
+        }
+        Err(err) => Err(mark_blocked(id, &err)),
     }
 }
 
@@ -111,7 +132,7 @@ async fn preserve_output(run: &str, repo: &str, captured: &Captured) {
     if let Err(err) = &log {
         tracing::error!(%run, error = %err, "fleet: could not preserve the check's output log");
     }
-    if let Some(mut item) = pending().get_mut(run) {
+    if let Some(mut item) = pending().get_mut(&captured.id) {
         item.log = log;
     }
 }
@@ -132,10 +153,11 @@ async fn pause(tracker: &TaskTracker, delay: Duration) -> Result<(), PersistErro
     }
 }
 
-fn mark_blocked(run: &str, err: &PersistError) -> String {
-    let Some(mut item) = pending().get_mut(run) else {
+fn mark_blocked(id: i64, err: &PersistError) -> String {
+    let Some(mut item) = pending().get_mut(&id) else {
         return format!("check completion blocked: {err}");
     };
+    let run = item.run.clone();
     let output = match &item.log {
         Ok(path) => format!("Full captured output: {}", path.display()),
         Err(why) => format!("Output remains in memory only; its log could not be saved: {why}"),
@@ -145,22 +167,23 @@ fn mark_blocked(run: &str, err: &PersistError) -> String {
         item.captured.id, item.captured.exit_code
     );
     item.blocked = Some(why.clone());
-    tracing::error!(%run, %why, "fleet: check completion blocked");
+    tracing::error!(%run, receipt = id, %why, "fleet: check completion blocked");
     why
 }
 
 trait CompletionStore {
-    fn latest(
+    fn receipt(
         &self,
         run: &str,
+        id: i64,
     ) -> impl Future<Output = Result<Option<TreeCheckRow>, PersistError>> + Send;
 
     fn finish(&self, captured: &Captured) -> impl Future<Output = Result<(), PersistError>> + Send;
 }
 
 impl CompletionStore for PersistHandle {
-    async fn latest(&self, run: &str) -> Result<Option<TreeCheckRow>, PersistError> {
-        self.fleet().latest_tree_check(run).await
+    async fn receipt(&self, _run: &str, id: i64) -> Result<Option<TreeCheckRow>, PersistError> {
+        self.fleet().tree_check(id).await
     }
 
     async fn finish(&self, captured: &Captured) -> Result<(), PersistError> {
@@ -221,10 +244,12 @@ async fn current(
     id: i64,
 ) -> Result<TreeCheckRow, PersistError> {
     store
-        .latest(run)
+        .receipt(run, id)
         .await?
         .filter(|row| row.id == id && row.run_id == run)
-        .ok_or_else(|| PersistError::DataInvariant(format!("receipt {id} is no longer current")))
+        .ok_or_else(|| {
+            PersistError::DataInvariant(format!("receipt {id} is not a receipt of run {run}"))
+        })
 }
 
 fn matching(row: TreeCheckRow, captured: &Captured) -> Result<TreeCheckRow, PersistError> {
@@ -263,3 +288,7 @@ fn transient_code(code: &str) -> bool {
 #[cfg(test)]
 #[path = "check_completion_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "check_completion_receipt_tests.rs"]
+mod receipt_tests;
