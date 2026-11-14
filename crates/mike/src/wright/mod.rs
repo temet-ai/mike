@@ -4,6 +4,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub mod cli;
+pub mod conversation;
 pub(crate) mod definition;
 pub mod investigate;
 pub mod remedies;
