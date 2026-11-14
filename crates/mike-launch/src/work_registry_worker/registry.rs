@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use super::delivery::{self, Decision};
 use super::{ACTIVE_WINDOW_HOURS, SWEEP_EVERY, WAKE_MODE_TTL};
 use crate::change_feed::Drained;
-use crate::settings::meta_work_registry::WAKE_MODE_KEY;
+use crate::launch_settings::meta_work_registry::WAKE_MODE_KEY;
 use crate::store::persistence::work_item_attention::{AttentionKey, AttentionRecord};
 use crate::store::persistence::{PersistError, PersistHandle};
 use crate::work_items::attention::Attention;

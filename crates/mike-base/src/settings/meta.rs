@@ -16,14 +16,11 @@ pub fn base_entries() -> Vec<super::SettingMeta> {
     entries.extend(meta_llm_budget::entries());
     entries.extend(super::meta_llm_provider::entries());
     entries.extend(meta_assistants::entries());
-    entries.extend(super::meta_work_registry::entries());
     entries.extend(super::meta_dossier::entries());
     entries.extend(super::meta_session_end::entries());
     entries.extend(super::meta_eval::entries());
     entries.extend(super::meta_eval_alarms::entries());
     entries.extend(super::meta_turn_judge::entries());
-    entries.extend(super::meta_semantic::entries());
-    entries.extend(super::meta_knowledge_embedding::entries());
     entries.extend(super::meta_turn_guard::entries());
     entries.extend(super::meta_decisions::entries());
     entries.extend(super::meta_cross_session::entries());
@@ -31,6 +28,5 @@ pub fn base_entries() -> Vec<super::SettingMeta> {
     entries.extend(super::meta_scheduled_jobs::entries());
     entries.extend(super::meta_rerank::entries());
     entries.extend(super::meta_rerank_nightly::entries());
-    entries.extend(super::meta_search_ranking::entries());
     entries
 }

@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const ALLOW_REMOTE_EMBEDDING: &str = "semantic.allow_remote_embedding";
 pub const SWEEP_INTERVAL_SECS: &str = "semantic.sweep_interval_secs";

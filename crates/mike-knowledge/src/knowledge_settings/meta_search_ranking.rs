@@ -1,9 +1,9 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 use crate::search_ranking::{
     FLOOR_MAX, FLOOR_MIN, KEY_KIND_WEIGHTS, KEY_LEXICAL_WEIGHT, KEY_SEMANTIC_FLOOR,
     KEY_SEMANTIC_WEIGHT, KEY_SEMANTIC_WINDOW, RankingConfig, WEIGHT_MAX, WEIGHT_MIN, WINDOW_MAX,
     WINDOW_MIN,
 };
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 const GROUP: &str = "Search ranking";
 

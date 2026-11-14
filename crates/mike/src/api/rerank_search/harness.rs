@@ -22,6 +22,7 @@ pub(crate) struct Harness {
 
 impl Harness {
     pub(crate) async fn boot() -> anyhow::Result<Self> {
+        crate::feature_settings::install();
         let db = acquire_ephemeral_db()
             .await?
             .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;

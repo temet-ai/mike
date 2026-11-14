@@ -3,7 +3,6 @@ use std::sync::{LazyLock, Mutex, PoisonError, RwLock};
 use super::SettingMeta;
 use super::feature_overlays::FeatureOverlays;
 use crate::config::sections::{ConfigSections, SectionSpec};
-use crate::feature_toggles::FeatureToggles;
 
 pub struct FeatureSettings {
     pub name: &'static str,
@@ -11,7 +10,7 @@ pub struct FeatureSettings {
     pub sections: &'static [SectionSpec],
     pub apply_override: fn(&mut ConfigSections, &str, &serde_json::Value) -> bool,
     pub apply_overlay: fn(&mut FeatureOverlays, &str, &serde_json::Value) -> bool,
-    pub boot_toggles: fn(&ConfigSections, &mut FeatureToggles),
+    pub boot_toggles: fn(&ConfigSections) -> Vec<(&'static str, bool)>,
 }
 
 static BASE_META: LazyLock<Vec<SettingMeta>> = LazyLock::new(super::meta::base_entries);
@@ -72,10 +71,11 @@ pub fn apply_overlay_row(
         .any(|feature| (feature.apply_overlay)(overlays, key, value))
 }
 
-pub fn apply_boot_toggles(sections: &ConfigSections, toggles: &mut FeatureToggles) {
-    for feature in features() {
-        (feature.boot_toggles)(sections, toggles);
-    }
+pub fn boot_toggle_values(sections: &ConfigSections) -> Vec<(&'static str, bool)> {
+    features()
+        .iter()
+        .flat_map(|feature| (feature.boot_toggles)(sections))
+        .collect()
 }
 
 pub struct SettingsMeta;
