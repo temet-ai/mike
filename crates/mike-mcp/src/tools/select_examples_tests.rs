@@ -26,7 +26,9 @@ fn extra_arguments(tool: &str) -> Map<String, Value> {
         "work_thread_list"
         | "work_thread_get"
         | "work_thread_checkpoint"
-        | "work_thread_add_entry" => json!({"project": "x"}),
+        | "work_thread_add_entry"
+        | "get_fleet_graph" => json!({"project": "x"}),
+        "get_workspace_roster" => json!({"project_path": "x"}),
         _ => json!({}),
     };
     extra.as_object().cloned().unwrap_or_default()

@@ -71,7 +71,9 @@ async fn supply_required(
         "work_thread_list"
         | "work_thread_get"
         | "work_thread_checkpoint"
-        | "work_thread_add_entry" => "project",
+        | "work_thread_add_entry"
+        | "get_fleet_graph" => "project",
+        "get_workspace_roster" => "project_path",
         _ => return Ok(arguments),
     };
     let mut arguments = arguments.unwrap_or_default();
@@ -90,7 +92,7 @@ async fn supply_required(
                 None,
             )
         })?;
-    let value = if field == "project" {
+    let value = if field == "project" || field == "project_path" {
         caller_project(client, name, session).await?
     } else {
         session.to_string()
