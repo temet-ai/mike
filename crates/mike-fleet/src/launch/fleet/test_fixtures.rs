@@ -50,10 +50,18 @@ pub fn changed(patch: Value) -> FleetDefinition {
     parsed(&value)
 }
 
+pub fn coordinator() -> Uuid {
+    Uuid::from_u128(1)
+}
+
+pub fn acceptance() -> Uuid {
+    Uuid::from_u128(2)
+}
+
 pub fn seats() -> ControlSeats {
     ControlSeats {
-        coordinator: Uuid::from_u128(1),
-        acceptance: Uuid::from_u128(2),
+        coordinator: Some(coordinator()),
+        acceptance: Some(acceptance()),
         observer: None,
     }
 }

@@ -56,7 +56,19 @@ fn supply_caller_identity(
             Value::String(session.to_string()),
         );
     }
+    supply_author(name, &mut arguments, session);
     Some(arguments)
+}
+
+fn supply_author(name: &str, arguments: &mut Map<String, Value>, session: Option<&str>) {
+    let creating = !arguments.contains_key("fleet");
+    if let Some(session) =
+        session.filter(|value| name == "define_fleet" && creating && is_session_uuid(value))
+    {
+        arguments
+            .entry("created_by".to_string())
+            .or_insert_with(|| Value::String(session.to_string()));
+    }
 }
 
 async fn supply_required(
@@ -144,6 +156,8 @@ async fn caller_project(
         })
 }
 
+#[cfg(test)]
+mod author_tests;
 #[cfg(test)]
 mod detail_tests;
 #[cfg(test)]

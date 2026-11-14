@@ -46,10 +46,7 @@ fn a_fleet_records_no_observer_and_opens_no_control_seat() {
         "coordinator": {"session": Uuid::from_u128(1)},
         "acceptance": {"session": Uuid::from_u128(2)},
     }));
-    assert_eq!(
-        ControlSeats::recorded(&def).map(|seats| seats.observer),
-        Some(None)
-    );
+    assert_eq!(ControlSeats::recorded(&def).observer, None);
     assert_eq!(super::environment::starts(&def).control_seats, 0);
     assert!(
         super::check_definition(&def)
@@ -84,7 +81,10 @@ fn missing_observer_does_not_disable_coordinator_digests() {
         |_| false,
     );
     assert_eq!(sent.len(), 2);
-    assert!(sent.iter().any(|notice| notice.to == seats.coordinator));
+    assert!(
+        sent.iter()
+            .any(|notice| Some(notice.to) == seats.coordinator)
+    );
 }
 
 #[test]

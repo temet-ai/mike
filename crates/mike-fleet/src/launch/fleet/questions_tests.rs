@@ -10,7 +10,7 @@ use super::brief_notes::{AMENDMENTS_MARK, amended, carrying_amendments};
 use super::brief_notes_sync::{amend_part, ensure_run_part, latest_part, record_task_part, sync};
 use super::definition::FleetDefinition;
 use super::events::{EventPayload, NewFleetEvent, QuestionAnswered, QuestionAsked};
-use super::plan_tests::{facts, seats};
+use super::plan_tests::{coordinator, facts};
 use super::questions::{
     answered_event, asked_event, blocked_waiting, blocked_waiting_since, digest_line,
     escalate_after, escalate_run, escalation_mail,
@@ -317,7 +317,7 @@ async fn an_answer_that_changes_a_brief_is_a_new_version_that_later_syncs_keep()
     let mut facts = facts();
     facts.run_id = "fleet-amend-1".into();
     let seat = Uuid::from_u128(11);
-    let open = [seats().coordinator, seat];
+    let open = [coordinator(), seat];
     for session in open {
         open_session(&persist, session).await?;
     }

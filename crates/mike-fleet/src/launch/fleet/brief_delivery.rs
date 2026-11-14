@@ -93,7 +93,8 @@ pub async fn first_message(persist: &PersistHandle, run: &str, seat: &str) -> Op
     }
     let facts = facts_for(&row, &def)?;
     let task_id = task_of(&def, seat)?;
-    let run_part = latest_part(persist, facts.seats.coordinator, &run_tags(&facts.fleet)).await?;
+    let notebook = facts.seats.coordinator?;
+    let run_part = latest_part(persist, notebook, &run_tags(&facts.fleet)).await?;
     let task = task_part_for(persist, &def, (&facts.fleet, task_id)).await?;
     Some(compose((seat, &facts.slug, task_id), &run_part, &task))
 }

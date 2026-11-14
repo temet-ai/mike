@@ -145,7 +145,10 @@ fn wake_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
 }
 
 fn tell_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
-    Box::pin(super::tell::tell(ctx.persist, ctx.row, ctx.status))
+    Box::pin(async move {
+        super::tell::tell(ctx.persist, ctx.row, ctx.status).await;
+        super::author_notice::tell(ctx.persist, ctx.row, ctx.status).await;
+    })
 }
 
 fn escalate_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {

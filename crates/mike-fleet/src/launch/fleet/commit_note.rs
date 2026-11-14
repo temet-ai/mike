@@ -165,18 +165,18 @@ pub async fn tell_acceptance(
     def: &FleetDefinition,
     report: &CommitReport,
 ) {
-    let Some(seats) = ControlSeats::recorded(def) else {
+    let Some(acceptance) = ControlSeats::recorded(def).acceptance else {
         return;
     };
     let Some(body) = acceptance_mail(report) else {
         return;
     };
-    if !verdict_recorded(persist, seats.acceptance, &report.task).await {
+    if !verdict_recorded(persist, acceptance, &report.task).await {
         return;
     }
     if let Err(err) = persist
         .launch()
-        .insert_message(Uuid::new_v4(), seats.acceptance, None, &body)
+        .insert_message(Uuid::new_v4(), acceptance, None, &body)
         .await
     {
         tracing::warn!(error = %err, "fleet: could not tell the acceptance seat about a commit after its verdict");

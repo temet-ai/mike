@@ -3,6 +3,7 @@ pub mod acceptance;
 pub mod acceptance_register;
 #[cfg(test)]
 pub mod acceptance_tests;
+pub mod author_notice;
 pub mod background_result;
 pub mod brief_delivery;
 pub mod brief_notes;

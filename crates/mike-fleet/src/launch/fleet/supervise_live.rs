@@ -265,7 +265,7 @@ pub async fn pass(
         persist,
         run: run_id,
         fleet: row.fleet_uuid,
-        coordinator: ControlSeats::recorded(def).map(|c| c.coordinator),
+        coordinator: ControlSeats::recorded(def).coordinator,
     };
     let stopping = row.state == STOPPING;
     let mut seats = Vec::new();
