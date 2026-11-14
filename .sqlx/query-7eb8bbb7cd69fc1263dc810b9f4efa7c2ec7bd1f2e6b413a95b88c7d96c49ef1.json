@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE prompt_kinds.classifications c\n                    SET kind_id = k.id,\n                        repeat_key = CASE WHEN $3 THEN NULL ELSE c.repeat_key END\n                   FROM prompt_kinds.kinds k, prompt_kinds.kinds unmatched_kind\n                  WHERE k.code = $2\n                    AND unmatched_kind.code = 'operator'\n                    AND c.request_id = $1\n                    AND c.kind_id = unmatched_kind.id\n                    AND c.rule IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7eb8bbb7cd69fc1263dc810b9f4efa7c2ec7bd1f2e6b413a95b88c7d96c49ef1"
+}
