@@ -19,13 +19,7 @@ pub const BATCH: i64 = 30;
 const MAX_TOPIC_CHARS: usize = 40;
 const KIND_WORDS: [&str; 4] = ["warning", "correction", "convention", "preference"];
 
-pub const TOPIC_PROMPT: &str = "You assign each lesson a topic. A topic is a short kebab-case \
-name, two to four words, for the area of work the lesson concerns, so that lessons about the \
-same work share one topic and a session working on that area can load them together.\n\n\
-Prefer a topic from the project's existing list whenever it fits; coin a new one only when \
-none does. A topic names the work (deploying-the-proxy, database-migrations, fleet-seat-briefs), \
-never the kind of lesson and never the project's name.\n\n\
-Return JSON matching the schema: exactly one assignment per lesson id given, no other ids.";
+pub use crate::settings::memory_prompts::LESSON_TOPIC_PROMPT as TOPIC_PROMPT;
 
 #[derive(Debug, Deserialize)]
 pub struct Assignment {
@@ -126,6 +120,7 @@ pub async fn run_pass(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
     decisions: Option<&DecisionEnv>,
+    system: &str,
     limit: i64,
 ) -> TopicPassReport {
     let mut report = TopicPassReport::default();
@@ -153,7 +148,7 @@ pub async fn run_pass(
     if remaining.is_empty() {
         return report;
     }
-    name_remaining(persist, llm, &existing, &remaining, report).await
+    name_remaining(persist, llm, system, &existing, &remaining, report).await
 }
 
 async fn write_chosen(
@@ -176,12 +171,13 @@ async fn write_chosen(
 async fn name_remaining(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    system: &str,
     existing: &[String],
     remaining: &[UntopicedLesson],
     mut report: TopicPassReport,
 ) -> TopicPassReport {
     let answer = match llm
-        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(existing, remaining), schema())
+        .verdict::<Assignments>(system, &build_input(existing, remaining), schema())
         .await
     {
         Ok(answer) => answer,

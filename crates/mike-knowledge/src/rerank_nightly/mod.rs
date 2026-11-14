@@ -14,9 +14,11 @@ pub use run_now::{RunNow, run_pass_now};
 use std::time::Duration;
 
 use chrono::{DateTime, TimeZone, Timelike, Utc};
+use serde_json::{Value, json};
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::analysis::rerank::RerankNightly as QuietBudget;
+use crate::memory_workers::{self, RERANK_NIGHTLY, Skip};
 use crate::semantic::KnowledgeState;
 use crate::semantic::knowledge_state::KnowledgeFuture;
 use crate::store::persistence::PersistHandle;
@@ -48,6 +50,18 @@ pub struct Pass {
     pub tuned: Option<Tuned>,
 }
 
+impl Pass {
+    pub fn counts(&self) -> Value {
+        json!({
+            "graded": self.graded,
+            "tuned": self.tuned.map(|tuned| format!("{tuned:?}")),
+            "thread_candidates": self.thread_candidates,
+            "lesson_pairs": self.lesson_pairs,
+            "stopped": self.stopped.map(|stop| format!("{stop:?}")),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stop {
     MachineBusy,
@@ -65,6 +79,8 @@ pub fn spawn_rerank_nightly(state: &KnowledgeState) {
     let shutdown = state.shutdown();
     let tracker = state.tracker();
     tracker.spawn(async move {
+        let newest = persist.knowledge().newest_search_grade_at().await;
+        memory_workers::seed(RERANK_NIGHTLY, newest.ok().flatten());
         let mut ticker = interval(TICK_INTERVAL);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
@@ -84,20 +100,41 @@ pub fn spawn_rerank_nightly(state: &KnowledgeState) {
 }
 
 pub async fn run_tick(state: &KnowledgeState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
+    let tick = gated_tick(state, persist, now).await;
+    match skip_of(&tick) {
+        Ok(pass) => memory_workers::record_ran(RERANK_NIGHTLY, Utc::now(), &pass.counts()),
+        Err(reason) => memory_workers::record_skip(RERANK_NIGHTLY, now, reason),
+    }
+    tick
+}
+
+pub fn skip_of(tick: &Tick) -> Result<&Pass, Skip> {
+    match tick {
+        Tick::Ran(pass) => Ok(pass),
+        Tick::TuningOff => Err(Skip::Off),
+        Tick::OutsideWindow => Err(Skip::OutsideWindow),
+        Tick::Busy => Err(Skip::Busy),
+        Tick::NotLeader => Err(Skip::NotLeader),
+    }
+}
+
+async fn gated_tick(state: &KnowledgeState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }
     let budget = quiet_budget(state);
-    if !budget.in_window(now.hour()) {
-        return Tick::OutsideWindow;
-    }
     let idle = LoadIdle { state };
-    if !idle.is_idle().await {
-        return Tick::Busy;
+    let last_ran_at = memory_workers::snapshot(RERANK_NIGHTLY).last_ran_at;
+    let in_window = budget.in_window(now.hour());
+    match memory_workers::gate(in_window, last_ran_at, now, idle.is_idle().await) {
+        Some(Skip::OutsideWindow) => return Tick::OutsideWindow,
+        Some(_) => return Tick::Busy,
+        None => {}
     }
     if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
         return Tick::NotLeader;
     }
+    memory_workers::mark_running(RERANK_NIGHTLY, Utc::now());
     let pass = night_pass(state, persist, &budget, now, &idle).await;
     report(&pass);
     Tick::Ran(pass)
@@ -111,7 +148,9 @@ pub async fn night_pass(
     idle: &(impl Idle + Sync),
 ) -> Pass {
     let mut pass = Pass::default();
-    pass.stopped = grade_phase(state, persist, idle, &mut pass.graded).await;
+    let rows = persist.fetch_settings().await.unwrap_or_default();
+    let template = first_ten::grading_template_from_rows(&rows);
+    pass.stopped = grade_phase(state, persist, idle, &template, &mut pass.graded).await;
     if pass.stopped.is_none() {
         let window_start = window_start(now, budget.start_hour_utc);
         pass.stopped = tune_phase(state, persist, window_start, now, &mut pass.tuned).await;
@@ -154,6 +193,7 @@ async fn grade_phase(
     state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
+    template: &str,
     graded: &mut usize,
 ) -> Option<Stop> {
     let events = match persist
@@ -168,7 +208,7 @@ async fn grade_phase(
         }
     };
     let batch_was_full = i64::try_from(events.len()).is_ok_and(|n| n >= GRADE_BATCH);
-    match grade_events(state, persist, events, idle, graded).await {
+    match grade_events(state, persist, events, idle, template, graded).await {
         None if batch_was_full => Some(Stop::MoreToGrade),
         stopped => stopped,
     }
@@ -179,6 +219,7 @@ async fn grade_events(
     persist: &PersistHandle,
     events: Vec<UngradedEvent>,
     idle: &impl Idle,
+    template: &str,
     graded: &mut usize,
 ) -> Option<Stop> {
     let env = state.decision_env();
@@ -187,7 +228,7 @@ async fn grade_events(
         if !idle.is_idle().await {
             return Some(Stop::MachineBusy);
         }
-        match grade_event(state, persist, &event, jev.as_ref()).await {
+        match grade_event(state, persist, &event, jev.as_ref(), template).await {
             Ok(Graded::Recorded) => *graded += 1,
             Ok(Graded::RerankerFailed) => return Some(Stop::RerankerFailed),
             Err(error) => {

@@ -7,7 +7,7 @@ use crate::lesson_shape::assess;
 use crate::llm::{CallUsage, LlmError, OpenRouterClient};
 use crate::store::persistence::lessons::shape::ShapeWork;
 
-pub const SHAPE_PROMPT: &str = include_str!("prompt/shape.md");
+pub use crate::settings::memory_prompts::LESSON_SHAPE_PROMPT as SHAPE_PROMPT;
 pub const MAX_RULES: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -44,10 +44,11 @@ pub fn build_input(work: &ShapeWork, max_chars: usize) -> String {
 
 pub async fn call(
     llm: &OpenRouterClient,
+    system: &str,
     work: &ShapeWork,
     max_chars: usize,
 ) -> Result<(RewriteAnswer, CallUsage), LlmError> {
-    llm.verdict_with_usage::<RewriteAnswer>(SHAPE_PROMPT, &build_input(work, max_chars), schema())
+    llm.verdict_with_usage::<RewriteAnswer>(system, &build_input(work, max_chars), schema())
         .await
 }
 

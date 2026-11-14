@@ -145,6 +145,14 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                 .await?,
         )
     }
+
+    pub async fn newest_search_grade_at(self) -> Result<Option<DateTime<Utc>>, PersistError> {
+        Ok(
+            sqlx::query_file_scalar!("src/store/persistence/search_grades/newest_grade.sql")
+                .fetch_one(self.pool())
+                .await?,
+        )
+    }
 }
 
 fn ungraded_event(row: &PgRow) -> Result<UngradedEvent, PersistError> {

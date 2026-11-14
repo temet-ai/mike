@@ -4,17 +4,18 @@ use std::sync::Mutex;
 use chrono::{Duration, Utc};
 
 use super::prompt::Answer;
-use super::{SupplyJudge, judge_batch};
+use super::{JudgeError, SupplyJudge, judge_batch};
+use crate::llm::LlmError;
 use crate::store::persistence::supplied_items::tests::Fixture;
 use crate::store::persistence::supplied_items::{PendingVerdict, SuppliedLesson};
 
 struct FakeJudge {
-    answers: Mutex<Vec<Result<Answer, String>>>,
+    answers: Mutex<Vec<Result<Answer, JudgeError>>>,
     seen: Mutex<Vec<String>>,
 }
 
 impl FakeJudge {
-    fn new(answers: Vec<Result<Answer, String>>) -> Self {
+    fn new(answers: Vec<Result<Answer, JudgeError>>) -> Self {
         Self {
             answers: Mutex::new(answers),
             seen: Mutex::new(Vec::new()),
@@ -27,19 +28,19 @@ impl SupplyJudge for FakeJudge {
         "fake-judge"
     }
 
-    async fn judge(&self, _item: &PendingVerdict, user: &str) -> Result<Answer, String> {
+    async fn judge(&self, _item: &PendingVerdict, user: &str) -> Result<Answer, JudgeError> {
         if let Ok(mut seen) = self.seen.lock() {
             seen.push(user.to_owned());
         }
         self.answers
             .lock()
-            .map_err(|_| "poisoned".to_owned())?
+            .map_err(|_| JudgeError::Failed("poisoned".to_owned()))?
             .pop()
-            .unwrap_or_else(|| Err("no answer left".to_owned()))
+            .unwrap_or_else(|| Err(JudgeError::Failed("no answer left".to_owned())))
     }
 }
 
-fn answer(verdict: &str) -> Result<Answer, String> {
+fn answer(verdict: &str) -> Result<Answer, JudgeError> {
     Ok(Answer {
         verdict: verdict.to_owned(),
         rationale: format!("judged {verdict}"),
@@ -133,6 +134,58 @@ async fn judge_batch_waits_for_the_turn_to_settle() -> anyhow::Result<()> {
     assert_eq!(
         pass.judged, 0,
         "a turn closed under 30 minutes ago is not judged yet"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn judge_batch_stops_at_the_first_rate_limit_and_leaves_the_rest_pending()
+-> anyhow::Result<()> {
+    let f = Fixture::boot().await?;
+    let lessons = [
+        SuppliedLesson {
+            lesson_id: f.lessons[0],
+            route: "proxy",
+            score: None,
+        },
+        SuppliedLesson {
+            lesson_id: f.lessons[1],
+            route: "proxy",
+            score: None,
+        },
+    ];
+    for request in [f.requests[0], f.requests[1]] {
+        f.handle
+            .lessons()
+            .record_supplied_lessons(request, f.session, &lessons)
+            .await?;
+    }
+    let limited = Err(JudgeError::from(LlmError::RateLimited { limit: 30 }));
+    let judge = FakeJudge::new(vec![
+        answer("used"),
+        limited,
+        answer("used"),
+        answer("ignored"),
+    ]);
+    let now = Utc::now() + Duration::hours(1);
+
+    let pass = judge_batch(&f.handle, &judge, now).await;
+
+    assert_eq!((pass.judged, pass.failed), (2, 0));
+    assert!(pass.rate_limited);
+    assert!(!pass.database_failed);
+    let calls = judge
+        .seen
+        .lock()
+        .map_err(|_| anyhow::anyhow!("poisoned"))?
+        .len();
+    assert_eq!(calls, 3, "no call is made after the limiter refused");
+    let stored: i64 = sqlx::query_scalar("SELECT count(*) FROM memory.supplied_item_verdicts")
+        .fetch_one(f.handle.pool())
+        .await?;
+    assert_eq!(
+        stored, 2,
+        "the refused item and the one after it stay pending"
     );
     Ok(())
 }

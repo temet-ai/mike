@@ -3,6 +3,7 @@ pub mod feature_overlays;
 pub mod judge_prompts;
 
 pub mod llm_runtime;
+pub mod memory_prompts;
 pub mod meta;
 pub mod meta_assistants;
 pub mod meta_decisions;

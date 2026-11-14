@@ -25,6 +25,7 @@ pub mod machine_identity;
 pub mod mailbox_served;
 pub mod mcp_channel;
 pub mod memory_cap;
+pub mod memory_workers;
 pub mod metrics;
 pub mod observability;
 pub mod owner_only_file;

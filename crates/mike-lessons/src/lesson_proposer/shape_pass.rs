@@ -159,7 +159,8 @@ async fn handle_one(
             return Handled::Stop;
         }
     }
-    match shape_rewrite::call(deps.llm, work, deps.settings.max_chars).await {
+    let system = &deps.settings.prompts.shape;
+    match shape_rewrite::call(deps.llm, system, work, deps.settings.max_chars).await {
         Ok((answer, _usage)) => apply_answer(deps, report, work, &answer).await,
         Err(error) => on_call_error(deps, report, work, &error).await,
     }
@@ -288,6 +289,7 @@ async fn twin_decisions(
     }
     match relate::call(
         deps.llm,
+        &deps.settings.prompts.relate,
         &rule.text,
         &neighbours,
         &[],

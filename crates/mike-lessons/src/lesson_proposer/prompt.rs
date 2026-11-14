@@ -8,7 +8,7 @@ use crate::steerer::guard::gates::tail_chars;
 use crate::store::persistence::lessons::proposals::CorrectionCandidate;
 use crate::store::persistence::project_knowledge::GuidanceRow;
 
-pub const PROPOSER_PROMPT: &str = include_str!("prompt/proposer.md");
+pub use crate::settings::memory_prompts::LESSON_PROPOSER_PROMPT as PROPOSER_PROMPT;
 
 const FIELD_CHARS: usize = 1_500;
 const SIMILAR_CHARS: usize = 600;
@@ -124,12 +124,13 @@ pub fn build_input(
 
 pub async fn call_proposer(
     llm: &OpenRouterClient,
+    system: &str,
     candidate: &CorrectionCandidate,
     similar: &[SimilarCorrection],
     guidance: &[GuidanceRow],
 ) -> Result<(ProposedLesson, CallUsage), LlmError> {
     llm.verdict_with_usage::<ProposedLesson>(
-        PROPOSER_PROMPT,
+        system,
         &build_input(candidate, similar, guidance),
         schema(),
     )
