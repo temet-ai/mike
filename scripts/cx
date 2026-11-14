@@ -73,7 +73,16 @@ if [[ "$CX_CACHE_MODE" == mbx ]]; then
     # nextest reads CARGO for its builds, and mbx reads CARGO to find the real cargo,
     # so CARGO=mbx makes mbx call itself without end. The cargo shim that `mbx setup`
     # installs marks its calls, so mbx then runs the real cargo.
-    cx_shim="${XDG_DATA_HOME:-$HOME/.local/share}/mbx/bin/cargo"
+    # mbx keeps the shim in its data directory: XDG_DATA_HOME when set, else
+    # ~/Library/Application Support on macOS and ~/.local/share elsewhere.
+    if [[ -n "${XDG_DATA_HOME:-}" ]]; then
+      cx_data="$XDG_DATA_HOME"
+    elif [[ "$(uname -s)" == Darwin ]]; then
+      cx_data="$HOME/Library/Application Support"
+    else
+      cx_data="$HOME/.local/share"
+    fi
+    cx_shim="$cx_data/mbx/bin/cargo"
     if [[ ! -x "$cx_shim" ]]; then
       echo "cx: mbx's cargo shim is missing ($cx_shim); run 'mbx setup' once, then 'mbx setup --uninstall' to keep only the shim" >&2
       exit 1
