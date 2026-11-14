@@ -1,8 +1,25 @@
 #!/bin/sh
 # Run mike's lesson relation detector once; the lesson_relations scheduled job
 # calls this nightly. The detector honours lesson_relations.enabled itself.
+#
+# The mike binary is, in order: $MIKE_BIN; the one beside an installed package
+# (<root>/mike next to share/mike/scripts, or <prefix>/bin/mike for a Homebrew
+# prefix); `mike` on PATH; ~/.local/bin/mike.
 set -eu
 mike_bin="${MIKE_BIN:-}"
+here="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+if [ -z "$mike_bin" ]; then
+    case "$here" in
+    */share/mike/scripts)
+        for candidate in "$here/../../../mike" "$here/../../../bin/mike"; do
+            if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+                mike_bin="$candidate"
+                break
+            fi
+        done
+        ;;
+    esac
+fi
 if [ -z "$mike_bin" ]; then
     mike_bin="$(command -v mike 2>/dev/null || true)"
 fi

@@ -60,6 +60,35 @@ WORKER_CONDITIONS = {
 }
 
 
+# GET /api/scheduled-jobs ids whose script the archive ships (script_assets.SCRIPTS), and
+# the ones that are checkout-only. An installed mike runs the first; it marks the second
+# "unavailable" because they need a source checkout.
+SHIPPED_JOB_IDS = ("learning_promote", "learning_audit", "compressor_loop", "lesson_relations")
+CHECKOUT_ONLY_JOB_IDS = ("lessons_commit", "usage_audit", "memory_review")
+
+
+def validate_scheduled_jobs(value):
+    """Validate a supplied GET /api/scheduled-jobs result from an installed candidate.
+
+    No shipped job may be unavailable because its script folder is missing, which is what an
+    archive without share/mike/scripts reports. Whether a job then succeeds depends on the
+    host (database, PyYAML) and is not judged here. Returns {job id: state}.
+    """
+    require(type(value) is dict and type(value.get("jobs")) is list, "SCHEDULED_JOBS_SHAPE")
+    states = {}
+    for job in value["jobs"]:
+        require(type(job) is dict and type(job.get("id")) is str and type(job.get("state")) is str
+                and job["id"] not in states, "SCHEDULED_JOBS_ROW")
+        states[job["id"]] = job["state"]
+    require(all(name in states for name in SHIPPED_JOB_IDS + CHECKOUT_ONLY_JOB_IDS),
+            "SCHEDULED_JOBS_MISSING")
+    require(all(states[name] != "unavailable" for name in SHIPPED_JOB_IDS),
+            "SCHEDULED_JOBS_SCRIPT_DIR_MISSING")
+    require(all(states[name] == "unavailable" for name in CHECKOUT_ONLY_JOB_IDS),
+            "SCHEDULED_JOBS_CHECKOUT_ONLY_NOT_MARKED")
+    return states
+
+
 def endpoint_plan(ports):
     """Check syntax only. The isolated runner must prove live endpoint ownership."""
     require(type(ports) is dict and set(ports) == set(ENDPOINT_ROLES),

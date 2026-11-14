@@ -4,7 +4,7 @@ mod cli;
 mod error;
 mod locations;
 mod mcp;
-mod mods;
+pub(crate) mod mods;
 mod probe;
 mod route;
 mod settings;

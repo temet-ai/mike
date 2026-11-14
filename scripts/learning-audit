@@ -4,12 +4,14 @@ import argparse
 import datetime as dt
 import fcntl
 from pathlib import Path
-from learning_audit.report import run
+import sys
+sys.dont_write_bytecode = True  # an installed package is verified file by file
+from learning_audit.report import data_root, run
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--weekly', action='store_true', help='Use the latest Monday 00:00 UTC as the exclusive boundary')
 parser.add_argument('--end', help='Exclusive timezone-aware ISO timestamp; defaults to now')
-parser.add_argument('--output', default=str(Path(__file__).resolve().parents[1] / 'artifacts/learning-audit'))
+parser.add_argument('--output', default=str(data_root() / 'artifacts/learning-audit'))
 parser.add_argument('--sync', action='store_true', help='Publish reports through existing Mike project knowledge ingestion')
 args = parser.parse_args()
 if args.weekly:

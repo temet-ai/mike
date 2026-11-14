@@ -300,6 +300,10 @@ else
     else bad "a deploy-guard case missing a prerequisite is NOT RUN, never counted as a pass" "exit=$rc"; show "$out"; fi
 fi
 
+echo "the installed service is found by label and a wrapper is never overwritten (scripts/test-managed-service)"
+if out="$("$REPO/scripts/test-managed-service" 2>&1)"; then ok "managed-service detection and binary lookup"
+else bad "managed-service detection and binary lookup" "exit=$?"; show "$out"; fi
+
 # ── the deploy through an installed service, and that a missing prerequisite is NOT RUN ──
 echo "deploy through an installed service (scripts/test-managed-service-deploy)"
 guard="$REPO/scripts/test-managed-service-deploy"

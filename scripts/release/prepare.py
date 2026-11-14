@@ -18,6 +18,7 @@ from common import (CROSS_TARGETS, ReleaseError, build_environment, clean_source
                     write_json)
 from migration_inventory import source_migration_inventory
 from notice_inputs import prepare_notice, verify_notice
+from script_assets import SCRIPTS
 from rust_paths import PATH_DESTINATIONS, cargo_path_config
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -143,7 +144,7 @@ def prepare(root, requested, target, reviewed_notices=None, glibc=None):
                       "cargo_lock_sha256": sha256(root / "Cargo.lock"),
                       "pnpm_lock_sha256": sha256(root / "frontend/pnpm-lock.yaml"),
                       **({} if glibc is None else {"linker": "cargo-zigbuild", "glibc_floor": glibc})},
-            "spa_source_assets": assets, "artifacts": artifacts, "migration_inventory": migrations,
+            "spa_source_assets": assets, "script_assets": list(SCRIPTS), "artifacts": artifacts, "migration_inventory": migrations,
             "checks": {"archive_integrity": "passed", "archived_cli_smoke": "passed",
                        "source_unchanged": "passed", "executable_source_identity": "passed",
                        "embedded_spa_runtime": "not_run",

@@ -68,6 +68,36 @@ class DefaultConfigurationTests(OfflineTests):
         self.assertEqual(ports, PORTS)
 
 
+class ScheduledJobObservationTests(OfflineTests):
+    def response(self, **states):
+        names = defaults.SHIPPED_JOB_IDS + defaults.CHECKOUT_ONLY_JOB_IDS
+        return {"jobs": [{"id": name, "state": states.get(name, "unavailable" if name in defaults.CHECKOUT_ONLY_JOB_IDS
+                                                            else "never_run")} for name in names]}
+
+    def test_shipped_jobs_available_and_checkout_jobs_marked_is_accepted(self):
+        states = defaults.validate_scheduled_jobs(self.response(learning_audit="failing", compressor_loop="off"))
+        self.assertEqual(states["learning_audit"], "failing")
+        self.assertEqual(states["lessons_commit"], "unavailable")
+
+    def test_a_shipped_job_without_its_script_folder_fails(self):
+        for name in defaults.SHIPPED_JOB_IDS:
+            with self.subTest(job=name), self.assertRaisesRegex(JourneyError, "SCRIPT_DIR_MISSING"):
+                defaults.validate_scheduled_jobs(self.response(**{name: "unavailable"}))
+
+    def test_a_checkout_only_job_that_claims_to_run_fails(self):
+        with self.assertRaisesRegex(JourneyError, "CHECKOUT_ONLY_NOT_MARKED"):
+            defaults.validate_scheduled_jobs(self.response(memory_review="ok"))
+
+    def test_missing_duplicate_and_malformed_rows_fail(self):
+        short = self.response()
+        short["jobs"].pop()
+        duplicate = self.response()
+        duplicate["jobs"].append(dict(duplicate["jobs"][0]))
+        for value in (None, {}, {"jobs": {}}, {"jobs": [1]}, short, duplicate):
+            with self.subTest(value=value), self.assertRaises(JourneyError):
+                defaults.validate_scheduled_jobs(value)
+
+
 class DefaultObservationTests(OfflineTests):
     def test_complete_unmutated_default_feature_response_is_accepted(self):
         response = feature_response()

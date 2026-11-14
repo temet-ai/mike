@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+sys.dont_write_bytecode = True  # an installed package is verified file by file
 from tool_reuse import core
 
 parser = argparse.ArgumentParser(description=__doc__)
