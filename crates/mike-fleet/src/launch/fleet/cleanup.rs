@@ -261,11 +261,11 @@ async fn leave_operator_note(
 
 async fn offer_kept(persist: &PersistHandle, row: &FleetRow, def: &FleetDefinition, why: &str) {
     tracing::warn!(fleet = %row.slug, repo = %def.repo, %why, "fleet: the closed run's folder was left in place");
-    let Some(seats) = ControlSeats::recorded(def) else {
+    let Some(coordinator) = ControlSeats::recorded(def).coordinator else {
         return;
     };
     let body = offer_text(&row.slug, Path::new(&def.repo), why);
-    leave_operator_note(persist, row, seats.coordinator, &body).await;
+    leave_operator_note(persist, row, coordinator, &body).await;
 }
 
 async fn record_seats_closed(persist: &PersistHandle, def: &FleetDefinition, run: &str) {

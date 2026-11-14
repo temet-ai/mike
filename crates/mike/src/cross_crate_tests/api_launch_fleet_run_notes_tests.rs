@@ -13,7 +13,7 @@ use crate::launch::fleet::run_notebook::own_session;
 use crate::launch::fleet::run_text_notes::record_in;
 use crate::launch::fleet::shutdown;
 use crate::launch::fleet::test_fixtures::changed;
-use crate::launch::fleet::test_fixtures::{facts, seats};
+use crate::launch::fleet::test_fixtures::{coordinator, facts};
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
@@ -99,14 +99,14 @@ async fn the_rules_and_each_contract_a_run_uses_are_recorded_once_with_where_the
     let def = definition(setup.repo.path(), ".claude/fleet/db-contract.md");
     persist
         .launch()
-        .ensure_session_exists(&seats().coordinator.to_string())
+        .ensure_session_exists(&coordinator().to_string())
         .await?;
 
     let written = record_in(persist, (&def, &facts), setup.state.path()).await;
     let again = record_in(persist, (&def, &facts), setup.state.path()).await;
 
     assert_eq!((written, again), (3, 0));
-    let rules = only(notes_with_tag(persist, seats().coordinator, "rules").await?)?;
+    let rules = only(notes_with_tag(persist, coordinator(), "rules").await?)?;
     let path = setup.repo.path().join(".claude/fleet/rules.md");
     assert_eq!(
         rules.body,
@@ -128,7 +128,7 @@ async fn the_rules_and_each_contract_a_run_uses_are_recorded_once_with_where_the
         ("worker-contract.md", "WORKER CONTRACT"),
     ] {
         let tag = format!("contract:{file}");
-        let note = only(notes_with_tag(persist, seats().coordinator, &tag).await?)?;
+        let note = only(notes_with_tag(persist, coordinator(), &tag).await?)?;
         assert!(
             note.body.starts_with("Source: project file "),
             "{}",
@@ -150,17 +150,17 @@ async fn text_mike_supplies_is_recorded_as_built_into_mike() -> anyhow::Result<(
     let def = definition(setup.repo.path(), ".claude/fleet/worker-contract.md");
     persist
         .launch()
-        .ensure_session_exists(&seats().coordinator.to_string())
+        .ensure_session_exists(&coordinator().to_string())
         .await?;
 
     let written = record_in(persist, (&def, &facts), setup.state.path()).await;
 
     assert_eq!(written, 2);
-    let rules = only(notes_with_tag(persist, seats().coordinator, "rules").await?)?;
+    let rules = only(notes_with_tag(persist, coordinator(), "rules").await?)?;
     let built_in = bundle::generic_file("rules.md").unwrap_or_default();
     assert_eq!(rules.body, format!("Source: built into mike\n\n{built_in}"));
     let contract =
-        only(notes_with_tag(persist, seats().coordinator, "contract:worker-contract.md").await?)?;
+        only(notes_with_tag(persist, coordinator(), "contract:worker-contract.md").await?)?;
     assert!(contract.body.starts_with("Source: built into mike\n\n"));
     setup.db.cleanup().await
 }

@@ -95,11 +95,27 @@ pub fn ran_the_check_itself(def: &FleetDefinition, fleet: &str, ran: &[Ran]) -> 
         .collect()
 }
 
-pub fn added_a_worktree(def: &FleetDefinition, coordinator: Uuid, ran: &[Ran]) -> Vec<Notice> {
+pub fn added_a_worktree(
+    def: &FleetDefinition,
+    coordinator: Option<Uuid>,
+    ran: &[Ran],
+) -> Vec<Notice> {
     ran.iter()
         .filter(|r| r.command.contains("git") && r.command.contains("worktree add"))
         .flat_map(|r| {
-            [
+            let copy = coordinator.map(|coordinator| Notice {
+                to: coordinator,
+                key: format!("worktree-coordinator:{}", r.use_id),
+                covers: Vec::new(),
+                body: format!(
+                    "[mike] {} (session {}) added a worktree at {}:\n{}\nA fleet has one checkout. mike has told the seat to move its work back and remove the worktree; check that it did (`git worktree list`).",
+                    r.seat,
+                    r.session,
+                    clock(r.started_at),
+                    r.command
+                ),
+            });
+            std::iter::once(
                 Notice {
                     to: r.session,
                     key: format!("worktree:{}", r.use_id),
@@ -109,19 +125,8 @@ pub fn added_a_worktree(def: &FleetDefinition, coordinator: Uuid, ran: &[Ran]) -
                         def.repo
                     ),
                 },
-                Notice {
-                    to: coordinator,
-                    key: format!("worktree-coordinator:{}", r.use_id),
-                    covers: Vec::new(),
-                    body: format!(
-                        "[mike] {} (session {}) added a worktree at {}:\n{}\nA fleet has one checkout. mike has told the seat to move its work back and remove the worktree; check that it did (`git worktree list`).",
-                        r.seat,
-                        r.session,
-                        clock(r.started_at),
-                        r.command
-                    ),
-                },
-            ]
+            )
+            .chain(copy)
         })
         .collect()
 }
@@ -144,7 +149,7 @@ async fn commands(persist: &PersistHandle, run: &str) -> Option<Vec<TreeResultRo
 fn from_commands(
     def: &FleetDefinition,
     fleet: &str,
-    coordinator: Uuid,
+    coordinator: Option<Uuid>,
     commands: &[Ran],
 ) -> Vec<Notice> {
     let mut notices = ran_the_check_itself(def, fleet, commands);
@@ -173,11 +178,11 @@ async fn from_seats(
     }
     notices.extend(tell_ask_reference::on_a_fail(def, status));
     let waiting = tell_acceptance::read_waiting(persist, def, run).await;
-    notices.extend(tell_acceptance::queue_notice(
-        seats.acceptance,
-        status.now,
-        &waiting,
-    ));
+    notices.extend(
+        seats
+            .acceptance
+            .and_then(|to| tell_acceptance::queue_notice(to, status.now, &waiting)),
+    );
     notices.extend(tell_reference::on_no_commit(def, status, &committed, said));
     notices.extend(tell_ask_reference::on_no_commit(def, status, &committed));
     let reads = tell_ask_reference::recent_reads(persist, def, status.now, said).await;
@@ -228,6 +233,24 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
     }
 }
 
+async fn for_coordinator(
+    persist: &PersistHandle,
+    (def, fleet, status): (&FleetDefinition, &str, &FleetStatus),
+    run: &str,
+    coordinator: Uuid,
+) -> Vec<Notice> {
+    let mut notices = super::tell_tripwires::closed_with_work(status, coordinator);
+    notices.extend(super::tell_tripwires::read(persist, run, status, coordinator).await);
+    notices.extend(super::process_tripwire::notices(run, def, coordinator));
+    notices.extend(tell_context::past_the_line(
+        fleet,
+        coordinator,
+        status,
+        |_| false,
+    ));
+    notices
+}
+
 pub async fn tell(persist: &PersistHandle, row: &FleetRow, status: &FleetStatus) {
     let (Ok(def), Some(run)) = (
         FleetDefinition::from_value(&row.definition),
@@ -235,9 +258,7 @@ pub async fn tell(persist: &PersistHandle, row: &FleetRow, status: &FleetStatus)
     ) else {
         return;
     };
-    let Some(seats) = ControlSeats::recorded(&def) else {
-        return;
-    };
+    let seats = ControlSeats::recorded(&def);
     let fleet = row.fleet_uuid.to_string();
     let rows = commands(persist, run).await;
     let queue = rows
@@ -249,22 +270,9 @@ pub async fn tell(persist: &PersistHandle, row: &FleetRow, status: &FleetStatus)
     if !ran.is_empty() {
         notices.extend(from_commands(&def, &fleet, seats.coordinator, &ran));
     }
-    notices.extend(super::tell_tripwires::closed_with_work(
-        status,
-        seats.coordinator,
-    ));
-    notices.extend(super::tell_tripwires::read(persist, run, status, seats.coordinator).await);
-    notices.extend(super::process_tripwire::notices(
-        run,
-        &def,
-        seats.coordinator,
-    ));
-    notices.extend(tell_context::past_the_line(
-        &fleet,
-        seats.coordinator,
-        status,
-        |_| false,
-    ));
+    if let Some(coordinator) = seats.coordinator {
+        notices.extend(for_coordinator(persist, (&def, &fleet, status), run, coordinator).await);
+    }
     notices.extend(from_seats(persist, &def, status, &seats, (run, queue)).await);
     let control_seated = super::seated::Seated::of_run(persist, run, &def)
         .await
@@ -287,7 +295,9 @@ pub fn for_seated_recipients(
     }
     notices
         .into_iter()
-        .filter(|notice| notice.to != seats.coordinator && notice.to != seats.acceptance)
+        .filter(|notice| {
+            Some(notice.to) != seats.coordinator && Some(notice.to) != seats.acceptance
+        })
         .collect()
 }
 
@@ -399,7 +409,7 @@ mod tests {
                 "git worktree list",
             ),
         ];
-        let told = added_a_worktree(&def(), coordinator, &commands);
+        let told = added_a_worktree(&def(), Some(coordinator), &commands);
         assert_eq!(told.len(), 2);
         assert_eq!(
             (told[0].to, told[0].key.as_str()),
@@ -421,8 +431,8 @@ mod tests {
     #[test]
     fn notices_to_control_seats_nobody_opened_are_dropped_and_the_rest_are_kept() {
         let seats = ControlSeats {
-            coordinator: Uuid::from_u128(1),
-            acceptance: Uuid::from_u128(2),
+            coordinator: Some(Uuid::from_u128(1)),
+            acceptance: Some(Uuid::from_u128(2)),
             observer: None,
         };
         let notice = |to: u128, key: &str| Notice {

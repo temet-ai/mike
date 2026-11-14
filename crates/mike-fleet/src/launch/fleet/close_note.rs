@@ -92,7 +92,7 @@ pub async fn record(persist: &PersistHandle, row: &FleetRow, status: Option<&Fle
     ) else {
         return;
     };
-    let coordinator = ControlSeats::recorded(&def).map(|seats| seats.coordinator);
+    let coordinator = ControlSeats::recorded(&def).coordinator;
     let Some(session) = run_notebook::session(persist, coordinator, &def.repo, run).await else {
         return;
     };

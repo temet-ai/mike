@@ -386,7 +386,7 @@ mod tests {
             fleet: Uuid::nil().to_string(),
             slug: "slug".into(),
             run_id: "fleet-slug-00000000".into(),
-            seats: super::super::plan::ControlSeats::fresh(),
+            seats: super::super::plan::ControlSeats::answering(None, None),
             paths: super::super::bundle::FleetPaths {
                 rules: "/r/rules.md".into(),
                 checks: "/r/checks.sh".into(),

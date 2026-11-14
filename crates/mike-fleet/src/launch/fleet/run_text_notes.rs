@@ -94,8 +94,8 @@ pub async fn record_in(
     if items.is_empty() {
         return 0;
     }
-    let coordinator = Some(facts.seats.coordinator);
-    let Some(session) = run_notebook::session(persist, coordinator, &def.repo, &facts.run_id).await
+    let Some(session) =
+        run_notebook::session(persist, facts.seats.coordinator, &def.repo, &facts.run_id).await
     else {
         return 0;
     };

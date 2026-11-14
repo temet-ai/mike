@@ -440,7 +440,7 @@ async fn tell_waiting(
         "[mike gate] {}",
         text(&finished(seat, def, target, row, "finished"))
     );
-    let acceptance = super::plan::ControlSeats::recorded(def).map(|seats| seats.acceptance);
+    let acceptance = super::plan::ControlSeats::recorded(def).acceptance;
     for session in sessions
         .into_iter()
         .filter(|session| Some(*session) != acceptance)

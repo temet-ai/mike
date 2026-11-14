@@ -183,7 +183,7 @@ pub async fn tell_coordinator(
     run: &str,
     words: &str,
 ) {
-    let Some(seats) = super::plan::ControlSeats::recorded(def) else {
+    let Some(coordinator) = super::plan::ControlSeats::recorded(def).coordinator else {
         return;
     };
     if super::told::already(persist, run, PUSH_FAILED_KEY).await {
@@ -195,7 +195,7 @@ pub async fn tell_coordinator(
     );
     match persist
         .launch()
-        .insert_message(uuid::Uuid::new_v4(), seats.coordinator, None, &body)
+        .insert_message(uuid::Uuid::new_v4(), coordinator, None, &body)
         .await
     {
         Ok(_) => super::told::mark(persist, run, &[PUSH_FAILED_KEY.to_string()]).await,

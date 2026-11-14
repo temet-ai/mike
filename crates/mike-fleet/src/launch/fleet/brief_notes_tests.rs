@@ -12,7 +12,7 @@ use super::brief_notes_sync::{ensure_run_part, latest_part, record_task_part, ru
 use super::definition::FleetDefinition;
 use super::plan::{template, worker};
 use super::plan_briefs::worker_prompt;
-use super::plan_tests::{facts, seats};
+use super::plan_tests::{acceptance, coordinator, facts};
 use super::tests::{changed, complete, parsed};
 use crate::change_record::types::{ChangeKind, ChangeQuery};
 use crate::store::persistence::PersistHandle;
@@ -59,7 +59,7 @@ fn the_runs_part_holds_the_goal_ask_criteria_rules_checks_and_shared_files() {
     ] {
         assert!(part.contains(wanted), "{wanted} is missing from {part}");
     }
-    for control in [seats().acceptance, seats().coordinator] {
+    for control in [acceptance(), coordinator()] {
         assert!(
             !part.contains(&control.to_string()),
             "a fleet opens no control seat, yet {control} is in {part}"
@@ -215,13 +215,13 @@ async fn the_runs_part_is_one_note_in_the_coordinators_notebook_written_once() -
     let persist = PersistHandle::connect(&db.database_url).await?;
     let facts = facts();
     let def = on(json!({}));
-    registered_seats(&persist, &[seats().coordinator]).await?;
+    registered_seats(&persist, &[coordinator()]).await?;
     let first = ensure_run_part(&persist, &def, &facts, Duration::ZERO).await;
     let again = ensure_run_part(&persist, &def, &facts, Duration::ZERO).await;
     assert!(first.is_some());
     assert_eq!(first, again);
     assert_eq!(run_note_id(&persist, &facts).await, first);
-    let notes = notes_of(&persist, seats().coordinator, "part:run").await?;
+    let notes = notes_of(&persist, coordinator(), "part:run").await?;
     assert_eq!(notes.len(), 1);
     assert_eq!(notes[0].data["part"], json!("run"));
     assert_eq!(notes[0].data["version"], json!(1));
@@ -292,8 +292,8 @@ async fn a_changed_task_is_a_new_version_naming_the_old_note_and_the_seat_gets_o
     let mut facts = facts();
     facts.run_id = "fleet-notes-versions-1".into();
     let seat = Uuid::from_u128(11);
-    registered_seats(&persist, &[seats().coordinator, seat]).await?;
-    let open = [seats().coordinator, seat];
+    registered_seats(&persist, &[coordinator(), seat]).await?;
+    let open = [coordinator(), seat];
     let before = seated(json!({}));
     ensure_run_part(&persist, &before, &facts, Duration::ZERO).await;
     let first = record_task_part(&persist, (&before, &facts), ("P1", seat)).await;
@@ -330,14 +330,14 @@ async fn a_changed_rule_is_a_new_run_version_and_every_open_seat_is_mailed_the_d
     let mut facts = facts();
     facts.run_id = "fleet-notes-versions-2".into();
     let seat = Uuid::from_u128(11);
-    registered_seats(&persist, &[seats().coordinator, seat]).await?;
-    let open = [seats().coordinator, seat];
+    registered_seats(&persist, &[coordinator(), seat]).await?;
+    let open = [coordinator(), seat];
     let before = seated(json!({}));
     let first = ensure_run_part(&persist, &before, &facts, Duration::ZERO).await;
     let after = seated(json!({"rules": ["no seat works on its own branch", "no deploys"]}));
     sync(&persist, (&after, &facts), &open).await;
 
-    let notes = notes_of(&persist, seats().coordinator, "part:run").await?;
+    let notes = notes_of(&persist, coordinator(), "part:run").await?;
     assert_eq!(notes.len(), 2);
     assert_eq!(notes[1].data["version"], json!(2));
     assert_eq!(notes[1].data["supersedes"], json!(first));
@@ -361,7 +361,7 @@ async fn a_brief_note_is_an_event_in_the_change_record_only_while_the_toggle_is_
     let mut facts = facts();
     facts.run_id = "fleet-notes-events".into();
     let seat = Uuid::from_u128(11);
-    registered_seats(&persist, &[seats().coordinator, seat]).await?;
+    registered_seats(&persist, &[coordinator(), seat]).await?;
     persist.upsert_project_returning_id("/srv/project").await?;
     let def = seated(json!({}));
     let everything = ChangeQuery::everything_after("/srv/project", 0, 50);

@@ -33,26 +33,26 @@ pub struct SeatPlan {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ControlSeats {
-    pub coordinator: Uuid,
-    pub acceptance: Uuid,
+    pub coordinator: Option<Uuid>,
+    pub acceptance: Option<Uuid>,
     pub observer: Option<Uuid>,
 }
 
 impl ControlSeats {
-    pub fn fresh() -> Self {
+    pub fn recorded(def: &FleetDefinition) -> Self {
         Self {
-            coordinator: Uuid::new_v4(),
-            acceptance: Uuid::new_v4(),
+            coordinator: session_of(&def.coordinator),
+            acceptance: session_of(&def.acceptance),
             observer: None,
         }
     }
 
-    pub fn recorded(def: &FleetDefinition) -> Option<Self> {
-        Some(Self {
-            coordinator: session_of(&def.coordinator)?,
-            acceptance: session_of(&def.acceptance)?,
+    pub fn answering(coordinator: Option<Uuid>, acceptance: Option<Uuid>) -> Self {
+        Self {
+            coordinator,
+            acceptance,
             observer: None,
-        })
+        }
     }
 }
 

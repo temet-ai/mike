@@ -72,7 +72,7 @@ fn facts_for(row: &FleetRow, def: &FleetDefinition, run_id: &str) -> FleetFacts 
         fleet: row.fleet_uuid.to_string(),
         slug: row.slug.clone(),
         run_id: run_id.to_string(),
-        seats: ControlSeats::recorded(def).unwrap_or_else(ControlSeats::fresh),
+        seats: ControlSeats::recorded(def),
         paths: super::bundle::paths_for(&def.repo),
     }
 }

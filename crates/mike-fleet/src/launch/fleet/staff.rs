@@ -171,9 +171,7 @@ pub async fn staff(
     };
     super::propose_tick::tick(persist, row, &def).await;
     super::issue_close::tick(persist, &def, status).await;
-    let Some(seats) = ControlSeats::recorded(&def) else {
-        return;
-    };
+    let seats = ControlSeats::recorded(&def);
     let released = super::release::released(persist, &def, status).await;
     let unstarted = unstarted_tasks(status);
     staff_claims::settle(run_id, &unstarted, std::time::Instant::now());
