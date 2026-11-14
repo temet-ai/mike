@@ -112,7 +112,7 @@ pub fn mail(row: &FleetRow, def: &FleetDefinition, problem: &str) -> String {
 
 pub async fn tell(persist: &PersistHandle, row: &FleetRow, def: &FleetDefinition, problem: &str) {
     let Some(author) = row.created_by else {
-        tracing::warn!(fleet = %row.slug, problem, "fleet: the retrospective failed and the fleet records no author to tell");
+        log_no_author(row, problem);
         return;
     };
     let sent = persist
@@ -120,6 +120,14 @@ pub async fn tell(persist: &PersistHandle, row: &FleetRow, def: &FleetDefinition
         .insert_message(Uuid::new_v4(), author, None, &mail(row, def, problem))
         .await;
     if let Err(err) = sent {
-        tracing::warn!(fleet = %row.slug, error = %err, "fleet: could not mail the failed retrospective");
+        log_unsent(row, &err);
     }
+}
+
+fn log_no_author(row: &FleetRow, problem: &str) {
+    tracing::warn!(fleet = %row.slug, problem, "fleet: the retrospective failed and the fleet records no author to tell");
+}
+
+fn log_unsent(row: &FleetRow, err: &PersistError) {
+    tracing::warn!(fleet = %row.slug, error = %err, "fleet: could not mail the failed retrospective");
 }

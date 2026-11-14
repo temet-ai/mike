@@ -176,7 +176,7 @@ async fn existing(persist: &PersistHandle, session: Option<Uuid>) -> Option<Uuid
         Ok(Some(_)) => Some(session),
         Ok(None) => None,
         Err(err) => {
-            tracing::warn!(%session, error = %err, "mike could not check that a control seat's session exists; keeping it");
+            tracing::warn!(session_id = %session, error = %err, "mike could not check that a control seat's session exists; keeping it");
             Some(session)
         }
     }

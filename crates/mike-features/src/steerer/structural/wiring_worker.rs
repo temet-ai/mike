@@ -4,7 +4,7 @@ use chrono::Utc;
 use tokio::time::{MissedTickBehavior, interval};
 
 use super::wiring::{PassOutcome, mark_pass, run_checks};
-use super::wiring_store::apply;
+use super::wiring_store::{Tally, apply};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -48,16 +48,29 @@ pub async fn run_pass(persist: &PersistHandle) {
     let now = Utc::now();
     let outcome = run_checks(persist.pool(), now).await;
     report_failures(&outcome);
-    match apply(persist.pool(), &outcome).await {
-        Ok(tally) => tracing::info!(
-            findings = outcome.findings.len(),
-            upserted = tally.upserted,
-            resolved = tally.resolved,
-            "wiring_liveness: pass finished"
-        ),
-        Err(error) => tracing::warn!(%error, "wiring_liveness: could not store the findings"),
-    }
+    let stored = apply(persist.pool(), &outcome).await;
+    report_stored(&outcome, stored);
     mark_pass(now);
+}
+
+fn report_stored(outcome: &PassOutcome, stored: Result<Tally, sqlx::Error>) {
+    match stored {
+        Ok(tally) => log_finished(outcome.findings.len(), tally),
+        Err(error) => log_unstored(&error),
+    }
+}
+
+fn log_finished(findings: usize, tally: Tally) {
+    tracing::info!(
+        findings,
+        upserted = tally.upserted,
+        resolved = tally.resolved,
+        "wiring_liveness: pass finished"
+    );
+}
+
+fn log_unstored(error: &sqlx::Error) {
+    tracing::warn!(%error, "wiring_liveness: could not store the findings");
 }
 
 fn report_failures(outcome: &PassOutcome) {

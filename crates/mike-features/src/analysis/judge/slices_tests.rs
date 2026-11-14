@@ -188,7 +188,8 @@ fn withhold_next_combines_with_an_appended_slice() {
 
 #[test]
 fn no_slices_leave_the_input_untouched() {
-    assert_eq!(apply_slices(base(), &[], &texts()), base());
+    let input = base();
+    assert_eq!(apply_slices(input.clone(), &[], &texts()), input);
 }
 
 #[test]
