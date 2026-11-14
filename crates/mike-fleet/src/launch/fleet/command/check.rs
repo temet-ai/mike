@@ -210,6 +210,7 @@ mod tests {
             output_tail: String::new(),
             refused: None,
             started_at: None,
+            queue: None,
         };
         assert_eq!(
             check_report::text(&report),
@@ -239,6 +240,7 @@ mod tests {
             output_tail: String::new(),
             refused: None,
             started_at: "2026-10-02T13:00:05Z".parse().ok(),
+            queue: None,
         };
         assert_eq!(
             check_report::text(&running),
@@ -248,6 +250,7 @@ mod tests {
             how: "not run".into(),
             seconds: 0,
             started_at: None,
+            queue: None,
             ..running
         };
         assert_eq!(

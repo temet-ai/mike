@@ -76,6 +76,7 @@ pub fn answer(def: &FleetDefinition, who: &Asker, verdict: &Verdict) -> CheckRep
         output_tail,
         refused: None,
         started_at: Some(row.started_at),
+        queue: None,
     }
 }
 
@@ -325,11 +326,16 @@ fn unfinished(report: &CheckReport) -> Option<String> {
             report.command
         )),
         super::check::WAITING => Some(format!(
-            "`{}` is waiting for the shared build slot (receipt {}). Mike mails the actual exit status and result when it ends; carry on without polling",
+            "`{}` is waiting for the shared build slot (receipt {}){}. Mike mails the actual exit status and result when it ends; carry on without polling",
             report.command,
             report
                 .receipt_id
                 .map(|id| id.to_string())
+                .unwrap_or_default(),
+            report
+                .queue
+                .as_ref()
+                .map(|place| format!(", {place}"))
                 .unwrap_or_default()
         )),
         super::check::RUNNING => Some(format!(

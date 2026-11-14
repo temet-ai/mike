@@ -56,17 +56,17 @@ pub async fn begin(
     let registration = local.register(receipt.ledger)?;
     let owner = registration.owner();
     owner.admission_root(&private_host_root);
-    let insert = sqlx::query_scalar::<_, i64>(
-        "INSERT INTO launch.tree_checks (run_id, state, command, askers) VALUES ($1, $2, $3, ARRAY[$4::text]) RETURNING id",
+    let insert = sqlx::query_as::<_, (i64, i64)>(
+        "INSERT INTO launch.tree_checks (run_id, state, command, askers) VALUES ($1, $2, $3, ARRAY[$4::text]) RETURNING id, txid_current()",
     )
     .bind(receipt.ledger).bind(receipt.state).bind(receipt.command).bind(receipt.seat)
     .fetch_one(durable.connection());
-    let inserted = tokio::time::timeout(Duration::from_secs(2), insert)
+    let inserted = tokio::time::timeout(super::owned_spawn_fence::fence_timeout(), insert)
         .await
         .map_err(|_| "managed receipt insertion timed out before commit".to_string())
         .and_then(|result| result.map_err(|error| error.to_string()));
-    let id = match inserted {
-        Ok(id) => id,
+    let (id, transaction) = match inserted {
+        Ok(inserted) => inserted,
         Err(error) => {
             registration.receipt_was_not_created();
             return Err(format!(
@@ -75,10 +75,12 @@ pub async fn begin(
         }
     };
     owner.receipt(id);
-    if let Err(error) = durable.commit().await {
-        registration.receipt_blocked(format!("queue transaction commit outcome unknown: {error}"));
-        return Err(error);
-    }
+    let registration = match durable.commit().await {
+        Ok(()) => registration,
+        Err(error) => {
+            reconciled(&identity.persist, registration, (id, transaction), &error).await?
+        }
+    };
     owner.phase(Phase::WaitingCheckout, None);
     Ok(Queued {
         id,
@@ -99,6 +101,33 @@ pub async fn begin(
             strip_environment: Vec::new(),
         },
     })
+}
+
+async fn reconciled(
+    persist: &crate::store::persistence::PersistHandle,
+    registration: Registration,
+    (receipt, transaction): (i64, i64),
+    error: &str,
+) -> Result<Registration, String> {
+    use super::managed_receipt_commit::{Outcome, reconcile};
+    match reconcile(persist, receipt, transaction).await {
+        Ok(Outcome::Committed) => {
+            tracing::warn!(receipt, %error, "fleet: the receipt commit was slow; the database shows it committed, so the check is queued");
+            Ok(registration)
+        }
+        Ok(Outcome::NotCommitted) => {
+            registration.receipt_was_not_created();
+            Err(format!(
+                "queue transaction did not commit ({error}); the database confirms no receipt was created, so nothing was queued; ask again"
+            ))
+        }
+        Err(why) => {
+            registration.receipt_blocked(format!(
+                "queue transaction commit outcome unknown: {error}; {why}"
+            ));
+            Err(format!("queue transaction commit outcome unknown: {why}"))
+        }
+    }
 }
 
 pub fn current() -> Result<Context, String> {
@@ -183,7 +212,7 @@ impl Unverified {
 
 pub async fn hold_checkout(
     repo: &Path,
-    patience: Duration,
+    patience: Option<Duration>,
 ) -> Result<std::sync::Arc<OwnedMutexGuard<()>>, String> {
     let context = current()?;
     let held = hold_checkout_owned(&context.owner, repo, patience).await?;
@@ -193,14 +222,22 @@ pub async fn hold_checkout(
 pub async fn hold_checkout_owned(
     owner: &Owner,
     repo: &Path,
-    patience: Duration,
+    patience: Option<Duration>,
 ) -> Result<OwnedMutexGuard<()>, String> {
     owner.phase(Phase::WaitingCheckout, None);
     let waiting = super::gate_slot::queue::hold(repo);
+    let limited = async {
+        match patience {
+            Some(patience) => tokio::time::timeout(patience, waiting)
+                .await
+                .map_err(|_| "timed out waiting for the shared build slot".to_string()),
+            None => Ok(waiting.await),
+        }
+    };
     tokio::select! {
         biased;
         _ = owner.token().cancelled() => Err(cancelled(owner)),
-        held = tokio::time::timeout(patience, waiting) => held.map_err(|_| "timed out waiting for the shared build slot".into()),
+        held = limited => held,
     }
 }
 
@@ -257,11 +294,10 @@ async fn admit_to(
     (lane, command, configured): (Lane, &str, Option<Duration>),
 ) -> Result<(), String> {
     let measured = super::managed_queue::measure(persist, command).await;
-    let patience = configured.unwrap_or_else(|| super::managed_queue::patience_from(measured));
     super::managed_queue::admit(
         super::managed_queue::depth(&def.repo, lane),
         measured,
-        patience,
+        configured,
     )
 }
 
@@ -407,6 +443,10 @@ pub fn normalize_cancellation(owner: &Owner, code: &mut Option<i32>, output: &mu
 #[cfg(test)]
 #[path = "managed_command_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "managed_receipt_tests.rs"]
+mod receipt_tests;
 
 pub fn preparation_allowed() -> Result<(), String> {
     if let Ok(context) = current()
