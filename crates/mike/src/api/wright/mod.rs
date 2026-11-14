@@ -5,6 +5,7 @@ use serde_json::json;
 
 pub(crate) mod checks;
 pub(crate) mod problems;
+pub(crate) mod repairs;
 
 #[cfg(test)]
 mod checks_tests;

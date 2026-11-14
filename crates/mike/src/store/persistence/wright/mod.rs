@@ -4,6 +4,9 @@ use serde_json::Value;
 
 mod checks;
 mod problems;
+mod repairs;
+
+pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

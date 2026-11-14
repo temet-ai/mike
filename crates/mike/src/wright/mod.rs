@@ -4,6 +4,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub(crate) mod definition;
+pub mod repair;
 pub mod watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

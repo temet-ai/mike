@@ -1,7 +1,7 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 
-use crate::api::wright::{checks, problems as api};
+use crate::api::wright::{checks, problems as api, repairs};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -43,6 +43,20 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "Written by the web page when a route fails to load or throws; sessions never report page errors",
         },
     ),
+    route(
+        "GET",
+        "/api/wright/repairs",
+        Coverage::Exempt {
+            reason: "Wright's code repairs and their states for the Wright page; no session workflow reads them yet",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/repairs/{id}",
+        Coverage::Exempt {
+            reason: "One Wright code repair with its patch, gate result and merge for the Wright page; no session workflow reads it yet",
+        },
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -58,4 +72,6 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             patch(checks::patch_check).delete(checks::delete_check),
         )
         .route("/api/wright/client-errors", post(api::report_client_error))
+        .route("/api/wright/repairs", get(repairs::list_repairs))
+        .route("/api/wright/repairs/{id}", get(repairs::get_repair))
 }
