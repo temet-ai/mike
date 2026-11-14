@@ -225,10 +225,15 @@ cx_prepare_once() {
     prev="$a"
   done
   echo "cx: a query has no .sqlx entry; running scripts/sqlx-prepare once for the checkout (#533)" >&2
+  # sqlx-prepare builds with plain cargo, which must never write into an mbx build
+  # directory, so a build that ran through mbx prepares in the checkout's target/.
+  # The variable is set for that call only: the build that follows runs through mbx again.
+  local prep_target="$CARGO_TARGET_DIR"
+  [[ "$CX_CACHE_MODE" == mbx ]] && prep_target="$repo_root/target"
   if (( ${#pkgs[@]} )); then
-    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" -- "${pkgs[@]}" --all-targets >&2 8>&- || rc=$?
+    CARGO_TARGET_DIR="$prep_target" CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" -- "${pkgs[@]}" --all-targets >&2 8>&- || rc=$?
   else
-    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" >&2 8>&- || rc=$?
+    CARGO_TARGET_DIR="$prep_target" CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" >&2 8>&- || rc=$?
   fi
   rm -rf "${lock:?}"
   return "$rc"
