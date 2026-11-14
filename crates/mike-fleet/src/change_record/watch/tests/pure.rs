@@ -18,7 +18,23 @@ fn run(session_id: i64) -> ShellRun {
         session_id,
         started: Utc::now(),
         finished: None,
+        names_checkout: false,
     }
+}
+
+#[test]
+fn of_overlapping_shells_the_one_naming_the_checkout_is_the_author() {
+    let naming = ShellRun {
+        names_checkout: true,
+        ..run(4)
+    };
+    assert_eq!(
+        from_shell_runs(&[run(9), naming.clone(), naming]),
+        Authorship::Shell {
+            session: 4,
+            named_by: None
+        }
+    );
 }
 
 #[test]

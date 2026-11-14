@@ -106,15 +106,27 @@ pub fn decide(calls: &[ToolCallNaming], runs: &[ShellRun]) -> Authorship {
 
 pub fn from_shell_runs(runs: &[ShellRun]) -> Authorship {
     let sessions: BTreeSet<i64> = runs.iter().map(|r| r.session_id).collect();
-    let mut each = sessions.iter();
-    match (each.next(), each.next()) {
-        (Some(one), None) => Authorship::Shell {
-            session: *one,
+    let naming: BTreeSet<i64> = runs
+        .iter()
+        .filter(|r| r.names_checkout)
+        .map(|r| r.session_id)
+        .collect();
+    match (only(&sessions), only(&naming)) {
+        (Some(one), _) | (None, Some(one)) => Authorship::Shell {
+            session: one,
             named_by: None,
         },
-        _ => Authorship::Unknown {
+        (None, None) => Authorship::Unknown {
             candidates: sessions.into_iter().collect(),
         },
+    }
+}
+
+fn only(sessions: &BTreeSet<i64>) -> Option<i64> {
+    let mut each = sessions.iter();
+    match (each.next(), each.next()) {
+        (Some(one), None) => Some(*one),
+        _ => None,
     }
 }
 
