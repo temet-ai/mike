@@ -7,7 +7,7 @@ use crate::config::memory_cap::CapManagerConfig;
 
 use super::bool_parse::{deserialize_permissive_bool, deserialize_permissive_optional_bool};
 use super::proxy_config_defaults::{
-    LessonWorkerConfig, default_db_connect_timeout_ms, default_mailbox_delivery_ttl_minutes,
+    default_db_connect_timeout_ms, default_mailbox_delivery_ttl_minutes,
     default_mailbox_max_deliveries_per_turn, default_mailbox_redelivery_backoff_base_secs,
     default_mailbox_redelivery_backoff_cap_secs, default_mailbox_redelivery_max_attempts,
     default_mailbox_stale_minutes, default_max_in_flight, default_max_request_body_bytes,
@@ -162,15 +162,6 @@ pub struct ProxyConfig {
     pub log_max_files: usize,
 
     #[serde(default)]
-    pub lesson_worker: LessonWorkerConfig,
-
-    #[serde(default)]
-    pub recall_injector: crate::config::recall_injector::RecallInjectorConfig,
-
-    #[serde(default)]
-    pub harvester: crate::config::memory_harvester::HarvesterConfig,
-
-    #[serde(default)]
     pub steerer: crate::config::steerer::SteererConfig,
 
     #[serde(default)]
@@ -185,11 +176,11 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub db_cost: crate::config::db_cost::DbCostConfig,
 
-    #[serde(default)]
-    pub lesson_relations: crate::config::lesson_relations::LessonRelationsConfig,
-
     #[serde(flatten)]
     pub launch: super::launch::LaunchConfig,
+
+    #[serde(flatten)]
+    pub sections: super::sections::ConfigSections,
 }
 
 impl std::fmt::Debug for ProxyConfig {

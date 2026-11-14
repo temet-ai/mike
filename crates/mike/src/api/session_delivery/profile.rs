@@ -1,3 +1,4 @@
+use crate::lessons_settings::RecallOverlay;
 use chrono::{DateTime, Utc};
 
 use super::dto::{
@@ -81,7 +82,7 @@ fn limits(inputs: &ProfileInputs<'_>) -> LimitsDto {
         Some(frozen) => LimitsDto {
             inject_lessons: frozen.reminders_inject_lessons,
             max_lessons_to_inject: frozen.reminders_max_lessons_to_inject,
-            max_lessons_per_topic: frozen.recall_injector_max_lessons_per_topic,
+            max_lessons_per_topic: frozen.features.get::<RecallOverlay>().max_lessons_per_topic,
             basis: SettingBasis::SessionFrozen,
         },
         None => LimitsDto {
@@ -89,7 +90,9 @@ fn limits(inputs: &ProfileInputs<'_>) -> LimitsDto {
             max_lessons_to_inject: inputs.current_settings.reminders_max_lessons_to_inject,
             max_lessons_per_topic: inputs
                 .current_settings
-                .recall_injector_max_lessons_per_topic,
+                .features
+                .get::<RecallOverlay>()
+                .max_lessons_per_topic,
             basis: SettingBasis::CurrentSettings,
         },
     }

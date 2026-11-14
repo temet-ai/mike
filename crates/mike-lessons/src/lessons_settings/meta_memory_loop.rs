@@ -1,4 +1,4 @@
-use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
+use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const SUPPLY_VERDICT_PROMPT_KEY: &str = "supply_verdict.system_prompt";
 pub const MEMORY_REVIEW_BRIEF_KEY: &str = "memory_review.brief";
@@ -77,7 +77,7 @@ fn prompt_entry(
 
 pub fn entries() -> Vec<SettingMeta> {
     vec![
-        super::meta_scheduled_jobs::enabled_entry(
+        crate::settings::meta_scheduled_jobs::enabled_entry(
             MEMORY_REVIEW_ENABLED_KEY,
             "Daily memory review",
             "Daily, once between 05:15 and 07:59 UTC, run scripts/memory-review from the \

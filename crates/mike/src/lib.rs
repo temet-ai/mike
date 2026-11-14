@@ -14,6 +14,7 @@ pub mod db_listener;
 pub mod db_provision;
 pub mod doctor;
 pub mod feature_presets;
+pub mod feature_settings;
 pub mod forward;
 pub mod retention_worker;
 pub(crate) mod scheduled_jobs;

@@ -49,10 +49,6 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
         a_first.reminders_max_lessons_to_inject, 5,
         "default max_lessons_to_inject"
     );
-    assert_eq!(
-        a_first.recall_injector_max_lessons_per_topic, 3,
-        "default max_lessons_per_topic"
-    );
 
     let flipped = FeatureToggles {
         reminders: true,

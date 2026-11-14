@@ -20,6 +20,7 @@ pub(super) async fn boot_proxy_recall_on(
         ),
     )?;
 
+    mike::feature_settings::install();
     let base = figment::Figment::from(figment::providers::Serialized::defaults(
         ProxyConfig::default(),
     ))
@@ -74,6 +75,7 @@ pub(super) async fn boot_proxy_recall_off(
         ),
     )?;
 
+    mike::feature_settings::install();
     let base = figment::Figment::from(figment::providers::Serialized::defaults(
         ProxyConfig::default(),
     ))

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use crate::config::memory_harvester::HarvesterConfig;
+use crate::config::ProxyConfig;
+use crate::lessons_settings::HarvesterConfig;
 use crate::pipeline::RequestStage;
 use crate::quiescence_worker::sweep::SweepContext;
 use crate::rerank_nightly::PairsPhase;
@@ -33,9 +34,17 @@ impl LessonHooks for Lessons {
         Some(Arc::new(crate::rerank_nightly::lesson_pairs::LessonPairs))
     }
 
-    fn response_hook(&self, config: HarvesterConfig) -> Option<Arc<dyn ResponseHook>> {
+    fn response_hook(
+        &self,
+        config: &ProxyConfig,
+        enabled: Option<bool>,
+    ) -> Option<Arc<dyn ResponseHook>> {
+        let mut harvester = config.sections.get::<HarvesterConfig>();
+        if let Some(enabled) = enabled {
+            harvester.enabled = enabled;
+        }
         Some(Arc::new(crate::memory_harvester::HarvesterHook::new(
-            config,
+            harvester,
         )))
     }
 

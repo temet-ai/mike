@@ -31,6 +31,7 @@ async fn boot_proxy(
         ),
     )?;
 
+    mike::feature_settings::install();
     let base = figment::Figment::from(figment::providers::Serialized::defaults(
         ProxyConfig::default(),
     ))

@@ -1,5 +1,6 @@
 pub mod bundle_ids;
 pub mod cross_session;
+pub mod feature_overlays;
 pub mod judge_prompts;
 
 pub mod llm_runtime;
@@ -15,7 +16,6 @@ pub mod meta_knowledge_embedding;
 pub mod meta_launch;
 pub mod meta_llm_budget;
 pub mod meta_llm_provider;
-pub mod meta_memory_loop;
 pub mod meta_operations;
 pub mod meta_pipeline;
 pub mod meta_rerank;
@@ -38,8 +38,10 @@ pub mod overlay_apply;
 pub mod overlay_apply_provider;
 pub mod overlay_apply_session_end;
 pub mod overlay_apply_turn_judge;
+pub mod registry;
 pub mod validate;
 
+pub use feature_overlays::{FeatureOverlays, OverlaySection};
 pub use llm_runtime::{
     SharedSettingsOverlay, resolve_judge_worker_llm_settings, resolve_session_judge_llm_settings,
     resolve_shared_llm_settings, resolve_steerer_llm_settings, session_judge_live_source,
@@ -47,6 +49,7 @@ pub use llm_runtime::{
 };
 pub use meta::SETTINGS_META;
 pub use overlay_apply::apply_db_rows_to_overlay;
+pub use registry::FeatureSettings;
 pub use validate::validate_setting_value;
 
 use serde::{Deserialize, Serialize};
@@ -153,8 +156,6 @@ pub struct SettingsOverlay {
     pub weasel_intercept_forbidden_words: Vec<String>,
 
     pub weasel_intercept_correction_prompt: String,
-
-    pub recall_injector_max_lessons_per_topic: usize,
 
     pub file_read_compression_min_bytes: usize,
 
@@ -300,6 +301,8 @@ pub struct SettingsOverlay {
     pub turn_judge_rejudge_daily_call_cap: i64,
 
     pub bundles: std::sync::Arc<bundle_ids::BundleIds>,
+
+    pub features: FeatureOverlays,
 }
 
 impl Default for SettingsOverlay {
@@ -309,7 +312,6 @@ impl Default for SettingsOverlay {
             reminders_max_lessons_to_inject: 5,
             weasel_intercept_forbidden_words: Vec::new(),
             weasel_intercept_correction_prompt: DEFAULT_CORRECTION_PROMPT.to_owned(),
-            recall_injector_max_lessons_per_topic: 3,
             file_read_compression_min_bytes: 1500,
             file_read_compression_head_lines: 40,
             file_read_compression_tail_lines: 20,
@@ -387,6 +389,7 @@ impl Default for SettingsOverlay {
             turn_judge_live_window_days: meta_turn_judge::DEFAULT_LIVE_WINDOW_DAYS,
             turn_judge_rejudge_daily_call_cap: meta_turn_judge::DEFAULT_REJUDGE_DAILY_CALL_CAP,
             bundles: std::sync::Arc::new(bundle_ids::BundleIds::default()),
+            features: FeatureOverlays::default(),
         }
     }
 }
