@@ -26,7 +26,11 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::steerer::spawn_steerer_fleet(state);
 
-    crate::steerer::structural::spawn_wiring_liveness(state);
+    crate::steerer::structural::spawn_wiring_liveness(
+        state.persist().cloned(),
+        &state.tracker,
+        state.shutdown(),
+    );
 
     crate::quiescence_worker::spawn_quiescence_worker(state);
 

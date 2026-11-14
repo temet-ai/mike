@@ -5,19 +5,24 @@ use tokio::time::{MissedTickBehavior, interval};
 
 use super::wiring::{PassOutcome, mark_pass, run_checks};
 use super::wiring_store::apply;
-use crate::state::AppState;
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
+
 use crate::store::persistence::PersistHandle;
 
 const FIRST_PASS_DELAY: Duration = Duration::from_secs(300);
 const PASS_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 
-pub fn spawn_wiring_liveness(state: &AppState) {
-    let Some(persist) = state.persist().cloned() else {
+pub fn spawn_wiring_liveness(
+    persist: Option<PersistHandle>,
+    tracker: &TaskTracker,
+    shutdown: CancellationToken,
+) {
+    let Some(persist) = persist else {
         tracing::debug!("wiring_liveness: no persistence, not spawning");
         return;
     };
-    let shutdown = state.shutdown();
-    state.tracker.spawn(async move {
+    tracker.spawn(async move {
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
