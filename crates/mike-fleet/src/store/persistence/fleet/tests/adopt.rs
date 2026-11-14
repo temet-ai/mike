@@ -79,7 +79,7 @@ async fn a_launch_never_marked_opened_whose_session_sends_requests_is_adopted_no
 
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .adopt_live_fleet_launches(&run)
             .await?
             .is_empty()
@@ -89,7 +89,7 @@ async fn a_launch_never_marked_opened_whose_session_sends_requests_is_adopted_no
 
     let request = seed_request(pool, session_id, project_id, None, Utc::now()).await?;
     seed_response(pool, request, &usage(10, 0, 0)).await?;
-    let adopted = f.handle.fleet().adopt_live_fleet_launches(&run).await?;
+    let adopted = f.handle.launch().adopt_live_fleet_launches(&run).await?;
     assert_eq!(adopted.len(), 1);
     assert_eq!(adopted[0].id, launch);
     assert_eq!(adopted[0].seat.as_deref(), Some("db-dev-T1"));
@@ -99,7 +99,7 @@ async fn a_launch_never_marked_opened_whose_session_sends_requests_is_adopted_no
     assert_eq!(after.tasks[0].state, "working");
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .adopt_live_fleet_launches(&run)
             .await?
             .is_empty()
@@ -135,7 +135,7 @@ async fn adoption_skips_launches_without_requests_closed_launches_and_other_runs
 
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .adopt_live_fleet_launches(&run)
             .await?
             .is_empty()

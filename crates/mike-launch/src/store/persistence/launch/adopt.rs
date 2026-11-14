@@ -32,7 +32,7 @@ UPDATE launch.launches l
 RETURNING l.id, l.seat, l.session_uuid
 ";
 
-impl crate::store::persistence::fleet_repo::FleetDb<'_> {
+impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn adopt_live_fleet_launches(
         self,
         run_id: &str,

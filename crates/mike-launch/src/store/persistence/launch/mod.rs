@@ -1,3 +1,4 @@
+pub mod adopt;
 pub mod backend_validations;
 pub mod channel_link;
 pub mod fleet_closure;

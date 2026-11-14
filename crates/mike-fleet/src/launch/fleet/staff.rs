@@ -239,7 +239,7 @@ async fn memory_holds(row: &FleetRow, def: &FleetDefinition, tasks: usize) -> bo
 }
 
 async fn adopt_live_launches(persist: &PersistHandle, run_id: &str) -> BTreeSet<String> {
-    match persist.fleet().adopt_live_fleet_launches(run_id).await {
+    match persist.launch().adopt_live_fleet_launches(run_id).await {
         Ok(adopted) => adopted
             .into_iter()
             .inspect(|launch| {
