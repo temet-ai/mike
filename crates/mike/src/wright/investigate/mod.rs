@@ -29,6 +29,8 @@ mod admission_tests;
 #[cfg(test)]
 mod brief_tests;
 #[cfg(test)]
+mod context_tests;
+#[cfg(test)]
 mod finding_tests;
 #[cfg(test)]
 mod reconcile_tests;
