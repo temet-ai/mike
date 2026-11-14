@@ -132,7 +132,8 @@ ALTER TABLE steering.evaluations
         CHECK (label_source IS NULL
                OR label_source NOT IN ('next_message', 'session_end')
                OR mode = 'shadow'
-               OR COALESCE(arm, '') IN ('holdback', 'precheck_held'));
+               OR COALESCE(arm, '') IN ('holdback', 'precheck_held')
+               OR intervention_uuid IS NULL);
 
 CREATE INDEX IF NOT EXISTS idx_evaluations_unlabelled_precheck_held
     ON steering.evaluations (dispatched_at)
