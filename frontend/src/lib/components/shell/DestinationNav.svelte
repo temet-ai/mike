@@ -265,7 +265,7 @@
 					label: 'Steering',
 					href: '/settings/steering',
 					icon: Radar,
-					hint: 'Steerer fleet configuration — model, thresholds, sub-judges',
+					hint: 'Steerer fleet configuration — model, thresholds, sub-judges, decision points',
 					indent: true
 				},
 				{

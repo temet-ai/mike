@@ -26,6 +26,10 @@
 		const canvas = within(canvasElement);
 		await expect(canvas.getByText('Not available')).toBeVisible();
 		await expect(canvas.getByText('Steerers')).toBeVisible();
+		const decisionsRow = canvas.getByText('Decisions').closest('[data-slot="setup-row"]');
+		await expect(decisionsRow?.textContent).toContain('off: the decisions toggle is off');
+		await expect(decisionsRow?.textContent).toContain('typesafe/jev-1.14');
+		await expect(decisionsRow?.querySelector('select')).toBeNull();
 		await expect(canvas.getByText('Turn judge')).toBeVisible();
 		const rowOf = (name: string) =>
 			within(canvas.getByText(name).closest('[data-slot="setup-row"]') as HTMLElement);

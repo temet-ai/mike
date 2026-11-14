@@ -44,7 +44,23 @@
 <Story
 	name="Default"
 	tags={['interactive']}
-	args={{ files: STORY_FILES, loading: false, error: null, onRetry: () => {} }}
+	args={{
+		files: STORY_FILES,
+		loading: false,
+		error: null,
+		onRetry: () => {},
+		facts: {
+			'crates/mike/src/api/handlers.rs': { kind: 'code', added: 12, removed: 3, committed: false },
+			'frontend/src/app.css': { kind: 'style', added: 4, removed: 0, committed: true },
+			'docs/ARCHITECTURE.md': { kind: 'doc', added: 0, removed: 0, committed: null },
+			'frontend/src/lib/components/shell/SessionOverview.svelte': {
+				kind: 'ui',
+				added: 2,
+				removed: 2,
+				committed: false
+			}
+		}
+	}}
 	play={async ({ canvasElement }) => {
 		const paths = () =>
 			Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-path]')).map(
@@ -84,6 +100,26 @@
 		);
 		expect(longDirectory?.getAttribute('title')).toBe(LONG_DIRECTORY);
 
+		const handlers = canvasElement.querySelector<HTMLElement>(
+			'[data-path="crates/mike/src/api/handlers.rs"]'
+		);
+		expect(handlers?.textContent).toContain('code');
+		expect(handlers?.textContent).toContain('+12');
+		expect(handlers?.textContent).toContain('−3');
+		expect(handlers?.textContent).toContain('uncommitted');
+		expect(
+			canvasElement.querySelector(
+				'[data-path="frontend/src/lib/components/shell/SessionOverview.svelte"]'
+			)?.textContent
+		).toContain('UI');
+		expect(
+			canvasElement.querySelector('[data-path="docs/ARCHITECTURE.md"]')?.textContent
+		).not.toContain('committed');
+		const lanes = Array.from(canvasElement.querySelectorAll<HTMLElement>('.fc-fact--diff')).map(
+			(el) => Math.round(el.getBoundingClientRect().width)
+		);
+		expect(new Set(lanes).size).toBe(1);
+
 		const folder = canvasElement.querySelector<HTMLButtonElement>(
 			'[data-folder-path="frontend/src/lib"]'
 		);
@@ -111,7 +147,7 @@
 	}}
 >
 	{#snippet template(args)}
-		<div style="max-width: 360px">
+		<div style="max-width: 560px">
 			<FilesChangedCard {...args} />
 		</div>
 	{/snippet}

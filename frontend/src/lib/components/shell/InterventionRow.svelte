@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { revertIntervention } from '$lib/api/steering';
+	import { changedFilesOf, precheckOf } from '$lib/api/steering';
 	import type {
+		SessionEvaluationRow,
 		SessionSteeringRow,
 		SteeringVocabulary,
 		SteeringVocabularyItem
 	} from '$lib/api/steering';
+	import { OUTCOME_TIP, PRECHECK_QUESTION, outcomePhrase } from '$lib/steeringTimeline';
+	import { formatRelative } from '$lib/time';
+	import PrecheckAnswers from './PrecheckAnswers.svelte';
+	import FilesChangedCard from './files-changed-card/FilesChangedCard.svelte';
 	import {
 		interventionStatus,
 		VERDICT_LABELS,
@@ -14,7 +20,7 @@
 	} from '$lib/steering';
 	import type { Verdict, Authority, SteeringMode } from '$lib/steering';
 	import { ApiError } from '$lib/api';
-	import { RotateCcw, ChevronUp, ChevronDown } from '@lucide/svelte';
+	import { RotateCcw } from '@lucide/svelte';
 	import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip';
 	import InjectedSteerCallout from './InjectedSteerCallout.svelte';
 	import WakeStateChip from './WakeStateChip.svelte';
@@ -24,9 +30,41 @@
 		row: SessionSteeringRow;
 		sessionBasePath: string;
 		vocabulary?: SteeringVocabulary | null;
+		evaluation?: SessionEvaluationRow | null;
+		held?: boolean;
+		evaluationsLoaded?: boolean;
 	}
 
-	let { row, sessionBasePath, vocabulary = null }: Props = $props();
+	let {
+		row,
+		sessionBasePath,
+		vocabulary = null,
+		evaluation = null,
+		held = false,
+		evaluationsLoaded = true
+	}: Props = $props();
+
+	const precheck = $derived(precheckOf(evaluation));
+	const precheckApplies = $derived(
+		evaluationsLoaded && evaluation !== null && evaluation.question === PRECHECK_QUESTION
+	);
+	const outcome = $derived(outcomePhrase(evaluation, held));
+	const changed = $derived(evaluationsLoaded ? changedFilesOf(evaluation) : []);
+	const changedFacts = $derived(
+		Object.fromEntries(
+			changed.map((c) => [
+				c.path,
+				{ kind: c.kind, added: c.added, removed: c.removed, committed: c.committed }
+			])
+		)
+	);
+	const verdictWord = $derived(
+		held
+			? 'Held'
+			: row.verdict
+				? (VERDICT_LABELS[row.verdict as Verdict] ?? row.verdict)
+				: 'unknown'
+	);
 
 	function vocabDesc(items: SteeringVocabularyItem[], code: string): string | null {
 		return items.find((it) => it.code === code)?.description ?? null;
@@ -126,6 +164,9 @@
 	}
 
 	function verdictStyle(v: string | null): string {
+		if (held) {
+			return 'color: var(--text-2); background: var(--surface-2); border-color: var(--border-subtle);';
+		}
 		switch (v) {
 			case 'fired':
 				return 'color: var(--status-success-fg); background: var(--status-success-bg); border-color: var(--status-success-border);';
@@ -151,33 +192,22 @@
 	class:iv-row--fired={isFired}
 	class:iv-row--reverted={status === 'reverted'}
 >
-	<div
-		class="iv-row__rail"
-		style="background: {isFired ? 'var(--status-steering-fg)' : 'var(--border-subtle)'};"
-		aria-hidden="true"
-	></div>
-
 	<button
 		type="button"
 		class="iv-row__header"
 		onclick={toggle}
 		aria-expanded={expanded}
-		aria-label="Toggle intervention detail for {displayName} ({row.verdict ?? 'unknown verdict'})"
+		aria-label="Toggle intervention detail for {displayName} ({held
+			? 'held'
+			: (row.verdict ?? 'unknown verdict')})"
 	>
 		<div class="iv-row__chrome">
-			{#if vocabulary && row.verdict && vocabDesc(vocabulary.verdicts, row.verdict)}
+			{#if !held && vocabulary && row.verdict && vocabDesc(vocabulary.verdicts, row.verdict)}
 				<Tooltip>
 					<TooltipTrigger>
 						{#snippet child({ props })}
 							<span class="iv-chip iv-tip-trigger" style={verdictStyle(row.verdict)} {...props}>
-								{#if row.verdict === 'fired'}
-									<span
-										class="iv-chip__dot"
-										style="background: var(--status-success-fg);"
-										aria-hidden="true"
-									></span>
-								{/if}
-								{row.verdict ? (VERDICT_LABELS[row.verdict as Verdict] ?? row.verdict) : 'unknown'}
+								{verdictWord}
 							</span>
 						{/snippet}
 					</TooltipTrigger>
@@ -187,14 +217,7 @@
 				</Tooltip>
 			{:else}
 				<span class="iv-chip" style={verdictStyle(row.verdict)}>
-					{#if row.verdict === 'fired'}
-						<span
-							class="iv-chip__dot"
-							style="background: var(--status-success-fg);"
-							aria-hidden="true"
-						></span>
-					{/if}
-					{row.verdict ? (VERDICT_LABELS[row.verdict as Verdict] ?? row.verdict) : 'unknown'}
+					{verdictWord}
 				</span>
 			{/if}
 
@@ -215,6 +238,30 @@
 			{/if}
 
 			<span class="iv-row__meta">
+				{#if precheck !== null && precheckApplies}
+					<Tooltip>
+						<TooltipTrigger>
+							{#snippet child({ props })}
+								<span class="iv-row__precheck iv-tip-trigger" {...props}
+									>{precheck.verdict.score.toFixed(2)}</span
+								>
+							{/snippet}
+						</TooltipTrigger>
+						<TooltipContent>Pre-check score</TooltipContent>
+					</Tooltip>
+				{/if}
+				{#if outcome !== null}
+					<Tooltip>
+						<TooltipTrigger>
+							{#snippet child({ props })}
+								<span class="iv-row__outcome iv-tip-trigger" data-tone={outcome.tone} {...props}
+									>{outcome.text}</span
+								>
+							{/snippet}
+						</TooltipTrigger>
+						<TooltipContent>{OUTCOME_TIP}</TooltipContent>
+					</Tooltip>
+				{/if}
 				{#if row.authority}
 					{#if vocabulary && vocabDesc(vocabulary.authorities, row.authority)}
 						<Tooltip>
@@ -278,13 +325,6 @@
 					</Tooltip>
 				{/if}
 				<span class="iv-row__time">{formatTime(row.created_at)}</span>
-				<span class="iv-row__expand-cue" aria-hidden="true">
-					{#if expanded}
-						<ChevronUp size={11} aria-hidden="true" />
-					{:else}
-						<ChevronDown size={11} aria-hidden="true" />
-					{/if}
-				</span>
 			</span>
 		</div>
 
@@ -318,7 +358,6 @@
 		<div class="iv-row__body">
 			{#if status === 'fired' && row.sent_at}
 				<div class="iv-banner iv-banner--amber">
-					<span class="iv-banner__dot" aria-hidden="true"></span>
 					Awaiting session return · Sent {formatIso(row.sent_at)} · Expires {formatIso(
 						row.expires_at
 					)}
@@ -339,6 +378,30 @@
 				</div>
 			{/if}
 
+			{#if precheckApplies}
+				<div class="iv-section">
+					<PrecheckAnswers {precheck} applies={true} />
+				</div>
+			{/if}
+
+			{#if changed.length > 0}
+				<div class="iv-section">
+					<FilesChangedCard
+						embedded
+						files={changed.map((c) => c.path)}
+						facts={changedFacts}
+						onRetry={() => {}}
+					/>
+				</div>
+			{/if}
+
+			{#if evaluation?.outcome_label && evaluation.labelled_at}
+				<p class="iv-labelled">
+					Labelled {evaluation.label_source ?? 'unknown'}
+					{formatRelative(evaluation.labelled_at)}
+				</p>
+			{/if}
+
 			{#if row.off_thread_topic}
 				<div class="iv-section">
 					<p class="iv-section__label">Off-thread topic</p>
@@ -349,7 +412,8 @@
 			{#if row.anchor_text}
 				<div class="iv-section">
 					<p class="iv-section__label">Anchor at evaluation time</p>
-					<pre class="iv-pre">{row.anchor_text}</pre>
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+					<pre class="iv-pre" tabindex="0">{row.anchor_text}</pre>
 				</div>
 			{/if}
 
@@ -367,7 +431,8 @@
 			{#if row.verdict_json}
 				<div class="iv-section">
 					<p class="iv-section__label">Verdict JSON</p>
-					<pre class="iv-pre">{JSON.stringify(row.verdict_json, null, 2)}</pre>
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+					<pre class="iv-pre" tabindex="0">{JSON.stringify(row.verdict_json, null, 2)}</pre>
 				</div>
 			{/if}
 
@@ -425,13 +490,11 @@
 
 <style>
 	.iv-row {
-		position: relative;
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--border-subtle);
 		border-radius: 2px;
 		background: oklch(from var(--surface-card) l c h / 0.6);
-		overflow: hidden;
 	}
 
 	.iv-row--suppressed {
@@ -450,19 +513,11 @@
 		background: oklch(from var(--surface-card) l c h / 0.5);
 	}
 
-	.iv-row__rail {
-		position: absolute;
-		inset-block: 4px;
-		left: 0;
-		width: 3px;
-		border-radius: 0 2px 2px 0;
-	}
-
 	.iv-row__header {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		padding: 8px 12px 8px 20px;
+		padding: 8px 12px;
 		text-align: left;
 		background: transparent;
 		border: none;
@@ -506,13 +561,6 @@
 		padding: 0 4px;
 	}
 
-	.iv-chip__dot {
-		display: inline-block;
-		width: 6px;
-		height: 6px;
-		flex-shrink: 0;
-	}
-
 	.iv-row__steerer {
 		font-family: var(--font-mono, monospace);
 		font-size: 13px;
@@ -530,7 +578,8 @@
 		justify-content: flex-end;
 	}
 
-	.iv-row__confidence {
+	.iv-row__confidence,
+	.iv-row__precheck {
 		font-family: var(--font-mono, monospace);
 		font-size: 11px;
 		color: var(--text-3);
@@ -542,10 +591,27 @@
 		color: var(--text-3);
 	}
 
-	.iv-row__expand-cue {
-		display: inline-flex;
-		align-items: center;
-		color: var(--text-faint);
+	.iv-row__precheck {
+		color: var(--text-2);
+	}
+
+	.iv-row__outcome {
+		font-family: var(--font-mono, monospace);
+		font-size: 11px;
+	}
+
+	.iv-row__outcome[data-tone='correct'] {
+		color: var(--status-success-fg);
+	}
+
+	.iv-row__outcome[data-tone='wrong'] {
+		color: var(--status-danger-fg);
+	}
+
+	.iv-labelled {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--text-3);
 	}
 
 	.iv-row__topic {
@@ -583,7 +649,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		padding: 0 12px 12px 20px;
+		padding: 0 12px 12px;
 		border-top: 1px solid var(--border-subtle);
 	}
 
@@ -607,14 +673,6 @@
 		border: 1px solid var(--status-danger-border);
 		background: var(--status-danger-bg);
 		color: var(--text-1);
-	}
-
-	.iv-banner__dot {
-		display: inline-block;
-		width: 6px;
-		height: 6px;
-		background: var(--status-warning-fg);
-		flex-shrink: 0;
 	}
 
 	.iv-banner__label {

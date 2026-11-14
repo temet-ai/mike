@@ -32,6 +32,7 @@
 
 	function isMovedGroup(group: string): boolean {
 		const g = group.toLowerCase();
+		if (g === 'decisions') return true;
 		return [
 			'steer',
 			'embedding',

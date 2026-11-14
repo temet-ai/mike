@@ -103,6 +103,96 @@ export interface SessionSteeringParams {
 
 const SESSION_STEERING_MAX_LIMIT = 500;
 
+export interface PrecheckVerdict {
+	send: boolean;
+	score: number;
+	why: string;
+}
+
+export interface Precheck {
+	record_id: number | null;
+	question_set: string;
+	answers: Record<string, number>;
+	refusals: number;
+	verdict: PrecheckVerdict;
+	fail_open: boolean;
+	error: string | null;
+}
+
+export interface ChangedFileFact {
+	path: string;
+	kind: string;
+	added: number;
+	removed: number;
+	committed: boolean | null;
+}
+
+export interface SessionEvaluationRow {
+	id: number;
+	uuid: string;
+	steerer_id: number;
+	steerer_name: string;
+	steerer_kind: string;
+	operator_turn_id: number;
+	status: string;
+	mode: string;
+	question: string | null;
+	trigger_point: string | null;
+	trigger_request_id: number | null;
+	bundle_id: number | null;
+	intervention_uuid: string | null;
+	dispatched_at: string;
+	resolved_at: string | null;
+	verdict_json: Record<string, unknown> | null;
+	confidence: number | null;
+	reason: string | null;
+	outcome_label: string | null;
+	label_source: string | null;
+	labelled_at: string | null;
+	label_evidence: unknown;
+}
+
+export interface SessionEvaluationsEnvelope {
+	session_uuid: string;
+	total_count: number;
+	evaluations: SessionEvaluationRow[];
+	next_before_id: number | null;
+}
+
+export async function getSessionEvaluations(
+	sessionId: string,
+	params: { limit?: number; before_id?: number } = {}
+): Promise<SessionEvaluationsEnvelope> {
+	const query = new URLSearchParams();
+	if (params.limit !== undefined) query.set('limit', String(params.limit));
+	if (params.before_id !== undefined) query.set('before_id', String(params.before_id));
+	const suffix = query.size > 0 ? `?${query.toString()}` : '';
+	const path = `/api/sessions/${encodeURIComponent(sessionId)}/evaluations${suffix}`;
+	return cachedGet(path, async () => {
+		const res = await fetch(path, { headers: { accept: 'application/json' } });
+		if (!res.ok) {
+			throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
+		}
+		return (await res.json()) as SessionEvaluationsEnvelope;
+	});
+}
+
+export function precheckOf(evaluation: SessionEvaluationRow | null): Precheck | null {
+	const raw = evaluation?.verdict_json?.['precheck'];
+	if (typeof raw !== 'object' || raw === null) return null;
+	return raw as Precheck;
+}
+
+export function changedFilesOf(evaluation: SessionEvaluationRow | null): ChangedFileFact[] {
+	const facts = evaluation?.verdict_json?.['facts'] as
+		{ observation?: { changed?: ChangedFileFact[] } } | undefined;
+	return facts?.observation?.changed ?? [];
+}
+
+export function isHeldEvaluation(evaluation: SessionEvaluationRow): boolean {
+	return precheckOf(evaluation)?.verdict.send === false;
+}
+
 export async function getSteeredRequest(requestId: number): Promise<SteeredRequestRow | null> {
 	const path = `/api/requests/${requestId}/steering`;
 	return cachedGet(path, async () => {

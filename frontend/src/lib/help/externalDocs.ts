@@ -51,6 +51,13 @@ export const EXTERNAL_DOCS: ExternalDoc[] = [
 		internal: true
 	},
 	{
+		label: 'Decisions',
+		href: '/help/docs/decisions',
+		description: 'Decision points: the switch, modes, the track-record table and the pre-check.',
+		group: 'project',
+		internal: true
+	},
+	{
 		label: 'Anthropic API docs',
 		href: 'https://docs.anthropic.com/',
 		description: 'API reference for the upstream Anthropic service.',

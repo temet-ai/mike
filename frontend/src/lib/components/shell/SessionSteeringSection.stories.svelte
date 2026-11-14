@@ -1,6 +1,83 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import 'augmented-ui/augmented-ui.min.css';
+	import { expect, userEvent, waitFor, within } from 'storybook/test';
+	import SessionSteeringSection from './SessionSteeringSection.svelte';
+
+	const LIVE_SESSION = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+
+	function liveEvaluation(id: number, at: string, send: boolean, label: string | null) {
+		return {
+			id,
+			uuid: `00000000-0000-4000-8000-0000000000${id}`,
+			steerer_id: 3,
+			steerer_name: 'turn-guard',
+			steerer_kind: 'guard',
+			operator_turn_id: 80 + id,
+			status: 'resolved',
+			mode: 'live',
+			question: 'unobserved_done',
+			trigger_point: 'turn_end',
+			trigger_request_id: null,
+			bundle_id: null,
+			intervention_uuid: null,
+			dispatched_at: at,
+			resolved_at: at,
+			verdict_json: {
+				precheck: {
+					record_id: id,
+					question_set: 'turn_guard_precheck_v2',
+					answers: {
+						already_disclosed: send ? 0.1 : 0.9,
+						claims_checked: send ? 0.8 : 0.1,
+						answer_not_change: 0.1,
+						invites_trial: send ? 0.1 : 0.9
+					},
+					refusals: 0,
+					verdict: { send, score: send ? 0.62 : 0.05, why: send ? 'sent' : 'held' },
+					fail_open: false,
+					error: null
+				}
+			},
+			confidence: null,
+			reason: null,
+			outcome_label: label,
+			label_source: label ? 'labeller' : null,
+			labelled_at: label ? '2026-11-14T11:00:00Z' : null,
+			label_evidence: null
+		};
+	}
+
+	const LIVE_EVALUATIONS = [
+		liveEvaluation(12, '2026-11-14T10:05:00Z', false, 'wrong'),
+		liveEvaluation(11, '2026-11-14T09:00:00Z', true, 'right')
+	];
+
+	function liveStub(input: RequestInfo | URL): Promise<Response> {
+		const url =
+			typeof input === 'string'
+				? input
+				: input instanceof URL
+					? input.href
+					: (input as Request).url;
+		const json = (body: unknown) =>
+			Promise.resolve(
+				new Response(JSON.stringify(body), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				})
+			);
+		if (url.includes('/evaluations'))
+			return json({
+				session_uuid: LIVE_SESSION,
+				total_count: LIVE_EVALUATIONS.length,
+				evaluations: LIVE_EVALUATIONS,
+				next_before_id: null
+			});
+		if (url.includes('/enrolments')) return json([]);
+		if (url.includes('/steering')) return json({ rows: [], total_count: 0, offset: 0, limit: 500 });
+		return json({});
+	}
 
 	const { Story } = defineMeta({
 		title: 'Shell/SessionSteeringSection/Spec',
@@ -380,6 +457,35 @@
 				dimmer surface tint. Text stays at full role colour — no opacity dimming. Only fired rows
 				get the teal left rail accent.
 			</p>
+		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="LiveHeldAndSent"
+	tags={['interactive']}
+	loaders={[
+		async () => {
+			globalThis.fetch = liveStub as typeof globalThis.fetch;
+			return {};
+		}
+	]}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await waitFor(() => expect(canvas.getByText('Intervention timeline')).toBeVisible());
+		await userEvent.click(canvas.getByText('Intervention timeline'));
+		await waitFor(() => expect(canvasElement.querySelectorAll('.iv-row')).toHaveLength(1));
+		const row = canvasElement.querySelector('.iv-row') as HTMLElement;
+		await expect(row.textContent).toContain('Held');
+		await expect(row.querySelector('.iv-row__outcome')?.textContent).toBe('hold correct');
+		await expect(row.querySelector('.iv-row__precheck')?.textContent).toBe('0.05');
+		await userEvent.click(within(row).getByRole('button', { name: /toggle intervention detail/i }));
+		await expect(row.querySelectorAll('[data-answer]')).toHaveLength(4);
+	}}
+>
+	{#snippet template()}
+		<div class="bg-[var(--surface-bg)] p-6" style="max-width: 760px">
+			<SessionSteeringSection sessionId={LIVE_SESSION} now={Date.now()} embedded />
 		</div>
 	{/snippet}
 </Story>

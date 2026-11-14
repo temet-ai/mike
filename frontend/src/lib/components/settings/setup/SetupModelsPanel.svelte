@@ -5,6 +5,7 @@
 	import type { FeatureDto, SettingMeta, SettingValue } from '$lib/api/settings';
 	import type { LlmProvider, LlmProvidersResponse } from '$lib/api/setup';
 	import {
+		decisionsModelRow,
 		PER_JOB,
 		PROVIDER_ORDER,
 		TIERS,
@@ -64,6 +65,7 @@
 	);
 	const available = $derived(all.filter((p) => p.available));
 	const jobs = $derived(runningJobs(features, settings));
+	const decisions = $derived(decisionsModelRow(features, settings, providers?.providers ?? []));
 	const mode = $derived(text('llm.provider') || providers?.llm_provider || PER_JOB);
 
 	const modeOptions = $derived<SelectOption[]>([
@@ -140,6 +142,15 @@
 			detail={provider.available ? provider.detail : `${provider.detail} ${provider.fix}`.trim()}
 		/>
 	{/each}
+
+	<SetupRow
+		label="Decisions"
+		tone={decisions.on ? 'ok' : 'info'}
+		status={decisions.status}
+		detail={decisions.on
+			? `Answers narrow questions at mike's decision points with ${decisions.model} on OpenRouter. This model is fixed and does not use a tier.`
+			: `Would use ${decisions.model} on OpenRouter. This model is fixed and does not use a tier.`}
+	/>
 
 	{#if jobs.length === 0}
 		<SetupRow

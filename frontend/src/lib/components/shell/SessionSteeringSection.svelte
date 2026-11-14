@@ -8,13 +8,16 @@
 		listSteerers,
 		enrolSession,
 		disenrolSession,
-		getSteeringVocabulary
+		getSteeringVocabulary,
+		getSessionEvaluations
 	} from '$lib/api/steering';
 	import type {
 		SessionSteeringRow,
 		SessionEnrolmentRow,
+		SessionEvaluationRow,
 		SteeringVocabulary
 	} from '$lib/api/steering';
+	import { mergeTimeline } from '$lib/steeringTimeline';
 	import { ApiError } from '$lib/api';
 	import type { SteererDto, EnrolSessionBody } from '$lib/types';
 	import { AUTHORITY_LABELS, STEERING_MODE_LABELS } from '$lib/steering';
@@ -47,6 +50,12 @@
 	let activityExpanded = $state(false);
 	let reloadKey = $state(0);
 	let ivLoadedForKey = -1;
+	let evaluations = $state<SessionEvaluationRow[]>([]);
+	let evaluationsNext = $state<number | null>(null);
+	let evaluationsOk = $state(false);
+	let evaluationsError = $state<string | null>(null);
+	let evaluationCount = $state(0);
+	let evaluationCountLoaded = $state(false);
 
 	let vocabulary = $state<SteeringVocabulary | null>(null);
 	$effect(() => {
@@ -141,6 +150,31 @@
 			error = null;
 			activityExpanded = false;
 			ivLoadedForKey = -1;
+			evaluations = [];
+			evaluationsNext = null;
+			evaluationsOk = false;
+			evaluationsError = null;
+			evaluationCount = 0;
+			evaluationCountLoaded = false;
+		});
+	});
+
+	$effect(() => {
+		const sid = sessionId;
+		void reloadKey;
+		untrack(() => {
+			if (!sid) return;
+			getSessionEvaluations(sid, { limit: 1 })
+				.then((envelope) => {
+					if (sessionId !== sid) return;
+					evaluationCount = envelope.total_count;
+					evaluationCountLoaded = true;
+				})
+				.catch(() => {
+					if (sessionId !== sid) return;
+					evaluationCount = 0;
+					evaluationCountLoaded = true;
+				});
 		});
 	});
 
@@ -164,6 +198,7 @@
 	});
 
 	const STEERING_PAGE_SIZE = 500;
+	const EVALUATION_PAGE_SIZE = 200;
 
 	$effect(() => {
 		const sid = sessionId;
@@ -176,6 +211,21 @@
 			loading = true;
 			error = null;
 			loadMoreError = null;
+			getSessionEvaluations(sid, { limit: EVALUATION_PAGE_SIZE })
+				.then((envelope) => {
+					if (sessionId !== sid) return;
+					evaluations = envelope.evaluations;
+					evaluationsNext = envelope.next_before_id;
+					evaluationsOk = true;
+					evaluationsError = null;
+				})
+				.catch((err) => {
+					if (sessionId !== sid) return;
+					evaluations = [];
+					evaluationsNext = null;
+					evaluationsOk = false;
+					evaluationsError = err instanceof ApiError ? err.message : String(err);
+				});
 			getSessionSteeringPage(sid, { limit: STEERING_PAGE_SIZE })
 				.then((envelope) => {
 					if (sessionId !== sid) return;
@@ -203,13 +253,24 @@
 		loadingMore = true;
 		loadMoreError = null;
 		try {
-			const envelope = await getSessionSteeringPage(sid, {
-				offset: rows.length,
-				limit: STEERING_PAGE_SIZE
-			});
-			if (sessionId !== sid) return;
-			rows = [...rows, ...envelope.rows];
-			totalCount = envelope.total_count;
+			if (remaining > 0) {
+				const envelope = await getSessionSteeringPage(sid, {
+					offset: rows.length,
+					limit: STEERING_PAGE_SIZE
+				});
+				if (sessionId !== sid) return;
+				rows = [...rows, ...envelope.rows];
+				totalCount = envelope.total_count;
+			}
+			if (evaluationsNext !== null) {
+				const page = await getSessionEvaluations(sid, {
+					limit: EVALUATION_PAGE_SIZE,
+					before_id: evaluationsNext
+				});
+				if (sessionId !== sid) return;
+				evaluations = [...evaluations, ...page.evaluations];
+				evaluationsNext = page.next_before_id;
+			}
 		} catch (err) {
 			if (sessionId !== sid) return;
 			loadMoreError = err instanceof ApiError ? err.message : String(err);
@@ -247,12 +308,14 @@
 	});
 
 	const activeEnrolments = $derived(enrolments.filter((e) => e.disenrolled_at === null));
-	const firedCount = $derived(rows.filter((r) => r.verdict === 'fired').length);
-	const otherCount = $derived(rows.length - firedCount);
+	const timeline = $derived(mergeTimeline(rows, evaluations, sessionId));
+	const firedCount = $derived(timeline.filter((e) => e.row.verdict === 'fired').length);
+	const otherCount = $derived(timeline.length - firedCount);
 	const remaining = $derived(Math.max(0, totalCount - rows.length));
+	const moreToLoad = $derived(remaining > 0 || evaluationsNext !== null);
 
 	const countLabel = $derived.by(() => {
-		if (rows.length === 0) return '0 interventions';
+		if (timeline.length === 0) return '0 interventions';
 		const parts: string[] = [];
 		if (firedCount > 0) parts.push(`${firedCount} fired`);
 		if (otherCount > 0) parts.push(`${otherCount} other evaluation${otherCount === 1 ? '' : 's'}`);
@@ -261,7 +324,9 @@
 		return label;
 	});
 
-	const suppress = $derived(enrolLoaded && enrolments.length === 0);
+	const suppress = $derived(
+		enrolLoaded && enrolments.length === 0 && evaluationCountLoaded && evaluationCount === 0
+	);
 
 	const sessionBasePath = $derived(
 		`/sessions/${encodeURIComponent(page.params.sessionId ?? sessionId)}`
@@ -286,15 +351,6 @@
 		}
 		enrolExpandedLocal = { ...enrolExpandedLocal, [enrolmentId]: !isEnrolExpanded(enrolmentId) };
 	}
-
-	const INITIAL_INTERVENTIONS = 20;
-	let showAllInterventions = $state(false);
-	const visibleRows = $derived(
-		showAllInterventions || rows.length <= INITIAL_INTERVENTIONS
-			? rows
-			: rows.slice(0, INITIAL_INTERVENTIONS)
-	);
-	const hiddenInterventionCount = $derived(Math.max(0, rows.length - INITIAL_INTERVENTIONS));
 </script>
 
 {#if !suppress}
@@ -527,31 +583,30 @@
 						onRetry={retry}
 					/>
 				</div>
-			{:else if rows.length === 0}
+			{:else if timeline.length === 0 && evaluationsError === null}
 				<p class="sss-empty">No interventions recorded for this session yet.</p>
 			{:else}
+				{#if evaluationsError !== null}
+					<p class="sss-inline-error" role="alert">
+						Pre-check answers could not be loaded: {evaluationsError}
+						<button type="button" class="sss-retry-inline" onclick={retry}>Retry</button>
+					</p>
+				{/if}
 				<div class="sss-list" role="list">
-					{#each visibleRows as row (row.intervention_id)}
+					{#each timeline as entry (entry.key)}
 						<div role="listitem">
-							<InterventionRow {row} {sessionBasePath} {vocabulary} />
+							<InterventionRow
+								row={entry.row}
+								{sessionBasePath}
+								{vocabulary}
+								evaluation={entry.evaluation}
+								held={entry.held}
+								evaluationsLoaded={evaluationsOk}
+							/>
 						</div>
 					{/each}
 				</div>
-				{#if !showAllInterventions && hiddenInterventionCount > 0}
-					<span class="sss-show-all-btn-backing">
-						<button
-							type="button"
-							class="sss-show-all-btn"
-							data-augmented-ui="tr-clip bl-clip border"
-							onclick={() => {
-								showAllInterventions = true;
-							}}
-						>
-							Show all {rows.length} interventions ({hiddenInterventionCount} more)
-						</button>
-					</span>
-				{/if}
-				{#if remaining > 0}
+				{#if moreToLoad}
 					<span class="sss-show-all-btn-backing">
 						<button
 							type="button"
@@ -562,7 +617,9 @@
 						>
 							{loadingMore
 								? 'Loading...'
-								: `Load more interventions (${rows.length} of ${totalCount} loaded)`}
+								: remaining > 0
+									? `Load more interventions (${rows.length} of ${totalCount} loaded)`
+									: 'Load earlier evaluations'}
 						</button>
 					</span>
 					{#if loadMoreError}
@@ -674,6 +731,17 @@
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+	}
+
+	.sss-retry-inline {
+		margin-left: var(--space-2);
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
 	}
 
 	.sss-show-all-btn-backing {

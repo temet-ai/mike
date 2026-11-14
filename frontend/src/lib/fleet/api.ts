@@ -1,7 +1,9 @@
 import type {
 	FleetErrorBody,
 	FleetAcceptanceStatus,
+	FleetDecisionModes,
 	FleetGraphResponse,
+	FleetRecord,
 	FleetProjectSummary,
 	FleetProjectWithCounts
 } from './types';
@@ -46,6 +48,42 @@ export async function getFleetAcceptanceForSession(
 		return await fleetGetJson<FleetAcceptanceStatus>(
 			`/api/fleets/by-session/${encodeURIComponent(sessionId)}/status`
 		);
+	} catch (error) {
+		if (error instanceof FleetApiError && error.status === 404) return null;
+		throw error;
+	}
+}
+
+export async function getFleetRecord(fleet: string): Promise<FleetRecord | null> {
+	try {
+		return await fleetGetJson<FleetRecord>(`/api/fleets/${encodeURIComponent(fleet)}/record`);
+	} catch (error) {
+		if (error instanceof FleetApiError && error.status === 404) return null;
+		throw error;
+	}
+}
+
+const DEFAULT_MODES: FleetDecisionModes = {
+	stop_check: 'on',
+	wake_check: 'on',
+	triage: 'on',
+	commit_message: 'on',
+	effort: 'on'
+};
+
+export async function getFleetDecisionModes(fleet: string): Promise<FleetDecisionModes> {
+	const view = await fleetGetJson<{ definition?: { decisions?: Partial<FleetDecisionModes> } }>(
+		`/api/fleets/${encodeURIComponent(fleet)}`
+	);
+	return { ...DEFAULT_MODES, ...(view.definition?.decisions ?? {}) };
+}
+
+export async function getLaunchSeat(session: string): Promise<string | null> {
+	try {
+		const row = await fleetGetJson<{ seat: string | null }>(
+			`/api/launches/${encodeURIComponent(session)}`
+		);
+		return row.seat;
 	} catch (error) {
 		if (error instanceof FleetApiError && error.status === 404) return null;
 		throw error;

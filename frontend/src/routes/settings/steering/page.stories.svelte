@@ -7,11 +7,13 @@
 	import type { SteererDto, ModelEntry } from '$lib/types';
 	import type { SteeringPageData } from './+page';
 	import { buildProviders } from '$lib/components/settings/setup/setupFixtures';
+	import { calibrationFixture } from '$lib/decisions/__fixtures__/calibration';
 
 	const FEATURES: FeatureDto[] = [
 		{ key: 'steerer', enabled: true, scope: 'global', applies: 'live_disable' },
 		{ key: 'judge_worker', enabled: true, scope: 'global', applies: 'live_disable' },
-		{ key: 'session_judge', enabled: true, scope: 'global', applies: 'live_disable' }
+		{ key: 'session_judge', enabled: true, scope: 'global', applies: 'live_disable' },
+		{ key: 'decisions', enabled: true, scope: 'global', applies: 'immediate' }
 	];
 
 	function meta(
@@ -28,6 +30,27 @@
 	}
 
 	const SETTINGS: SettingMeta[] = [
+		meta({
+			group: 'Decisions',
+			key: 'decisions.timeout_ms',
+			kind: 'int',
+			default: 3000,
+			value: 3000,
+			label: 'Decision timeout (ms)',
+			description: 'How long mike waits for Jev before acting as if the layer were off.',
+			min_i64: 200,
+			max_i64: 30000
+		}),
+		meta({
+			group: 'Decisions',
+			key: 'decisions.turn_judge.mode',
+			kind: 'enum',
+			default: 'on',
+			value: 'on',
+			label: 'Turn judge mode',
+			description: 'Mode of the turn judge decision point.',
+			enum_variants: ['off', 'shadow', 'on']
+		}),
 		meta({
 			key: 'steerer.model',
 			kind: 'string',
@@ -271,6 +294,7 @@
 					headers: { 'content-type': 'application/json' }
 				})
 			);
+		if (url.includes('/api/decisions/calibration')) return json(calibrationFixture());
 		if (url.includes('/api/settings/features/')) {
 			const key = url.split('/').pop() ?? 'x';
 			let enabled = true;
