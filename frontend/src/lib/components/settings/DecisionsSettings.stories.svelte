@@ -78,6 +78,14 @@
 			}
 		),
 		setting(
+			'decisions.daily_spend_ceiling_usd',
+			'float',
+			5,
+			'Daily spend ceiling (USD)',
+			"Once today's decision spend reaches this many dollars, every decision point takes its off path until midnight UTC. 0 means no ceiling.",
+			{ min_f64: 0, max_f64: 1000 }
+		),
+		setting(
 			'decisions.turn_guard.hold_below',
 			'float',
 			0.3,
@@ -116,6 +124,14 @@
 		const canvas = within(canvasElement);
 		await expect(canvas.getByText('Jev decisions')).toBeVisible();
 		await expect(canvas.getByText('Hold below')).toBeVisible();
+		const hourly = canvas.getByText('Calls per hour');
+		const ceiling = canvas.getByText('Daily spend ceiling (USD)');
+		await expect(ceiling).toBeVisible();
+		await expect(
+			hourly.compareDocumentPosition(ceiling) & Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+		const ceilingInput = canvas.getByDisplayValue('5') as HTMLInputElement;
+		await expect(ceilingInput.type).toBe('number');
 		await expect(canvas.queryByText('Turn judge mode')).toBeNull();
 		await userEvent.click(canvas.getByRole('switch'));
 		await expect(onToggleFeature).toHaveBeenCalledWith('decisions', false);

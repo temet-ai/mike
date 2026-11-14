@@ -2,7 +2,13 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 	import DecisionsCalibrationPanel from './DecisionsCalibrationPanel.svelte';
-	import { calibrationFixture } from '$lib/decisions/__fixtures__/calibration';
+	import {
+		SPEND_NO_CEILING,
+		SPEND_REACHED,
+		SPEND_UNDER,
+		calibrationFixture
+	} from '$lib/decisions/__fixtures__/calibration';
+	import type { DecisionSpend } from '$lib/api/decisions';
 
 	const onModeChange = fn();
 
@@ -22,7 +28,8 @@
 
 <script lang="ts">
 	let layerOn = $state(true);
-	const calibration = $derived(calibrationFixture(layerOn));
+	let spend = $state<DecisionSpend>(SPEND_UNDER);
+	const calibration = $derived(calibrationFixture(layerOn, spend));
 </script>
 
 <Story
@@ -71,6 +78,28 @@
 		);
 		await expect(canvas.getByText('Lesson supply floor')).toBeVisible();
 		await userEvent.clear(canvas.getByRole('searchbox', { name: 'Filter decision points' }));
+
+		const slot = () => canvasElement.querySelector<HTMLElement>('[data-slot="decisions-spend"]');
+		await expect(slot()?.textContent?.replace(/\s+/g, ' ')).toContain(
+			'Spent today $0.4200 of $5.00 ceiling'
+		);
+		await expect(slot()?.textContent).not.toContain('Daily ceiling reached');
+		const slotBefore = box(slot());
+		const firstRowTop = box(canvasElement.querySelector('.dcp-scroll')).top;
+
+		spend = SPEND_REACHED;
+		await waitFor(() => expect(slot()?.textContent).toContain('Daily ceiling reached'));
+		await expect(slot()?.textContent?.replace(/\s+/g, ' ')).toContain(
+			'Daily ceiling reached: every point is taking its off path until midnight UTC.'
+		);
+		await expect(box(slot()).height).toBe(slotBefore.height);
+		await expect(box(canvasElement.querySelector('.dcp-scroll')).top).toBe(firstRowTop);
+
+		spend = SPEND_NO_CEILING;
+		await waitFor(() => expect(slot()?.textContent).toContain('no daily ceiling'));
+		await expect(slot()?.textContent).toContain('$12.5000');
+		await expect(box(slot()).height).toBe(slotBefore.height);
+		spend = SPEND_UNDER;
 
 		layerOn = false;
 		await waitFor(() =>

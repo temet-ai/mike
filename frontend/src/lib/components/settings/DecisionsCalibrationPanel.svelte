@@ -183,6 +183,28 @@
 			<div class="dcp-skel" data-motion="wait"></div>
 		</div>
 	{:else}
+		{#if calibration.spend}
+			{@const spend = calibration.spend}
+			<div
+				class="dcp-spend"
+				data-slot="decisions-spend"
+				data-reached={spend.reached ? '' : undefined}
+			>
+				<span class="dcp-spend__text">
+					{#if spend.ceiling_usd > 0}
+						Spent today {formatSpend(spend.today_usd)} of ${spend.ceiling_usd.toFixed(2)} ceiling
+					{:else}
+						Spent today {formatSpend(spend.today_usd)}, no daily ceiling
+					{/if}
+				</span>
+				{#if spend.reached}
+					<span class="dcp-spend__reached" role="status">
+						Daily ceiling reached: every point is taking its off path until midnight UTC.
+					</span>
+				{/if}
+			</div>
+		{/if}
+
 		{#if layerOff}
 			<div class="dcp-off" data-slot="decisions-off" role="status">
 				<span class="machine dcp-off__label">Decisions off</span>
@@ -424,6 +446,26 @@
 	.dcp-skel {
 		height: var(--control-h);
 		background: var(--surface-2);
+	}
+	.dcp-spend {
+		box-sizing: border-box;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--space-2);
+		min-height: var(--control-h);
+		padding: var(--space-2) calc(var(--edge-md) + var(--space-2));
+		border-bottom: var(--hairline) solid var(--border-subtle);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
+		color: var(--text-2);
+	}
+	.dcp-spend[data-reached] {
+		background: var(--surface-2);
+	}
+	.dcp-spend__reached {
+		color: var(--text-1);
 	}
 	.dcp-off {
 		display: flex;

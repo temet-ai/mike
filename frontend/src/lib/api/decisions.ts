@@ -48,8 +48,15 @@ export interface DecisionPointRow {
 	score: PointScore | null;
 }
 
+export interface DecisionSpend {
+	today_usd: number;
+	ceiling_usd: number;
+	reached: boolean;
+}
+
 export interface DecisionsCalibration {
 	layer: DecisionLayer;
+	spend?: DecisionSpend;
 	window_days: number;
 	last_loop_at: string | null;
 	points: DecisionPointRow[];

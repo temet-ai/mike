@@ -1,4 +1,9 @@
-import type { DecisionPointRow, DecisionsCalibration, PointScore } from '$lib/api/decisions';
+import type {
+	DecisionPointRow,
+	DecisionSpend,
+	DecisionsCalibration,
+	PointScore
+} from '$lib/api/decisions';
 
 export function scoreFixture(
 	point: string,
@@ -54,9 +59,17 @@ function point(
 	};
 }
 
-export function calibrationFixture(layerOn = true): DecisionsCalibration {
+export const SPEND_UNDER: DecisionSpend = { today_usd: 0.42, ceiling_usd: 5, reached: false };
+export const SPEND_REACHED: DecisionSpend = { today_usd: 5.01, ceiling_usd: 5, reached: true };
+export const SPEND_NO_CEILING: DecisionSpend = { today_usd: 12.5, ceiling_usd: 0, reached: false };
+
+export function calibrationFixture(
+	layerOn = true,
+	spend: DecisionSpend = SPEND_UNDER
+): DecisionsCalibration {
 	return {
 		layer: layerOn ? { on: true, reason: null } : { on: false, reason: 'off: no OpenRouter key' },
+		spend,
 		window_days: 14,
 		last_loop_at: '2026-11-14T06:00:00Z',
 		points: [
