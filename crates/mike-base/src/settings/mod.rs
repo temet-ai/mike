@@ -253,6 +253,9 @@ pub struct SettingsOverlay {
     pub decisions_timeout_ms: i64,
     pub decisions_turn_guard_mode: String,
     pub decisions_turn_guard_hold_below: f64,
+    pub decisions_point_modes: std::collections::BTreeMap<String, String>,
+    pub decisions_rate_per_minute: i64,
+    pub decisions_max_calls_per_hour: i64,
 
     pub llm_provider: std::sync::Arc<crate::llm::provider::ProviderPolicy>,
 
@@ -373,6 +376,9 @@ impl Default for SettingsOverlay {
             decisions_timeout_ms: meta_decisions::DEFAULT_TIMEOUT_MS,
             decisions_turn_guard_mode: "on".to_owned(),
             decisions_turn_guard_hold_below: meta_decisions::DEFAULT_TURN_GUARD_HOLD_BELOW,
+            decisions_point_modes: std::collections::BTreeMap::new(),
+            decisions_rate_per_minute: meta_decisions::DEFAULT_RATE_PER_MINUTE,
+            decisions_max_calls_per_hour: meta_decisions::DEFAULT_MAX_CALLS_PER_HOUR,
             llm_provider: std::sync::Arc::new(crate::llm::provider::ProviderPolicy::default()),
             steerer_model: None,
             steerer_reasoning_effort: "inherit".to_owned(),

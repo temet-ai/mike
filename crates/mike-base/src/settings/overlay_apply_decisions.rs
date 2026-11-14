@@ -34,11 +34,34 @@ pub fn apply_decisions_row(
             Some(t) => overlay.decisions_turn_guard_hold_below = t,
             None => keep_default(key, value),
         },
+        super::meta_decisions::RATE_KEY => match value.as_i64() {
+            Some(n) => overlay.decisions_rate_per_minute = n,
+            None => keep_default(key, value),
+        },
+        super::meta_decisions::HOURLY_KEY => match value.as_i64() {
+            Some(n) => overlay.decisions_max_calls_per_hour = n,
+            None => keep_default(key, value),
+        },
         SHARE_KEY => match value.as_i64() {
             Some(pct) => overlay.llm_budget_decision_share_pct = pct,
             None => keep_default(key, value),
         },
-        _ => return false,
+        other => return apply_point_mode(overlay, other, value),
+    }
+    true
+}
+
+fn apply_point_mode(overlay: &mut SettingsOverlay, key: &str, value: &serde_json::Value) -> bool {
+    let Some(point) = super::meta_decisions::point_setting(key) else {
+        return false;
+    };
+    match value.as_str().filter(|m| MODES.contains(m)) {
+        Some(mode) => {
+            overlay
+                .decisions_point_modes
+                .insert(point.point.to_owned(), mode.to_owned());
+        }
+        None => keep_default(key, value),
     }
     true
 }

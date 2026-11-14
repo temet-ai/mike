@@ -169,6 +169,14 @@ impl OpenRouterClient {
         }
     }
 
+    pub fn with_limiter(&self, limiter: Arc<CallLimiter>) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.limiter = limiter;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
     pub fn with_role(&self, role: LlmRole) -> Self {
         let mut inner = (*self.inner).clone();
         inner.role = role;

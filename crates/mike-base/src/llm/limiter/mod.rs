@@ -384,6 +384,23 @@ pub fn global_limiter() -> Arc<CallLimiter> {
         .clone()
 }
 
+pub fn decisions_limiter(overlay: &SettingsOverlay) -> Arc<CallLimiter> {
+    static DECISIONS: OnceLock<Arc<CallLimiter>> = OnceLock::new();
+    let limiter = DECISIONS
+        .get_or_init(|| {
+            Arc::new(CallLimiter::with_limits(LimiterLimits::for_decisions(
+                overlay,
+            )))
+        })
+        .clone();
+    limiter
+        .source
+        .store(Arc::new(LimitSource::Fixed(LimiterLimits::for_decisions(
+            overlay,
+        ))));
+    limiter
+}
+
 pub fn install_runtime(
     overlay: Arc<ArcSwap<SettingsOverlay>>,
     sink: Option<Arc<dyn LlmUsageSink>>,

@@ -154,6 +154,7 @@ pub fn decision_client(
     Ok(base
         .with_model(overlay.decisions_model.clone())?
         .with_role(super::LlmRole::Decision)
+        .with_limiter(super::limiter::decisions_limiter(overlay))
         .with_timeout(std::time::Duration::from_millis(timeout_ms)))
 }
 
@@ -174,6 +175,7 @@ pub fn store(persist: &crate::store::persistence::PersistHandle) -> DecisionStor
 
 pub mod export;
 pub mod loop_store;
+pub mod point;
 pub mod record;
 
 #[cfg(test)]
