@@ -8,6 +8,17 @@ use crate::llm::OpenRouterClient;
 use crate::settings::SettingsOverlay;
 use crate::store::persistence::PersistHandle;
 
+pub const INLINE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(800);
+
+fn breaks(error: &crate::llm::LlmError) -> bool {
+    matches!(
+        error,
+        crate::llm::LlmError::Timeout
+            | crate::llm::LlmError::Transport(_)
+            | crate::llm::LlmError::Http { .. }
+    )
+}
+
 #[derive(Clone)]
 pub struct Decider {
     client: OpenRouterClient,
@@ -73,6 +84,11 @@ impl Decider {
         self.mode == DecisionMode::On
     }
 
+    pub fn inline(mut self) -> Self {
+        self.client = self.client.with_timeout(INLINE_TIMEOUT);
+        self
+    }
+
     pub fn model(&self) -> &str {
         self.client.model()
     }
@@ -98,7 +114,20 @@ impl Decider {
             state,
             questions,
         };
+        let now = std::time::Instant::now();
+        if let super::breaker::Gate::Open { .. } = super::breaker::SHARED.gate(now) {
+            return Asked {
+                expected,
+                error: Some("decisions breaker open after repeated Jev failures".to_owned()),
+                ..Asked::default()
+            };
+        }
         let outcome = self.client.decide(&request, &context).await;
+        match &outcome.result {
+            Ok(_) => super::breaker::SHARED.succeeded(),
+            Err(e) if breaks(e) => super::breaker::SHARED.failed(now),
+            Err(_) => {}
+        }
         match outcome.result {
             Ok(response) => Asked {
                 record_id: outcome.record_id,

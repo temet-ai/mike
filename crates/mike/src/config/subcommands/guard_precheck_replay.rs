@@ -180,7 +180,7 @@ fn report(results: &[(String, bool, Precheck, Option<f64>)]) {
 }
 
 pub async fn run(args: PrecheckReplayArgs, cli: CliOverrides) -> Result<()> {
-    let persist = super::eval::connect(cli.clone(), false).await?;
+    let persist = super::eval::connect(cli.clone(), true).await?;
     let since = args.since.unwrap_or(DateTime::<Utc>::UNIX_EPOCH);
     let replayed = with_facts(&persist, fires(&persist, since).await?).await;
     if let Some(path) = &args.dump {

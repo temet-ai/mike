@@ -55,11 +55,15 @@ pub fn quality_of(answer: &Answer) -> Option<f64> {
     let weighted: Option<f64> = QUALITY_LEVELS
         .iter()
         .enumerate()
-        .map(|(i, level)| probabilities.get(*level).map(|p| p * (i as f64 / top)))
+        .map(|(i, level)| {
+            probabilities
+                .get(&i.to_string())
+                .or_else(|| probabilities.get(*level))
+                .map(|p| p * (i as f64 / top))
+        })
         .sum();
     let value = match weighted {
         Some(v) if probabilities.len() == QUALITY_LEVELS.len() => v,
-        _ if *score <= 1.0 => *score,
         _ => *score / top,
     };
     Some(value.clamp(0.0, 1.0))

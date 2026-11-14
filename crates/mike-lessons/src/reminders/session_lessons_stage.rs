@@ -46,7 +46,10 @@ impl RequestStage for SessionLessonsStage {
             max_lessons_to_inject: ctx.session_toggles.reminders_max_lessons_to_inject,
         };
         let push_deps = ctx.state.push_deps();
-        let floor = ctx.state.decider(crate::reminders::supply_floor::POINT);
+        let floor = ctx
+            .state
+            .decider(crate::reminders::supply_floor::POINT)
+            .map(crate::llm::decisions::point::Decider::inline);
         let outcome = apply_session_lessons_with_floor(
             SessionLessonsRequest {
                 body_bytes: body.body(),

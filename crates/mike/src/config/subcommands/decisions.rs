@@ -129,7 +129,7 @@ impl RecordingClient {
 async fn ask(args: DecisionsAskArgs, cli: CliOverrides) -> Result<()> {
     let state: serde_json::Value = read_json(&args.state)?;
     let questions: BTreeMap<String, Question> = read_json(&args.questions)?;
-    let persist = super::eval::connect(cli.clone(), false).await?;
+    let persist = super::eval::connect(cli.clone(), true).await?;
     let recording = RecordingClient::connect(cli, &persist).await?;
     let request = DecisionRequest {
         model: recording.overlay.decisions_model.clone(),

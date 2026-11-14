@@ -19,7 +19,7 @@ fn quality(best: usize) -> Answer {
     let probabilities = QUALITY_LEVELS
         .iter()
         .enumerate()
-        .map(|(i, level)| ((*level).to_owned(), if i == best { 1.0 } else { 0.0 }))
+        .map(|(i, _)| (i.to_string(), if i == best { 1.0 } else { 0.0 }))
         .collect();
     Answer::Score {
         score: best as f64,
@@ -59,13 +59,30 @@ fn compose_failed_ask_is_none_the_off_path() {
 }
 
 #[test]
-fn quality_of_without_probabilities_reads_the_score_as_a_fraction() {
+fn quality_of_without_probabilities_reads_the_score_as_an_expected_level() {
     let answer = Answer::Score {
-        score: 0.25,
+        score: 2.0,
         probabilities: BTreeMap::new(),
         confidence: None,
     };
-    assert_eq!(quality_of(&answer), Some(0.25));
+    assert_eq!(quality_of(&answer), Some(0.5));
+}
+
+#[test]
+fn quality_of_reads_index_keyed_probabilities_as_jev_returns_them() {
+    let answer = Answer::Score {
+        score: 2.8,
+        probabilities: BTreeMap::from([
+            ("0".to_owned(), 0.0),
+            ("1".to_owned(), 0.0),
+            ("2".to_owned(), 0.2),
+            ("3".to_owned(), 0.8),
+            ("4".to_owned(), 0.0),
+        ]),
+        confidence: Some(0.8),
+    };
+    let q = quality_of(&answer).unwrap_or(-1.0);
+    assert!((q - 0.7).abs() < 1e-9, "{q}");
 }
 
 #[test]

@@ -169,7 +169,7 @@ pub async fn decide(
         resolution: today,
         record_id: None,
     };
-    let Some(decider) = env.and_then(|e| e.decider(POINT)) else {
+    let Some(decider) = env.and_then(|e| e.decider(POINT)).map(Decider::inline) else {
         return off;
     };
     let Some(message) = input.prompt.and_then(operator_text) else {
