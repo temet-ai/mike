@@ -97,3 +97,30 @@ async fn open_does_not_retry_a_busy_reused_pane() {
     assert_eq!(err.backend_code(), Some("agent_pane_busy"));
     assert_eq!(agent_start_calls(&fake), 1);
 }
+
+#[tokio::test]
+async fn open_agent_start_timeout_with_claude_running_keeps_the_pane_and_returns_surface() {
+    let fake = FakeHerdr::new();
+    fake.answer("pane list", &pane_list())
+        .answer("tab create", &envelope(json!({"root_pane": pane_info("w1", "w1:t2", "w1:p2", FOLDER), "type": "tab_created"})))
+        .error("agent start", "timeout", "timed out waiting for agent startup")
+        .answer("agent get", &envelope(json!({"agent": agent_entry("w1:p2", "claude", None, "working"), "type": "agent_info"})));
+    let surface = HerdrBackend::with_binary(fake.bin())
+        .open(&request(Placement::Tab))
+        .await
+        .unwrap();
+    assert_eq!(surface.agent_state.as_deref(), Some("working"));
+    assert_eq!(surface.surface_ref, "w1:p2");
+    assert!(
+        fake.calls()
+            .iter()
+            .any(|c| c[..] == ["agent", "get", "w1:p2"]),
+        "the running claude is found by its pane, since herdr has not registered its name: {:?}",
+        fake.calls()
+    );
+    assert!(
+        !fake.calls().iter().any(|c| c[..2] == ["pane", "close"]),
+        "a pane whose claude is already working must never be closed: {:?}",
+        fake.calls()
+    );
+}
