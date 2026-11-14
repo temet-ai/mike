@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use super::source_tree::SourceFile;
+use crate::source_tree::SourceFile;
 
 static IMPORT_SPEC_RE: LazyLock<Regex> =
     LazyLock::new(

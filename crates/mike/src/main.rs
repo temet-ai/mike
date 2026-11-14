@@ -112,6 +112,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
         Some(Command::ExportAnalysisCorpus(args)) => {
             mike::analysis::export_analysis_corpus(&args.out)
         }
+        Some(Command::Structural(args)) => mike::cli::structural::run(args),
     }
 }
 

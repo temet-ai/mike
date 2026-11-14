@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use super::import_graph::ImportGraph;
-use super::source_tree::SourceFile;
+use crate::import_graph::ImportGraph;
+use crate::source_tree::SourceFile;
 
 pub struct UnreachableFinding {
     pub file: String,
@@ -58,9 +58,9 @@ fn is_test_or_story_artifact(path: &str) -> bool {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::super::import_graph::build_import_graph;
-    use super::super::source_tree::read_source_tree;
     use super::*;
+    use crate::import_graph::build_import_graph;
+    use crate::source_tree::read_source_tree;
 
     fn repo_root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

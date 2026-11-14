@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Regression test for scripts/wiring-new with the real mike binary and the repo's
+# .mike/structural/wiring.yml, run the way the pre-push hook runs it, on committed
+# ranges in a scratch git repo. For each kind (pub fn, request stage, worker, setting,
+# route) a commit that adds the item alone is reported once, and a commit that adds it
+# with its caller, registration, spawn, read or consumer is not. Also: a test-only
+# caller does not count, a commit that touches code with old findings reports nothing,
+# and a missing binary skips the scan with exit 0.
+#
+# Needs a mike binary with `structural wiring`: MIKE_WIRING_BIN=<path> (for instance
+# target/debug/mike after a build). Without one the test says SKIP and passes.
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+wn="$root/scripts/wiring-new"
+bin="${MIKE_WIRING_BIN:-}"
+if [[ -z "$bin" || ! -x "$bin" ]] || ! "$bin" structural wiring --help >/dev/null 2>&1; then
+  echo "SKIP: set MIKE_WIRING_BIN to a mike binary that has 'structural wiring'"
+  exit 0
+fi
+repo="$(mktemp -d)"
+export XDG_STATE_HOME; XDG_STATE_HOME="$(mktemp -d)"
+trap 'rm -rf "$repo" "$XDG_STATE_HOME"' EXIT
+cd "$repo" || exit 1
+git init -q
+git config user.name t
+git config user.email t@t
+git config commit.gpgsign false
+git config core.hooksPath /dev/null
+
+put() { mkdir -p "$(dirname "$1")"; printf '%s\n' "$2" >"$1"; }
+commit() { git add -A && git commit -q --allow-empty -m "$1"; }
+reset() { git reset -q --hard "$base" && git clean -qfd; }
+pass=0 fail=0
+check() { if [[ "$2" == "$3" ]]; then pass=$((pass+1)); echo "PASS: $1"; else fail=$((fail+1)); echo "FAIL: $1 (got '$2', want '$3')"; fi; }
+scan() { MIKE_WIRING_BIN="$bin" "$wn" "$base..HEAD" 2>&1; }
+news() { sed -n 's/^wiring: .*: \([0-9][0-9]*\) new$/\1/p' <<<"$1" | head -1; }
+mentions() { if grep -q -- "$2" <<<"$1"; then echo yes; else echo no; fi; }
+
+put crates/demo/src/lib.rs 'pub fn used() {}
+pub fn run() { used(); }'
+put crates/demo/src/main.rs 'fn main() { demo::run(); }'
+commit base
+base=$(git rev-parse HEAD)
+
+put crates/demo/src/extra.rs 'pub fn orphan() {}'; commit orphan
+out=$(scan); check "a pub fn with no caller is reported once" "$(news "$out")" 1
+check "the report names the fn and its kind" "$(mentions "$out" 'pub_fn_no_caller crates/demo/src/extra.rs:1: pub fn orphan')" yes
+
+reset; put crates/demo/src/extra.rs 'pub fn adopted() {}'
+put crates/demo/src/main.rs 'fn main() { demo::run(); demo::adopted(); }'; commit adopted
+out=$(scan); check "a pub fn added with its caller is not reported" "$(news "$out")" 0
+
+reset; put crates/demo/src/extra.rs 'pub fn only_tested() {}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn t() { super::only_tested(); }
+}'; commit tested
+out=$(scan); check "a caller inside a test module does not count" "$(news "$out")" 1
+
+reset; put crates/demo/src/stage.rs 'pub struct Lost;
+impl RequestStage for Lost {}'; commit stage
+out=$(scan); check "a RequestStage nothing constructs is reported" "$(mentions "$out" 'stage_unregistered')" yes
+
+reset; put crates/demo/src/stage.rs 'pub struct Wired;
+impl RequestStage for Wired {}
+pub fn registry() -> Vec<Box<dyn RequestStage>> { vec![Box::new(Wired)] }'
+put crates/demo/src/main.rs 'fn main() { demo::run(); demo::stage::registry(); }'; commit registered
+out=$(scan); check "a RequestStage added with its registration is not reported" "$(news "$out")" 0
+
+reset; put crates/demo/src/worker.rs 'pub fn spawn_lost(state: &S) {}'; commit worker
+out=$(scan); check "a spawn fn nothing calls is reported as a worker" "$(mentions "$out" 'worker_unspawned')" yes
+
+reset; put crates/demo/src/worker.rs 'pub fn spawn_started(state: &S) {}'
+put crates/demo/src/main.rs 'fn main() { demo::run(); demo::worker::spawn_started(&s); }'; commit spawned
+out=$(scan); check "a spawn fn added with its call is not reported" "$(news "$out")" 0
+
+reset; put crates/mike-base/src/settings/meta_demo.rs 'fn entries() -> Vec<SettingMeta> {
+    vec![SettingMeta { key: "demo.unread", group: "g" }]
+}'; commit setting
+out=$(scan); check "a setting nothing reads is reported" "$(mentions "$out" 'setting_unread')" yes
+
+reset; put crates/mike-base/src/settings/meta_demo.rs 'fn entries() -> Vec<SettingMeta> {
+    vec![SettingMeta { key: "demo.read", group: "g" }]
+}'
+put frontend/src/lib/panel.ts "export const key = 'demo.read';"; commit read
+out=$(scan); check "a setting added with a reader is not reported" "$(news "$out")" 0
+
+reset; put crates/demo/src/api/manifest/zed.rs 'pub(super) const ROUTES: &[RouteEntry] = &[route("GET", "/api/zed/{id}", C)];'; commit route
+out=$(scan); check "a route nothing consumes is reported" "$(mentions "$out" 'route_unconsumed')" yes
+
+reset; put crates/demo/src/api/manifest/zed.rs 'pub(super) const ROUTES: &[RouteEntry] = &[route("GET", "/api/zed/{id}", C)];'
+put frontend/src/lib/zed.ts 'export const zed = (id: string) => fetch(`/api/zed/${id}`);'; commit consumed
+out=$(scan); check "a route added with its SPA fetch is not reported" "$(news "$out")" 0
+
+reset; put crates/demo/src/extra.rs 'pub fn orphan() {}'; commit orphan; base=$(git rev-parse HEAD)
+put crates/demo/src/extra.rs 'pub fn orphan() {}
+fn private() {}'; commit touch
+out=$(scan); check "touching a file with an old finding reports nothing" "$(news "$out")" 0
+
+out=$(MIKE_WIRING_BIN=/nonexistent/mike "$wn" "$base..HEAD" 2>&1); rc=$?
+check "a missing binary skips with exit 0" "$rc $(mentions "$out" skipped)" "0 yes"
+
+echo "$pass passed, $fail failed"
+(( fail == 0 ))
