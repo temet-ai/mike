@@ -100,6 +100,9 @@ impl Worker {
         }
         self.settled = Some(Instant::now());
         log_settled(self.persist.fleet().settle_code_findings().await);
+        if let Err(err) = self.persist.fleet().record_code_finding_replies().await {
+            log_replies_failed(&err);
+        }
     }
 
     async fn cursor(&mut self, root: &str) -> Option<i64> {
@@ -225,4 +228,8 @@ fn log_outcomes(settled: crate::store::persistence::change_record::code_scan::Se
 
 fn log_settle_failed(err: &crate::store::persistence::PersistError) {
     tracing::warn!(error = %err, "code findings: outcomes could not be settled");
+}
+
+fn log_replies_failed(err: &crate::store::persistence::PersistError) {
+    tracing::warn!(error = %err, "code findings: replies could not be recorded");
 }
