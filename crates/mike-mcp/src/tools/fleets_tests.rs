@@ -112,6 +112,31 @@ fn define_fleet_description_names_every_item_and_the_rules() {
 }
 
 #[test]
+fn define_fleet_patch_parameter_names_the_decisions_keys() {
+    let tool = define_fleet_tool();
+    let patch = tool
+        .input_schema
+        .get("properties")
+        .and_then(|p| p.get("patch"))
+        .and_then(|p| p.get("description"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    for key in [
+        "decisions",
+        "stop_check",
+        "wake_check",
+        "triage",
+        "commit_message",
+        "effort",
+    ] {
+        assert!(
+            patch.contains(key),
+            "the patch description must mention {key}"
+        );
+    }
+}
+
+#[test]
 fn both_tools_take_select_and_both_are_in_the_core_profile() {
     for tool in fleet_tools() {
         let properties = tool.input_schema.get("properties");

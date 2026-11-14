@@ -55,12 +55,14 @@ pub(crate) async fn post_proposer_pass(State(state): State<AppState>) -> Respons
         );
     };
     let semantic = semantic_config(persist).await;
+    let env = state.decision_env();
     let deps = ProposerDeps {
         persist,
         llm: &llm,
         embedding: &state.embedding_service,
         semantic: &semantic,
         settings: &settings,
+        decisions: env.as_ref(),
     };
     memory_workers::mark_running(LESSON_PROPOSER, Utc::now());
     let pass = run_full_pass(&deps).await;

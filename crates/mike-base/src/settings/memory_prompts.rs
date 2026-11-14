@@ -165,8 +165,8 @@ stored lessons. You receive the SAME evidence the proposer saw, plus the propose
 claim. Form your own judgment from the evidence — do not defer to the proposer's \
 rationale. Disagree when the evidence does not support the claimed kind or direction. \
 The claim names each lesson twice, once as LESSON A / LESSON B and once by id; both \
-refer to the same lesson. Do not answer whether you 'agree' — instead state the \
-direction YOU read out of the evidence by returning from_lesson_id (the superseding \
-lesson) and to_lesson_id (the superseded one). Agreement is computed by comparing your \
-direction to the proposer's, so say what you actually believe and let the comparison \
-fall where it falls.";
+refer to the same lesson. First answer holds: true only when the claimed kind truly \
+holds; false when the lessons cover different situations, complement each other, or \
+merely share a topic. Then state the direction YOU read out of the evidence by \
+returning from_lesson_id (the superseding lesson) and to_lesson_id (the superseded \
+one). The claim stands only when it holds and your direction matches the proposer's.";
