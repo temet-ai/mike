@@ -14,22 +14,8 @@ const TICK: Duration = Duration::from_secs(2);
 const UNREAD_FOR: Duration = Duration::from_secs(8);
 const PER_PUSH: usize = 5;
 
-pub const PUSH_HEADING: &str = "mike-code: your last edit added code a rule flags.";
-
 pub fn push_text(notes: &[CodeNote]) -> String {
-    let mut text = format!("{PUSH_HEADING}\n");
-    for note in notes {
-        text.push_str(&format!(
-            "- {}:{} {}: {}",
-            note.path, note.line, note.rule_id, note.message
-        ));
-        if let Some(fix) = note.fix.as_deref().filter(|fix| !fix.is_empty()) {
-            text.push_str(&format!(" Fix: `{fix}`"));
-        }
-        text.push('\n');
-    }
-    text.push_str("Fix them in this session, or say in one line why the code should stay.");
-    text
+    super::code_findings::note_text(notes)
 }
 
 pub struct Pusher {
@@ -115,7 +101,8 @@ mod tests {
     #[test]
     fn push_text_names_each_finding_and_asks_for_a_fix() {
         let text = push_text(&[note(1)]);
-        assert!(text.starts_with(PUSH_HEADING));
+        assert!(text.starts_with(super::super::code_findings::HEADING));
+        assert!(text.ends_with(super::super::code_findings::ASK));
         assert!(text.contains("scripts/x.sh:4 sh-fixed-tmp-path"));
         assert!(text.contains("Fix: `mktemp`"));
     }
