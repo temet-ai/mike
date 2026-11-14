@@ -80,6 +80,7 @@ pub struct BaseState {
     pub llm_usage_sink: Option<Arc<dyn LlmUsageSink>>,
     pub steerer_openrouter_key: OpenRouterKeySlot,
     pub mail_push: Arc<dyn MailPush>,
+    pub code_notes: Arc<crate::code_notes::CodeNotes>,
 }
 
 impl BaseState {

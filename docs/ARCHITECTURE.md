@@ -113,21 +113,22 @@ run_mutation_stages — phase 1, pipeline::stages_before_steerer()
  8. agent_lessons           (per-agent lesson injection)
  9. reminders               (prior-request analyzer findings)
 10. change_record_tail      (what other sessions changed since this one last looked)
-11. git_read_hint           (fixed hint to read git history before editing)
+11. code_findings           (mike-code: warnings and errors the session's own edit added, up to 3 per request, tool loops included)
+12. git_read_hint           (fixed hint to read git history before editing)
 
 run_mutation_stages — phase 2
-12. steerer / mailbox drain (deliver queued nudges and cross-session mail on Primary turns)
+13. steerer / mailbox drain (deliver queued nudges and cross-session mail on Primary turns)
 
 run_mutation_stages — phase 3, pipeline::stages_after_steerer()
-13. repeated_notices        (keep the first copy of each notice Claude Code adds to a delivered message, drop later copies)
-14. read_dedup              (collapse repeated file-read results)
-15. file_read_compression   (SHADOW MODE — computes a reduction, forwards the body unchanged)
-16. shell_output_compression (SHADOW MODE at a forward share of 0 — records each would-be cut of an older Bash result)
-17. proxy_tools             (declare the proxy's own tools into body.tools[])
-18. context_focus_question  (add a focus field to the session's tool definitions)
+14. repeated_notices        (keep the first copy of each notice Claude Code adds to a delivered message, drop later copies)
+15. read_dedup              (collapse repeated file-read results)
+16. file_read_compression   (SHADOW MODE — computes a reduction, forwards the body unchanged)
+17. shell_output_compression (SHADOW MODE at a forward share of 0 — records each would-be cut of an older Bash result)
+18. proxy_tools             (declare the proxy's own tools into body.tools[])
+19. context_focus_question  (add a focus field to the session's tool definitions)
 
 then, in request_pipeline.rs
-19. composer                (byte-splice system[2] for the first composable request of a session)
+20. composer                (byte-splice system[2] for the first composable request of a session)
 20. capture-admission guard (shed → forward_without_capture, no row written)
 21. DB stub insert          ← Phase 1 of the two-phase write; the INSERT ... RETURNING id
                               is where the canonical RequestId comes from
@@ -138,7 +139,7 @@ then, in request_pipeline.rs
 26. NOTIFY proxy.row_changed → PgListener → WS broadcast
 ```
 
-The per-session injection stages — `lessons`, `self_identity`, `workspace_briefing`, the diagnostic `reminders`, `change_record_tail` and `git_read_hint` — run only on the session's own lane: `pipeline::is_session_own_lane` requires a primary-lane origin and no `x-claude-code-agent-id`, so a subagent, workflow agent or misfiled agent-id request never receives the parent's identity, lessons, briefing or findings. The gate only removes injections; each stage keeps its toggle.
+The per-session injection stages — `lessons`, `self_identity`, `workspace_briefing`, the diagnostic `reminders`, `change_record_tail`, `code_findings` and `git_read_hint` — run only on the session's own lane: `pipeline::is_session_own_lane` requires a primary-lane origin and no `x-claude-code-agent-id`, so a subagent, workflow agent or misfiled agent-id request never receives the parent's identity, lessons, briefing or findings. The gate only removes injections; each stage keeps its toggle.
 
 The stages use a mixture of session-frozen toggles, live settings, rule caches, DB lookups and the reminder queue. They are not uniformly a boolean-only fast path: rule stages inspect their configuration, mailbox delivery claims rows, and the drain may await the same-request turn-close judge with `steerer.request_timeout_secs` as its deadline. Requests marked `x-mike-client: prompt-assistant` are mutation-exempt and skip the stages and composition. See the gate table in [`REQUEST_FLOW.md`](REQUEST_FLOW.md).
 
@@ -1547,6 +1548,8 @@ The `launch` Postgres schema (`launches`, `templates`, `runs`, `backend_validati
 ## 18a. The change record
 
 mike keeps one record of what happened in each checkout a session works in, with who made each change and the content before it, and answers "what changed since I last looked" from it in one call. It is fed by its own watcher and by the handlers that already write a note, a mail, a commit or a check, never by the capture path. Both toggles, `change_record` and `change_record_tail`, ship off. Full reference: [`CHANGE_RECORD.md`](CHANGE_RECORD.md).
+
+**mike-code scans** (`crates/mike-code`, a leaf crate holding ast-grep 0.51.2 with the Rust, TypeScript, Bash and Python grammars and the built-in rules in `crates/mike-code/rules/`). The scan worker (`mike-fleet` `change_record/code_scan/`, toggle `code_scan`, default on, acts only while `change_record` is on) reads each new `edit`/`shell_change` event of a checkout this machine watches, every 3 s, loads the before and after blobs from git, scans both in `spawn_blocking` with a 2 s limit, and writes one `workspace.code_scans` row per event (language, rules version, rules run, bytes, time, findings before/after/added/fixed, or why it was skipped) and one `workspace.code_findings` row per finding the change added. A later scan of the same file that no longer has a finding closes it as `fixed`; a deleted file closes it as `superseded`. Stage `code_findings` (toggle `code_findings`, default off) tells the session about its own warnings and errors and records `delivered_request_id`. `GET /api/code-findings` reads scans, per-rule counts and findings. See [`CHANGE_RECORD.md`](CHANGE_RECORD.md#mike-code-scans).
 
 ## 19. Judgement-Driven Improvement
 

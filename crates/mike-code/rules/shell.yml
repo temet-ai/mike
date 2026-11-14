@@ -1,0 +1,117 @@
+id: sh-pkill-pgrep-f
+language: bash
+severity: warning
+rule: {kind: command, regex: '^(pkill|pgrep)\s+(-[A-Za-z]*f|--full)'}
+message: pkill/pgrep -f matches its own command line and other sessions' processes. Track and kill own pids.
+---
+id: sh-no-verify
+language: bash
+severity: error
+rule: {kind: command, regex: '^git\s.*--no-verify'}
+message: Never skip the hooks; fix the failure the hook shows.
+---
+id: sh-bak-copy
+language: bash
+severity: warning
+rule: {kind: command, regex: '^(cp|mv)\s.*\.bak\b'}
+message: No .bak copies of binaries or artifacts; roll back by installing an earlier build.
+---
+id: sh-flock
+language: bash
+severity: warning
+rule: {kind: command, regex: '^flock\b'}
+message: No ad-hoc machine-wide locks; only the heavy-build lock that scripts/cx and deploy-proxy.sh take.
+---
+id: sh-cargo-clean
+language: bash
+severity: error
+rule: {kind: command, regex: '^cargo\s+(clean|sqlx\s+prepare)'}
+message: Never cargo clean; use scripts/sqlx-prepare, not cargo sqlx prepare.
+---
+id: sh-raw-cargo
+language: bash
+severity: warning
+rule: {kind: command, regex: '^cargo\s+(build|check|test|clippy|nextest)\b'}
+message: Use scripts/cx so builds go through mbx and the build lock.
+---
+id: sh-push-piped-to-tail
+language: bash
+severity: warning
+rule:
+  kind: pipeline
+  has: {kind: command, regex: '^git\s+push'}
+  regex: '\|\s*tail'
+message: A push piped to tail reports tail's exit code. Capture rc=$? from the push.
+---
+id: sh-sed-inplace
+language: bash
+severity: warning
+rule: {kind: command, regex: '^sed\s+(-[A-Za-z]*i|--in-place)'}
+message: BSD sed has no -i. Write a temp file and mv it.
+---
+id: sh-grep-perl
+language: bash
+severity: warning
+rule: {kind: command, regex: '^(r?)grep\s+(-[A-Za-z]*P|--perl-regexp)'}
+message: grep -P is GNU-only; use rg -P or ERE.
+---
+id: sh-gnu-date-d
+language: bash
+severity: warning
+rule: {kind: command, regex: '^date\s+(-[A-Za-z]*d\b|--date)'}
+message: date -d is GNU-only.
+---
+id: sh-gnu-readlink-stat-find
+language: bash
+severity: warning
+rule:
+  kind: command
+  regex: '^(readlink\s+-[A-Za-z]*f|stat\s+-c|touch\s+-d|find\b.*-printf)'
+message: GNU-only flag (readlink -f, stat -c, touch -d, find -printf); breaks on the Mac.
+---
+id: sh-bash4-features
+language: bash
+severity: warning
+rule:
+  any:
+    - kind: command
+      regex: '^(mapfile|readarray)\b'
+    - kind: command
+      regex: '^declare\s+-A'
+message: Mac /bin/bash is 3.2; no mapfile or associative arrays.
+---
+id: sh-shebang-env
+language: bash
+severity: warning
+rule: {kind: comment, regex: '^#!/bin/bash'}
+message: Use #!/usr/bin/env bash.
+fix: '#!/usr/bin/env bash'
+---
+id: sh-hardcoded-home-path
+language: bash
+severity: hint
+rule:
+  any: [{kind: word}, {kind: string_content}, {kind: raw_string}]
+  regex: '/mnt/data/|/Users/'
+message: No /mnt/data or /Users paths in shared scripts; derive from the script location or $HOME.
+---
+id: sh-fixed-tmp-path
+language: bash
+severity: warning
+rule:
+  any:
+    - kind: word
+    - kind: string
+    - kind: concatenation
+  regex: '^"?/tmp/[A-Za-z0-9_.-]*[A-Za-z0-9_]'
+  not:
+    regex: 'XXX'
+message: A fixed name under /tmp can be predicted and pre-created by another user, and sessions on one machine overwrite each other's file. Use mktemp, $XDG_RUNTIME_DIR or a per-user state directory.
+---
+id: sh-download-into-shell
+language: bash
+severity: error
+rule:
+  kind: pipeline
+  regex: '^(curl|wget)\b[^|]*\|\s*(sudo\s+)?(ba|z)?sh\b'
+message: A download is piped straight into a shell; download, check, then run it.

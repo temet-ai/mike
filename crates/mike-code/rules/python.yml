@@ -1,0 +1,65 @@
+id: py-shell-true
+language: python
+severity: warning
+rule:
+  pattern: $F($CMD, $$$A)
+  all:
+    - has:
+        kind: argument_list
+        has:
+          kind: keyword_argument
+          regex: '^shell\s*=\s*True$'
+constraints:
+  CMD:
+    not:
+      kind: string
+  F:
+    regex: '^subprocess\.(run|call|check_call|check_output|Popen)$'
+message: A shell command line is built from a value. Pass an argument list without shell=True, or quote it with shlex.quote.
+---
+id: py-eval-exec
+language: python
+severity: error
+rule:
+  any:
+    - pattern: eval($X)
+    - pattern: exec($X)
+constraints:
+  X:
+    not:
+      kind: string
+message: Code is built from a value and run (eval/exec).
+---
+id: py-unsafe-load
+language: python
+severity: error
+rule:
+  any:
+    - pattern: pickle.load($$$)
+    - pattern: pickle.loads($$$)
+    - all:
+        - pattern: yaml.load($$$)
+        - not:
+            regex: 'SafeLoader'
+message: pickle and yaml.load build objects from data; use json or yaml.safe_load.
+---
+id: py-tls-verification-off
+language: python
+severity: error
+rule:
+  any:
+    - kind: keyword_argument
+      regex: '^verify\s*=\s*False$'
+    - pattern: ssl._create_unverified_context($$$)
+message: Certificate verification is turned off.
+---
+id: py-temp-path
+language: python
+severity: warning
+rule:
+  any:
+    - pattern: tempfile.mktemp($$$)
+    - all:
+        - kind: string
+        - regex: '^[rbf]*["'']/tmp/[A-Za-z0-9_.-]*[A-Za-z0-9_]'
+message: A predictable temp file name another user can create first. Use tempfile.mkstemp, NamedTemporaryFile or TemporaryDirectory.

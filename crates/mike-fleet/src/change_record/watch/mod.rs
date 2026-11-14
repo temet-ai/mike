@@ -94,6 +94,10 @@ pub fn subscribe(root: &str) -> Option<broadcast::Receiver<Vec<FileDelta>>> {
     feeds().get(&key(root)).map(|feed| feed.deltas.subscribe())
 }
 
+pub fn watched_roots() -> Vec<String> {
+    feeds().iter().map(|feed| feed.key().clone()).collect()
+}
+
 pub fn is_watching(root: &str) -> bool {
     feeds().contains_key(&key(root))
 }

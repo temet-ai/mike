@@ -1,0 +1,43 @@
+id: ts-no-import-actual-api
+language: typescript
+severity: warning
+rule:
+  any:
+    - pattern: vi.importActual('$lib/api')
+    - pattern: vi.importActual("$lib/api")
+    - pattern: vi.importActual<$T>('$lib/api')
+message: Use mocked modules, not vi.importActual('$lib/api').
+---
+id: ts-eval
+language: typescript
+severity: error
+rule:
+  any:
+    - pattern: eval($X)
+    - pattern: new Function($$$)
+constraints:
+  X:
+    not:
+      kind: string
+message: Code built from a value is executed.
+---
+id: ts-html-sink
+language: typescript
+severity: warning
+rule:
+  any:
+    - pattern: $E.innerHTML = $X
+    - pattern: $E.outerHTML = $X
+    - pattern: $E.insertAdjacentHTML($$$)
+    - pattern: document.write($$$)
+message: A value is written into the page as HTML. Captured traffic is untrusted; render it as text or sanitise it first.
+---
+id: ts-tls-verification-off
+language: typescript
+severity: error
+rule:
+  any:
+    - kind: pair
+      regex: '^rejectUnauthorized\s*:\s*false$'
+    - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = $V
+message: Certificate verification is turned off.

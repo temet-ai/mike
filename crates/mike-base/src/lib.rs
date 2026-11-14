@@ -6,6 +6,7 @@ pub mod cache_scope;
 pub mod change_feed;
 pub mod change_log;
 pub mod circuit_breaker;
+pub mod code_notes;
 pub mod config;
 pub mod diagnostics;
 pub mod dossier;

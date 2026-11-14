@@ -1,0 +1,72 @@
+id: rust-no-comments
+language: rust
+severity: warning
+rule:
+  any:
+    - kind: line_comment
+    - kind: block_comment
+  not:
+    regex: 'grader-allow:'
+message: Rust files carry no comments, doc comments, disabled code or TODOs. Say it with names, types and tests; put the reason in the commit message.
+---
+id: rust-log-field-names
+language: rust
+severity: error
+rule:
+  all:
+    - kind: macro_invocation
+    - regex: '^(tracing::)?(trace|debug|info|warn|error|event)!'
+    - any:
+        - regex: '[(,]\s*[%?](e|err|session|session_uuid)\s*[,)]'
+        - regex: '(^|[^\w.])(err|session|session_uuid)\s*=\s*[%?]'
+message: Log fields use the shared names; write an error as `error = %e` and a session as `session_id = %id`. scripts/lint-rust-log-fields fails the push otherwise.
+---
+id: rust-lint-suppression
+language: rust
+severity: error
+rule:
+  any:
+    - kind: attribute_item
+    - kind: inner_attribute_item
+  regex: '(allow|expect)\s*\(.*(clippy::(all|complexity|pedantic|restriction|cognitive_complexity|too_many_arguments|too_many_lines)|warnings)'
+message: Structural lint suppressions are refused at push (scripts/lint-rust-suppressions). Split the function or module instead.
+---
+id: rust-unsafe
+language: rust
+severity: warning
+rule:
+  kind: unsafe_block
+message: New unsafe code. Use a safe wrapper (rustix or nix for libc calls); if none exists, say why in the commit message.
+---
+id: rust-temp-dir
+language: rust
+severity: warning
+rule:
+  kind: call_expression
+  regex: '(^|::)temp_dir\(\)$'
+message: A path under the shared temp directory can be predicted and pre-created by another user. Use tempfile::tempdir() or a private per-user directory.
+---
+id: rust-tls-verification-off
+language: rust
+severity: error
+rule:
+  any:
+    - pattern: $B.danger_accept_invalid_certs(true)
+    - pattern: $B.danger_accept_invalid_hostnames(true)
+message: Certificate or hostname verification is turned off.
+---
+id: rust-shell-from-format
+language: rust
+severity: warning
+rule:
+  pattern: $C.arg("-c").arg(format!($$$A))
+message: A shell command line is built with format!. Run the program directly with Command::new(program).args(list).
+---
+id: rust-ignore-needs-reason
+language: rust
+severity: warning
+rule:
+  kind: attribute_item
+  regex: '^#\[ignore\]$'
+message: '#[ignore] needs a reason: write #[ignore = "why"].'
+fix: '#[ignore = "why"]'
