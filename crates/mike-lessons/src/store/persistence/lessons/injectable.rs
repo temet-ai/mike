@@ -38,7 +38,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
             .ok()
             .map(|identity| identity.machine_uuid);
         crate::metrics::time_db("list_project_injectable_lessons", async move {
-            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at and machine_uuid, added in 20261111170700 and 20261114150000, before their .sqlx entries are prepared
+            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at and machine_uuid, added in 20261111170700 and 20261114210000, before their .sqlx entries are prepared
                 r#"SELECT l.id, p.project_path, lk.code AS kind, l.text, l.topic, l.agent_id
                      FROM memory.lessons l
                      JOIN projects.projects p ON p.id = l.project_id

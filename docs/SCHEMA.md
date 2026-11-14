@@ -1934,7 +1934,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 | `archived_reason_id` | `BIGINT NULL` | FK → `memory.lesson_archived_reasons(id)` |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
 | `expires_at` | `TIMESTAMPTZ NULL` | NULL = never expires |
-| `machine_uuid` | `UUID NULL` | FK → `projects.machines`. NULL = every machine; set = only the proxy on that machine supplies the lesson (`20261114150000`) |
+| `machine_uuid` | `UUID NULL` | FK → `projects.machines`. NULL = every machine; set = only the proxy on that machine supplies the lesson (`20261114210000`) |
 | `topic` | `TEXT NULL` | Optional topic key for verb-grammar recall (`mem:recall`/`mem:update` tags). NULL for lessons written before the recall schema or via the MCP `record_lesson` tool |
 | `placement_id` | `SMALLINT NULL` | FK → `memory.lesson_placements(id)`. Where the lesson belongs: decided in the write-time model call, or by the placement pass for lessons written without one. NULL = not placed yet. Only lessons placed as `skill` feed skill drafts |
 | `placement_covered_by` | `TEXT NULL` | The memory file or skill, as the proposer was shown it, that already covers the lesson or that it belongs in |
@@ -4541,7 +4541,7 @@ Added in migration `20261014150000_threshold_pass_runs.sql`. One row per `eval.r
 
 ### `steering.wiring_findings`
 
-Added in migration `20261114150000_steering_wiring_findings.sql` (temet-ai/mike#225). One row per feature the liveness checks found wired but doing nothing, keyed by `(check_kind, subject)`. The row stays open (`resolved_at` NULL) with its figure refreshed on every pass until a check finds the subject healthy; a subject that fails again reopens its row with a new `first_seen`. `figure_changed_at` moves only when `figure_value` moves.
+Added in migration `20261114220000_steering_wiring_findings.sql` (temet-ai/mike#225). One row per feature the liveness checks found wired but doing nothing, keyed by `(check_kind, subject)`. The row stays open (`resolved_at` NULL) with its figure refreshed on every pass until a check finds the subject healthy; a subject that fails again reopens its row with a new `first_seen`. `figure_changed_at` moves only when `figure_value` moves.
 
 | Column | Definition |
 |---|---|
