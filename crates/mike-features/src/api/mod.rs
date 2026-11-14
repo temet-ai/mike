@@ -7,6 +7,7 @@ pub mod eval;
 pub mod handlers;
 #[cfg(test)]
 pub mod launch_cross_crate_tests;
+pub mod liveness;
 pub mod manifest;
 pub mod prompt_shaping;
 pub mod session_proxy_tools;

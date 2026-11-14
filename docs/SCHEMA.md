@@ -4462,6 +4462,22 @@ Added in migration `20261014150000_threshold_pass_runs.sql`. One row per `eval.r
 | `n_by_source` | jsonb NOT NULL DEFAULT '{}'::jsonb |
 | `detail` | jsonb NOT NULL DEFAULT '{}'::jsonb |
 
+### `steering.wiring_findings`
+
+Added in migration `20261114150000_steering_wiring_findings.sql` (temet-ai/mike#225). One row per feature the liveness checks found wired but doing nothing, keyed by `(check_kind, subject)`. The row stays open (`resolved_at` NULL) with its figure refreshed on every pass until a check finds the subject healthy; a subject that fails again reopens its row with a new `first_seen`. `figure_changed_at` moves only when `figure_value` moves.
+
+| Column | Definition |
+|---|---|
+| `id` | bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY |
+| `check_kind` | text NOT NULL CHECK (btrim(check_kind) <> '') |
+| `subject` | text NOT NULL CHECK (btrim(subject) <> ''), UNIQUE with `check_kind` |
+| `figure_value` | double precision NOT NULL |
+| `figure_text` | text NOT NULL |
+| `first_seen` | timestamptz NOT NULL DEFAULT now() |
+| `last_seen` | timestamptz NOT NULL DEFAULT now() |
+| `figure_changed_at` | timestamptz NOT NULL DEFAULT now() |
+| `resolved_at` | timestamptz |
+
 ### `memory.directive_proposals` and `memory.directive_proposal_evidence`
 
 Added in migration `20260925000802_directive_proposals.sql` (JC18). A proposal is a candidate standing directive found by SQL: a source (`repeated_directive`, `confirmed_handback`), a scope (`project`, `no_project`, `operator`), a class and polarity, a deterministic `proposed_text` from the operator's own words (whole), counts and window, `rollup_id`, and a lifecycle (`open`, `approved`, `rejected`, `superseded`, `expired`). One open proposal per key (partial unique index `uq_directive_proposals_open_key`). Evidence rows reference the dossier entry or evaluation behind each item; the operator's message is read in full at display time. The migration adds the `directive_proposer` toggle (off).

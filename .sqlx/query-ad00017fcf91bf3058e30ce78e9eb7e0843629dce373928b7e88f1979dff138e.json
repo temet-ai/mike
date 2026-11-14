@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH recent AS (\n            SELECT transformation_manifest AS manifest\n              FROM requests.requests\n             WHERE created_at > now() - interval '24 hours'\n               AND transformation_manifest IS NOT NULL\n             ORDER BY created_at DESC\n             LIMIT $1\n        ),\n        staged AS (\n            SELECT st ->> 'stage' AS stage,\n                   st ->> 'outcome' AS outcome,\n                   st ->> 'reason_code' AS reason\n              FROM recent\n             CROSS JOIN LATERAL jsonb_array_elements(manifest -> 'stages') AS st\n        )\n        SELECT stage AS \"stage!\",\n               count(*) AS \"seen!\",\n               count(*) FILTER (WHERE outcome IS DISTINCT FROM 'unchanged') AS \"applied!\",\n               mode() WITHIN GROUP (ORDER BY reason) AS top_reason\n          FROM staged\n         WHERE stage IS NOT NULL\n         GROUP BY stage\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "seen!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "applied!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "top_reason",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ad00017fcf91bf3058e30ce78e9eb7e0843629dce373928b7e88f1979dff138e"
+}

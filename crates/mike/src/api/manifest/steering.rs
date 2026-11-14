@@ -1,7 +1,7 @@
 use axum::Router;
 use axum::routing::{get, patch, post, put};
 
-use crate::api::handlers;
+use crate::api::{handlers, liveness};
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
@@ -233,6 +233,11 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/steering/verifier-rate",
         Coverage::Tool("get_verifier_rate"),
     ),
+    route(
+        "GET",
+        "/api/liveness",
+        Coverage::AggregatedInto("get_stats"),
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -330,4 +335,5 @@ fn register_settings(router: Router<AppState>) -> Router<AppState> {
             "/api/steering/verifier-rate",
             get(handlers::get_verifier_rate),
         )
+        .route("/api/liveness", get(liveness::get_liveness))
 }

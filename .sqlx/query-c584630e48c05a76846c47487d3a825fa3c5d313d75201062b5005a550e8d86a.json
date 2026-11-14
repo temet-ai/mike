@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT job_name AS \"job_name!\",\n               max(finished_at) FILTER (WHERE result_kind = 'succeeded') AS last_success,\n               max(finished_at) AS \"last_run!\",\n               (array_agg(result_kind ORDER BY finished_at DESC))[1] AS last_result\n          FROM jobs.runs\n         GROUP BY job_name\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "job_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "jobs.runs",
+            "name": "job_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_success",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_run!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_result",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c584630e48c05a76846c47487d3a825fa3c5d313d75201062b5005a550e8d86a"
+}

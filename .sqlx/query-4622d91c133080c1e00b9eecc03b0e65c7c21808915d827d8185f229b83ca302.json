@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT s.name AS \"steerer!\", q.question AS \"question!\", q.updated_at AS \"updated_at!\"\n          FROM steering.question_policies q\n          JOIN steering.steerers s ON s.id = q.steerer_id\n         WHERE q.mode = 'shadow' AND s.deleted_at IS NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "steerer!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "question!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4622d91c133080c1e00b9eecc03b0e65c7c21808915d827d8185f229b83ca302"
+}
