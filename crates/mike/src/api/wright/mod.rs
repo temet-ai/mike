@@ -4,11 +4,14 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 pub(crate) mod checks;
+pub(crate) mod investigations;
 pub(crate) mod problems;
 pub(crate) mod remedies;
 
 #[cfg(test)]
 mod checks_tests;
+#[cfg(test)]
+mod investigations_tests;
 #[cfg(test)]
 mod remedies_tests;
 

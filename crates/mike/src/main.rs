@@ -113,6 +113,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             mike::analysis::export_analysis_corpus(&args.out)
         }
         Some(Command::Structural(args)) => mike::cli::structural::run(args),
+        Some(Command::Wright(args)) => std::process::exit(mike::wright::cli::run(args).await),
     }
 }
 

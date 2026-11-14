@@ -3,8 +3,14 @@ use serde::Serialize;
 use serde_json::Value;
 
 mod checks;
+mod investigations;
 mod problems;
 pub(crate) mod remedies;
+
+pub(crate) use investigations::{
+    Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation, PageQuery,
+    Pick, Usage,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {
