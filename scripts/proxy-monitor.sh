@@ -20,6 +20,7 @@ set -euo pipefail
 # ── config ────────────────────────────────────────────────────────────────────
 KILL_GiB=${KILL_GiB:-3.5}
 INTERVAL=${INTERVAL:-2}
+MEMORY_LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/mike/memory-logs"
 RSS_CEILING_GiB=4
 RSS_HIGH_PCT=85   # matches cap_manager config
 
@@ -103,7 +104,7 @@ else
   echo "  Kill guard  : disabled (KILL_GiB=0)"
 fi
 echo "  Interval    : ${INTERVAL}s"
-echo "  Memory log  : /tmp/mike-memory-logs/memory.log.\$(date +%%Y-%%m-%%d-%%H)"
+echo "  Memory log  : ${MEMORY_LOG_DIR}/memory.log.\$(date +%%Y-%%m-%%d-%%H)"
 echo ""
 print_header
 
@@ -165,7 +166,7 @@ while true; do
                             || echo "  !! kill failed (already gone?)"
     echo ""
     echo "  Last memory log lines:"
-    tail -5 /tmp/mike-memory-logs/memory.log."$(date +%Y-%m-%d-%H)" 2>/dev/null \
+    tail -5 "${MEMORY_LOG_DIR}/memory.log.$(date +%Y-%m-%d-%H)" 2>/dev/null \
       | awk '{printf "    %s\n", $0}' || echo "  (no log)"
     echo ""
     echo "  Monitor exiting."

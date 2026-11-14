@@ -66,7 +66,7 @@ free_port "${MIKE_PORT}"
 free_port "${INSPECT_PORT}"
 
 # ── 4. start proxy in background, log to file ─────────────────────────────────
-LOG_FILE="/tmp/mike-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="$(mktemp "${TMPDIR:-/tmp}/mike-$(date +%Y%m%d-%H%M%S).XXXXXX")"
 echo "==> Starting mike (proxy :${MIKE_PORT}, inspect :${INSPECT_PORT})"
 echo "==> Proxy log: ${LOG_FILE}"
 "${MIKE_BIN}" >"${LOG_FILE}" 2>&1 &

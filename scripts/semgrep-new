@@ -15,8 +15,10 @@ scan.
 
 The rules are the .semgrep/rules.yml beside this script's checkout, read from
 disk: a scan needs no network, and a pushing branch that predates the rules
-file is still scanned with them. Test
-files are not scanned. Exit 0 when nothing is new, 1 when a finding is new, 2
+file is still scanned with them. A file without an extension is scanned as
+shell or Python when its shebang names one (copied under a .sh or .py name,
+since semgrep picks a language by extension only). Test files and test scripts
+are not scanned. Exit 0 when nothing is new, 1 when a finding is new, 2
 when the scan could not run (semgrep missing or failing, base unknown); the
 hook fails on 1 and 2 alike.
 """
@@ -32,9 +34,12 @@ import subprocess
 import sys
 import tempfile
 
-SCANNED = re.compile(r"\.(rs|ts|js|mjs|cjs|svelte)$")
+SCANNED = re.compile(r"\.(rs|ts|js|mjs|cjs|svelte|sh|bash|py)$")
+NO_EXTENSION = re.compile(r"(^|/)[^/.]+$")
+SHEBANG_SUFFIX = ((re.compile(rb"^#!.*\b(ba|z)?sh\b"), ".sh"), (re.compile(rb"^#!.*\bpython[0-9.]*\b"), ".py"))
 NOT_SCANNED = re.compile(
     r"(^|/)tests?/|_tests?\.rs$|(^|/)test_support/|\.test\.(ts|js|mjs)$|\.stories\.svelte$|(^|/)node_modules/|(^|/)fixtures/"
+    r"|(^|/)scripts/test-[^/]*$|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$"
 )
 SCAN_TIMEOUT_SECONDS = 900
 
@@ -71,7 +76,26 @@ def resolve_base(base, head):
 
 
 def wanted(path):
-    return bool(SCANNED.search(path)) and not NOT_SCANNED.search(path)
+    if NOT_SCANNED.search(path):
+        return False
+    return bool(SCANNED.search(path) or NO_EXTENSION.search(path))
+
+
+def scan_name(path, data):
+    if not NO_EXTENSION.search(path):
+        return path
+    first = data.split(b"\n", 1)[0]
+    for shebang, suffix in SHEBANG_SUFFIX:
+        if shebang.search(first):
+            return path + suffix
+    return None
+
+
+def place(path, copied):
+    for original, name in copied.items():
+        if name == path:
+            return original
+    return path
 
 
 def renames(base, head):
@@ -89,27 +113,30 @@ def changed_files(base, head):
     return sorted(p for p in out.splitlines() if wanted(p))
 
 
+def write_copy(root, path, data, copied):
+    name = scan_name(path, data)
+    if name is None:
+        return
+    dest = pathlib.Path(root) / name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    copied[path] = name
+
+
 def copy_from_git(ref, paths, root):
-    copied = []
+    copied = {}
     for path in paths:
         show = git("show", f"{ref}:{path}", check=False)
-        if show.returncode != 0:
-            continue
-        dest = pathlib.Path(root) / path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(show.stdout)
-        copied.append(path)
+        if show.returncode == 0:
+            write_copy(root, path, show.stdout, copied)
     return copied
 
 
 def copy_from_tree(paths, root):
-    copied = []
+    copied = {}
     for path in paths:
         if os.path.isfile(path):
-            dest = pathlib.Path(root) / path
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, dest)
-            copied.append(path)
+            write_copy(root, path, pathlib.Path(path).read_bytes(), copied)
     return copied
 
 
@@ -195,13 +222,14 @@ def run(argv):
     moved = renames(base, head)
     with tempfile.TemporaryDirectory() as new_root, tempfile.TemporaryDirectory() as old_root:
         new_files = copy_from_git(head, files, new_root) if head else copy_from_tree(files, new_root)
-        new, where = keyed(scan(semgrep, new_root, new_files, rules), new_root)
+        new, where = keyed(scan(semgrep, new_root, sorted(new_files.values()), rules), new_root)
         old_files = copy_from_git(base, sorted({moved.get(f, f) for f in new_files}), old_root)
-        old, _ = keyed(scan(semgrep, old_root, old_files, rules), old_root)
+        old, _ = keyed(scan(semgrep, old_root, sorted(old_files.values()), rules), old_root)
     added = new - old
     for key, count in sorted(added.items(), key=lambda kv: where[kv[0]][0]):
-        place, message = where[key]
-        print(f"semgrep-new: {place} {key[0]} (+{count}): {message}", file=sys.stderr)
+        at, message = where[key]
+        name, _, line = at.rpartition(":")
+        print(f"semgrep-new: {place(name, new_files)}:{line} {key[0]} (+{count}): {message}", file=sys.stderr)
     return 1 if added else 0
 
 

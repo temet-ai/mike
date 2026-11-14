@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-LOG_DIR="/tmp/mike-memory-logs"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/mike/memory-logs"
 TODAY="$(date +%Y-%m-%d-%H)"
 LOG_FILE="${LOG_DIR}/memory.log.${TODAY}"
 
