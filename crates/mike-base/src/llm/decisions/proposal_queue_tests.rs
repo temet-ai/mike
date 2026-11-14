@@ -1,6 +1,136 @@
 use serde_json::json;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::*;
+use crate::llm::OpenRouterClient;
+use crate::llm::decisions::point::Decider;
+use crate::llm::decisions::record::DecisionMode;
+use crate::settings::SettingsOverlay;
+use crate::store::persistence::test_support::acquire_ephemeral_db;
+
+async fn stub(status: u16, body: serde_json::Value) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/alpha/decisions"))
+        .respond_with(ResponseTemplate::new(status).set_body_json(body))
+        .mount(&server)
+        .await;
+    server
+}
+
+fn decider_for(server: &MockServer, persist: &PersistHandle) -> anyhow::Result<Decider> {
+    let client = OpenRouterClient::new(
+        "sk-test".to_owned(),
+        "typesafe/jev-1.14".to_owned(),
+        Some(server.uri()),
+        None,
+    )?;
+    Decider::with_mode(
+        &client,
+        persist,
+        &SettingsOverlay::default(),
+        POINT,
+        DecisionMode::On,
+    )
+    .ok_or_else(|| anyhow::anyhow!("no decider"))
+}
+
+fn reply(first: i64, second: i64) -> serde_json::Value {
+    json!({
+        "model": "typesafe/jev-1.14",
+        "answers": {
+            format!("proposal_{first}"): {
+                "type": "choice", "choice": "accept",
+                "probabilities": {"accept": 0.9, "reject": 0.07, "duplicate": 0.03}
+            },
+            format!("proposal_{second}"): {
+                "type": "choice", "choice": "reject",
+                "probabilities": {"accept": 0.1, "reject": 0.85, "duplicate": 0.05}
+            }
+        },
+        "usage": {"input_tokens": 10, "output_tokens": 1, "cost": 0.00001}
+    })
+}
+
+fn keys(ids: &[i64]) -> Vec<String> {
+    ids.iter().map(|id| format!("test_queue:{id}")).collect()
+}
+
+fn arrival_order(ids: &[i64], suggested: &BTreeMap<i64, f64>) -> Vec<i64> {
+    let mut rows = ids.to_vec();
+    order_by_suggestion(&mut rows, suggested, |id| (false, *id));
+    rows
+}
+
+#[tokio::test]
+async fn fill_on_stores_the_accept_chances_and_orders_the_likely_accept_first() -> anyhow::Result<()>
+{
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let (rejected, accepted) = (900_021, 900_022);
+    let server = stub(200, reply(accepted, rejected)).await;
+    let decider = decider_for(&server, &persist)?;
+    let items = [
+        candidate(rejected, "proposal"),
+        candidate(accepted, "proposal"),
+    ];
+    fill(&decider, &items).await;
+    let stored = cached(keys(&[rejected, accepted]).iter().map(String::as_str));
+    assert_eq!(stored.len(), 2);
+    assert_eq!(stored[&format!("test_queue:{accepted}")], 0.9);
+    assert_eq!(stored[&format!("test_queue:{rejected}")], 0.1);
+    let chances: BTreeMap<i64, f64> = BTreeMap::from([(accepted, 0.9), (rejected, 0.1)]);
+    assert_eq!(
+        arrival_order(&[rejected, accepted], &chances),
+        vec![accepted, rejected]
+    );
+    let records = crate::llm::decisions::store(&persist)
+        .export_decisions(chrono::DateTime::UNIX_EPOCH, Some(POINT), false)
+        .await?;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0]["outcome"], "ok");
+    assert_eq!(records[0]["applied"], "ordered");
+    persist.pool().close().await;
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn fill_failing_call_stores_no_guess_keeps_the_order_and_records_the_failure()
+-> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let (first, second) = (900_023, 900_024);
+    let server = stub(500, json!({"error": {"code": 500}})).await;
+    let decider = decider_for(&server, &persist)?;
+    let items = [candidate(first, "proposal"), candidate(second, "proposal")];
+    fill(&decider, &items).await;
+    let stored = cached(keys(&[first, second]).iter().map(String::as_str));
+    assert!(stored.is_empty());
+    assert_eq!(
+        arrival_order(&[first, second], &stored_ids(&stored)),
+        vec![first, second]
+    );
+    let records = crate::llm::decisions::store(&persist)
+        .export_decisions(chrono::DateTime::UNIX_EPOCH, Some(POINT), false)
+        .await?;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0]["outcome"], "http_error");
+    assert_eq!(records[0]["applied"], "none");
+    persist.pool().close().await;
+    db.cleanup().await
+}
+
+fn stored_ids(stored: &BTreeMap<String, f64>) -> BTreeMap<i64, f64> {
+    stored
+        .iter()
+        .filter_map(|(key, chance)| Some((key.rsplit(':').next()?.parse().ok()?, *chance)))
+        .collect()
+}
 
 fn candidate(id: i64, label: &'static str) -> Candidate {
     Candidate {

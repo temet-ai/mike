@@ -5,7 +5,7 @@ use dashmap::{DashMap, DashSet};
 use serde_json::{Value, json};
 
 use super::env::{DecisionEnv, Pace};
-use super::point::{Asked, choice, record_outcome};
+use super::point::{Asked, Decider, choice, record_outcome};
 use super::record::DecisionSubject;
 use super::{Answer, Question};
 use crate::store::persistence::PersistHandle;
@@ -104,7 +104,7 @@ pub fn cached<'a>(keys: impl IntoIterator<Item = &'a str>) -> BTreeMap<String, f
 }
 
 pub fn spawn_fill(env: Option<DecisionEnv>, candidates: Vec<Candidate>) {
-    let Some(env) = env else {
+    let Some(decider) = env.and_then(|env| env.decider(POINT)) else {
         return;
     };
     let fresh: Vec<Candidate> = candidates
@@ -116,7 +116,7 @@ pub fn spawn_fill(env: Option<DecisionEnv>, candidates: Vec<Candidate>) {
         return;
     }
     tokio::spawn(async move {
-        fill(&env, &fresh).await;
+        fill(&decider, &fresh).await;
         for c in &fresh {
             FILLING.remove(&c.key);
         }
@@ -130,10 +130,7 @@ fn confidence_score(guesses: &[(String, f64, String)]) -> f64 {
     guesses.iter().map(|(_, a, _)| a.max(1.0 - a)).sum::<f64>() / guesses.len() as f64
 }
 
-async fn fill(env: &DecisionEnv, candidates: &[Candidate]) {
-    let Some(decider) = env.decider(POINT) else {
-        return;
-    };
+async fn fill(decider: &Decider, candidates: &[Candidate]) {
     let all: Vec<&Candidate> = candidates.iter().collect();
     let mut pace = Pace::new(MAX_CALLS);
     for group in all.chunks(GROUP) {
