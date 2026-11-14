@@ -225,11 +225,12 @@ async fn context_briefing_equals_the_stage_text_and_the_stage_stands_aside() -> 
     let session_uuid = Uuid::new_v4();
     let session_id = session_uuid.to_string();
 
-    let blocks = crate::reminders::client_context::prompt_context(
+    let blocks = crate::reminders::client_context::prompt_context_within(
         &env.state,
         session_uuid,
         &session_id,
         &project_path,
+        Duration::from_secs(30),
     )
     .await;
     let (briefing, _) = super::render_workspace_briefing(&env.state, &session_id, &project_path)
