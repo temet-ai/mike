@@ -73,15 +73,16 @@ checkout only.
 
 **The change loop.** This is the whole verification a change needs before it is pushed:
 1. Make the change.
-2. Run one narrow check of what you changed, once per state of the tree, through
-   `scripts/cx`, never plain `cargo`:
-   `scripts/cx check --lib -p <crate>`, `scripts/cx nextest run -p <crate> <filter>`,
-   `make test-t p=<crate> t=<filter>`. `<crate>` is the crate that holds the file you
-   edited, never `--workspace` (a warm workspace test build is 3-4 minutes, one crate's
-   17-50 s); edits in several crates take one call with a `-p` per crate, never a loop,
-   `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
-3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate> [-p <crate>…]` once, after
-   the last edit. The structural limits below are not visible from the code.
+2. While editing, at most one compile check, through `scripts/cx`, never plain
+   `cargo`: `scripts/cx check --lib -p <crate>`, where `<crate>` is the crate that
+   holds the file you edited, never `--workspace` (edits in several crates take one
+   call with a `-p` per crate). A test you are writing may be run by name once
+   (`scripts/cx nextest run -p <crate> -E 'test(<name>)'`). Frontend:
+   `scripts/sb-test --skip-typecheck <filter>`; a script: the one script test you
+   touched.
+3. Don't run what the push runs: no clippy, `lint-rust`, `fmt --check`, `test-t`,
+   crate-wide nextest or `cx check --tests` before pushing. The hook runs them; running
+   them first doubles the work and holds the build lock other sessions queue on.
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
    gitleaks, semgrep, fmt, the crate-split ratchet (`scripts/crate-plan --check`, `scripts/schema-plan --check`), `lint-rust` and `scripts/test-area` (the tests of the areas

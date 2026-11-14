@@ -8,11 +8,12 @@ use crate::wire::manifest::AppliedStage;
 
 use super::{RemindersOutcome, try_append_reminder};
 
-pub const HEADING: &str = "Your last edit added code a rule flags (mike-code):";
+pub const HEADING: &str = "mike (the proxy) scanned the files your last edit changed and found code a rule flags (mike-code):";
+pub const ASK: &str = "Fix it in this session, or say in one line why the code should stay.";
 const PER_REQUEST: usize = 3;
 
-pub fn reminder_text(notes: &[CodeNote]) -> String {
-    let mut text = format!("<system-reminder>\n{HEADING}\n");
+pub fn note_text(notes: &[CodeNote]) -> String {
+    let mut text = format!("{HEADING}\n");
     for note in notes {
         text.push_str(&format!(
             "- {}:{} {}: {}",
@@ -23,8 +24,15 @@ pub fn reminder_text(notes: &[CodeNote]) -> String {
         }
         text.push('\n');
     }
-    text.push_str("</system-reminder>");
+    text.push_str(ASK);
     text
+}
+
+pub fn reminder_text(notes: &[CodeNote]) -> String {
+    format!(
+        "<system-reminder>\n{}\n</system-reminder>",
+        note_text(notes)
+    )
 }
 
 pub struct CodeFindingsStage;

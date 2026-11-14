@@ -82,6 +82,7 @@ pub struct CodeFindingRow {
     pub delivered_at: Option<DateTime<Utc>>,
     pub outcome: String,
     pub outcome_at: Option<DateTime<Utc>>,
+    pub reply: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -237,6 +238,17 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
                 fixed_by_other: row.fixed_by_other,
                 ignored: row.ignored,
             })
+        })
+        .await
+    }
+
+    pub async fn record_code_finding_replies(self) -> Result<u64, PersistError> {
+        crate::metrics::time_db("code_findings_replies", async move {
+            let done =
+                sqlx::query_file!("src/store/persistence/change_record/code_scan/replies.sql")
+                    .execute(&self.pool)
+                    .await?;
+            Ok(done.rows_affected())
         })
         .await
     }

@@ -51,6 +51,7 @@ impl RelationJudge for StubJudge {
 
     async fn adjudicate(&self, _prompt: &str) -> Result<AdjudicatorVerdict, LlmError> {
         Ok(AdjudicatorVerdict {
+            holds: true,
             from_lesson_id: 29,
             to_lesson_id: 20,
             rationale: "the resolution marker names the other lesson's failure".to_string(),
@@ -125,6 +126,22 @@ fn find_resolution_supersession_does_not_fire_when_marked_side_is_older() {
         distance: 0.1052,
     };
     assert_eq!(find_resolution_supersession(&pair), None);
+}
+
+#[test]
+fn claim_stands_only_when_it_holds_and_the_direction_matches() {
+    let verdict = |holds, from_lesson_id, to_lesson_id| AdjudicatorVerdict {
+        holds,
+        from_lesson_id,
+        to_lesson_id,
+        rationale: String::new(),
+    };
+    assert!(super::claim_stands(&verdict(true, 29, 20), 29, 20));
+    assert!(
+        !super::claim_stands(&verdict(false, 29, 20), 29, 20),
+        "a matching direction with holds false is the 2145/2056 case and must not stand"
+    );
+    assert!(!super::claim_stands(&verdict(true, 20, 29), 29, 20));
 }
 
 #[tokio::test]

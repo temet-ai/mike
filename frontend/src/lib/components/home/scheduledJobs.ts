@@ -1,70 +1,76 @@
-import type { ScheduledJob, ScheduledJobState } from '$lib/api/scheduledJobs';
-import type { BadgeVariant } from '$lib/components/shared/Badge.variants';
+import type { Component } from 'svelte';
+import {
+	AlarmClock,
+	Ban,
+	CircleCheck,
+	CircleDashed,
+	CircleOff,
+	CircleX,
+	Hourglass,
+	Loader,
+	Monitor
+} from '@lucide/svelte';
+import type { ScheduledJob, ScheduledJobGroup } from '$lib/api/scheduledJobs';
+import type { StatusMarkTone } from '$lib/components/ui/status-mark';
 import { formatRelative, parseIso } from '$lib/time';
+import { localClock, windowStart, zonedParts } from './jobClock';
 
-export interface StateView {
-	label: string;
-	variant: BadgeVariant;
-	/** The row shows its detail and fix inline and can be expanded. */
-	needsAttention: boolean;
-	/** Semantic border token for the row, so the state reads without colour in the text. */
-	border: string;
+export type JobStatus =
+	| 'unavailable'
+	| 'elsewhere'
+	| 'running'
+	| 'queued'
+	| 'off'
+	| 'failing'
+	| 'overdue'
+	| 'never_run'
+	| 'ok';
+
+interface StatusLook {
+	icon: Component;
+	word: string;
+	tone: StatusMarkTone;
+	spin?: boolean;
 }
 
-export const STATE_VIEW: Record<ScheduledJobState, StateView> = {
-	ok: {
-		label: 'ok',
-		variant: 'chip-active',
-		needsAttention: false,
-		border: 'var(--border-subtle)'
-	},
-	running: {
-		label: 'running',
-		variant: 'chip-analyzed',
-		needsAttention: false,
-		border: 'var(--border-subtle)'
-	},
-	off: {
-		label: 'off',
-		variant: 'chip-muted',
-		needsAttention: false,
-		border: 'var(--border-subtle)'
-	},
-	failing: {
-		label: 'failing',
-		variant: 'chip-error',
-		needsAttention: true,
-		border: 'var(--status-danger-border)'
-	},
-	overdue: {
-		label: 'overdue',
-		variant: 'chip-warning',
-		needsAttention: true,
-		border: 'var(--status-warning-border)'
-	},
-	never_run: {
-		label: 'never run',
-		variant: 'chip-warning',
-		needsAttention: true,
-		border: 'var(--status-warning-border)'
-	},
-	unavailable: {
-		label: 'not available',
-		variant: 'chip-muted',
-		needsAttention: false,
-		border: 'var(--border-subtle)'
-	}
+export const STATUS_LOOK: Record<JobStatus, StatusLook> = {
+	unavailable: { icon: Ban, word: 'no scripts', tone: 'quiet' },
+	elsewhere: { icon: Monitor, word: 'elsewhere', tone: 'quiet' },
+	running: { icon: Loader, word: 'running', tone: 'info', spin: true },
+	queued: { icon: Hourglass, word: 'queued', tone: 'strong' },
+	off: { icon: CircleOff, word: 'off', tone: 'quiet' },
+	failing: { icon: CircleX, word: 'failing', tone: 'danger' },
+	overdue: { icon: AlarmClock, word: 'overdue', tone: 'warning' },
+	never_run: { icon: CircleDashed, word: 'never run', tone: 'warning' },
+	ok: { icon: CircleCheck, word: 'ok', tone: 'success' }
 };
 
-export function stateView(state: ScheduledJobState): StateView {
-	return STATE_VIEW[state] ?? STATE_VIEW.off;
+/** Failing, overdue and never run: the rows that ask for a look. */
+export const ATTENTION: readonly JobStatus[] = ['failing', 'overdue', 'never_run'];
+
+export type LaneTone = 'neutral' | 'live' | 'danger' | 'warning' | 'hollow';
+
+export interface RowView {
+	status: JobStatus;
+	icon: Component;
+	word: string;
+	tone: StatusMarkTone;
+	spin: boolean;
+	statusTip: string;
+	attention: boolean;
+	lastRan: string;
+	next: string;
+	runDisabled: boolean;
+	runTip: string;
+	runVariant: 'default' | 'outline';
+	laneTone: LaneTone;
 }
 
-/**
- * A fixed order: label, then id. Never the last-run time, which changes under the reader.
- */
-export function sortJobs(jobs: readonly ScheduledJob[]): ScheduledJob[] {
-	return [...jobs].sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+export interface RowContext {
+	queued: boolean;
+	machineUuid: string | null;
+	now: number;
+	timeZone: string;
 }
 
 /** True for a one-machine job whose owner is a machine other than this one. */
@@ -96,13 +102,6 @@ export function relativeTime(iso: string | null, now: number): string {
 	return formatRelative(iso, now);
 }
 
-export function lastRanText(job: ScheduledJob, now: number): string {
-	if (!parseIso(job.last_started_at)) return 'never ran';
-	const byHand = job.last_trigger === 'manual' ? ', by hand' : '';
-	if (job.state === 'running') return `started ${relativeTime(job.last_started_at, now)}${byHand}`;
-	return `last ran ${relativeTime(job.last_started_at, now)}${byHand}`;
-}
-
 /** A run is in progress, or has been asked for and not yet picked up. */
 export function isBusy(job: ScheduledJob, queuedHere: boolean): boolean {
 	return (
@@ -118,24 +117,178 @@ export function isRunning(job: ScheduledJob): boolean {
 	return job.state === 'running' || job.running_since !== null;
 }
 
-export function isTurnedOff(job: ScheduledJob): boolean {
-	return !job.enabled || job.state === 'off';
+/** A run that started at or after the missed due time answers an "overdue" verdict. */
+function ranSinceDue(job: ScheduledJob): boolean {
+	const started = parseIso(job.last_started_at);
+	const due = parseIso(job.next_run_at);
+	return started !== null && due !== null && started.getTime() >= due.getTime();
 }
 
-/** True when this mike has no script to run the job with, whatever the job's setting says. */
-export function isUnavailable(job: ScheduledJob): boolean {
-	return job.state === 'unavailable';
+/** The one status a row shows; first match wins. */
+export function jobStatus(
+	job: ScheduledJob,
+	ctx: Pick<RowContext, 'queued' | 'machineUuid'>
+): JobStatus {
+	if (job.state === 'unavailable') return 'unavailable';
+	if (runsOnAnotherMachine(job, ctx.machineUuid)) return 'elsewhere';
+	if (isRunning(job)) return 'running';
+	if (ctx.queued || job.run_requested_at !== null) return 'queued';
+	if (!job.enabled || job.state === 'off') return 'off';
+	if (job.state === 'failing') return 'failing';
+	if (job.state === 'overdue' && !ranSinceDue(job)) return 'overdue';
+	if (job.state === 'never_run') return 'never_run';
+	return 'ok';
 }
 
-/** The fix for a refused or lost run is to run it again: failing, overdue and never-run rows. */
-export function runIsTheFix(job: ScheduledJob): boolean {
-	return stateView(job.state).needsAttention;
+function lastRanLine(job: ScheduledJob, status: JobStatus, now: number): string {
+	const running = status === 'running';
+	const startedIso = running ? (job.running_since ?? job.last_started_at) : job.last_started_at;
+	if (!parseIso(startedIso)) return status === 'elsewhere' ? '—' : 'never ran';
+	const by =
+		job.last_trigger === 'manual'
+			? ' · by hand'
+			: job.last_trigger === 'schedule'
+				? ' · on schedule'
+				: '';
+	// A run stamped later than now (clock skew, a stale clock) reads as just now, never "in 2h".
+	const startedMs = parseIso(startedIso)?.getTime() ?? now;
+	const when = startedMs > now ? 'just now' : relativeTime(startedIso, now);
+	return `${running ? 'started' : 'ran'} ${when}${by}`;
 }
 
-export function nextText(job: ScheduledJob, now: number): string {
+function nextLine(job: ScheduledJob, status: JobStatus, ctx: RowContext): string {
+	if (status === 'unavailable') return 'no scripts folder here';
+	if (status === 'elsewhere') return 'runs on another machine';
+	if (status === 'off') return 'not scheduled';
 	const next = parseIso(job.next_run_at);
-	if (!job.enabled || job.state === 'off') return 'not scheduled';
+	const due = next !== null && next.getTime() - ctx.now <= 999;
+	if ((status === 'running' || status === 'queued') && due) return 'next after this run';
 	if (!next) return 'next —';
-	if (next.getTime() - now <= 999) return 'next due now';
-	return `next ${relativeTime(job.next_run_at, now)}`;
+	if (due) return 'due now';
+	const rel = relativeTime(job.next_run_at, ctx.now);
+	const clock = localClock(next.getTime(), ctx.timeZone);
+	if (job.window?.period === 'week') {
+		return `next ${zonedParts(next.getTime(), ctx.timeZone).weekday} ${clock} · ${rel}`;
+	}
+	return `next ${clock} · ${rel}`;
+}
+
+function statusTip(job: ScheduledJob, status: JobStatus, ctx: RowContext): string {
+	switch (status) {
+		case 'ok':
+			return 'The last run succeeded and none is overdue.';
+		case 'failing':
+			return job.detail || 'The last run failed.';
+		case 'overdue':
+			return job.detail || 'A scheduled run is overdue.';
+		case 'unavailable':
+			return job.detail || 'This mike has no scripts folder to run the job from.';
+		case 'never_run':
+			return 'No run recorded yet.';
+		case 'running': {
+			const since = parseIso(job.running_since ?? job.last_started_at);
+			return since
+				? `Running since ${localClock(since.getTime(), ctx.timeZone)} local.`
+				: 'Running now.';
+		}
+		case 'queued':
+			return 'Asked to run; it starts within a few seconds.';
+		case 'off':
+			return 'Turned off. It does not run on its schedule.';
+		case 'elsewhere':
+			return 'Another machine runs this job; this one does not.';
+	}
+}
+
+const RUN_TIP: Record<JobStatus, string> = {
+	running: 'Already running.',
+	queued: 'Already asked; it starts shortly.',
+	off: 'Turned off. Turn it on with the switch to run it.',
+	elsewhere: "Another machine runs this job. Run it from that machine's mike.",
+	unavailable: 'This mike has no job scripts to run it with.',
+	failing: 'Runs this job once now. Its schedule does not change.',
+	overdue: 'Runs this job once now. Its schedule does not change.',
+	never_run: 'Runs this job once now. Its schedule does not change.',
+	ok: 'Runs this job once now. Its schedule does not change.'
+};
+
+const RUN_BLOCKED: readonly JobStatus[] = ['running', 'queued', 'off', 'elsewhere', 'unavailable'];
+
+function laneTone(status: JobStatus): LaneTone {
+	switch (status) {
+		case 'unavailable':
+		case 'off':
+			return 'hollow';
+		case 'running':
+			return 'live';
+		case 'failing':
+			return 'danger';
+		case 'overdue':
+		case 'never_run':
+			return 'warning';
+		default:
+			return 'neutral';
+	}
+}
+
+/** Everything a row shows, derived once so its words never disagree. */
+export function rowView(job: ScheduledJob, ctx: RowContext): RowView {
+	const status = jobStatus(job, ctx);
+	const look = STATUS_LOOK[status];
+	const attention = ATTENTION.includes(status);
+	return {
+		status,
+		icon: look.icon,
+		word: look.word,
+		tone: look.tone,
+		spin: look.spin ?? false,
+		statusTip: statusTip(job, status, ctx),
+		attention,
+		lastRan: lastRanLine(job, status, ctx.now),
+		next: nextLine(job, status, ctx),
+		runDisabled: RUN_BLOCKED.includes(status),
+		runTip: RUN_TIP[status],
+		runVariant: attention ? 'default' : 'outline',
+		laneTone: laneTone(status)
+	};
+}
+
+export const GROUP_ORDER = ['learning_and_memory', 'measurement', 'builds_and_tests'] as const;
+
+export const GROUP_LABEL: Record<ScheduledJobGroup | 'other', string> = {
+	learning_and_memory: 'Learning and memory',
+	measurement: 'Measurement',
+	builds_and_tests: 'Builds and tests',
+	other: 'Other'
+};
+
+export interface JobGroup {
+	key: ScheduledJobGroup | 'other';
+	label: string;
+	jobs: ScheduledJob[];
+}
+
+/** An immutable order: where the window starts on the axis, then label, then id. */
+export function compareJobs(a: ScheduledJob, b: ScheduledJob): number {
+	const byStart = windowStart(a.window) - windowStart(b.window);
+	if (byStart !== 0 && Number.isFinite(byStart)) return byStart;
+	const aNone = !Number.isFinite(windowStart(a.window));
+	const bNone = !Number.isFinite(windowStart(b.window));
+	if (aNone !== bNone) return aNone ? 1 : -1;
+	return a.label.localeCompare(b.label) || a.id.localeCompare(b.id);
+}
+
+/** Groups in a fixed order; a job with no or an unknown group goes last, under Other. */
+export function groupJobs(jobs: readonly ScheduledJob[]): JobGroup[] {
+	const known = new Set<string>(GROUP_ORDER);
+	const keys: (ScheduledJobGroup | 'other')[] = [...GROUP_ORDER, 'other'];
+	return keys
+		.map((key) => ({
+			key,
+			label: GROUP_LABEL[key],
+			jobs: jobs
+				.filter((job) => (key === 'other' ? !known.has(job.group ?? '') : job.group === key))
+				.sort(compareJobs)
+		}))
+		.filter((group) => group.jobs.length > 0);
 }

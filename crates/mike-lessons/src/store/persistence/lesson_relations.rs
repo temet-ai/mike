@@ -377,32 +377,36 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         .await
     }
 
+    pub async fn release_stale_adjudications(
+        self,
+        project_id: i64,
+        detector_version: &str,
+    ) -> Result<u64, PersistError> {
+        let detector_version = detector_version.to_owned();
+        crate::metrics::time_db("release_stale_adjudications", async move {
+            let done = sqlx::query_file!(
+                "src/store/persistence/lesson_relations/release_stale_adjudications.sql",
+                project_id,
+                detector_version
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(done.rows_affected())
+        })
+        .await
+    }
+
     pub async fn find_candidate_relation_pairs(
         self,
         project_id: i64,
         distance_threshold: f64,
     ) -> Result<Vec<CandidateLessonPair>, PersistError> {
         crate::metrics::time_db("find_candidate_relation_pairs", async move {
-            let rows = sqlx::query_as!(
+            let rows = sqlx::query_file_as!(
                 CandidateLessonPair,
-                r#"SELECT a.id AS "lesson_a_id!", a.text AS "lesson_a_text!", a.created_at AS "lesson_a_created_at!",
-                          b.id AS "lesson_b_id!", b.text AS "lesson_b_text!", b.created_at AS "lesson_b_created_at!",
-                          (a.embedding <=> b.embedding)::float8 AS "distance!"
-                     FROM memory.lessons a
-                     JOIN memory.lessons b ON b.project_id = a.project_id AND b.id > a.id
-                     JOIN memory.lesson_stages sa ON sa.id = a.stage_id AND sa.code IN ('daily', 'long_term')
-                     JOIN memory.lesson_stages sb ON sb.id = b.stage_id AND sb.code IN ('daily', 'long_term')
-                    WHERE a.project_id = $1
-                      AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-                      AND (a.embedding <=> b.embedding) < $2
-                      AND NOT EXISTS (
-                          SELECT 1 FROM memory.lesson_relations r
-                           WHERE (r.from_lesson_id = a.id AND r.to_lesson_id = b.id)
-                              OR (r.from_lesson_id = b.id AND r.to_lesson_id = a.id)
-                      )
-                    ORDER BY (a.embedding <=> b.embedding)"#,
+                "src/store/persistence/lesson_relations/candidate_pairs.sql",
                 project_id,
-                distance_threshold,
+                distance_threshold
             )
             .fetch_all(&self.pool)
             .await?;

@@ -15,6 +15,7 @@ mod judge;
 mod launch;
 mod lesson_injections;
 mod lesson_relations;
+mod lesson_relations_agreed;
 mod lessons;
 mod llm_calls;
 mod llm_role_health;

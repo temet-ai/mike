@@ -22,7 +22,7 @@ use schema::{
     adjudicator_schema, proposer_schema,
 };
 
-pub const DETECTOR_VERSION: &str = "lesson-relations-v1";
+pub const DETECTOR_VERSION: &str = "lesson-relations-v2";
 
 pub const KIND_SUPERSEDES: &str = "supersedes";
 pub const KIND_REFINES: &str = "refines";
@@ -109,6 +109,12 @@ impl RelationJudge for ModelPairJudge<'_> {
     }
 }
 
+pub fn claim_stands(verdict: &AdjudicatorVerdict, from_lesson_id: i64, to_lesson_id: i64) -> bool {
+    verdict.holds
+        && verdict.from_lesson_id == from_lesson_id
+        && verdict.to_lesson_id == to_lesson_id
+}
+
 #[derive(Debug, Clone)]
 pub struct DetectedRelation {
     pub from_lesson_id: i64,
@@ -134,6 +140,12 @@ pub async fn run_detection(
     let mut report = DetectionReport::default();
 
     for &project_id in project_ids {
+        if !dry_run {
+            persist
+                .lessons()
+                .release_stale_adjudications(project_id, DETECTOR_VERSION)
+                .await?;
+        }
         let pairs = persist
             .lessons()
             .find_candidate_relation_pairs(project_id, distance_threshold)

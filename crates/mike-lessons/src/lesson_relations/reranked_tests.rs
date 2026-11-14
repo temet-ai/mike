@@ -28,6 +28,7 @@ impl RelationJudge for CountingJudge {
 
     async fn adjudicate(&self, _prompt: &str) -> Result<AdjudicatorVerdict, LlmError> {
         Ok(AdjudicatorVerdict {
+            holds: true,
             from_lesson_id: 0,
             to_lesson_id: 0,
             rationale: "unused".to_owned(),

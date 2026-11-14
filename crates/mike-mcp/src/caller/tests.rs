@@ -156,6 +156,47 @@ async fn caller_project_comes_from_session_summary() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn roster_and_fleet_graph_default_to_the_callers_project() -> anyhow::Result<()> {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/sessions/{SESSION}")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"summary": {"id": SESSION, "project": "/verified/project"}})),
+        )
+        .expect(3)
+        .mount(&server)
+        .await;
+    let client = InspectClient::new(server.uri());
+    for (tool, field, arguments) in [
+        ("get_workspace_roster", "project_path", None),
+        (
+            "get_workspace_roster",
+            "project_path",
+            args(json!({"include_inactive": true})),
+        ),
+        ("get_fleet_graph", "project", args(json!({}))),
+    ] {
+        let prepared = supply_defaults(&client, tool, arguments, Some(SESSION)).await?;
+        assert_eq!(
+            prepared.and_then(|a| a.get(field).cloned()),
+            Some(json!("/verified/project")),
+            "{tool}"
+        );
+    }
+    let explicit = args(json!({"project_path": "projects/temet/tether"}));
+    let kept = supply_defaults(
+        &client,
+        "get_workspace_roster",
+        explicit.clone(),
+        Some(SESSION),
+    )
+    .await?;
+    assert_eq!(kept, explicit);
+    Ok(())
+}
+
+#[tokio::test]
 async fn read_project_knowledge_without_project_lets_the_server_infer_it() -> anyhow::Result<()> {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
