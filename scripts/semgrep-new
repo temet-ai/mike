@@ -38,7 +38,7 @@ SCANNED = re.compile(r"\.(rs|ts|js|mjs|cjs|svelte|sh|bash|py)$")
 NO_EXTENSION = re.compile(r"(^|/)[^/.]+$")
 SHEBANG_SUFFIX = ((re.compile(rb"^#!.*\b(ba|z)?sh\b"), ".sh"), (re.compile(rb"^#!.*\bpython[0-9.]*\b"), ".py"))
 NOT_SCANNED = re.compile(
-    r"(^|/)tests?/|_tests?\.rs$|(^|/)test_support/|\.test\.(ts|js|mjs)$|\.stories\.svelte$|(^|/)node_modules/|(^|/)fixtures/"
+    r"(^|/)tests?/|_tests?\.rs$|(^|/)tests\.rs$|(^|/)test_support/|\.test\.(ts|js|mjs)$|\.stories\.svelte$|(^|/)node_modules/|(^|/)fixtures/"
     r"|(^|/)scripts/test-[^/]*$|(^|/)test_[^/]*\.py$|_test\.py$|(^|/)conftest\.py$"
 )
 SCAN_TIMEOUT_SECONDS = 900
