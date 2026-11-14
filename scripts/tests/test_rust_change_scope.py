@@ -165,6 +165,25 @@ class RustChangeScopeTests(unittest.TestCase):
         self.assertIn(["--test", "manifest_coverage"], [coverage[0][5:7]])
         self.assertEqual(coverage[0][-1], "(binary(=manifest_coverage))")
 
+    def test_lower_split_crate_change_runs_its_tests_that_live_in_mike(self):
+        self.write("crates/mike-fleet/Cargo.toml", '[package]\nname = "mike-fleet"\nversion = "0.1.0"\nedition = "2021"\n')
+        self.write("crates/mike-fleet/src/lib.rs", "")
+        self.write("crates/mike/tests/integration.rs", "mod fleet_shutdown;\nmod eval_runs;\n")
+        self.write("crates/mike/tests/integration/fleet_shutdown/mod.rs", "")
+        self.write("crates/mike/tests/integration/eval_runs.rs", "")
+        self.write("crates/mike/src/cross_crate_tests/api_fleet_ruling_tests.rs", "")
+        self.write("crates/mike/src/cross_crate_tests/api_search_tests.rs", "")
+        self.packages = scope.metadata(self.root)
+        commands = {command[4]: command for command in self.commands("crates/mike-fleet/src/launch/fleet/tell.rs")}
+        self.assertEqual(sorted(commands), ["mike", "mike-fleet"])
+        mike = commands["mike"]
+        self.assertEqual(mike[5:8], ["--test", "integration", "--lib"])
+        self.assertIn("fleet_shutdown", mike[-1])
+        self.assertIn("api_fleet_ruling_tests", mike[-1])
+        self.assertNotIn("eval_runs", mike[-1])
+        self.assertNotIn("api_search_tests", mike[-1])
+        self.assertEqual([c[4] for c in self.commands("crates/mike-fleet/src/store/persistence/repo.rs")], ["mike-fleet"])
+
     def test_docs_do_not_broaden_source_filter(self):
         self.assertEqual(self.commands("crates/mike/README.md"), [])
         self.assertEqual(self.commands("crates/mike/src/launch/codex/model.rs", "crates/mike/README.md"), self.commands("crates/mike/src/launch/codex/model.rs"))
