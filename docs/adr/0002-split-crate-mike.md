@@ -3,7 +3,7 @@ title: Split crate mike into peer crates along measured seams
 status: accepted
 created: 2026-11-12
 updated: 2026-11-14
-summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines.
+summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines by references; S6 puts fleet beside knowledge, features and lessons, and the replay by Cargo dependencies is 73% (the chain was 75%).
 ---
 
 # ADR 0002 — Split crate mike into peer crates along measured seams
@@ -243,6 +243,41 @@ build is 3 m 40 s):
 An edit below `mike` now builds its own tests in 17–51 s, against 114 s for the single
 crate. Crate `mike`'s own test build is still 108 s: its API, serve and CLI tests and
 the `cross_crate_tests` modules all link there.
+
+### S6 as built
+
+- **Side by side, not chained.** A chain of crates still rebuilds everything above an
+  edit, so S5's chain kept most of the single crate's cost. The Cargo graph is now
+  `mike-runtime` → `mike-base`, `mike-launch` → `mike-runtime`, `mike-fleet` and
+  `mike-knowledge` → `mike-launch`, `mike-features` → `mike-knowledge`, `mike-lessons` →
+  `mike-features`, and `mike` → `mike-fleet` + `mike-lessons`. An edit in fleet no
+  longer rebuilds knowledge, features or lessons, and an edit in knowledge, features or
+  lessons no longer waits on fleet. The map's `package_deps` records these edges.
+- **Root globs follow the graph.** `mike_knowledge` globs `mike_launch`; `mike` globs
+  both `mike_lessons` and `mike_fleet`, and names the modules that both sides extend
+  (`launch`, `api::workspace`, `store::persistence::{change_record, mailbox, questions,
+  session_notes, test_support, workspace}`, `analysis`, `dossier`, `extract`,
+  `memory_cap`, `observability`, `settings`, `workspace`) explicitly, so a glob
+  ambiguity cannot arise.
+- **What fleet supplied now plugs in through launch.** `fleet_settings::install()`,
+  which `mike` calls in `main.rs` and in tests that need fleet behaviour, installs three
+  hooks: `SeatLaunchHook`, `launch::session_tail` (the change-record lines since a
+  session last looked, read by the reminders stage and client context) and
+  `session_notes::NoteRules` (acceptance-obligation checks, carry and ruling notices).
+  Session-note writes live in `LaunchPersist`; `FleetPersist`'s note writes pass fleet's
+  rules explicitly. Without `install()` a note is written with no rules and the tail is
+  empty. AppState construction no longer installs anything.
+- **Tests that need fleet moved to `crates/mike/src/cross_crate_tests`**: launch
+  brief delivery, fleet admission, fleet run notes, questions, fleet carry and the
+  change-record tail stage.
+- **The grader tells the truth.** `scripts/crate-plan` replays a map that has
+  `packages` by the packages' Cargo dependencies (a touched crate rebuilds its whole
+  package and every package depending on it), and bills a migration only to the bin.
+  Before, the replay followed module references, so it charged 80% for the chain and
+  for the side-by-side graph alike. `--check` also fails when a package's
+  `Cargo.toml` names a split package that `package_deps` does not put below it.
+
+Replay of 232 commits by Cargo dependencies: the S5 chain 75%, side by side 73%.
 
 ## Consequences
 

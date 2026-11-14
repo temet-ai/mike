@@ -1,4 +1,9 @@
+pub use mike_fleet::launch;
+pub use mike_fleet::*;
 pub use mike_lessons::*;
+pub use mike_lessons::{
+    analysis, dossier, extract, memory_cap, observability, settings, workspace,
+};
 pub mod api;
 pub mod app;
 pub mod claude;

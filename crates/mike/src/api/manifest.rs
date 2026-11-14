@@ -1,4 +1,4 @@
-pub use mike_lessons::api::manifest::*;
+pub use mike_fleet::api::manifest::*;
 use std::time::Duration;
 
 use axum::Router;

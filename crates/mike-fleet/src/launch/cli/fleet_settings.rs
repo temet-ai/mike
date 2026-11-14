@@ -143,4 +143,6 @@ impl crate::launch::seat::SeatLaunchHook for FleetSeatHook {
 
 pub fn install() {
     crate::launch::seat::install_hook(Arc::new(FleetSeatHook));
+    crate::launch::session_tail::install(Arc::new(crate::api::changes::FleetSessionTail));
+    crate::store::persistence::session_notes::writes::install();
 }

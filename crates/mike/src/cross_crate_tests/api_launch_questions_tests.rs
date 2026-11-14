@@ -44,6 +44,7 @@ impl Env {
             "--database-url",
             &db.database_url,
         ])?;
+        crate::launch::cli::fleet_settings::install();
         let state = AppState::new(config).await?;
         let persist = state
             .persist()

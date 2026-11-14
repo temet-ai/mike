@@ -1,3 +1,4 @@
+pub use mike_fleet::api::handlers::*;
 pub use mike_lessons::api::handlers::*;
 use std::collections::BTreeMap;
 

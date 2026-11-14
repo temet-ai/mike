@@ -20,6 +20,7 @@ async fn definition_patch_stale_running_row_refuses_retry_after_stop_fence() -> 
         return Ok(());
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
+    crate::launch::cli::fleet_settings::install();
     let mut state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     state.persist = Some(persist.clone());
     let run = format!("stale-patch-{}", Uuid::new_v4());

@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 
+pub mod note_writes;
 pub mod reads;
+
+pub use note_writes::{AfterFuture, NoRules, NoteRules, RuleFuture, install_rules};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionNoteRow {

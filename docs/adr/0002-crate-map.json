@@ -72,6 +72,32 @@
    "bin"
   ]
  },
+ "package_deps": {
+  "mike-base": [],
+  "mike-runtime": [
+   "mike-base"
+  ],
+  "mike-launch": [
+   "mike-runtime"
+  ],
+  "mike-fleet": [
+   "mike-launch"
+  ],
+  "mike-knowledge": [
+   "mike-launch"
+  ],
+  "mike-features": [
+   "mike-knowledge",
+   "mike-launch"
+  ],
+  "mike-lessons": [
+   "mike-features"
+  ],
+  "mike": [
+   "mike-fleet",
+   "mike-lessons"
+  ]
+ },
  "stages": {
   "S1 base | features | top": [
    [
@@ -737,7 +763,7 @@
    "workspace.code_scans": "fleet",
    "workspace.change_places": "fleet",
    "workspace.questions": "launch",
-   "workspace.session_notes": "fleet",
+   "workspace.session_notes": "launch",
    "wright": "web"
   }
  },

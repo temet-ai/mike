@@ -4,12 +4,6 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use super::RemindersOutcome;
-use super::change_record_tail::{
-    ChangeRecordTailStage, TAIL_HEADING, tail_reminder, tail_reminder_text,
-};
-use super::client_context::prompt_context;
-use super::stage_test_support::{StageCtxFixture, make_ctx};
 use crate::api::changes::note_answer_tail;
 use crate::change_record::ChangeKind;
 use crate::extract::request::TurnOrigin;
@@ -17,6 +11,12 @@ use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
 use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
+use crate::reminders::RemindersOutcome;
+use crate::reminders::change_record_tail::{
+    ChangeRecordTailStage, TAIL_HEADING, tail_reminder, tail_reminder_text,
+};
+use crate::reminders::client_context::prompt_context;
+use crate::reminders::stage_test_support::{StageCtxFixture, make_ctx};
 use crate::store::models::RequestId;
 use crate::store::persistence::change_record::test_seed::{self, Fixture};
 
@@ -29,6 +29,7 @@ fn user_body() -> Vec<u8> {
 }
 
 async fn state_with_tail(on: bool) -> anyhow::Result<crate::state::AppState> {
+    crate::launch::cli::fleet_settings::install();
     let state =
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     crate::state::serve_every_stage_for_tests(&state);
@@ -100,6 +101,7 @@ struct Seat {
 }
 
 async fn seat() -> anyhow::Result<Option<Seat>> {
+    crate::launch::cli::fleet_settings::install();
     let Some(f) = test_seed::fixture().await? else {
         return Ok(None);
     };
@@ -219,6 +221,7 @@ async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::state::AppS
         "--database-url",
         &seat.f.db.database_url,
     ])?;
+    crate::launch::cli::fleet_settings::install();
     let state = crate::state::AppState::new(config).await?;
     crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
