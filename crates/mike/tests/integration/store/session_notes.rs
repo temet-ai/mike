@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_goals::SetSessionIdentity;
 use mike::store::persistence::session_notes::{
@@ -67,7 +68,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
     let (session, _) = registered(&handle, &unique("notes-lifecycle")).await?;
 
     let created = handle
-        .launch()
+        .fleet()
         .create_session_note(session, note("first finding"))
         .await?;
     assert_eq!(created.kind, "note");
@@ -77,7 +78,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
 
     let tags = ["schema".to_string()];
     let task = handle
-        .launch()
+        .fleet()
         .create_session_note(
             session,
             NewSessionNote {
@@ -90,7 +91,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
         )
         .await?;
     let done = handle
-        .launch()
+        .fleet()
         .update_session_note(
             task.note_uuid,
             SessionNoteUpdate {
@@ -107,7 +108,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
 
     let data = serde_json::json!({"loc": "migrations/"});
     let replaced = handle
-        .launch()
+        .fleet()
         .update_session_note(
             task.note_uuid,
             SessionNoteUpdate {
@@ -122,13 +123,13 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
 
     assert!(
         handle
-            .launch()
+            .fleet()
             .delete_session_note(created.note_uuid)
             .await?
     );
     assert!(
         !handle
-            .launch()
+            .fleet()
             .delete_session_note(created.note_uuid)
             .await?
     );
@@ -147,11 +148,11 @@ async fn session_notes_order_and_search() -> anyhow::Result<()> {
     };
     let (session, _) = registered(&handle, &unique("notes-order")).await?;
     let first = handle
-        .launch()
+        .fleet()
         .create_session_note(session, note("gate blocks on stale seeds"))
         .await?;
     let second = handle
-        .launch()
+        .fleet()
         .create_session_note(session, note("unrelated finding"))
         .await?;
 
@@ -212,7 +213,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
             })
             .await?;
         handle
-            .launch()
+            .fleet()
             .create_session_note(
                 session,
                 NewSessionNote {

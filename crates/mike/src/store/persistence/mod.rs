@@ -1,4 +1,4 @@
-pub use mike_features::store::persistence::*;
+pub use mike_lessons::store::persistence::*;
 pub mod file_write_summaries;
 pub mod llm_role_health;
 pub mod project_merge;

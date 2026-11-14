@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::{seat_env, split_launch_args};
-use crate::launch::fleet::PROFILE_ENV;
+use crate::launch::seat::PROFILE_ENV;
 
 fn environment(args: &[&str]) -> anyhow::Result<BTreeMap<String, String>> {
     let split = split_launch_args(args.iter().map(|arg| arg.to_string()))?;

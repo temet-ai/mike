@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/mike", "crates/mike-base", "crates/mike-features", "crates/mike-runtime", "crates/mike-launch", "crates/mike-codex", "crates/mike-mcp", "crates/proxy-forward"]
+members = ["crates/mike", "crates/mike-base", "crates/mike-features", "crates/mike-lessons", "crates/mike-runtime", "crates/mike-launch", "crates/mike-fleet", "crates/mike-knowledge", "crates/mike-codex", "crates/mike-mcp", "crates/proxy-forward"]
 
 [workspace.package]
 edition = "2024"

@@ -1,5 +1,7 @@
 pub mod backend_validations;
 pub mod channel_link;
+pub mod fleet_closure;
+pub mod in_transaction;
 pub mod launches_read;
 pub mod launches_write;
 pub mod runs;

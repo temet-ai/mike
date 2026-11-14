@@ -19,7 +19,7 @@ process: it loads its own `ProxyConfig` (`crates/mike-launch/src/launch/cli/mod.
 `Runner` over the backend, the ledger and the trust gate
 (`crates/mike-launch/src/launch/cli/runner.rs`), never calling the inspect API. The API path runs the
 same launch code inside the running `mike` server, entered through
-`open_for_server`/`kill_for_server`/`doctor_for_server` (`crates/mike-launch/src/launch/cli/server.rs`),
+`open_for_server`/`kill_for_server`/`doctor_for_server` (`crates/mike-fleet/src/launch/cli/server.rs`),
 with the server's own `AppState`. What all of them share is the `launch.*` ledger in Postgres —
 which is why a launch made through any entry point shows up in the others.
 
@@ -244,7 +244,7 @@ By default a launch also gets `--remote-control`, the MCP channel flag
 `HTTPS_PROXY`/`NO_PROXY`/`NODE_EXTRA_CA_CERTS` pointed at the forward sidecar. `remote_control`,
 `channels` and `proxy_env` are **per-launch** fields, not boot config: on the API they are fields of the
 `POST /api/launches` body defaulting to true (`CreateLaunchRequest`,
-`crates/mike-launch/src/api/launches/mod.rs`), and on the CLI they are the same three booleans carried in
+`crates/mike-fleet/src/api/launches/mod.rs`), and on the CLI they are the same three booleans carried in
 `SplitLaunchArgs`, turned off per launch with `--no-remote-control`, `--no-channels` or
 `--no-proxy-env`. There is
 no `launch_remote_control` or `launch_proxy_env` in `LaunchConfig`. What *is* boot config is
@@ -482,7 +482,7 @@ When a template has loaded, mike forks one more seat from it (`reference`, role 
 
 ### Reports, the floor and verdicts
 
-A worker reports a slice with `fleet_report` and the judge decides; neither is mail. The report is a `report` note in the seat's notebook carrying the seat's newest commit, the check's verdict at that commit, whether the check ran after the seat's last change (the change record's `mine` view), the brief version the seat read and the evidence paths. The `mike-mcp` tool is typed: `sha` (or `commit`), `criteria`, `exercised` (`command`, `exit`, `output_ref`), `tests_changed` (paths, or `"none"`) and `unestablished` (`[]` when nothing) are required, and the bridge refuses a report missing one, naming the field (`crates/mike-mcp/src/tools/fleet_report.rs`). The server refuses the same incomplete report itself (`crates/mike-launch/src/api/fleet/report.rs`): "fleet_report is incomplete: `<field>` is missing".
+A worker reports a slice with `fleet_report` and the judge decides; neither is mail. The report is a `report` note in the seat's notebook carrying the seat's newest commit, the check's verdict at that commit, whether the check ran after the seat's last change (the change record's `mine` view), the brief version the seat read and the evidence paths. The `mike-mcp` tool is typed: `sha` (or `commit`), `criteria`, `exercised` (`command`, `exit`, `output_ref`), `tests_changed` (paths, or `"none"`) and `unestablished` (`[]` when nothing) are required, and the bridge refuses a report missing one, naming the field (`crates/mike-mcp/src/tools/fleet_report.rs`). The server refuses the same incomplete report itself (`crates/mike-fleet/src/api/fleet/report.rs`): "fleet_report is incomplete: `<field>` is missing".
 
 A task that declares `done_when` (`checks` with an expected exit, `files_changed`, `tests_added_under`, an `exercise` with its command and expected output) has that floor run by mike at the reported commit before any model reads the report (`floor.rs`). A pass appends `floor_passed`. A failure appends `floor_failed` with the sha and a one-line reason, tells no judge, and mails the reporting seat a code: `check_failed`, `files_not_changed`, `no_test_added`, `exercise_failed` or `floor_unrunnable`. A task with no `done_when` goes to the judge at once. A verdict names the brief version it judged, and the seat is told once. A task's shown state is worked out from these notes and the seat (rework, passed, ready, awaiting acceptance while a report waits, working while the seat is open); a hand-set `tasks.<id>.state` is ignored where mike can derive it.
 

@@ -194,8 +194,8 @@ fn seat_env(env: &mut BTreeMap<String, String>, session: Option<Uuid>, split: &S
         && let Some(kind) = split.role.as_deref().or(split.seat.as_deref())
     {
         env.insert(
-            super::fleet::PROFILE_ENV.to_string(),
-            super::fleet::profile_for(kind).to_string(),
+            super::seat::PROFILE_ENV.to_string(),
+            super::seat::profile_for(kind).to_string(),
         );
     }
     if let Some(session) = session {

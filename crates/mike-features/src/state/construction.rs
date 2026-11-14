@@ -62,6 +62,7 @@ impl AppState {
         let rerank_service = crate::analysis::RerankService::new(&config.rerank);
         let settings_overlay = Arc::new(ArcSwap::from_pointee(SettingsOverlay::default()));
         crate::llm::provider::install(settings_overlay.clone());
+        crate::launch::cli::fleet_settings::install();
         warn_retired_correction(&config);
         let judge_llm = llm_wiring::build_judge_llm(&config.steerer, llm_usage_sink.as_ref());
         let filter_config = Arc::new(ArcSwap::from_pointee(FilterConfig::default()));

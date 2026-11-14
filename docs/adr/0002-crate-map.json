@@ -47,17 +47,23 @@
    "runtime"
   ],
   "mike-launch": [
-   "launch",
+   "launch"
+  ],
+  "mike-fleet": [
    "fleet"
+  ],
+  "mike-knowledge": [
+   "knowledge"
   ],
   "mike-features": [
    "proxy",
-   "knowledge",
    "dossier",
    "steerer",
    "eval",
-   "lessons",
    "state"
+  ],
+  "mike-lessons": [
+   "lessons"
   ],
   "mike": [
    "web",
@@ -246,7 +252,7 @@
   "api/handlers/recall_turns_detail": "web",
   "api/handlers/search_session_scan": "web",
   "api/handlers/search_session_messages": "web",
-  "api/changes": "launch",
+  "api/changes": "fleet",
   "api/client_serves": "state",
   "api/codex_observe": "runtime",
   "api/content_search": "knowledge",
@@ -313,7 +319,7 @@
   "api/handlers/session_admin": "launch",
   "api/handlers/session_narrative_llm": "steerer",
   "api/handlers/session_list": "web",
-  "api/handlers/session_notes": "launch",
+  "api/handlers/session_notes": "fleet",
   "api/handlers/session_overview": "web",
   "api/handlers/session_quality": "eval",
   "api/handlers/setting_entry": "web",
@@ -340,7 +346,7 @@
   "api/handlers/usage_workflows_01": "web",
   "api/handlers/verifier_01": "steerer",
   "api/handlers/work_items": "launch",
-  "api/launches": "launch",
+  "api/launches": "fleet",
   "api/lesson_delivery": "lessons",
   "api/lesson_delivery_comparison": "lessons",
   "api/manifest/fleets": "fleet",
@@ -351,7 +357,7 @@
   "api/project_knowledge": "knowledge",
   "api/prompt_shaping": "proxy",
   "api/proposals": "lessons",
-  "api/questions": "launch",
+  "api/questions": "fleet",
   "api/rerank_search": "knowledge",
   "api/rerank_search/harness": "web",
   "api/semantic": "knowledge",
@@ -422,6 +428,18 @@
   "judge_worker": "eval",
   "knowledge_scan": "knowledge",
   "launch": "launch",
+  "api/workspace/channel": "fleet",
+  "launch/cli/seat_health": "fleet",
+  "launch/cross_crate_tests/runtime_observation_tests": "fleet",
+  "store/persistence/mailbox/channel": "fleet",
+  "store/persistence/questions/tests": "fleet",
+  "launch/cli/fleet_test_support": "fleet",
+  "launch/cli/server": "fleet",
+  "launch/cli/server_ops": "launch",
+  "launch/codex/plan": "fleet",
+  "launch/fleet/acceptance_artifacts": "launch",
+  "launch/fleet/browser_guard": "launch",
+  "launch/fleet/seat_helpers": "launch",
   "launch/cli/fleet_admission": "fleet",
   "launch/cli/fleet_settings": "fleet",
   "launch/cli/tests/fleet_settings_tests": "fleet",
@@ -540,7 +558,15 @@
   "store/persistence/lessons": "lessons",
   "store/persistence/listings": "launch",
   "store/persistence/llm_role_health": "web",
+  "store/persistence/launch/fleet_closure": "launch",
   "store/persistence/mailbox": "launch",
+  "store/persistence/session_notes/obligation": "fleet",
+  "store/persistence/session_notes/obligation_identity": "fleet",
+  "store/persistence/session_notes/writes": "fleet",
+  "store/persistence/mailbox/fleet_seat": "fleet",
+  "store/persistence/mailbox/fleet_target": "fleet",
+  "store/persistence/mailbox/tests/closed_fleet": "fleet",
+  "store/persistence/mailbox/tests/task_seats": "fleet",
   "store/persistence/memory_ask_ledger": "dossier",
   "store/persistence/meta": "db",
   "store/persistence/migrations": "db",
@@ -622,7 +648,8 @@
   "reminders/session_lessons": "lessons",
   "reminders/agent_lessons": "lessons",
   "quiescence_worker/proposer_tick": "lessons",
-  "api/launch_cross_crate_tests/fleet_carry_tests": "lessons"
+  "api/launch_cross_crate_tests/fleet_carry_tests": "lessons",
+  "reminders/push_delivery_tests": "lessons"
  },
  "schemas": {
   "comment": "Owning crate per Postgres schema, or per schema.table where a table belongs elsewhere (ADR 0003). Longest key wins. Only the owner writes; other crates read the owner's tables or its contract views.",
@@ -708,13 +735,13 @@
    "workspace.change_events": "fleet",
    "workspace.change_places": "fleet",
    "workspace.questions": "launch",
-   "workspace.session_notes": "launch",
+   "workspace.session_notes": "fleet",
    "wright": "web"
   }
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 426,
+  "crate_seams": 348,
   "foreign_writes": 105
  }
 }

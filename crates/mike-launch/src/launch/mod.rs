@@ -16,6 +16,7 @@ pub mod output;
 pub mod process;
 pub mod reap;
 pub mod request;
+pub mod seat;
 pub mod seat_fact;
 pub mod stack_starter;
 pub mod state;
@@ -23,6 +24,8 @@ pub mod terminal;
 pub mod tmux;
 pub mod trust;
 pub mod worktree;
+
+pub use cli::{DoctorReport, KillReport, doctor_for_server, kill_for_server};
 
 pub use backend::{
     BackendId, Capabilities, Check, CloseOutcome, Notice, OpenRequest, PaneRequest, Placement,
@@ -38,11 +41,6 @@ pub use worktree::WorktreeKind;
 
 pub const TMUX_SESSION_PREFIX: &str = "mike-";
 pub const DEV_CHANNELS_FLAG: &str = "--dangerously-load-development-channels";
-
-pub use cli::{
-    DoctorReport, KillReport, ServerOpenRequest, ServerOpenStart, doctor_for_server,
-    kill_for_server, open_for_server,
-};
 
 #[cfg(test)]
 pub mod cross_crate_tests;

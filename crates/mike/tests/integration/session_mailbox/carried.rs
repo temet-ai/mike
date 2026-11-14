@@ -1,6 +1,7 @@
 use crate::seed::{seed_project, seed_session};
 use crate::test_db::TestDb;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
@@ -51,7 +52,7 @@ async fn a_delivered_message_is_consumed_by_the_next_request_that_carries_its_te
         .await?;
     assert_eq!(
         handle
-            .launch()
+            .fleet()
             .claim_channel_messages(recipient, 10)
             .await?
             .len(),
@@ -135,7 +136,7 @@ async fn a_request_of_another_session_does_not_consume_the_mail() -> anyhow::Res
         .await?;
     assert_eq!(
         handle
-            .launch()
+            .fleet()
             .claim_channel_messages(recipient, 10)
             .await?
             .len(),

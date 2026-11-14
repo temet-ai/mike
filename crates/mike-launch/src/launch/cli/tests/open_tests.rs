@@ -8,11 +8,7 @@ use crate::launch::backend::fake::FakeCall;
 use crate::launch::cli::open;
 use crate::launch::{BackendId, ChannelCheck, LaunchError, Surface, backend_for};
 
-pub fn open_tokens(folder: &std::path::Path, rest: &[&str]) -> Vec<String> {
-    let mut tokens = vec![folder.to_string_lossy().into_owned()];
-    tokens.extend(toks(rest));
-    tokens
-}
+pub use crate::launch::cli::test_kit::open_tokens;
 
 #[tokio::test]
 async fn open_success_prints_the_contract_object_and_exits_zero() {

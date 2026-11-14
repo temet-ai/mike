@@ -15,7 +15,7 @@ async fn the_envelope_names_a_fleet_seat_and_its_task() -> anyhow::Result<()> {
     let label = f
         .env
         .persist
-        .launch()
+        .fleet()
         .sender_label(f.t1.session)
         .await
         .ok_or_else(|| anyhow::anyhow!("a fleet seat has a label"))?;
@@ -66,7 +66,7 @@ async fn the_envelope_names_a_named_session_outside_a_fleet() -> anyhow::Result<
             },
         )
         .await?;
-    let label = f.env.persist.launch().sender_label(named).await;
+    let label = f.env.persist.fleet().sender_label(named).await;
     assert_eq!(label, Some(format!("reviewer (session {named})")));
     f.env.cleanup().await
 }

@@ -59,13 +59,13 @@ async fn rule(h: &Harness, fleet: Uuid, data: &Value) -> anyhow::Result<Uuid> {
     };
     assert!(
         h.persist
-            .launch()
+            .fleet()
             .create_session_note(id(WORKER), note)
             .await
             .is_err()
     );
     Ok(h.persist
-        .launch()
+        .fleet()
         .create_session_note(id(ACCEPTANCE), note)
         .await?
         .note_uuid)

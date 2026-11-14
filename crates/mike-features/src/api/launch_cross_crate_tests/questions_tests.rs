@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -252,7 +253,7 @@ async fn an_answer_with_amend_adds_itself_to_the_brief_a_question_is_about() -> 
     ];
     let note = env
         .persist
-        .launch()
+        .fleet()
         .create_session_note(
             env.recipient,
             NewSessionNote {
@@ -267,7 +268,7 @@ async fn an_answer_with_amend_adds_itself_to_the_brief_a_question_is_about() -> 
         .await?;
     let plain = env
         .persist
-        .launch()
+        .fleet()
         .create_session_note(
             env.recipient,
             NewSessionNote {

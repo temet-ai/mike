@@ -1,5 +1,3 @@
-pub mod agent_lessons;
-pub mod agent_lessons_stage;
 pub mod appender;
 pub mod change_record_tail;
 pub mod client_context;
@@ -10,16 +8,9 @@ pub mod inject;
 pub mod lesson_injection_backfill;
 pub mod seat_role;
 pub mod self_identity;
-pub mod session_lessons;
-pub mod session_lessons_query;
-pub mod session_lessons_stage;
 pub mod stage;
 pub mod workspace_briefing;
 
-#[cfg(test)]
-pub mod agent_lessons_stage_tests;
-#[cfg(test)]
-pub mod agent_lessons_tests;
 #[cfg(test)]
 pub mod appender_tests;
 #[cfg(test)]
@@ -31,18 +22,12 @@ pub mod fork_prefix_tests;
 #[cfg(test)]
 pub mod git_read_hint_tests;
 #[cfg(test)]
-pub mod push_delivery_tests;
-#[cfg(test)]
 pub mod reminders_stage_tests;
 #[cfg(test)]
 pub mod self_identity_stage_tests;
-#[cfg(test)]
-pub mod session_lessons_stage_tests;
-#[cfg(test)]
-pub mod session_lessons_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod stage_test_support;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
 mod tests;
@@ -74,18 +59,18 @@ pub enum RemindersOutcome {
     },
 }
 
-struct PushOrAppendRequest<'a> {
-    push_deps: &'a crate::proxy::remote_control::inject::PushDeps,
-    session_id: &'a str,
-    body_bytes: &'a [u8],
-    source: ReminderSource,
-    reminder_text: String,
-    source_finding_ids: Vec<i64>,
-    source_request_id: u64,
-    request_id: RequestId,
+pub struct PushOrAppendRequest<'a> {
+    pub push_deps: &'a crate::proxy::remote_control::inject::PushDeps,
+    pub session_id: &'a str,
+    pub body_bytes: &'a [u8],
+    pub source: ReminderSource,
+    pub reminder_text: String,
+    pub source_finding_ids: Vec<i64>,
+    pub source_request_id: u64,
+    pub request_id: RequestId,
 }
 
-async fn push_or_append_reminder(req: PushOrAppendRequest<'_>) -> RemindersOutcome {
+pub async fn push_or_append_reminder(req: PushOrAppendRequest<'_>) -> RemindersOutcome {
     let PushOrAppendRequest {
         push_deps,
         session_id,

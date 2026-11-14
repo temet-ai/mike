@@ -2,7 +2,7 @@
 title: Split crate mike into peer crates along measured seams
 status: accepted
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines.
 ---
 
@@ -185,6 +185,64 @@ Measured on 13 Nov (cloud container, `-j 4`, warm cache, one file touched):
 The test build is where the split pays: an edit rebuilds only its own crate's test
 harness. `check` gains little because incremental compilation already skipped
 unchanged code.
+
+### S5 as built
+
+- **Crates.** `mike-knowledge` (project knowledge, semantic, rerank, embeddings worker,
+  search events) sits on `mike-launch` and under `mike-features`; `mike-lessons`
+  (lessons, memory keeper, recall, lesson delivery, supply verdicts, lesson pairs) sits
+  on `mike-features` and under `mike`. Root globs chain `mike_base` ← `mike_runtime` ←
+  `mike_launch` ← `mike_knowledge` ← `mike_features` ← `mike_lessons` ← `mike`.
+- **Knowledge state.** Knowledge takes `KnowledgeState` (BaseState plus the semantic,
+  embedding and rerank services) through `FromRef`. Drift alarms and rerank tuning
+  write through `DriftAlarms` and `SettingWriter`, which eval and settings implement.
+- **Lessons above the proxy.** The snapshot types live in `mike_base::lesson_cache`.
+  The proxy reaches lessons only through `LessonHooks` on `AppState`: the four lesson
+  pipeline stages, the harvester, supply records, attribution, the proposer tick and
+  the rerank lesson-pairs phase. The hooks do nothing until `serve` installs
+  `lesson_delivery::hooks::Lessons`; a test that wants lessons injected installs them too.
+- **Graders.** S5 incremental seams 0 production, 0 test; the remaining S5-stage 76
+  are S4's launch → fleet.
+
+Measured on 13 Nov on omit (mbx, half the cores, `nice`; one blank line added to the
+crate's `lib.rs`, one run each):
+
+| Touched crate | that crate's lib test build | `cargo check -p mike --lib` |
+|---|---|---|
+| `mike-knowledge` | 42 s | 70 s |
+| `mike-lessons` | not measured: the run waited on another session's build | 44 s |
+
+### S4 as built
+
+- **Crate.** `mike-fleet` (`launch/fleet`, change record, questions, their persistence
+  and API handlers) sits on `mike-launch` and under `mike-knowledge`. Root globs chain
+  `mike_base` ← `mike_runtime` ← `mike_launch` ← `mike_fleet` ← `mike_knowledge` ←
+  `mike_features` ← `mike_lessons` ← `mike` (#235, #236).
+- **Launch reaches fleet only through `SeatLaunchHook`.** `mike` installs it in
+  `main.rs` and in `AppState` construction; any other entry point that opens fleet seats
+  calls `mike::launch::cli::fleet_settings::install()`, or fleet runs are refused with
+  "no fleet support installed".
+- **Graders.** Every stage's seams are 0 production, 0 test; `crate_seams` 348 and
+  `foreign_writes` 105 are the ratchets left for later work.
+
+Measured on 14 Nov on omit at `9e416ee43` (mbx, half the cores, `nice`, every unit warm;
+one blank line added to the crate's `lib.rs`, one run each; a warm workspace lib test
+build is 3 m 40 s):
+
+| Touched crate | that crate's lib test build | `cargo check -p mike --lib` |
+|---|---|---|
+| `mike-base` | 25 s | 65 s |
+| `mike-runtime` | 18 s | 57 s |
+| `mike-launch` | 17 s | 47 s |
+| `mike-fleet` | 40 s | 40 s |
+| `mike-knowledge` | 29 s | 29 s |
+| `mike-features` | 51 s | 36 s |
+| `mike-lessons` | 46 s | 18 s |
+| `mike` | 108 s | 12 s |
+
+An edit below `mike` now builds its own tests in 17–51 s, against 114 s for the single
+crate. Crate `mike`'s own test build is still 108 s: its API, serve and CLI tests and
+the `cross_crate_tests` modules all link there.
 
 ## Consequences
 

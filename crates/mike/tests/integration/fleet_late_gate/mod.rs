@@ -1,5 +1,4 @@
 use mike::store::persistence::fleet_repo::FleetPersist as _;
-use mike::store::persistence::launch_repo::LaunchPersist as _;
 mod ownership;
 mod support;
 
@@ -152,7 +151,7 @@ async fn report_with_unusable_commit_preserves_lookup_without_repeating_unbounde
     let oversized = "unverified payload".repeat(10_000);
     let note = f
         .persist
-        .launch()
+        .fleet()
         .create_session_note(
             f.old,
             NewSessionNote {

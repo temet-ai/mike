@@ -6,11 +6,11 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
-use super::fleet_settings::RecordedSettings;
 use super::ledger_wire::{
     ChannelPresent, ClosedBody, HELLO_PATH, LAUNCHES_PATH, LaunchId, LedgerHello, LinkBody,
     LinkReply, RUNS_PATH, SESSIONS_PATH, TurnSeen,
 };
+use crate::launch::seat::RecordedSettings;
 use crate::store::persistence::launch::{
     LaunchListFilter, LaunchOutcome, LaunchRow, LaunchSurfaceRefs, LinkOutcome, NewLaunch, NewRun,
     RunRow,

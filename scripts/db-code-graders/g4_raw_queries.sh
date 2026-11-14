@@ -56,21 +56,23 @@ done
 # pre-existing without re-diffing per hit.
 declare -A ADDED_LINES_FOR_FILE=()
 if [ -n "$commit_scope" ]; then
-    if [ "$commit_scope" = "cached" ]; then
-        diff_files=$(git -C "$CRATE_ROOT" diff --cached --name-only -- '*.rs' 2>/dev/null || true)
-    else
-        diff_files=$(git -C "$CRATE_ROOT" diff --name-only -- '*.rs' 2>/dev/null || true)
-    fi
-    while IFS= read -r f; do
-        [ -z "$f" ] && continue
-        abs="$CRATE_ROOT/$f"
-        if [ "$commit_scope" = "cached" ]; then
-            added=$(git -C "$CRATE_ROOT" diff --cached -- "$f" 2>/dev/null | grep -E '^\+[^+]' | sed 's/^\+//' || true)
-        else
-            added=$(git -C "$CRATE_ROOT" diff -- "$f" 2>/dev/null | grep -E '^\+[^+]' | sed 's/^\+//' || true)
+    scope_args=()
+    [ "$commit_scope" = "cached" ] && scope_args=(--cached)
+    # Renames are read with -M against the old path: diffing the new path alone
+    # reports every line of a moved file as added (the crate split moves hundreds).
+    diff_entries=$(git -C "$CRATE_ROOT" diff "${scope_args[@]}" -M --name-status -- '*.rs' 2>/dev/null || true)
+    while IFS=$'\t' read -r status first second; do
+        [ -z "$status" ] && continue
+        paths=("$first")
+        f="$first"
+        if [ "${status#R}" != "$status" ]; then
+            paths=("$first" "$second")
+            f="$second"
         fi
+        abs="$CRATE_ROOT/$f"
+        added=$(git -C "$CRATE_ROOT" diff "${scope_args[@]}" -M -- "${paths[@]}" 2>/dev/null | grep -E '^\+[^+]' | sed 's/^\+//' || true)
         ADDED_LINES_FOR_FILE["$abs"]="$added"
-    done <<< "$diff_files"
+    done <<< "$diff_entries"
 fi
 
 is_newly_added() {

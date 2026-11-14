@@ -1,9 +1,6 @@
 use chrono::{DateTime, Utc};
 
-pub mod obligation;
-pub mod obligation_identity;
 pub mod reads;
-pub mod writes;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionNoteRow {

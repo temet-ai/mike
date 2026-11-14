@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::error::LaunchError;
-use super::fleet::brief_delivery;
 
 pub use crate::config::launch::DEFAULT_BRIEF_INLINE_MAX;
 
@@ -138,7 +137,7 @@ pub fn stage(
             path: None,
             note: Some(note),
         }),
-        (Some(session), Some(note)) if brief_delivery::is_delivered(prompt) => Ok(StagedBrief {
+        (Some(session), Some(note)) if super::seat::brief_is_delivered(prompt) => Ok(StagedBrief {
             mode: BriefMode::Inline,
             delivered: read_pointer(staging.who, session, note),
             path: None,
@@ -164,7 +163,7 @@ pub fn demote_to_file(
 ) -> Result<StagedBrief, LaunchError> {
     match staged.mode {
         BriefMode::Note => stage_file(prompt, fallback.file_id, fallback.briefs_dir, fallback.who),
-        BriefMode::Inline if brief_delivery::is_delivered(prompt) => {
+        BriefMode::Inline if super::seat::brief_is_delivered(prompt) => {
             stage_file(prompt, fallback.file_id, fallback.briefs_dir, fallback.who)
         }
         BriefMode::Inline | BriefMode::File => Ok(StagedBrief {

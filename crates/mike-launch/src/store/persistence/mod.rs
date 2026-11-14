@@ -1,8 +1,5 @@
 pub use mike_runtime::store::persistence::*;
 pub mod change_record;
-pub mod fleet;
-pub mod fleet_correlation;
-pub mod fleet_repo;
 pub mod launch;
 pub mod launch_repo;
 pub mod listings;
@@ -21,4 +18,3 @@ pub mod work_item_attention_tests;
 pub mod work_items_ledger;
 pub mod work_items_reconcile;
 pub mod work_threads;
-pub use fleet::{FleetNoteRow, FleetRow, FleetSeatRow, NewFleet};

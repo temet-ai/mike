@@ -104,7 +104,7 @@ impl Fixture {
     pub(super) async fn obligation(&self, data: &Value) -> anyhow::Result<SessionNoteRow> {
         Ok(self
             .persist
-            .launch()
+            .fleet()
             .create_session_note(
                 self.acceptance,
                 NewSessionNote {
@@ -129,7 +129,7 @@ impl Fixture {
         ];
         Ok(self
             .persist
-            .launch()
+            .fleet()
             .create_session_note(
                 self.acceptance,
                 NewSessionNote {
@@ -154,7 +154,7 @@ impl Fixture {
         let mut data = note.data.clone();
         data["outcome"] = json!(outcome);
         self.persist
-            .launch()
+            .fleet()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {

@@ -23,17 +23,18 @@ default = []
 # ship in production binaries. Integration tests opt in by setting
 # `--features test-seams`. Keeps `nm target/release/mike`
 # free of test-seam symbols by default.
-test-seams = ["mike-base/test-seams", "mike-features/test-seams"]
+test-seams = ["mike-base/test-seams", "mike-features/test-seams", "mike-lessons/test-seams"]
 # `ts-export` derives `ts_rs::TS` on the inspect-API response DTOs so the
 # frontend's TypeScript bindings are GENERATED from the Rust producers
 # instead of hand-authored beside them. Off by default — normal/release
 # builds never compile `ts-rs`. Regenerate with:
 #   cargo test -p mike --features ts-export export_bindings
-ts-export = ["dep:ts-rs", "mike-base/ts-export", "mike-features/ts-export"]
+ts-export = ["dep:ts-rs", "mike-base/ts-export", "mike-features/ts-export", "mike-lessons/ts-export"]
 
 [dependencies]
 mike-base = { path = "../mike-base" }
 mike-features = { path = "../mike-features" }
+mike-lessons = { path = "../mike-lessons" }
 anyhow = { workspace = true }
 arc-swap = "1"
 async-trait = { workspace = true }

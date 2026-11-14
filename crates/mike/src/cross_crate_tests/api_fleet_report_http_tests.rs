@@ -182,7 +182,7 @@ impl Harness {
         let tags = vec!["commit".to_string(), "P1".to_string()];
         let data = json!({"task": "P1", "sha": sha});
         self.persist
-            .launch()
+            .fleet()
             .create_session_note(
                 id(WORKER),
                 NewSessionNote {
