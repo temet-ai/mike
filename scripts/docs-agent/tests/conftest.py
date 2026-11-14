@@ -13,5 +13,5 @@ import client
 
 @pytest.fixture(autouse=True)
 def no_decisions_call(monkeypatch):
-    """No test reaches OpenRouter's decisions endpoint unless it stubs the call."""
-    monkeypatch.setattr(client, "decide", lambda state, questions, model=None: None)
+    """No test reaches mike's decisions route unless it stubs the call."""
+    monkeypatch.setattr(client, "decide", lambda state, questions, point=None: None)
