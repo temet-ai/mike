@@ -14,6 +14,7 @@ const SILENT_AFTER_SECONDS: i64 = 1800;
 const VERDICTS_SHOWN: usize = 6;
 const QUIET_AFTER_SECONDS: i64 = 300;
 const OPERATOR_STATUS: &str = "operator";
+const ROUTED_TAG: &str = super::operator_route::TAG;
 const SEATS_AT_WORK: [&str; 2] = ["working", "starting"];
 
 pub fn build(
@@ -89,6 +90,7 @@ fn build_with_evidence(
             at: n.created_at,
             seat: n.seat.clone().unwrap_or_default(),
             title: n.title.clone(),
+            routed: n.tags.iter().any(|tag| tag == ROUTED_TAG),
         })
         .collect();
     let tree_broken = super::shared_tree::state(&events, header.now);
@@ -145,6 +147,7 @@ fn problems_of(recorded: &[FleetEvent]) -> Vec<ProblemStatus> {
                 .to_string(),
             decisions: problem.decisions.clone(),
             escalated: problem.escalated,
+            routed: problem.routed,
         })
         .collect()
 }

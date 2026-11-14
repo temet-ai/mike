@@ -173,6 +173,7 @@ pub fn store(persist: &crate::store::persistence::PersistHandle) -> DecisionStor
     DecisionStore(persist)
 }
 
+pub mod ambient;
 pub mod env;
 pub mod export;
 pub mod fleet_counts;

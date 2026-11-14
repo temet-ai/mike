@@ -141,6 +141,7 @@ pub async fn post_session_note(
     {
         Ok(row) => {
             record_note_in_change_record(&state, handle, session_uuid, &row);
+            crate::launch::fleet::operator_route::spawn_note(&state, session_uuid, &row);
             Ok(Json(with_tail(&state, session_uuid, row).await))
         }
         Err(crate::store::persistence::PersistError::InvalidAcceptanceObligation(issue)) => {
@@ -237,6 +238,9 @@ pub async fn patch_session_note(
     match handle.fleet().update_session_note(note_uuid, update).await {
         Ok(Some(row)) => {
             record_note_in_change_record(&state, handle, session_uuid, &row);
+            if body.status.as_deref().map(str::trim) == Some("operator") {
+                crate::launch::fleet::operator_route::spawn_note(&state, session_uuid, &row);
+            }
             Ok(Json(with_tail(&state, session_uuid, row).await))
         }
         Ok(None) => Err((StatusCode::NOT_FOUND, "no note with that id").into_response()),

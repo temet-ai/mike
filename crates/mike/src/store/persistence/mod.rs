@@ -2,6 +2,7 @@ pub use mike_lessons::store::persistence::*;
 pub mod file_write_summaries;
 pub mod llm_role_health;
 pub mod project_merge;
+pub mod project_merge_candidates;
 pub mod scheduled_job_runs;
 pub mod session_delivery;
 pub mod session_flow;

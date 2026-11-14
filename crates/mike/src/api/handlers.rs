@@ -51,6 +51,7 @@ mod operator_turns;
 mod operator_turns_ledger;
 mod operator_turns_outcomes;
 mod project_merge;
+mod project_merge_suggest;
 #[cfg(test)]
 mod recall_own_turn_tests;
 #[cfg(test)]
@@ -109,6 +110,7 @@ pub(crate) use operator_turns::*;
 pub(crate) use operator_turns_ledger::*;
 pub(crate) use operator_turns_outcomes::*;
 pub(crate) use project_merge::*;
+pub(crate) use project_merge_suggest::get_project_merge_suggestions;
 pub(crate) use recall_context::*;
 pub(crate) use recall_turns::*;
 pub(crate) use receipts_01::*;

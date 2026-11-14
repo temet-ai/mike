@@ -46,27 +46,30 @@ pub fn schema() -> Value {
 #[async_trait]
 impl<M: LeafModel> Solver for ModelSolver<M> {
     async fn solve(&self, dossier: &Dossier) -> Result<Decision, LeafError> {
-        let brief = brief(dossier);
-        let raw = self
-            .0
-            .answer(
-                "You are the problem-solver of a fleet run.",
-                &brief.text,
-                schema(),
-            )
-            .await?;
-        let answer: SolverAnswer = parse(raw)?;
-        require_text("reason", &answer.reason)?;
-        let kind = DecisionKind::parse(&answer.decision)
-            .ok_or_else(|| LeafError::Invalid(format!("unknown decision {}", answer.decision)))?;
-        Ok(Decision {
-            kind,
-            decided_by: "problem_solver".into(),
-            reason: answer.reason,
-            evidence_read: answer.evidence_read,
-            question: answer.question,
-        })
+        solve_with(&self.0, dossier).await
     }
+}
+
+pub async fn solve_with(model: &dyn LeafModel, dossier: &Dossier) -> Result<Decision, LeafError> {
+    let brief = brief(dossier);
+    let raw = model
+        .answer(
+            "You are the problem-solver of a fleet run.",
+            &brief.text,
+            schema(),
+        )
+        .await?;
+    let answer: SolverAnswer = parse(raw)?;
+    require_text("reason", &answer.reason)?;
+    let kind = DecisionKind::parse(&answer.decision)
+        .ok_or_else(|| LeafError::Invalid(format!("unknown decision {}", answer.decision)))?;
+    Ok(Decision {
+        kind,
+        decided_by: "problem_solver".into(),
+        reason: answer.reason,
+        evidence_read: answer.evidence_read,
+        question: answer.question,
+    })
 }
 
 pub async fn decisions_for(
@@ -121,8 +124,16 @@ pub async fn pass(state: &BaseState, persist: &PersistHandle, _def: &FleetDefini
     let Some(model) = super::model(state) else {
         return;
     };
-    let solver = ModelSolver(model);
-    let new = decisions_for(&events, run, Utc::now(), &solver, &[]).await;
+    let decider = state
+        .decision_env()
+        .and_then(|env| env.decider(super::solver_jev::POINT));
+    let new = match decider {
+        Some(decider) => {
+            let solver = super::solver_jev::JevSolver { model, decider };
+            decisions_for(&events, run, Utc::now(), &solver, &[]).await
+        }
+        None => decisions_for(&events, run, Utc::now(), &ModelSolver(model), &[]).await,
+    };
     for event in new {
         if let Err(err) = persist.fleet().append_fleet_event(&event).await {
             tracing::warn!(run, error = %err, "problem pass could not record an event");

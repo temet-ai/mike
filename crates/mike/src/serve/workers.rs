@@ -6,6 +6,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
         return;
     }
 
+    crate::llm::decisions::ambient::install(state);
+
     crate::lesson_worker::spawn_lesson_worker(state);
 
     crate::resync::worker::spawn_resync_worker(state);

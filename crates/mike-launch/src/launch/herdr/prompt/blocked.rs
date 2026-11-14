@@ -20,11 +20,13 @@ pub async fn wait_until_clear(cli: &HerdrCli, name: &str, pacing: Pacing) -> Blo
 
 async fn describe(cli: &HerdrCli, name: &str, pacing: Pacing) -> String {
     let waited = pacing.block_polls;
-    match read_screen(cli, name)
-        .await
-        .as_deref()
-        .and_then(dialog_name)
-    {
+    let screen = read_screen(cli, name).await;
+    let decider = crate::llm::decisions::ambient::decider(super::blocked_jev::POINT);
+    let found = match screen.as_deref() {
+        Some(screen) => super::blocked_jev::dialog(decider.as_ref(), screen).await,
+        None => None,
+    };
+    match found {
         Some(dialog) => {
             format!("still blocked after {waited} checks by {dialog}, which needs a person")
         }

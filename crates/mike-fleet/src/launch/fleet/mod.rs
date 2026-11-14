@@ -50,6 +50,7 @@ pub mod fold_replay_tests;
 pub mod fork_seat;
 pub mod gate;
 pub mod gate_blame;
+pub mod gate_blame_jev;
 pub mod gate_failures;
 pub mod gate_queue;
 pub mod gate_rerun;
@@ -68,6 +69,7 @@ pub mod operation_profile;
 #[cfg(test)]
 pub mod operation_runtime_tests;
 pub mod operation_timing;
+pub mod operator_route;
 pub mod plan;
 pub mod plan_briefs;
 pub mod problems;

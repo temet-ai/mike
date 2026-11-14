@@ -3,6 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
 use super::author::{self, FileChange, Window};
+use super::author_jev;
 use super::git::Git;
 use super::refs::{self, RefMove};
 use super::tree::FileDelta;
@@ -254,7 +255,8 @@ pub async fn name(
                 edit: *edit,
                 shell: *shell,
             };
-            let who = author::of_file_change(persist, git, &change).await?;
+            let decider = crate::llm::decisions::ambient::decider(author_jev::POINT);
+            let who = author::of_file_change_with(persist, git, &change, decider.as_ref()).await?;
             let settled = matches!(
                 who,
                 author::Authorship::Edit { .. }
@@ -302,6 +304,9 @@ async fn seat_or_shell(
 ) -> Result<author::Authorship, PersistError> {
     match author::of_seat(persist, seat).await? {
         Some(seat) => Ok(seat),
-        None => author::of_shell(persist, root, shell).await,
+        None => {
+            let decider = crate::llm::decisions::ambient::decider(author_jev::POINT);
+            author::of_shell_with(persist, root, shell, decider.as_ref()).await
+        }
     }
 }

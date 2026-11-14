@@ -1,5 +1,6 @@
 pub mod checker;
 pub mod judge;
+pub mod judge_jev;
 pub mod judge_pass;
 #[cfg(test)]
 pub mod judge_pass_tests;
@@ -8,6 +9,7 @@ pub mod report_judge;
 #[cfg(test)]
 pub mod report_judge_tests;
 pub mod solver;
+pub mod solver_jev;
 #[cfg(test)]
 mod tests;
 

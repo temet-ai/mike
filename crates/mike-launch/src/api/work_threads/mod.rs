@@ -254,6 +254,7 @@ pub async fn checkpoint_thread(
         .checkpoint_work_thread(project, &input)
         .await
         .map_err(thread_error)?;
+    crate::work_threads::status_suggest::spawn(&state, project, body.slug.clone());
     Ok(Json(
         serde_json::to_value(outcome).map_err(|e| persist_error_response(e.into()))?,
     ))

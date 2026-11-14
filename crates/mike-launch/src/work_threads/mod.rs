@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod export;
 pub mod import;
+pub mod status_suggest;
 
 pub use cli::{ImportArgs, ThreadArgs, ThreadCommand};
 

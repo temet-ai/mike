@@ -115,3 +115,62 @@ impl DecisionsFixture {
         self.db.cleanup().await
     }
 }
+
+pub async fn stub_jev(status: u16, body: Value) -> wiremock::MockServer {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/alpha/decisions"))
+        .respond_with(ResponseTemplate::new(status).set_body_json(body))
+        .mount(&server)
+        .await;
+    server
+}
+
+pub fn jev_decider(
+    server: &wiremock::MockServer,
+    persist: &PersistHandle,
+    point: &'static str,
+    mode: crate::llm::decisions::record::DecisionMode,
+) -> anyhow::Result<crate::llm::decisions::point::Decider> {
+    let client = crate::llm::OpenRouterClient::new(
+        "sk-test".to_owned(),
+        "typesafe/jev-1.14".to_owned(),
+        Some(server.uri()),
+        None,
+    )?;
+    crate::llm::decisions::point::Decider::with_mode(
+        &client,
+        persist,
+        &crate::settings::SettingsOverlay::default(),
+        point,
+        mode,
+    )
+    .ok_or_else(|| anyhow::anyhow!("no decider"))
+}
+
+pub fn choice_body(question: &str, key: &str, others: &[&str]) -> Value {
+    let mut probabilities = serde_json::Map::new();
+    for other in others {
+        probabilities.insert((*other).to_owned(), json!(0.1));
+    }
+    probabilities.insert(key.to_owned(), json!(0.8));
+    json!({
+        "model": "typesafe/jev-1.14",
+        "answers": {question: {"type": "choice", "choice": key, "probabilities": probabilities}},
+        "usage": {"input_tokens": 10, "output_tokens": 1, "cost": 0.00001}
+    })
+}
+
+pub fn noul_body(answers: &[(&str, f64)]) -> Value {
+    let mut map = serde_json::Map::new();
+    for (name, p) in answers {
+        map.insert((*name).to_owned(), json!({"type": "noul", "noul": p}));
+    }
+    json!({
+        "model": "typesafe/jev-1.14",
+        "answers": map,
+        "usage": {"input_tokens": 10, "output_tokens": 1, "cost": 0.00001}
+    })
+}

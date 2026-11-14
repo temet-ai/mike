@@ -350,7 +350,16 @@ pub async fn after_run(
     let reruns = rerun_timeouts(persist, def, run, target, output).await;
     let passed = last_passing(persist, def, run, &target.commit).await;
     let command = def.gate.command.as_str();
-    let Some(blame) = blame(def, passed.as_deref(), &target.commit, output).await else {
+    let decider = crate::llm::decisions::ambient::decider(super::gate_blame_jev::POINT);
+    let Some(blame) = super::gate_blame::blame_with(
+        def,
+        passed.as_deref(),
+        &target.commit,
+        output,
+        decider.as_ref(),
+    )
+    .await
+    else {
         if !only_timeouts_that_pass(&reruns)
             && let Some(seats) = ControlSeats::recorded(def)
         {

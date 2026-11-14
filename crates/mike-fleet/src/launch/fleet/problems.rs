@@ -144,6 +144,7 @@ pub struct Problem {
     pub opened_at: DateTime<Utc>,
     pub decisions: Vec<String>,
     pub escalated: bool,
+    pub routed: bool,
 }
 
 impl Problem {
@@ -174,6 +175,7 @@ impl Ledger {
                         opened_at: event.occurred_at,
                         decisions: Vec::new(),
                         escalated: false,
+                        routed: false,
                     });
                 }
                 Ok(EventPayload::ProblemDecided(decided)) => {
@@ -184,6 +186,7 @@ impl Ledger {
                 Ok(EventPayload::ProblemEscalated(escalated)) => {
                     if let Some(at) = index.get(&escalated.problem_id) {
                         problems[*at].escalated = true;
+                        problems[*at].routed |= escalated.routed;
                     }
                 }
                 _ => {}
@@ -241,8 +244,23 @@ fn escalation(
             problem_id: id,
             reason: reason.to_string(),
             question: question.to_string(),
+            routed: false,
         }),
     )
+}
+
+pub async fn mark_routed(
+    persist: &PersistHandle,
+    run: &str,
+    problem_id: Uuid,
+    task: Option<&str>,
+    question: &str,
+) -> Result<(), String> {
+    let mut routed = escalation(run, task, problem_id, "routed_to_coordinator", question);
+    if let EventPayload::ProblemEscalated(payload) = &mut routed.payload {
+        payload.routed = true;
+    }
+    append_all(persist, &[routed]).await
 }
 
 pub fn seed_problem(

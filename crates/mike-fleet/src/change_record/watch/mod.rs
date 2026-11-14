@@ -1,4 +1,5 @@
 pub mod author;
+pub mod author_jev;
 pub mod author_named;
 pub mod checkout;
 pub mod git;

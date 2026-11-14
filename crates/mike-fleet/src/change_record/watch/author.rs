@@ -4,8 +4,10 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
+use super::author_jev::{Facts, resolve};
 use super::git::Git;
 use crate::change_record::{ChangeKind, ShellRun, ToolCallNaming};
+use crate::llm::decisions::point::Decider;
 use crate::store::persistence::change_record::EditCall;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -27,6 +29,10 @@ pub enum Authorship {
     Seat {
         session: i64,
     },
+    Judged {
+        session: i64,
+        percent: u32,
+    },
     Unknown {
         candidates: Vec<i64>,
     },
@@ -37,7 +43,8 @@ impl Authorship {
         match self {
             Authorship::Edit { session, .. }
             | Authorship::Shell { session, .. }
-            | Authorship::Seat { session } => Some(*session),
+            | Authorship::Seat { session }
+            | Authorship::Judged { session, .. } => Some(*session),
             Authorship::Unknown { .. } => None,
         }
     }
@@ -67,6 +74,7 @@ impl Authorship {
                 json!({"author": "shell", "inferred": true})
             }
             Authorship::Seat { .. } => json!({"author": "fleet_seat_trailer"}),
+            Authorship::Judged { percent, .. } => json!({"author": "jev", "percent": percent}),
             Authorship::Unknown { candidates } => {
                 json!({"author": "unknown", "candidates": candidates})
             }
@@ -251,6 +259,15 @@ pub async fn of_file_change(
     git: &Git,
     change: &FileChange<'_>,
 ) -> Result<Authorship, PersistError> {
+    of_file_change_with(persist, git, change, None).await
+}
+
+pub async fn of_file_change_with(
+    persist: &PersistHandle,
+    git: &Git,
+    change: &FileChange<'_>,
+    decider: Option<&Decider>,
+) -> Result<Authorship, PersistError> {
     let late = Duration::milliseconds(LATE_ROW_MS);
     let calls = persist
         .fleet()
@@ -264,7 +281,40 @@ pub async fn of_file_change(
         .fleet()
         .shell_commands_running(git.root(), change.shell.from, change.shell.to)
         .await?;
-    if let Some(who) = proven_by_content(git, &calls, &runs, change).await {
+    let who = named_from(persist, git, (&calls, &runs), change).await?;
+    Ok(judge_unknown(who, decider, git, (&calls, &runs), change).await)
+}
+
+async fn judge_unknown(
+    who: Authorship,
+    decider: Option<&Decider>,
+    git: &Git,
+    (calls, runs): (&[EditCall], &[ShellRun]),
+    change: &FileChange<'_>,
+) -> Authorship {
+    let (Some(decider), Authorship::Unknown { candidates }) = (decider, &who) else {
+        return who;
+    };
+    if candidates.len() < 2 {
+        return who;
+    }
+    let after = blob_text(git, change.after_sha).await;
+    let facts = Facts {
+        path: change.relative_path,
+        calls,
+        runs,
+        after: after.as_deref(),
+    };
+    resolve(decider, candidates, &facts).await.unwrap_or(who)
+}
+
+async fn named_from(
+    persist: &PersistHandle,
+    git: &Git,
+    (calls, runs): (&[EditCall], &[ShellRun]),
+    change: &FileChange<'_>,
+) -> Result<Authorship, PersistError> {
+    if let Some(who) = proven_by_content(git, calls, runs, change).await {
         return Ok(who);
     }
     let paths = (git.root(), change.relative_path, change.absolute_path);
@@ -276,7 +326,7 @@ pub async fn of_file_change(
         .filter(|c| c.at <= change.edit.to)
         .map(EditCall::naming)
         .collect();
-    match decide(&naming, &runs) {
+    match decide(&naming, runs) {
         Authorship::Unknown { candidates } => {
             let owner =
                 super::author_named::owner_among(persist, &candidates, change.relative_path)
@@ -364,11 +414,33 @@ pub async fn of_shell(
     checkout: &str,
     shell: Window,
 ) -> Result<Authorship, PersistError> {
+    of_shell_with(persist, checkout, shell, None).await
+}
+
+pub async fn of_shell_with(
+    persist: &PersistHandle,
+    checkout: &str,
+    shell: Window,
+    decider: Option<&Decider>,
+) -> Result<Authorship, PersistError> {
     let runs = persist
         .fleet()
         .shell_commands_running(checkout, shell.from, shell.to)
         .await?;
-    Ok(from_shell_runs(&runs))
+    let who = from_shell_runs(&runs);
+    let (Some(decider), Authorship::Unknown { candidates }) = (decider, &who) else {
+        return Ok(who);
+    };
+    if candidates.len() < 2 {
+        return Ok(who);
+    }
+    let facts = Facts {
+        path: checkout,
+        calls: &[],
+        runs: &runs,
+        after: None,
+    };
+    Ok(resolve(decider, candidates, &facts).await.unwrap_or(who))
 }
 
 pub async fn of_seat(

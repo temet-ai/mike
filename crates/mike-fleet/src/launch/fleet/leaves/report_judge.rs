@@ -2,6 +2,7 @@ use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
+use super::judge_jev::jev_judge;
 use super::{
     CriterionText, EarlierVerdict, JudgeAnswer, JudgeInput, JudgeVerdict, LeafError, LeafModel,
     ReportFacts, SharedTask, judge, verdict_events,
@@ -14,6 +15,7 @@ use crate::launch::fleet::problems::{self, Trigger};
 use crate::launch::fleet::report::Exercised;
 use crate::launch::fleet::status::note_facts;
 use crate::launch::fleet::watch::git;
+use crate::llm::decisions::point::Decider;
 use crate::store::persistence::PersistHandle;
 
 const PATCH_BYTES: usize = 1 << 20;
@@ -41,6 +43,16 @@ pub async fn judge_report(
     report: &ReportToJudge,
     floor: Outcome,
 ) -> Result<(), LeafError> {
+    judge_report_with(None, model, persist, def, (report, floor)).await
+}
+
+pub async fn judge_report_with(
+    decider: Option<&Decider>,
+    model: &dyn LeafModel,
+    persist: &PersistHandle,
+    def: &FleetDefinition,
+    (report, floor): (&ReportToJudge, Outcome),
+) -> Result<(), LeafError> {
     let events = persist
         .fleet()
         .fleet_events_since(&report.run, 0)
@@ -48,7 +60,14 @@ pub async fn judge_report(
         .unwrap_or_default();
     let earlier = earlier_rounds(&events, &report.task);
     let input = input_for(persist, def, report, floor, earlier.clone()).await;
-    let judged = judge(model, &input).await?;
+    let by_jev = match decider {
+        Some(decider) => jev_judge(decider, &input).await,
+        None => None,
+    };
+    let judged = match by_jev {
+        Some(judged) => judged,
+        None => judge(model, &input).await?,
+    };
     record(persist, report, &judged.answer).await;
     open_problem_on_repeated_fails(persist, report, &judged.answer, &earlier).await;
     Ok(())
