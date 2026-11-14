@@ -15,6 +15,7 @@ pub mod knowledge_state;
 pub mod neighbours;
 pub mod retrieve;
 pub mod sections;
+pub mod tag_decide;
 pub mod tag_job;
 pub mod tagger;
 pub mod worker;

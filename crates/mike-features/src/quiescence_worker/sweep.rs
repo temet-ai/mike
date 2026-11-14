@@ -30,6 +30,18 @@ pub struct SweepContext<'a> {
 }
 
 impl SweepContext<'_> {
+    pub fn decision_env(
+        &self,
+        client: &OpenRouterClient,
+    ) -> crate::llm::decisions::env::DecisionEnv {
+        crate::llm::decisions::env::DecisionEnv::new(
+            client.clone(),
+            self.persist.clone(),
+            self.toggles.load().decisions,
+            self.settings.load_full(),
+        )
+    }
+
     pub fn push_deps(&self) -> crate::proxy::remote_control::inject::PushDeps {
         crate::proxy::remote_control::inject::PushDeps {
             persist: Some(self.persist.clone()),

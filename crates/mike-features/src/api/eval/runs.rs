@@ -209,14 +209,23 @@ pub async fn list_eval_run_items(
         return unavailable();
     };
     match persist.eval().eval_run_items_page(id, &filter).await {
-        Ok(p) => Json(ItemsPage {
-            items: p.items,
-            total: p.total,
-            reviewed: p.reviewed,
-            limit,
-            offset,
-        })
-        .into_response(),
+        Ok(p) => {
+            let ids: Vec<i64> = p.items.iter().map(|i| i.operator_turn_id).collect();
+            super::prelabel::spawn_fill(state.decision_env(), persist.clone(), &ids);
+            let values: Vec<serde_json::Value> = p
+                .items
+                .iter()
+                .filter_map(|item| serde_json::to_value(item).ok())
+                .collect();
+            Json(ItemsPage {
+                items: super::prelabel::attach(values, &super::prelabel::cached(&ids)),
+                total: p.total,
+                reviewed: p.reviewed,
+                limit,
+                offset,
+            })
+            .into_response()
+        }
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("persistence error: {e}"),

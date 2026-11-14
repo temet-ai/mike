@@ -2,6 +2,7 @@ pub mod bundles;
 pub mod embedding_drift;
 pub mod labels;
 pub mod metrics;
+pub mod prelabel;
 pub mod projection;
 pub mod rejudge_runs;
 pub mod relay;

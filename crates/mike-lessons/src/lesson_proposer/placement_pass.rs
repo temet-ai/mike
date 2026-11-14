@@ -3,8 +3,10 @@ use serde::Serialize;
 
 use super::maintenance::{self, Reservation};
 use super::placement::{self, LessonToPlace, PlacementAnswer};
+use super::relate_pick::{self, Jev};
 use super::{ProposerDeps, guidance};
 use crate::llm::LlmError;
+use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::lessons::maintenance_budget::{MaintenancePass, RefusalReason};
 use crate::store::persistence::lessons::placement::{PlacementWrite, UnplacedLesson};
 use crate::store::persistence::project_knowledge::GuidanceRow;
@@ -57,8 +59,9 @@ pub async fn run_pass(deps: &ProposerDeps<'_>) -> PlacementReport {
         return report;
     }
     let mut failures_in_a_row = 0;
+    let jev = Jev::new(deps.decisions);
     for lesson in &work {
-        match place_one(deps, lesson, &mut report).await {
+        match place_one(deps, lesson, &mut report, jev.as_ref()).await {
             Handled::Placed => failures_in_a_row = 0,
             Handled::Failed => failures_in_a_row += 1,
             Handled::Stop => break,
@@ -86,11 +89,34 @@ async fn ask(
         .map(|(answer, _usage)| answer)
 }
 
+async fn decided(
+    jev: Option<&Jev>,
+    lesson: &UnplacedLesson,
+    shown: &[GuidanceRow],
+) -> Option<PlacementAnswer> {
+    let subject = LessonToPlace {
+        text: &lesson.text,
+        kind: &lesson.kind,
+        topic: lesson.topic.as_deref(),
+        agent_name: lesson.agent_name.as_deref(),
+    };
+    let ids = DecisionSubject {
+        project_id: Some(lesson.project_id),
+        ..DecisionSubject::default()
+    };
+    relate_pick::placement_answer(jev?, &subject, shown, ids).await
+}
+
 async fn place_one(
     deps: &ProposerDeps<'_>,
     lesson: &UnplacedLesson,
     report: &mut PlacementReport,
+    jev: Option<&Jev>,
 ) -> Handled {
+    let shown = guidance::closest_to_text(deps, lesson.project_id, &lesson.text).await;
+    if let Some(answer) = decided(jev, lesson, &shown).await {
+        return store(deps, lesson, &answer, &shown, report).await;
+    }
     match maintenance::reserve(deps, MaintenancePass::Placement).await {
         Reservation::Reserved => {}
         Reservation::Refused => {
@@ -99,7 +125,6 @@ async fn place_one(
         }
         Reservation::Failed => return Handled::Stop,
     }
-    let shown = guidance::closest_to_text(deps, lesson.project_id, &lesson.text).await;
     match ask(deps, lesson, &shown).await {
         Ok(answer) => store(deps, lesson, &answer, &shown, report).await,
         Err(error) if error.is_refusal() => {

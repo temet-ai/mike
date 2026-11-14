@@ -341,6 +341,7 @@ async fn refused_limiter_does_not_consume_durable_proposer_allowance() -> anyhow
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = crate::lesson_proposer::run_tick(&deps).await;
     assert_eq!(report.candidates, 1);

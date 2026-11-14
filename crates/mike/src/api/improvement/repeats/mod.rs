@@ -1,5 +1,6 @@
 use crate::store::persistence::eval_repo::EvalPersist as _;
 mod group;
+mod pairs;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -14,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::llm::decisions::env::DecisionEnv;
 use crate::state::AppState;
 use crate::store::persistence::improvement::repeats::PushbackPrompt;
 
@@ -177,6 +179,7 @@ fn keeps(group: &RepeatGroup, min_count: usize) -> bool {
     group.n >= min_count && (span >= MIN_SPAN_DAYS || group.projects.len() >= 2)
 }
 
+#[cfg(test)]
 pub(crate) fn compute(
     prompts: &[PushbackPrompt],
     now: DateTime<Utc>,
@@ -184,13 +187,50 @@ pub(crate) fn compute(
     min_count: usize,
     threshold: f32,
 ) -> RepeatsResponse {
-    let starts = group::week_starts(now, weeks);
     let kept = first_of_each_text_per_session(prompts);
+    let sim = similarity(&kept);
+    assemble(
+        prompts.len(),
+        &kept,
+        &sim,
+        (now, weeks, min_count, threshold),
+    )
+}
+
+pub(crate) async fn compute_decided(
+    env: Option<&DecisionEnv>,
+    prompts: &[PushbackPrompt],
+    now: DateTime<Utc>,
+    shape: (i64, usize, f32),
+) -> RepeatsResponse {
+    let (weeks, min_count, threshold) = shape;
+    let kept = first_of_each_text_per_session(prompts);
+    let mut sim = similarity(&kept);
+    pairs::refine(env, &kept, &mut sim, threshold).await;
+    assemble(
+        prompts.len(),
+        &kept,
+        &sim,
+        (now, weeks, min_count, threshold),
+    )
+}
+
+fn similarity(kept: &[&PushbackPrompt]) -> Vec<Vec<f32>> {
     let vectors: Vec<&[f32]> = kept.iter().map(|p| p.embedding.as_slice()).collect();
-    let sim = group::cosine_matrix(&vectors);
-    let mut groups: Vec<RepeatGroup> = group::star_groups(&sim, threshold)
+    group::cosine_matrix(&vectors)
+}
+
+fn assemble(
+    total: usize,
+    kept: &[&PushbackPrompt],
+    sim: &[Vec<f32>],
+    shape: (DateTime<Utc>, i64, usize, f32),
+) -> RepeatsResponse {
+    let (now, weeks, min_count, threshold) = shape;
+    let starts = group::week_starts(now, weeks);
+    let mut groups: Vec<RepeatGroup> = group::star_groups(sim, threshold)
         .iter()
-        .map(|members| build_group(&kept, members, &starts, now))
+        .map(|members| build_group(kept, members, &starts, now))
         .filter(|g| keeps(g, min_count))
         .collect();
     groups.sort_by(|a, b| b.n.cmp(&a.n).then(a.id.cmp(&b.id)));
@@ -199,7 +239,7 @@ pub(crate) fn compute(
         threshold,
         min_count,
         turns: kept.len(),
-        duplicates: prompts.len() - kept.len(),
+        duplicates: total - kept.len(),
         computed_at: now,
         week_starts: starts.iter().map(|s| s.date_naive()).collect(),
         groups,
@@ -242,7 +282,9 @@ pub(crate) async fn get_repeats(
             );
         }
     };
-    let response = Arc::new(compute(&prompts, now, weeks, min_count, threshold));
+    let env = state.decision_env();
+    let response =
+        Arc::new(compute_decided(env.as_ref(), &prompts, now, (weeks, min_count, threshold)).await);
     remember(key, Arc::clone(&response));
     Json(response.as_ref()).into_response()
 }

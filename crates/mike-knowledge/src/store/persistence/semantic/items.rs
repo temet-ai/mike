@@ -348,6 +348,26 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         .await
     }
 
+    pub async fn semantic_item_texts(
+        self,
+        ids: &[i64],
+    ) -> Result<Vec<(i64, String)>, PersistError> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids = ids.to_vec();
+        crate::metrics::time_db("semantic_item_texts", async move {
+            let rows = sqlx::query!(
+                r#"SELECT id, text FROM memory.semantic_items WHERE id = ANY($1::bigint[])"#,
+                &ids,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            Ok(rows.into_iter().map(|r| (r.id, r.text)).collect())
+        })
+        .await
+    }
+
     pub async fn semantic_item_counts(self) -> Result<Vec<ItemCount>, PersistError> {
         crate::metrics::time_db("semantic_item_counts", async move {
             Ok(sqlx::query_as!(

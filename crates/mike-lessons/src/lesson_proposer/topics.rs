@@ -5,7 +5,9 @@ use std::fmt::Write as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use super::topic_pick;
 use crate::llm::OpenRouterClient;
+use crate::llm::decisions::env::DecisionEnv;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::topics::UntopicedLesson;
 
@@ -123,6 +125,7 @@ pub fn accepted(batch: &[UntopicedLesson], answer: Assignments) -> (Vec<i64>, Ve
 pub async fn run_pass(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    decisions: Option<&DecisionEnv>,
     limit: i64,
 ) -> TopicPassReport {
     let mut report = TopicPassReport::default();
@@ -139,20 +142,38 @@ pub async fn run_pass(
         Ok(existing) => existing,
         Err(e) => return failed(report, format!("topics: {e}")),
     };
+    let chosen = topic_pick::assign_to_existing(decisions, &existing, &batch).await;
+    if !chosen.ids.is_empty() {
+        match persist
+            .lessons()
+            .set_lesson_topics(&chosen.ids, &chosen.topics)
+            .await
+        {
+            Ok(n) => report.assigned += n,
+            Err(e) => return failed(report, format!("write: {e}")),
+        }
+    }
+    let remaining: Vec<UntopicedLesson> = batch
+        .into_iter()
+        .filter(|l| !chosen.ids.contains(&l.id))
+        .collect();
+    if remaining.is_empty() {
+        return report;
+    }
     let answer = match llm
-        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(&existing, &batch), schema())
+        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(&existing, &remaining), schema())
         .await
     {
         Ok(answer) => answer,
         Err(e) => return failed(report, format!("model: {e}")),
     };
-    let (ids, topics) = accepted(&batch, answer);
+    let (ids, topics) = accepted(&remaining, answer);
     match persist.lessons().set_lesson_topics(&ids, &topics).await {
-        Ok(n) => report.assigned = n,
+        Ok(n) => report.assigned += n,
         Err(e) => return failed(report, format!("write: {e}")),
     }
     tracing::info!(
-        project_id = first.project_id,
+        project_id = ?report.project_id,
         batch = report.batch,
         assigned = report.assigned,
         "lesson topics: pass complete"
