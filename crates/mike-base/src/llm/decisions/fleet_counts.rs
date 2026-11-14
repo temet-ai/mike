@@ -7,7 +7,44 @@ pub struct SeatApplied {
     pub count: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct SeatDecision {
+    pub id: i64,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub seat: String,
+    pub point: String,
+    pub applied: Option<String>,
+    pub fail_open: Option<bool>,
+    pub verdict: Option<serde_json::Value>,
+}
+
 impl super::DecisionStore<'_> {
+    pub async fn recent_fleet_decisions(
+        &self,
+        fleet_run_id: i64,
+        points: &[String],
+        limit: i64,
+    ) -> Result<Vec<SeatDecision>, PersistError> {
+        crate::metrics::time_db("recent_fleet_decisions", async move {
+            Ok(sqlx::query_as!(
+                SeatDecision,
+                r#"SELECT id AS "id!", created_at AS "created_at!",
+                          COALESCE(seat, '') AS "seat!", point AS "point!",
+                          applied, fail_open, composed -> 'verdict' AS verdict
+                     FROM decisions.records
+                    WHERE fleet_run_id = $1 AND point = ANY($2) AND mode IN ('on', 'shadow')
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT $3"#,
+                fleet_run_id,
+                points,
+                limit,
+            )
+            .fetch_all(self.0.pool())
+            .await?)
+        })
+        .await
+    }
+
     pub async fn applied_counts_by_seat(
         &self,
         fleet_run_id: i64,

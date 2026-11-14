@@ -241,6 +241,8 @@ async fn measured_document(
     super::decisions::effort::observe(persist, run_id).await;
     document["effort_split"] = super::decisions::effort::document(persist, run_id).await;
     document["mail_wake_counts"] = super::decisions::wake::counts_document(persist, row.id).await;
+    document["seat_decisions"] =
+        super::decisions::seat_records::document(persist, row.id, run_id).await;
     Ok(document)
 }
 
@@ -251,6 +253,7 @@ pub async fn live(persist: &PersistHandle, row: &FleetRow, run_id: &str) -> Valu
         "note": "the run is still going; the full record is written when it closes",
         "effort_split": super::decisions::effort::document(persist, run_id).await,
         "mail_wake_counts": super::decisions::wake::counts_document(persist, row.id).await,
+        "seat_decisions": super::decisions::seat_records::document(persist, row.id, run_id).await,
     })
 }
 

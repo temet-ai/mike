@@ -147,8 +147,8 @@ run "--complete reports a subfolder outside the map" 1 "drafts:1: not in the pag
 fresh; page fleets/README.md $'# F\n\n![x](../images/gone.png)'
 run "--complete reports a missing image from a subfolder" 1 "image ../images/gone.png does not exist" --complete
 fresh
-for p in README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md fleets/README.md fleets/first-fleet.md fleets/definition.md fleets/how-a-fleet-runs.md fleets/working-together.md fleets/shared-checkout.md fleets/acceptance.md fleets/watch-and-recover.md fleets/after-a-run.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md; do page "$p" "# $p"; done
-run "--complete passes on the whole map" 0 "34 page(s) clean" --complete
+for p in README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md decisions.md mcp.md sessions.md fleets/README.md fleets/first-fleet.md fleets/definition.md fleets/how-a-fleet-runs.md fleets/working-together.md fleets/shared-checkout.md fleets/acceptance.md fleets/watch-and-recover.md fleets/after-a-run.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md; do page "$p" "# $p"; done
+run "--complete passes on the whole map" 0 "35 page(s) clean" --complete
 page fleets/.notes.md '# hidden'
 run "--complete reports a hidden file in a subfolder" 1 "fleets/.notes.md:1: not in the page map" --complete
 }

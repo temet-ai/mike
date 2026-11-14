@@ -22,6 +22,7 @@ pub struct Landed<'a> {
     pub message: &'a str,
     pub seat: &'a str,
     pub session_db_id: Option<i64>,
+    pub fleet_id: Option<i64>,
 }
 
 pub fn questions() -> BTreeMap<String, Question> {
@@ -100,9 +101,10 @@ pub fn compose(asked: &Asked) -> Verdict {
 
 pub async fn for_report(
     decisions: Option<&FleetDecisions>,
-    (def, seated): (
+    (def, seated, fleet_id): (
         &super::super::definition::FleetDefinition,
         &super::super::seated::Seated,
+        i64,
     ),
     (request, report): (
         &super::super::commit::CommitRequest,
@@ -128,6 +130,7 @@ pub async fn for_report(
         message: &request.message,
         seat: &report.seat,
         session_db_id,
+        fleet_id: Some(fleet_id),
     };
     warnings(decisions, mode, &landed).await
 }
@@ -166,6 +169,7 @@ async fn ask(decider: &Decider, landed: &Landed<'_>, state: Value) -> Vec<String
         session_id: landed.session_db_id,
         seat: Some(landed.seat.to_owned()),
         commit_sha: Some(landed.sha.to_owned()),
+        fleet_run_id: landed.fleet_id,
         ..DecisionSubject::default()
     };
     let thresholds =

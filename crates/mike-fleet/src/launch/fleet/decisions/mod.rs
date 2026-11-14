@@ -1,6 +1,7 @@
 pub mod commit_message;
 pub mod config;
 pub mod effort;
+pub mod seat_records;
 pub mod stop;
 pub mod stop_facts;
 #[cfg(test)]

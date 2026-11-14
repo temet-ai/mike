@@ -1,0 +1,92 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\", created_at AS \"created_at!\",\n                          COALESCE(seat, '') AS \"seat!\", point AS \"point!\",\n                          applied, fail_open, composed -> 'verdict' AS verdict\n                     FROM decisions.records\n                    WHERE fleet_run_id = $1 AND point = ANY($2) AND mode IN ('on', 'shadow')\n                    ORDER BY created_at DESC, id DESC\n                    LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "seat!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "point!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "point"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "applied",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "applied"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "fail_open",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "fail_open"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "verdict",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "712da69de514bd58b6a52bb5a7eadefef9238b9c93f64d39e2cb1d0cbb20276c"
+}

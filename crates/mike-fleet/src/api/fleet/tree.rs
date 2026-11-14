@@ -258,7 +258,7 @@ pub async fn commit_fleet(
     Path(key): Path<String>,
     Json(request): Json<CommitRequest>,
 ) -> Result<Json<WithTail<CommitReport>>, DefinitionError> {
-    let (_, def, run) = running(&state, &key).await?;
+    let (row, def, run) = running(&state, &key).await?;
     let verifier = Verifier {
         persist: state.persist(),
         run: &run,
@@ -271,7 +271,7 @@ pub async fn commit_fleet(
     let decisions = crate::launch::fleet::decisions::FleetDecisions::from_state(&state);
     let warned = crate::launch::fleet::decisions::commit_message::for_report(
         decisions.as_ref(),
-        (&def, &seated),
+        (&def, &seated, row.id),
         (&request, &report),
     )
     .await;
