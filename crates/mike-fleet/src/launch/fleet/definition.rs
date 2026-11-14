@@ -229,6 +229,8 @@ pub struct TaskDefinition {
     pub new_files: Vec<String>,
     pub required_paths: BTreeMap<String, String>,
     pub brief: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub system_prompt: String,
     pub goal: String,
     pub after: Vec<String>,
     pub stub_by: Option<u32>,

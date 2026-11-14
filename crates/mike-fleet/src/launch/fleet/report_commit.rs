@@ -1,7 +1,42 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
+use super::definition::FleetDefinition;
 use super::report::newest_commit_of;
+
+pub const CHECK_NOT_COVERED: &str = "no check covers these paths";
+
+pub fn check_paths(def: &FleetDefinition) -> Vec<String> {
+    def.execution
+        .operation(&def.check.command)
+        .filter(|op| !op.inputs.is_empty())
+        .map_or_else(|| def.check.covered(), |op| op.inputs.clone())
+}
+
+pub fn outside_check(changed: &[String], covered: &[String]) -> bool {
+    !covered.is_empty()
+        && !changed.is_empty()
+        && !changed
+            .iter()
+            .any(|path| super::commit_paths::covers(covered, path))
+}
+
+pub async fn changed_files(repo: &str, sha: &str) -> Vec<String> {
+    git(
+        repo,
+        &[
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            "--root",
+            sha,
+        ],
+    )
+    .await
+    .map(|out| out.lines().map(str::to_string).collect())
+    .unwrap_or_default()
+}
 
 pub fn judged_commit_of(
     commits: &[(Value, DateTime<Utc>)],

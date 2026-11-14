@@ -59,7 +59,7 @@ pub fn focused_command(template: &str, test: &str) -> Result<String, String> {
     }
     if template.trim().is_empty() {
         return Err(
-            "this fleet declares no focused-test command (definition `check.test_command`, with `{test}` where the test name goes)"
+            "this fleet declares no focused-test command (definition `check.test_command`); pass the whole test command as `command` instead"
                 .to_string(),
         );
     }

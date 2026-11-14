@@ -9,6 +9,7 @@ fn red() -> FleetDefinition {
     def.baseline = Some(Baseline {
         command: "false".to_string(),
         verified: true,
+        hold_on_red: true,
         ..Baseline::default()
     });
     def.workers
@@ -360,4 +361,19 @@ fn a_red_baseline_without_a_repair_task_names_the_result_and_what_to_set() {
     assert!(why.contains("1739"), "{why}");
     assert!(why.contains("baseline.repair_task"), "{why}");
     assert!(why.contains("send ready again"), "{why}");
+}
+
+#[test]
+fn a_red_baseline_without_hold_on_red_starts_every_worker() -> anyhow::Result<()> {
+    let mut def = red();
+    def.baseline
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("fixture baseline"))?
+        .hold_on_red = false;
+    assert!(!blocked(&def));
+    assert_eq!(admitted(&def, ready(), false), ready());
+    hold_workers_when_red(&mut def, Some(1), 7, "red", &"ledger")
+        .map_err(|why| anyhow::anyhow!(why))?;
+    assert!(def.coordinator.brief.contains("Workers start anyway"));
+    Ok(())
 }

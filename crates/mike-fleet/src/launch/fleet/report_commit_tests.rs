@@ -75,3 +75,32 @@ async fn a_named_commit_must_contain_the_tasks_commit_and_be_on_the_branch() -> 
     );
     Ok(())
 }
+
+#[test]
+fn a_commit_outside_every_check_path_is_reported_as_not_covered() {
+    let covered = vec!["crates".to_string()];
+    let docs = vec!["docs/guide.md".to_string()];
+    let code = vec![
+        "docs/guide.md".to_string(),
+        "crates/a/src/lib.rs".to_string(),
+    ];
+    assert!(outside_check(&docs, &covered));
+    assert!(!outside_check(&code, &covered));
+    assert!(!outside_check(&docs, &[]));
+    assert!(!outside_check(&[], &covered));
+}
+
+#[tokio::test]
+async fn changed_files_lists_the_files_one_commit_touched() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let repo = dir.path();
+    run(repo, &["init", "-q", "-b", "main"])?;
+    std::fs::create_dir_all(repo.join("docs"))?;
+    std::fs::write(repo.join("docs/guide.md"), "one")?;
+    run(repo, &["add", "docs/guide.md"])?;
+    run(repo, &["commit", "-q", "-m", "docs"])?;
+    let sha = run(repo, &["rev-parse", "HEAD"])?;
+    let files = changed_files(&repo.to_string_lossy(), &sha).await;
+    assert_eq!(files, vec!["docs/guide.md".to_string()]);
+    Ok(())
+}
