@@ -95,6 +95,13 @@ impl Execution {
     }
 }
 
+pub fn declared_timeout(def: &FleetDefinition) -> Option<Duration> {
+    def.execution
+        .operation(&def.check.command)
+        .and_then(|op| op.timeout_seconds)
+        .map(Duration::from_secs)
+}
+
 pub fn timeout(def: &FleetDefinition) -> Duration {
     def.execution
         .operation(&def.check.command)

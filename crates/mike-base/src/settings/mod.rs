@@ -1,16 +1,12 @@
 pub mod bundle_ids;
-pub mod cross_session;
 pub mod feature_overlays;
 pub mod judge_prompts;
 
 pub mod llm_runtime;
+pub mod memory_prompts;
 pub mod meta;
 pub mod meta_assistants;
-pub mod meta_cross_session;
 pub mod meta_decisions;
-pub mod meta_dossier;
-pub mod meta_eval;
-pub mod meta_eval_alarms;
 pub mod meta_global;
 pub mod meta_improvement;
 pub mod meta_launch;
@@ -24,9 +20,6 @@ pub mod meta_rerank_nightly;
 pub mod meta_rerank_tests;
 pub mod meta_scheduled_jobs;
 pub mod meta_session_end;
-pub mod meta_session_scoped;
-pub mod meta_shell_output;
-pub mod meta_turn_guard;
 pub mod meta_turn_judge;
 pub mod meta_workers;
 pub mod overlay_apply;
@@ -49,8 +42,6 @@ pub use registry::FeatureSettings;
 pub use validate::validate_setting_value;
 
 use serde::{Deserialize, Serialize};
-
-use crate::config::weasel_intercept::DEFAULT_CORRECTION_PROMPT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -134,61 +125,8 @@ pub struct SettingMeta {
     pub enum_variants: Option<&'static [&'static str]>,
 }
 
-pub const DEFAULT_PROTECTED_PATHS: &[&str] = &[
-    "**/CLAUDE.md",
-    "**/BRIEF*.md",
-    "**/.claude/**",
-    "**/docs/plans/**",
-    "**/artifacts/threads/**",
-    "**/*.rules.md",
-];
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct SettingsOverlay {
-    pub reminders_inject_lessons: bool,
-
-    pub reminders_max_lessons_to_inject: usize,
-
-    pub weasel_intercept_forbidden_words: Vec<String>,
-
-    pub weasel_intercept_correction_prompt: String,
-
-    pub file_read_compression_min_bytes: usize,
-
-    pub file_read_compression_head_lines: usize,
-
-    pub file_read_compression_tail_lines: usize,
-
-    pub file_read_compression_enabled_producers: Vec<String>,
-
-    pub file_read_compression_protected_paths: Vec<String>,
-
-    pub file_read_compression_grace_turns: usize,
-
-    pub file_read_compression_mode: String,
-
-    pub file_read_compression_forward_share: usize,
-
-    pub shell_output_compression_min_bytes: usize,
-
-    pub shell_output_compression_head_lines: usize,
-
-    pub shell_output_compression_tail_lines: usize,
-
-    pub shell_output_compression_signal_context_lines: usize,
-
-    pub shell_output_compression_signal_line_cap: usize,
-
-    pub shell_output_compression_grace_turns: usize,
-
-    pub shell_output_compression_mode: String,
-
-    pub shell_output_compression_forward_share: usize,
-
-    pub compression_dedup_enabled: bool,
-
-    pub context_focus_question_mode: String,
-
     pub judge_worker_model: Option<String>,
 
     pub judge_worker_system_prompt: Option<String>,
@@ -315,32 +253,6 @@ pub struct SettingsOverlay {
 impl Default for SettingsOverlay {
     fn default() -> Self {
         Self {
-            reminders_inject_lessons: false,
-            reminders_max_lessons_to_inject: 5,
-            weasel_intercept_forbidden_words: Vec::new(),
-            weasel_intercept_correction_prompt: DEFAULT_CORRECTION_PROMPT.to_owned(),
-            file_read_compression_min_bytes: 1500,
-            file_read_compression_head_lines: 40,
-            file_read_compression_tail_lines: 20,
-            file_read_compression_enabled_producers: vec!["Read".to_owned()],
-            file_read_compression_protected_paths: DEFAULT_PROTECTED_PATHS
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
-            file_read_compression_grace_turns: 3,
-            file_read_compression_mode: "shadow".to_owned(),
-            file_read_compression_forward_share: 0,
-            shell_output_compression_min_bytes: meta_shell_output::DEFAULT_MIN_RESULT_BYTES,
-            shell_output_compression_head_lines: meta_shell_output::DEFAULT_HEAD_LINES,
-            shell_output_compression_tail_lines: meta_shell_output::DEFAULT_TAIL_LINES,
-            shell_output_compression_signal_context_lines:
-                meta_shell_output::DEFAULT_SIGNAL_CONTEXT_LINES,
-            shell_output_compression_signal_line_cap: meta_shell_output::DEFAULT_SIGNAL_LINE_CAP,
-            shell_output_compression_grace_turns: meta_shell_output::DEFAULT_GRACE_TURNS,
-            shell_output_compression_mode: "shadow".to_owned(),
-            shell_output_compression_forward_share: 0,
-            compression_dedup_enabled: false,
-            context_focus_question_mode: "plain".to_owned(),
             judge_worker_model: None,
             judge_worker_system_prompt: None,
             judge_worker_batch_size: None,

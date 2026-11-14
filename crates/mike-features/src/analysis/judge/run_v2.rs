@@ -9,6 +9,7 @@ use crate::llm::{CallUsage, OpenRouterClient};
 pub async fn run_judge_v2(
     llm: &OpenRouterClient,
     rubric: &EffectiveRubric,
+    system_prompt: &str,
     input: &JudgeInput,
     turn_id: i64,
 ) -> Result<(TwoAxisVerdict, CallUsage), JudgeOutcome> {
@@ -18,7 +19,7 @@ pub async fn run_judge_v2(
     }
     with_judge_retry(turn_id, RETRY_BACKOFF_BASE, || {
         llm.verdict_with_usage::<TwoAxisVerdict>(
-            &rubric.system_prompt,
+            system_prompt,
             &input.text,
             two_axis_verdict_schema(),
         )

@@ -8,6 +8,7 @@ use super::spend_guard::SpendLimits;
 use super::{LabelOptions, RunOutcome, Runner, StartRequest};
 use crate::analysis::judge::input_v2::INPUT_BUILDER_V2;
 use crate::analysis::judge::rubric::{V2_2026_09_23, effective_rubric};
+use crate::analysis::judge::slices::JudgeSlice;
 use crate::judge_worker::v2_judge::V2JudgeConfig;
 use crate::llm::{LlmRuntimeSettings, OpenRouterClient};
 use crate::store::persistence::PersistHandle;
@@ -120,6 +121,7 @@ fn judge() -> RunJudge {
         builder: INPUT_BUILDER_V2,
         model: "test-model".to_owned(),
         llm_settings: LlmRuntimeSettings::default(),
+        slices: Vec::new(),
     })
 }
 
@@ -372,6 +374,58 @@ async fn eval_run_dry_run_makes_no_llm_call_and_writes_no_run() -> anyhow::Resul
         .fetch_one(handle.pool())
         .await?;
     assert_eq!(runs, 0);
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn eval_run_with_slices_sends_them_and_records_them_on_run_and_verdict() -> anyhow::Result<()>
+{
+    let Some((db, handle)) = db().await? else {
+        return Ok(());
+    };
+    seed(&handle, 1).await?;
+    let (server, llm) = openrouter().await?;
+    let runner = Runner {
+        persist: &handle,
+        llm: &llm,
+        limits: SpendLimits {
+            ceiling_usd: 0.0,
+            eval_allowance_usd: 0.0,
+            run_max_usd: 1.0,
+        },
+    };
+    let mut req = request(&handle).await?;
+    let RunJudge::V2(cfg) = &mut req.judge else {
+        anyhow::bail!("the test judge is a v2 judge");
+    };
+    cfg.slices = vec![JudgeSlice::Turnfacts, JudgeSlice::WithholdNext];
+    let RunOutcome::Finished { run_id, status, .. } = runner.start(req).await? else {
+        anyhow::bail!("expected a finished run");
+    };
+    assert_eq!(status, "complete");
+    let run = handle
+        .eval()
+        .get_eval_run(run_id)
+        .await?
+        .context("missing run")?;
+    assert_eq!(run.slices, vec!["turnfacts", "withhold_next"]);
+    let items = handle.eval().all_eval_run_items(run_id).await?;
+    let (verdicts, _) = handle
+        .eval()
+        .list_turn_verdicts_for_turn(items[0].operator_turn_id, None, 10, 0)
+        .await?;
+    assert_eq!(verdicts[0].slices, vec!["turnfacts", "withhold_next"]);
+    assert_eq!(verdicts[0].input_builder_version, "judge-input-v2.1+slices");
+    let requests = server
+        .received_requests()
+        .await
+        .context("request capture")?;
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body)?;
+    let sent = body["messages"].to_string();
+    assert!(sent.contains("FACTS ABOUT THIS TURN"));
+    assert!(sent.contains("Interrupted (a request in the turn was aborted): no"));
+    assert!(sent.contains("CONTEXT SECTIONS (background only)"));
     db.cleanup().await?;
     Ok(())
 }

@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT kind AS \"kind!\", count(*) AS \"written!\"\n          FROM launch.fleet_events\n         WHERE occurred_at > now() - make_interval(days => $1)\n         GROUP BY kind\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleet_events",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "written!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "b59e50f672e6334dd97e17bdeaac08572f5b19b52053b3ae37660b033ae46b31"
+}

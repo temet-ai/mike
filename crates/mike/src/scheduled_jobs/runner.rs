@@ -12,6 +12,20 @@ use super::jobs::Job;
 const DRAIN_GRACE: Duration = Duration::from_secs(2);
 const TAIL_LINES: usize = 20;
 const LAUNCH: &str = r#"umask 077 && level="$1" && shift && exec nice -n "$level" "$@""#;
+const DATABASE_URL_VAR: &str = "MIKE_DATABASE_URL";
+
+static DATABASE_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub(super) fn share_database_url(url: String) {
+    let _ = DATABASE_URL.set(url);
+}
+
+fn job_database_url() -> Option<&'static str> {
+    if std::env::var_os(DATABASE_URL_VAR).is_some() {
+        return None;
+    }
+    DATABASE_URL.get().map(String::as_str)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RunResult {
@@ -141,7 +155,11 @@ pub(super) async fn run_job(root: &Path, job: &Job) -> RunReport {
     if !script.is_file() {
         return unrunnable(format!("{} does not exist", script.display()), started);
     }
-    let spawned = Command::new("sh")
+    let mut command = Command::new("sh");
+    if let Some(url) = job_database_url() {
+        command.env(DATABASE_URL_VAR, url);
+    }
+    let spawned = command
         .arg("-c")
         .arg(LAUNCH)
         .arg("sh")

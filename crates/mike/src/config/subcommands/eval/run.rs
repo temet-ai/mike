@@ -8,6 +8,7 @@ use tokio_util::task::TaskTracker;
 use super::args_runs::EvalRunArgs;
 use crate::analysis::judge::input_v2::{INPUT_BUILDER_V2, builder_for};
 use crate::analysis::judge::rubric::{RubricFamily, effective_rubric, latest, rubric};
+use crate::analysis::judge::slices::parse_slice_codes;
 use crate::config::CliOverrides;
 use crate::config::persist_bootstrap::PersistLlmUsageSink;
 use crate::eval::run::bundle::load_bundle_judge;
@@ -82,12 +83,8 @@ fn build_judge(
     overlay: &SettingsOverlay,
     config: &crate::config::ProxyConfig,
 ) -> Result<RunJudge> {
-    if !args.slices.is_empty() {
-        bail!(
-            "no history slice is approved; --slices {:?} is refused",
-            args.slices
-        );
-    }
+    let slices = parse_slice_codes(&args.slices)
+        .map_err(|error| anyhow::anyhow!("--slices {:?}: {error}", args.slices))?;
     let base = match args.rubric.as_deref() {
         Some(id) => rubric(id).with_context(|| format!("unknown rubric {id:?}"))?,
         None => latest(RubricFamily::TwoAxis),
@@ -101,6 +98,13 @@ fn build_judge(
     let llm_settings = crate::settings::resolve_judge_worker_llm_settings(overlay);
     let model = judge_model(args, overlay, config);
     if base.family == RubricFamily::LegacyOutcome {
+        if !slices.is_empty() {
+            bail!(
+                "--slices {:?} is refused for the legacy rubric {}; slices run on the v2 judge only",
+                args.slices,
+                base.id
+            );
+        }
         return Ok(RunJudge::R3 {
             rubric: effective,
             model,
@@ -113,6 +117,7 @@ fn build_judge(
         builder,
         model,
         llm_settings,
+        slices,
     }))
 }
 

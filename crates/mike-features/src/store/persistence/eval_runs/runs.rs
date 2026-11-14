@@ -46,14 +46,15 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
         crate::metrics::time_db("create_eval_run", async move {
             Ok(sqlx::query_scalar!(
                 r#"INSERT INTO eval.runs (purpose, bundle_id, rubric_version, input_builder_version,
-                       model, split, tiers, holdout_batch, labels_as_of, label_count, label_ids_hash,
-                       repeat_of_run_id, max_usd, argv)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                       slices, model, split, tiers, holdout_batch, labels_as_of, label_count,
+                       label_ids_hash, repeat_of_run_id, max_usd, argv)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                    RETURNING id AS "id!""#,
                 run.purpose,
                 run.bundle_id,
                 run.rubric_version,
                 run.input_builder_version,
+                run.slices,
                 run.model,
                 run.split,
                 run.tiers,

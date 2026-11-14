@@ -167,7 +167,7 @@ fn counts(m: &RunMeasures) -> Value {
     json!({
         "seats_per_task": (tasks > 0).then(|| round1(m.timing.worker_launches as f64 / tasks as f64)),
         "judge_rounds_per_task": (tasks > 0).then(|| round1(m.interventions.reports_filed as f64 / tasks as f64)),
-        "relaunches": (m.timing.worker_launches - tasks).max(0),
+        "relaunches": m.timing.relaunches,
         "context_replacements": context_replacements(m),
         "reports_filed": m.interventions.reports_filed,
         "verdict_latency_median_minutes": m.reports.median_minutes,

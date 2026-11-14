@@ -8,7 +8,7 @@ import re
 from knowledge.collector import Client, atomic_write, read_document
 from knowledge.machine import machine_identity
 from . import live
-from .report import ROOT, query
+from .report import ROOT, data_root, query
 from .skill_budget import enforce_cap, hold_overlapping, read_cap
 from tool_reuse.core import catalog
 
@@ -195,7 +195,7 @@ Do not recreate this helper in a new session. If the procedure is inadequate, im
 
 
 def promote(sync=True, skill_roots=None):
-    memory_root = ROOT / 'artifacts/learning-memory'
+    memory_root = data_root(ROOT) / 'artifacts/learning-memory'
     state = Path.home() / '.local/state/mike-learning-promotion'
     state.mkdir(parents=True, exist_ok=True)
     manifest_path = state / 'manifest.json'

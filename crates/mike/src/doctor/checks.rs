@@ -27,6 +27,7 @@ pub(crate) fn evaluate(observed: &Observed) -> Vec<Check> {
     checks.push(rerank(&observed.rerank));
     checks.push(launch_backend(&observed.launch_backend));
     checks.push(super::code_scan::check(observed.code_scan.as_ref()));
+    checks.extend(super::check_features::features(&observed.features));
     checks
 }
 

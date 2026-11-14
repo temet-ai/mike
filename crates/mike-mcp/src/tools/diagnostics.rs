@@ -94,7 +94,13 @@ fn get_stats_tool() -> Tool {
     let schema = object_schema(vec![], &[]);
     Tool::new(
         Cow::Borrowed(TOOL_GET_STATS),
-        Cow::Borrowed("Combined runtime, diagnostic and health snapshot."),
+        Cow::Borrowed(
+            "Combined runtime, diagnostic and health snapshot, plus `liveness`: the daily \
+             report of features wired but doing nothing (stage never applies, fleet event \
+             never written, toggle off for weeks, shadow never promoted, job not succeeding, \
+             unaudited fleet, memory verdict coverage), each finding with its figure and age. \
+             Select `/liveness/findings` for the findings alone.",
+        ),
         schema,
     )
 }

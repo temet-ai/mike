@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::session_judge::SessionJudgeConfig;
+use crate::features_settings::sections::session_judge::SessionJudgeConfig;
 use crate::llm::limiter::Reservation;
 use crate::llm::{LlmCallContext, OpenRouterClient};
 use crate::store::persistence::judge::JudgeDigestRow;

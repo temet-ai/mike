@@ -12,6 +12,16 @@ pub const CONTEXT_ITEM_KIND: NeverFiredRule = NeverFiredRule {
     ],
 };
 
+pub const FLEET_EVENT_KIND: NeverFiredRule = NeverFiredRule {
+    name: "fleet event kind",
+    declared: &[
+        "seat_woken",
+        "seat_process_gone",
+        "floor_passed",
+        "tree_broken_by",
+    ],
+};
+
 pub struct NeverFiredFinding {
     pub rule_name: &'static str,
     pub never_observed: Vec<&'static str>,
@@ -59,6 +69,28 @@ pub async fn check_never_fired_context_kind(
     .fetch_one(pool)
     .await?;
 
+    Ok(diff_never_fired(rule, &observed, total_observations))
+}
+
+pub async fn check_never_written_fleet_event_kind(
+    pool: &sqlx::PgPool,
+    rule: &NeverFiredRule,
+    window_days: i32,
+) -> Result<NeverFiredFinding, sqlx::Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT kind AS "kind!", count(*) AS "written!"
+          FROM launch.fleet_events
+         WHERE occurred_at > now() - make_interval(days => $1)
+         GROUP BY kind
+        "#,
+        window_days
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let observed: Vec<String> = rows.iter().map(|row| row.kind.clone()).collect();
+    let total_observations = rows.iter().map(|row| row.written).sum();
     Ok(diff_never_fired(rule, &observed, total_observations))
 }
 

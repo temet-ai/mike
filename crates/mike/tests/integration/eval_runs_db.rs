@@ -45,6 +45,7 @@ async fn run(f: &Fixture, bundle_id: i64, split: &str, batch: Option<&str>) -> a
             bundle_id,
             rubric_version: "v2-2026-09-23",
             input_builder_version: "judge-input-v2.1",
+            slices: &[],
             model: "m",
             split,
             tiers: &tiers,

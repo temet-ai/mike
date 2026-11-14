@@ -285,8 +285,8 @@ fn delta_text(status: &FleetStatus, changed: &[Change], queue: SlotQueue) -> Str
 
 fn recipients(seats: &ControlSeats) -> impl Iterator<Item = (&'static str, Uuid)> {
     [
-        ("coordinator", Some(seats.coordinator)),
-        ("acceptance", Some(seats.acceptance)),
+        ("coordinator", seats.coordinator),
+        ("acceptance", seats.acceptance),
         ("observer", seats.observer),
     ]
     .into_iter()

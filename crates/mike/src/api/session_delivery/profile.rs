@@ -1,3 +1,4 @@
+use crate::features_settings::RemindersOverlay;
 use crate::lessons_settings::RecallOverlay;
 use chrono::{DateTime, Utc};
 
@@ -80,14 +81,25 @@ fn toggle_dto(
 fn limits(inputs: &ProfileInputs<'_>) -> LimitsDto {
     match inputs.frozen {
         Some(frozen) => LimitsDto {
-            inject_lessons: frozen.reminders_inject_lessons,
-            max_lessons_to_inject: frozen.reminders_max_lessons_to_inject,
+            inject_lessons: frozen.features.get::<RemindersOverlay>().inject_lessons,
+            max_lessons_to_inject: frozen
+                .features
+                .get::<RemindersOverlay>()
+                .max_lessons_to_inject,
             max_lessons_per_topic: frozen.features.get::<RecallOverlay>().max_lessons_per_topic,
             basis: SettingBasis::SessionFrozen,
         },
         None => LimitsDto {
-            inject_lessons: inputs.current_settings.reminders_inject_lessons,
-            max_lessons_to_inject: inputs.current_settings.reminders_max_lessons_to_inject,
+            inject_lessons: inputs
+                .current_settings
+                .features
+                .get::<RemindersOverlay>()
+                .inject_lessons,
+            max_lessons_to_inject: inputs
+                .current_settings
+                .features
+                .get::<RemindersOverlay>()
+                .max_lessons_to_inject,
             max_lessons_per_topic: inputs
                 .current_settings
                 .features

@@ -3,8 +3,8 @@ use serde_json::{Value, json};
 use super::COMPONENTS_VERSION;
 use super::fingerprint;
 use crate::analysis::judge::{JUDGE_RUBRIC_VERSION, judge_verdict_schema};
-use crate::config::session_judge::SessionJudgeConfig;
 use crate::config::steerer::JudgeConfig;
+use crate::features_settings::sections::session_judge::SessionJudgeConfig;
 use crate::judge_worker::session_poll_digest::{
     RELATED_SESSION_LEARNING_MAX_CHARS, RELATED_SESSION_OVERVIEW_MAX_CHARS,
     RELATED_SESSIONS_BLOCK_MAX_CHARS, judge_verdict_schema as session_verdict_schema,

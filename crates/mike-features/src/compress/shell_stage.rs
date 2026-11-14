@@ -8,6 +8,7 @@ use crate::compress::shell_output::{
 };
 use crate::compress::stage::{ARM_CONTROL, ARM_FORWARD};
 use crate::feature_toggles::ResolvedToggles;
+use crate::features_settings::ShellOutputCompressionOverlay;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::wire::manifest::{AppliedStage, StageOutcome, TargetEntry, sha256_hex};
 
@@ -19,24 +20,26 @@ const SHADOW_CANDIDATE: &str = "shell_output_shadow_candidate";
 const FORWARDED: &str = "shell_output_forwarded";
 
 pub fn session_limits(toggles: &ResolvedToggles) -> ShellOutputLimits {
+    let settings = toggles.features.get::<ShellOutputCompressionOverlay>();
     ShellOutputLimits {
-        min_result_bytes: toggles.shell_output_compression_min_bytes,
-        head_lines: toggles.shell_output_compression_head_lines,
-        tail_lines: toggles.shell_output_compression_tail_lines,
-        signal_context_lines: toggles.shell_output_compression_signal_context_lines,
-        signal_line_cap: toggles.shell_output_compression_signal_line_cap,
-        grace_turns: toggles.shell_output_compression_grace_turns,
+        min_result_bytes: settings.min_bytes,
+        head_lines: settings.head_lines,
+        tail_lines: settings.tail_lines,
+        signal_context_lines: settings.signal_context_lines,
+        signal_line_cap: settings.signal_line_cap,
+        grace_turns: settings.grace_turns,
         ..ShellOutputLimits::default()
     }
 }
 
 pub fn session_arm(toggles: &ResolvedToggles, session_id: &str) -> &'static str {
-    if toggles.shell_output_compression_forward {
+    let settings = toggles.features.get::<ShellOutputCompressionOverlay>();
+    if settings.forward() {
         return ARM_FORWARD;
     }
     let digest = sha256_hex(format!("{REDUCER}:{session_id}").as_bytes());
     let bucket = u64::from_str_radix(&digest[..8], 16).unwrap_or(0) % 100;
-    if bucket < toggles.shell_output_compression_forward_share as u64 {
+    if bucket < settings.forward_share as u64 {
         ARM_FORWARD
     } else {
         ARM_CONTROL

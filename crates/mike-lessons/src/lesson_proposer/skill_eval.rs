@@ -2,12 +2,13 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+use super::ProposerPrompts;
 use super::skill_author::{AuthoredReference, TriggerQuery};
 use super::skill_findings::Findings;
 use crate::llm::decisions::env::DecisionEnv;
 use crate::llm::{LlmError, OpenRouterClient};
+use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::skill_draft_eval::{EvalDraft, ShippedPatch, SiblingSkill};
-use crate::store::persistence::{PersistError, PersistHandle};
 
 #[path = "skill_eval_breaker.rs"]
 pub mod breaker;
@@ -29,6 +30,8 @@ pub mod patching;
 pub mod pick;
 #[path = "skill_eval_progress.rs"]
 pub mod progress;
+#[path = "skill_eval_requeue.rs"]
+mod requeue;
 #[path = "skill_eval_review.rs"]
 pub mod review;
 #[cfg(test)]
@@ -201,6 +204,7 @@ fn entries_for(progress: &Progress, name: &str, description: &str) -> Vec<(Strin
 async fn trigger_phase(
     llm: &OpenRouterClient,
     jev: Option<&pick::JevTrigger>,
+    prompt: &str,
     material: &Material,
     progress: &mut Progress,
     plan: &[Unit],
@@ -220,7 +224,8 @@ async fn trigger_phase(
         project: &project,
     };
     let batches = progress::batch_ids(plan);
-    let results = trigger::run_batches(llm, jev, &offer, &material.queries, &batches).await;
+    let queries = &material.queries;
+    let results = trigger::run_batches(llm, jev, prompt, &offer, queries, &batches).await;
     let (answered, error) = progress::settled(results);
     let done = answered.len();
     let kept = answered.into_iter().flatten();
@@ -237,6 +242,7 @@ async fn trigger_phase(
 async fn review_phase(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    prompt: &str,
     draft: &EvalDraft,
     material: &Material,
     progress: &mut Progress,
@@ -267,19 +273,27 @@ async fn review_phase(
         project: &project,
     };
     let first = trigger::score(progress.trigger.clone());
-    progress.review = Some(review::review(llm, material, &lessons, &first, &context).await?);
+    let reviewed = review::review(llm, prompt, material, &lessons, &first, &context).await?;
+    progress.review = Some(reviewed);
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+pub struct EvalCalls<'a> {
+    pub prompts: &'a ProposerPrompts,
+    pub decisions: Option<&'a DecisionEnv>,
 }
 
 async fn work(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
-    decisions: Option<&DecisionEnv>,
+    calls: EvalCalls<'_>,
     draft: &EvalDraft,
     material: &Material,
     progress: &mut Progress,
 ) -> Result<(), EvalError> {
-    let jev = pick::JevTrigger::new(decisions);
+    let prompts = calls.prompts;
+    let jev = pick::JevTrigger::new(calls.decisions);
     let reservation = llm.reserve(progress.worst_case_calls(material));
     let mut budget = reservation.granted();
     let client = llm.with_reservation(&reservation);
@@ -297,9 +311,13 @@ async fn work(
         budget = budget.saturating_sub(spent);
         progress.calls += spent;
         match first {
-            Unit::Review => review_phase(persist, &client, draft, material, progress).await?,
+            Unit::Review => {
+                let prompt = &prompts.skill_review;
+                review_phase(persist, &client, prompt, draft, material, progress).await?;
+            }
             Unit::Batch(_) | Unit::Recheck(_) => {
-                trigger_phase(&client, jev.as_ref(), material, progress, &plan).await?;
+                let prompt = &prompts.skill_trigger;
+                trigger_phase(&client, jev.as_ref(), prompt, material, progress, &plan).await?;
             }
         }
     }
@@ -315,7 +333,7 @@ async fn work(
 async fn advance(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
-    decisions: Option<&DecisionEnv>,
+    calls: EvalCalls<'_>,
     draft: &EvalDraft,
     report: &mut EvalPassReport,
 ) -> Result<Step, EvalError> {
@@ -324,7 +342,7 @@ async fn advance(
     let outcome = if progress.pending(&material).is_empty() {
         Ok(())
     } else {
-        work(persist, llm, decisions, draft, &material, &mut progress).await
+        work(persist, llm, calls, draft, &material, &mut progress).await
     };
     report.trigger_batches_done = progress.trigger_batches;
     report.reviewed = progress.review.is_some();
@@ -339,17 +357,25 @@ async fn advance(
     }
 }
 
-pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> EvalPassReport {
-    run_pass_with(persist, llm, None).await
+pub async fn run_pass(
+    persist: &PersistHandle,
+    llm: &OpenRouterClient,
+    prompts: &ProposerPrompts,
+) -> EvalPassReport {
+    let calls = EvalCalls {
+        prompts,
+        decisions: None,
+    };
+    run_pass_with(persist, llm, calls).await
 }
 
 pub async fn run_pass_with(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
-    decisions: Option<&DecisionEnv>,
+    calls: EvalCalls<'_>,
 ) -> EvalPassReport {
     let mut report = EvalPassReport {
-        requeued: requeue_stale(persist).await,
+        requeued: requeue::requeue_stale(persist).await,
         ..EvalPassReport::default()
     };
     if llm.budget().calls_now == 0 || !breaker::LOOP.allows(breaker::now_secs()) {
@@ -366,37 +392,10 @@ pub async fn run_pass_with(
     };
     report.draft_id = Some(draft.id);
     report.folder = Some(draft.folder.clone());
-    let outcome = advance(persist, llm, decisions, &draft, &mut report).await;
+    let outcome = advance(persist, llm, calls, &draft, &mut report).await;
     let report = settle(persist, &draft, outcome, report).await;
     tracing::debug!(?report, "skill eval: pass finished");
     report
-}
-
-async fn requeue_stale(persist: &PersistHandle) -> i64 {
-    let requeued = persist
-        .lessons()
-        .requeue_skill_drafts_before_evaluator(EVALUATOR_VERSION)
-        .await
-        .unwrap_or_else(|e| {
-            log_requeue_failed(&e);
-            0
-        });
-    log_requeued(requeued);
-    requeued
-}
-
-fn log_requeued(requeued: i64) {
-    if requeued > 0 {
-        tracing::info!(
-            requeued,
-            evaluator_version = EVALUATOR_VERSION,
-            "skill eval: drafts rejected by an older evaluator put back in the queue"
-        );
-    }
-}
-
-fn log_requeue_failed(error: &PersistError) {
-    tracing::warn!(%error, "skill eval: older rejections not requeued");
 }
 
 async fn settle(

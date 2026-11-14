@@ -5,7 +5,7 @@ pub mod vocabulary;
 pub use crate::web_base::spa_origin::SpaOrigin;
 pub use vocabulary::{Axis, Method, SubjectKind, Tier};
 
-use crate::settings::meta_eval::{HOLDOUT_PERCENT_KEY, RELAY_ENABLED_KEY};
+use crate::features_settings::meta_eval::{HOLDOUT_PERCENT_KEY, RELAY_ENABLED_KEY};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub async fn holdout_percent(persist: &PersistHandle) -> Result<i64, PersistError> {

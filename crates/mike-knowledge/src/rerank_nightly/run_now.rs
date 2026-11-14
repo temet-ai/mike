@@ -1,7 +1,8 @@
 use chrono::Utc;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::{Idle, LEASE_ROLE, Pass, Stop, TICK_INTERVAL, night_pass, quiet_budget, report};
+use crate::memory_workers::{self, RERANK_NIGHTLY, Skip};
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 
@@ -28,14 +29,19 @@ pub async fn run_pass_now(state: &KnowledgeState) -> RunNow {
         return RunNow::NoDatabase;
     };
     if !state.rerank_service().current_config().tuning_enabled {
+        memory_workers::record_skip(RERANK_NIGHTLY, Utc::now(), Skip::Off);
         return RunNow::TuningOff;
     }
     if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
+        memory_workers::record_skip(RERANK_NIGHTLY, Utc::now(), Skip::NotLeader);
         return RunNow::OtherMachine;
     }
+    memory_workers::mark_running(RERANK_NIGHTLY, Utc::now());
     let total = passes(state, &persist).await;
     report(&total);
-    RunNow::Ran(pass_json(&total))
+    let counts = total.counts();
+    memory_workers::record_ran(RERANK_NIGHTLY, Utc::now(), &counts);
+    RunNow::Ran(counts)
 }
 
 async fn passes(state: &KnowledgeState, persist: &PersistHandle) -> Pass {
@@ -53,14 +59,4 @@ async fn passes(state: &KnowledgeState, persist: &PersistHandle) -> Pass {
         }
     }
     total
-}
-
-fn pass_json(pass: &Pass) -> Value {
-    json!({
-        "graded": pass.graded,
-        "tuned": pass.tuned.map(|tuned| format!("{tuned:?}")),
-        "thread_candidates": pass.thread_candidates,
-        "lesson_pairs": pass.lesson_pairs,
-        "stopped": pass.stopped.map(|stop| format!("{stop:?}")),
-    })
 }

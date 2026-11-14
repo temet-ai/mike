@@ -2,6 +2,8 @@ use clap::{Args, Subcommand};
 
 use crate::config::subcommands::ConfigCommand;
 
+pub mod structural;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BareDispatch {
     Tui,
@@ -57,6 +59,8 @@ pub enum Command {
     UserConfig(crate::user_config::UserConfigArgs),
 
     ExportAnalysisCorpus(ExportAnalysisCorpusArgs),
+
+    Structural(structural::StructuralArgs),
 }
 
 #[derive(Debug, Clone, Args)]

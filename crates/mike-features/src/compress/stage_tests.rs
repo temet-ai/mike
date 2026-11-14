@@ -8,6 +8,19 @@ use crate::filter::FilterConfig;
 use crate::lesson_cache::LessonSnapshot;
 use crate::store::models::RequestId;
 
+fn file_read(toggles: &ResolvedToggles) -> FileReadCompressionOverlay {
+    toggles.features.get::<FileReadCompressionOverlay>()
+}
+
+fn set_file_read(
+    toggles: &mut ResolvedToggles,
+    change: impl FnOnce(&mut FileReadCompressionOverlay),
+) {
+    toggles
+        .features
+        .update::<FileReadCompressionOverlay>(change);
+}
+
 fn big_file_content(lines: usize) -> String {
     (1..=lines)
         .map(|i| format!("line {i} of the file with enough padding to matter\n"))
@@ -104,7 +117,7 @@ async fn apply_computes_a_reduction_but_never_mutates_the_forwarded_body() -> an
         ]
     }))?;
     let sanity_check =
-        file_reads::reduce_file_reads(&raw, &super::session_policy(&session_toggles));
+        file_reads::reduce_file_reads(&raw, &super::session_policy(&file_read(&session_toggles)));
     assert_eq!(
         sanity_check.stage.outcome,
         StageOutcome::Applied,
@@ -184,7 +197,7 @@ async fn forward_mode_sends_the_shortened_body_and_records_an_applied_stage() ->
     let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-file-read-forward-test");
     let mut session_toggles: ResolvedToggles = (*resolved).clone();
-    session_toggles.file_read_compression_forward = true;
+    set_file_read(&mut session_toggles, |o| o.mode = "forward".to_owned());
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
     let turn_origin = TurnOrigin::Primary;
@@ -226,19 +239,19 @@ async fn the_forward_share_splits_sessions_into_stable_arms() -> anyhow::Result<
     let mut toggles: ResolvedToggles = (*resolved).clone();
     let ids: Vec<String> = (0..400).map(|i| format!("session-{i}")).collect();
 
-    toggles.file_read_compression_forward_share = 0;
+    set_file_read(&mut toggles, |o| o.forward_share = 0);
     assert!(
         ids.iter()
             .all(|id| super::session_arm(&toggles, id) == super::ARM_CONTROL)
     );
 
-    toggles.file_read_compression_forward_share = 100;
+    set_file_read(&mut toggles, |o| o.forward_share = 100);
     assert!(
         ids.iter()
             .all(|id| super::session_arm(&toggles, id) == super::ARM_FORWARD)
     );
 
-    toggles.file_read_compression_forward_share = 50;
+    set_file_read(&mut toggles, |o| o.forward_share = 50);
     let forward = ids
         .iter()
         .filter(|id| super::session_arm(&toggles, id) == super::ARM_FORWARD)
@@ -260,8 +273,10 @@ async fn forward_mode_forwards_every_session_and_running_sessions_keep_their_arm
     let config = crate::config::ProxyConfig::for_tests_in_memory();
     let state = crate::state::AppState::new(config).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("arm-a")).clone();
-    toggles.file_read_compression_forward = true;
-    toggles.file_read_compression_forward_share = 0;
+    set_file_read(&mut toggles, |o| {
+        o.mode = "forward".to_owned();
+        o.forward_share = 0;
+    });
     assert!(
         (0..100)
             .map(|i| format!("session-{i}"))
@@ -273,12 +288,13 @@ async fn forward_mode_forwards_every_session_and_running_sessions_keep_their_arm
         super::session_arm(&running, "arm-running"),
         super::ARM_CONTROL
     );
-    state
-        .settings_overlay
-        .store(std::sync::Arc::new(crate::settings::SettingsOverlay {
-            file_read_compression_mode: "forward".to_owned(),
-            ..crate::settings::SettingsOverlay::default()
-        }));
+    state.settings_overlay.store(std::sync::Arc::new({
+        let mut overlay = crate::settings::SettingsOverlay::default();
+        overlay
+            .features
+            .update::<FileReadCompressionOverlay>(|o| o.mode = "forward".to_owned());
+        overlay
+    }));
     let still = state.resolve_session_toggles("arm-running");
     assert_eq!(
         super::session_arm(&still, "arm-running"),
@@ -315,12 +331,10 @@ async fn the_default_grace_window_keeps_a_read_answered_twice_whole() -> anyhow:
     let config = crate::config::ProxyConfig::for_tests_in_memory();
     let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-file-read-grace-test");
-    assert_eq!(session_toggles.file_read_compression_grace_turns, 3);
-    assert!(
-        !session_toggles.file_read_compression_forward,
-        "shadow is the default"
-    );
-    let policy = super::session_policy(&session_toggles);
+    let settings = file_read(&session_toggles);
+    assert_eq!(settings.grace_turns, 3);
+    assert!(!settings.forward(), "shadow is the default");
+    let policy = super::session_policy(&settings);
 
     let two = file_reads::reduce_file_reads(&read_then_answers(2)?, &policy);
     assert_eq!(two.stage.outcome, StageOutcome::Unchanged);
@@ -445,7 +459,8 @@ async fn default_settings_policy_matches_pre_wiring_hardcoded_defaults() -> anyh
     );
     let from_hardcoded = file_reads::reduce_file_reads(&raw, &hardcoded_policy);
 
-    let settings_policy = super::session_policy(&session_toggles);
+    let settings = file_read(&session_toggles);
+    let settings_policy = super::session_policy(&settings);
     let from_settings = file_reads::reduce_file_reads(&raw, &settings_policy);
 
     assert_eq!(from_hardcoded.candidate, from_settings.candidate);

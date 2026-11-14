@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max(g.graded_at) AS newest FROM memory.search_grades g\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "newest",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b6d4f09b568a4084f50f0f92006469fc33637dd63800143dfc9ccc7300d9be66"
+}

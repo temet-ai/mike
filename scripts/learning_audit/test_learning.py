@@ -1123,3 +1123,14 @@ class LessonDeliveryTest(unittest.TestCase):
         with patch.object(delivery.urllib.request, 'urlopen', side_effect=broken):
             with self.assertRaises(urllib.error.HTTPError):
                 delivery.fetch('2026-10-07T00:00:00+00:00', '2026-10-14T00:00:00+00:00')
+
+
+class InstalledLayoutTest(unittest.TestCase):
+    def test_generated_files_go_to_the_state_folder_only_when_installed(self):
+        from learning_audit.report import data_root, installed
+        home = Path('/home/example')
+        with patch.object(Path, 'home', return_value=home):
+            self.assertTrue(installed(Path('/opt/mike/gen/share/mike')))
+            self.assertEqual(data_root(Path('/opt/mike/gen/share/mike')), home / '.local/state/mike/learning')
+            self.assertFalse(installed(Path('/work/mike')))
+            self.assertEqual(data_root(Path('/work/mike')), Path('/work/mike'))

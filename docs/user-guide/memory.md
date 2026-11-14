@@ -106,7 +106,7 @@ searched goes to that server.
 
 ## Review what memory did
 
-Open **Memory** in the menu. A background job consolidates the lessons of each project
+Open **Memory** in the menu. While mike is running, a background job consolidates the lessons of each project
 nightly: it merges near-duplicates, retires stale lessons and archives them. The page
 shows what it did, with the evidence behind each step:
 
@@ -158,6 +158,23 @@ blame, avoiding work, faking understanding and overselling. Hits show on the req
 and on [flagged responses](flagged-responses.md) whether or not reminders are on. With the
 **Project reminders** switch on, mike adds a reminder built from the previous request's hits to a
 later request. The scan is local.
+
+## Scheduled jobs on an installed mike
+
+Besides that built-in job, mike runs scheduled jobs that are scripts. They are listed in the **Scheduled jobs** panel on the home page, with when each last ran and a **Run now** button. Which ones can run depends on how mike was installed.
+
+An installed mike (Homebrew, mise or an archive) runs the four jobs whose scripts ship with it:
+
+| Job | What it does |
+|---|---|
+| `learning_promote` | Turns accepted lessons into project memories and skills in your project folders, hourly overnight. |
+| `learning_audit` | Reviews last week's sessions, lessons and tool use and publishes a report, weekly. |
+| `compressor_loop` | Compares sessions with and without shortened file reads and adjusts the [compressor](compression.md)'s settings, daily. |
+| `lesson_relations` | Finds lessons that repeat or contradict each other, daily, before consolidation. |
+
+They need `python3` with PyYAML and `psql` on the PATH the background service uses. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.
+
+`mike doctor` has a `scheduled_jobs` line that says how many jobs can run here and names the ones that need a checkout. It warns, with a fix, if a job's script is missing, for example when mike was installed without its `share/mike/scripts` folder.
 
 ## What is on in a fresh install
 

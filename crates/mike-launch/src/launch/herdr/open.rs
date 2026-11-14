@@ -354,8 +354,38 @@ async fn agent_start(
         Err(err) if err.backend_code() == Some("agent_not_ready") => {
             Ok(agent_state_after_not_ready(cli, &req.name).await)
         }
+        Err(err) if is_start_wait_timeout(&err) => match running_agent_state(cli, pane).await {
+            Some(state) => Ok(state),
+            None => Err(err),
+        },
         Err(err) => Err(err),
     }
+}
+
+fn is_start_wait_timeout(err: &LaunchError) -> bool {
+    err.backend_code() == Some("timeout") || matches!(err, LaunchError::Timeout { .. })
+}
+
+async fn running_agent_state(
+    cli: &HerdrCli,
+    pane: &str,
+) -> Option<(Option<String>, Option<uuid::Uuid>)> {
+    let result = cli
+        .run_json(&args(&["agent", "get", pane]), DEFAULT_TIMEOUT)
+        .await
+        .ok()?;
+    let agent = result.get("agent")?;
+    if str_field(agent, "agent") != Some("claude") {
+        return None;
+    }
+    Some((
+        Some(
+            str_field(agent, "agent_status")
+                .unwrap_or("working")
+                .to_string(),
+        ),
+        agent_session_uuid(agent),
+    ))
 }
 
 async fn agent_state_after_not_ready(

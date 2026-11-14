@@ -167,6 +167,7 @@ async fn create_run(
             bundle_id: req.bundle_id,
             rubric_version: req.cfg.rubric_id,
             input_builder_version: RENDERER_VERSION,
+            slices: &[],
             model: &req.cfg.model,
             split: &req.split,
             tiers: &req.tiers,

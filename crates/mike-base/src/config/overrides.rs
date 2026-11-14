@@ -11,7 +11,6 @@ pub fn apply_settings_overrides(cfg: &mut ProxyConfig, rows: &[(String, serde_js
             || apply_analysis_override(cfg, key, value)
             || apply_steerer_override(cfg, key, value)
             || apply_turn_judge_override(cfg, key, value)
-            || apply_session_judge_override(cfg, key, value)
             || apply_resource_cap_override(cfg, key, value)
             || apply_mailbox_override(cfg, key, value)
             || apply_logging_override(cfg, key, value)
@@ -128,54 +127,6 @@ fn apply_turn_judge_override(cfg: &mut ProxyConfig, key: &str, value: &serde_jso
         "judge_worker.interval_secs" => {
             if let Some(v) = value.as_u64() {
                 cfg.steerer.judge.interval_secs = v;
-            }
-        }
-        _ => return false,
-    }
-    true
-}
-
-fn apply_session_judge_override(
-    cfg: &mut ProxyConfig,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
-    match key {
-        "session_judge.model" => {
-            if let Some(v) = value.as_str()
-                && !v.is_empty()
-            {
-                cfg.session_judge.model = v.to_owned();
-            }
-        }
-        "session_judge.system_prompt" => {
-            if let Some(v) = value.as_str() {
-                cfg.session_judge.system_prompt = v.to_owned();
-            }
-        }
-        "session_judge.batch_size" => {
-            if let Some(v) = value.as_i64() {
-                cfg.session_judge.batch_size = v;
-            }
-        }
-        "session_judge.min_session_age_secs" => {
-            if let Some(v) = value.as_u64() {
-                cfg.session_judge.min_session_age_secs = v;
-            }
-        }
-        "session_judge.max_turns_in_prompt" => {
-            if let Some(v) = value.as_u64() {
-                cfg.session_judge.max_turns_in_prompt = v as usize;
-            }
-        }
-        "session_judge.poll_interval_secs" => {
-            if let Some(v) = value.as_u64() {
-                cfg.session_judge.poll_interval_secs = v;
-            }
-        }
-        "session_judge.request_timeout_secs" => {
-            if let Some(v) = value.as_u64() {
-                cfg.session_judge.request_timeout_secs = v;
             }
         }
         _ => return false,

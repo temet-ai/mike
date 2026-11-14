@@ -12,7 +12,7 @@ Setup needs a terminal. Without one it stops with a message that points you to `
 
 ## The steps
 
-Setup shows one screen per step. Each lists what it found, then the choices that fit this machine, with the recommended one first. `⏎` runs the highlighted choice, and `f` leaves setup and keeps the answers so far. Run `mike setup <step>` to reopen it at one step: `database`, `service`, `claude`, `features`, `models`, `embeddings` or `terminal`.
+Setup shows one screen per step. Each lists what it found, then the choices that fit this machine, with the recommended one first. `⏎` runs the highlighted choice, and `f` leaves setup and keeps the answers so far. Run `mike setup <step>` to reopen it at one step: `database`, `service`, `claude`, `features`, `models`, `embeddings`, `rerank` or `terminal`.
 
 | Step | What it settles |
 |---|---|
@@ -23,6 +23,7 @@ Setup shows one screen per step. Each lists what it found, then the choices that
 | Features | Which optional features are on. |
 | Background models | Which model service mike's own workers use. |
 | Search by meaning | Whether recall can match by meaning as well as by text. |
+| Reranker | Whether search results are reordered by a small model that runs on a graphics card. |
 | Terminal | Which terminal tool `mike spawn` and fleets use. |
 | Ready | A summary, and shortcuts to start Claude Code, open the web UI or take the tour. |
 
@@ -90,6 +91,18 @@ Choose `watch-only` to keep everything optional off. The step shows which switch
 Background models are what mike's own workers use for judging and for finding lessons. Choose "Use" plus a provider's name "for every job" for a provider the step found on your machine, set up an OpenRouter key, or leave the models alone. Features that need a model stay idle until one is set. Skip this step unless you turned those features on; [the judge](judge.md) and [steering](steering.md) say which need one.
 
 Search by meaning lets recall match a request to lessons by meaning, not only by words. The step can pull a small embedding model into Ollama on your machine, point at another embedding server, or leave it off, in which case recall uses text matching. Skip it on a first run.
+
+## Reranker
+
+A reranker is a small model that reads the passages a search found and puts the most relevant first. It is optional and off on a fresh install; without it, searches keep the order search by meaning gives them. Skip it on a first run.
+
+The Reranker step looks for an NVIDIA graphics card (it runs `nvidia-smi -L`) and for a systemd user session, then offers what fits:
+
+- **Run the reranker on this machine.** Offered only when both are found, and recommended then. It downloads a reranking server (about 35 MB) and the `bge-reranker-v2-m3` model (about 640 MB) into `~/.local/share/mike`, skipping what is already there, and writes three systemd user units. The server starts on the first search and stops after 10 idle minutes, using about 1 GB of graphics memory while it runs. It listens on port 11435 on every interface of the machine, so other machines on your network can use it too. Setup then reranks three test passages to check the answer and turns reranking on.
+- **Use the reranker on another machine.** Type the address of a reranking server you already run, such as one this step set up on a machine with a graphics card. Setup checks it with the same three passages and then turns reranking on. Search queries and passages are sent to that machine, so [Privacy](privacy.md) applies.
+- **Leave reranking off.**
+
+On a machine without an NVIDIA graphics card, such as a Mac, or without systemd, the step says so and does not offer to run the reranker there; "use the reranker on another machine" becomes the recommended choice. Leaving reranking off costs nothing but search order. `mike doctor` shows a `reranker` line: `ok` when reranking is off or the server answers, and `warn` with `fix: mike setup rerank` when it is on but does not answer. The settings page at <http://localhost:9990/settings/reranker> holds the same switches in the browser.
 
 ## Check the result
 

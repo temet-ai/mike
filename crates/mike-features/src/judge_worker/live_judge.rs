@@ -72,6 +72,7 @@ pub async fn load_live_bundle(persist: &PersistHandle, bundle_id: i64) -> Option
         V2JudgeConfig::from_bundle_components(&row.components),
         "live_judge.bundle_components",
     )?;
+    ok_or_warn(cfg.ensure_live(), "live_judge.bundle_slices")?;
     cfg.model =
         crate::llm::provider::resolve(Some(crate::llm::provider::ModelTier::Standard), &cfg.model);
     Some(LiveBundle {

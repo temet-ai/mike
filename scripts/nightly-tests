@@ -13,6 +13,9 @@
 # the last night is compiled. It borrows the checkout's .env (the test database
 # URL) by symlink. Plain cargo: the run must not depend on the mbx store.
 #
+# Before the tests it records the whole-tree wiring count of each kind (scripts/wiring-new
+# --whole: one "wiring-counts:" line here, one row in wiring-counts.log under the state dir).
+#
 # Usage: scripts/nightly-tests [--print]   --print says what it would run, runs nothing.
 # Exit status: 0 when every tier passed; the last line is NIGHTLY-TESTS: PASS|FAIL <sha>.
 set -uo pipefail
@@ -57,6 +60,7 @@ fi
 [[ -f "$root/.env" && ! -e "$wt/.env" ]] && ln -s "$root/.env" "$wt/.env"
 
 sha="$(git -C "$wt" rev-parse --short HEAD)"
+"$root/scripts/wiring-new" --whole "$wt" "$sha" || true
 echo "nightly-tests: make test-all at $sha in $wt"
 log="$(mktemp "${TMPDIR:-/tmp}/nightly-tests.XXXXXX")"
 trap 'rm -f "$log"' EXIT

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 
 use crate::store::persistence::PersistError;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub struct TreeCheckRow {
     pub id: i64,
     pub run_id: String,
@@ -171,6 +171,32 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             .fetch_optional(&self.pool)
             .await?;
             Ok(row)
+        })
+        .await
+    }
+
+    pub async fn tree_check(self, id: i64) -> Result<Option<TreeCheckRow>, PersistError> {
+        crate::metrics::time_db("launch_tree_check_by_id", async move {
+            let row = sqlx::query_as::<_, TreeCheckRow>(include_str!("tree_check_by_id.sql")) // grader-allow: by-id read of the row the newest-row query! already types, no second .sqlx entry
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?;
+            Ok(row)
+        })
+        .await
+    }
+
+    pub async fn transaction_status(
+        self,
+        transaction: i64,
+    ) -> Result<Option<String>, PersistError> {
+        crate::metrics::time_db("launch_transaction_status", async move {
+            Ok(
+                sqlx::query_scalar::<_, Option<String>>("SELECT txid_status($1)")
+                    .bind(transaction)
+                    .fetch_one(&self.pool)
+                    .await?,
+            )
         })
         .await
     }

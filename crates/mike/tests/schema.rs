@@ -4,6 +4,8 @@ mod guard_never_delivers;
 mod judge_inputs_carry_no_calibration;
 #[path = "schema/migration_checksums.rs"]
 mod migration_checksums;
+#[path = "schema/no_dev_paths_in_shipped_code.rs"]
+mod no_dev_paths_in_shipped_code;
 #[path = "schema/outcome_single_writer.rs"]
 mod outcome_single_writer;
 #[path = "schema/session_verdict_readers.rs"]

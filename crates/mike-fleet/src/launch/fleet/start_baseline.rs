@@ -18,6 +18,11 @@ pub struct Baseline {
     pub verified: bool,
     pub finished_at: Option<DateTime<Utc>>,
     pub repair_task: Option<String>,
+    pub hold_on_red: bool,
+}
+
+fn holds_on_red(def: &FleetDefinition) -> bool {
+    def.baseline.as_ref().is_some_and(|b| b.hold_on_red)
 }
 
 pub fn repair_task(def: &FleetDefinition) -> Result<Option<&str>, String> {
@@ -134,6 +139,7 @@ pub async fn establish(
         verified,
         finished_at: Some(Utc::now()),
         repair_task: def.baseline.as_ref().and_then(|b| b.repair_task.clone()),
+        hold_on_red: holds_on_red(def),
     };
     if !super::seat::patch_definition(
         persist,
@@ -168,6 +174,13 @@ fn hold_workers_when_red(
             "the gate command could not run in the clean checkout (exit {code}: a program it calls is missing or not executable); fix `{}` so it installs what it needs, then send ready again. Output is in tree-check result {id}:\n{output}",
             def.gate.command
         ));
+    }
+    if code != Some(0) && !holds_on_red(def) {
+        def.coordinator.brief.push_str(&format!(
+            "\nSTARTUP BASELINE IS RED (result {id}): `{}` fails on the branch's clean commit, before any seat's change. Workers start anyway (baseline.hold_on_red is off). Full failure output is in the gate tree-check ledger {}.",
+            def.gate.command, ledger,
+        ));
+        return Ok(());
     }
     if code != Some(0) && repair_task(def).ok().flatten().is_none() {
         return Err(red_without_repair(&def.gate.command, id, ledger));
@@ -223,9 +236,9 @@ pub fn red_without_repair(
 }
 
 pub fn blocked(def: &FleetDefinition) -> bool {
-    def.baseline
-        .as_ref()
-        .is_some_and(|b| !b.verified || !b.passed || b.command != def.gate.command)
+    def.baseline.as_ref().is_some_and(|b| {
+        b.hold_on_red && (!b.verified || !b.passed || b.command != def.gate.command)
+    })
 }
 
 pub fn admitted(def: &FleetDefinition, ready: Vec<String>, passed: bool) -> Vec<String> {

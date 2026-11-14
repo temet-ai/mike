@@ -6,6 +6,7 @@ pub use mike_lessons::store::persistence::workspace;
 pub use mike_lessons::store::persistence::*;
 pub mod decisions_replay;
 pub mod file_write_summaries;
+pub mod learning_loop;
 pub mod llm_role_health;
 pub mod project_merge;
 pub mod project_merge_candidates;

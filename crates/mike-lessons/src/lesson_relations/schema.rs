@@ -81,23 +81,34 @@ pub fn adjudicator_schema() -> Value {
     })
 }
 
-pub const PROPOSER_SYSTEM_PROMPT: &str = "\
-You are proposing a directional relationship between two stored lessons from an AI \
-coding agent's memory. A relation means one lesson (the NEWER one) updates, refines, \
-recurs against, or contradicts the other (the OLDER one) — never that they are merely \
-similar in topic. Only claim is_related=true when the text gives a concrete reason: an \
-explicit resolution, correction, retraction, or restatement of the other lesson's claim. \
-Every string in quoted_evidence MUST be copied character-for-character from lesson A's \
-or B's text — never paraphrase, summarize, or invent a quote.";
+use crate::lessons_settings::meta_memory_loop::{
+    LESSON_RELATIONS_ADJUDICATOR_PROMPT_KEY, LESSON_RELATIONS_PROPOSER_PROMPT_KEY,
+};
+use crate::settings::memory_prompts::text_from_rows;
+pub use crate::settings::memory_prompts::{
+    LESSON_RELATIONS_ADJUDICATOR_PROMPT as ADJUDICATOR_SYSTEM_PROMPT,
+    LESSON_RELATIONS_PROPOSER_PROMPT as PROPOSER_SYSTEM_PROMPT,
+};
 
-pub const ADJUDICATOR_SYSTEM_PROMPT: &str = "\
-You are independently reviewing another model's proposed relationship between two \
-stored lessons. You receive the SAME evidence the proposer saw, plus the proposer's \
-claim. Form your own judgment from the evidence — do not defer to the proposer's \
-rationale. Disagree when the evidence does not support the claimed kind or direction. \
-The claim names each lesson twice, once as LESSON A / LESSON B and once by id; both \
-refer to the same lesson. First answer holds: true only when the claimed kind truly \
-holds; false when the lessons cover different situations, complement each other, or \
-merely share a topic. Then state the direction YOU read out of the evidence by \
-returning from_lesson_id (the superseding lesson) and to_lesson_id (the superseded \
-one). The claim stands only when it holds and your direction matches the proposer's.";
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelationPrompts {
+    pub proposer: String,
+    pub adjudicator: String,
+}
+
+impl RelationPrompts {
+    pub fn from_rows(rows: &[(String, Value)]) -> Self {
+        Self {
+            proposer: text_from_rows(
+                rows,
+                LESSON_RELATIONS_PROPOSER_PROMPT_KEY,
+                PROPOSER_SYSTEM_PROMPT,
+            ),
+            adjudicator: text_from_rows(
+                rows,
+                LESSON_RELATIONS_ADJUDICATOR_PROMPT_KEY,
+                ADJUDICATOR_SYSTEM_PROMPT,
+            ),
+        }
+    }
+}

@@ -56,12 +56,17 @@ mod tests {
     use super::bundle_judge;
     use crate::analysis::judge::input_v2::INPUT_BUILDER_V2;
     use crate::analysis::judge::rubric::{RubricFamily, V2_2026_09_23, effective_rubric, latest};
+    use crate::analysis::judge::slices::JudgeSlice;
     use crate::eval::run::items::RunJudge;
     use crate::judge_worker::v2_judge::V2JudgeConfig;
     use crate::llm::LlmRuntimeSettings;
     use crate::store::persistence::eval_bundles::BundleRow;
 
     fn fixture() -> (BundleRow, RunJudge) {
+        fixture_with(Vec::new())
+    }
+
+    fn fixture_with(slices: Vec<JudgeSlice>) -> (BundleRow, RunJudge) {
         let judge = RunJudge::V2(V2JudgeConfig {
             rubric: effective_rubric(&V2_2026_09_23, Some("selected immutable prompt")),
             builder: INPUT_BUILDER_V2,
@@ -71,6 +76,7 @@ mod tests {
                 max_output_tokens: 987,
                 ..LlmRuntimeSettings::default()
             },
+            slices,
         });
         let bundle = BundleRow {
             id: 14,
@@ -98,6 +104,29 @@ mod tests {
         let (bundle, expected) = fixture();
         assert_eq!(bundle_judge(14, Some(&bundle))?, expected);
         Ok(())
+    }
+
+    fn sliced_fixture() -> (BundleRow, RunJudge) {
+        fixture_with(vec![JudgeSlice::Asks, JudgeSlice::WithholdNext])
+    }
+
+    #[test]
+    fn selected_v2_bundle_with_slices_runs_with_those_slices() -> anyhow::Result<()> {
+        let (bundle, expected) = sliced_fixture();
+        assert_eq!(bundle_judge(14, Some(&bundle))?, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn selected_v2_bundle_with_an_unknown_slice_or_altered_addendum_is_an_error() {
+        for (key, value) in [
+            ("slices", serde_json::json!(["asks", "hunches"])),
+            ("slice_addendum", serde_json::json!("another-addendum")),
+        ] {
+            let (mut bundle, _) = sliced_fixture();
+            bundle.components[key] = value;
+            assert!(bundle_judge(14, Some(&bundle)).is_err(), "{key}");
+        }
     }
 
     #[test]

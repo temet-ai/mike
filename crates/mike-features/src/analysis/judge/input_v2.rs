@@ -4,6 +4,7 @@ use super::{truncate_chars, truncate_chars_tail};
 
 pub const INPUT_BUILDER_V2_0: &str = "judge-input-v2.0";
 pub const INPUT_BUILDER_V2: &str = "judge-input-v2.1";
+pub const INPUT_BUILDER_V2_SLICES: &str = "judge-input-v2.1+slices";
 pub const INPUT_BUILDER_R3: &str = "judge-input-r3";
 
 const PROMPT_CAP: usize = 1_000;

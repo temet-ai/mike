@@ -205,6 +205,14 @@ Mike archives also carry the tracked runtime files from `mods/` under
 its executable mode. Archive installs retain these files in the same immutable
 generation as the binary; Homebrew installs them under the formula's share
 folder. Both layouts are discovered by `mike claude-code mods` without a checkout.
+The mike archive also carries the scripts an installed mike runs (its scheduled
+jobs, lesson sync and the Codex hook installer) under `share/mike/scripts/`, packed
+the same way. `scripts/release/script_assets.py` holds the one ship list
+(`SCRIPTS`); the manifest records it as `script_assets`, and `--verify` requires
+exactly that payload in the mike archive (a candidate without the key must carry
+none). Checkout-only jobs (`lessons-commit`, `memory-review`, `usage-audit.sh`) are
+not shipped. `test_ship_list.py` fails when non-test Rust names a `scripts/` or
+`.claude/` path that is neither shipped nor allow-listed with a reason.
 The forward proxy is the `mike forward` subcommand in the Mike binary.
 
 ## Prerequisites

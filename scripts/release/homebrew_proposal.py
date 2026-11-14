@@ -65,6 +65,7 @@ def formula_methods(name, version):
     if name == "mike":
         lines.append('    libexec.install "mike-maintenance", "mike-maintenance.pyz"')
         lines.append('    (share/"mike").install "share/mike/mods" if File.directory?("share/mike/mods")')
+        lines.append('    (share/"mike").install "share/mike/scripts" if File.directory?("share/mike/scripts")')
     lines.extend(["  end", "", "  def caveats", "    <<~EOS",
                   "      No service, database, shell profile or client registration is changed.",
                   "      Install both mike and mike-mcp formulae for the complete native pair."])

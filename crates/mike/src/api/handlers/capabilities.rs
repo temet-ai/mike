@@ -206,7 +206,9 @@ fn weasel_intercept_capability(state: &AppState, enabled: bool) -> CapabilityRow
     let forbidden_word_count = state
         .settings_overlay
         .load()
-        .weasel_intercept_forbidden_words
+        .features
+        .get::<crate::features_settings::WeaselOverlay>()
+        .forbidden_words
         .len();
     if !enabled {
         CapabilityRow {
@@ -293,17 +295,25 @@ mod weasel_capability_tests {
     async fn state_with_live_overlay(words: &[&str]) -> anyhow::Result<AppState> {
         let state = AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
         assert!(
-            state.config.weasel_intercept.forbidden_words.is_empty(),
+            state
+                .config
+                .sections
+                .get::<crate::features_settings::WeaselInterceptConfig>()
+                .forbidden_words
+                .is_empty(),
             "the boot config must hold no forbidden words for these tests to mean anything"
         );
         state.feature_toggle_overlay.store(Arc::new(FeatureToggles {
             weasel_intercept: true,
             ..FeatureToggles::default()
         }));
-        state.settings_overlay.store(Arc::new(SettingsOverlay {
-            weasel_intercept_forbidden_words: words.iter().map(|w| (*w).to_owned()).collect(),
-            ..SettingsOverlay::default()
-        }));
+        let mut overlay = SettingsOverlay::default();
+        overlay
+            .features
+            .update::<crate::features_settings::WeaselOverlay>(|o| {
+                o.forbidden_words = words.iter().map(|w| (*w).to_owned()).collect();
+            });
+        state.settings_overlay.store(Arc::new(overlay));
         Ok(state)
     }
 

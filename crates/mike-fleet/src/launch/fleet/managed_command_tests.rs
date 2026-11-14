@@ -12,8 +12,8 @@ async fn shared_checkout_wait_cancels_before_either_check_or_gate_can_launch() -
     let held = crate::launch::fleet::gate_slot::queue::hold(root.path()).await;
     let check_owner = check.owner();
     let gate_owner = gate.owner();
-    let first = hold_checkout_owned(&check_owner, root.path(), Duration::from_secs(2));
-    let second = hold_checkout_owned(&gate_owner, root.path(), Duration::from_secs(2));
+    let first = hold_checkout_owned(&check_owner, root.path(), Some(Duration::from_secs(2)));
+    let second = hold_checkout_owned(&gate_owner, root.path(), Some(Duration::from_secs(2)));
     tokio::pin!(first, second);
     assert!(
         tokio::time::timeout(Duration::from_millis(10), &mut first)
@@ -70,8 +70,12 @@ async fn timeout_waiting_for_checkout_is_an_error_and_does_not_unlock_owner() ->
         .register("run")
         .map_err(anyhow::Error::msg)?;
     let held = crate::launch::fleet::gate_slot::queue::hold(root.path()).await;
-    let answer =
-        hold_checkout_owned(&registration.owner(), root.path(), Duration::from_millis(5)).await;
+    let answer = hold_checkout_owned(
+        &registration.owner(),
+        root.path(),
+        Some(Duration::from_millis(5)),
+    )
+    .await;
     assert!(answer.is_err());
     assert!(
         tokio::time::timeout(

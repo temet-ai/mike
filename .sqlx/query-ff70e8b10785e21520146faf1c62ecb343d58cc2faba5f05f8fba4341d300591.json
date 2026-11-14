@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT key AS \"key!\", operator_set AS \"operator_set!\", updated_at AS \"updated_at!\"\n          FROM config.feature_toggles\n         WHERE NOT enabled\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_set!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "operator_set"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ff70e8b10785e21520146faf1c62ecb343d58cc2faba5f05f8fba4341d300591"
+}

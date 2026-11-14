@@ -21,9 +21,6 @@ fn apply_one_row(overlay: &mut SettingsOverlay, key: &str, value: &serde_json::V
     if super::overlay_apply_decisions::apply_decisions_row(overlay, key, value) {
         return;
     }
-    if apply_session_scoped_row(overlay, key, value) {
-        return;
-    }
     if apply_worker_identity_row(overlay, key, value) {
         return;
     }
@@ -31,97 +28,6 @@ fn apply_one_row(overlay: &mut SettingsOverlay, key: &str, value: &serde_json::V
         return;
     }
     super::registry::apply_overlay_row(&mut overlay.features, key, value);
-}
-
-fn apply_session_scoped_row(
-    overlay: &mut SettingsOverlay,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
-    match key {
-        "reminders.inject_lessons" => set_bool(&mut overlay.reminders_inject_lessons, key, value),
-        "reminders.max_lessons_to_inject" => {
-            set_usize(&mut overlay.reminders_max_lessons_to_inject, key, value);
-        }
-        "weasel_intercept.forbidden_words" => {
-            set_string_list(&mut overlay.weasel_intercept_forbidden_words, key, value);
-        }
-        "weasel_intercept.correction_prompt" => {
-            set_prompt(&mut overlay.weasel_intercept_correction_prompt, key, value);
-        }
-        "file_read_compression.min_bytes" => {
-            set_usize(&mut overlay.file_read_compression_min_bytes, key, value);
-        }
-        "file_read_compression.head_lines" => {
-            set_usize(&mut overlay.file_read_compression_head_lines, key, value);
-        }
-        "file_read_compression.tail_lines" => {
-            set_usize(&mut overlay.file_read_compression_tail_lines, key, value);
-        }
-        "file_read_compression.enabled_producers" => {
-            set_string_list(
-                &mut overlay.file_read_compression_enabled_producers,
-                key,
-                value,
-            );
-        }
-        "file_read_compression.protected_paths" => {
-            set_string_list(
-                &mut overlay.file_read_compression_protected_paths,
-                key,
-                value,
-            );
-        }
-        "file_read_compression.grace_turns" => {
-            set_usize(&mut overlay.file_read_compression_grace_turns, key, value);
-        }
-        "file_read_compression.mode" => {
-            set_string(&mut overlay.file_read_compression_mode, key, value);
-        }
-        "file_read_compression.forward_share" => {
-            set_usize(&mut overlay.file_read_compression_forward_share, key, value);
-        }
-        key if key.starts_with("shell_output_compression.") => {
-            return apply_shell_output_row(overlay, key, value);
-        }
-        "compression_dedup.enabled" => {
-            set_bool(&mut overlay.compression_dedup_enabled, key, value);
-        }
-        "context_focus_question.mode" => {
-            set_string(&mut overlay.context_focus_question_mode, key, value);
-        }
-        _ => return false,
-    }
-    true
-}
-
-fn apply_shell_output_row(
-    overlay: &mut SettingsOverlay,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
-    let target = match key {
-        "shell_output_compression.min_bytes" => &mut overlay.shell_output_compression_min_bytes,
-        "shell_output_compression.head_lines" => &mut overlay.shell_output_compression_head_lines,
-        "shell_output_compression.tail_lines" => &mut overlay.shell_output_compression_tail_lines,
-        "shell_output_compression.signal_context_lines" => {
-            &mut overlay.shell_output_compression_signal_context_lines
-        }
-        "shell_output_compression.signal_line_cap" => {
-            &mut overlay.shell_output_compression_signal_line_cap
-        }
-        "shell_output_compression.grace_turns" => &mut overlay.shell_output_compression_grace_turns,
-        "shell_output_compression.forward_share" => {
-            &mut overlay.shell_output_compression_forward_share
-        }
-        "shell_output_compression.mode" => {
-            set_string(&mut overlay.shell_output_compression_mode, key, value);
-            return true;
-        }
-        _ => return false,
-    };
-    set_usize(target, key, value);
-    true
 }
 
 fn apply_worker_identity_row(

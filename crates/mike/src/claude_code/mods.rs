@@ -21,26 +21,31 @@ fn is_mods_root(dir: &Path) -> bool {
     })
 }
 
+pub(crate) fn package_dirs(exe: &Path) -> Vec<PathBuf> {
+    let stable = crate::service::stable_binary_path(exe).ok();
+    let real = std::fs::canonicalize(exe).ok();
+    [stable, real]
+        .into_iter()
+        .flatten()
+        .flat_map(|bin| {
+            bin.parent()
+                .into_iter()
+                .flat_map(|directory| {
+                    [Some(directory), directory.parent()]
+                        .into_iter()
+                        .flatten()
+                        .map(|prefix| prefix.join("share").join("mike"))
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
 pub(crate) fn find_source(exe: Option<&Path>, cwd: Option<&Path>) -> Option<PathBuf> {
-    let package_roots = exe.into_iter().flat_map(|exe| {
-        let stable = crate::service::stable_binary_path(exe).ok();
-        let real = std::fs::canonicalize(exe).ok();
-        [stable, real]
-            .into_iter()
-            .flatten()
-            .flat_map(|bin| {
-                bin.parent()
-                    .into_iter()
-                    .flat_map(|directory| {
-                        [Some(directory), directory.parent()]
-                            .into_iter()
-                            .flatten()
-                            .map(|prefix| prefix.join("share").join("mike").join("mods"))
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-    });
+    let package_roots = exe
+        .into_iter()
+        .flat_map(package_dirs)
+        .map(|share| share.join("mods"));
     let checkout_roots = exe
         .and_then(|exe| std::fs::canonicalize(exe).ok())
         .into_iter()

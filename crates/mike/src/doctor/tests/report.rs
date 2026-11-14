@@ -40,6 +40,10 @@ fn every_check_the_audit_lists_is_present_with_a_stable_id() {
         "rerank",
         "launch_backend",
         "code_scan",
+        "scheduled_jobs",
+        "worker_provider",
+        "codex_hooks",
+        "prompt_assistant",
     ] {
         assert!(ids.contains(&expected), "missing {expected} in {ids:?}");
     }

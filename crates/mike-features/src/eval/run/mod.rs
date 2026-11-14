@@ -4,6 +4,7 @@ pub mod items;
 pub mod labels;
 #[cfg(test)]
 pub mod runner_tests;
+pub mod slice_texts;
 pub mod spend_guard;
 
 use chrono::{DateTime, Utc};
@@ -203,11 +204,13 @@ impl Runner<'_> {
         loaded: &LoadedSet,
         bundle_id: i64,
     ) -> anyhow::Result<i64> {
+        let slices = req.judge.slice_codes();
         let run = NewEvalRun {
             purpose: &req.purpose,
             bundle_id,
             rubric_version: req.judge.rubric_id(),
             input_builder_version: req.judge.builder(),
+            slices: &slices,
             model: req.judge.model(),
             split: &req.labels.split,
             tiers: &req.labels.tiers,

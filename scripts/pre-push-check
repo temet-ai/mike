@@ -56,6 +56,15 @@ for range in $ranges; do
   }
 done
 
+# Wiring: code the range adds that nothing calls, registers, spawns, reads or consumes.
+# Report only; it never changes the push status. wiring-new skips with one line when
+# no mike binary here has `structural wiring`.
+if grep -qE '^(crates/|frontend/src/|scripts/|mods/|services/|\.mike/)' <<<"$changed"; then
+  for range in $ranges; do
+    "$hook_dir/wiring-new" "$range" >&2 || true
+  done
+fi
+
 if grep -qE '^scripts/(pre-push-check|test-area|lib/rust_change_scope.py|tests/test_rust_change_scope.py)$' <<<"$changed"; then
   python3 -m unittest discover -s "$root/scripts/tests" -p test_rust_change_scope.py || status=1
 fi

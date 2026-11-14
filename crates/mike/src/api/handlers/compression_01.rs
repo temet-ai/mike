@@ -113,7 +113,11 @@ pub(crate) async fn compress_stats(
     Query(params): Query<CompressStatsQuery>,
 ) -> Result<Json<CompressStatsResponse>, StatusCode> {
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
-    let cfg = state.config.compress.for_measurement();
+    let cfg = state
+        .config
+        .sections
+        .get::<crate::features_settings::CompressConfig>()
+        .for_measurement();
 
     let snapshot: Vec<(Bytes, Option<u32>)> = {
         let store = state.store.read().await;

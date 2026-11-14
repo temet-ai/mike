@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::{
     Depth, Enlisted, Lane, admit, depth as depth_of, enlist, expected_wait, leave, name_obligation,
-    patience_from, supersede, withdraw,
+    patience_from, place, supersede, withdraw,
 };
 use crate::launch::fleet::owned_execution::registry;
 
@@ -112,18 +112,68 @@ fn each_full_round_ahead_costs_one_measured_run() {
 #[test]
 fn a_waiter_whose_expected_wait_exceeds_its_patience_is_refused_with_the_numbers() {
     let measured = Some(Duration::from_secs(1800));
-    let why = admit(depth(3, 1, 1), measured, Duration::from_secs(1800))
+    let patience = Some(Duration::from_secs(1800));
+    let why = admit(depth(3, 1, 1), measured, patience)
         .err()
         .unwrap_or_default();
     assert!(why.contains("queue is 4 deep"), "{why}");
     assert!(why.contains("expected wait 7200s"), "{why}");
     assert!(why.contains("patience 1800s"), "{why}");
-    assert!(admit(depth(0, 1, 1), measured, Duration::from_secs(1800)).is_ok());
+    assert!(admit(depth(0, 1, 1), measured, patience).is_ok());
 }
 
 #[test]
 fn with_nothing_measured_no_waiter_is_refused() {
-    assert!(admit(depth(40, 1, 1), None, Duration::from_secs(1)).is_ok());
+    assert!(admit(depth(40, 1, 1), None, Some(Duration::from_secs(1))).is_ok());
+}
+
+#[test]
+fn a_waiter_without_a_declared_timeout_is_never_refused_however_long_the_queue() {
+    let measured = Some(Duration::from_secs(1800));
+    assert!(admit(depth(40, 2, 2), measured, None).is_ok());
+}
+
+#[tokio::test]
+async fn a_queued_receipt_reports_its_place_in_line_and_expected_wait() -> anyhow::Result<()> {
+    let run = format!("queue-place-{}", uuid::Uuid::new_v4());
+    let fence = registry().fence(&run).await;
+    let regs = (0..3)
+        .map(|n| {
+            fence
+                .register(&format!("{run}-{n}"))
+                .map_err(anyhow::Error::msg)
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    drop(fence);
+    let queued = Enlisted {
+        repo: &run,
+        lane: Lane::Gate,
+        ledger: &run,
+        seat: "s",
+        state: "c1",
+    };
+    for (n, registration) in regs.iter().enumerate() {
+        enlist(9_000_100 + n as i64, &queued, registration.owner());
+    }
+    let measured = Some(Duration::from_secs(300));
+    let first = place(9_000_100, measured).ok_or_else(|| anyhow::anyhow!("not queued"))?;
+    let last = place(9_000_102, measured).ok_or_else(|| anyhow::anyhow!("not queued"))?;
+    assert_eq!((first.ahead_running, first.ahead_waiting), (0, 0));
+    assert_eq!((last.ahead_running, last.ahead_waiting), (0, 2));
+    assert_eq!(last.expected_wait, Some(Duration::from_secs(600)));
+    assert!(
+        last.describe().contains("place 3 in line"),
+        "{}",
+        last.describe()
+    );
+    assert!(last.describe().contains("expected wait about 600 s"));
+    for n in 0..3 {
+        leave(Some(9_000_100 + n));
+    }
+    for registration in regs {
+        registration.receipt_recorded();
+    }
+    Ok(())
 }
 
 #[test]
@@ -197,12 +247,17 @@ async fn a_commit_check_is_admitted_while_a_gate_holds_the_shared_build_and_a_fl
 #[test]
 fn waiting_for_a_slot_or_resource_does_not_spend_the_run_budget() {
     assert_eq!(
-        super::waiting_limit(Duration::from_secs(600)),
-        super::QUEUE_WAIT
+        super::waiting_limit(Some(Duration::from_secs(600))),
+        Some(super::QUEUE_WAIT)
     );
     assert!(super::QUEUE_WAIT >= Duration::from_secs(7200));
     assert_eq!(
-        super::waiting_limit(Duration::from_secs(9000)),
-        Duration::from_secs(9000)
+        super::waiting_limit(Some(Duration::from_secs(9000))),
+        Some(Duration::from_secs(9000))
     );
+}
+
+#[test]
+fn without_a_declared_timeout_waiting_for_a_slot_has_no_limit() {
+    assert_eq!(super::waiting_limit(None), None);
 }

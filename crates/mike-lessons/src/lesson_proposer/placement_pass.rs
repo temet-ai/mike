@@ -84,7 +84,7 @@ async fn ask(
         topic: lesson.topic.as_deref(),
         agent_name: lesson.agent_name.as_deref(),
     };
-    placement::call(deps.llm, &subject, shown)
+    placement::call(deps.llm, &deps.settings.prompts.placement, &subject, shown)
         .await
         .map(|(answer, _usage)| answer)
 }

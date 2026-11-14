@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Register a checkout and keep its documents available through Mike MCP."""
+import sys
+sys.dont_write_bytecode = True  # an installed package is verified file by file
 try:
     from knowledge.cli import main
 except ModuleNotFoundError as error:

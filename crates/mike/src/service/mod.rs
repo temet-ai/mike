@@ -27,6 +27,7 @@ mod tests;
 pub use commands::{DryRunArgs, ServiceArgs, ServiceCommand, run};
 
 pub(crate) use binary::stable_path as stable_binary_path;
+pub(crate) use environment::{Inputs as ServiceInputs, service_path};
 pub(crate) use facts::{BackgroundFacts, observe};
 pub(crate) use files::Presence;
 pub(crate) use setup_api::{

@@ -35,15 +35,14 @@ pub fn begin(state: BaseState, fleet: Uuid) {
     tracker.spawn(async move {
         if let Err(problem) = start(&state, fleet).await {
             tracing::error!(%fleet, %problem, "mike could not start the fleet");
-            fail(&state, fleet, &problem).await;
+            if let Some(persist) = state.persist() {
+                fail(persist, fleet, &problem).await;
+            }
         }
     });
 }
 
-async fn fail(state: &BaseState, fleet: Uuid, problem: &str) {
-    let Some(persist) = state.persist() else {
-        return;
-    };
+async fn fail(persist: &PersistHandle, fleet: Uuid, problem: &str) {
     let Ok(Some(row)) = persist.fleet().find_fleet(&fleet.to_string()).await else {
         return;
     };
@@ -86,6 +85,9 @@ async fn record_control_and_brief_notes(
     facts: &FleetFacts,
 ) -> Result<(), String> {
     ensure_starting(persist, fleet, &facts.run_id).await?;
+    if let Some(problem) = notebook_problem(def, &facts.seats) {
+        return Err(problem.to_string());
+    }
     if !seat::patch_definition(persist, fleet, &control_patch(&facts.seats)).await {
         return Err("fleet control-seat assignment changed during startup".into());
     }
@@ -151,10 +153,33 @@ async fn prepare(
         fleet: fleet.to_string(),
         slug: row.slug.clone(),
         run_id,
-        seats: ControlSeats::fresh(),
+        seats: control_seats(persist, &def, row.created_by).await,
         paths: super::bundle::paths_for(&def.repo),
     };
     Ok((def, facts))
+}
+
+async fn control_seats(
+    persist: &PersistHandle,
+    def: &FleetDefinition,
+    author: Option<Uuid>,
+) -> ControlSeats {
+    let recorded = ControlSeats::recorded(def);
+    let coordinator = existing(persist, recorded.coordinator).await.or(author);
+    let acceptance = existing(persist, recorded.acceptance).await;
+    ControlSeats::answering(coordinator, acceptance)
+}
+
+async fn existing(persist: &PersistHandle, session: Option<Uuid>) -> Option<Uuid> {
+    let session = session?;
+    match persist.session_row_id(session).await {
+        Ok(Some(_)) => Some(session),
+        Ok(None) => None,
+        Err(err) => {
+            tracing::warn!(session_id = %session, error = %err, "mike could not check that a control seat's session exists; keeping it");
+            Some(session)
+        }
+    }
 }
 
 async fn resolve_repo_on_this_machine(
@@ -257,6 +282,12 @@ pub fn control_patch(seats: &ControlSeats) -> Value {
         "coordinator": {"session": seats.coordinator},
         "acceptance": {"session": seats.acceptance},
     })
+}
+
+pub fn notebook_problem(def: &FleetDefinition, seats: &ControlSeats) -> Option<&'static str> {
+    (super::brief_notes::as_notes(def) && seats.coordinator.is_none()).then_some(
+        "briefs.as_notes keeps the run's brief in a session's notebook, and this fleet has no session to hold it: create the fleet from a session (define_fleet records it) or set coordinator.session, then send ready again",
+    )
 }
 
 fn run_record(
@@ -416,3 +447,7 @@ pub mod repo_for_machine_tests {
         assert!(message.contains(&MACHINE.to_string()), "{message}");
     }
 }
+
+#[cfg(test)]
+#[path = "start_control_tests.rs"]
+mod control_tests;

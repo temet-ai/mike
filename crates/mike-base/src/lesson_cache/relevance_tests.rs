@@ -101,18 +101,21 @@ fn pending_queries_are_bounded_and_repeated_queries_are_coalesced() {
 }
 
 #[test]
-fn context_compaction_rearms_delivery_and_long_queries_still_queue() {
+fn delivered_lesson_returns_only_after_resend_window_and_long_queries_still_queue() {
     let snapshot = LessonSnapshot::from_pairs([(
         "project".into(),
         vec![("correction".into(), "Reuse cargo results".into())],
     )]);
     let cache = LessonRelevance::default();
     let candidates = snapshot.for_project("project").iter().collect::<Vec<_>>();
-    cache.observe_context("session", 100);
+    cache.observe_request("session");
     let selected = cache.select(&candidates, "session", "cargo", 1);
     cache.delivered("session", &selected);
-    assert!(cache.select(&candidates, "session", "cargo", 1).is_empty());
-    cache.observe_context("session", 2);
+    for _ in 1..RESEND_AFTER_REQUESTS {
+        cache.observe_request("session");
+        assert!(cache.select(&candidates, "session", "cargo", 1).is_empty());
+    }
+    cache.observe_request("session");
     assert_eq!(cache.select(&candidates, "session", "cargo", 1).len(), 1);
     let mut state = State::default();
     queue_query(
@@ -123,6 +126,32 @@ fn context_compaction_rearms_delivery_and_long_queries_still_queue() {
     );
     assert_eq!(state.pending.len(), 1);
     assert!(state.pending[0].2.len() < 9000);
+}
+
+#[test]
+fn supply_floor_weak_matches_supply_nothing_and_drop_far_below_best() {
+    let snapshot = LessonSnapshot::from_pairs([(
+        "project".into(),
+        vec![
+            ("correction".into(), "cache invalidation".into()),
+            (
+                "correction".into(),
+                format!("cache {}", "unrelated filler words here ".repeat(20)),
+            ),
+        ],
+    )]);
+    let candidates = snapshot.for_project("project").iter().collect::<Vec<_>>();
+    let cache = LessonRelevance::default();
+    let chosen = cache.select(&candidates, "session", "cache invalidation", 5);
+    assert_eq!(chosen.len(), 1);
+    assert_eq!(chosen[0].text, "cache invalidation");
+    let weak = cache.select(
+        &candidates[1..],
+        "session",
+        &format!("cache {}", "other distinct terms ".repeat(30)),
+        5,
+    );
+    assert!(weak.is_empty());
 }
 
 fn outcome(lesson_id: i64, judged: i64, used: i64) -> LessonOutcome {

@@ -86,8 +86,12 @@ async fn card(state: &AppState, session: Uuid, request: &ForPromptRequest) -> Op
 
 async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
     let toggles = state.feature_toggle_overlay.load();
-    let settings = state.settings_overlay.load();
-    if !toggles.mod_lesson_delivery || !settings.reminders_inject_lessons {
+    let settings = state
+        .settings_overlay
+        .load()
+        .features
+        .get::<crate::features_settings::RemindersOverlay>();
+    if !toggles.mod_lesson_delivery || !settings.inject_lessons {
         return Lessons {
             arm: "off",
             lessons: Vec::new(),
@@ -119,7 +123,7 @@ async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
                 prompt: &request.prompt,
                 held: &request.held,
                 held_versions: request.held_versions.as_ref(),
-                limit: settings.reminders_max_lessons_to_inject,
+                limit: settings.max_lessons_to_inject,
                 content_only: toggles.recall_injector,
             })
         }

@@ -28,13 +28,24 @@ impl InspectClient {
         self.get_json("/api/stats", &[]).await
     }
 
+    pub(crate) async fn liveness(&self) -> Result<Value, McpError> {
+        self.get_json("/api/liveness", &[]).await
+    }
+
     pub(crate) async fn combined_stats(&self) -> Result<Value, McpError> {
-        let (runtime, diagnostic, health) =
-            tokio::try_join!(self.stats(), self.diagnostic_stats(None), self.health())?;
+        let (runtime, diagnostic, health, liveness) = tokio::join!(
+            self.stats(),
+            self.diagnostic_stats(None),
+            self.health(),
+            self.liveness()
+        );
+        let liveness =
+            liveness.unwrap_or_else(|error| serde_json::json!({ "error": error.to_string() }));
         Ok(serde_json::json!({
-            "runtime": runtime,
-            "diagnostic": diagnostic,
-            "health": health,
+            "runtime": runtime?,
+            "diagnostic": diagnostic?,
+            "health": health?,
+            "liveness": liveness,
         }))
     }
 
@@ -104,10 +115,41 @@ mod tests {
             .mount(&server)
             .await;
 
+        Mock::given(method("GET"))
+            .and(path("/api/liveness"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "open": 3,
+                "findings": []
+            })))
+            .mount(&server)
+            .await;
+
         let value = client.combined_stats().await?;
         assert_eq!(value["runtime"]["request_count"], 7);
         assert_eq!(value["diagnostic"]["last_24h"], 2);
         assert_eq!(value["health"]["status"], "ok");
+        assert_eq!(value["liveness"]["open"], 3);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn combined_stats_carries_a_liveness_error_instead_of_failing() -> anyhow::Result<()> {
+        let (server, client) = start_mock().await;
+        for (route, body) in [
+            ("/api/health", serde_json::json!({"status": "ok"})),
+            ("/api/stats", serde_json::json!({"request_count": 1})),
+            ("/api/diagnostics/stats", serde_json::json!({"last_24h": 0})),
+        ] {
+            Mock::given(method("GET"))
+                .and(path(route))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                .mount(&server)
+                .await;
+        }
+
+        let value = client.combined_stats().await?;
+        assert_eq!(value["runtime"]["request_count"], 1);
+        assert!(value["liveness"]["error"].is_string());
         Ok(())
     }
 

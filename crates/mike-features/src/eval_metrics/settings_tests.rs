@@ -1,6 +1,11 @@
-use serde_json::json;
+use serde_json::{Value, json};
 
-use super::settings::{RoleInputs, expected_roles_from, resolve_eval_settings};
+use super::settings::{EvalSettings, RoleInputs, expected_roles_from};
+
+fn resolve_eval_settings(rows: &[(String, Value)]) -> EvalSettings {
+    crate::features_settings::register();
+    super::settings::resolve_eval_settings(rows)
+}
 
 #[test]
 fn resolve_eval_settings_no_rows_uses_meta_defaults() {

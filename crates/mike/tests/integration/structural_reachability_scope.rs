@@ -1,4 +1,4 @@
-use mike::steerer::structural::{SourceFile, build_import_graph, check_reachability};
+use mike_code::{SourceFile, build_import_graph, check_reachability};
 
 fn file(path: &str, content: &str) -> SourceFile {
     SourceFile {

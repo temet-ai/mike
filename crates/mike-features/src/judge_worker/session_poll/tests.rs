@@ -11,7 +11,7 @@ fn session_judge_settings_row_outranks_config() {
         ..Default::default()
     };
 
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     let r = resolve_session_judge_runtime(&overlay, &cfg);
     assert_eq!(r.model, "openai/gpt-5.6-luna");
     assert_eq!(r.system_prompt, "two paragraphs, no more");
@@ -23,7 +23,7 @@ fn session_judge_settings_row_outranks_config() {
 #[test]
 fn session_judge_unset_settings_keep_the_compiled_prompt_and_model() {
     let overlay = crate::settings::SettingsOverlay::default();
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     let r = resolve_session_judge_runtime(&overlay, &cfg);
     assert_eq!(r.model, cfg.model);
     assert_eq!(r.system_prompt, SESSION_JUDGE_SYSTEM_PROMPT);
@@ -35,7 +35,7 @@ fn session_judge_unset_settings_keep_the_compiled_prompt_and_model() {
 #[test]
 fn session_judge_runtime_defaults_to_three_attempts_per_day() {
     let overlay = crate::settings::SettingsOverlay::default();
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     assert_eq!(
         resolve_session_judge_runtime(&overlay, &cfg).max_attempts_per_day,
         3
@@ -121,7 +121,7 @@ fn keyless_slot() -> crate::llm::key::OpenRouterKeySlot {
 }
 
 fn session_judge_base() -> anyhow::Result<OpenRouterClient> {
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     Ok(
         OpenRouterClient::new(String::new(), cfg.model.clone(), None, None)?
             .with_attribution(LlmRole::SessionJudge, None),
@@ -130,7 +130,7 @@ fn session_judge_base() -> anyhow::Result<OpenRouterClient> {
 
 #[test]
 fn session_judge_without_a_key_runs_on_a_claude_or_codex_model() -> anyhow::Result<()> {
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     for model in ["claude/haiku", "codex/gpt-6-luna"] {
         let overlay = crate::settings::SettingsOverlay {
             session_judge_model: Some(model.to_owned()),
@@ -146,7 +146,7 @@ fn session_judge_without_a_key_runs_on_a_claude_or_codex_model() -> anyhow::Resu
 
 #[test]
 fn session_judge_without_a_key_skips_an_openrouter_model() -> anyhow::Result<()> {
-    let cfg = crate::config::session_judge::SessionJudgeConfig::default();
+    let cfg = crate::features_settings::sections::session_judge::SessionJudgeConfig::default();
     let overlay = crate::settings::SettingsOverlay::default();
     let runtime = resolve_session_judge_runtime(&overlay, &cfg);
     let llm = cycle::resolve_effective_llm(&session_judge_base()?, &keyless_slot(), &runtime.model);

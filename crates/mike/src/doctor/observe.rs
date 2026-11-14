@@ -36,7 +36,10 @@ pub(super) async fn observe(config: &ProxyConfig) -> Observed {
     let claude = observe_claude().await;
     let background = crate::service::observe().await;
     let (mcp, connection) = observe_claude_code();
+    let models = observe_models(&claude, &inspect);
+    let features = super::observe_features::observe(config, &models).await;
     Observed {
+        features,
         background,
         build: BuildFacts {
             line: crate::cli::version_line(),
@@ -72,7 +75,7 @@ pub(super) async fn observe(config: &ProxyConfig) -> Observed {
             embedded: crate::spa::embedded_in_binary(),
         },
         sidecar,
-        models: observe_models(&claude, &inspect),
+        models,
         claude,
         mcp,
         connection,

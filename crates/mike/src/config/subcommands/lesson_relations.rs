@@ -199,9 +199,12 @@ async fn run_detection_with_clients(
             .list_project_ids_with_embedded_lessons()
             .await?
     };
+    let rows = handle.fetch_settings().await.unwrap_or_default();
+    let prompts = crate::lesson_relations::RelationPrompts::from_rows(&rows);
     let model_judge = crate::lesson_relations::ModelPairJudge {
         proposer: &proposer,
         adjudicator: &adjudicator,
+        prompts: &prompts,
     };
     let decisions_on = handle
         .fetch_feature_toggles()

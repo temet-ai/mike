@@ -1,34 +1,6 @@
 use super::*;
 
 #[test]
-fn apply_db_rows_to_overlay_folds_compression_dedup_enabled() {
-    let rows = vec![(
-        "compression_dedup.enabled".to_owned(),
-        serde_json::Value::Bool(false),
-    )];
-    let overlay = apply_db_rows_to_overlay(rows);
-    assert!(!overlay.compression_dedup_enabled);
-    assert!(!overlay.reminders_inject_lessons);
-}
-
-#[test]
-fn apply_db_rows_to_overlay_applies_known_keys() {
-    let rows = vec![
-        (
-            "reminders.inject_lessons".to_owned(),
-            serde_json::Value::Bool(false),
-        ),
-        (
-            "reminders.max_lessons_to_inject".to_owned(),
-            serde_json::Value::Number(10u64.into()),
-        ),
-    ];
-    let overlay = apply_db_rows_to_overlay(rows);
-    assert!(!overlay.reminders_inject_lessons);
-    assert_eq!(overlay.reminders_max_lessons_to_inject, 10);
-}
-
-#[test]
 fn apply_db_rows_to_overlay_applies_session_judge_max_chars_per_turn() {
     let rows = vec![(
         "session_judge.max_chars_per_turn".to_owned(),
@@ -36,33 +8,6 @@ fn apply_db_rows_to_overlay_applies_session_judge_max_chars_per_turn() {
     )];
     let overlay = apply_db_rows_to_overlay(rows);
     assert_eq!(overlay.session_judge_max_chars_per_turn, 5000);
-}
-
-#[test]
-fn apply_db_rows_to_overlay_blank_correction_prompt_keeps_built_in() {
-    let rows = vec![(
-        "weasel_intercept.correction_prompt".to_owned(),
-        serde_json::json!("   "),
-    )];
-    let overlay = apply_db_rows_to_overlay(rows);
-    assert_eq!(
-        overlay.weasel_intercept_correction_prompt,
-        SettingsOverlay::default().weasel_intercept_correction_prompt,
-        "a blank stored prompt must not overwrite the built-in one"
-    );
-}
-
-#[test]
-fn apply_db_rows_to_overlay_real_correction_prompt_is_used() {
-    let rows = vec![(
-        "weasel_intercept.correction_prompt".to_owned(),
-        serde_json::json!("Don't say '{word}' again."),
-    )];
-    let overlay = apply_db_rows_to_overlay(rows);
-    assert_eq!(
-        overlay.weasel_intercept_correction_prompt,
-        "Don't say '{word}' again."
-    );
 }
 
 #[test]
@@ -80,44 +25,6 @@ fn apply_db_rows_to_overlay_ignores_unknown_keys() {
     let rows = vec![("no_such_key".to_owned(), serde_json::Value::Bool(true))];
     let overlay = apply_db_rows_to_overlay(rows);
     assert_eq!(overlay, SettingsOverlay::default());
-}
-
-#[test]
-fn apply_db_rows_to_overlay_applies_file_read_compression_keys() {
-    let rows = vec![
-        (
-            "file_read_compression.min_bytes".to_owned(),
-            serde_json::json!(4000),
-        ),
-        (
-            "file_read_compression.head_lines".to_owned(),
-            serde_json::json!(10),
-        ),
-        (
-            "file_read_compression.tail_lines".to_owned(),
-            serde_json::json!(5),
-        ),
-        (
-            "file_read_compression.enabled_producers".to_owned(),
-            serde_json::json!(["Read", "Grep"]),
-        ),
-        (
-            "file_read_compression.protected_paths".to_owned(),
-            serde_json::json!(["**/*.env"]),
-        ),
-    ];
-    let overlay = apply_db_rows_to_overlay(rows);
-    assert_eq!(overlay.file_read_compression_min_bytes, 4000);
-    assert_eq!(overlay.file_read_compression_head_lines, 10);
-    assert_eq!(overlay.file_read_compression_tail_lines, 5);
-    assert_eq!(
-        overlay.file_read_compression_enabled_producers,
-        vec!["Read".to_owned(), "Grep".to_owned()]
-    );
-    assert_eq!(
-        overlay.file_read_compression_protected_paths,
-        vec!["**/*.env".to_owned()]
-    );
 }
 
 #[test]

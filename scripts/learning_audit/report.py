@@ -12,6 +12,18 @@ from .queries import MIGRATION_DEPENDENT, queries
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def installed(root=None):
+    """True when scripts/ sits in an installed package (share/mike/), not a checkout."""
+    root = ROOT if root is None else root
+    return (root.parent.name, root.name) == ('share', 'mike')
+
+
+def data_root(root=None):
+    """Where generated memory and reports go: artifacts/ in a checkout, the user's state folder when installed."""
+    root = ROOT if root is None else root
+    return Path.home() / '.local/state/mike/learning' if installed(root) else root
+
+
 def publication_status(path=None):
     path = Path(path) if path else Path.home() / '.local/state/mike-learning-promotion/latest.json'
     if not path.exists():
@@ -27,7 +39,11 @@ def sync_reports(output):
     """Publish only audit documents, never another project's generated memory."""
     from knowledge.collector import Client, scan_root
     from knowledge.machine import machine_identity
-    config = json.loads((ROOT / '.mike/knowledge.json').read_text())
+    config_path = ROOT / '.mike/knowledge.json'
+    if installed(ROOT) and not config_path.exists():
+        print('audit: no registered project to publish the report to; report kept on disk only')
+        return None
+    config = json.loads(config_path.read_text())
     directory = Path(output).resolve(strict=True)
     documents = scan_root(directory, [])
     client = Client('http://127.0.0.1:9989')

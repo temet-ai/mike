@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max(v.judged_at) AS newest FROM memory.supplied_item_verdicts v\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "newest",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d2d6d791769ed79a681bfb243805c8420b5961e82c964fa7aca50a14d35f2ed0"
+}

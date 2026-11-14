@@ -206,7 +206,7 @@ fn refresh_for(
             body: brief_mail(old, current, &brief),
         },
         None => Refresh::NoTask {
-            to: facts.seats.coordinator,
+            to: facts.seats.coordinator?,
             body: orphan_mail(seat, session, old, current),
         },
     })
@@ -233,7 +233,7 @@ pub fn facts_for(row: &FleetRow, def: &FleetDefinition) -> Option<FleetFacts> {
         fleet: row.fleet_uuid.to_string(),
         slug: row.slug.clone(),
         run_id: row.run_id.clone()?,
-        seats: ControlSeats::recorded(def)?,
+        seats: ControlSeats::recorded(def),
         paths: super::bundle::paths_for(&def.repo),
     })
 }

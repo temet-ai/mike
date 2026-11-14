@@ -361,10 +361,10 @@ pub async fn after_run(
     .await
     else {
         if !only_timeouts_that_pass(&reruns)
-            && let Some(seats) = ControlSeats::recorded(def)
+            && let Some(coordinator) = ControlSeats::recorded(def).coordinator
         {
             let body = pre_existing_mail(command, &target.commit, &reruns, output, log);
-            mail(persist, seats.coordinator, &body).await;
+            mail(persist, coordinator, &body).await;
         }
         return;
     };
@@ -376,12 +376,10 @@ pub async fn after_run(
             mail(persist, *session, &body).await;
         }
     }
-    if let Some(seats) = ControlSeats::recorded(def)
-        && !suspects
-            .iter()
-            .any(|(session, _)| *session == seats.coordinator)
+    if let Some(coordinator) = ControlSeats::recorded(def).coordinator
+        && !suspects.iter().any(|(session, _)| *session == coordinator)
     {
-        mail(persist, seats.coordinator, &line).await;
+        mail(persist, coordinator, &line).await;
     }
 }
 
@@ -415,7 +413,7 @@ async fn tell_acceptance(
     target: &Target,
     (code, output, log, verified): (Option<i32>, &str, &Path, bool),
 ) {
-    let Some(initial) = super::plan::ControlSeats::recorded(def).map(|c| c.acceptance) else {
+    let Some(initial) = super::plan::ControlSeats::recorded(def).acceptance else {
         return;
     };
     let current = persist

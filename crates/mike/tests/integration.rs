@@ -176,6 +176,8 @@ mod turn_facts;
 mod turn_verdicts_db;
 #[path = "integration/verifier_input_budget.rs"]
 mod verifier_input_budget;
+#[path = "integration/wiring_findings_db.rs"]
+mod wiring_findings_db;
 #[path = "integration/work_threads_http.rs"]
 mod work_threads_http;
 #[path = "integration/workspace_reaper_db.rs"]

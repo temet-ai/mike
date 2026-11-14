@@ -69,7 +69,7 @@ pub async fn latest_part(
 
 pub async fn run_note_id(persist: &PersistHandle, facts: &FleetFacts) -> Option<Uuid> {
     let tags = run_tags(&facts.fleet);
-    latest_part(persist, facts.seats.coordinator, &tags)
+    latest_part(persist, facts.seats.coordinator?, &tags)
         .await
         .map(|part| part.note)
 }
@@ -236,6 +236,7 @@ async fn write_run_part(
     (def, facts): (&FleetDefinition, &FleetFacts),
     before: Option<&StoredPart>,
 ) -> Option<StoredPart> {
+    let notebook = facts.seats.coordinator?;
     let body = carried(run_part(def, facts), before);
     let version = before.map_or(1, |part| part.version + 1);
     let part = NewPart {
@@ -244,7 +245,7 @@ async fn write_run_part(
         body: &body,
         data: data_for("run", None, version, before.map(|part| part.note)),
     };
-    let stored = match store(persist, facts.seats.coordinator, part).await {
+    let stored = match store(persist, notebook, part).await {
         Ok(stored) => stored,
         Err(problem) => {
             tracing::warn!(run = %facts.run_id, %problem, "mike could not store the run's part of the briefs as a note");
@@ -252,7 +253,7 @@ async fn write_run_part(
         }
     };
     let event = BriefEvent {
-        session: facts.seats.coordinator,
+        session: notebook,
         task: None,
         paths: &def.shared_files,
         subject: format!("run part of the briefs, version {version}"),
@@ -268,11 +269,12 @@ pub async fn ensure_run_part(
     facts: &FleetFacts,
     patience: Duration,
 ) -> Option<Uuid> {
-    if !registered(persist, facts.seats.coordinator, patience).await {
+    let notebook = facts.seats.coordinator?;
+    if !registered(persist, notebook, patience).await {
         return None;
     }
     let tags = run_tags(&facts.fleet);
-    if let Some(found) = latest_part(persist, facts.seats.coordinator, &tags).await {
+    if let Some(found) = latest_part(persist, notebook, &tags).await {
         return Some(found.note);
     }
     write_run_part(persist, (def, facts), None)
@@ -359,7 +361,10 @@ async fn refresh_run_part(
     seats: &[Uuid],
 ) {
     let tags = run_tags(&facts.fleet);
-    let Some(before) = latest_part(persist, facts.seats.coordinator, &tags).await else {
+    let Some(notebook) = facts.seats.coordinator else {
+        return;
+    };
+    let Some(before) = latest_part(persist, notebook, &tags).await else {
         write_run_part(persist, (def, facts), None).await;
         return;
     };
@@ -419,7 +424,10 @@ pub async fn sync(
     (def, facts): (&FleetDefinition, &FleetFacts),
     open_seats: &[Uuid],
 ) {
-    if !registered(persist, facts.seats.coordinator, Duration::ZERO).await {
+    let Some(notebook) = facts.seats.coordinator else {
+        return;
+    };
+    if !registered(persist, notebook, Duration::ZERO).await {
         return;
     }
     refresh_run_part(persist, (def, facts), open_seats).await;

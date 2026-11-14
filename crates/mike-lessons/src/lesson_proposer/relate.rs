@@ -10,11 +10,7 @@ use crate::llm::{CallUsage, LlmError, OpenRouterClient};
 use crate::store::persistence::lessons::write_time::{NeighbourLesson, PlannedRelation};
 use crate::store::persistence::project_knowledge::GuidanceRow;
 
-pub const RELATE_PROMPT: &str = concat!(
-    include_str!("prompt/relate.md"),
-    "\n\n",
-    include_str!("prompt/homes.md")
-);
+pub use crate::settings::memory_prompts::LESSON_RELATE_PROMPT as RELATE_PROMPT;
 pub const NEIGHBOUR_LIMIT: i64 = 5;
 pub const NEIGHBOUR_MAX_DISTANCE: f32 = 0.25;
 
@@ -165,13 +161,14 @@ pub fn build_input(
 
 pub async fn call(
     llm: &OpenRouterClient,
+    system: &str,
     rule: &str,
     neighbours: &[NeighbourLesson],
     guidance: &[GuidanceRow],
     max_chars: usize,
 ) -> Result<(RelateAnswer, CallUsage), LlmError> {
     llm.verdict_with_usage::<RelateAnswer>(
-        RELATE_PROMPT,
+        system,
         &build_input(rule, neighbours, guidance, max_chars),
         schema(),
     )

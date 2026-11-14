@@ -59,7 +59,7 @@ pub fn focused_command(template: &str, test: &str) -> Result<String, String> {
     }
     if template.trim().is_empty() {
         return Err(
-            "this fleet declares no focused-test command (definition `check.test_command`, with `{test}` where the test name goes)"
+            "this fleet declares no focused-test command (definition `check.test_command`); pass the whole test command as `command` instead"
                 .to_string(),
         );
     }
@@ -251,6 +251,7 @@ pub async fn execute(def: &FleetDefinition, at: &Target, run: &str) -> (Option<i
         &def.check.command,
         isolated::Operation::Check {
             timeout,
+            declared: super::operation::declared_timeout(def),
             configured: run == base_run(run),
         },
     )
@@ -265,7 +266,8 @@ pub async fn check_shared_tree(
 ) -> (Option<i32>, String) {
     let timeout = super::operation::timeout(def);
     let checkout = checkout_used(&def.repo, false);
-    let _held = match super::managed_command::hold_checkout(&checkout, timeout).await {
+    let declared = super::operation::declared_timeout(def);
+    let _held = match super::managed_command::hold_checkout(&checkout, declared).await {
         Ok(held) => held,
         Err(why) => return (None, why),
     };

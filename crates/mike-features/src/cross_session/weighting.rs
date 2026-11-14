@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde_json::{Value, json};
 
 use super::threshold::Bin;
-use crate::settings::cross_session::CrossSessionSettings;
+use crate::features_settings::cross_session::CrossSessionSettings;
 use crate::store::persistence::cross_session::CalibrationRateRow;
 
 pub const UNSPLIT: &str = "unsplit";

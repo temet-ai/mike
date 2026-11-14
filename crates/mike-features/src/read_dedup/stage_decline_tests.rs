@@ -85,7 +85,11 @@ async fn a_disarmed_duplicate_read_is_recorded_with_its_hit_count_and_savings() 
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session = "session-dedup-decline-disarmed";
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles(session)).clone();
-    toggles.compression_dedup_enabled = false;
+    toggles
+        .features
+        .update::<crate::features_settings::ContextShapingOverlay>(|o| {
+            o.compression_dedup_enabled = false;
+        });
 
     apply_once(&state, &toggles, session, reads(&["t1"])?).await;
     let second = apply_once(&state, &toggles, session, reads(&["t1", "t2"])?).await;
@@ -115,7 +119,11 @@ async fn an_armed_rewrite_records_the_same_hit_parameters() -> anyhow::Result<()
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session = "session-dedup-decline-armed";
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles(session)).clone();
-    toggles.compression_dedup_enabled = true;
+    toggles
+        .features
+        .update::<crate::features_settings::ContextShapingOverlay>(|o| {
+            o.compression_dedup_enabled = true;
+        });
 
     apply_once(&state, &toggles, session, reads(&["t1"])?).await;
     let second = apply_once(&state, &toggles, session, reads(&["t1", "t2"])?).await;

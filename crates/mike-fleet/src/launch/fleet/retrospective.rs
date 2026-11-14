@@ -15,14 +15,30 @@ pub struct Retrospective {
     pub enabled: bool,
     pub model: String,
     pub write: Option<WriteAuthorization>,
+    pub questions: Vec<String>,
+    pub thread: String,
+    pub issues_repo: Option<String>,
 }
+
+pub const DEFAULT_MODEL: &str = "sonnet";
+pub const DEFAULT_THREAD: &str = "fleet-runs";
+pub const DEFAULT_ISSUES_REPO: &str = "temet-ai/mike";
+pub const DEFAULT_QUESTIONS: [&str; 4] = [
+    "How did you split your effort between real work on your task and fleet machinery (briefs, mail, waiting, checks, reporting)? Give rough shares and the single biggest cost.",
+    "Which instructions did you use, and which did you find noise or contradictory? Quote each one.",
+    "What was missing from your brief, definition or tools that would have saved you time?",
+    "Write the system prompt of about ten lines you would want for your task.",
+];
 
 impl Default for Retrospective {
     fn default() -> Self {
         Self {
             enabled: true,
-            model: "haiku".to_string(),
+            model: DEFAULT_MODEL.to_string(),
             write: None,
+            questions: DEFAULT_QUESTIONS.iter().map(ToString::to_string).collect(),
+            thread: DEFAULT_THREAD.to_string(),
+            issues_repo: Some(DEFAULT_ISSUES_REPO.to_string()),
         }
     }
 }
@@ -86,10 +102,26 @@ impl Job {
 }
 
 pub fn validate(def: &FleetDefinition) -> Vec<Missing> {
-    let Some(write) = &def.retrospective.write else {
-        return Vec::new();
-    };
     let mut found = Vec::new();
+    if let Err(err) =
+        crate::store::persistence::work_threads::validate::slug(&def.retrospective.thread)
+    {
+        found.push(Missing::new("retrospective.thread", err.to_string()));
+    }
+    if def
+        .retrospective
+        .issues_repo
+        .as_deref()
+        .is_some_and(|repo| repo.trim().is_empty())
+    {
+        found.push(Missing::new(
+            "retrospective.issues_repo",
+            "name the repository as owner/name, or null to file no issues",
+        ));
+    }
+    let Some(write) = &def.retrospective.write else {
+        return found;
+    };
     if write.scope.trim().is_empty() {
         found.push(Missing::new(
             "retrospective.write.scope",

@@ -16,6 +16,8 @@ import unittest
 
 from archive import SUPPORT_FILES, extract_checked
 from common import ReleaseError
+import script_assets
+from test_script_assets import write_script_stubs
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -127,12 +129,13 @@ class PreparationTests(unittest.TestCase):
                                             for name in ("mike", "mike-mcp")))
         for name in ("mike", "mike-mcp"):
             self.write(f"crates/{name}/Cargo.toml", f'[package]\nname = "{name}"\nversion.workspace = true\n')
-        self.write("crates/mike/src/store/persistence/migrations/1_synthetic_fixture.sql",
+        self.write("crates/mike-base/src/store/persistence/migrations/1_synthetic_fixture.sql",
                    "-- Synthetic release fixture only\nSELECT 1;\n")
         self.write("rust-toolchain.toml", '[toolchain]\nchannel = "1.95.0"\n')
         self.write(".nvmrc", "25.9.0\n")
         self.write("frontend/package.json", '{"packageManager":"pnpm@11.1.3"}\n')
         self.write("frontend/pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+        write_script_stubs(self.repo)
         self.write("LICENSE", "MIT fixture license\n")
         self.write("THIRD-PARTY-NOTICES.md", "# Third-party notices\n")
         self.write("homebrew-formulae/mike.rb", "reviewed formula\n")
@@ -207,7 +210,9 @@ class PreparationTests(unittest.TestCase):
                 expected = [artifact["binary"], "LICENSE", "NOTICE.json", "THIRD-PARTY-NOTICES.md"]
                 if artifact["binary"] == "mike":
                     expected.extend(SUPPORT_FILES)
+                    expected.extend(name for name, _, _ in script_assets.payload(self.repo))
                 self.assertEqual(tar.getnames(), expected)
+                self.assertEqual(manifest["script_assets"], list(script_assets.SCRIPTS))
         self.assert_unmodified()
 
     def test_verify_uses_existing_archive_without_build_tools(self):

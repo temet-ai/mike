@@ -1,11 +1,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::Utc;
+use serde_json::Value;
+
 use crate::config::steerer::SteererConfig;
 use crate::lesson_proposer::{self, ProposerDeps, ProposerSettings};
 use crate::llm::key::OpenRouterKeySlot;
 use crate::llm::{LlmRole, LlmUsageSink, OpenRouterClient};
+use crate::memory_workers::{self, LESSON_PROPOSER, Skip};
 use crate::semantic::SemanticConfig;
+use crate::store::persistence::PersistHandle;
 
 use super::sweep::SweepContext;
 
@@ -27,7 +32,7 @@ fn proposer_client(
     )
 }
 
-fn lesson_client(
+pub fn lesson_client(
     config: &SteererConfig,
     model: &str,
     usage_sink: Option<&Arc<dyn LlmUsageSink>>,
@@ -44,8 +49,8 @@ fn lesson_client(
     crate::llm::key::effective_client(&base, key_slot)
 }
 
-async fn semantic_config(ctx: &SweepContext<'_>) -> SemanticConfig {
-    ctx.persist
+pub async fn semantic_config(persist: &PersistHandle) -> SemanticConfig {
+    persist
         .fetch_settings()
         .await
         .map(|rows| SemanticConfig::from_rows(&rows))
@@ -53,8 +58,16 @@ async fn semantic_config(ctx: &SweepContext<'_>) -> SemanticConfig {
 }
 
 pub async fn run_proposer_tick(ctx: &SweepContext<'_>, toggle_on: bool) {
+    let now = Utc::now();
+    match proposer_pass(ctx, toggle_on).await {
+        Ok(counts) => memory_workers::record_ran(LESSON_PROPOSER, Utc::now(), &counts),
+        Err(reason) => memory_workers::record_skip(LESSON_PROPOSER, now, reason),
+    }
+}
+
+async fn proposer_pass(ctx: &SweepContext<'_>, toggle_on: bool) -> Result<Value, Skip> {
     if !toggle_on {
-        return;
+        return Err(Skip::Off);
     }
     let every = Duration::from_secs(super::SWEEP_INTERVAL.as_secs() * PROPOSER_EVERY_TICKS);
     if !ctx
@@ -62,14 +75,14 @@ pub async fn run_proposer_tick(ctx: &SweepContext<'_>, toggle_on: bool) {
         .holds_llm_role(LlmRole::LessonProposer, every)
         .await
     {
-        return;
+        return Err(Skip::NotLeader);
     }
     let settings = ProposerSettings::load(ctx.persist).await;
     let Some(llm) = proposer_client(ctx, &settings) else {
         log_no_key();
-        return;
+        return Err(Skip::NoClient);
     };
-    let semantic = semantic_config(ctx).await;
+    let semantic = semantic_config(ctx.persist).await;
     let env = ctx.decision_env(&llm);
     let deps = ProposerDeps {
         persist: ctx.persist,
@@ -79,35 +92,9 @@ pub async fn run_proposer_tick(ctx: &SweepContext<'_>, toggle_on: bool) {
         settings: &settings,
         decisions: Some(&env),
     };
-    let report = lesson_proposer::run_tick(&deps).await;
-    tracing::debug!(?report, "quiescence_worker: lesson proposer pass");
-    run_topic_pass(ctx, &llm, &env).await;
-}
-
-async fn run_topic_pass(
-    ctx: &SweepContext<'_>,
-    llm: &OpenRouterClient,
-    env: &crate::llm::decisions::env::DecisionEnv,
-) {
-    let topics = lesson_proposer::topics::run_pass(
-        ctx.persist,
-        llm,
-        Some(env),
-        lesson_proposer::topics::BATCH,
-    )
-    .await;
-    tracing::debug!(?topics, "quiescence_worker: lesson topic pass");
-    run_skill_author_pass(ctx, llm, env).await;
-}
-
-async fn run_skill_author_pass(
-    ctx: &SweepContext<'_>,
-    llm: &OpenRouterClient,
-    env: &crate::llm::decisions::env::DecisionEnv,
-) {
-    let author = lesson_proposer::skill_author::run_pass(ctx.persist, llm).await;
-    tracing::debug!(?author, "quiescence_worker: skill author pass");
-    lesson_proposer::skill_eval::run_pass_with(ctx.persist, llm, Some(env)).await;
+    memory_workers::mark_running(LESSON_PROPOSER, Utc::now());
+    let pass = lesson_proposer::full_pass::run_full_pass(&deps).await;
+    Ok(pass.counts())
 }
 
 fn log_no_key() {

@@ -1,0 +1,138 @@
+rules:
+  - id: pub-fn-no-caller
+    kind: pub_fn_no_caller
+    message: "pub fn {name} has no caller outside tests; call it from production code or delete it"
+    declare:
+      ast:
+        language: rust
+        rule:
+          all:
+            - kind: function_item
+            - has: { kind: visibility_modifier, regex: '^pub$' }
+            - has: { field: name, pattern: $NAME }
+            - not:
+                has: { field: name, regex: '^spawn_' }
+      capture: NAME
+      scope: ["crates/"]
+      except_names: [main]
+    uses:
+      - ast:
+          language: rust
+          rule:
+            any:
+              - kind: identifier
+              - kind: field_identifier
+            not:
+              any:
+                - inside: { kind: use_declaration, stopBy: end }
+                - inside: { kind: function_item, field: name }
+        scope: ["crates/"]
+
+  - id: stage-unregistered
+    kind: stage_unregistered
+    message: "{name} implements RequestStage but nothing constructs it, so the pipeline never runs it; add it to the registry in pipeline/mod.rs"
+    declare:
+      ast:
+        language: rust
+        rule:
+          all:
+            - kind: impl_item
+            - has: { field: trait, regex: '(^|::)RequestStage$' }
+            - has: { field: type, pattern: $NAME }
+      capture: NAME
+      scope: ["crates/"]
+    uses:
+      - ast:
+          language: rust
+          rule:
+            any:
+              - kind: identifier
+              - kind: type_identifier
+                inside: { kind: struct_expression, field: name }
+            not:
+              inside: { kind: use_declaration, stopBy: end }
+        scope: ["crates/"]
+
+  - id: worker-unspawned
+    kind: worker_unspawned
+    message: "{name} starts a worker but nothing calls it; call it from serve/workers.rs or delete it"
+    declare:
+      ast:
+        language: rust
+        rule:
+          all:
+            - kind: function_item
+            - has: { field: name, pattern: $NAME, regex: '^spawn_' }
+      capture: NAME
+      scope: ["crates/"]
+    uses:
+      - ast:
+          language: rust
+          rule:
+            any:
+              - kind: identifier
+              - kind: field_identifier
+            not:
+              any:
+                - inside: { kind: use_declaration, stopBy: end }
+                - inside: { kind: function_item, field: name }
+        scope: ["crates/"]
+
+  - id: setting-unread
+    kind: setting_unread
+    message: "setting {name} is declared in the settings meta but nothing outside the settings module reads it"
+    aliases: [const, snake]
+    declare:
+      ast:
+        language: rust
+        rule:
+          all:
+            - any: [{ kind: string_literal }, { kind: identifier }]
+            - any:
+                - inside: { kind: field_initializer, field: value, has: { field: field, regex: '^key$' } }
+                - follows: { regex: '^:$', follows: { regex: '^key$' } }
+      scope: ["/settings/meta"]
+    uses:
+      - text: '["''`]([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)["''`]'
+        scope: ["crates/", "frontend/src/", "scripts/", "mods/", "services/"]
+        except: ["crates/mike-base/src/settings/", "crates/mike-features/src/settings/", "frontend/src/routes/settings/"]
+      - ast:
+          language: rust
+          rule:
+            any:
+              - kind: identifier
+              - kind: field_identifier
+            not:
+              inside: { kind: use_declaration, stopBy: end }
+        scope: ["crates/"]
+        except: ["crates/mike-base/src/settings/", "crates/mike-features/src/settings/"]
+
+  - id: route-unconsumed
+    kind: route_unconsumed
+    message: "route {name} is registered but no SPA fetch, MCP tool, script or client calls it"
+    normalize: route
+    declare:
+      ast:
+        language: rust
+        rule:
+          all:
+            - kind: call_expression
+            - has: { field: function, regex: '^route$' }
+            - has:
+                field: arguments
+                has:
+                  kind: string_literal
+                  nthChild: 2
+                  pattern: $PATH
+      capture: PATH
+      scope: ["/api/manifest"]
+      except_names:
+        - /api/launch-ledger/launches/{}/opened
+        - /api/launch-ledger/launches/{}/outcome
+        - /api/launch-ledger/launches/{}/closed
+        - /api/launch-ledger/sessions/{}/channel
+        - /api/launch-ledger/sessions/{}/turn
+    uses:
+      - text: '(/api/[A-Za-z0-9_\-][A-Za-z0-9_\-./{}]*[A-Za-z0-9_}/]|/api/[A-Za-z0-9_\-])'
+        scope: ["frontend/src/", "crates/", "scripts/", "mods/", "services/"]
+        except: ["/api/manifest", "route_manifest.rs"]

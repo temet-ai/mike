@@ -53,7 +53,9 @@ async fn model_answer(
     if !reserved {
         return Err("the lesson proposer's daily call budget is spent; the write-time decision waits for the next tick".to_owned());
     }
-    let (answer, _usage) = relate::call(deps.llm, rule, neighbours, shown, deps.settings.max_chars)
+    let system = &deps.settings.prompts.relate;
+    let max_chars = deps.settings.max_chars;
+    let (answer, _usage) = relate::call(deps.llm, system, rule, neighbours, shown, max_chars)
         .await
         .map_err(|e| e.to_string())?;
     Ok(answer)

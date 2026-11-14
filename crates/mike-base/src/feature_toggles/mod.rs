@@ -222,29 +222,6 @@ pub struct ResolvedToggles {
     pub self_identity_reminder: bool,
     pub workspace_briefing: bool,
     pub repeated_notices: bool,
-
-    pub reminders_inject_lessons: bool,
-    pub reminders_max_lessons_to_inject: usize,
-    pub weasel_intercept_forbidden_words: Vec<String>,
-    pub weasel_intercept_correction_prompt: String,
-    pub file_read_compression_min_bytes: usize,
-    pub file_read_compression_head_lines: usize,
-    pub file_read_compression_tail_lines: usize,
-    pub file_read_compression_enabled_producers: Vec<String>,
-    pub file_read_compression_protected_paths: Vec<String>,
-    pub file_read_compression_grace_turns: usize,
-    pub file_read_compression_forward: bool,
-    pub file_read_compression_forward_share: usize,
-    pub shell_output_compression_min_bytes: usize,
-    pub shell_output_compression_head_lines: usize,
-    pub shell_output_compression_tail_lines: usize,
-    pub shell_output_compression_signal_context_lines: usize,
-    pub shell_output_compression_signal_line_cap: usize,
-    pub shell_output_compression_grace_turns: usize,
-    pub shell_output_compression_forward: bool,
-    pub shell_output_compression_forward_share: usize,
-    pub compression_dedup_enabled: bool,
-    pub context_focus_question_mode: String,
     pub features: crate::settings::FeatureOverlays,
 }
 
@@ -263,34 +240,6 @@ impl ResolvedToggles {
             self_identity_reminder: overlay.self_identity_reminder,
             workspace_briefing: overlay.workspace_briefing,
             repeated_notices: overlay.repeated_notices,
-            reminders_inject_lessons: settings.reminders_inject_lessons,
-            reminders_max_lessons_to_inject: settings.reminders_max_lessons_to_inject,
-            weasel_intercept_forbidden_words: settings.weasel_intercept_forbidden_words.clone(),
-            weasel_intercept_correction_prompt: settings.weasel_intercept_correction_prompt.clone(),
-            file_read_compression_min_bytes: settings.file_read_compression_min_bytes,
-            file_read_compression_head_lines: settings.file_read_compression_head_lines,
-            file_read_compression_tail_lines: settings.file_read_compression_tail_lines,
-            file_read_compression_enabled_producers: settings
-                .file_read_compression_enabled_producers
-                .clone(),
-            file_read_compression_protected_paths: settings
-                .file_read_compression_protected_paths
-                .clone(),
-            file_read_compression_grace_turns: settings.file_read_compression_grace_turns,
-            file_read_compression_forward: settings.file_read_compression_mode == "forward",
-            file_read_compression_forward_share: settings.file_read_compression_forward_share,
-            shell_output_compression_min_bytes: settings.shell_output_compression_min_bytes,
-            shell_output_compression_head_lines: settings.shell_output_compression_head_lines,
-            shell_output_compression_tail_lines: settings.shell_output_compression_tail_lines,
-            shell_output_compression_signal_context_lines: settings
-                .shell_output_compression_signal_context_lines,
-            shell_output_compression_signal_line_cap: settings
-                .shell_output_compression_signal_line_cap,
-            shell_output_compression_grace_turns: settings.shell_output_compression_grace_turns,
-            shell_output_compression_forward: settings.shell_output_compression_mode == "forward",
-            shell_output_compression_forward_share: settings.shell_output_compression_forward_share,
-            compression_dedup_enabled: settings.compression_dedup_enabled,
-            context_focus_question_mode: settings.context_focus_question_mode.clone(),
             features: settings.features.clone(),
         }
     }
@@ -440,8 +389,6 @@ pub fn build_feature_toggle_overlay(
     config: &crate::config::ProxyConfig,
 ) -> std::sync::Arc<arc_swap::ArcSwap<FeatureToggles>> {
     let mut toggles = FeatureToggles {
-        reminders: config.reminders.enabled,
-        weasel_intercept: config.weasel_intercept.enabled,
         steerer: config.steerer.enabled,
         ..FeatureToggles::default()
     };
