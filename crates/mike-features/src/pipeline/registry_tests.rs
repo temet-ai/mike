@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::memory_harvester::HarvesterConfig;
+use crate::config::ProxyConfig;
 use crate::quiescence_worker::sweep::SweepContext;
 use crate::rerank_nightly::PairsPhase;
 use crate::state::lesson_hooks::{HookFuture, LessonAttribution, SupplyCapture};
@@ -38,7 +38,11 @@ impl LessonHooks for NamedLessons {
         None
     }
 
-    fn response_hook(&self, _config: HarvesterConfig) -> Option<Arc<dyn ResponseHook>> {
+    fn response_hook(
+        &self,
+        _config: &ProxyConfig,
+        _enabled: Option<bool>,
+    ) -> Option<Arc<dyn ResponseHook>> {
         None
     }
 

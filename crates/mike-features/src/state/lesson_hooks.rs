@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 
 use bytes::Bytes;
 
-use crate::config::memory_harvester::HarvesterConfig;
+use crate::config::ProxyConfig;
 use crate::pipeline::RequestStage;
 use crate::quiescence_worker::sweep::SweepContext;
 use crate::rerank_nightly::PairsPhase;
@@ -46,7 +46,11 @@ pub trait LessonHooks: Send + Sync {
 
     fn pairs_phase(&self) -> Option<Arc<dyn PairsPhase>>;
 
-    fn response_hook(&self, config: HarvesterConfig) -> Option<Arc<dyn ResponseHook>>;
+    fn response_hook(
+        &self,
+        config: &ProxyConfig,
+        enabled: Option<bool>,
+    ) -> Option<Arc<dyn ResponseHook>>;
 
     fn label_mod_lessons(&self, body: &[u8], manifest: &mut ManifestBuilder) -> Vec<i64>;
 
@@ -73,7 +77,11 @@ impl LessonHooks for NoLessonHooks {
         None
     }
 
-    fn response_hook(&self, _config: HarvesterConfig) -> Option<Arc<dyn ResponseHook>> {
+    fn response_hook(
+        &self,
+        _config: &ProxyConfig,
+        _enabled: Option<bool>,
+    ) -> Option<Arc<dyn ResponseHook>> {
         None
     }
 

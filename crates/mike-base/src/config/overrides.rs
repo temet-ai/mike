@@ -12,12 +12,11 @@ pub fn apply_settings_overrides(cfg: &mut ProxyConfig, rows: &[(String, serde_js
             || apply_steerer_override(cfg, key, value)
             || apply_turn_judge_override(cfg, key, value)
             || apply_session_judge_override(cfg, key, value)
-            || apply_lesson_worker_override(cfg, key, value)
-            || apply_lesson_relations_override(cfg, key, value)
             || apply_resource_cap_override(cfg, key, value)
             || apply_mailbox_override(cfg, key, value)
             || apply_logging_override(cfg, key, value)
-            || apply_launch_override(cfg, key, value);
+            || apply_launch_override(cfg, key, value)
+            || crate::settings::registry::apply_config_override(&mut cfg.sections, key, value);
     }
 }
 
@@ -177,73 +176,6 @@ fn apply_session_judge_override(
         "session_judge.request_timeout_secs" => {
             if let Some(v) = value.as_u64() {
                 cfg.session_judge.request_timeout_secs = v;
-            }
-        }
-        _ => return false,
-    }
-    true
-}
-
-fn apply_lesson_worker_override(
-    cfg: &mut ProxyConfig,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
-    match key {
-        "lesson_worker.dedup_threshold" => {
-            if let Some(v) = value.as_f64() {
-                cfg.lesson_worker.dedup_threshold = v as f32;
-            }
-        }
-        "lesson_worker.max_lessons_per_project" => {
-            if let Some(v) = value.as_i64() {
-                cfg.lesson_worker.max_lessons_per_project = v;
-            }
-        }
-        "lesson_worker.session_consolidation_idle_secs" => {
-            if let Some(v) = value.as_u64() {
-                cfg.lesson_worker.session_consolidation_idle_secs = v;
-            }
-        }
-        "lesson_worker.nightly_consolidation_hour" => {
-            if let Some(v) = value.as_u64() {
-                cfg.lesson_worker.nightly_consolidation_hour = v as u8;
-            }
-        }
-        "lesson_worker.gc_interval_secs" => {
-            if let Some(v) = value.as_u64() {
-                cfg.lesson_worker.gc_interval_secs = v;
-            }
-        }
-        _ => return false,
-    }
-    true
-}
-
-fn apply_lesson_relations_override(
-    cfg: &mut ProxyConfig,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
-    match key {
-        "lesson_relations.enabled" => {
-            if let Some(v) = value.as_bool() {
-                cfg.lesson_relations.enabled = v;
-            }
-        }
-        "lesson_relations.proposer_model" => {
-            if let Some(v) = value.as_str() {
-                cfg.lesson_relations.proposer_model = v.to_owned();
-            }
-        }
-        "lesson_relations.adjudicator_model" => {
-            if let Some(v) = value.as_str() {
-                cfg.lesson_relations.adjudicator_model = v.to_owned();
-            }
-        }
-        "lesson_relations.candidate_distance_threshold" => {
-            if let Some(v) = value.as_f64() {
-                cfg.lesson_relations.candidate_distance_threshold = v;
             }
         }
         _ => return false,

@@ -26,7 +26,6 @@ fn apply_db_rows_to_overlay_applies_known_keys() {
     let overlay = apply_db_rows_to_overlay(rows);
     assert!(!overlay.reminders_inject_lessons);
     assert_eq!(overlay.reminders_max_lessons_to_inject, 10);
-    assert_eq!(overlay.recall_injector_max_lessons_per_topic, 3);
 }
 
 #[test]

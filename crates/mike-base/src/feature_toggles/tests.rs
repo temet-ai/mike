@@ -387,7 +387,6 @@ fn settings_with_mixed_values() -> crate::settings::SettingsOverlay {
         reminders_max_lessons_to_inject: 7,
         weasel_intercept_forbidden_words: vec!["bad".to_owned()],
         weasel_intercept_correction_prompt: "correct!".to_owned(),
-        recall_injector_max_lessons_per_topic: 4,
         file_read_compression_min_bytes: 4000,
         file_read_compression_head_lines: 10,
         file_read_compression_tail_lines: 5,
@@ -415,7 +414,6 @@ fn assert_resolved_settings(resolved: &ResolvedToggles) {
     assert_eq!(resolved.reminders_max_lessons_to_inject, 7);
     assert_eq!(resolved.weasel_intercept_forbidden_words, vec!["bad"]);
     assert_eq!(resolved.weasel_intercept_correction_prompt, "correct!");
-    assert_eq!(resolved.recall_injector_max_lessons_per_topic, 4);
     assert_eq!(resolved.file_read_compression_min_bytes, 4000);
     assert_eq!(resolved.file_read_compression_head_lines, 10);
     assert_eq!(resolved.file_read_compression_tail_lines, 5);

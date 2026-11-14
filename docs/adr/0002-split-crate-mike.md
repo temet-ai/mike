@@ -4,6 +4,8 @@ status: accepted
 created: 2026-11-12
 updated: 2026-11-14
 summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines by references; S6 puts fleet beside knowledge, features and lessons, and the replay by Cargo dependencies is 73% (the chain was 75%).
+session_id:
+  - 6bf6170d-77c4-477e-9e50-5b6dda36334e
 ---
 
 # ADR 0002 — Split crate mike into peer crates along measured seams
@@ -278,6 +280,90 @@ the `cross_crate_tests` modules all link there.
   `Cargo.toml` names a split package that `package_deps` does not put below it.
 
 Replay of 232 commits by Cargo dependencies: the S5 chain 75%, side by side 73%.
+
+### S7 pattern: a feature crate owns its settings
+
+Before S7, each feature's settings sat in `mike-base`: a `settings/meta_<f>.rs` listed in
+`SETTINGS_META`, a typed field per section on `ProxyConfig`, arms in
+`config/overrides*.rs` and `settings/overlay_apply*.rs`, and fields on `SettingsOverlay`
+and `ResolvedToggles`. Adding one setting rebuilt every crate. S7-0 added the
+registration machinery and moved the lessons settings as the pilot
+(`crates/mike-lessons/src/lessons_settings/`). The other crates move the same way.
+
+**What base keeps.** The generic machinery stays in base:
+- `SettingMeta`, validation and the settings service;
+- `ConfigSections` (`config/sections.rs`), the untyped section map that `ProxyConfig`
+  flattens;
+- `FeatureOverlays` (`settings/feature_overlays.rs`), the typed per-feature slots on
+  `SettingsOverlay` and `ResolvedToggles`;
+- the registry (`settings/registry.rs`).
+
+Global settings stay in base too, along with every setting base code reads itself.
+`SETTINGS_META` keeps its name and is base's entries followed by each registered
+feature's, in registration order.
+
+**What a feature crate adds** (one module, `<crate>/src/<feature>_settings/`):
+
+1. `sections.rs`: the typed config structs, moved unchanged with their `Default`, and
+   `impl ConfigSection for X { const KEY: &'static str = "<toml table name>"; }`. The key
+   is the old `ProxyConfig` field name, so `[table]` in config.toml, `MIKE_<TABLE>__<FIELD>`
+   and `print-config` keep working. Only nested sections can move: a flattened group of
+   top-level keys stays on `ProxyConfig`.
+2. `meta.rs`: `pub fn entries() -> Vec<SettingMeta>`, the entries cut out of base's
+   `meta_*.rs`, with key, group, default and text unchanged.
+3. `overrides.rs`: `apply_override(&mut ConfigSections, key, value) -> bool`, the
+   `apply_settings_overrides` arms rewritten as
+   `sections.update::<X>(|cfg| …)`. Return `false` for any key you don't own. Also
+   `boot_toggles(&ConfigSections, &mut FeatureToggles)`, holding the lines that
+   `build_feature_toggle_overlay` used to read from your sections (`toggles.x =
+   sections.get::<XConfig>().enabled`).
+4. `overlay.rs` (when the feature has live, `NextMessage`/`NewSessions` settings): one
+   `#[derive(Debug, Clone, PartialEq)] struct` with a `Default` holding the old
+   `SettingsOverlay::default()` values, `impl OverlaySection`, and
+   `apply_overlay(&mut FeatureOverlays, key, value) -> bool` built on the `set_*`
+   helpers in `settings::overlay_apply`.
+5. `mod.rs`: `pub static <F>_SETTINGS: FeatureSettings = FeatureSettings { name, meta,
+   sections: &[SectionSpec::of::<X>(), …], apply_override, apply_overlay, boot_toggles }`
+   and `pub fn register() { crate::settings::registry::register(&<F>_SETTINGS); }`.
+   A feature with no overlay or no boot toggles passes a function that returns `false`
+   or does nothing.
+6. Add one line to `crates/mike/src/feature_settings.rs`'s `install()`.
+   `main.rs` calls it before `Cli::parse`.
+
+**Readers change mechanically:**
+
+| Before | After |
+|---|---|
+| `config.lesson_worker.x` | `config.sections.get::<LessonWorkerConfig>().x` (returns a clone; bind it once per function) |
+| `config.lesson_relations.enabled = true` (tests) | `config.sections.update::<LessonRelationsConfig>(\|c\| c.enabled = true)` |
+| `overlay.recall_injector_max_lessons_per_topic` | `overlay.features.get::<RecallOverlay>().max_lessons_per_topic` |
+| `toggles.recall_injector_max_lessons_per_topic` (`ResolvedToggles`) | `toggles.features.get::<RecallOverlay>().max_lessons_per_topic` |
+| `crate::settings::meta_<f>::KEY` | `crate::<feature>_settings::meta_<f>::KEY` |
+
+A reader below the feature crate can't name the feature's type. Either the reader moves up,
+or the feature passes it what it needs through a hook it already has. For example,
+`LessonHooks::response_hook(&ProxyConfig, Option<bool>)` lets lessons read its own
+`HarvesterConfig`. No crate adds a `mike-*` dependency to reach a section.
+
+**Rules that keep behaviour the same.**
+- Every key, default, label, group and description moves byte for byte. `/settings`,
+  validation and `print-config` read the merged registry.
+- Precedence is unchanged. `ProxyConfig::default()` holds each registered section's
+  default, and figment merges the file, `MIKE_*` and CLI over it. An unknown key inside a
+  registered section, or a wrong type there, still fails validation, because each
+  section parses with its own `deny_unknown_fields` struct.
+- Registration must happen before the first `ProxyConfig::default()`. In the binary,
+  `main.rs` does it. An in-process test that loads a TOML naming a feature's section, or
+  writes a feature's key through the settings service, calls
+  `mike::feature_settings::install()` (or the feature's `register()` inside its own
+  crate) first. Without registration a process sees no feature sections: their TOML
+  tables are ignored, their keys are unknown to `/settings`, and readers get the
+  compiled defaults.
+- `register` is idempotent and keyed by `name`. Tests may call it as often as they like.
+
+**What it bought.** The lessons pilot removed 4 config files, `meta_memory_loop.rs`, 2
+override functions, 1 overlay arm and 2 meta functions from base. An edit to a lessons
+setting now rebuilds only `mike-lessons` and `mike`.
 
 ## Consequences
 

@@ -4,7 +4,7 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::config::memory_harvester::HarvesterConfig;
+use crate::lessons_settings::HarvesterConfig;
 use crate::store::models::RequestId;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::harvest_runs::NewHarvestRun;

@@ -220,10 +220,8 @@ fn spawn_store_updater_for(
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
             response_hook: state.lesson_hooks().response_hook(
-                crate::config::memory_harvester::HarvesterConfig {
-                    enabled: state.feature_toggle_overlay.load().harvester,
-                    ..state.config.harvester.clone()
-                },
+                &state.config,
+                Some(state.feature_toggle_overlay.load().harvester),
             ),
         },
         &state.tracker,

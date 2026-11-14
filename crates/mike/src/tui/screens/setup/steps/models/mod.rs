@@ -65,7 +65,10 @@ impl Models {
             providers,
             values,
             &switches,
-            cx.config.lesson_relations.enabled,
+            cx.config
+                .sections
+                .get::<crate::lessons_settings::LessonRelationsConfig>()
+                .enabled,
             service_installed,
         ))
     }

@@ -137,6 +137,7 @@ async fn boot_state_with_trim_cap(
             "persist_enabled = true\ndatabase_url = \"{database_url}\"\n\n[lesson_worker]\nenabled = false\nmax_lessons_per_project = 2\n"
         ),
     )?;
+    mike::feature_settings::install();
     let base = figment::Figment::from(figment::providers::Serialized::defaults(
         ProxyConfig::default(),
     ))

@@ -7,7 +7,7 @@ pub const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
 
-pub(super) fn enabled_entry(
+pub fn enabled_entry(
     key: &'static str,
     label: &'static str,
     description: &'static str,
