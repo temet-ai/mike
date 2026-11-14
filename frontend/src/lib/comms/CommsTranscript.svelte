@@ -27,6 +27,7 @@
 	import { splitAckErrorMessage } from '$lib/api/mailbox';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import Badge from '$lib/components/shared/Badge.svelte';
+	import LinkChipRow, { type LinkChip } from '$lib/components/shared/LinkChipRow.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import CommsAvatar from './CommsAvatar.svelte';
 	import {
@@ -338,55 +339,26 @@
 		if (item.kind === 'message') jumpToMessage(item.value);
 		else if (item.kind === 'thread') onOpenThread?.(item.value);
 	}
+
+	function toChip(item: ContextItem): LinkChip {
+		const mode = effectiveChipMode(item);
+		const chip: LinkChip = {
+			icon: CONTEXT_ICON[item.kind],
+			text: contextChipLabel(item),
+			title: `${item.kind}: ${item.value}`
+		};
+		if (mode === 'internal-link' || mode === 'external-link') {
+			chip.href = contextChipHref(item, sessionId) ?? undefined;
+			chip.external = mode === 'external-link';
+		} else if (mode === 'action') {
+			chip.onclick = () => activateChip(item);
+		}
+		return chip;
+	}
 </script>
 
 {#snippet contextChipRow(items: ContextItem[])}
-	{#if items.length > 0}
-		<ul class="ctx-row" role="list">
-			{#each items as item, i (item.kind + item.value + i)}
-				{@const Icon = CONTEXT_ICON[item.kind]}
-				{@const mode = effectiveChipMode(item)}
-				<li>
-					{#if mode === 'internal-link'}
-						<a
-							class="ctx-chip"
-							href={contextChipHref(item, sessionId)}
-							title="{item.kind}: {item.value}"
-						>
-							<Icon size={11} aria-hidden="true" />
-							{contextChipLabel(item)}
-						</a>
-					{:else if mode === 'external-link'}
-						<a
-							class="ctx-chip"
-							href={contextChipHref(item, sessionId)}
-							target="_blank"
-							rel="noopener noreferrer"
-							title="{item.kind}: {item.value}"
-						>
-							<Icon size={11} aria-hidden="true" />
-							{contextChipLabel(item)}
-						</a>
-					{:else if mode === 'action'}
-						<button
-							type="button"
-							class="ctx-chip ctx-chip--action"
-							onclick={() => activateChip(item)}
-							title="{item.kind}: {item.value}"
-						>
-							<Icon size={11} aria-hidden="true" />
-							{contextChipLabel(item)}
-						</button>
-					{:else}
-						<span class="ctx-chip ctx-chip--label" title="{item.kind}: {item.value}">
-							<Icon size={11} aria-hidden="true" />
-							{contextChipLabel(item)}
-						</span>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
+	<LinkChipRow items={items.map(toChip)} />
 {/snippet}
 
 {#snippet msgNode(node: MessageTreeNode)}
@@ -1088,15 +1060,6 @@
 		outline-offset: 1px;
 	}
 
-	.ctx-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
 	.ctx-chip {
 		--edge: 4px;
 		--aug-tl: var(--edge);
@@ -1114,22 +1077,6 @@
 		text-decoration: none;
 		cursor: pointer;
 		border: none;
-	}
-
-	a.ctx-chip:hover,
-	button.ctx-chip--action:hover {
-		--aug-border-bg: var(--interactive-active-border);
-		color: var(--text-strong);
-	}
-
-	.ctx-chip--label {
-		cursor: default;
-		opacity: 0.85;
-	}
-
-	.ctx-chip:focus-visible {
-		outline: 2px solid var(--interactive-focus-ring);
-		outline-offset: 2px;
 	}
 
 	.ctx-chip--draft {
