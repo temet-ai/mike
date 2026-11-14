@@ -118,7 +118,7 @@ pub async fn assign_to_existing(
         } else {
             picked.iter().map(|(_, _, p)| p).sum::<f64>() / picked.len() as f64
         };
-        let applied = if picked.is_empty() { "new" } else { "assigned" };
+        let applied = if picked.is_empty() { "none" } else { "chosen" };
         decider
             .mark(&asked, asked.composed(json!({ "score": score })), applied)
             .await;

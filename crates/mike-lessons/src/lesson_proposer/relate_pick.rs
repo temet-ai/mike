@@ -253,15 +253,15 @@ pub fn needs_replacement(answer: &RelateAnswer) -> bool {
 
 fn applied_for(answer: &RelateAnswer) -> &'static str {
     if needs_replacement(answer) {
-        "replace"
+        "chosen"
     } else if answer
         .decisions
         .iter()
         .any(|d| d.decision == Relation::Skip)
     {
-        "skip"
+        "skipped"
     } else {
-        "store"
+        "none"
     }
 }
 
@@ -343,7 +343,7 @@ pub async fn placement_answer(
         jev.trip();
     }
     let composed = placement_from(&asked, shown);
-    let applied = composed.as_ref().map_or("none", |p| p.home.code());
+    let applied = composed.as_ref().map_or("none", |_| "chosen");
     let score = asked.choice(HOME_KEY).map_or(0.0, |(_, p)| p);
     jev.decider
         .mark(&asked, asked.composed(json!({ "score": score })), applied)

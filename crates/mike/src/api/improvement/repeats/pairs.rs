@@ -129,7 +129,7 @@ pub(super) async fn refine(
             .await;
         pace.spent(&asked);
         let answers = compose(&asked, group.len());
-        let applied = if answers.is_some() { "grouped" } else { "none" };
+        let applied = if answers.is_some() { "chosen" } else { "none" };
         let score = answers.as_deref().map_or(0.0, applied_score);
         decider
             .mark(&asked, asked.composed(json!({ "score": score })), applied)

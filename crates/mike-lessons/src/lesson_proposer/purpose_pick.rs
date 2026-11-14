@@ -101,8 +101,8 @@ async fn survivor_for<'a>(
     pace.spent(&asked);
     let verdict = compose(&asked, candidates.len());
     let (applied, score) = match verdict {
-        Some(Some((_, p))) => ("merged", p),
-        Some(None) => ("kept_apart", 1.0 - max_noul(&asked, candidates.len())),
+        Some(Some((_, p))) => ("chosen", p),
+        Some(None) => ("none", 1.0 - max_noul(&asked, candidates.len())),
         None => ("none", 0.0),
     };
     decider

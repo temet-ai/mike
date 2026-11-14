@@ -126,7 +126,7 @@ pub async fn map_near_misses(
     let applied = if mappings.is_empty() {
         "none"
     } else {
-        "mapped"
+        "chosen"
     };
     decider
         .mark(&asked, asked.composed(json!({ "score": score })), applied)

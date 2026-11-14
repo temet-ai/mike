@@ -131,11 +131,7 @@ pub async fn clear_false_status(
         pace.spent(&asked);
         let rules = compose(&asked, group);
         let score = applied_score(&asked, group);
-        let applied = if rules.is_empty() {
-            "kept_status"
-        } else {
-            "cleared"
-        };
+        let applied = if rules.is_empty() { "none" } else { "chosen" };
         decider
             .mark(&asked, asked.composed(json!({ "score": score })), applied)
             .await;

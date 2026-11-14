@@ -207,7 +207,7 @@ pub async fn refine(
         pace.spent(&asked);
         let decided = compose(&asked, group);
         let applied = if decided.iter().any(|(_, p, _)| p.is_some()) {
-            "tagged"
+            "chosen"
         } else {
             "none"
         };

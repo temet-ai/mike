@@ -64,7 +64,7 @@ fn compose_none_choice_supplies_no_thread() -> Result<()> {
     let picked = compose(&answered(NONE_KEY, 0.7), &candidates())
         .ok_or_else(|| anyhow::anyhow!("expected a decision"))?;
     assert_eq!(picked.resolution, Resolution::None);
-    assert_eq!(picked.applied, "no_thread");
+    assert_eq!(picked.applied, "skipped");
     Ok(())
 }
 
@@ -73,7 +73,7 @@ fn compose_thread_below_the_floor_supplies_no_thread() -> Result<()> {
     let picked = compose(&answered("migration-work", 0.3), &candidates())
         .ok_or_else(|| anyhow::anyhow!("expected a decision"))?;
     assert_eq!(picked.resolution, Resolution::None);
-    assert_eq!(picked.applied, "unsure");
+    assert_eq!(picked.applied, "skipped");
     Ok(())
 }
 

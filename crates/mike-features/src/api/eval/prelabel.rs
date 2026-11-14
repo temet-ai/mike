@@ -180,11 +180,7 @@ async fn fill(env: &DecisionEnv, persist: &PersistHandle, missing: &[i64]) {
         } else {
             found.iter().map(|(_, p)| p.probability).sum::<f64>() / found.len() as f64
         };
-        let applied = if found.is_empty() {
-            "none"
-        } else {
-            "prelabelled"
-        };
+        let applied = if found.is_empty() { "none" } else { "labelled" };
         decider
             .mark(&asked, asked.composed(json!({ "score": score })), applied)
             .await;

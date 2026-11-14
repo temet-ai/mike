@@ -130,9 +130,7 @@ impl<'a, J: SupplyJudge> JevJudge<'a, J> {
 
 fn applied_for(verdict: &str) -> &'static str {
     match verdict {
-        "used" => "used",
-        "corrected_anyway" => "corrected_anyway",
-        _ => "ignored",
+        _ => "labelled",
     }
 }
 

@@ -201,8 +201,7 @@ pub fn compose(
 
 fn applied(decision: Option<&PairDecision>) -> &'static str {
     match decision {
-        Some(PairDecision::Cites(_)) => "cited",
-        Some(PairDecision::Relation { kind, .. }) => kind,
+        Some(PairDecision::Cites(_) | PairDecision::Relation { .. }) => "chosen",
         _ => "none",
     }
 }

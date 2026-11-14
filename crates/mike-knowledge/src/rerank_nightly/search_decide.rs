@@ -151,7 +151,11 @@ pub async fn grade(
     }
     let answers = compose(&asked, &shown);
     let score = answers.as_deref().map_or(0.0, mean_applied);
-    let applied = if answers.is_some() { "graded" } else { "none" };
+    let applied = if answers.is_some() {
+        "labelled"
+    } else {
+        "none"
+    };
     jev.decider
         .mark(&asked, asked.composed(json!({ "score": score })), applied)
         .await;

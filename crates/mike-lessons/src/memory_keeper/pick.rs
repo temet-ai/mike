@@ -115,7 +115,7 @@ pub fn compose(asked: &Asked, candidates: &[Pick]) -> Option<Picked> {
         return Some(Picked {
             resolution: Resolution::None,
             score: probability,
-            applied: "no_thread",
+            applied: "skipped",
         });
     }
     let pick = candidates.iter().find(|p| p.slug == key)?;
@@ -123,7 +123,7 @@ pub fn compose(asked: &Asked, candidates: &[Pick]) -> Option<Picked> {
         return Some(Picked {
             resolution: Resolution::None,
             score: 1.0 - probability,
-            applied: "unsure",
+            applied: "skipped",
         });
     }
     Some(Picked {
