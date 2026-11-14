@@ -159,7 +159,7 @@ pub async fn get_calibration(State(state): State<AppState>) -> Response {
             .into_response();
     };
     let toggle_on = state.feature_toggle_overlay.load().decisions;
-    let has_key = state.judge_llm.as_ref().is_some_and(|c| c.has_api_key());
+    let has_key = state.decision_env().is_some();
     let overlay = state.settings_overlay.load();
     let since = Utc::now() - decisions_loop::WINDOW;
     let result = async {
