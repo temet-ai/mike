@@ -51,8 +51,14 @@ async fn when<T>(wanted: bool, work: impl Future<Output = Option<T>>) -> Option<
     if wanted { work.await } else { None }
 }
 
-async fn gather(state: &AppState, session: Uuid, session_id: &str, project_path: &str) -> Gathered {
-    let deadline = Instant::now() + CONTEXT_BUDGET;
+async fn gather(
+    state: &AppState,
+    session: Uuid,
+    session_id: &str,
+    project_path: &str,
+    budget: Duration,
+) -> Gathered {
+    let deadline = Instant::now() + budget;
     let toggles = state.resolve_session_toggles(session_id);
     let serves = |key| crate::state::client_serves(state, key);
     let wants_briefing = toggles.workspace_briefing && serves("client_serves_workspace_briefing");
@@ -109,7 +115,17 @@ pub async fn prompt_context(
     session_id: &str,
     project_path: &str,
 ) -> Vec<ContextBlock> {
-    let gathered = gather(state, session, session_id, project_path).await;
+    prompt_context_within(state, session, session_id, project_path, CONTEXT_BUDGET).await
+}
+
+pub async fn prompt_context_within(
+    state: &AppState,
+    session: Uuid,
+    session_id: &str,
+    project_path: &str,
+    budget: Duration,
+) -> Vec<ContextBlock> {
+    let gathered = gather(state, session, session_id, project_path, budget).await;
     if !matches!(gathered.role, Some(SeatRole::Plain | SeatRole::Fork)) {
         return Vec::new();
     }
