@@ -23,13 +23,31 @@ pub fn state(message: &str) -> Value {
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Detected {
+    pub is_prod: bool,
+    pub failed: bool,
+}
+
 pub async fn detect(decider: Option<&Decider>, message: &str, subject: DecisionSubject) -> bool {
+    detect_checked(decider, message, subject).await.is_prod
+}
+
+pub async fn detect_checked(
+    decider: Option<&Decider>,
+    message: &str,
+    subject: DecisionSubject,
+) -> Detected {
     let regex_answer = is_prod(message);
+    let off = Detected {
+        is_prod: regex_answer,
+        failed: false,
+    };
     let Some(decider) = decider else {
-        return regex_answer;
+        return off;
     };
     if message.trim().is_empty() {
-        return regex_answer;
+        return off;
     }
     let asked = decider
         .ask(
@@ -50,5 +68,8 @@ pub async fn detect(decider: Option<&Decider>, message: &str, subject: DecisionS
     decider
         .mark(&asked, asked.composed(composed), applied)
         .await;
-    used.map_or(regex_answer, |v| v.is_prod)
+    Detected {
+        is_prod: used.map_or(regex_answer, |v| v.is_prod),
+        failed: asked.failed(),
+    }
 }

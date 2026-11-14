@@ -10,6 +10,7 @@ pub mod input;
 pub mod jev_seam;
 pub mod label;
 pub mod label_call;
+pub mod label_prod;
 pub mod label_rules;
 pub mod live;
 pub mod live_decision;
@@ -32,6 +33,9 @@ pub mod threshold_select;
 #[cfg(test)]
 #[path = "tests/gates_tests.rs"]
 pub mod gates_tests;
+#[cfg(test)]
+#[path = "tests/label_prod_tests.rs"]
+pub mod label_prod_tests;
 #[cfg(test)]
 #[path = "tests/label_rules_tests.rs"]
 pub mod label_rules_tests;

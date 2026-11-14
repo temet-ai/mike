@@ -6,6 +6,8 @@ use crate::llm::key::OpenRouterKeySlot;
 use crate::llm::{LlmRole, LlmUsageSink, OpenRouterClient};
 use crate::settings::SharedSettingsOverlay;
 use crate::steerer::guard::label::{LabelPass, run_pass};
+use crate::steerer::guard::label_prod::ProdAnswers;
+use crate::steerer::prod_point;
 use crate::steerer::reply_label::run_reply_label_pass;
 
 use super::sweep::SweepContext;
@@ -44,6 +46,7 @@ async fn run_guard_labels(ctx: &SweepContext<'_>, llm: &OpenRouterClient) {
         persist: ctx.persist,
         llm,
         toggle_on: true,
+        prod: ProdAnswers::new(ctx.decision_env(llm).decider(prod_point::POINT)),
     })
     .await;
     tracing::debug!(?report, "quiescence_worker: turn guard labeller pass");
