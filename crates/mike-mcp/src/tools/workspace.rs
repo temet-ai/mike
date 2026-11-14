@@ -43,7 +43,7 @@ fn get_workspace_roster_tool() -> Tool {
                 "project_path",
                 json!({
                     "type": "string",
-                    "description": "The project path as recorded by the proxy (see list_projects), e.g. \"projects/temet/temet-proxy\" — NOT the bare repo name. A unique path suffix is also accepted."
+                    "description": "The project path as recorded by the proxy (see list_projects), e.g. \"projects/temet/temet-proxy\" — NOT the bare repo name. A unique path suffix is also accepted. Omit it for the calling session's own project."
                 }),
             ),
             (
@@ -54,7 +54,7 @@ fn get_workspace_roster_tool() -> Tool {
                 }),
             ),
         ],
-        &["project_path"],
+        &[],
     );
     Tool::new(
         Cow::Borrowed(TOOL_GET_WORKSPACE_ROSTER),
@@ -269,7 +269,7 @@ fn get_fleet_graph_tool() -> Tool {
                 "project",
                 json!({
                     "type": "string",
-                    "description": "Project path (the same identifier list_projects and get_workspace_roster use). Required — exact match only, no suffix resolution."
+                    "description": "Project path (the same identifier list_projects and get_workspace_roster use). Exact match only, no suffix resolution. Omit it for the calling session's own project."
                 }),
             ),
             (
@@ -281,7 +281,7 @@ fn get_fleet_graph_tool() -> Tool {
                 }),
             ),
         ],
-        &["project"],
+        &[],
     );
     Tool::new(
         Cow::Borrowed(TOOL_GET_FLEET_GRAPH),
