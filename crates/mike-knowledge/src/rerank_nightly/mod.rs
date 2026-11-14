@@ -6,6 +6,7 @@ pub mod load;
 #[cfg(test)]
 pub mod load_tests;
 pub mod run_now;
+pub mod search_decide;
 pub mod tune;
 
 pub use run_now::{RunNow, run_pass_now};
@@ -27,6 +28,7 @@ use tune::{Tuned, tune_if_due};
 const LEASE_ROLE: &str = "rerank_nightly";
 const TICK_INTERVAL: Duration = Duration::from_secs(600);
 const GRADE_BATCH: i64 = 200;
+const SEARCH_CALLS_PER_PASS: usize = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
@@ -179,11 +181,13 @@ async fn grade_events(
     idle: &impl Idle,
     graded: &mut usize,
 ) -> Option<Stop> {
+    let env = state.decision_env();
+    let jev = search_decide::SearchJev::new(env.as_ref(), SEARCH_CALLS_PER_PASS);
     for event in events {
         if !idle.is_idle().await {
             return Some(Stop::MachineBusy);
         }
-        match grade_event(state, persist, &event).await {
+        match grade_event(state, persist, &event, jev.as_ref()).await {
             Ok(Graded::Recorded) => *graded += 1,
             Ok(Graded::RerankerFailed) => return Some(Stop::RerankerFailed),
             Err(error) => {

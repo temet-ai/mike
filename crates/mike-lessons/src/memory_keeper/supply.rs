@@ -4,8 +4,10 @@ use uuid::Uuid;
 
 use super::arm::{KEEPER_CONTROL_PERCENT, KeeperArm, arm_for};
 use super::block::{Block, render};
-use super::resolve::{Resolution, ResolveInput, SessionFacts, resolve};
-use super::snapshot::KeeperSnapshot;
+use super::pick::decide;
+use super::resolve::{Resolution, ResolveInput, SessionFacts, ThreadFacts, resolve};
+use super::snapshot::{KeeperSnapshot, ProjectThreads};
+use crate::llm::decisions::env::DecisionEnv;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Carrier {
@@ -67,15 +69,20 @@ impl Supply {
     }
 }
 
-pub fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> Supply {
-    let Some(project) = snapshot.project_for(request.project_path) else {
-        return Supply::nothing();
-    };
+fn plan<'a>(
+    snapshot: &'a KeeperSnapshot,
+    request: &SupplyRequest<'_>,
+) -> Option<(&'a ProjectThreads, Vec<ThreadFacts>)> {
+    let project = snapshot.project_for(request.project_path)?;
     let threads = project.facts();
-    if threads.is_empty() {
-        return Supply::nothing();
-    }
-    let resolution = resolve(&ResolveInput {
+    (!threads.is_empty()).then_some((project, threads))
+}
+
+fn resolve_input<'a>(
+    request: &'a SupplyRequest<'a>,
+    threads: &'a [ThreadFacts],
+) -> ResolveInput<'a> {
+    ResolveInput {
         prompt: request.prompt,
         session: SessionFacts {
             session_uuid: request.session,
@@ -83,9 +90,38 @@ pub fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> Supply 
             branch: request.branch,
             recent_turn_text: request.recent.clone(),
         },
-        threads: &threads,
+        threads,
         now: request.now,
-    });
+    }
+}
+
+pub fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> Supply {
+    let Some((project, threads)) = plan(snapshot, request) else {
+        return Supply::nothing();
+    };
+    let resolution = resolve(&resolve_input(request, &threads));
+    finish(project, request, resolution, None)
+}
+
+pub async fn supply_decided(
+    env: Option<&DecisionEnv>,
+    snapshot: &KeeperSnapshot,
+    request: &SupplyRequest<'_>,
+) -> Supply {
+    let Some((project, threads)) = plan(snapshot, request) else {
+        return Supply::nothing();
+    };
+    let input = resolve_input(request, &threads);
+    let decided = decide(env, &input, resolve(&input)).await;
+    finish(project, request, decided.resolution, decided.record_id)
+}
+
+fn finish(
+    project: &ProjectThreads,
+    request: &SupplyRequest<'_>,
+    resolution: Resolution,
+    decision_record_id: Option<i64>,
+) -> Supply {
     let arm = arm_for(&request.session.to_string());
     let block = (arm == KeeperArm::Keeper)
         .then(|| render(project, &resolution))
@@ -101,7 +137,7 @@ pub fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> Supply 
         carrier: request.carrier,
         arm,
         resolution: resolution_name(&resolution),
-        signals: signals_json(&resolution),
+        signals: signals_json(&resolution, decision_record_id),
         block_hash: block.as_ref().map(|b| b.hash.clone()),
         card_text: block.as_ref().map(|b| b.text.clone()),
         score: best_score(&resolution),
@@ -140,7 +176,7 @@ fn resolution_name(resolution: &Resolution) -> &'static str {
     }
 }
 
-fn signals_json(resolution: &Resolution) -> Value {
+fn signals_json(resolution: &Resolution, decision_record_id: Option<i64>) -> Value {
     let picks = match resolution {
         Resolution::One(pick) => std::slice::from_ref(pick),
         Resolution::Several(picks) => picks.as_slice(),
@@ -150,11 +186,15 @@ fn signals_json(resolution: &Resolution) -> Value {
         picks
             .iter()
             .map(|pick| {
-                json!({
+                let mut row = json!({
                     "slug": pick.slug,
                     "score": pick.score,
                     "signals": pick.signals.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>(),
-                })
+                });
+                if let (Some(id), Some(map)) = (decision_record_id, row.as_object_mut()) {
+                    map.insert("decision_record_id".to_owned(), json!(id));
+                }
+                row
             })
             .collect(),
     )

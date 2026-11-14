@@ -331,6 +331,7 @@ async fn run_tick_examines_nothing_when_no_candidates_are_pending() -> anyhow::R
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = run_tick(&deps).await;
     assert_eq!(report.candidates, 0);
@@ -363,6 +364,7 @@ async fn run_tick_skips_the_llm_for_a_below_threshold_candidate() -> anyhow::Res
         embedding: &embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: None,
     };
     let report = run_tick(&deps).await;
     assert_eq!(report.candidates, 1);

@@ -173,6 +173,7 @@ pub fn store(persist: &crate::store::persistence::PersistHandle) -> DecisionStor
     DecisionStore(persist)
 }
 
+pub mod env;
 pub mod export;
 pub mod loop_store;
 pub mod point;

@@ -141,6 +141,7 @@ async fn run(args: RunArgs) {
         usage_sink: usage_sink.as_ref(),
         embedding: &embedding,
         lessons: crate::state::lesson_hooks::hooks_in(&lessons),
+        toggles: &toggles,
     };
 
     let mut tick: u64 = 0;

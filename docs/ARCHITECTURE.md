@@ -1559,6 +1559,25 @@ mike asks Jev (`typesafe/jev-1.14`, a decision model on OpenRouter's `POST /api/
 - **Loop (#220).** The scheduled job `decisions_loop` (`scripts/decisions-loop` → `mike decisions loop`) runs at any hour once no run finished in the last 24 hours. It copies the guard's labels into `decisions.outcomes`, scores each point (calls, fail-open rate, schema errors, AUROC, the share of holds that held a wrong nudge with its Wilson lower bound, labels per day), stores the report in `decisions.loop_runs`, and files a finding on the `jev-decisions` work thread for a point below its bar.
 - **Health.** The wright check `decisions_health` (daily) flags a point whose failures pass 20% of its calls, or one that made decisions yesterday and none today while the turn guard still fired.
 
+### Jev decision points: memory, lessons and search
+
+Every point below asks through `llm/decisions/point.rs`, so each call lands in `decisions.records`. Code builds the candidates and the facts, Jev picks among them, and code acts only in mode `on`. A failed call (timeout, schema error, refusal, limiter refusal) takes the old path for that call, and a batch pass stops asking after its first failure. `llm/decisions/env.rs` builds the client and the `Pace` that bounds calls per pass.
+
+- **Thread pick** (`thread_pick`, `memory_keeper/pick.rs`). Asked on the request path and in the card route before the card is built: a choice over the six best-scoring open threads plus `none`. The keeper's 20% control arm still withholds the card, so the choice is measured against it. Off or failed: `resolve()` as before.
+- **Recall topic** (`recall_topic`, `recall_injector/topic.rs`). Asked only for a typed topic that matches no lesson: a choice over the project's topics plus `none`. A mapped topic adds its lessons to the reminder.
+- **Lesson shape** (`lesson_shape`, `lesson_proposer/shape_gate.rs`). For a lesson the status-opener list flagged, a yes/no on whether it states a rule. A rule answer clears the flag, so it never reaches `shape_rewrite`.
+- **Topic assign** (`topic_assign`, `lesson_proposer/topic_pick.rs`). A choice over the existing topics plus `new`. Only lessons that get `new`, or a failed call, go to the model that names a topic.
+- **Lesson relation** (`lesson_relation`, `lesson_relations/decide.rs`). One choice per candidate pair (supersedes, refines, recurs, contradicts, unrelated), plus a yes/no on whether a `#N` or `lesson N` mention names the other lesson. It runs in `mike detect-lesson-relations` in place of the rules and the proposer and adjudicator pair; the id of the decision sits in `evidence_json`.
+- **Write-time relate and placement** (`lesson_relate`, `lesson_proposer/relate_pick.rs`). A choice per neighbouring lesson and one for the home; the existing `resolve()` functions then apply their own checks. The model writes replacement text only after an update or merge.
+- **Topic merge** (`topic_merge`, `lesson_proposer/purpose_pick.rs`). A yes/no per pair of skill topics that share a word, replacing the shared-word rule.
+- **Semantic tag** (`semantic_tag`, `semantic/tag_decide.rs`). A choice over the patterns of the three nearest anchors plus `none`, with the correction and anchor texts in the state.
+- **Supply verdict** (`supply_verdict`, `judge_worker/supply_verdict/jev.rs`). A choice of used, corrected_anyway or ignored from the same turn facts. When on, the model is not called for the verdict.
+- **Search grade** (`search_grade`, `rerank_nightly/search_decide.rs`). A yes/no per result in the first ten, replacing the reranker threshold; the tuner reads the result. A result the session later used becomes an outcome.
+- **Repeats grouping** (`repeats_group`, `api/improvement/repeats/pairs.rs`). A yes/no for pairs whose cosine is within a band around the threshold, written back into the similarity matrix before the groups are formed.
+- **Skill trigger** (`skill_trigger`, `lesson_proposer/skill_eval_pick.rs`). A choice per test message over the skills plus `none`, replacing the model's `load` list.
+- **Proposal order** (`proposal_order`, `lesson_proposer/proposal_order.rs`). `GET /api/proposals?sort=suggested` orders the undecided proposals by the guessed chance of acceptance and adds `suggested_accept`. It never accepts. Guesses are filled in the background and kept in memory until the operator decides.
+- **Label pre-label** (`label_prelabel`, `api/eval/prelabel.rs`). Items of `GET /api/eval/runs/{id}/items` carry a `prelabel` (label, probability, uncertain) once a background pass has filled it. The operator's gold label is recorded as the outcome.
+
 ## 19. Judgement-Driven Improvement
 
 Full reference: [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md). This section is the domain-layout summary; that doc is the plain-words explanation for a future session or the operator.

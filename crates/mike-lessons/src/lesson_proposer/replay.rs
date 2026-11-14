@@ -1,8 +1,12 @@
 use super::dedupe::Embedded;
-use super::relate::{self, NewLessonContext, WriteTimeVerdict};
+use super::relate::{self, NewLessonContext, RelateAnswer, WriteTimeVerdict};
+use super::relate_pick::{self, Jev};
 use super::{ProposerDeps, ProposerReport, WriteOutcome, embedding_for_rule, guidance, write};
+use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::lessons::proposals::queue::SavedProposal;
+use crate::store::persistence::lessons::write_time::NeighbourLesson;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use crate::store::persistence::project_knowledge::GuidanceRow;
 
 pub async fn retry_pending(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {
     let pending = match deps.persist.lessons().pending_lesson_proposals(40).await {
@@ -29,6 +33,62 @@ async fn retry_one(deps: &ProposerDeps<'_>, report: &mut ProposerReport, saved: 
     }
 }
 
+async fn model_answer(
+    deps: &ProposerDeps<'_>,
+    rule: &str,
+    neighbours: &[NeighbourLesson],
+    shown: &[GuidanceRow],
+) -> Result<RelateAnswer, String> {
+    let daily_limit = deps
+        .settings
+        .quiet
+        .effective_limit(deps.persist, deps.settings.max_per_day)
+        .await;
+    let reserved = deps
+        .persist
+        .lessons()
+        .reserve_lesson_proposer_call(daily_limit)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !reserved {
+        return Err("the lesson proposer's daily call budget is spent; the write-time decision waits for the next tick".to_owned());
+    }
+    let (answer, _usage) = relate::call(deps.llm, rule, neighbours, shown, deps.settings.max_chars)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(answer)
+}
+
+async fn decided_answer(
+    deps: &ProposerDeps<'_>,
+    saved: &SavedProposal,
+    rule: &str,
+    neighbours: &[NeighbourLesson],
+    shown: &[GuidanceRow],
+) -> Result<RelateAnswer, String> {
+    let subject = DecisionSubject {
+        session_id: Some(saved.candidate.session_id),
+        operator_turn_id: Some(saved.candidate.operator_turn_id),
+        project_id: Some(saved.candidate.project_id),
+        ..DecisionSubject::default()
+    };
+    let jev = Jev::new(deps.decisions);
+    let decided = match jev.as_ref() {
+        Some(jev) => relate_pick::relate_answer(jev, rule, neighbours, shown, subject).await,
+        None => None,
+    };
+    let Some(mut answer) = decided else {
+        return model_answer(deps, rule, neighbours, shown).await;
+    };
+    if relate_pick::needs_replacement(&answer) {
+        answer.replacement = model_answer(deps, rule, neighbours, shown)
+            .await
+            .map(|m| m.replacement)
+            .unwrap_or_default();
+    }
+    Ok(answer)
+}
+
 async fn related_verdict(
     deps: &ProposerDeps<'_>,
     saved: &SavedProposal,
@@ -47,24 +107,7 @@ async fn related_verdict(
         .await
         .map_err(|e| e.to_string())?;
     let shown = guidance::closest_to_text(deps, saved.candidate.project_id, rule).await;
-    let daily_limit = deps
-        .settings
-        .quiet
-        .effective_limit(deps.persist, deps.settings.max_per_day)
-        .await;
-    let reserved = deps
-        .persist
-        .lessons()
-        .reserve_lesson_proposer_call(daily_limit)
-        .await
-        .map_err(|e| e.to_string())?;
-    if !reserved {
-        return Err("the lesson proposer's daily call budget is spent; the write-time decision waits for the next tick".to_owned());
-    }
-    let (answer, _usage) =
-        relate::call(deps.llm, rule, &neighbours, &shown, deps.settings.max_chars)
-            .await
-            .map_err(|e| e.to_string())?;
+    let answer = decided_answer(deps, saved, rule, &neighbours, &shown).await?;
     let context = NewLessonContext {
         verdict_id: saved.candidate.verdict_id,
         source_turn_id: saved.candidate.operator_turn_id,

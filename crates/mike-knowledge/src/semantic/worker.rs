@@ -33,6 +33,7 @@ pub struct SemanticWorker {
     pub toggles: Arc<ArcSwap<FeatureToggles>>,
     pub handle: SemanticHandle,
     pub alarms: Arc<dyn DriftAlarms>,
+    pub base: crate::base_state::BaseState,
 }
 
 #[derive(Default)]
@@ -160,7 +161,10 @@ impl SemanticWorker {
             };
             report.floors_written = run.compute_all().await?.len();
         }
-        report.tagged = tag_tick(&self.persist, cfg, embedder).await?.written;
+        let env = self.base.decision_env();
+        report.tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref())
+            .await?
+            .written;
         if older_than(status.last_daily_run, 24) {
             let run = DriftRun {
                 persist: &self.persist,
@@ -282,6 +286,7 @@ pub fn spawn_semantic_worker(state: &KnowledgeState) {
         toggles: state.feature_toggle_overlay.clone(),
         handle: state.semantic(),
         alarms: state.drift_alarms.clone(),
+        base: state.base.clone(),
     };
     let shutdown = state.shutdown();
     state.tracker.spawn(worker.run(shutdown));
@@ -298,6 +303,7 @@ pub async fn run_semantic_once(state: &KnowledgeState) -> anyhow::Result<TickRep
         toggles: state.feature_toggle_overlay.clone(),
         handle: state.semantic(),
         alarms: state.drift_alarms.clone(),
+        base: state.base.clone(),
     };
     Ok(worker.tick(&mut LoopState::default()).await?)
 }

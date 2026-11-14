@@ -4,10 +4,9 @@ use serde_json::{Value, json};
 
 use super::skill_author::{AuthoredReference, TriggerQuery};
 use super::skill_findings::Findings;
+use crate::llm::decisions::env::DecisionEnv;
 use crate::llm::{LlmError, OpenRouterClient};
-use crate::store::persistence::lessons::skill_draft_eval::{
-    EvalDraft, EvalFailure, ShippedPatch, SiblingSkill,
-};
+use crate::store::persistence::lessons::skill_draft_eval::{EvalDraft, ShippedPatch, SiblingSkill};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[path = "skill_eval_breaker.rs"]
@@ -17,6 +16,8 @@ pub mod catalog;
 #[cfg(test)]
 #[path = "skill_eval_catalog_tests.rs"]
 pub mod catalog_tests;
+#[path = "skill_eval_store.rs"]
+mod outcome;
 #[path = "skill_eval_overlap.rs"]
 pub mod overlap;
 #[cfg(test)]
@@ -24,6 +25,8 @@ pub mod overlap;
 pub mod overlap_tests;
 #[path = "skill_eval_patch.rs"]
 pub mod patching;
+#[path = "skill_eval_pick.rs"]
+pub mod pick;
 #[path = "skill_eval_progress.rs"]
 pub mod progress;
 #[path = "skill_eval_review.rs"]
@@ -46,6 +49,7 @@ pub mod workspace;
 
 pub use verdict::MIN_TRIGGER_SCORE;
 
+use outcome::{finish, record_failure, save_progress};
 use progress::{Progress, Unit};
 use review::{Decision, Review};
 
@@ -196,6 +200,7 @@ fn entries_for(progress: &Progress, name: &str, description: &str) -> Vec<(Strin
 
 async fn trigger_phase(
     llm: &OpenRouterClient,
+    jev: Option<&pick::JevTrigger>,
     material: &Material,
     progress: &mut Progress,
     plan: &[Unit],
@@ -215,7 +220,7 @@ async fn trigger_phase(
         project: &project,
     };
     let batches = progress::batch_ids(plan);
-    let results = trigger::run_batches(llm, &offer, &material.queries, &batches).await;
+    let results = trigger::run_batches(llm, jev, &offer, &material.queries, &batches).await;
     let (answered, error) = progress::settled(results);
     let done = answered.len();
     let kept = answered.into_iter().flatten();
@@ -269,10 +274,12 @@ async fn review_phase(
 async fn work(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    decisions: Option<&DecisionEnv>,
     draft: &EvalDraft,
     material: &Material,
     progress: &mut Progress,
 ) -> Result<(), EvalError> {
+    let jev = pick::JevTrigger::new(decisions);
     let reservation = llm.reserve(progress.worst_case_calls(material));
     let mut budget = reservation.granted();
     let client = llm.with_reservation(&reservation);
@@ -292,7 +299,7 @@ async fn work(
         match first {
             Unit::Review => review_phase(persist, &client, draft, material, progress).await?,
             Unit::Batch(_) | Unit::Recheck(_) => {
-                trigger_phase(&client, material, progress, &plan).await?;
+                trigger_phase(&client, jev.as_ref(), material, progress, &plan).await?;
             }
         }
     }
@@ -308,6 +315,7 @@ async fn work(
 async fn advance(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    decisions: Option<&DecisionEnv>,
     draft: &EvalDraft,
     report: &mut EvalPassReport,
 ) -> Result<Step, EvalError> {
@@ -316,7 +324,7 @@ async fn advance(
     let outcome = if progress.pending(&material).is_empty() {
         Ok(())
     } else {
-        work(persist, llm, draft, &material, &mut progress).await
+        work(persist, llm, decisions, draft, &material, &mut progress).await
     };
     report.trigger_batches_done = progress.trigger_batches;
     report.reviewed = progress.review.is_some();
@@ -332,6 +340,14 @@ async fn advance(
 }
 
 pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> EvalPassReport {
+    run_pass_with(persist, llm, None).await
+}
+
+pub async fn run_pass_with(
+    persist: &PersistHandle,
+    llm: &OpenRouterClient,
+    decisions: Option<&DecisionEnv>,
+) -> EvalPassReport {
     let mut report = EvalPassReport {
         requeued: requeue_stale(persist).await,
         ..EvalPassReport::default()
@@ -350,7 +366,7 @@ pub async fn run_pass(persist: &PersistHandle, llm: &OpenRouterClient) -> EvalPa
     };
     report.draft_id = Some(draft.id);
     report.folder = Some(draft.folder.clone());
-    let outcome = advance(persist, llm, &draft, &mut report).await;
+    let outcome = advance(persist, llm, decisions, &draft, &mut report).await;
     let report = settle(persist, &draft, outcome, report).await;
     tracing::debug!(?report, "skill eval: pass finished");
     report
@@ -444,56 +460,4 @@ async fn store(
         reasons = ?evaluation.verdict.reasons,
         "skill eval: draft decided"
     );
-}
-
-async fn save_progress(persist: &PersistHandle, draft: &EvalDraft, progress: &Progress) {
-    let value = serde_json::to_value(progress).unwrap_or(Value::Null);
-    if let Err(e) = persist
-        .lessons()
-        .save_skill_draft_progress(draft.id, &value)
-        .await
-    {
-        tracing::warn!(error = %e, draft_id = draft.id, "skill eval: progress not saved");
-    }
-}
-
-async fn finish(
-    persist: &PersistHandle,
-    draft: &EvalDraft,
-    accepted: bool,
-    eval: &Value,
-    patch: Option<ShippedPatch<'_>>,
-) {
-    if let Err(e) = persist
-        .lessons()
-        .finish_skill_draft_eval(draft.id, accepted, eval, patch)
-        .await
-    {
-        tracing::warn!(error = %e, draft_id = draft.id, "skill eval: result not stored");
-    }
-}
-
-async fn record_failure(persist: &PersistHandle, draft: &EvalDraft, reason: &str) {
-    let recorded = persist
-        .lessons()
-        .fail_skill_draft_eval(draft.id, reason, MAX_ATTEMPTS, EVALUATOR_VERSION)
-        .await;
-    match recorded {
-        Ok(failure) => log_attempt_failed(draft, reason, failure),
-        Err(e) => log_failure_lost(draft, &e),
-    }
-}
-
-fn log_attempt_failed(draft: &EvalDraft, reason: &str, failure: Option<EvalFailure>) {
-    tracing::warn!(
-        draft_id = draft.id,
-        folder = %draft.folder,
-        reason,
-        ?failure,
-        "skill eval: attempt failed"
-    );
-}
-
-fn log_failure_lost(draft: &EvalDraft, error: &PersistError) {
-    tracing::warn!(%error, draft_id = draft.id, "skill eval: failure not recorded");
 }

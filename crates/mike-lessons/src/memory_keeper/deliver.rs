@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::block::Block;
 use super::record::spawn_record;
 use super::served::mark_served;
-use super::supply::{Carrier, SupplyRequest, supply};
+use super::supply::{Carrier, SupplyRequest, supply_decided};
 use crate::state::AppState;
 
 const RECENT_PROMPTS: usize = 3;
@@ -24,7 +24,9 @@ pub fn serves_cards(state: &AppState) -> bool {
 pub async fn card_for(state: &AppState, ask: &CardAsk<'_>) -> Option<Block> {
     let recent = recent_prompts(state, &ask.session.to_string()).await;
     let snapshot = state.keeper_snapshot.load();
-    let outcome = supply(
+    let env = state.decision_env();
+    let outcome = supply_decided(
+        env.as_ref(),
         &snapshot,
         &SupplyRequest {
             session: ask.session,
@@ -36,7 +38,8 @@ pub async fn card_for(state: &AppState, ask: &CardAsk<'_>) -> Option<Block> {
             carrier: ask.carrier,
             now: Utc::now(),
         },
-    );
+    )
+    .await;
     if let Some(record) = outcome.record {
         spawn_record(state.persist().cloned(), record);
     }

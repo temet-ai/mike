@@ -53,7 +53,11 @@ pub fn same_purpose(first: &str, second: &str) -> bool {
     shared >= MIN_SHARED_WORDS && shared * 4 >= a.len().min(b.len()) * 3
 }
 
-pub fn plan_moves(purposes: &[SkillPurpose]) -> BTreeMap<i64, Vec<TopicMove>> {
+pub fn shares_a_word(first: &str, second: &str) -> bool {
+    !words(first).is_disjoint(&words(second))
+}
+
+pub fn sorted_by_project(purposes: &[SkillPurpose]) -> BTreeMap<i64, Vec<&SkillPurpose>> {
     let mut by_project: BTreeMap<i64, Vec<&SkillPurpose>> = BTreeMap::new();
     for purpose in purposes {
         by_project
@@ -61,14 +65,20 @@ pub fn plan_moves(purposes: &[SkillPurpose]) -> BTreeMap<i64, Vec<TopicMove>> {
             .or_default()
             .push(purpose);
     }
-    let mut plan = BTreeMap::new();
-    for (project_id, mut topics) in by_project {
+    for topics in by_project.values_mut() {
         topics.sort_by(|a, b| {
             b.shipped
                 .cmp(&a.shipped)
                 .then(b.lessons.cmp(&a.lessons))
                 .then(a.topic.cmp(&b.topic))
         });
+    }
+    by_project
+}
+
+pub fn plan_moves(purposes: &[SkillPurpose]) -> BTreeMap<i64, Vec<TopicMove>> {
+    let mut plan = BTreeMap::new();
+    for (project_id, topics) in sorted_by_project(purposes) {
         let mut survivors: Vec<&str> = Vec::new();
         let mut moves = Vec::new();
         for topic in topics {
@@ -137,7 +147,8 @@ pub async fn run_pass(deps: &ProposerDeps<'_>) -> PurposeReport {
             return report;
         }
     };
-    for (project_id, moves) in plan_moves(&purposes) {
+    let plan = super::purpose_pick::plan_moves(deps.decisions, &purposes).await;
+    for (project_id, moves) in plan {
         merge_project(deps, project_id, &moves, &mut report).await;
     }
     report

@@ -2,6 +2,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::grade::rerank_all;
+use super::search_decide::{self, SearchJev};
 use crate::search_ranking::tuning::GradeCandidate;
 use crate::semantic::KnowledgeState;
 
@@ -24,6 +25,10 @@ pub struct Graded {
 pub struct Scored<'a> {
     pub candidates: &'a [GradeCandidate],
     pub documents: &'a [String],
+    pub jev: Option<&'a SearchJev>,
+    pub query: &'a str,
+    pub turn_prompt: Option<&'a str>,
+    pub used: &'a [String],
 }
 
 pub fn first_ten_references(returned: &Value) -> Vec<String> {
@@ -61,7 +66,7 @@ pub async fn grade_first_ten(
         .collect();
     let turn_scores = turn_scores(state, turn_query, &found, scored.documents).await;
     let threshold = state.rerank_service().current_config().rescue_score;
-    let results: Vec<ResultGrade> = references
+    let mut results: Vec<ResultGrade> = references
         .iter()
         .zip(found.iter().zip(turn_scores))
         .enumerate()
@@ -78,6 +83,21 @@ pub async fn grade_first_ten(
             }
         })
         .collect();
+    if let Some(jev) = scored.jev {
+        let texts: Vec<Option<&str>> = found
+            .iter()
+            .map(|at| at.and_then(|i| scored.documents.get(i)).map(String::as_str))
+            .collect();
+        search_decide::grade(
+            jev,
+            scored.query,
+            scored.turn_prompt,
+            &mut results,
+            &texts,
+            scored.used,
+        )
+        .await;
+    }
     let relevant = results
         .iter()
         .filter(|r| r.relevant == Some(true))

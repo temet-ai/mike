@@ -70,29 +70,44 @@ pub async fn run_proposer_tick(ctx: &SweepContext<'_>, toggle_on: bool) {
         return;
     };
     let semantic = semantic_config(ctx).await;
+    let env = ctx.decision_env(&llm);
     let deps = ProposerDeps {
         persist: ctx.persist,
         llm: &llm,
         embedding: ctx.embedding,
         semantic: &semantic,
         settings: &settings,
+        decisions: Some(&env),
     };
     let report = lesson_proposer::run_tick(&deps).await;
     tracing::debug!(?report, "quiescence_worker: lesson proposer pass");
-    run_topic_pass(ctx, &llm).await;
+    run_topic_pass(ctx, &llm, &env).await;
 }
 
-async fn run_topic_pass(ctx: &SweepContext<'_>, llm: &OpenRouterClient) {
-    let topics =
-        lesson_proposer::topics::run_pass(ctx.persist, llm, lesson_proposer::topics::BATCH).await;
+async fn run_topic_pass(
+    ctx: &SweepContext<'_>,
+    llm: &OpenRouterClient,
+    env: &crate::llm::decisions::env::DecisionEnv,
+) {
+    let topics = lesson_proposer::topics::run_pass(
+        ctx.persist,
+        llm,
+        Some(env),
+        lesson_proposer::topics::BATCH,
+    )
+    .await;
     tracing::debug!(?topics, "quiescence_worker: lesson topic pass");
-    run_skill_author_pass(ctx, llm).await;
+    run_skill_author_pass(ctx, llm, env).await;
 }
 
-async fn run_skill_author_pass(ctx: &SweepContext<'_>, llm: &OpenRouterClient) {
+async fn run_skill_author_pass(
+    ctx: &SweepContext<'_>,
+    llm: &OpenRouterClient,
+    env: &crate::llm::decisions::env::DecisionEnv,
+) {
     let author = lesson_proposer::skill_author::run_pass(ctx.persist, llm).await;
     tracing::debug!(?author, "quiescence_worker: skill author pass");
-    lesson_proposer::skill_eval::run_pass(ctx.persist, llm).await;
+    lesson_proposer::skill_eval::run_pass_with(ctx.persist, llm, Some(env)).await;
 }
 
 fn log_no_key() {

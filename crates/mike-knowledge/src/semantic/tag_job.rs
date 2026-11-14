@@ -15,6 +15,7 @@ use super::cluster::{CLUSTER_VERSION, GroupRules, Member, mutual_groups};
 use super::config::SemanticConfig;
 use super::floors_job::floor_set;
 use super::tagger::{AnchorHit, CorrectionRef, TAGGER_VERSION, assign};
+use crate::llm::decisions::env::DecisionEnv;
 
 const BATCH: i64 = 64;
 
@@ -49,12 +50,25 @@ fn assignment_row(
     floor: (i64, f64),
     embedder: &EmbedderRow,
     min_score: f64,
-) -> NewAssignment {
+) -> (NewAssignment, Vec<AnchorHit>) {
     let correction = CorrectionRef {
         session_uuid: &c.session_uuid,
         request_id: c.request_id,
     };
     let assigned = assign(hits, &correction, min_score);
+    let tops = assigned
+        .as_ref()
+        .map(|a| a.top_anchors.clone())
+        .unwrap_or_default();
+    (row_from(c, assigned, floor, embedder), tops)
+}
+
+fn row_from(
+    c: &CorrectionForTagging,
+    assigned: Option<super::tagger::Assignment>,
+    floor: (i64, f64),
+    embedder: &EmbedderRow,
+) -> NewAssignment {
     let base = NewAssignment {
         corrected_turn_id: c.corrected_turn_id,
         correction_item_id: c.item_id,
@@ -90,6 +104,7 @@ pub async fn tag_tick(
     persist: &PersistHandle,
     config: &SemanticConfig,
     embedder: &EmbedderRow,
+    decisions: Option<&DecisionEnv>,
 ) -> Result<TagReport, SemanticError> {
     let floors = floor_set(persist, &embedder.embedder_key, config.floor_quantile).await?;
     let Some(floor) = floors.by_pair.get("corr:corr").copied() else {
@@ -107,7 +122,7 @@ pub async fn tag_tick(
         .nearest_anchors(&corrections, &embedder.embedder_key)
         .await?;
     let mut hits = hits_for(&anchors, floor.floor);
-    let rows: Vec<NewAssignment> = corrections
+    let (mut rows, tops): (Vec<NewAssignment>, Vec<Vec<AnchorHit>>) = corrections
         .iter()
         .map(|c| {
             let h = hits.remove(&c.item_id).unwrap_or_default();
@@ -119,7 +134,8 @@ pub async fn tag_tick(
                 config.tagger_min_score,
             )
         })
-        .collect();
+        .unzip();
+    super::tag_decide::refine(decisions, persist, &corrections, &mut rows, &tops).await;
     let assigned = rows.iter().filter(|r| r.pattern.is_some()).count();
     let written = persist
         .knowledge()

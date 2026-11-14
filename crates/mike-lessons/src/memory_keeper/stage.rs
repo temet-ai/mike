@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::block::{Block, KEEPER_MARKER_OPEN};
 use super::record::spawn_record;
 use super::served::served_by_client;
-use super::supply::{Carrier, SupplyRequest, supply};
+use super::supply::{Carrier, SupplyRequest, supply_decided};
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::appender::append_block_to_last_user_message;
 use crate::reminders::session_lessons_query::recent_user_prompts;
@@ -36,7 +36,7 @@ impl RequestStage for MemoryKeeperStage {
         let Ok(session) = Uuid::parse_str(ctx.session_id) else {
             return;
         };
-        let Some(block) = card(ctx, session, body.body()) else {
+        let Some(block) = card(ctx, session, body.body()).await else {
             body.record_unchanged(STAGE, STAGE, "memory_keeper_nothing_to_supply");
             return;
         };
@@ -71,11 +71,13 @@ fn carries_marker(body: &[u8]) -> bool {
     body.windows(marker.len()).any(|window| window == marker)
 }
 
-fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
+async fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
     let (prompts, _) = recent_user_prompts(body, RECENT_PROMPTS);
     let (prompt, recent) = prompts.split_first()?;
     let snapshot = ctx.state.keeper_snapshot.load();
-    let outcome = supply(
+    let env = ctx.state.decision_env();
+    let outcome = supply_decided(
+        env.as_ref(),
         &snapshot,
         &SupplyRequest {
             session,
@@ -87,7 +89,8 @@ fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
             carrier: Carrier::Proxy,
             now: Utc::now(),
         },
-    );
+    )
+    .await;
     if let Some(record) = outcome.record {
         spawn_record(ctx.state.persist().cloned(), record);
     }
