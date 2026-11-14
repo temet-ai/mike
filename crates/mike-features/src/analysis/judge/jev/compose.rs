@@ -63,12 +63,12 @@ fn reaction(asked: &Asked, has_next: bool) -> (Reaction, f64) {
         p(asked, REDIRECTED),
         p(asked, ACCEPTED),
     );
-    if corrected >= YES {
+    if corrected >= YES && corrected >= accepted {
         (Reaction::Corrected, corrected)
+    } else if accepted >= YES && accepted > corrected {
+        (Reaction::Accepted, accepted)
     } else if redirected >= YES {
         (Reaction::Redirected, redirected)
-    } else if accepted >= YES {
-        (Reaction::Accepted, accepted)
     } else {
         (
             Reaction::Unclear,
@@ -117,12 +117,12 @@ fn legacy(asked: &Asked) -> (JudgeLabel, f64) {
     }
 }
 
-fn label_of(reaction: Reaction, delivery: Delivery) -> JudgeLabel {
+fn label_of(reaction: Reaction, delivery: Delivery, shipped: bool) -> JudgeLabel {
     match (reaction, delivery) {
         (Reaction::Corrected, _) => JudgeLabel::Corrected,
-        (_, Delivery::None) => JudgeLabel::Abandoned,
-        (_, Delivery::Shipped) => JudgeLabel::Shipped,
-        (_, Delivery::Delivered) => JudgeLabel::Accepted,
+        (Reaction::Accepted, _) if shipped => JudgeLabel::Shipped,
+        (Reaction::Accepted, _) => JudgeLabel::Accepted,
+        (Reaction::NoResponse, Delivery::Shipped) => JudgeLabel::Shipped,
         _ => JudgeLabel::Unknown,
     }
 }
@@ -157,7 +157,7 @@ pub fn compose(asked: &Asked, shape: Shape) -> Option<Composed> {
         Shape::TwoAxis { has_next } => {
             let (reaction, confidence) = reaction(asked, has_next);
             Composed {
-                label: label_of(reaction, delivery),
+                label: label_of(reaction, delivery, p(asked, SHIPPED) >= YES),
                 reaction,
                 delivery,
                 confidence,

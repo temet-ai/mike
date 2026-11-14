@@ -75,8 +75,42 @@ fn compose_two_axis_without_next_message_is_no_response_and_certain() -> anyhow:
     let shape = Shape::TwoAxis { has_next: false };
     let c = composed(shape, &[(questions::DELIVERED, 0.9)])?;
     assert_eq!(c.reaction, Reaction::NoResponse);
-    assert_eq!(c.label, JudgeLabel::Accepted);
+    assert_eq!(c.label, JudgeLabel::Unknown);
     assert!(!c.uncertain());
+    let shipped = composed(
+        shape,
+        &[(questions::DELIVERED, 0.9), (questions::SHIPPED, 0.8)],
+    )?;
+    assert_eq!(shipped.label, JudgeLabel::Shipped);
+    Ok(())
+}
+
+#[test]
+fn compose_two_axis_operator_acceptance_labels_accepted_even_when_not_seen_as_delivered()
+-> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    let c = composed(
+        shape,
+        &[
+            (questions::ACCEPTED, 0.8),
+            (questions::CORRECTED, 0.1),
+            (questions::DELIVERED, 0.1),
+            (questions::ABANDONED, 0.9),
+        ],
+    )?;
+    assert_eq!(c.reaction, Reaction::Accepted);
+    assert_eq!(c.label, JudgeLabel::Accepted);
+    Ok(())
+}
+
+#[test]
+fn compose_two_axis_takes_the_stronger_of_correction_and_acceptance() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    let c = composed(
+        shape,
+        &[(questions::ACCEPTED, 0.9), (questions::CORRECTED, 0.6)],
+    )?;
+    assert_eq!(c.label, JudgeLabel::Accepted);
     Ok(())
 }
 
