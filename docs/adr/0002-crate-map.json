@@ -459,7 +459,7 @@
   "launch": "launch",
   "launch_settings": "launch",
   "lessons_settings": "lessons",
-  "feature_settings": "serve",
+  "feature_settings": "web",
   "api/workspace/channel": "fleet",
   "launch/cli/seat_health": "fleet",
   "launch/cross_crate_tests/runtime_observation_tests": "fleet",
