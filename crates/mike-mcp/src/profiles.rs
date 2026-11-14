@@ -47,6 +47,10 @@ pub const RETROSPECTIVE_TOOLS: &[&str] = &[
     "get_request_body",
     "write_session_note",
     "end_workspace_registration",
+    "work_thread_list",
+    "work_thread_get",
+    "work_thread_checkpoint",
+    "work_thread_add_entry",
 ];
 
 pub const PROBLEM_SOLVER_TOOLS: &[&str] = &[

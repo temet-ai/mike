@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use super::definition_patch::{STATE_DRAFT, STATE_FAILED, STATE_READY, environment_problems};
 use super::definition_view::FleetView;
+use super::previous_runs::{self, PreviousRuns};
 use crate::base_state::BaseState;
 use crate::launch::fleet::capacity::{self, Planned};
 use crate::launch::fleet::plan::ready_tasks;
@@ -18,6 +19,8 @@ pub struct AtReady {
     machine: Vec<Missing>,
     missing: Vec<ReadyWarning>,
     notes: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    previous_runs: Option<PreviousRuns>,
 }
 
 async fn notes(def: &FleetDefinition) -> Vec<&'static str> {
@@ -108,7 +111,12 @@ pub async fn view(state: &BaseState, row: &FleetRow) -> FleetView {
     };
     let planned = starts(&def);
     let capacity = capacity::plan(state.persist(), &def, planned.most_at_once).await;
+    let previous_runs = match state.persist() {
+        Some(persist) => previous_runs::load(persist, &row.project_path, &def).await,
+        None => None,
+    };
     view.with_at_ready(AtReady {
+        previous_runs,
         notes: notes(&def).await,
         missing: warnings(&def, &planned),
         starts: planned,
@@ -121,6 +129,38 @@ pub async fn view(state: &BaseState, row: &FleetRow) -> FleetView {
 mod tests {
     use super::*;
     use crate::launch::fleet::definition::{TaskDefinition, WorkerDefinition};
+
+    #[test]
+    fn previous_runs_ride_in_the_at_ready_answer() -> anyhow::Result<()> {
+        let previous = previous_runs::newest(
+            "fleet-runs",
+            vec![crate::store::persistence::work_threads::HistoryEntry {
+                ord: 4,
+                kind: "finding".to_string(),
+                entry_date: chrono::Utc::now().date_naive(),
+                session_uuid: None,
+                commit_sha: None,
+                summary: "open-issues: a finding".to_string(),
+                body: String::new(),
+                data: None,
+                created_at: chrono::Utc::now(),
+            }],
+        );
+        let value = serde_json::to_value(AtReady {
+            starts: starts(&FleetDefinition::default()),
+            capacity: None,
+            machine: Vec::new(),
+            missing: Vec::new(),
+            notes: Vec::new(),
+            previous_runs: previous,
+        })?;
+        assert_eq!(
+            value["previous_runs"]["findings"][0]["entry"],
+            "fleet-runs#4"
+        );
+        assert!(value["previous_runs"]["ask"].is_string());
+        Ok(())
+    }
 
     #[test]
     fn a_planned_cold_start_is_a_warning_in_at_ready_missing() {
@@ -143,6 +183,7 @@ mod tests {
             machine: Vec::new(),
             missing: warnings,
             notes: Vec::new(),
+            previous_runs: None,
         }) else {
             panic!("at_ready must serialize");
         };

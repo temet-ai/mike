@@ -7,6 +7,7 @@ pub mod definition_view;
 pub mod definitions;
 pub mod graph;
 pub mod observations;
+pub mod previous_runs;
 pub mod propose;
 pub mod record;
 pub mod report;

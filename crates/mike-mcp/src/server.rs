@@ -130,7 +130,9 @@ impl ServerHandler for McpServer {
             .with_instructions(if self.profile == Profile::Retrospective {
                 "Findings-only retrospective. The listed inspection tools may read source \
                  sessions. write_session_note creates ordinary findings notes on your trusted \
-                 process session only; omit session_id or supply that same session. Existing \
+                 process session only; omit session_id or supply that same session. \
+                 work_thread_add_entry writes kind finding entries and work_thread_checkpoint \
+                 creates a missing thread, both as your trusted process session. Existing \
                  notes, carry-over lessons and executable rulings cannot be written. Record \
                  amendments as new findings notes. end_workspace_registration ends only your \
                  own registration. Unlisted tools are rejected, including direct calls by name. \

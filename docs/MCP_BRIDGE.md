@@ -102,7 +102,7 @@ The bridge serves one of two tool sets, chosen by a `Profile` (`Core` or `Full`)
 - **A profile per kind of fleet seat.** `worker`, `coordinator`, `acceptance`, `observer`,
   `reference` and `retrospective` (`profiles.rs`) each ship only what that kind of seat uses, so a
   seat does not carry the schemas of tools it never calls (30 tools for `worker`, 45 for
-  `coordinator`, 48 for `acceptance`, 68 for `observer`, 49 for `reference`, 8 for
+  `coordinator`, 48 for `acceptance`, 68 for `observer`, 49 for `reference`, 12 for
   `retrospective`, 11 for `problem_solver` in this build). The seat kinds that work on a task have the
   fleet tools (`get_fleet`, `list_fleet_changes`, `list_fleet_results`, `fleet_commit`,
   `fleet_check`, `fleet_where`, `what_changed`, `fleet_propose`, `fleet_split`, `fleet_report`),
@@ -111,8 +111,9 @@ The bridge serves one of two tool sets, chosen by a `Profile` (`Core` or `Full`)
   `get_request_tool_calls`, `list_session_tool_uses`, `list_tool_errors`) and the project's lessons
   and knowledge. The coordinator adds fleet definition and launching, the acceptance seat adds
   session and request reading, and the observer adds both and the investigation tools. The
-  `retrospective` profile is the read-and-note set a closed run's retrospective uses
-  (`RETROSPECTIVE_TOOLS`). mike launches each fleet seat with its kind's profile in
+  `retrospective` profile is the read-and-note set a closed run's retrospective uses, plus
+  `work_thread_list`, `work_thread_get`, `work_thread_checkpoint` and `work_thread_add_entry`
+  (`RETROSPECTIVE_TOOLS`); its entries must be kind `finding`, written as its own session. mike launches each fleet seat with its kind's profile in
   `MIKE_MCP_PROFILE`. Every tool stays callable by name whatever the profile.
 - **Five tools are only in `full`** (`FULL_ONLY_TOOLS`): `confirm_message_receipt`,
   `register_workspace_session`, `verify_message_read`, `workspace_heartbeat` and

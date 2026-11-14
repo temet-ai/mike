@@ -122,12 +122,12 @@ fn snapshot_has_independent_identity_and_no_nested_previous_job() -> anyhow::Res
 }
 
 #[test]
-fn read_only_launch_has_no_shell_edits_hooks_or_inherited_settings() -> anyhow::Result<()> {
+fn default_launch_has_no_edit_tools_hooks_or_inherited_settings() -> anyhow::Result<()> {
     let def = FleetDefinition::default();
     let args = super::retrospective_launch::args(&def, &job());
     assert!(
         args.windows(2)
-            .any(|pair| pair == ["--tools", "Read,Glob,Grep"])
+            .any(|pair| pair == ["--tools", "Read,Glob,Grep,Bash"])
     );
     assert!(
         args.windows(2)
@@ -142,7 +142,7 @@ fn read_only_launch_has_no_shell_edits_hooks_or_inherited_settings() -> anyhow::
         .ok_or_else(|| anyhow::anyhow!("missing settings argument"))?;
     assert!(settings.contains("\"disableAllHooks\":true"));
     assert!(settings.contains("\"MIKE_MCP_PROFILE\":\"retrospective\""));
-    assert!(!settings.contains("Bash"));
+    assert!(!settings.contains("Bash(*"));
     assert!(!settings.contains("send_session_message"));
     Ok(())
 }
