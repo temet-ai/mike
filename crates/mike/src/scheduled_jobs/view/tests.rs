@@ -354,6 +354,23 @@ fn a_run_missed_before_mike_started_says_mike_was_not_running() {
     assert!(v.fix.contains("Run now"), "{}", v.fix);
 }
 
+#[test]
+fn a_checkout_only_job_without_a_checkout_says_so_and_is_not_scheduled() {
+    let mut status = JobStatus {
+        needs_checkout: true,
+        ..ready()
+    };
+    status.next_run_at = Some(at(14, 18, 0));
+    let v = build_view(&SIX_HOURLY_FIXTURE, &status, None, at(14, 12, 0));
+    assert_eq!(v.state, JobState::Unavailable);
+    assert!(
+        v.detail.contains("needs a mike source checkout"),
+        "{}",
+        v.detail
+    );
+    assert_eq!(v.next_run_at, None);
+}
+
 fn without_scripts() -> JobStatus {
     JobStatus {
         script_dir_missing: true,

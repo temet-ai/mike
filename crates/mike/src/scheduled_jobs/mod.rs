@@ -1,6 +1,7 @@
 mod history;
 mod jobs;
 mod lease;
+mod root;
 mod run_now;
 mod runner;
 mod schedule;
@@ -19,6 +20,7 @@ use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) use jobs::{JOBS, Job};
+pub(crate) use root::{Presence, locate};
 pub(crate) use run_now::{RefusalReason, RunRefusal, request_run};
 pub(crate) use status::snapshot;
 #[cfg(test)]
@@ -46,28 +48,31 @@ struct Worker {
 }
 
 pub(crate) fn spawn_scheduled_jobs(state: &AppState) {
-    let root = match std::env::current_dir() {
-        Ok(root) => Some(root),
-        Err(e) => {
-            log_no_working_directory(&e);
-            None
-        }
-    };
+    if let Some(url) = state.config.database_url.clone() {
+        runner::share_database_url(url);
+    }
     let now = Utc::now();
     for (index, job) in JOBS.iter().enumerate() {
+        let located = locate(job);
+        if located.root.is_none() {
+            log_no_working_directory();
+        }
         let next = Schedule::default().next_run_at(&job.cadence, now);
-        let no_scripts = root
+        let no_scripts = located
+            .root
             .as_ref()
             .is_some_and(|root| script_dir_missing(root, job));
+        let needs_checkout = located.presence == Presence::NeedsCheckout;
         status::update(job.name, |s| {
             s.started = true;
             s.process_started_at = Some(now);
             s.enabled = true;
-            s.root = root.clone();
-            s.script_dir_missing = no_scripts;
-            s.next_run_at = next;
+            s.root = located.root.clone();
+            s.script_dir_missing = no_scripts && !needs_checkout;
+            s.needs_checkout = needs_checkout;
+            s.next_run_at = if needs_checkout { None } else { next };
         });
-        if let Some(root) = &root {
+        if let (Some(root), true) = (&located.root, located.runs_here()) {
             let mut worker = Worker {
                 job,
                 root: root.clone(),
@@ -96,8 +101,8 @@ fn log_spawned(job: &Job, root: &std::path::Path) {
     tracing::info!(job = job.name, root = %root.display(), "scheduled_jobs: spawned");
 }
 
-fn log_no_working_directory(e: &std::io::Error) {
-    tracing::warn!(error = %e, "scheduled_jobs: the working directory is unknown — not running");
+fn log_no_working_directory() {
+    tracing::warn!("scheduled_jobs: no script folder and no working directory — not running");
 }
 
 fn log_setting_unreadable(job: &Job, e: &PersistError) {

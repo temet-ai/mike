@@ -8,11 +8,12 @@ import subprocess
 from common import ReleaseError, source_git
 
 PREFIX = "share/mike/mods/"
+SCRIPTS_PREFIX = "share/mike/scripts/"
 MAX_ASSET_BYTES = 4 * 1024 * 1024
 
 
 def is_asset(path):
-    return (isinstance(path, str) and path.startswith(PREFIX)
+    return (isinstance(path, str) and path.startswith((PREFIX, SCRIPTS_PREFIX))
             and all(re.fullmatch(r"[A-Za-z0-9_.@+-]+", part)
                     and part not in (".", "..") for part in path.split("/")))
 
@@ -35,15 +36,19 @@ def payload(root):
             continue
         if not is_asset(name) or mode not in ("100644", "100755") or stage != "0":
             raise ReleaseError("mods must be tracked regular files without merge conflicts")
-        environment = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
-        environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
-                           GIT_NO_REPLACE_OBJECTS="1", GIT_NO_LAZY_FETCH="1")
-        data = subprocess.run(["git", "cat-file", "blob", digest], cwd=root, env=environment,
-                              check=True, capture_output=True).stdout
+        data = blob(root, digest)
         if len(data) > MAX_ASSET_BYTES:
             raise ReleaseError("mod asset exceeds package limit")
         contents.append((name, data, int(mode, 8) & 0o777))
     return contents
+
+
+def blob(root, digest):
+    environment = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
+    environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+                       GIT_NO_REPLACE_OBJECTS="1", GIT_NO_LAZY_FETCH="1")
+    return subprocess.run(["git", "cat-file", "blob", digest], cwd=root, env=environment,
+                          check=True, capture_output=True).stdout
 
 
 def create_file(root, path, mode):

@@ -3,10 +3,12 @@ mod probes;
 
 mod check_background;
 mod check_claude;
+mod check_features;
 mod checks;
 mod code_scan;
 mod observe;
 mod observe_db;
+mod observe_features;
 mod observed;
 mod render;
 

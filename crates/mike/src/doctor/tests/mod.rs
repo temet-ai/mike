@@ -5,9 +5,10 @@ use serde_json::Value;
 use super::checks::evaluate;
 use super::code_scan::{BuiltinRules, CodeScanFacts};
 use super::observed::{
-    BuildFacts, CapabilityFacts, ConfigFileFacts, ConnectionFacts, DatabaseFacts, EmbeddingFacts,
-    ExtensionFacts, McpFacts, MigrationFacts, ModelFacts, Observed, RerankFacts, ServerFacts,
-    ServiceFacts, ShellFacts, SidecarFacts, SpaFacts, ToolFacts,
+    BuildFacts, CapabilityFacts, CodexFacts, ConfigFileFacts, ConnectionFacts, DatabaseFacts,
+    EmbeddingFacts, ExtensionFacts, FeatureFacts, JobFacts, McpFacts, MigrationFacts, ModelFacts,
+    Observed, PromptAssistantFacts, RerankFacts, ServerFacts, ServiceFacts, ShellFacts,
+    SidecarFacts, SpaFacts, ToolFacts, WorkerProviderFacts,
 };
 use super::{Check, Report, SetupStep, Status, render};
 use crate::claude_code::{Registration, Route};
@@ -115,6 +116,27 @@ fn healthy() -> Observed {
             scans_24h: 12,
             last_scan_at: Some("2026-11-14T09:00:00Z".to_string()),
         }),
+        features: FeatureFacts {
+            jobs: JobFacts {
+                runnable: 4,
+                missing: Vec::new(),
+                needs_checkout: vec!["lessons_commit"],
+            },
+            worker_provider: WorkerProviderFacts {
+                claude_on_service_path: Some(PathBuf::from("/home/ada/.local/bin/claude")),
+                openrouter_key_variable: None,
+            },
+            codex: CodexFacts {
+                on_path: false,
+                home: Some(PathBuf::from("/home/ada/.codex")),
+                hooks_installed: false,
+            },
+            prompt_assistant: PromptAssistantFacts {
+                enabled: true,
+                addr: "127.0.0.1:9985".to_string(),
+                answering: true,
+            },
+        },
     }
 }
 
@@ -147,6 +169,7 @@ fn server_mut(observed: &mut Observed) -> anyhow::Result<&mut ServerFacts> {
 mod background;
 mod code_scan;
 mod database;
+mod features;
 mod host;
 mod report;
 mod rerank;

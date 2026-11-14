@@ -12,7 +12,7 @@ import tomllib
 
 from journey_process import require, captured_run, installation_identity, runtime_environment
 from journey_reliability import api_json, owned_database
-from journey_reliability_defaults import ENDPOINT_OVERRIDES, validate_default_features
+from journey_reliability_defaults import ENDPOINT_OVERRIDES, validate_default_features, validate_scheduled_jobs
 from journey_reliability_isolation import FEATURES, verify_service_prerequisites
 from journey_reliability_profiles import NORMAL_ENABLED
 
@@ -365,6 +365,7 @@ def observe_defaults(port, health, cluster, database, budget, report):
     verify_service_prerequisites(health)
     flags = validate_default_features(api_json(port, "/api/settings/features", budget))
     settings = validate_settings(api_json(port, "/api/settings", budget))
+    validate_scheduled_jobs(api_json(port, "/api/scheduled-jobs", budget))
     owned_database(cluster, database)
     overlays = json.loads(cluster.sql(database, "BEGIN READ ONLY; SET LOCAL statement_timeout=5000; "
                                       + OVERLAYS_SQL + "; COMMIT;"))

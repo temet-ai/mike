@@ -64,9 +64,16 @@ pub(super) fn refusal(job: &Job, status: &JobStatus) -> Option<RunRefusal> {
         );
         return Some(refused(RefusalReason::TurnedOff, why));
     }
+    if status.needs_checkout {
+        let why = format!(
+            "{} needs a mike source checkout and is not scheduled on this machine",
+            job.name
+        );
+        return Some(refused(RefusalReason::NoScripts, why));
+    }
     if status.script_dir_missing {
         let why = format!(
-            "{} cannot run on this machine: the job is the script {}, and mike was started in a directory that has no scripts folder",
+            "{} cannot run on this machine: the job is the script {}, and neither the directory mike was started in nor its package install has a scripts folder",
             job.name, job.script
         );
         return Some(refused(RefusalReason::NoScripts, why));

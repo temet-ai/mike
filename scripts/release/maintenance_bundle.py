@@ -7,7 +7,7 @@ import zipfile
 from common import regular_file
 
 # This is an explicit dependency closure, never a recursive source-tree copy.
-MODULES = ("mod_assets", "archive", "common", "migration_inventory", "notice_inputs", "notice_inventory", "inputs", "install", "install_state", "owned_process", "recovery",
+MODULES = ("mod_assets", "script_assets", "archive", "common", "migration_inventory", "notice_inputs", "notice_inventory", "inputs", "install", "install_state", "owned_process", "recovery",
            "recovery_database", "recovery_files", "recovery_tools")
 LAUNCHER = b'''#!/bin/bash
 # Optional maintenance only. Core mike and mike-mcp do not need Python or Bash.

@@ -92,6 +92,22 @@ fn refusal_names_the_script_when_the_directory_has_no_scripts_folder() -> anyhow
 }
 
 #[test]
+fn refusal_says_a_checkout_only_job_needs_a_source_checkout() -> anyhow::Result<()> {
+    let mut status = ready();
+    status.needs_checkout = true;
+    let Some(refusal) = refusal(&PROMOTE, &status) else {
+        anyhow::bail!("a job that needs a checkout was not refused");
+    };
+    assert_eq!(refusal.reason, RefusalReason::NoScripts);
+    assert!(
+        refusal.message.contains("needs a mike source checkout"),
+        "{}",
+        refusal.message
+    );
+    Ok(())
+}
+
+#[test]
 fn refusal_covers_unstarted_and_leased_elsewhere_jobs() {
     assert_eq!(
         reason_for(&JobStatus::default()),

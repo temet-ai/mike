@@ -16,7 +16,7 @@ import journey_reliability_normal_fixture as fixture
 import journey_reliability_normal_workers as workers
 from journey_fixture import MODEL, TEXT, TOOL_NAME
 from journey_process import JourneyError, installation_identity
-from journey_reliability_defaults import normal_default_config
+from journey_reliability_defaults import CHECKOUT_ONLY_JOB_IDS, SHIPPED_JOB_IDS, normal_default_config
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -349,13 +349,17 @@ class WorkloadTests(OfflineTests):
 class DefaultsObservationTests(OfflineTests):
     settings = DefaultTests.settings
 
+    def jobs(self):
+        return {"jobs": [{"id": name, "state": "never_run" if name in SHIPPED_JOB_IDS else "unavailable"}
+                         for name in SHIPPED_JOB_IDS + CHECKOUT_ONLY_JOB_IDS]}
+
     def observe(self, overlays, report):
         features = {"features": [{"key": key, "enabled": key in defaults.NORMAL_ENABLED,
                     "scope": meta[0], "applies": meta[1]} for key, meta in defaults.FEATURES.items()]}
         cluster = Mock(created=["owned"])
         cluster.sql.return_value = json.dumps(overlays)
         with patch.object(defaults, "verify_service_prerequisites"), \
-                patch.object(defaults, "api_json", side_effect=[features, self.settings()]):
+                patch.object(defaults, "api_json", side_effect=[features, self.settings(), self.jobs()]):
             defaults.observe_defaults(12345, {}, cluster, "owned", base.Budget(10), report)
         self.assertTrue(cluster.sql.call_args.args[1].startswith("BEGIN READ ONLY;"))
 

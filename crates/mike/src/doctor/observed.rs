@@ -20,6 +20,42 @@ pub(crate) struct Observed {
     pub(crate) rerank: RerankFacts,
     pub(crate) launch_backend: String,
     pub(crate) code_scan: Option<super::code_scan::CodeScanFacts>,
+    pub(crate) features: FeatureFacts,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FeatureFacts {
+    pub(crate) jobs: JobFacts,
+    pub(crate) worker_provider: WorkerProviderFacts,
+    pub(crate) codex: CodexFacts,
+    pub(crate) prompt_assistant: PromptAssistantFacts,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct JobFacts {
+    pub(crate) runnable: usize,
+    pub(crate) missing: Vec<&'static str>,
+    pub(crate) needs_checkout: Vec<&'static str>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct WorkerProviderFacts {
+    pub(crate) claude_on_service_path: Option<PathBuf>,
+    pub(crate) openrouter_key_variable: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CodexFacts {
+    pub(crate) on_path: bool,
+    pub(crate) home: Option<PathBuf>,
+    pub(crate) hooks_installed: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PromptAssistantFacts {
+    pub(crate) enabled: bool,
+    pub(crate) addr: String,
+    pub(crate) answering: bool,
 }
 
 #[derive(Debug, Clone)]

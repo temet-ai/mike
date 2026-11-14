@@ -173,9 +173,17 @@ fn owned_elsewhere(owner: Option<Uuid>) -> Assessment {
 
 fn unavailable(job: &Job, status: &JobStatus) -> Assessment {
     let detail = format!(
-        "This job is the script {}, which mike runs from the directory it was started in. {} has no scripts folder, so the job does not run on this machine.",
+        "This job is the script {}, which mike runs from a source checkout or from the scripts folder of its package install. {} has no scripts folder and the package has none, so the job does not run on this machine.",
         job.script,
         root_text(status)
+    );
+    Assessment::new(JobState::Unavailable, detail, "")
+}
+
+fn needs_checkout(job: &Job) -> Assessment {
+    let detail = format!(
+        "This job is the script {}, which works on a mike source checkout. It needs a mike source checkout on this machine and is not scheduled here.",
+        job.script
     );
     Assessment::new(JobState::Unavailable, detail, "")
 }
@@ -200,6 +208,9 @@ fn gate(job: &Job, status: &JobStatus, owner: Option<Uuid>) -> Option<Assessment
             ),
             "Start the proxy from the mike checkout (the stack unit sets WorkingDirectory) and check the proxy log.",
         ));
+    }
+    if status.needs_checkout {
+        return Some(needs_checkout(job));
     }
     if !status.enabled {
         return Some(Assessment::new(
@@ -249,7 +260,10 @@ pub(crate) fn build_view(
     now: DateTime<Utc>,
 ) -> JobView {
     let assessment = assess(job, status, owner, now);
-    let scheduled_here = status.enabled && !status.held_elsewhere && !status.script_dir_missing;
+    let scheduled_here = status.enabled
+        && !status.held_elsewhere
+        && !status.script_dir_missing
+        && !status.needs_checkout;
     let scope = if job.leased {
         JobScope::OneMachine
     } else {

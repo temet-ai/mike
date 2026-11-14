@@ -16,7 +16,8 @@ from common import (ReleaseError, foreign_exec_env, native_target, regular_file,
                     runnable_targets, sha256)
 from migration_inventory import validate_migration_inventory
 from notice_inputs import MAX_NOTICE_BYTES, verify_notice
-from mod_assets import MAX_ASSET_BYTES, create_file, is_asset
+from mod_assets import MAX_ASSET_BYTES, SCRIPTS_PREFIX, create_file, is_asset
+import script_assets
 
 BINARIES = ("mike", "mike-mcp")
 SUPPORT_FILES = {"mike-maintenance": 0o755, "mike-maintenance.pyz": 0o644}
@@ -36,6 +37,7 @@ def pack(archive, binary, license_path, notice, epoch):
         contents.extend(payload())
         from mod_assets import payload as mod_payload
         contents.extend(mod_payload(license_path.parent))
+        contents.extend(script_assets.payload(license_path.parent))
     with archive.open("wb") as output:
         with gzip.GzipFile(filename="", mode="wb", fileobj=output, mtime=epoch) as compressed:
             with tarfile.open(fileobj=compressed, mode="w", format=tarfile.USTAR_FORMAT) as tar:
@@ -57,13 +59,15 @@ def checked_inventory(name, inventory):
     expected = {item["path"]: item for item in inventory}
     if THIRD_PARTY in expected:  # absent from candidates prepared before the file existed
         modes[THIRD_PARTY] = 0o644
-    assets ={path: item for path, item in expected.items() if is_asset(path)}
+    assets = {path: item for path, item in expected.items() if is_asset(path)}
     if name == "mike":
         if len(assets) > 4096:
             raise ReleaseError("too many mod assets")
         for path, item in assets.items():
             if item.get("mode") not in ("0o644", "0o755"):
                 raise ReleaseError("invalid mod asset permissions")
+            if path.startswith(SCRIPTS_PREFIX) and item["size"] > MAX_ASSET_BYTES:
+                raise ReleaseError("script asset exceeds package limit")
             modes[path] = int(item["mode"], 8)
     # Preserve verified predecessor generations prepared before maintenance was
     # bundled. New pack() calls always ship both support files, never half a kit.
@@ -239,6 +243,23 @@ def prepare_archives(root, staging, build_dir, version, target, epoch, env, comm
     return artifacts
 
 
+def check_scripts(manifest, name, inventory):
+    """The mike archive carries exactly the script payload the manifest records.
+
+    Candidates prepared before the payload existed have no `script_assets` key and must
+    carry none; every newer candidate must carry all of it.
+    """
+    paths = [item["path"] for item in inventory if item["path"].startswith(SCRIPTS_PREFIX)]
+    recorded = manifest.get("script_assets")
+    if name != "mike" or recorded is None:
+        if paths:
+            raise ReleaseError(f"unrecorded script assets in {name}")
+        return
+    problems = script_assets.check_inventory(paths, recorded)
+    if problems:
+        raise ReleaseError("script assets do not match the manifest: " + "; ".join(problems[:5]))
+
+
 def verify_candidate(candidate):
     regular_file(candidate / "manifest.json")
     manifest = json.loads((candidate / "manifest.json").read_text())
@@ -278,6 +299,7 @@ def verify_candidate(candidate):
             extracted = sandbox / name
             extracted.mkdir()
             extract_checked(archive, extracted, name, item["contents"])
+            check_scripts(manifest, name, item["contents"])
             notice = (extracted / "NOTICE.json").read_bytes()
             notice_state = verify_notice(notice, manifest)
             if notice_state != manifest.get("third_party_notice_inputs", "not_run"):
