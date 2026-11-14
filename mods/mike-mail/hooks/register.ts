@@ -6,6 +6,7 @@ const INSPECT = 'http://127.0.0.1:9989'
 const SENDERS = { plugin: 'mike-mail', key: 'senders' } as const
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ENVELOPE = /<cross-session-message\b([^>]*)>/
+const REPLY_CANDIDATES = 8
 
 type InboxRow = { message_uuid: string; from_session_uuid: string | null; queued_at?: string }
 
@@ -129,20 +130,52 @@ async function remember($: EngineInterface, session: string, handles: string[]) 
   await $.state.set(SENDERS, next)
 }
 
-async function newestFrom($: EngineInterface, self: string, sender: string): Promise<string | undefined> {
+async function inboxFrom($: EngineInterface, self: string, sender: string): Promise<string[]> {
   try {
     const res = await $.http.fetch(`${INSPECT}/api/sessions/${self}/messages`)
-    if (!res.ok) return undefined
+    if (!res.ok) return []
     const inbox = (JSON.parse(res.text) as { inbox: InboxRow[] }).inbox
-    return inbox.filter(m => m.from_session_uuid === sender).at(-1)?.message_uuid
+    return inbox.filter(m => m.from_session_uuid === sender).map(m => m.message_uuid)
+  } catch {
+    return []
+  }
+}
+
+type LinkAnswer = { in_reply_to?: string | null; decided_by?: string }
+
+export async function linkedReply(
+  $: EngineInterface,
+  self: string,
+  sender: string,
+  reply: string,
+  candidates: string[],
+): Promise<string | null | undefined> {
+  if (candidates.length === 0) return undefined
+  try {
+    const res = await $.http.fetch(`${INSPECT}/api/sessions/${self}/mail/reply-link`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sender, reply, candidates: candidates.slice(-REPLY_CANDIDATES) }),
+    })
+    if (!res.ok) return undefined
+    const answer = JSON.parse(res.text) as LinkAnswer
+    if (answer.decided_by !== 'jev') return undefined
+    return answer.in_reply_to ?? null
   } catch {
     return undefined
   }
 }
 
+async function replyTarget($: EngineInterface, self: string, sender: string, reply: string): Promise<string | undefined> {
+  const candidates = await inboxFrom($, self, sender)
+  const linked = await linkedReply($, self, sender, reply, candidates)
+  if (linked === undefined) return candidates.at(-1)
+  return linked ?? undefined
+}
+
 async function sendThroughMike($: EngineInterface, e: SessionSendInput, to: string): Promise<string | null> {
   const self = await $.session.id()
-  const inReplyTo = await newestFrom($, self, to)
+  const inReplyTo = await replyTarget($, self, to, e.text)
   const body: Record<string, string> = { message: e.text, from_session_id: self }
   if (inReplyTo !== undefined) body.in_reply_to = inReplyTo
   try {

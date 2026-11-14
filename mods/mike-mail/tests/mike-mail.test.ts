@@ -55,7 +55,7 @@ test('a reply to a mike sender goes through mike as a reply to its newest messag
   expect(sent.isDelivered).toBe(true)
   expect(reachedNative).toBe(false)
   expect(toasts).toEqual([`✉ Reply to ${ADDRESS} sent through mike's mailbox`])
-  const post = asked.find(a => a.method === 'POST')
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
   expect(post?.url).toBe(`http://127.0.0.1:9989/api/sessions/${SENDER}/message`)
   expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'Thanks, rebasing now', from_session_id: SELF, in_reply_to: 'm-1' })
 })
@@ -122,7 +122,7 @@ test('a plain session answers a mike channel message through mike, by name or se
   const sent = await $.session.send({ to: 'coordinator-d58ac250', text: 'Rebased', origin: MODEL })
   expect(sent.isDelivered).toBe(true)
   expect(reachedNative).toBe(false)
-  const post = asked.find(a => a.method === 'POST')
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
   expect(post?.url).toBe(`http://127.0.0.1:9989/api/sessions/${SENDER}/message`)
   expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'Rebased', from_session_id: SELF, in_reply_to: 'm-1' })
 })
@@ -158,7 +158,7 @@ test('a reply to the from_name of mail that was never parsed still goes through 
   const sent = await $.session.send({ to: 'c4-s', text: 'Got it', origin: MODEL })
   expect(sent.isDelivered).toBe(true)
   expect(reachedNative).toBe(false)
-  const post = asked.find(a => a.method === 'POST')
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
   expect(post?.url).toBe(`http://127.0.0.1:9989/api/sessions/${SENDER}/message`)
   expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'Got it', from_session_id: SELF, in_reply_to: 'unthreaded-1' })
 })
@@ -202,7 +202,7 @@ test('a reply by name works when the sender is in another project: the name come
   const sent = await $.session.send({ to: 'c4-s3', text: 'on it', origin: MODEL })
   expect(sent.isDelivered).toBe(true)
   expect(reachedNative).toBe(false)
-  const post = asked.find(a => a.method === 'POST')
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
   expect(post?.url).toBe(`http://127.0.0.1:9989/api/sessions/${SENDER}/message`)
   expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'on it', from_session_id: SELF, in_reply_to: 'mail-1' })
 })
@@ -214,4 +214,47 @@ test('counterparts are the other sessions in the inbox and outbox, newest first,
     [{ from_session_uuid: SELF, to_session_uuid: 'b', queued_at: '2026-10-08T08:00:00Z' }],
   )
   expect(list.map(c => c.id)).toEqual(['b', 'a'])
+})
+
+function linkAnswers(on: On, asked: Asked[], link: string) {
+  on('session.id', async () => ({ value: SELF }))
+  on('http.fetch', async ($, e) => {
+    asked.push({ url: e.url, method: e.init?.method, body: e.init?.body as string | undefined })
+    const text = e.url.endsWith('/messages') ? JSON.stringify(INBOX) : e.url.endsWith('/reply-link') ? link : '{"message":{}}'
+    return { value: { status: 200, ok: true, headers: {}, text } }
+  })
+}
+
+test('when Jev links the reply to an older message, mike gets that message as in_reply_to', async ($, on) => {
+  const asked: Asked[] = []
+  linkAnswers(on, asked, JSON.stringify({ in_reply_to: 'older', decided_by: 'jev', probability: 0.9 }))
+  on('session.receive', async ($, e) => ({ text: e.text }))
+  await $.session.receive({ origin: { kind: 'peer' }, text: MAIL })
+  const sent = await $.session.send({ to: ADDRESS, text: 'About the schema question', origin: MODEL })
+  expect(sent.isDelivered).toBe(true)
+  const link = asked.find(a => a.url.endsWith('/reply-link'))
+  expect(link?.url).toBe(`http://127.0.0.1:9989/api/sessions/${SELF}/mail/reply-link`)
+  expect(JSON.parse(link?.body ?? '{}')).toEqual({ sender: SENDER, reply: 'About the schema question', candidates: ['older', 'm-1'] })
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
+  expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'About the schema question', from_session_id: SELF, in_reply_to: 'older' })
+})
+
+test('when Jev says the reply answers none of them, the message goes without in_reply_to', async ($, on) => {
+  const asked: Asked[] = []
+  linkAnswers(on, asked, JSON.stringify({ in_reply_to: null, decided_by: 'jev', probability: 0.8 }))
+  on('session.receive', async ($, e) => ({ text: e.text }))
+  await $.session.receive({ origin: { kind: 'peer' }, text: MAIL })
+  await $.session.send({ to: ADDRESS, text: 'New subject', origin: MODEL })
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
+  expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'New subject', from_session_id: SELF })
+})
+
+test('when the decisions layer is off, the reply links to the newest message as before', async ($, on) => {
+  const asked: Asked[] = []
+  linkAnswers(on, asked, JSON.stringify({ in_reply_to: null, decided_by: 'off', probability: null }))
+  on('session.receive', async ($, e) => ({ text: e.text }))
+  await $.session.receive({ origin: { kind: 'peer' }, text: MAIL })
+  await $.session.send({ to: ADDRESS, text: 'ok', origin: MODEL })
+  const post = asked.find(a => a.method === 'POST' && a.url.endsWith('/message'))
+  expect(JSON.parse(post?.body ?? '{}')).toEqual({ message: 'ok', from_session_id: SELF, in_reply_to: 'm-1' })
 })
