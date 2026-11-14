@@ -78,9 +78,9 @@ checkout only.
    `scripts/cx check --lib -p <crate>`, `scripts/cx nextest run -p <crate> <filter>`,
    `make test-t p=<crate> t=<filter>`. `<crate>` is the crate that holds the file you
    edited, never `--workspace` (a warm workspace test build is 3-4 minutes, one crate's
-   17-50 s),
+   17-50 s); edits in several crates take one call with a `-p` per crate, never a loop,
    `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
-3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate>` once, after
+3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate> [-p <crate>…]` once, after
    the last edit. The structural limits below are not visible from the code.
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
