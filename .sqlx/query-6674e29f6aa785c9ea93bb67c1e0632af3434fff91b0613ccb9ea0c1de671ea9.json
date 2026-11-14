@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.id AS \"entry_id!\", e.session_id AS \"session_id!\",\n                          e.request_id AS \"request_id!\", e.kind AS \"kind!\", e.keyword_kind,\n                          e.content AS \"content!\", e.created_at AS \"created_at!\"\n                     FROM memory.ask_ledger_entries e\n                    WHERE e.kind_source = 'operator'\n                      AND e.kind IN ('correction', 'clarification')\n                      AND e.request_id IS NOT NULL\n                      AND e.created_at >= $1\n                    ORDER BY e.id DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entry_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "keyword_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "keyword_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "content!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "6674e29f6aa785c9ea93bb67c1e0632af3434fff91b0613ccb9ea0c1de671ea9"
+}
