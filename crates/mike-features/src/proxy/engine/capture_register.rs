@@ -139,8 +139,7 @@ pub async fn capture_and_register(
     })
     .await;
 
-    let request_id =
-        capture::insert_stub_and_mint_id(&state.store, &mut intercepted, is_new_session).await;
+    let request_id = mint_capture_id(state, &mut intercepted, is_new_session, request_id).await;
 
     spawn_supply_records(
         state,
@@ -372,4 +371,26 @@ fn log_tool_result_db_fallback_candidates(
         }
     }
     let _ = attach_outcome.touched;
+}
+
+async fn mint_capture_id(
+    state: &AppState,
+    intercepted: &mut InterceptedRequest,
+    is_new_session: bool,
+    pipeline_request: RequestId,
+) -> RequestId {
+    let capture_request =
+        capture::insert_stub_and_mint_id(&state.store, intercepted, is_new_session).await;
+    bind_code_notes(state, pipeline_request, capture_request);
+    capture_request
+}
+
+fn bind_code_notes(state: &AppState, pipeline_request: RequestId, capture_request: RequestId) {
+    if mike_base::store::models::request_id::is_fallback(capture_request.as_u64()) {
+        return;
+    }
+    state.code_notes.bind_capture_id(
+        pipeline_request.as_u64(),
+        i64::try_from(capture_request.as_u64()).unwrap_or(i64::MAX),
+    );
 }

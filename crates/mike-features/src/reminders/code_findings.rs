@@ -77,8 +77,9 @@ impl RequestStage for CodeFindingsStage {
             );
             return;
         };
-        let request = i64::try_from(ctx.request_id.as_u64()).unwrap_or(i64::MAX);
-        ctx.state.code_notes.mark_delivered(&ids, request);
+        ctx.state
+            .code_notes
+            .mark_sent(&ids, ctx.request_id.as_u64());
         let new_bytes = Bytes::from(new_body);
         body.rewrite(
             new_bytes.clone(),
