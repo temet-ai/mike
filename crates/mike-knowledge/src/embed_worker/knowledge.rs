@@ -1,7 +1,7 @@
 use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows};
 pub use super::knowledge_key::{model_key, model_keys};
 use super::knowledge_report::{KnowledgeSweepReport, SweepTally, publish};
-use super::knowledge_settings::KnowledgeSweepSettings;
+use super::knowledge_settings::{KnowledgeSweepSettings, next_wait};
 use crate::analysis::{EmbeddingService, embeddings::chunk_text};
 use crate::circuit_breaker::CircuitBreaker;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
@@ -129,17 +129,31 @@ pub async fn sweep_if_leader(
     service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
 ) -> Result<bool, PersistError> {
-    if !service.is_available() {
-        return Ok(false);
-    }
     let interval = KnowledgeSweepSettings::load(persist).await.interval;
-    if !persist.holds_worker_role(LEASE_ROLE, interval).await {
-        return Ok(false);
+    Ok(lead_sweep(persist, service, breaker, interval)
+        .await?
+        .is_some())
+}
+
+async fn lead_sweep(
+    persist: &PersistHandle,
+    service: &EmbeddingService,
+    breaker: &mut CircuitBreaker,
+    lease_interval: Duration,
+) -> Result<Option<bool>, PersistError> {
+    if !service.is_available() || !persist.holds_worker_role(LEASE_ROLE, lease_interval).await {
+        return Ok(None);
     }
-    if let Some(report) = sweep(persist, service, breaker).await? {
+    let report = sweep(persist, service, breaker).await?;
+    let found = report.as_ref().is_some_and(found_work);
+    if let Some(report) = report {
         publish(report);
     }
-    Ok(true)
+    Ok(Some(found))
+}
+
+fn found_work(report: &KnowledgeSweepReport) -> bool {
+    report.embedded > 0 || report.failed > 0 || report.has_pending()
 }
 
 async fn rekey_at_start(persist: &PersistHandle, service: &EmbeddingService) {
@@ -165,13 +179,16 @@ pub async fn run(
 ) {
     rekey_at_start(&persist, &service).await;
     let mut breaker = CircuitBreaker::new(3, Duration::from_secs(30), Duration::from_secs(300));
+    let mut wait = KnowledgeSweepSettings::load(&persist).await.interval;
     loop {
-        let interval = KnowledgeSweepSettings::load(&persist).await.interval;
         tokio::select! {
             biased;
             _ = shutdown.cancelled() => return,
-            _ = tokio::time::sleep(interval) => {
-                sweep_logging_errors(&persist, &service, &mut breaker).await;
+            _ = tokio::time::sleep(wait) => {
+                let configured = KnowledgeSweepSettings::load(&persist).await.interval;
+                let longest = next_wait(configured, wait, false);
+                let found = sweep_logging_errors(&persist, &service, &mut breaker, longest).await;
+                wait = next_wait(configured, wait, found);
             }
         }
     }
@@ -181,9 +198,14 @@ async fn sweep_logging_errors(
     persist: &PersistHandle,
     service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
-) {
-    if let Err(error) = sweep_if_leader(persist, service, breaker).await {
-        tracing::warn!(%error, "knowledge embedding sweep failed");
+    lease_interval: Duration,
+) -> bool {
+    match lead_sweep(persist, service, breaker, lease_interval).await {
+        Ok(led) => led.unwrap_or(false),
+        Err(error) => {
+            tracing::warn!(%error, "knowledge embedding sweep failed");
+            false
+        }
     }
 }
 
