@@ -86,6 +86,37 @@ async fn investigate_run_past_its_deadline_is_killed_with_its_whole_tree() -> an
 }
 
 #[tokio::test]
+async fn investigate_launch_that_failed_before_claude_does_not_use_a_daily_start()
+-> anyhow::Result<()> {
+    if let Some(reason) = bwrap_missing() {
+        eprintln!("{reason}");
+        return Ok(());
+    }
+    let mark = marker();
+    let rig = Rig::boot(script(&format!("sleep {mark}"))).await?;
+    rig.ctx
+        .persist
+        .web()
+        .patch_wright_engineer_limits(LimitsPatch {
+            daily_starts: Some(1),
+            ..LimitsPatch::default()
+        })
+        .await?;
+    sqlx::query(
+        "INSERT INTO wright.investigations (mode, session_uuid, state, host, deadline_at,
+                                            ended_at, exit_code, end_reason)
+         VALUES ('investigate', gen_random_uuid(), 'failed', 'test', now(), now(), 1,
+                 'bwrap could not bind the binary')",
+    )
+    .execute(rig.ctx.persist.pool())
+    .await?;
+    let run = start_run(&rig.ctx, request()).await?;
+    expire(&rig.ctx.persist, run.investigation_id).await?;
+    wait(run).await;
+    rig.cleanup().await
+}
+
+#[tokio::test]
 async fn investigate_second_start_is_busy_and_daily_limit_refuses() -> anyhow::Result<()> {
     if let Some(reason) = bwrap_missing() {
         eprintln!("{reason}");

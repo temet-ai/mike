@@ -5,6 +5,7 @@ today AS (
     SELECT count(*) AS started
       FROM wright.investigations
      WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+       AND (state IN ('starting', 'running', 'killed') OR tokens > 0 OR tool_calls > 0)
 ),
 open_episode AS (
     SELECT id FROM wright.episodes WHERE problem_id = $2 AND closed_at IS NULL
