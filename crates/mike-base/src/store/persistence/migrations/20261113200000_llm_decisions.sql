@@ -132,7 +132,7 @@ ALTER TABLE steering.evaluations
         CHECK (label_source IS NULL
                OR label_source NOT IN ('next_message', 'session_end')
                OR mode = 'shadow'
-               OR arm IN ('holdback', 'precheck_held'));
+               OR COALESCE(arm, '') IN ('holdback', 'precheck_held'));
 
 CREATE INDEX IF NOT EXISTS idx_evaluations_unlabelled_precheck_held
     ON steering.evaluations (dispatched_at)
@@ -157,20 +157,23 @@ INSERT INTO wright.checks (name, source, cadence, expects, probe, query, params)
            count(*) FILTER (WHERE mode = 'shadow') AS shadow,
            COALESCE(sum(cost_usd), 0) AS cost_usd
       FROM decisions.records
-     WHERE created_at >= now() - interval '1 day' AND mode IN ('shadow', 'on')
+     WHERE created_at >= now() - make_interval(hours => ($1->>'window_hours')::int)
+       AND mode IN ('shadow', 'on')
      GROUP BY point
 ),
 before AS (
     SELECT DISTINCT point
       FROM decisions.records
-     WHERE created_at >= now() - interval '2 days' AND created_at < now() - interval '1 day'
+     WHERE created_at >= now() - make_interval(hours => 2 * ($1->>'window_hours')::int)
+       AND created_at < now() - make_interval(hours => ($1->>'window_hours')::int)
        AND mode IN ('shadow', 'on')
 ),
 fires AS (
     SELECT count(*) AS n
       FROM steering.evaluations e
       JOIN steering.steerers s ON s.id = e.steerer_id
-     WHERE s.name = 'turn-guard' AND e.dispatched_at >= now() - interval '1 day'
+     WHERE s.name = 'turn-guard'
+       AND e.dispatched_at >= now() - make_interval(hours => ($1->>'window_hours')::int)
        AND e.status = 'resolved_correction'
 )
 SELECT 'decisions'::text AS scope,
@@ -186,5 +189,6 @@ SELECT 'decisions'::text, b.point,
        jsonb_build_object('calls', 0, 'live_fires_today', f.n,
                           'note', 'this point made decisions yesterday and none today')
   FROM before b CROSS JOIN fires f
- WHERE NOT EXISTS (SELECT 1 FROM today t WHERE t.point = b.point) AND f.n > 0$q$,
- '{"max_failure_share": 0.2}');
+ WHERE NOT EXISTS (SELECT 1 FROM today t WHERE t.point = b.point) AND f.n > 0
+ LIMIT 200$q$,
+ '{"max_failure_share": 0.2, "window_hours": 24}');
