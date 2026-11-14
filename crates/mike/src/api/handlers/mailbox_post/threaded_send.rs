@@ -52,13 +52,7 @@ pub(super) async fn send(
         },
     )
     .await?;
-
-    if let Some(tags) = ctx.body.tags.as_deref().filter(|t| !t.is_empty())
-        && let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await
-    {
-        tracing::warn!(error = %e, %thread_uuid, "post_session_message: tag attach failed");
-    }
-
+    attach_tags(handle, &ctx, thread_id, thread_uuid).await;
     Ok(queued_response(
         handle,
         state,
@@ -67,6 +61,20 @@ pub(super) async fn send(
         (&subject, thread_uuid, held),
     )
     .await)
+}
+
+async fn attach_tags(
+    handle: &PersistHandle,
+    ctx: &SendContext<'_>,
+    thread_id: i64,
+    thread_uuid: uuid::Uuid,
+) {
+    let Some(tags) = ctx.body.tags.as_deref().filter(|t| !t.is_empty()) else {
+        return;
+    };
+    if let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await {
+        tracing::warn!(error = %e, %thread_uuid, "post_session_message: tag attach failed");
+    }
 }
 
 struct ThreadedRow {
