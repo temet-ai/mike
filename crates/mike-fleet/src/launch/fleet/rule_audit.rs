@@ -143,7 +143,7 @@ impl Effects for Live<'_> {
             .upsert_run(&NewRun {
                 run_id: launch.run_id.clone(),
                 project_path: Some(launch.folder.clone()),
-                backend: self.state.config.launch.backend.clone(),
+                backend: self.state.config().launch.backend.clone(),
                 workspace_ref: None,
                 tab_ref: None,
             })

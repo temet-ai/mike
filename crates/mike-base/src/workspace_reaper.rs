@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
 use crate::store::persistence::PersistHandle;
@@ -9,7 +8,7 @@ use crate::workspace::boot_id::CURRENT_BOOT_ID;
 pub fn spawn_workspace_reaper(
     persist: Option<PersistHandle>,
     shutdown: CancellationToken,
-    interval_secs: u64,
+    live_config: std::sync::Arc<crate::config::live::LiveConfig>,
     tracker: &tokio_util::task::TaskTracker,
 ) {
     let Some(persist) = persist else {
@@ -21,11 +20,13 @@ pub fn spawn_workspace_reaper(
         return;
     };
 
-    let interval_secs = interval_secs.max(1);
+    log_spawned(reap_interval(&live_config).as_secs(), &boot_id);
 
-    log_spawned(interval_secs, &boot_id);
+    tracker.spawn(run_reaper_loop(persist, boot_id, shutdown, live_config));
+}
 
-    tracker.spawn(run_reaper_loop(persist, boot_id, shutdown, interval_secs));
+fn reap_interval(live_config: &crate::config::live::LiveConfig) -> Duration {
+    Duration::from_secs(live_config.load().workspace_reap_interval_secs.max(1))
 }
 
 fn log_not_spawning_no_persistence() {
@@ -46,10 +47,9 @@ async fn run_reaper_loop(
     persist: PersistHandle,
     boot_id: String,
     shutdown: CancellationToken,
-    interval_secs: u64,
+    live_config: std::sync::Arc<crate::config::live::LiveConfig>,
 ) {
-    let mut ticker = interval(Duration::from_secs(interval_secs));
-    ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut wait = Duration::ZERO;
     loop {
         tokio::select! {
             biased;
@@ -58,8 +58,9 @@ async fn run_reaper_loop(
                 tracing::debug!("workspace_reaper: shutdown signalled, exiting");
                 break;
             }
-            _ = ticker.tick() => {
+            _ = tokio::time::sleep(wait) => {
                 sweep_once(&persist, &boot_id).await;
+                wait = reap_interval(&live_config);
             }
         }
     }

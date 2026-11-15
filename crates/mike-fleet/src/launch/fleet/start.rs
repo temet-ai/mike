@@ -299,7 +299,7 @@ fn run_record(
     NewRun {
         run_id: run_id.to_string(),
         project_path: Some(def.repo.clone()),
-        backend: state.config.launch.backend.clone(),
+        backend: state.config().launch.backend.clone(),
         workspace_ref: workspace,
         tab_ref: None,
     }
@@ -366,7 +366,7 @@ async fn open_status_pane(
     def: &FleetDefinition,
     facts: &FleetFacts,
 ) -> Result<Surface, LaunchError> {
-    let id = state.config.launch.backend.parse()?;
+    let id = state.config().launch.backend.parse()?;
     let backend = backend_for(id).ok_or(LaunchError::BackendNone)?;
     let mike = running_binary()?;
     let command = format!(

@@ -32,7 +32,7 @@ impl ServeTargets {
 }
 
 pub(super) async fn bind_and_log(mut state: AppState) -> anyhow::Result<ServeTargets> {
-    super::listener_policy::validate(state.config())?;
+    super::listener_policy::validate(&state.config())?;
     let allow_remote = state.config().unsupported_allow_remote_listeners;
     let proxy_addr =
         super::listener_policy::bind_address(&state.config().proxy_listen_addr, allow_remote)?;
@@ -91,13 +91,23 @@ fn publish_bound_addresses(
     inspect: &TcpListener,
     spa: Option<&TcpListener>,
 ) -> anyhow::Result<()> {
-    let mut config = state.config().clone();
-    config.proxy_listen_addr = proxy.local_addr()?.to_string();
-    config.inspect_listen_addr = inspect.local_addr()?.to_string();
-    if let Some(spa) = spa {
-        config.spa_bind = spa.local_addr()?.to_string();
-    }
+    let proxy_addr = proxy.local_addr()?.to_string();
+    let inspect_addr = inspect.local_addr()?.to_string();
+    let spa_addr = spa
+        .map(TcpListener::local_addr)
+        .transpose()?
+        .map(|a| a.to_string());
+    let bind = |config: &mut crate::config::ProxyConfig| {
+        config.proxy_listen_addr.clone_from(&proxy_addr);
+        config.inspect_listen_addr.clone_from(&inspect_addr);
+        if let Some(spa_addr) = &spa_addr {
+            config.spa_bind.clone_from(spa_addr);
+        }
+    };
+    let mut config = (*state.config).clone();
+    bind(&mut config);
     state.config = std::sync::Arc::new(config);
+    state.live_config.edit_boot_values(bind);
     Ok(())
 }
 

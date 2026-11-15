@@ -15,6 +15,7 @@ pub mod test_support;
 mod tests;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
 use serde_json::Value;
@@ -57,7 +58,7 @@ pub enum ComposeOutcome {
 pub struct ComposerService {
     cache: Arc<CompositionCache>,
     volatile_cache: Arc<VolatilePatternCache>,
-    enabled: bool,
+    enabled: AtomicBool,
 }
 
 impl ComposerService {
@@ -69,8 +70,16 @@ impl ComposerService {
         Self {
             cache,
             volatile_cache,
-            enabled,
+            enabled: AtomicBool::new(enabled),
         }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn set_enabled(&self, enabled: bool) -> bool {
+        self.enabled.swap(enabled, Ordering::Relaxed)
     }
 
     pub fn cache(&self) -> Arc<CompositionCache> {
@@ -87,7 +96,8 @@ impl ComposerService {
         pre_filter_body: &[u8],
         class_key: Option<&PromptClassKey>,
     ) -> ComposeOutcome {
-        if !self.enabled {
+        let enabled = self.is_enabled();
+        if !enabled {
             return ComposeOutcome::Passthrough {
                 prompt_sha256: None,
             };
@@ -131,7 +141,7 @@ impl ComposerService {
 
         let decision = decide(
             DecisionInputs {
-                enabled: self.enabled,
+                enabled,
                 parse_result: parse_result_for_decide,
                 lookup,
             },
@@ -148,7 +158,7 @@ impl ComposerService {
     }
 
     pub fn observe_prompt_identity(&self, raw_body: &[u8]) -> Option<String> {
-        if !self.enabled {
+        if !self.is_enabled() {
             return None;
         }
         let body: Value = serde_json::from_slice(raw_body).ok()?;

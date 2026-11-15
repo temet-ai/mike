@@ -51,9 +51,21 @@ pub struct SettingsService {
     pub persist: PersistHandle,
 
     publisher: Option<Arc<BundlePublisher>>,
+
+    live_config: std::sync::OnceLock<Arc<crate::config::live::LiveConfig>>,
 }
 
 impl SettingsService {
+    pub fn attach_live_config(&self, live_config: Arc<crate::config::live::LiveConfig>) {
+        let _already_attached = self.live_config.set(live_config);
+    }
+
+    fn refold_live_config(&self, rows: &[(String, serde_json::Value)]) {
+        if let Some(live_config) = self.live_config.get() {
+            live_config.refold(rows);
+        }
+    }
+
     pub async fn reconcile_on_startup(
         overlay: Arc<ArcSwap<SettingsOverlay>>,
         write_lock: Arc<Mutex<SettingsWriteGuard>>,
@@ -73,6 +85,7 @@ impl SettingsService {
             write_lock,
             persist,
             publisher,
+            live_config: std::sync::OnceLock::new(),
         });
 
         {
@@ -86,6 +99,16 @@ impl SettingsService {
         }
 
         Ok(service)
+    }
+
+    pub async fn reload_from_db(&self) -> Result<(), PersistError> {
+        let _guard = self.write_lock.lock().await;
+        let rows = self.persist.fetch_settings().await?;
+        self.refold_live_config(&rows);
+        let new_overlay = apply_db_rows_to_overlay(rows);
+        let new_overlay = self.with_bundles(new_overlay, BundleCause::reload()).await;
+        self.overlay.store(Arc::new(new_overlay));
+        Ok(())
     }
 
     async fn with_bundles(
@@ -226,6 +249,7 @@ impl SettingsService {
     async fn refresh_overlay(&self, key: &str, ids: &[i64]) {
         match self.persist.fetch_settings().await {
             Ok(rows) => {
+                self.refold_live_config(&rows);
                 let new_overlay = apply_db_rows_to_overlay(rows);
                 let new_overlay = self
                     .with_bundles(new_overlay, BundleCause::setting(key, ids.to_vec()))

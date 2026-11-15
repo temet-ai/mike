@@ -203,3 +203,23 @@ async fn len_is_correct_under_concurrent_registrations() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn set_max_raises_capacity_for_clones_of_the_registry() -> anyhow::Result<()> {
+    let registry = InFlightRegistry::with_capacity(1);
+    let clone = registry.clone();
+    registry
+        .register(RequestId::from_raw(1), record("s1"))
+        .map_err(|e| anyhow::anyhow!("first must succeed: {e}"))?;
+    assert!(
+        clone
+            .register(RequestId::from_raw(2), record("s2"))
+            .is_err()
+    );
+    registry.set_max(2);
+    clone
+        .register(RequestId::from_raw(2), record("s2"))
+        .map_err(|e| anyhow::anyhow!("second must succeed after set_max: {e}"))?;
+    assert_eq!(clone.max(), 2);
+    Ok(())
+}

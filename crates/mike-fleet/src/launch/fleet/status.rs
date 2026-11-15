@@ -319,7 +319,7 @@ pub fn note_facts(n: crate::store::persistence::fleet::FleetNoteRow) -> NoteFact
 async fn live_states(
     state: &crate::base_state::BaseState,
 ) -> std::collections::BTreeMap<uuid::Uuid, String> {
-    let Ok(id) = state.config.launch.backend.parse() else {
+    let Ok(id) = state.config().launch.backend.parse() else {
         return Default::default();
     };
     let Some(backend) = crate::launch::backend_for(id) else {

@@ -63,6 +63,7 @@ pub struct BaseState {
     pub client: reqwest::Client,
     pub event_tx: broadcast::Sender<ProxyEvent>,
     pub config: Arc<ProxyConfig>,
+    pub live_config: Arc<crate::config::live::LiveConfig>,
     pub shutdown: CancellationToken,
     pub tracker: TaskTracker,
     pub retention: RetentionPolicy,
@@ -88,8 +89,8 @@ impl BaseState {
         self.store.clone()
     }
 
-    pub fn config(&self) -> &ProxyConfig {
-        &self.config
+    pub fn config(&self) -> Arc<ProxyConfig> {
+        self.live_config.load()
     }
 
     pub fn shutdown(&self) -> CancellationToken {

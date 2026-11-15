@@ -25,6 +25,8 @@ mod case_insensitive_names;
 mod change_log;
 #[path = "integration/channel_link_sweep_db.rs"]
 mod channel_link_sweep_db;
+#[path = "integration/config_changed_notify.rs"]
+mod config_changed_notify;
 #[path = "integration/crash_recovery/mod.rs"]
 mod crash_recovery;
 #[path = "integration/create_steerer_no_agent/mod.rs"]

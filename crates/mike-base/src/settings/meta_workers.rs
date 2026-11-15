@@ -138,12 +138,11 @@ fn turn_judge_entries() -> Vec<SettingMeta> {
             group: "Turn judge",
             kind: SettingKind::Int,
             scope: SettingScope::Global,
-            applies: SettingApplies::OnRestart,
+            applies: SettingApplies::NextCycle,
             default: serde_json::Value::Number(serde_json::Number::from(60u64)),
             label: "Seconds between sweeps",
-            description: "How long the turn judge waits between sweeps. The timer is \
-                built once when the worker starts, so a change here needs a restart \
-                while the settings above take effect on the next sweep.",
+            description: "How long the turn judge waits between sweeps. A change takes \
+                effect after the sweep in progress.",
             min_i64: Some(10),
             max_i64: Some(86_400),
             min_f64: None,
@@ -284,12 +283,11 @@ fn session_judge_content_entries() -> Vec<SettingMeta> {
             group: "Session judge",
             kind: SettingKind::Int,
             scope: SettingScope::Global,
-            applies: SettingApplies::OnRestart,
+            applies: SettingApplies::NextCycle,
             default: serde_json::Value::Number(serde_json::Number::from(120u64)),
             label: "Seconds between polls",
-            description: "How long the session judge waits between polls. The timer is \
-                built once when the worker starts, so a change here needs a restart \
-                while the settings above take effect on the next poll.",
+            description: "How long the session judge waits between polls. A change takes \
+                effect after the poll in progress.",
             min_i64: Some(10),
             max_i64: Some(86_400),
             min_f64: None,
@@ -302,11 +300,11 @@ fn session_judge_content_entries() -> Vec<SettingMeta> {
             group: "Session judge",
             kind: SettingKind::Int,
             scope: SettingScope::Global,
-            applies: SettingApplies::OnRestart,
+            applies: SettingApplies::NextCycle,
             default: serde_json::Value::Number(serde_json::Number::from(30u64)),
             label: "Request timeout (secs)",
-            description: "Timeout for one session-judge call. The HTTP client is built \
-                when the worker starts, so a change here needs a restart.",
+            description: "Timeout for one session-judge call. A change takes effect on \
+                the next poll.",
             min_i64: Some(5),
             max_i64: Some(300),
             min_f64: None,

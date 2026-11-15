@@ -22,7 +22,7 @@ pub async fn forward_buffered(ctx: ResponseCtx) -> Result<Response, ProxyError> 
         ..
     } = ctx;
 
-    let max_resp_body = state.config.max_response_body_bytes;
+    let max_resp_body = state.config().max_response_body_bytes;
     let resp_body = {
         let stream = upstream_resp.bytes_stream();
         use futures::StreamExt;

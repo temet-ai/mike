@@ -57,7 +57,7 @@ pub(crate) async fn get_openrouter_usage(
         .openrouter_usage_cache()
         .get(
             &state.client,
-            &state.config.steerer.openrouter_base_url,
+            &state.config().steerer.openrouter_base_url,
             api_key.as_deref(),
             state.persist(),
         )

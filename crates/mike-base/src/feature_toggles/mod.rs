@@ -1,3 +1,4 @@
+pub mod live_gate;
 pub mod meta;
 #[cfg(test)]
 pub mod native_peer_mail_tests;

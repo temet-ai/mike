@@ -10,19 +10,58 @@ type OtelLayer = tracing_opentelemetry::OpenTelemetryLayer<
     opentelemetry_sdk::trace::SdkTracer,
 >;
 
+type FilterSubscriber =
+    tracing_subscriber::layer::Layered<Option<OtelLayer>, tracing_subscriber::Registry>;
+
+type FilterLayer =
+    tracing_subscriber::reload::Layer<tracing_subscriber::EnvFilter, FilterSubscriber>;
+
+type FilterHandle =
+    tracing_subscriber::reload::Handle<tracing_subscriber::EnvFilter, FilterSubscriber>;
+
+static FILTER_HANDLE: std::sync::OnceLock<FilterHandle> = std::sync::OnceLock::new();
+
 pub(super) struct TracingGuards {
     _file_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
     pub(super) otel_provider: Option<opentelemetry_sdk::trace::SdkTracerProvider>,
 }
 
+pub(crate) fn set_log_level(level: &str) {
+    let Some(handle) = FILTER_HANDLE.get() else {
+        return;
+    };
+    if let Err(error) = reload_filter(handle, level) {
+        log_level_reload_failed(&error, level);
+    }
+}
+
+fn reload_filter(handle: &FilterHandle, level: &str) -> Result<(), String> {
+    let filter = tracing_subscriber::EnvFilter::try_new(level).map_err(|e| e.to_string())?;
+    handle.reload(filter).map_err(|e| e.to_string())
+}
+
+fn log_level_reload_failed(error: &str, level: &str) {
+    tracing::warn!(error, level, "log level reload failed");
+}
+
+fn build_filter_layer(config: &ProxyConfig) -> FilterLayer {
+    let from_env = tracing_subscriber::EnvFilter::try_from_default_env();
+    let rust_log_set = from_env.is_ok();
+    let filter = from_env.unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&config.log_level));
+    let (layer, handle) = tracing_subscriber::reload::Layer::new(filter);
+    if !rust_log_set {
+        let _already_installed = FILTER_HANDLE.set(handle);
+    }
+    layer
+}
+
 pub(super) fn init_tracing_and_log_startup(config: &ProxyConfig) -> anyhow::Result<TracingGuards> {
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&config.log_level));
+    let filter_layer = build_filter_layer(config);
 
     let (file_guard, file_writer_opt) = build_file_writer(config)?;
     let (otel_layer, otel_provider) = build_otel_layer(config)?;
 
-    install_subscriber(config, env_filter, otel_layer, file_writer_opt);
+    install_subscriber(config, filter_layer, otel_layer, file_writer_opt);
 
     log_boot_configuration(config);
 
@@ -69,7 +108,7 @@ fn build_otel_layer(
 
 fn install_subscriber(
     config: &ProxyConfig,
-    env_filter: tracing_subscriber::EnvFilter,
+    filter_layer: FilterLayer,
     otel_layer: Option<OtelLayer>,
     file_writer_opt: Option<tracing_appender::non_blocking::NonBlocking>,
 ) {
@@ -78,7 +117,7 @@ fn install_subscriber(
             file_writer_opt.map(|w| tracing_subscriber::fmt::layer().json().with_writer(w));
         tracing_subscriber::registry()
             .with(otel_layer)
-            .with(env_filter)
+            .with(filter_layer)
             .with(tracing_subscriber::fmt::layer().json())
             .with(file_layer)
             .init();
@@ -87,7 +126,7 @@ fn install_subscriber(
             file_writer_opt.map(|w| tracing_subscriber::fmt::layer().json().with_writer(w));
         tracing_subscriber::registry()
             .with(otel_layer)
-            .with(env_filter)
+            .with(filter_layer)
             .with(tracing_subscriber::fmt::layer())
             .with(file_layer)
             .init();

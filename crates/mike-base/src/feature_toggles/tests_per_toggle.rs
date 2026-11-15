@@ -10,11 +10,11 @@ fn turn_guard_defaults_off() {
 }
 
 #[test]
-fn turn_guard_meta_is_global_live_disable() {
+fn turn_guard_meta_is_global_immediate() {
     let meta = TOGGLE_META.iter().find(|m| m.key == "turn_guard");
     assert!(
         meta.is_some_and(
-            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::LiveDisable
+            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::Immediate
         )
     );
 }
@@ -46,11 +46,11 @@ fn session_end_shadow_defaults_off() {
 }
 
 #[test]
-fn session_end_shadow_meta_is_global_live_disable() {
+fn session_end_shadow_meta_is_global_immediate() {
     let meta = TOGGLE_META.iter().find(|m| m.key == "session_end_shadow");
     assert!(
         meta.is_some_and(
-            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::LiveDisable
+            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::Immediate
         )
     );
 }

@@ -6,7 +6,6 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::steerer::SteererConfig;
 use crate::state::AppState;
 use crate::steerer::registry::SteererRegistry;
 use crate::store::RequestStore;
@@ -31,16 +30,12 @@ const CIRCUIT_BREAKER_COOLDOWN_BASE_SECS: u64 = 60;
 const CIRCUIT_BREAKER_COOLDOWN_MAX_SECS: u64 = 1800;
 
 pub fn spawn_quiescence_worker(state: &AppState) {
-    if !state.feature_toggle_overlay.load().steerer {
-        log_not_spawning_toggle_off();
-        return;
-    }
     let Some(persist) = state.persist.clone() else {
         log_not_spawning_no_persistence();
         return;
     };
 
-    let config = state.config().steerer.clone();
+    let live_config = state.live_config.clone();
     let settings = state.settings_overlay.clone();
     let steerer_registry = state.steerer_registry.clone();
     let key_slot = state.steerer_openrouter_key.clone();
@@ -60,7 +55,7 @@ pub fn spawn_quiescence_worker(state: &AppState) {
             steerer_registry,
             key_slot,
             toggles,
-            config,
+            live_config,
             settings,
             shutdown,
             remote_control_streams,
@@ -75,10 +70,6 @@ pub fn spawn_quiescence_worker(state: &AppState) {
     tracing::info!("quiescence_worker: spawned");
 }
 
-fn log_not_spawning_toggle_off() {
-    tracing::debug!("quiescence_worker: disabled by the steerer feature toggle — not spawning");
-}
-
 fn log_not_spawning_no_persistence() {
     tracing::debug!("quiescence_worker: no persistence — not spawning");
 }
@@ -89,7 +80,7 @@ struct RunArgs {
     steerer_registry: Arc<ArcSwap<SteererRegistry>>,
     key_slot: crate::llm::key::OpenRouterKeySlot,
     toggles: Arc<ArcSwap<crate::feature_toggles::FeatureToggles>>,
-    config: SteererConfig,
+    live_config: Arc<crate::config::live::LiveConfig>,
     settings: Arc<ArcSwap<crate::settings::SettingsOverlay>>,
     shutdown: CancellationToken,
     remote_control_streams: crate::proxy::remote_control::ReplyStreams,
@@ -106,7 +97,7 @@ async fn run(args: RunArgs) {
         steerer_registry,
         key_slot,
         toggles,
-        config,
+        live_config,
         settings,
         shutdown,
         remote_control_streams,
@@ -116,10 +107,7 @@ async fn run(args: RunArgs) {
         lessons,
     } = args;
 
-    let quiet_secs =
-        i64::try_from(config.quiescence_minutes.saturating_mul(60)).unwrap_or(i64::MAX);
-
-    log_starting(quiet_secs);
+    log_starting(quiet_secs_of(&live_config.load().steerer));
 
     let mut interval = tokio::time::interval(SWEEP_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -129,21 +117,6 @@ async fn run(args: RunArgs) {
         Duration::from_secs(CIRCUIT_BREAKER_COOLDOWN_BASE_SECS),
         Duration::from_secs(CIRCUIT_BREAKER_COOLDOWN_MAX_SECS),
     );
-
-    let ctx = SweepContext {
-        persist: &persist,
-        store: &store,
-        steerer_registry: &steerer_registry,
-        key_slot: &key_slot,
-        config: &config,
-        settings: &settings,
-        remote_control_streams: &remote_control_streams,
-        injection_gate: &injection_gate,
-        usage_sink: usage_sink.as_ref(),
-        embedding: &embedding,
-        lessons: crate::state::lesson_hooks::hooks_in(&lessons),
-        toggles: &toggles,
-    };
 
     let mut tick: u64 = 0;
     loop {
@@ -156,11 +129,23 @@ async fn run(args: RunArgs) {
             }
 
             _ = interval.tick() => {
-                if !toggles.load().steerer {
-                    log_disabled_via_toggle();
-                    return;
-                }
                 tick += 1;
+                let steerer_config = live_config.load().steerer.clone();
+                let quiet_secs = quiet_secs_of(&steerer_config);
+                let ctx = SweepContext {
+                    persist: &persist,
+                    store: &store,
+                    steerer_registry: &steerer_registry,
+                    key_slot: &key_slot,
+                    config: &steerer_config,
+                    settings: &settings,
+                    remote_control_streams: &remote_control_streams,
+                    injection_gate: &injection_gate,
+                    usage_sink: usage_sink.as_ref(),
+                    embedding: &embedding,
+                    lessons: crate::state::lesson_hooks::hooks_in(&lessons),
+                    toggles: &toggles,
+                };
                 let toggle_snapshot = toggles.load();
                 run_guarded_tick(
                     &ctx,
@@ -176,6 +161,10 @@ async fn run(args: RunArgs) {
     }
 }
 
+fn quiet_secs_of(config: &crate::config::steerer::SteererConfig) -> i64 {
+    i64::try_from(config.quiescence_minutes.saturating_mul(60)).unwrap_or(i64::MAX)
+}
+
 async fn run_guarded_tick(
     ctx: &SweepContext<'_>,
     tick: u64,
@@ -184,7 +173,9 @@ async fn run_guarded_tick(
     quiet_secs: i64,
     breaker: &mut CircuitBreaker,
 ) {
-    run_steerer_ticks(ctx, guard_on, quiet_secs, breaker).await;
+    if ctx.toggles.load().steerer {
+        run_steerer_ticks(ctx, guard_on, quiet_secs, breaker).await;
+    }
     if tick.is_multiple_of(due_wakes::DEMOTION_EVERY_TICKS) {
         crate::steerer::guard::promotion::demotion::run_demotion_check(
             ctx.persist,
@@ -224,12 +215,6 @@ fn log_starting(quiet_secs: i64) {
 
 fn log_shutdown_signalled() {
     tracing::debug!("quiescence_worker: shutdown signalled, exiting");
-}
-
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "quiescence_worker: disabled via the steerer feature toggle — exiting (a UI flip back on needs a restart)"
-    );
 }
 
 async fn run_one_tick(ctx: &SweepContext<'_>, quiet_secs: i64, breaker: &mut CircuitBreaker) {

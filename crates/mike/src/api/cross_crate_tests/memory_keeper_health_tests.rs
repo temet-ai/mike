@@ -27,7 +27,8 @@ fn capability_row_without_persistence_is_off() {
 fn capability_row_with_toggle_on_and_no_worker_is_inert() {
     let row = capability_row(true, true, &KeeperHealth::default());
     assert_eq!(row.state, CapabilityState::Inert);
-    assert!(row.fix.contains("Restart"));
+    assert!(!row.fix.contains("Restart"));
+    assert!(row.fix.contains("mike log"));
 }
 
 #[test]

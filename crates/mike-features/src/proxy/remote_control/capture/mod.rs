@@ -259,7 +259,7 @@ async fn read_response(
     state: &AppState,
     upstream_resp: reqwest::Response,
 ) -> Result<(Body, Option<Bytes>), ProxyError> {
-    let max_body = state.config.max_response_body_bytes;
+    let max_body = state.config().max_response_body_bytes;
     let mut stream = Box::pin(upstream_resp.bytes_stream());
     let mut collected: Vec<u8> = Vec::new();
     while let Some(chunk) = stream.next().await {

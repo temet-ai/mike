@@ -49,7 +49,7 @@ impl FleetDecisions {
 
     pub fn from_state(state: &BaseState) -> Option<Self> {
         let persist = state.persist()?.clone();
-        let config = &state.config.steerer;
+        let config = &state.config().steerer;
         let base = OpenRouterClient::new(
             String::new(),
             config.model.clone(),

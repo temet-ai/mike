@@ -4,7 +4,7 @@ mod listeners;
 mod observability_tasks;
 mod shutdown;
 mod startup_sequence;
-mod tracing_init;
+pub(crate) mod tracing_init;
 mod workers;
 
 use anyhow::Context;

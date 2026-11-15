@@ -214,7 +214,7 @@ pub(crate) async fn list_steerers(
             model: s.model.clone(),
             model_inherited: s.model.is_empty(),
             effective_model: if s.model.is_empty() {
-                state.config.steerer.model.clone()
+                state.config().steerer.model.clone()
             } else {
                 s.model.clone()
             },

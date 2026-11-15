@@ -68,7 +68,7 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     crate::workspace_reaper::spawn_workspace_reaper(
         state.persist().cloned(),
         state.shutdown(),
-        state.config().workspace_reap_interval_secs,
+        state.live_config.clone(),
         &state.tracker,
     );
 

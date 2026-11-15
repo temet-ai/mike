@@ -92,7 +92,7 @@ pub async fn patch_session_ttl(
         let mut store = state.store.write().await;
         store.set_session_ttl_override(&session_id, ttl_str.clone());
     }
-    let default_ttl = std::time::Duration::from_secs(state.config.default_ttl_secs);
+    let default_ttl = std::time::Duration::from_secs(state.config().default_ttl_secs);
     let session_db_id = match persist.resolve_session_db_id(&session_id).await {
         Ok(Some(id)) => id,
         Ok(None) => 0i64,

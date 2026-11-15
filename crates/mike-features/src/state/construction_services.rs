@@ -59,6 +59,27 @@ pub async fn seed_llm_usage_sink(
     ))
 }
 
+pub async fn fold_into_live_config(
+    persist: Option<&PersistHandle>,
+    config: &mut ProxyConfig,
+) -> Arc<crate::config::live::LiveConfig> {
+    let unfolded = config.clone();
+    fold_db_settings(persist, config).await;
+    Arc::new(crate::config::live::LiveConfig::new(
+        unfolded,
+        config.clone(),
+    ))
+}
+
+pub fn attach_live_config(
+    settings_service: Option<&Arc<SettingsService>>,
+    live_config: &Arc<crate::config::live::LiveConfig>,
+) {
+    if let Some(service) = settings_service {
+        service.attach_live_config(live_config.clone());
+    }
+}
+
 pub fn attach_persist_to_store(store: &mut RequestStore, persist: Option<&PersistHandle>) {
     if let Some(handle) = persist {
         store.set_persist(handle.capture());

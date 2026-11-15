@@ -106,7 +106,7 @@ async fn finish_one(
 
 async fn loaded(state: &BaseState, persist: &PersistHandle, session: Uuid) -> Result<(), String> {
     let backend = state
-        .config
+        .config()
         .launch
         .backend
         .parse::<BackendId>()
@@ -226,7 +226,7 @@ async fn record(
         name: template_name(run_id, discipline),
         session_uuid: plan.session,
         folder: def.repo.clone(),
-        backend: state.config.launch.backend.clone(),
+        backend: state.config().launch.backend.clone(),
         model: Some(plan.model.clone()),
         agent: Some(plan.agent.clone()),
         claude_args: seat::claude_args(def, plan),

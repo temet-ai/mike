@@ -8,6 +8,7 @@ async fn run_retries_connect_failure_until_shutdown_cancelled() -> anyhow::Resul
     let join = tokio::spawn(run(
         "not-a-valid-postgres-url".to_string(),
         tx,
+        ConfigReloader::default(),
         task_shutdown,
     ));
 

@@ -27,7 +27,7 @@ pub async fn generate_session_narrative_overview(
         .await
         .map_err(persist_error_response)?;
 
-    let timeout = std::time::Duration::from_secs(state.config.steerer.request_timeout_secs);
+    let timeout = std::time::Duration::from_secs(state.config().steerer.request_timeout_secs);
     let SteererClient { llm, .. } =
         steerer_client(&state, timeout).map_err(narrative_overview_llm_error)?;
 

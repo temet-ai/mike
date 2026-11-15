@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -114,11 +115,6 @@ fn log_orphan_sweep_failed(e: &PersistError) {
 }
 
 pub fn spawn_retention_sweep_worker(state: &AppState) {
-    if !state.feature_toggle_overlay.load().retention_sweep {
-        log_not_spawning_toggle_off();
-        return;
-    }
-
     let Some(persist) = state.persist().cloned() else {
         log_not_spawning_no_persistence();
         return;
@@ -141,10 +137,6 @@ pub fn spawn_retention_sweep_worker(state: &AppState) {
         default_ttl = ?default_ttl,
         "retention_sweep: spawned"
     );
-}
-
-fn log_not_spawning_toggle_off() {
-    tracing::debug!("retention_sweep: disabled by feature toggle — not spawning");
 }
 
 fn log_not_spawning_no_persistence() {
@@ -171,8 +163,8 @@ async fn run(
             }
 
             _ = ticker.tick() => {
-                if !toggles.load().retention_sweep {
-                    log_disabled_via_toggle();
+                if !wait_for_toggle_on(&toggles, &shutdown).await {
+                    log_shutdown_signalled();
                     return;
                 }
 
@@ -182,14 +174,22 @@ async fn run(
     }
 }
 
+async fn wait_for_toggle_on(
+    toggles: &arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>,
+    shutdown: &CancellationToken,
+) -> bool {
+    if !toggles.load().retention_sweep {
+        log_paused_via_toggle();
+    }
+    wait_until_on(toggles, |t| t.retention_sweep, shutdown).await
+}
+
 fn log_shutdown_signalled() {
     tracing::debug!("retention_sweep: shutdown signalled, exiting");
 }
 
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "retention_sweep: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
+fn log_paused_via_toggle() {
+    tracing::info!("retention_sweep: disabled via feature toggle — paused until it is turned on");
 }
 
 #[cfg(any(test, feature = "test-seams"))]

@@ -223,7 +223,7 @@ fn spawn_store_updater_for(
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
             response_hook: state.lesson_hooks().response_hook(
-                &state.config,
+                &state.config(),
                 Some(state.feature_toggle_overlay.load().harvester),
             ),
         },

@@ -261,12 +261,12 @@ fn is_adopted(def: &FleetDefinition, task: &str, adopted: &BTreeSet<String>) -> 
 }
 
 async fn room(state: &BaseState) -> (usize, String) {
-    let limit = usize::try_from(state.config.launch.max_surfaces).unwrap_or(usize::MAX);
+    let limit = usize::try_from(state.config().launch.max_surfaces).unwrap_or(usize::MAX);
     if limit == 0 {
         return (usize::MAX, String::new());
     }
     let backend = state
-        .config
+        .config()
         .launch
         .backend
         .parse::<BackendId>()

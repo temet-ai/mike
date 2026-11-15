@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use dashmap::DashMap;
@@ -39,7 +40,7 @@ pub struct CapacityError {
 #[derive(Debug, Clone, Default)]
 pub struct InFlightRegistry {
     inner: Arc<DashMap<RequestId, InFlightRecord>>,
-    max: usize,
+    max: Arc<AtomicUsize>,
 }
 
 impl InFlightRegistry {
@@ -51,18 +52,24 @@ impl InFlightRegistry {
     pub fn with_capacity(max: usize) -> Self {
         Self {
             inner: Arc::new(DashMap::new()),
-            max,
+            max: Arc::new(AtomicUsize::new(max)),
         }
     }
 
+    pub fn set_max(&self, max: usize) {
+        self.max.store(max, Ordering::Relaxed);
+    }
+
+    pub fn max(&self) -> usize {
+        self.max.load(Ordering::Relaxed)
+    }
+
     pub fn register(&self, id: RequestId, record: InFlightRecord) -> Result<(), CapacityError> {
-        if self.max > 0 {
+        let max = self.max();
+        if max > 0 {
             let current = self.inner.len();
-            if current >= self.max {
-                return Err(CapacityError {
-                    current,
-                    max: self.max,
-                });
+            if current >= max {
+                return Err(CapacityError { current, max });
             }
         }
         self.inner.insert(id, record);

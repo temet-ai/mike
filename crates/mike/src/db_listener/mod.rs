@@ -1,5 +1,8 @@
+mod config_reload;
+
 use std::time::Duration;
 
+pub use config_reload::{CONFIG_CHANNEL, ConfigReloader};
 use serde::Deserialize;
 use sqlx::postgres::{PgListener, PgNotification};
 use tokio::sync::broadcast;
@@ -41,8 +44,9 @@ pub fn spawn_listener(state: &AppState) {
 
     let event_tx = state.event_tx.clone();
     let shutdown = state.shutdown.clone();
+    let reloader = config_reload::spawn_config_reloader(state);
     state.tracker.spawn(async move {
-        if let Err(err) = run(database_url, event_tx, shutdown).await {
+        if let Err(err) = run(database_url, event_tx, reloader, shutdown).await {
             tracing::error!(
                 error = %err,
                 "db_listener task exited with error — cross-session live updates disabled until proxy restart"
@@ -54,6 +58,7 @@ pub fn spawn_listener(state: &AppState) {
 pub async fn run(
     database_url: String,
     event_tx: broadcast::Sender<ProxyEvent>,
+    reloader: ConfigReloader,
     shutdown: CancellationToken,
 ) -> anyhow::Result<()> {
     let mut backoff: Duration = BACKOFF_INITIAL;
@@ -65,8 +70,9 @@ pub async fn run(
         return Ok(());
     };
     reset_backoff(&mut backoff, &mut in_backoff);
-    tracing::info!("db_listener: LISTEN proxy.row_changed established");
+    tracing::info!("db_listener: LISTEN proxy.row_changed and {CONFIG_CHANNEL} established");
     emit_resync_required(&event_tx, ResyncReason::ListenerEstablishment);
+    reloader.request();
 
     loop {
         tokio::select! {
@@ -76,8 +82,9 @@ pub async fn run(
                 return Ok(());
             }
             recv_result = listener.try_recv() => {
+                let outlets = Outlets { event_tx: &event_tx, reloader: &reloader };
                 let should_exit =
-                    handle_try_recv(recv_result, &event_tx, &mut backoff, &mut in_backoff, &shutdown)
+                    handle_try_recv(recv_result, outlets, &mut backoff, &mut in_backoff, &shutdown)
                         .await;
                 if should_exit {
                     return Ok(());
@@ -87,9 +94,23 @@ pub async fn run(
     }
 }
 
+#[derive(Clone, Copy)]
+struct Outlets<'a> {
+    event_tx: &'a broadcast::Sender<ProxyEvent>,
+    reloader: &'a ConfigReloader,
+}
+
+fn route_notification(notification: &PgNotification, outlets: Outlets<'_>) {
+    if notification.channel() == CONFIG_CHANNEL {
+        outlets.reloader.request();
+    } else {
+        forward_notification(notification.payload(), outlets.event_tx);
+    }
+}
+
 async fn handle_try_recv(
     recv_result: Result<Option<PgNotification>, sqlx::Error>,
-    event_tx: &broadcast::Sender<ProxyEvent>,
+    outlets: Outlets<'_>,
     backoff: &mut Duration,
     in_backoff: &mut bool,
     shutdown: &CancellationToken,
@@ -97,13 +118,14 @@ async fn handle_try_recv(
     match recv_result {
         Ok(Some(notification)) => {
             reset_backoff(backoff, in_backoff);
-            forward_notification(notification.payload(), event_tx);
+            route_notification(&notification, outlets);
             false
         }
         Ok(None) => {
             reset_backoff(backoff, in_backoff);
             tracing::warn!("db_listener: connection lost — reconnected and resubscribed");
-            emit_resync_required(event_tx, ResyncReason::Recovery);
+            emit_resync_required(outlets.event_tx, ResyncReason::Recovery);
+            outlets.reloader.request();
             false
         }
         Err(e) => {
@@ -139,7 +161,9 @@ async fn establish_listener(
 
 async fn connect_and_listen(database_url: &str) -> Result<PgListener, sqlx::Error> {
     let mut listener = PgListener::connect(database_url).await?;
-    listener.listen("proxy.row_changed").await?;
+    listener
+        .listen_all(["proxy.row_changed", CONFIG_CHANNEL])
+        .await?;
     Ok(listener)
 }
 

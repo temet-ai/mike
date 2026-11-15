@@ -3,7 +3,7 @@ use super::AppState;
 pub(super) fn launch_resolved_values(
     state: &AppState,
 ) -> serde_json::Map<String, serde_json::Value> {
-    launch_config_as_flat_map(&state.config.launch)
+    launch_config_as_flat_map(&state.config().launch)
 }
 
 fn launch_config_as_flat_map(

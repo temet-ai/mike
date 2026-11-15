@@ -108,14 +108,14 @@ pub fn capability_row(persistence: bool, enabled: bool, health: &KeeperHealth) -
         return row(
             CapabilityState::Off,
             "The memory_keeper toggle is off, so no work thread cards are built".to_owned(),
-            "Turn on Work thread cards at /settings, then restart mike",
+            "Turn on Work thread cards at /settings",
         );
     }
     if !health.running {
         return row(
             CapabilityState::Inert,
-            "The memory_keeper toggle is on but the card worker is not running; it starts only when the toggle is on at startup".to_owned(),
-            "Restart mike",
+            "The memory_keeper toggle is on but the card worker has not started yet; it checks the toggle every 2 seconds".to_owned(),
+            "Wait a few seconds and reload; if it stays inert, check the mike log",
         );
     }
     running_row(health.last.as_ref())

@@ -144,7 +144,7 @@ pub async fn launch(
         .upsert_run(&NewRun {
             run_id: job.run_id.clone(),
             project_path: Some(def.repo.clone()),
-            backend: state.config.launch.backend.clone(),
+            backend: state.config().launch.backend.clone(),
             workspace_ref: None,
             tab_ref: None,
         })

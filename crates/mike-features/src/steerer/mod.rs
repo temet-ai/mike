@@ -43,11 +43,7 @@ pub fn spawn_steerer_fleet(state: &AppState) {
         state.llm_usage_sink.clone(),
     );
 
-    if !state.feature_toggle_overlay.load().steerer {
-        return;
-    }
-
-    let config = state.config.steerer.clone();
+    let config = state.config().steerer.clone();
 
     let Some(llm) = build_openrouter_client(state, &config) else {
         return;
@@ -104,5 +100,6 @@ fn fleet_args_from_state(
         remote_control_streams: state.remote_control_streams.clone(),
         injection_gate: state.injection_gate.clone(),
         settings: state.settings_overlay.clone(),
+        live_config: Some(state.live_config.clone()),
     }
 }

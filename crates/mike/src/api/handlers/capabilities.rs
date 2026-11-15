@@ -115,7 +115,7 @@ fn steering_runtime_capability(state: &AppState) -> CapabilityRow {
                 state
                     .settings_overlay
                     .load()
-                    .live_steerer_model(&state.config.steerer.model)
+                    .live_steerer_model(&state.config().steerer.model)
             ),
             fix: String::new(),
         };
@@ -296,7 +296,7 @@ mod weasel_capability_tests {
         let state = AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
         assert!(
             state
-                .config
+                .config()
                 .sections
                 .get::<crate::features_settings::WeaselInterceptConfig>()
                 .forbidden_words

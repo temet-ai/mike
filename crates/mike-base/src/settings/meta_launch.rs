@@ -10,7 +10,7 @@ fn entry(key: &'static str, kind: SettingKind, default: serde_json::Value) -> Se
         group: GROUP,
         kind,
         scope: SettingScope::Global,
-        applies: SettingApplies::OnRestart,
+        applies: SettingApplies::NextCycle,
         default,
         label: "",
         description: "",

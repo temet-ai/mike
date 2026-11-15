@@ -62,6 +62,10 @@ impl BundleCause {
         Self::new("retry")
     }
 
+    pub fn reload() -> Self {
+        Self::new("reload")
+    }
+
     pub fn setting(key: &str, change_log_ids: Vec<i64>) -> Self {
         Self {
             change_log_ids,

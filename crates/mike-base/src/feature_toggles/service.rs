@@ -46,6 +46,13 @@ impl FeatureToggleService {
         Ok(service)
     }
 
+    pub async fn reload_from_db(&self) -> Result<(), PersistError> {
+        let _guard = self.write_lock.lock().await;
+        let db_rows = self.persist.fetch_feature_toggles().await?;
+        self.apply_db_rows(db_rows);
+        Ok(())
+    }
+
     pub async fn set(
         &self,
         key: &str,

@@ -51,11 +51,6 @@ pub fn spawn_session_end_shadow(state: &AppState) {
     };
     let llm = llm.with_attribution(LlmRole::Eval, state.llm_usage_sink.as_ref());
 
-    let interval_secs = state
-        .settings_overlay
-        .load()
-        .session_end_shadow_interval_secs
-        .max(60);
     let cfg = state
         .config()
         .sections
@@ -67,7 +62,7 @@ pub fn spawn_session_end_shadow(state: &AppState) {
         key_slot: state.steerer_openrouter_key.clone(),
         toggles: state.feature_toggle_overlay.clone(),
         settings: state.settings_overlay.clone(),
-        interval_secs,
+        live_config: state.live_config.clone(),
         breaker_threshold: cfg.circuit_breaker_threshold,
         breaker_cooldown_base_secs: cfg.circuit_breaker_cooldown_base_secs,
         breaker_cooldown_max_secs: cfg.circuit_breaker_cooldown_max_secs,
@@ -97,12 +92,6 @@ fn log_shutdown_signalled() {
     tracing::debug!("session_end_shadow: shutdown signalled, exiting");
 }
 
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "session_end_shadow: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
-}
-
 fn log_client_not_built() {
     tracing::warn!(
         "session_end_shadow: the judge LLM client could not be built — skipping this tick"
@@ -115,30 +104,41 @@ struct ShadowWorkerDeps {
     key_slot: OpenRouterKeySlot,
     toggles: Arc<ArcSwap<FeatureToggles>>,
     settings: Arc<ArcSwap<SettingsOverlay>>,
-    interval_secs: i64,
+    live_config: Arc<crate::config::live::LiveConfig>,
     breaker_threshold: u32,
     breaker_cooldown_base_secs: u64,
     breaker_cooldown_max_secs: u64,
     shutdown: CancellationToken,
 }
 
-async fn run_shadow_loop(deps: ShadowWorkerDeps) {
-    let poll = Duration::from_secs(u64::try_from(deps.interval_secs).unwrap_or(300));
-    let mut interval = tokio::time::interval(poll);
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+impl ShadowWorkerDeps {
+    fn poll_interval(&self) -> Duration {
+        let secs = self
+            .settings
+            .load()
+            .session_end_shadow_interval_secs
+            .max(60);
+        Duration::from_secs(u64::try_from(secs).unwrap_or(300))
+    }
 
+    fn request_timeout(&self) -> Duration {
+        let config = self
+            .live_config
+            .load()
+            .sections
+            .get::<crate::features_settings::SessionJudgeConfig>();
+        Duration::from_secs(config.request_timeout_secs)
+    }
+}
+
+async fn run_shadow_loop(deps: ShadowWorkerDeps) {
     let mut breaker = CircuitBreaker::new(
         deps.breaker_threshold,
         Duration::from_secs(deps.breaker_cooldown_base_secs),
         Duration::from_secs(deps.breaker_cooldown_max_secs),
     );
 
-    let ctx = ShadowTickDeps {
-        persist: deps.persist,
-        llm: deps.llm,
-        key_slot: deps.key_slot,
-    };
-
+    let mut wait = Duration::ZERO;
     loop {
         tokio::select! {
             biased;
@@ -148,19 +148,31 @@ async fn run_shadow_loop(deps: ShadowWorkerDeps) {
                 return;
             }
 
-            _ = interval.tick() => {
-                if !deps.toggles.load().session_end_shadow {
-                    log_disabled_via_toggle();
-                    return;
+            _ = tokio::time::sleep(wait) => {
+                wait = deps.poll_interval();
+                if deps.toggles.load().session_end_shadow {
+                    shadow_tick_if_leader(&deps, wait, &mut breaker).await;
                 }
-                if !ctx.persist.holds_llm_role(LlmRole::Eval, poll).await {
-                    continue;
-                }
-                let settings = deps.settings.load();
-                tick(&ctx, &settings, &mut breaker).await;
             }
         }
     }
+}
+
+async fn shadow_tick_if_leader(
+    deps: &ShadowWorkerDeps,
+    poll: Duration,
+    breaker: &mut CircuitBreaker,
+) {
+    if !deps.persist.holds_llm_role(LlmRole::Eval, poll).await {
+        return;
+    }
+    let ctx = ShadowTickDeps {
+        persist: deps.persist.clone(),
+        llm: deps.llm.with_timeout(deps.request_timeout()),
+        key_slot: deps.key_slot.clone(),
+    };
+    let settings = deps.settings.load();
+    tick(&ctx, &settings, breaker).await;
 }
 
 struct ShadowTickDeps {

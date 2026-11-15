@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
 use crate::config::primary_tcp_unreachable;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::resync::{ResyncEngine, ResyncError, SyncReport};
 use crate::state::AppState;
 use crate::store::persistence::ActiveDbTarget;
@@ -48,14 +49,6 @@ fn db_resync_config_enabled(state: &AppState) -> bool {
     false
 }
 
-fn db_resync_toggle_enabled(state: &AppState) -> bool {
-    if state.feature_toggle_overlay.load().db_resync {
-        return true;
-    }
-    tracing::debug!("resync_worker: db_resync feature toggle off — skipping spawn");
-    false
-}
-
 fn resync_urls(state: &AppState) -> Option<(String, String)> {
     let (Some(dest_url), Some(source_url)) = (
         state.config.database_url.clone(),
@@ -86,9 +79,6 @@ pub fn spawn_resync_worker(state: &AppState) {
     if !db_resync_config_enabled(state) {
         return;
     }
-    if !db_resync_toggle_enabled(state) {
-        return;
-    }
     let Some((source_url, dest_url)) = resync_urls(state) else {
         return;
     };
@@ -97,9 +87,13 @@ pub fn spawn_resync_worker(state: &AppState) {
     }
 
     let status = state.resync_status.clone();
+    let toggles = state.feature_toggle_overlay.clone();
+    let shutdown = state.shutdown();
 
     state.tracker.spawn(async move {
-        run(source_url, dest_url, status).await;
+        if wait_until_on(&toggles, |t| t.db_resync, &shutdown).await {
+            run(source_url, dest_url, status).await;
+        }
     });
 }
 
