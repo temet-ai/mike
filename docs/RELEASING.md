@@ -283,6 +283,12 @@ writes `target/local-releases/<sha>/<target>/` with `manifest-<target>.json`, bo
 archives and their `.sha256` files, the same files the workflow uploads.
 `scripts/deploy-release-build --local <that directory>` installs it.
 
+`--deploy` builds the same archive shape for a deploy to our own machines, never for a
+release: profile `infra` through the mbx cache, in `.claude/worktrees/deploy-<target>`,
+into `target/local-deploys/`. `scripts/deploy-infra [--sha <commit>]` builds infra's
+archive that way, copies it to infra and installs it there
+([`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md#infra-deploy-builds)).
+
 | Target | Built on | How |
 |---|---|---|
 | `aarch64-apple-darwin` | an Apple Silicon Mac | natively |

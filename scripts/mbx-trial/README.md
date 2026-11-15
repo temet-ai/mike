@@ -74,6 +74,46 @@ and checks without a cutover; `MIKE_DEPLOY_BUILD_CACHE=cargo` returns to plain c
 
 `scripts/test-cx-build-cache` checks this without building anything.
 
+## Infra deploy builds
+
+infra (aarch64) never builds Rust. `scripts/deploy-infra [--sha <commit>]` builds one
+commit on omit, copies the archives to `infra:~/mike-deploy/<short>/` and runs
+`scripts/deploy-release-build --local` there (`--build-only` stops after the build). It
+builds with `scripts/build-local-release aarch64-unknown-linux-gnu --deploy`, which differs
+from a release build in three ways, and only for a deploy:
+
+- profile `infra` (release without cross-crate LTO, 64 codegen units) instead of `dist`
+  (thin LTO);
+- through mbx into `target/mbx-deploy-<target>` of the `deploy-<target>` worktree, via
+  cargo-zigbuild with `CARGO` set to the cargo shim (`mbx_cargo_shim`), on half the
+  processors under the build lock, where a release runs one job on plain cargo;
+- `SOURCE_DATE_EPOCH` is kept out of the compile, because `build_identity.rs` reruns on
+  it. mike compiles with the fixed `mbx-build` identity and is stamped with the commit;
+  mike-mcp has no stamp slot and no workspace dependency, so it compiles with the commit's
+  identity, and only that crate recompiles per commit.
+
+The archives have the release shape (manifest `build.profile` is `infra`, `build_cache`
+`mbx`), so infra's installer verifies and installs them unchanged
+(`scripts/lib/deploy-archive-build.sh`, `prepare.py --deploy-build`). Release builds keep
+`dist`, one job and plain cargo.
+
+Measured on omit on 15 November 2026, aarch64, the whole `build-local-release` run (SPA,
+compile, packaging, qemu smoke), with other sessions idle:
+
+| Path | Cold | After a one-file change (`mike-features`) |
+| --- | --- | --- |
+| release (`dist`, one job, plain cargo) | 2197 s | 1919 s |
+| deploy (`infra`, mbx) | 813 s | 504 s |
+
+The release path rebuilds every workspace crate on any commit: it compiles the commit's
+identity into `mike-base` and sets `SOURCE_DATE_EPOCH`, which every workspace build script
+reruns on. The deploy path restores every dependency and every workspace crate below the
+edited one. The 504 s, from the build directory's timestamps: about 1 min for the fetch,
+the SPA and the restores, `mike_features` 2m 10s, `mike_lessons` beside it, the `mike`
+library 4 min, its link 1.5 min and `mike_mcp` 25 s. A change only in crate `mike` skips
+the first two. What is left is the crates above the change, which no cache can skip; a lower
+`opt-level` would shorten them, and has not been measured.
+
 ## Three traps
 
 1. **A build directory used through mbx holds read-only hard links** into the

@@ -22,6 +22,8 @@ from script_assets import SCRIPTS
 from rust_paths import PATH_DESTINATIONS, cargo_path_config
 
 ROOT = Path(__file__).resolve().parents[2]
+# The Cargo profile of --deploy-build; a release always builds with "dist".
+DEPLOY_PROFILE = "infra"
 
 
 def plain_directory(path):
@@ -61,7 +63,7 @@ def preflight(root, requested, target, glibc=None):
     return version, commit, target, versions, env, epoch
 
 
-def build(root, target, build_dir, env, glibc=None):
+def build_spa(root, env):
     frontend = root / "frontend"
     output = frontend / "build"
     if output.is_symlink() or (output.exists() and not output.is_dir()):
@@ -71,7 +73,11 @@ def build(root, target, build_dir, env, glibc=None):
     print("==> Building the production SPA from frozen, offline dependencies", flush=True)
     run(["pnpm", "install", "--offline", "--frozen-lockfile"], cwd=frontend, env=env)
     run(["pnpm", "build"], cwd=frontend, env=dict(env, NODE_ENV="production"))
-    assets = spa_inventory(root)
+    return spa_inventory(root)
+
+
+def build(root, target, build_dir, env, glibc=None):
+    assets = build_spa(root, env)
     # cargo-zigbuild links against the named glibc and still writes target/<triple>/.
     command, cargo_target = (["cargo", "build"], target) if glibc is None else (
         ["cargo", "zigbuild"], f"{target}.{glibc}")
@@ -86,6 +92,18 @@ def build(root, target, build_dir, env, glibc=None):
     run([*command, "--offline", "--locked", "--profile", "dist", "--target", cargo_target,
          "-p", "mike", "-p", "mike-mcp", "--config", cargo_path_config(root, env)], cwd=root,
         env=dict(env, CARGO_TARGET_DIR=str(build_dir)))
+    return assets
+
+
+def deploy_build(root, target, build_dir, env, glibc=None):
+    """Our own machines' deploy build: the infra profile through the mbx cache, so a
+    commit restores every unit it did not change. Never a release: see
+    scripts/lib/deploy-archive-build.sh."""
+    assets = build_spa(root, env)
+    cargo_target = target if glibc is None else f"{target}.{glibc}"
+    print(f"==> Building {cargo_target} for a deploy: profile {DEPLOY_PROFILE} through mbx", flush=True)
+    run(["bash", str(root / "scripts/lib/deploy-archive-build.sh"), target, cargo_target,
+         cargo_path_config(root, env), str(build_dir)], cwd=root, env=env)
     return assets
 
 
@@ -109,7 +127,7 @@ def finalize_candidate(staging, output, manifest):
     return destination
 
 
-def prepare(root, requested, target, reviewed_notices=None, glibc=None):
+def prepare(root, requested, target, reviewed_notices=None, glibc=None, deploy=False):
     version, commit, target, versions, env, epoch = preflight(root, requested, target, glibc)
     migrations = source_migration_inventory(root, commit)
     output = root / "dist-out"
@@ -123,13 +141,13 @@ def prepare(root, requested, target, reviewed_notices=None, glibc=None):
     staging = None
     try:
         (lock / "pid").write_text(str(os.getpid()) + "\n")
-        build_dir = output / ".build"
+        build_dir = output / (".build-deploy" if deploy else ".build")
         plain_directory(build_dir)
         for path in (build_dir / target, build_dir / target / "dist"):
             plain_directory(path)
         staging = Path(tempfile.mkdtemp(prefix=".prepare-", dir=output))
         env["SOURCE_DATE_EPOCH"] = str(epoch)
-        assets = build(root, target, build_dir, env, glibc)
+        assets = (deploy_build if deploy else build)(root, target, build_dir, env, glibc)
         notice = prepare_notice(root, reviewed_notices, commit, version, target, assets)
         artifacts = prepare_archives(root, staging, build_dir, version, target, epoch, env, commit, notice)
         clean_source(root, commit)
@@ -139,7 +157,10 @@ def prepare(root, requested, target, reviewed_notices=None, glibc=None):
             "schema_version": 1, "state": "prepared", "qualified": False,
             "version": version, "source_commit": commit, "source_date_epoch": epoch,
             "target": target, "toolchain": versions,
-            "build": {"profile": "dist", "cargo_locked": True, "offline": True, "sqlx_offline": True,
+            "build": {"profile": DEPLOY_PROFILE if deploy else "dist",
+                      **({"build_cache": "mbx", "purpose": "deploy to our own machines; not a release"}
+                         if deploy else {}),
+                      "cargo_locked": True, "offline": True, "sqlx_offline": True,
                       "rust_path_remapping": PATH_DESTINATIONS,
                       "cargo_lock_sha256": sha256(root / "Cargo.lock"),
                       "pnpm_lock_sha256": sha256(root / "frontend/pnpm-lock.yaml"),
@@ -173,19 +194,22 @@ def main():
                         help="optional offline source/target-bound notice review manifest with adjacent license texts; never grants publication permission")
     parser.add_argument("--glibc", metavar="FLOOR",
                         help="Linux only: link against this glibc with cargo-zigbuild, e.g. 2.35")
+    parser.add_argument("--deploy-build", action="store_true",
+                        help=f"a deploy to our own machines, not a release: profile {DEPLOY_PROFILE} "
+                             "through the mbx cache (scripts/build-local-release --deploy)")
     parser.add_argument("--publish", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.publish:
         raise ReleaseError("publication is unavailable: qualify the prepared archive and implement "
                            "permission-preflighted, same-byte publication before enabling it")
     if args.verify:
-        if args.version or args.target or args.reviewed_notices or args.glibc:
+        if args.version or args.target or args.reviewed_notices or args.glibc or args.deploy_build:
             raise ReleaseError("--verify takes only a candidate directory, not a version, target or review input")
         manifest = verify_candidate(args.verify.resolve())
         print(f"Verified archived bytes and local CLI smoke: v{manifest['version']} ({manifest['target']})")
         print("Candidate remains unqualified; this does not replace clean-account/runtime checks.")
     else:
-        prepare(ROOT, args.version, args.target, args.reviewed_notices, args.glibc)
+        prepare(ROOT, args.version, args.target, args.reviewed_notices, args.glibc, args.deploy_build)
 
 
 if __name__ == "__main__":

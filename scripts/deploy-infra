@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Build one commit for infra (aarch64 Linux) on this machine and deploy it there.
+#
+#   scripts/deploy-infra [--sha <commit>] [--host <ssh host>] [--repo <checkout on host>] [--build-only]
+#
+# The commit defaults to origin/main. It builds with `scripts/build-local-release
+# aarch64-unknown-linux-gnu --deploy` (the infra profile through the mbx cache, so a commit
+# rebuilds only what it changed), copies the archives to <host>:~/mike-deploy/<short>/ and
+# runs `scripts/deploy-release-build --local` in the host's checkout (default
+# ~/projects/mike), which installs them and restarts mike there. infra never builds Rust.
+# Public releases keep building with scripts/build-local-release, without --deploy.
+set -euo pipefail
+
+die() { echo "deploy-infra: $*" >&2; exit 1; }
+
+target=aarch64-unknown-linux-gnu
+want="" host=infra repo="projects/mike" build_only=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
+    --host) host="${2:?--host needs an ssh host}"; shift 2 ;;
+    --repo) repo="${2:?--repo needs the checkout on the host}"; shift 2 ;;
+    --build-only) build_only=1; shift ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    *) die "unknown argument $1; see --help" ;;
+  esac
+done
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+started=$SECONDS
+built="$("$script_dir/build-local-release" "$target" --deploy ${want:+--sha "$want"} | tee /dev/stderr \
+  | sed -n 's/^Release build: //p' | tail -1)"
+built="${built% (already built)}"
+[ -f "$built/manifest-$target.json" ] || die "build-local-release printed no build directory"
+sha="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$built/manifest-$target.json")"
+short="${sha:0:9}"
+echo "==> Built $short for $target in $((SECONDS - started))s: $built"
+[ "$build_only" = 0 ] || exit 0
+
+remote="mike-deploy/$short"
+# shellcheck disable=SC2029 # the path is meant to expand on the host
+ssh "$host" "mkdir -p ~/$remote"
+scp -q "$built"/* "$host:$remote/"
+echo "==> Copied to $host:~/$remote; deploying"
+# shellcheck disable=SC2029 # the paths are meant to expand on the host
+ssh "$host" "cd ~/$repo && scripts/deploy-release-build --local ~/$remote"
+echo "==> Deployed $short to $host in $((SECONDS - started))s"

@@ -8,7 +8,12 @@
 #   <out>/<sha>/<target>/mike-v<version>-<target>.tar.gz (+ .sha256)
 #   <out>/<sha>/<target>/mike-mcp-v<version>-<target>.tar.gz (+ .sha256)
 #
-#   scripts/build-local-release <target> [--sha <commit>] [--out <dir>]
+#   scripts/build-local-release <target> [--sha <commit>] [--out <dir>] [--deploy]
+#
+# --deploy builds for a deploy to our own machines, never for a release: the infra
+# profile (no cross-crate LTO, more codegen units) through the mbx cache on half the
+# processors, in .claude/worktrees/deploy-<target>, into target/local-deploys by default.
+# A commit then restores every crate it did not change. scripts/deploy-infra uses it.
 #
 # Where each target builds:
 #   aarch64-apple-darwin       natively on an Apple Silicon Mac
@@ -34,12 +39,13 @@ SYSROOT_DEBS=(
 
 die() { echo "build-local-release: $*" >&2; exit 1; }
 
-target="" want="" out=""
+target="" want="" out="" deploy=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
     --out) out="${2:?--out needs a directory}"; shift 2 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    --deploy) deploy=1; shift ;;
+    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$target" ] || die "one target at a time"; target="$1"; shift ;;
   esac
@@ -58,7 +64,9 @@ esac
 root="$(dirname "$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir)")"
 git -C "$root" fetch -q origin
 sha="$(git -C "$root" rev-parse "${want:-origin/main}^{commit}")"
-out="${out:-$root/target/local-releases}"
+kind=release
+[ "$deploy" = 0 ] || kind=deploy
+out="${out:-$root/target/local-${kind}s}"
 dest="$out/$sha/$target"
 log="$out/$sha/build-$target.log"
 if [ -f "$dest/manifest-$target.json" ]; then
@@ -67,7 +75,7 @@ if [ -f "$dest/manifest-$target.json" ]; then
 fi
 
 
-worktree="$root/.claude/worktrees/release-$target"
+worktree="$root/.claude/worktrees/$kind-$target"
 if git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$worktree" checkout -q --detach "$sha"
   git -C "$worktree" clean -fdq
@@ -77,6 +85,9 @@ fi
 cd "$worktree"
 if [ -n "$glibc" ] && ! grep -q -- '--glibc' scripts/release/prepare.py; then
   die "${sha:0:9} predates the release script's --glibc option, so it cannot build a Linux archive here"
+fi
+if [ "$deploy" = 1 ] && ! grep -q -- '--deploy-build' scripts/release/prepare.py; then
+  die "${sha:0:9} predates the release script's --deploy-build option; build it without --deploy"
 fi
 
 # The exact Node of .nvmrc and pnpm of frontend/package.json, from mise or nvm.
@@ -127,11 +138,16 @@ if [ "$target" = aarch64-unknown-linux-gnu ]; then
 fi
 
 mkdir -p "$out/$sha"
-echo "==> Building $target at ${sha:0:9}; log: $log"
+echo "==> Building $target at ${sha:0:9} for a $kind; log: $log"
+started=$SECONDS
 {
   cargo fetch --locked
   (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
-  nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
+  if [ "$deploy" = 0 ]; then
+    nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
+  else
+    nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"} --deploy-build
+  fi
 } >"$log" 2>&1 || die "the build failed; see $log"
 
 candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"
@@ -139,7 +155,10 @@ candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"
 if [ -n "$glibc" ]; then
   python3 scripts/release/glibc_floor.py "$candidate/manifest.json" || die "the candidate breaks the glibc $glibc floor"
 fi
-scripts/release.sh --verify "$candidate"
+# The preparer has smoke-tested the archived binaries, and the installer verifies them
+# again on the machine that installs them, so a deploy skips this second smoke test.
+[ "$deploy" = 1 ] || scripts/release.sh --verify "$candidate"
+echo "==> Built in $((SECONDS - started))s"
 
 rm -rf "$dest.partial"
 mkdir -p "$dest.partial"
