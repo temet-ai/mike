@@ -123,6 +123,7 @@ def main():
 
 
 if __name__ == "__main__":
+    os.umask(0o022)
     try:
         with interruption_cleanup():
             main()
