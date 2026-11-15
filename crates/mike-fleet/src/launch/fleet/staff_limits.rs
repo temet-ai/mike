@@ -17,6 +17,19 @@ pub fn live_worker_seats(status: &FleetStatus) -> usize {
         .count()
 }
 
+pub fn binding_room(
+    def: &FleetDefinition,
+    (live, starting): (usize, usize),
+    (surface_room, surfaces): (usize, String),
+) -> (usize, String) {
+    let seats = seat_room(def, live, starting);
+    if seats < surface_room {
+        let why = max_seats_reached(def, live, starting).unwrap_or(surfaces);
+        return (seats, why);
+    }
+    (surface_room, surfaces)
+}
+
 pub fn max_seats_reached(def: &FleetDefinition, live: usize, starting: usize) -> Option<String> {
     let limit = def.staffing.max_seats?;
     (live + starting >= limit).then(|| {

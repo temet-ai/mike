@@ -30,6 +30,11 @@ fn reaching_max_seats_names_the_limit_not_the_terminal() {
     assert!(why.contains("staffing.max_seats is 2"), "{why}");
     assert_eq!(super::max_seats_reached(&def, 1, 0), None);
     assert_eq!(super::max_seats_reached(&parsed(&complete()), 9, 9), None);
+    let (room, why) = super::binding_room(&def, (2, 0), (16, "surfaces".to_string()));
+    assert_eq!(room, 0);
+    assert!(why.contains("staffing.max_seats is 2"), "{why}");
+    let (room, why) = super::binding_room(&def, (0, 0), (1, "surfaces".to_string()));
+    assert_eq!((room, why.as_str()), (1, "surfaces"));
 }
 
 #[tokio::test]
