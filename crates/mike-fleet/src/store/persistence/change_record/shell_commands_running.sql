@@ -10,9 +10,9 @@ WITH calls AS (
                     ELSE 120000 END,
                600000
            ) AS timeout_ms,
-           (strpos(u.input->>'command', $1) > 0
+           coalesce(strpos(u.input->>'command', $1) > 0
             OR (starts_with($1, s.cwd || '/')
-                AND strpos(u.input->>'command', substr($1, length(s.cwd) + 2)) > 0)) AS names_checkout
+                AND strpos(u.input->>'command', substr($1, length(s.cwd) + 2)) > 0), false) AS names_checkout
       FROM tools.uses u
       JOIN sessions.sessions s ON s.id = u.session_id
       LEFT JOIN responses.responses rs ON rs.request_id = u.request_id
