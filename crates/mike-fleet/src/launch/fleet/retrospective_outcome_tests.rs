@@ -67,6 +67,22 @@ fn the_definition_overrides_model_questions_and_where_it_writes() -> anyhow::Res
 }
 
 #[test]
+fn a_launch_without_user_settings_still_skips_the_bypass_permissions_dialog() -> anyhow::Result<()>
+{
+    let def = FleetDefinition::default();
+    let job = Job::new("run", &json!({}), json!([]));
+    let args = super::retrospective_launch::args(&def, &job);
+    assert!(
+        args.windows(2)
+            .any(|pair| pair == ["--setting-sources", ""])
+    );
+    let settings: serde_json::Value =
+        serde_json::from_str(args.last().ok_or_else(|| anyhow::anyhow!("no settings"))?)?;
+    assert_eq!(settings["skipDangerousModePermissionPrompt"], true);
+    Ok(())
+}
+
+#[test]
 fn the_default_launch_can_debrief_and_write_but_not_edit_code() -> anyhow::Result<()> {
     let def = FleetDefinition::default();
     let job = Job::new("run", &json!({}), json!([]));

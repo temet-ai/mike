@@ -129,6 +129,27 @@ fn state_cuts_a_long_diff_between_its_head_and_its_tail() {
     assert!(diff.contains("diff cut here"));
 }
 
+#[test]
+fn state_carries_the_task_brief_and_the_tasks_that_share_its_criteria() {
+    let mut shared = input(Some(0), &[]);
+    shared.task_brief = "C1: the shared types only".to_owned();
+    shared.shared_with = vec![super::super::judge::SharedTask {
+        task: "T3".to_owned(),
+        name: "CLI".to_owned(),
+        criteria: vec!["C1".to_owned()],
+    }];
+    let state = state(&shared);
+    assert_eq!(state["task_brief"], "C1: the shared types only");
+    assert_eq!(state["shared_with"][0]["task"], "T3");
+}
+
+#[test]
+fn the_question_asks_for_this_tasks_part_of_a_criterion() {
+    let asked = questions(&[criterion("C1")]);
+    let text = serde_json::to_string(&asked["criterion_C1"]).unwrap_or_default();
+    assert!(text.contains("this task's part of criterion C1"), "{text}");
+}
+
 #[tokio::test]
 async fn jev_judge_on_answers_that_show_every_criterion_passes() -> anyhow::Result<()> {
     let Some(fx) = DecisionsFixture::boot(json!({})).await? else {

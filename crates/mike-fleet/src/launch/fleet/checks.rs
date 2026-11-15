@@ -241,7 +241,7 @@ fn task_links(def: &FleetDefinition, id: &str, task: &TaskDefinition, found: &mu
             ));
         }
     }
-    if task.files.is_empty() {
+    if task.files.is_empty() && task.new_files.is_empty() {
         found.push(Missing::new(
             format!("tasks.{id}.files"),
             "the task names no file it may touch",

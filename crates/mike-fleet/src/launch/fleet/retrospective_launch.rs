@@ -62,6 +62,7 @@ pub fn args(def: &FleetDefinition, job: &Job) -> Vec<String> {
             "--settings".to_string(),
             json!({
                 "disableAllHooks": true,
+                "skipDangerousModePermissionPrompt": true,
                 "permissions": {"allow": allowed(def), "defaultMode": "dontAsk"},
                 "env": {"MIKE_MCP_PROFILE": "retrospective"},
             })

@@ -3,11 +3,27 @@ use super::host_memory;
 use super::status::FleetStatus;
 
 pub fn live_worker_seats(status: &FleetStatus) -> usize {
+    let closed: std::collections::BTreeSet<&str> = status
+        .seats
+        .iter()
+        .filter(|seat| seat.closed)
+        .map(|seat| seat.seat.as_str())
+        .collect();
     status
         .tasks
         .iter()
-        .filter(|task| task.seat.is_some())
+        .filter_map(|task| task.seat.as_deref())
+        .filter(|seat| !closed.contains(seat))
         .count()
+}
+
+pub fn max_seats_reached(def: &FleetDefinition, live: usize, starting: usize) -> Option<String> {
+    let limit = def.staffing.max_seats?;
+    (live + starting >= limit).then(|| {
+        format!(
+            "waiting: staffing.max_seats is {limit} and {live} worker seats are open, {starting} starting; a seat frees when its task's seat closes"
+        )
+    })
 }
 
 pub fn seat_room(def: &FleetDefinition, live: usize, starting: usize) -> usize {

@@ -12,6 +12,8 @@ use super::{
 pub const CORE_TOOL_NAMES: &[&str] = &[
     "define_fleet",
     "get_fleet",
+    "answer",
+    "decline",
     "what_changed",
     "search_project_knowledge",
     "read_project_knowledge",
