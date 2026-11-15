@@ -147,13 +147,23 @@ async fn report_upstream_error(
         .await;
 }
 
-async fn answer_cut(cut: Cut, stitch: StitchPoint, body_tx: ClientTx, ctx: ForwarderCtx) {
-    if let Some(index) = stitch.open_block
-        && body_tx
-            .send(Ok(stitch::block_stop_frame(index)))
-            .await
-            .is_err()
+async fn close_the_open_block(cut: &Cut, stitch: StitchPoint, body_tx: &ClientTx) -> bool {
+    let mut frames = Vec::new();
+    if let Cut::Word {
+        kept_frame: Some(frame),
+        ..
+    } = cut
     {
+        frames.push(frame.clone());
+    }
+    if let Some(index) = stitch.open_block {
+        frames.push(stitch::block_stop_frame(index));
+    }
+    send_all(frames, body_tx).await
+}
+
+async fn answer_cut(cut: Cut, stitch: StitchPoint, body_tx: ClientTx, ctx: ForwarderCtx) {
+    if !close_the_open_block(&cut, stitch, &body_tx).await {
         return;
     }
 
@@ -176,7 +186,9 @@ async fn answer_cut(cut: Cut, stitch: StitchPoint, body_tx: ClientTx, ctx: Forwa
             )
             .await;
         }
-        Cut::Word { word, text } => {
+        Cut::Word {
+            word, text, kept, ..
+        } => {
             record_intercept(&ctx, InterceptOutcome::WeaselCorrection, &word);
             after::spawn_ask(
                 ctx.state.decision_env(),
@@ -195,7 +207,7 @@ async fn answer_cut(cut: Cut, stitch: StitchPoint, body_tx: ClientTx, ctx: Forwa
                     session_id: ctx.session_id,
                     correction_prompt: ctx.correction_prompt,
                 },
-                (word, text),
+                correction::CutReply { word, text, kept },
                 body_tx,
                 stitch.next_index,
             )

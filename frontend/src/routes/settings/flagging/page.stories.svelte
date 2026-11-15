@@ -142,7 +142,7 @@
 			key: 'weasel_intercept.correction_prompt',
 			kind: 'text',
 			default:
-				"You used the word '{word}' in your previous response, which is a forbidden quality pattern. Rewrite your response. Start with: 'I used a weasel word, let me fix that:' then give the corrected answer without using '{word}'.",
+				"Your reply was cut just before the word '{word}', which is not accepted here. Continue from exactly where it was cut, without repeating any of it and without that word.",
 			value: 'Please rephrase with supporting evidence rather than assertion.',
 			label: 'Correction prompt',
 			description: 'Injected when a forbidden phrase is detected.',

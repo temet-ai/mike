@@ -2,6 +2,8 @@ use anyhow::{Context, bail};
 use bytes::Bytes;
 use serde_json::Value;
 
+use super::scanner::find_case_insensitive;
+
 #[cfg(test)]
 pub mod placeholder_tests;
 
@@ -10,6 +12,7 @@ const EXCERPT_CONTEXT_CHARS: usize = 200;
 pub struct CorrectionRequest {
     original_body: Bytes,
     pub weasel_response: String,
+    kept: String,
     correction_prompt_template: String,
     trigger_word: String,
 }
@@ -18,12 +21,14 @@ impl CorrectionRequest {
     pub fn new(
         original_body: Bytes,
         weasel_response: String,
+        kept: String,
         correction_prompt_template: String,
         trigger_word: String,
     ) -> Self {
         Self {
             original_body,
             weasel_response,
+            kept,
             correction_prompt_template,
             trigger_word,
         }
@@ -43,13 +48,16 @@ impl CorrectionRequest {
             .as_array_mut()
             .context("weasel correction: 'messages' field is not an array")?;
 
-        messages.push(serde_json::json!({
-            "role": "assistant",
-            "content": [{
-                "type": "text",
-                "text": self.weasel_response
-            }]
-        }));
+        let kept = self.kept.trim_end();
+        if !kept.is_empty() {
+            messages.push(serde_json::json!({
+                "role": "assistant",
+                "content": [{
+                    "type": "text",
+                    "text": kept
+                }]
+            }));
+        }
 
         let correction_text = render_prompt(
             &self.correction_prompt_template,
@@ -128,29 +136,6 @@ fn excerpt_around(response: &str, word: &str) -> String {
         .to_owned()
 }
 
-fn find_case_insensitive(haystack: &str, needle: &str) -> Option<(usize, usize)> {
-    let needle_lower: Vec<char> = needle.chars().flat_map(char::to_lowercase).collect();
-    haystack.char_indices().find_map(|(start, _)| {
-        match_length(&haystack[start..], &needle_lower).map(|len| (start, start + len))
-    })
-}
-
-fn match_length(haystack: &str, needle_lower: &[char]) -> Option<usize> {
-    let mut matched = 0;
-    for (offset, c) in haystack.char_indices() {
-        for lowered in c.to_lowercase() {
-            if needle_lower.get(matched) != Some(&lowered) {
-                return None;
-            }
-            matched += 1;
-        }
-        if matched == needle_lower.len() {
-            return Some(offset + c.len_utf8());
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,35 +150,82 @@ mod tests {
         Ok(Bytes::from(serde_json::to_vec(&body)?))
     }
 
+    fn messages_of(body: &Bytes) -> anyhow::Result<Vec<Value>> {
+        let json: Value = serde_json::from_slice(body)?;
+        json["messages"]
+            .as_array()
+            .cloned()
+            .context("messages not an array")
+    }
+
     #[test]
-    fn build_body_appends_two_turns() -> anyhow::Result<()> {
+    fn build_body_cut_reply_appends_the_kept_text_and_the_prompt() -> anyhow::Result<()> {
         let original = make_original_body(serde_json::json!([
             {"role": "user", "content": "Hello"}
         ]))?;
         let cr = CorrectionRequest::new(
             original,
             "This is a comprehensive response.".to_string(),
+            "This is a".to_string(),
             "You used '{word}', please fix it.".to_string(),
             "comprehensive".to_string(),
         );
-        let body = cr.build_body()?;
-        let json: Value = serde_json::from_slice(&body)?;
-
-        let messages = json["messages"]
-            .as_array()
-            .context("messages not an array")?;
+        let messages = messages_of(&cr.build_body()?)?;
         assert_eq!(messages.len(), 3);
         assert_eq!(messages[0]["role"], "user");
         assert_eq!(messages[1]["role"], "assistant");
-        assert_eq!(
-            messages[1]["content"][0]["text"],
-            "This is a comprehensive response."
-        );
+        assert_eq!(messages[1]["content"][0]["text"], "This is a");
         assert_eq!(messages[2]["role"], "user");
         assert_eq!(
             messages[2]["content"],
             "You used 'comprehensive', please fix it."
         );
+        Ok(())
+    }
+
+    #[test]
+    fn build_body_kept_ending_in_whitespace_is_trimmed_and_the_default_prompt_renders()
+    -> anyhow::Result<()> {
+        let original = make_original_body(serde_json::json!([
+            {"role": "user", "content": "Why did it fail?"}
+        ]))?;
+        let cr = CorrectionRequest::new(
+            original,
+            "The database migration failed because of a pre-existing table".to_string(),
+            "The database migration failed because of a \n".to_string(),
+            crate::features_settings::sections::weasel_intercept::DEFAULT_CORRECTION_PROMPT
+                .to_string(),
+            "pre-existing".to_string(),
+        );
+        let messages = messages_of(&cr.build_body()?)?;
+        assert_eq!(
+            messages[1]["content"][0]["text"],
+            "The database migration failed because of a"
+        );
+        assert_eq!(
+            messages[2]["content"],
+            "Your reply was cut just before the word 'pre-existing', which is not accepted here. \
+             Continue from exactly where it was cut, without repeating any of it and without that word."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn build_body_word_at_the_very_start_adds_no_empty_assistant_turn() -> anyhow::Result<()> {
+        let original = make_original_body(serde_json::json!([
+            {"role": "user", "content": "Hello"}
+        ]))?;
+        let cr = CorrectionRequest::new(
+            original,
+            "Robust answer.".to_string(),
+            "  ".to_string(),
+            "Fix '{word}'.".to_string(),
+            "robust".to_string(),
+        );
+        let messages = messages_of(&cr.build_body()?)?;
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[1]["role"], "user");
+        assert_eq!(messages[1]["content"], "Fix 'robust'.");
         Ok(())
     }
 
@@ -205,6 +237,7 @@ mod tests {
         let cr = CorrectionRequest::new(
             original,
             "weasel text".to_string(),
+            "weasel".to_string(),
             "Fix '{word}'.".to_string(),
             "comprehensive".to_string(),
         );
@@ -221,6 +254,7 @@ mod tests {
         let original = make_original_body(serde_json::json!([]))?;
         let cr = CorrectionRequest::new(
             original,
+            "text".to_string(),
             "text".to_string(),
             "Do not use '{word}'.".to_string(),
             "robust".to_string(),
@@ -239,6 +273,7 @@ mod tests {
     fn build_body_returns_error_on_invalid_json() {
         let cr = CorrectionRequest::new(
             Bytes::from_static(b"not json"),
+            "text".to_string(),
             "text".to_string(),
             "Fix '{word}'.".to_string(),
             "word".to_string(),

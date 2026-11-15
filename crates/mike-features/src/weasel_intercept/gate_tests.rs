@@ -170,7 +170,9 @@ fn a_listed_phrase_cuts_the_reply_and_no_part_of_it_was_sent() -> anyhow::Result
     )?);
     sent.extend(forwarded(gate.admit(text(0, "and it is pre-")))?);
 
-    let Admit::Cut(Cut::Word { word, text }) = gate.admit(self::text(0, "existing in main."))
+    let Admit::Cut(Cut::Word {
+        word, text, kept, ..
+    }) = gate.admit(self::text(0, "existing in main."))
     else {
         anyhow::bail!("the phrase completed across two deltas and must cut the reply");
     };
@@ -179,6 +181,7 @@ fn a_listed_phrase_cuts_the_reply_and_no_part_of_it_was_sent() -> anyhow::Result
         text,
         "The failure is a long-standing one, and it is pre-existing in main."
     );
+    assert_eq!(kept, "The failure is a long-standing one, and it is ");
 
     let sent_text = String::from_utf8(sent.concat())?;
     assert!(
@@ -193,6 +196,107 @@ fn a_listed_phrase_cuts_the_reply_and_no_part_of_it_was_sent() -> anyhow::Result
         },
         "the client has a text block open that must be closed before more is sent"
     );
+    Ok(())
+}
+
+fn delta_text(frame: &Bytes) -> anyhow::Result<String> {
+    let raw = std::str::from_utf8(frame)?;
+    let Some(data) = raw.lines().find_map(|l| l.strip_prefix("data: ")) else {
+        return Ok(String::new());
+    };
+    let json: serde_json::Value = serde_json::from_str(data)?;
+    if json
+        .pointer("/delta/type")
+        .and_then(serde_json::Value::as_str)
+        != Some("text_delta")
+    {
+        return Ok(String::new());
+    }
+    Ok(json["delta"]["text"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned())
+}
+
+fn client_text(frames: &[Bytes]) -> anyhow::Result<String> {
+    frames.iter().map(delta_text).collect()
+}
+
+fn cut_on(gate: &mut StreamGate, frame: Frame) -> anyhow::Result<(String, Option<Bytes>)> {
+    match gate.admit(frame) {
+        Admit::Cut(Cut::Word {
+            kept, kept_frame, ..
+        }) => Ok((kept, kept_frame)),
+        _ => anyhow::bail!("the phrase completed and must cut the reply"),
+    }
+}
+
+#[test]
+fn word_cut_split_across_two_deltas_client_ends_exactly_before_the_word() -> anyhow::Result<()> {
+    let mut gate = StreamGate::new(&words(&["pre-existing"]), false);
+    let mut sent: Vec<Bytes> = Vec::new();
+    sent.extend(forwarded(gate.admit(message_start()))?);
+    sent.extend(forwarded(gate.admit(block_start(0, "text")))?);
+    sent.extend(forwarded(
+        gate.admit(text(0, "The database migration fail")),
+    )?);
+    sent.extend(forwarded(gate.admit(text(0, "ed because of a pre-")))?);
+
+    let (kept, kept_frame) = cut_on(&mut gate, text(0, "existing table."))?;
+    sent.extend(kept_frame);
+
+    assert_eq!(kept, "The database migration failed because of a ");
+    assert_eq!(client_text(&sent)?, kept);
+    for frame in &sent {
+        let raw = String::from_utf8(frame.to_vec())?;
+        assert!(!raw.contains("pre-"), "a frame carries the word: {raw}");
+    }
+    assert!(
+        gate.finish().is_empty(),
+        "the held frames are never released"
+    );
+    Ok(())
+}
+
+#[test]
+fn word_cut_inside_one_long_delta_client_receives_the_part_before_it() -> anyhow::Result<()> {
+    let mut gate = StreamGate::new(&words(&["pre-existing"]), false);
+    let mut sent: Vec<Bytes> = Vec::new();
+    sent.extend(forwarded(gate.admit(block_start(0, "text")))?);
+    sent.extend(forwarded(gate.admit(text(0, "Checking the logs. ")))?);
+
+    let (kept, kept_frame) = cut_on(
+        &mut gate,
+        text(
+            0,
+            "The database migration failed because of a Pre-Existing table.",
+        ),
+    )?;
+    sent.extend(kept_frame);
+
+    assert_eq!(
+        kept,
+        "Checking the logs. The database migration failed because of a "
+    );
+    assert_eq!(client_text(&sent)?, kept);
+    let all = String::from_utf8(sent.concat())?;
+    assert!(!all.to_lowercase().contains("pre-existing"), "{all}");
+    Ok(())
+}
+
+#[test]
+fn word_cut_at_the_start_of_a_delta_sends_no_extra_frame() -> anyhow::Result<()> {
+    let mut gate = StreamGate::new(&words(&["robust"]), false);
+    let mut sent: Vec<Bytes> = Vec::new();
+    sent.extend(forwarded(gate.admit(block_start(0, "text")))?);
+    sent.extend(forwarded(gate.admit(text(0, "A plan that is ")))?);
+    sent.extend(gate.finish());
+
+    let (kept, kept_frame) = cut_on(&mut gate, text(0, "robust."))?;
+
+    assert_eq!(kept, "A plan that is ");
+    assert!(kept_frame.is_none(), "everything before the word was sent");
+    assert_eq!(client_text(&sent)?, kept);
     Ok(())
 }
 

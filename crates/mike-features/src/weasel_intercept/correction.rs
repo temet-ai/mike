@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 
 use super::corrector::CorrectionRequest;
 use super::followup::spawn_stitched_tee;
-use super::stitch;
+use super::stitch::{self, Stitcher};
 use super::support::{LaneIdentity, make_correction_intercepted_request, weasel_correction_prompt};
 use crate::state::AppState;
 use crate::store::RequestStore;
@@ -19,9 +19,19 @@ pub struct WeaselCorrectionCtx {
     pub correction_prompt: String,
 }
 
+pub struct CutReply {
+    pub word: String,
+    pub text: String,
+    pub kept: String,
+}
+
 pub async fn run_weasel_correction(
     ctx: WeaselCorrectionCtx,
-    (trigger_word, weasel_text): (String, String),
+    CutReply {
+        word: trigger_word,
+        text: weasel_text,
+        kept,
+    }: CutReply,
     body_tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
     next_index: u64,
 ) {
@@ -37,9 +47,11 @@ pub async fn run_weasel_correction(
 
     log_weasel_correction_fired(original_request_id, &trigger_word);
 
+    let stitcher = Stitcher::after_kept(next_index, &kept);
     let correction = CorrectionRequest::new(
         original_body,
         weasel_text,
+        kept,
         correction_prompt,
         trigger_word.clone(),
     );
@@ -119,7 +131,7 @@ pub async fn run_weasel_correction(
         upstream_resp,
         body_tx,
         correction_request_id,
-        next_index,
+        stitcher,
     );
 }
 
