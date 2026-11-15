@@ -27,7 +27,7 @@
 
 	const kinds = $derived<KnowledgeKind[]>(
 		(store.snapshot ?? []).map((k) =>
-			k.kind in pendingEnabled ? { ...k, enabled: pendingEnabled[k.kind] } : k
+			k.kind in pendingEnabled ? { ...k, enabled: pendingEnabled[k.kind] ?? k.enabled } : k
 		)
 	);
 	const tuneRow = $derived(kinds.find((k) => k.kind === tuneKind) ?? null);

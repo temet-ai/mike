@@ -59,7 +59,7 @@
 		// Tune lines up across rows.
 		const tunes = canvas.getAllByRole('button', { name: /^Tune/ });
 		await expect(tunes).toHaveLength(4);
-		const left = tunes[0].getBoundingClientRect().left;
+		const left = tunes[0]?.getBoundingClientRect().left;
 		for (const t of tunes) await expect(t.getBoundingClientRect().left).toBe(left);
 
 		// New counts repaint in place: same order, tops and heights.

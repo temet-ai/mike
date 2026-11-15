@@ -84,6 +84,7 @@ Props:
 - `hint?: string`
 - `multiline?: boolean`
 - `rows?: number`
+- `error?: string | null`
 
 Story: UI/Field
 
@@ -147,6 +148,7 @@ Props:
 - `options: SelectOption[]`
 - `label?: string | Snippet`
 - `hint?: string`
+- `error?: string | null`
 
 Story: UI/Select
 

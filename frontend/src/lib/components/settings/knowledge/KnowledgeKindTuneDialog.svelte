@@ -43,7 +43,7 @@
 			p.settle_secs = Number(String(settle).trim());
 		if (
 			editableWatch &&
-			splitList(watchColumns).join(',') !== start.watches[0].watch_columns.join(',')
+			splitList(watchColumns).join(',') !== (start.watches[0]?.watch_columns ?? []).join(',')
 		) {
 			p.watch_columns = splitList(watchColumns);
 		}
