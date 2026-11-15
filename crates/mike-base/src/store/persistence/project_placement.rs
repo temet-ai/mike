@@ -66,6 +66,22 @@ impl PersistHandle {
         .await
     }
 
+    pub async fn ensure_machine(
+        &self,
+        machine: Uuid,
+        machine_name: &str,
+    ) -> Result<(), PersistError> {
+        sqlx::query!(
+            "INSERT INTO projects.machines(machine_uuid, name) VALUES ($1, $2)
+             ON CONFLICT(machine_uuid) DO NOTHING",
+            machine,
+            machine_name
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn add_checkout_location(
         &self,
         machine: Uuid,

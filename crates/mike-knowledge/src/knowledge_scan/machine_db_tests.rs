@@ -68,3 +68,34 @@ async fn scan_machine_indexes_the_claude_home_sources_and_the_checkout_instructi
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn a_machine_with_no_checkout_registers_its_sources_once_it_is_recorded() -> anyhow::Result<()>
+{
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let home = tempfile::tempdir()?;
+    write(
+        &home.path().join("agents/dev.md"),
+        "---\nname: dev\n---\nDevelops.",
+    )?;
+    let machine = Uuid::new_v4();
+    let mut memo = ScanMemo::default();
+
+    let unrecorded = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!(unrecorded.updated, 0);
+    assert_eq!(unrecorded.failed, 1);
+
+    handle
+        .ensure_machine(machine, "pi-without-checkouts")
+        .await?;
+    let recorded = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!((recorded.updated, recorded.failed), (1, 0));
+    assert_eq!(
+        live_documents(&handle, "agents").await?,
+        vec!["dev.md".to_owned()]
+    );
+    db.cleanup().await
+}
