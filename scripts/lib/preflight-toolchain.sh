@@ -165,6 +165,37 @@ mbx_bin_path() {
   return 0
 }
 
+# mbx_cargo_shim: writes the cargo shim for MBX_BIN and prints its path. A tool that
+# runs cargo through CARGO (nextest, cargo-zigbuild) cannot be given CARGO=mbx, because
+# mbx reads CARGO to find the real cargo and would call itself without end. A shim like
+# the one `mbx setup` installs marks its calls (MBX_CARGO_SHIM_MODE), so mbx then runs
+# the real cargo. It is written here, pointing at the mbx found, so every machine,
+# checkout and session has it without a setup step and it follows mbx when mbx moves
+# or is upgraded.
+mbx_cargo_shim() {
+  local shim="${XDG_CACHE_HOME:-$HOME/.cache}/mike-cx/bin/cargo" text
+  if [[ -z "${MBX_BIN:-}" || "$shim$MBX_BIN" == *"'"* ]]; then
+    echo "cx: cannot write mbx's cargo shim: no MBX_BIN, or a quote in $shim or $MBX_BIN" >&2
+    return 1
+  fi
+  text="#!/bin/sh
+# Written by scripts/cx: nextest's cargo, so its builds go through mbx without mbx calling itself.
+MBX_CARGO_SHIM_MODE=1
+MBX_CARGO_SHIM_PATH='$shim'
+export MBX_CARGO_SHIM_MODE MBX_CARGO_SHIM_PATH
+exec '$MBX_BIN' \"\$@\""
+  if [[ ! -x "$shim" || "$(cat "$shim" 2>/dev/null)" != "$text" ]]; then
+    mkdir -p "$(dirname "$shim")" &&
+      printf '%s\n' "$text" >"$shim.$$" && chmod 755 "$shim.$$" &&
+      mv -f "$shim.$$" "$shim" || {
+      rm -f "$shim.$$"
+      echo "cx: cannot write mbx's cargo shim ($shim)" >&2
+      return 1
+    }
+  fi
+  printf '%s\n' "$shim"
+}
+
 # The cargo subcommands mbx caches. Anything else mbx runs as plain cargo, and
 # plain cargo must never write into an mbx build directory (read-only hard
 # links into the store), so those are never sent through mbx. nextest builds its

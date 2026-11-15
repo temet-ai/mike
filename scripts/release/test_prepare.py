@@ -303,6 +303,35 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual([args[0] for args in builds], ["zigbuild"])
         self.assert_unmodified()
 
+    def test_deploy_build_uses_the_deploy_compile_step_and_records_its_profile(self):
+        # The fixture's compile step records its arguments outside the repository and
+        # makes the binaries with the release stub, so only the hand-off is under test.
+        self.write("scripts/lib/deploy-archive-build.sh",
+                   '#!/usr/bin/env bash\nset -eu\n'
+                   'printf "%s\\n" "$@" "epoch=$SOURCE_DATE_EPOCH" > "$(dirname "$0")/../../../deploy-step.txt"\n'
+                   'CARGO_TARGET_DIR="$4" cargo build --offline --locked --profile dist --target "$2" '
+                   '-p mike -p mike-mcp --config "$3"\n')
+        self.git("add", ".")
+        self.git("-c", "user.name=Release Test", "-c", "user.email=release-test@example.invalid",
+                 "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+                 "commit", "-qm", "deploy compile step fixture")
+        self.before = self.tracked_hashes()
+        result = self.invoke("--deploy-build")
+        candidate = Path(next(line.removeprefix("Candidate: ") for line in result.stdout.splitlines()
+                              if line.startswith("Candidate: ")))
+        manifest = json.loads((candidate / "manifest.json").read_text())
+        self.assertEqual((manifest["build"]["profile"], manifest["build"]["build_cache"]), ("infra", "mbx"))
+        step = (self.base / "deploy-step.txt").read_text().splitlines()
+        self.assertEqual(step[:2], ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"])
+        self.assertTrue(step[3].endswith("dist-out/.build-deploy"))
+        self.assertEqual(step[4], f"epoch={manifest['source_date_epoch']}")
+        self.assert_unmodified()
+
+    def test_release_build_keeps_the_dist_profile(self):
+        manifest = json.loads((self.candidate() / "manifest.json").read_text())
+        self.assertEqual(manifest["build"]["profile"], "dist")
+        self.assertNotIn("build_cache", manifest["build"])
+
     def test_cross_target_needs_glibc_and_qemu(self):
         self.configure(target="aarch64-unknown-linux-gnu", rust_host="x86_64-unknown-linux-gnu", glibc="2.35")
         self.env.pop("QEMU_LD_PREFIX", None)
