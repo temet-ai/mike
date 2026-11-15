@@ -9,9 +9,11 @@ use crate::analysis::AnalyzerRegistry;
 use crate::compose_prompt::ComposerService;
 use crate::config::live::LiveConfig;
 use crate::feature_toggles::service::FeatureToggleService;
+use crate::filter::service::FilterService;
 use crate::in_flight::InFlightRegistry;
 use crate::settings::service::SettingsService;
 use crate::state::AppState;
+use crate::steerer::service::SteeringService;
 use crate::store::RequestStore;
 use crate::store::persistence::PersistHandle;
 
@@ -39,6 +41,8 @@ struct ReloadTargets {
     analyzer_registry: Arc<ArcSwap<AnalyzerRegistry>>,
     composer: Arc<ComposerService>,
     persist: Option<PersistHandle>,
+    steerers: Option<Arc<SteeringService>>,
+    filters: Option<Arc<FilterService>>,
 }
 
 pub fn spawn_config_reloader(state: &AppState) -> ConfigReloader {
@@ -52,6 +56,8 @@ pub fn spawn_config_reloader(state: &AppState) -> ConfigReloader {
         analyzer_registry: state.analyzer_registry.clone(),
         composer: state.composer.clone(),
         persist: state.persist.clone(),
+        steerers: state.steerer_service().cloned(),
+        filters: state.filter_service().cloned(),
     };
     let signal = reloader.signal.clone();
     let shutdown = state.shutdown.clone();
@@ -78,8 +84,28 @@ async fn reload_loop(signal: Arc<Notify>, targets: ReloadTargets, shutdown: Canc
 async fn reload_once(targets: &ReloadTargets) {
     reload_toggles(targets.toggles.as_deref()).await;
     reload_settings(targets.settings.as_deref()).await;
+    reload_steerers(targets.steerers.as_deref()).await;
+    reload_filters(targets.filters.as_deref()).await;
     apply_live_config(targets).await;
     log_reloaded();
+}
+
+async fn reload_steerers(steerers: Option<&SteeringService>) {
+    let Some(steerers) = steerers else {
+        return;
+    };
+    if let Err(error) = steerers.reload_from_db().await {
+        tracing::warn!(%error, "db_listener: steerer registry reload failed");
+    }
+}
+
+async fn reload_filters(filters: Option<&FilterService>) {
+    let Some(filters) = filters else {
+        return;
+    };
+    if let Err(error) = filters.reload_from_db().await {
+        tracing::warn!(%error, "db_listener: filter rules reload failed");
+    }
 }
 
 async fn reload_toggles(toggles: Option<&FeatureToggleService>) {

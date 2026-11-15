@@ -186,6 +186,13 @@ impl FilterService {
         Ok(())
     }
 
+    pub async fn reload_from_db(&self) -> Result<(), FilterServiceError> {
+        let _guard = self.write_lock.lock().await;
+        let db_rules = self.persist.proxy().list_filter_rules().await?;
+        self.rebuild_arcswap(db_rules);
+        Ok(())
+    }
+
     fn rebuild_arcswap(&self, mut new_rules: Vec<FilterRule>) {
         new_rules.sort_by(|a, b| {
             a.sort_order
