@@ -80,6 +80,26 @@ fn log_failed(e: &SemanticError) {
     tracing::warn!(error = %e, "semantic: tick failed");
 }
 
+fn log_carried(embedder: &str, carried: Result<u64, SemanticError>) {
+    match carried {
+        Ok(0) => {}
+        Ok(carried) => log_carry_count(embedder, carried),
+        Err(e) => log_carry_error(&e),
+    }
+}
+
+fn log_carry_count(embedder: &str, carried: u64) {
+    tracing::info!(
+        carried,
+        embedder,
+        "semantic: anchors carried to the current embedder"
+    );
+}
+
+fn log_carry_error(e: &SemanticError) {
+    tracing::warn!(error = %e, "semantic: anchors could not be carried to the current embedder");
+}
+
 fn log_tick(result: &Result<TickReport, SemanticError>) {
     let Err(e) = result else { return };
     if e.is_embedding_disabled() {
@@ -147,15 +167,7 @@ impl SemanticWorker {
             cfg.allow_remote_embedding,
         )
         .await;
-        match carried {
-            Ok(0) => {}
-            Ok(carried) => {
-                tracing::info!(carried, embedder = %embedder.embedder_key, "semantic: anchors carried to the current embedder");
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "semantic: anchors could not be carried to the current embedder");
-            }
-        }
+        log_carried(&embedder.embedder_key, carried);
     }
 
     async fn periodic(
