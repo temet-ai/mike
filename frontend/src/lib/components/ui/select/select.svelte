@@ -17,6 +17,8 @@
 		options: SelectOption[];
 		label?: string | Snippet;
 		hint?: string;
+		/** A refusal under the frame; `undefined` draws nothing extra, `null` reserves the line. */
+		error?: string | null;
 	};
 
 	let {
@@ -26,11 +28,21 @@
 		options,
 		label,
 		hint,
+		error,
 		...restProps
 	}: SelectProps = $props();
+
+	const uid = $props.id();
+	const errorId = $derived(`${uid}-error`);
+	const message = $derived(error === undefined || error === null || error === '' ? null : error);
+	const a11y = $derived(
+		error === undefined
+			? {}
+			: { 'aria-describedby': errorId, 'aria-invalid': message === null ? undefined : true }
+	);
 </script>
 
-<label class={cn('sel', className)} data-slot="select">
+{#snippet control()}
 	{#if label || hint}
 		<span class="machine sel__label" data-slot="select-label">
 			{#if typeof label === 'string'}{label}{:else if label}{@render label()}{/if}
@@ -38,7 +50,7 @@
 		</span>
 	{/if}
 	<span class="edge sel__frame">
-		<select bind:this={ref} bind:value {...restProps}>
+		<select bind:this={ref} bind:value {...a11y} {...restProps}>
 			{#each options as option (option.value)}
 				<option value={option.value} disabled={option.disabled}>
 					{option.label ?? option.value}
@@ -47,7 +59,24 @@
 		</select>
 		<ChevronDown class="sel__caret" size={12} aria-hidden="true" />
 	</span>
-</label>
+{/snippet}
+
+{#if error === undefined}
+	<label class={cn('sel', className)} data-slot="select">
+		{@render control()}
+	</label>
+{:else}
+	<div
+		class={cn('sel sel--checked', className)}
+		data-slot="select"
+		data-invalid={message === null ? undefined : ''}
+	>
+		<label class="sel">
+			{@render control()}
+		</label>
+		<p class="sel__error" id={errorId} role="alert">{message}</p>
+	</div>
+{/if}
 
 <style>
 	.sel {
@@ -86,6 +115,23 @@
 
 	.sel__frame:focus-within {
 		--edge-line: var(--interactive-focus-ring);
+	}
+
+	.sel--checked {
+		gap: var(--space-1);
+	}
+
+	.sel--checked[data-invalid] .sel__frame {
+		--edge-line: var(--status-danger-border);
+	}
+
+	.sel__error {
+		margin: 0;
+		min-block-size: 1.4em;
+		font-size: var(--text-xs);
+		line-height: 1.4;
+		color: var(--status-danger-fg);
+		overflow-wrap: anywhere;
 	}
 
 	.sel__frame > select {

@@ -1,7 +1,9 @@
 pub use mike_features::*;
 pub mod api;
 pub mod judge_worker;
+pub mod learning_audit;
 pub mod lesson_delivery;
+pub mod lesson_promotion;
 pub mod lesson_proposer;
 pub mod lesson_relations;
 pub mod lesson_worker;

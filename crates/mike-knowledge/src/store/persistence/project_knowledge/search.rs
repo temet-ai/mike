@@ -8,23 +8,7 @@ use crate::search_ranking::identifiers::query_identifiers;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 
-const READABLE_KINDS: [&str; 15] = [
-    "launch",
-    "artifact",
-    "lesson",
-    "note",
-    "turn",
-    "promise",
-    "thread",
-    "work_thread",
-    "thread_entry",
-    "question_answer",
-    "unmet_ask",
-    "correction",
-    "learning",
-    "session",
-    "mail",
-];
+const READABLE_NON_KINDS: [&str; 4] = ["launch", "turn", "promise", "work_thread"];
 
 pub const REFERENCE_NOT_IN_PROJECT: &str = "Knowledge reference not found in this project";
 
@@ -290,16 +274,23 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
             Some(selector) => Some(self.resolve_knowledge_project(selector).await?.id),
             None => None,
         };
+        let kinds = self.known_knowledge_kinds().await?;
+        let readable: Vec<&str> = READABLE_NON_KINDS
+            .into_iter()
+            .chain(kinds.iter().map(String::as_str))
+            .collect();
         let settled = self
-            .settle_reference(project_id, reference, &READABLE_KINDS)
+            .settle_reference(project_id, reference, &readable)
             .await?;
         let key = settled.key.as_str();
+        let full_reference = format!("{}:{}", settled.kind, key);
         let mut found: Vec<Value> = sqlx::query_scalar(include_str!("read.sql"))
             .bind(project_id)
             .bind(settled.kind.as_str())
             .bind(key.parse::<i64>().ok())
             .bind(key.parse::<uuid::Uuid>().ok())
             .bind(key)
+            .bind(&full_reference)
             .fetch_all(self.pool())
             .await?;
         match (found.len(), project_id) {

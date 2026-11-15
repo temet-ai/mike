@@ -5,7 +5,9 @@ use crate::store::persistence::agents::AgentAlias;
 use crate::store::persistence::lessons::{ChangeMark, InjectableLessonRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 
-pub use crate::lesson_cache::snapshot::{InjectableLesson, LessonCache, LessonSnapshot};
+pub use crate::lesson_cache::snapshot::{
+    InjectableLesson, LessonCache, LessonRoute, LessonSnapshot,
+};
 
 pub struct LessonSet {
     pub fingerprint: ChangeMark,
@@ -45,6 +47,8 @@ fn group_injectable(
             text: row.text,
             topic: row.topic,
             agent_id: row.agent_id,
+            revision: row.revision,
+            route: LessonRoute::from_code(row.route.as_deref()),
         };
         if let Some(agent_id) = lesson.agent_id {
             by_agent.entry(agent_id).or_default().push(lesson.clone());

@@ -2,7 +2,7 @@
 title: "Injection trust: what Claude Code keeps and what it acts on"
 status: active
 created: 2026-09-29
-updated: 2026-11-06
+updated: 2026-11-15
 summary: Which routes mike has into a session (proxy injection, the mike channel, Remote Control pushes, mod prompts, hook context) keep their text in the session's history and which Claude Code frames as something to act on, as measured on Claude Code 2.1.283 to 2.1.311.
 ---
 
@@ -263,12 +263,14 @@ With the feature toggle `mod_lesson_delivery` on (default off, set in /settings)
 keeps. At `prompt.submit`, for a session that goes through mike, the mod posts the
 session id, project and prompt to `POST /api/lessons/for-prompt`. The proxy answers
 with the arm the session is in and, for the `mod` arm, the lessons that fit the prompt.
-The mod adds them as one hook context block, each line tagged `[lesson:<id>]`. Claude
+The mod adds them as one hook context block, each line tagged `[lesson:<id> rev:<n>]`, where `n` is `memory.lessons.revision` (the
+route answers each lesson with `rev`; the mod omits it if absent). The standing file
+`.claude/rules/mike-lessons.md` tags its lessons the same way. Claude
 Code saves hook context in the transcript and sends it on every later request, so a
 lesson is put in once and the prompt cache holds.
 
 The proxy reads the same tags back from the request. When the toggle is on and a
-request holds any `[lesson:<id>]` tag, or the session has already asked the route for
+request holds any `[lesson:<id>]` or `[lesson:<id> rev:<n>]` tag, or the session has already asked the route for
 the `mod` arm, the lessons stage leaves the request unchanged
 (`session_lessons_held_by_client` in the transformation manifest). The mod also sends
 the ids and content revisions it has added, so a later prompt does not repeat them.

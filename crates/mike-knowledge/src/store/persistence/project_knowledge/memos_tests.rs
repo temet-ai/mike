@@ -116,6 +116,8 @@ async fn knowledge_coverage_after_an_embedding_is_recorded_is_counted_again() ->
         source_kind: "artifact".into(),
         source_id: 1,
         project_id: None,
+        label: "artifact".into(),
+        name: String::new(),
         header: "artifact".into(),
         body: "text".into(),
     };

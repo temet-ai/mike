@@ -27,6 +27,36 @@ pub struct LessonSnapshot {
     pub sessions_fingerprint: Option<ChangeMark>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LessonRoute {
+    #[default]
+    Injection,
+    Standing,
+    Covered,
+}
+
+impl LessonRoute {
+    pub fn from_code(code: Option<&str>) -> Self {
+        match code {
+            Some("standing") => Self::Standing,
+            Some("covered") => Self::Covered,
+            _ => Self::Injection,
+        }
+    }
+
+    pub fn is_injection(self) -> bool {
+        self == Self::Injection
+    }
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Injection => "injection",
+            Self::Standing => "standing",
+            Self::Covered => "covered",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct InjectableLesson {
     pub id: i64,
@@ -34,6 +64,8 @@ pub struct InjectableLesson {
     pub text: String,
     pub topic: Option<String>,
     pub agent_id: Option<i64>,
+    pub revision: i32,
+    pub route: LessonRoute,
 }
 
 impl LessonSnapshot {
@@ -123,6 +155,8 @@ impl LessonSnapshot {
                             text,
                             topic: None,
                             agent_id: None,
+                            revision: 1,
+                            route: LessonRoute::Injection,
                         }
                     })
                     .collect();
@@ -151,6 +185,8 @@ impl LessonSnapshot {
                     text: text.to_owned(),
                     topic: topic.map(str::to_owned),
                     agent_id: None,
+                    revision: 1,
+                    route: LessonRoute::Injection,
                 }
             })
             .collect();
@@ -184,6 +220,8 @@ impl LessonSnapshot {
                             text,
                             topic: None,
                             agent_id: Some(agent_id),
+                            revision: 1,
+                            route: LessonRoute::Injection,
                         }
                     })
                     .collect();

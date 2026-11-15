@@ -1,0 +1,196 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id, l.text, l.topic, l.source_turn_id, st.code AS \"stage!\", src.code AS \"source!\",\n       k.code AS \"kind!\", l.project_id AS \"project_id!\", p.project_uuid, p.project_path, l.agent_id,\n       a.name AS \"agent_name?\", pl.code AS \"placement?\",\n       l.placement_covered_by AS covered_by, l.revision\n  FROM memory.lessons l\n  JOIN projects.projects p ON p.id = l.project_id\n  JOIN memory.lesson_stages st ON st.id = l.stage_id\n  JOIN memory.lesson_sources src ON src.id = l.source_id\n  JOIN memory.lesson_kinds k ON k.id = l.kind_id\n  LEFT JOIN memory.lesson_placements pl ON pl.id = l.placement_id\n  LEFT JOIN agents.agents a ON a.id = l.agent_id\n WHERE l.archived_at IS NULL AND l.retired_at IS NULL\n   AND (l.expires_at IS NULL OR l.expires_at > now())\n   AND (l.machine_uuid IS NULL OR l.machine_uuid = $1)\n   AND (st.code IN ('daily', 'long_term') OR (st.code = 'raw' AND src.code = 'operator'))\n   AND p.project_path <> '(no project)'\n   AND NOT EXISTS (\n       SELECT 1 FROM memory.lesson_relations rel\n         JOIN memory.lesson_relation_kinds rk ON rk.id = rel.kind_id AND rk.code = 'supersedes'\n         JOIN memory.lesson_relation_statuses rs ON rs.id = rel.status_id AND rs.code = 'confirmed'\n        WHERE rel.to_lesson_id = l.id)\n ORDER BY p.project_uuid, l.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "placement?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_placements",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "covered_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "placement_covered_by"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "revision"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "74f6f4e0b363df90c3304bab4d708682d0da7cb10d5f69560f63a300fcb654a7"
+}

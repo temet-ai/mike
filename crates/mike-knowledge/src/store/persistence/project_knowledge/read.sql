@@ -176,6 +176,15 @@ LEFT JOIN sessions.sessions ts ON ts.id = m.to_session_id
 LEFT JOIN mailbox.messages reply ON reply.id = m.in_reply_to_id
 WHERE $2 = 'mail' AND m.message_uuid = $4
   AND ($1::bigint IS NULL OR COALESCE(th.project_id, fs.project_id) = $1)
+UNION ALL
+SELECT jsonb_build_object('reference', e.reference, 'body', b.body, 'title', b.name,
+    'kind', e.source_kind, 'label', b.label, 'status', 'current', 'source_id', e.source_id,
+    'embedded_at', e.completed_at, 'changed_at', i.changed_at), e.project_id
+FROM memory.knowledge_embedding_state e
+JOIN memory.knowledge_kinds k ON k.kind = e.source_kind AND NOT k.built_in
+JOIN memory.knowledge_items i ON i.id = e.item_id
+CROSS JOIN LATERAL memory.knowledge_item_bodies(e.source_kind, ARRAY[e.source_id]) b
+WHERE e.reference = $6 AND e.source_kind = $2 AND ($1::bigint IS NULL OR e.project_id = $1)
 )
 SELECT f.item || jsonb_build_object('project_uuid', p.project_uuid)
   FROM found f JOIN projects.projects p ON p.id = f.project_id

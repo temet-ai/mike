@@ -1,26 +1,29 @@
-#!/usr/bin/env python3
-"""Audit the preceding seven days; deterministic, read-only, no model calls."""
-import argparse
-import datetime as dt
-import fcntl
-from pathlib import Path
-import sys
-sys.dont_write_bytecode = True  # an installed package is verified file by file
-from learning_audit.report import data_root, run
-
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--weekly', action='store_true', help='Use the latest Monday 00:00 UTC as the exclusive boundary')
-parser.add_argument('--end', help='Exclusive timezone-aware ISO timestamp; defaults to now')
-parser.add_argument('--output', default=str(data_root() / 'artifacts/learning-audit'))
-parser.add_argument('--sync', action='store_true', help='Publish reports through existing Mike project knowledge ingestion')
-args = parser.parse_args()
-if args.weekly:
-    if args.end:
-        parser.error('--weekly and --end are mutually exclusive')
-    now = dt.datetime.now(dt.timezone.utc)
-    args.end = (now - dt.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-lock_path = Path.home() / '.local/state/mike-learning-audit.lock'
-lock_path.parent.mkdir(parents=True, exist_ok=True)
-with lock_path.open('w') as lock:
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    run(args)
+#!/bin/sh
+# Run mike's weekly learning audit; the learning_audit scheduled job calls this.
+# The audit reads the database and writes a report; it makes no model calls.
+#
+# The mike binary is, in order: $MIKE_BIN; the one beside an installed package
+# (<root>/mike next to share/mike/scripts, or <prefix>/bin/mike for a Homebrew
+# prefix); `mike` on PATH; ~/.local/bin/mike.
+set -eu
+mike_bin="${MIKE_BIN:-}"
+here="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+if [ -z "$mike_bin" ]; then
+    case "$here" in
+    */share/mike/scripts)
+        for candidate in "$here/../../../mike" "$here/../../../bin/mike"; do
+            if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+                mike_bin="$candidate"
+                break
+            fi
+        done
+        ;;
+    esac
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$(command -v mike 2>/dev/null || true)"
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$HOME/.local/bin/mike"
+fi
+exec "$mike_bin" learning-audit "$@"

@@ -1,4 +1,4 @@
-export type Lesson = { id: number; kind: string; text: string; revision?: string }
+export type Lesson = { id: number; kind: string; text: string; revision?: string; rev?: number }
 export type LessonDelivery = {
   arm: 'off' | 'control' | 'mod'
   lessons: Lesson[]
@@ -19,7 +19,7 @@ export const LESSONS_HEADING = 'Lessons recorded from earlier sessions in this p
 
 export function lessonsBlock(lessons: readonly Lesson[]): string | null {
   if (lessons.length === 0) return null
-  const lines = lessons.map(l => `[lesson:${l.id}] [${l.kind}] ${l.text.replace(/\s+/g, ' ').trim()}${l.revision ? ` [revision:${l.revision}]` : ''}`)
+  const lines = lessons.map(l => `[lesson:${l.id}${l.rev === undefined ? '' : ` rev:${l.rev}`}] [${l.kind}] ${l.text.replace(/\s+/g, ' ').trim()}${l.revision ? ` [revision:${l.revision}]` : ''}`)
   return `<system-reminder>\n${LESSONS_HEADING}\nNew revisions replace earlier text with the same lesson id.\n${lines.join('\n')}\n</system-reminder>`
 }
 

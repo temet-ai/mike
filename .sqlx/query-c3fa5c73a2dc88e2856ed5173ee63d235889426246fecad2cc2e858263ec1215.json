@@ -1,0 +1,122 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.project_uuid, d.id, d.folder, d.lesson_watermark, d.revision, d.review,\n       d.skill_md, d.reference_files, d.lesson_ids\n  FROM memory.skill_drafts d\n  JOIN projects.projects p ON p.id = d.project_id\n WHERE (d.status = 'accepted' AND d.review IS NULL) OR d.review IN ('approved', 'rejected')\n ORDER BY d.project_id, d.folder, d.lesson_watermark DESC, d.revision DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "lesson_watermark",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_watermark"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "review",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "review"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "skill_md"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "reference_files",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "reference_files"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "lesson_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_ids"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c3fa5c73a2dc88e2856ed5173ee63d235889426246fecad2cc2e858263ec1215"
+}

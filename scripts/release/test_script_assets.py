@@ -52,7 +52,7 @@ class ScriptAssetsTests(unittest.TestCase):
         expected = {"share/mike/" + path for path in self.paths if shipped(path)}
         self.assertEqual(set(files), expected)
         self.assertEqual(files["share/mike/scripts/learning-promote"][1], 0o755)
-        self.assertEqual(files["share/mike/scripts/learning_audit/module.py"][1], 0o644)
+        self.assertEqual(files["share/mike/scripts/knowledge/module.py"][1], 0o644)
         self.assertNotIn("share/mike/scripts/lessons-commit", files)
         self.assertFalse(any("test_" in name or "untracked" in name for name in files))
 

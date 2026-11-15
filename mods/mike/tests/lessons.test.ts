@@ -7,8 +7,8 @@ const SESSION = '5d1c3b5e-0d3c-4a4e-9a55-3f2a0c0de001'
 const LESSONS = {
   arm: 'mod',
   lessons: [
-    { id: 12, kind: 'correction', text: 'run make fmt\nbefore committing' },
-    { id: 7, kind: 'convention', text: 'name a toggle by what it does' },
+    { id: 12, kind: 'correction', text: 'run make fmt\nbefore committing', rev: 3 },
+    { id: 7, kind: 'convention', text: 'name a toggle by what it does', rev: 1 },
   ],
 }
 
@@ -27,8 +27,8 @@ test('a prompt through mike carries the lessons the proxy picked, each tagged wi
   const out = await $.prompt.submit({ text: 'fix the build' })
   const context = out.context ?? []
   expect(context).toHaveLength(1)
-  expect(context[0]).toContain('[lesson:12] [correction] run make fmt before committing')
-  expect(context[0]).toContain('[lesson:7] [convention] name a toggle by what it does')
+  expect(context[0]).toContain('[lesson:12 rev:3] [correction] run make fmt before committing')
+  expect(context[0]).toContain('[lesson:7 rev:1] [convention] name a toggle by what it does')
   expect(posts[0].url).toBe('http://127.0.0.1:9989/api/lessons/for-prompt')
   expect(JSON.parse(posts[0].body)).toMatchObject({ session: SESSION, project: '/repo', prompt: 'fix the build', held: [] })
 })
@@ -138,7 +138,7 @@ test('the same memory-keeper card is added once until compaction', async ($, on)
   on('session.compact', async () => ({ messages: summary }))
   const first = await $.prompt.submit({ text: 'one' })
   expect(first.context?.[0]).toContain('[keeper:abc123def456]')
-  expect(first.context?.[0]).toContain('[lesson:12]')
+  expect(first.context?.[0]).toContain('[lesson:12 rev:3]')
   const second = await $.prompt.submit({ text: 'two' })
   expect(second.context?.[0] ?? '').not.toContain('[keeper:')
   await $.session.compact({ messages: summary, trigger: 'manual' })

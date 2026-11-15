@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_routes AS r (lesson_id, project_id, route, covered_by, revision)\n         SELECT d.lesson_id, d.project_id, d.route, d.covered_by, d.revision\n           FROM unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::int[])\n                AS d(lesson_id, project_id, route, covered_by, revision)\n           JOIN memory.lessons l ON l.id = d.lesson_id\n         ON CONFLICT (lesson_id) DO UPDATE\n            SET project_id = EXCLUDED.project_id, route = EXCLUDED.route,\n                covered_by = EXCLUDED.covered_by, revision = EXCLUDED.revision,\n                decided_at = now()\n          WHERE (r.project_id, r.route, r.covered_by, r.revision)\n                IS DISTINCT FROM (EXCLUDED.project_id, EXCLUDED.route,\n                                  EXCLUDED.covered_by, EXCLUDED.revision)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "19200e903e33a92d1322648e4dae5720a2e19ed58b1ae15262b01785fb53a576"
+}

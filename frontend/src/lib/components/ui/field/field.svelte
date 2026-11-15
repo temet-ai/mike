@@ -11,6 +11,11 @@
 		hint?: string;
 		multiline?: boolean;
 		rows?: number;
+		/**
+		 * A refusal to show under the frame. `undefined` draws nothing extra; a string or `null`
+		 * always reserves the line, so a message appearing does not move the fields below.
+		 */
+		error?: string | null;
 	};
 
 	let {
@@ -22,11 +27,21 @@
 		multiline = false,
 		rows = 3,
 		type = 'text',
+		error,
 		...restProps
 	}: FieldProps = $props();
+
+	const uid = $props.id();
+	const errorId = $derived(`${uid}-error`);
+	const message = $derived(error === undefined || error === null || error === '' ? null : error);
+	const a11y = $derived(
+		error === undefined
+			? {}
+			: { 'aria-describedby': errorId, 'aria-invalid': message === null ? undefined : true }
+	);
 </script>
 
-<label class={cn('fld', className)} data-slot="field">
+{#snippet control()}
 	{#if label || hint}
 		<span class="machine fld__label" data-slot="field-label">
 			{#if typeof label === 'string'}{label}{:else if label}{@render label()}{/if}
@@ -35,13 +50,30 @@
 	{/if}
 	<span class="edge fld__frame" data-multiline={multiline ? '' : undefined}>
 		{#if multiline}
-			<textarea bind:this={ref} bind:value {rows} {...restProps as HTMLTextareaAttributes}
+			<textarea bind:this={ref} bind:value {rows} {...a11y} {...restProps as HTMLTextareaAttributes}
 			></textarea>
 		{:else}
-			<input bind:this={ref} bind:value {type} {...restProps} />
+			<input bind:this={ref} bind:value {type} {...a11y} {...restProps} />
 		{/if}
 	</span>
-</label>
+{/snippet}
+
+{#if error === undefined}
+	<label class={cn('fld', className)} data-slot="field">
+		{@render control()}
+	</label>
+{:else}
+	<div
+		class={cn('fld fld--checked', className)}
+		data-slot="field"
+		data-invalid={message === null ? undefined : ''}
+	>
+		<label class="fld">
+			{@render control()}
+		</label>
+		<p class="fld__error" id={errorId} role="alert">{message}</p>
+	</div>
+{/if}
 
 <style>
 	.fld {
@@ -86,6 +118,23 @@
 
 	.fld__frame:focus-within {
 		--edge-line: var(--interactive-focus-ring);
+	}
+
+	.fld--checked {
+		gap: var(--space-1);
+	}
+
+	.fld--checked[data-invalid] .fld__frame {
+		--edge-line: var(--status-danger-border);
+	}
+
+	.fld__error {
+		margin: 0;
+		min-block-size: 1.4em;
+		font-size: var(--text-xs);
+		line-height: 1.4;
+		color: var(--status-danger-fg);
+		overflow-wrap: anywhere;
 	}
 
 	.fld__frame > input,

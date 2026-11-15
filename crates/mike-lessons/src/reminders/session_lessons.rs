@@ -55,6 +55,7 @@ pub async fn apply_session_lessons_with_floor(
     if is_tool_loop && !snapshot.relevance.query_ready(session_id, &query) {
         return RemindersOutcome::Unchanged;
     }
+    let held_tags = crate::lesson_delivery::held_lesson_tags(body_bytes);
     let mut seen = std::collections::HashSet::new();
     let candidates: Vec<_> = snapshot
         .shared
@@ -64,6 +65,8 @@ pub async fn apply_session_lessons_with_floor(
                 .for_project(snapshot.project_for_session(session_id, project_path))
                 .iter(),
         )
+        .filter(|lesson| lesson.route.is_injection())
+        .filter(|lesson| !crate::lesson_delivery::is_held(&held_tags, lesson))
         .filter(|lesson| seen.insert(lesson.id))
         .filter(|lesson| floor.is_none() || !super::supply_floor::is_held(session_id, lesson.id))
         .collect();

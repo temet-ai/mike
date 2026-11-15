@@ -10,6 +10,8 @@
 	});
 
 	let protocol = $state('wss');
+	let mode = $state('wss');
+	let refusal = $state<string | null>(null);
 </script>
 
 <Story
@@ -22,6 +24,15 @@
 		await expect(select).toHaveValue('https');
 		await expect(canvas.getByTestId('protocol')).toHaveTextContent('https');
 		await expect(within(select).getByRole('option', { name: 'raw' })).toBeDisabled();
+
+		const below = canvas.getByTestId('below-mode');
+		const before = below.getBoundingClientRect().top;
+		const mode = canvas.getByRole('combobox', { name: 'Mode' });
+		await expect(mode).not.toHaveAttribute('aria-invalid');
+		await userEvent.click(canvas.getByRole('button', { name: 'Refuse mode' }));
+		await expect(canvas.getByRole('alert')).toHaveTextContent('mode is not supported');
+		await expect(mode).toHaveAttribute('aria-invalid', 'true');
+		await expect(below.getBoundingClientRect().top).toBe(before);
 	}}
 >
 	{#snippet template()}
@@ -32,6 +43,14 @@
 				options={[{ value: 'wss' }, { value: 'https' }, { value: 'raw', disabled: true }]}
 			/>
 			<p data-testid="protocol" class="mt-2 text-xs">{protocol}</p>
+			<Select
+				label="Mode"
+				bind:value={mode}
+				error={refusal}
+				options={[{ value: 'wss' }, { value: 'https' }]}
+			/>
+			<p data-testid="below-mode" class="text-xs">Below the mode</p>
+			<button type="button" onclick={() => (refusal = 'mode is not supported')}>Refuse mode</button>
 		</div>
 	{/snippet}
 </Story>

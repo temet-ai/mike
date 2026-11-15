@@ -36,28 +36,31 @@ pub fn entries() -> Vec<SettingMeta> {
         enabled_entry(
             LEARNING_PROMOTE_ENABLED_KEY,
             "Promote lessons into project skills",
-            "Hourly at :30, from 20:30 to 03:30 UTC, run scripts/learning-promote from the \
-            checkout this proxy was started in. It turns accepted lessons into project \
-            memories and skills and writes them into the project checkouts on this machine, \
-            so each machine runs its own. It makes no LLM call and sends nothing off the \
-            machine. Read on every check, once a minute; a run already under way finishes.",
+            "Hourly at :30, from 20:30 to 03:30 UTC, run scripts/learning-promote, a shell \
+            wrapper for `mike learning promote`, from the checkout this proxy was started \
+            in. It decides how each accepted lesson reaches its project, writes the standing \
+            lessons to .claude/rules/mike-lessons.md and skills into the project checkouts \
+            on this machine, so each machine runs its own. It makes no LLM call and sends \
+            nothing off the machine. Read on every check, once a minute; a run already \
+            under way finishes.",
         ),
         enabled_entry(
             LEARNING_AUDIT_ENABLED_KEY,
             "Weekly learning audit",
             "On Mondays, once, between 01:00 and 06:59 UTC, run scripts/learning-audit \
-            --weekly --sync from the checkout this proxy was started in. It audits the \
-            preceding complete week with read-only queries, writes the report under \
-            artifacts/learning-audit and publishes it through Mike's own project knowledge \
-            ingestion. One machine per database runs it (the job lease). It makes no LLM \
-            call and sends nothing off the machine. Read on every check, once a minute; a \
-            run already under way finishes.",
+            --weekly --sync, a shell wrapper for `mike learning-audit`, from the checkout \
+            this proxy was started in. It audits the preceding complete week with \
+            read-only queries and writes the report under artifacts/learning-audit. One \
+            machine per database runs it (the job lease). It makes no LLM call and sends \
+            nothing off the machine. Read on every check, once a minute; a run already \
+            under way finishes.",
         ),
         enabled_entry(
             COMPRESSOR_LOOP_ENABLED_KEY,
             "File-read compressor loop",
             "Daily, once between 04:30 and 06:59 UTC, run scripts/compressor-loop --days 7 \
-            --apply from the checkout this proxy was started in. It scores the compressor's \
+            --apply, a shell wrapper for `mike compressor-loop`, from the checkout this \
+            proxy was started in. It scores the compressor's \
             forward and control arms and adjusts the file_read_compression settings through \
             the inspect API only when its evidence says so; it widens only when a current \
             qualification.json from the task trials is in its state folder. One machine per database runs it \

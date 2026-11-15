@@ -12,6 +12,8 @@ pub struct KnowledgeEmbeddingSource {
     pub source_kind: String,
     pub source_id: i64,
     pub project_id: Option<i64>,
+    pub label: String,
+    pub name: String,
     pub header: String,
     pub body: String,
 }
@@ -59,6 +61,8 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                     source_kind: row.source_kind,
                     source_id: row.source_id,
                     project_id: row.project_id,
+                    label: row.label.unwrap_or_default(),
+                    name: row.name.unwrap_or_default(),
                     header: row.header.unwrap_or_default(),
                     body,
                 }),
@@ -146,7 +150,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     ) -> Result<(), PersistError> {
         sqlx::query!(
             "UPDATE memory.knowledge_items
-                SET attempts = attempts + 1, last_error = $3, project_id = $4, model_key = $5,
+                SET attempts = attempts + 1, last_error = $3, last_error_at = now(), project_id = $4, model_key = $5,
                     ready_at = now() + LEAST(3600, 30 * power(2, LEAST(attempts, 7))) * interval '1 second',
                     needs_embedding = attempts + 1 < 10 OR $3 LIKE '[transient]%'
               WHERE id = $1 AND changed_at <= $2",
@@ -172,18 +176,28 @@ async fn upsert_embedding_state(
 ) -> Result<i64, PersistError> {
     Ok(sqlx::query_scalar!(
         "INSERT INTO memory.knowledge_embedding_state
-             (item_id, source_kind, source_id, reference, project_id, model_key, completed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now())
+             (item_id, source_kind, source_id, reference, project_id, model_key, completed_at,
+              name, label, search_tsv)
+         SELECT $1::bigint, k.kind, $3::bigint, $4::text, $5::bigint, $6::text, now(),
+                $7::text, $8::text,
+                CASE WHEN k.built_in THEN NULL ELSE to_tsvector('english', $9::text || ' ' || $10::text) END
+           FROM memory.knowledge_kinds k
+          WHERE k.kind = $2::text
          ON CONFLICT (item_id) DO UPDATE SET
              reference = EXCLUDED.reference, project_id = EXCLUDED.project_id,
-             model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL
+             model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL,
+             name = EXCLUDED.name, label = EXCLUDED.label, search_tsv = EXCLUDED.search_tsv
          RETURNING id",
         source.item_id,
         &source.source_kind,
         source.source_id,
         &source.reference,
         source.project_id,
-        model
+        model,
+        &source.name,
+        &source.label,
+        &source.header,
+        &source.body
     )
     .fetch_one(&mut **tx)
     .await?)

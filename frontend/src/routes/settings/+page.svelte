@@ -308,7 +308,7 @@
 	{#snippet lede()}
 		Features that apply to a session, and every other setting. The steerer<HelpHint
 			slug="steerer"
-		/>, workers, embedding, reranker and flagging have their own pages.
+		/>, workers, embedding, knowledge sources, reranker and flagging have their own pages.
 	{/snippet}
 
 	<div class="cfg-find">

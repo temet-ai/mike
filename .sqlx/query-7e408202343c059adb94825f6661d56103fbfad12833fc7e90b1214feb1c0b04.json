@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT memory.delete_knowledge_kind($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "delete_knowledge_kind",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7e408202343c059adb94825f6661d56103fbfad12833fc7e90b1214feb1c0b04"
+}

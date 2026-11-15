@@ -46,7 +46,7 @@ pub(super) const PROMOTE: Job = Job {
     alarm_exit: Some(1),
     enabled_key: LEARNING_PROMOTE_ENABLED_KEY,
     schedule_text: "hourly at :30 from 20:30 to 03:30 UTC",
-    failure_hint: "Exit code 1 means generated files conflict with manual edits.",
+    failure_hint: "It runs `mike learning promote` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike). Exit code 1 means generated files conflict with manual edits; the conflicts are in ~/.local/state/mike-learning-promotion/latest.json.",
 };
 
 pub(super) const AUDIT: Job = Job {
@@ -68,7 +68,7 @@ pub(super) const AUDIT: Job = Job {
     alarm_exit: None,
     enabled_key: LEARNING_AUDIT_ENABLED_KEY,
     schedule_text: "weekly, once on Monday between 01:00 and 06:59 UTC",
-    failure_hint: "The audit reads the database with psql and the inspect API on 127.0.0.1:9989, so check that both answer.",
+    failure_hint: "It runs `mike learning-audit` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand to see the error.",
 };
 
 pub(super) const COMPRESSOR_LOOP: Job = Job {
@@ -90,7 +90,7 @@ pub(super) const COMPRESSOR_LOOP: Job = Job {
     alarm_exit: None,
     enabled_key: COMPRESSOR_LOOP_ENABLED_KEY,
     schedule_text: "daily, once between 04:30 and 06:59 UTC",
-    failure_hint: "The loop reads the database with psql (or docker exec) and changes settings through the inspect API on 127.0.0.1:9989, so check that both answer.",
+    failure_hint: "It runs `mike compressor-loop` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike), which reads the capture database and changes settings through the inspect API on 127.0.0.1:9989, so check that both answer.",
 };
 
 #[cfg(test)]

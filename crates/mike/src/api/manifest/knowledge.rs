@@ -4,7 +4,7 @@ use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 use axum::{
     Router,
     extract::DefaultBodyLimit,
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 
 pub(super) const ROUTES: &[RouteEntry] = &[
@@ -75,6 +75,48 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "operator runs the overnight rerank pass now",
         },
     ),
+    route(
+        "GET",
+        "/api/knowledge/kinds",
+        Coverage::Exempt {
+            reason: "settings page lists knowledge kinds with their embedding counts",
+        },
+    ),
+    route(
+        "GET",
+        "/api/knowledge/kinds/tables",
+        Coverage::Exempt {
+            reason: "settings page lists the tables and columns a kind can read",
+        },
+    ),
+    route(
+        "POST",
+        "/api/knowledge/kinds/preview",
+        Coverage::Exempt {
+            reason: "settings page previews one item of a kind before it is saved",
+        },
+    ),
+    route(
+        "POST",
+        "/api/knowledge/kinds",
+        Coverage::Exempt {
+            reason: "operator defines a knowledge kind on the settings page",
+        },
+    ),
+    route(
+        "PATCH",
+        "/api/knowledge/kinds/{kind}",
+        Coverage::Exempt {
+            reason: "operator switches a knowledge kind on or off or retunes it on the settings page",
+        },
+    ),
+    route(
+        "DELETE",
+        "/api/knowledge/kinds/{kind}",
+        Coverage::Exempt {
+            reason: "operator deletes a knowledge kind on the settings page",
+        },
+    ),
 ];
 
 pub(super) fn register_waited(router: Router<AppState>) -> Router<AppState> {
@@ -95,6 +137,16 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         )
         .route("/api/knowledge/search", get(api::search))
         .route("/api/knowledge/read", get(api::read))
+        .route(
+            "/api/knowledge/kinds",
+            get(api::list_kinds).post(api::define_kind),
+        )
+        .route("/api/knowledge/kinds/tables", get(api::list_kind_tables))
+        .route("/api/knowledge/kinds/preview", post(api::preview_kind))
+        .route(
+            "/api/knowledge/kinds/{kind}",
+            patch(api::patch_kind).delete(api::delete_kind),
+        )
         .route(
             "/api/knowledge/lessons",
             get(api::lesson_files).post(api::import_lesson),

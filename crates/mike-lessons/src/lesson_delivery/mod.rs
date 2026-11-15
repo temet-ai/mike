@@ -9,10 +9,10 @@ use sha2::{Digest, Sha256};
 
 pub use supplied::remember_scores;
 
-pub use held::held_lesson_ids;
+pub use held::{HeldTag, REVISION_MARK, held_lesson_ids, held_lesson_tags, is_held};
 pub use origin::label_mod_lessons;
 pub use select::catalog_for_prompt;
-pub use select::{DeliveredLesson, PromptLessons, select_for_prompt};
+pub use select::{DeliveredLesson, PromptLessons, already_present_ids, select_for_prompt};
 
 pub const LESSON_TAG_OPEN: &str = "[lesson:";
 pub const LESSONS_HEADING: &str = "Lessons recorded from earlier sessions in this project:";
@@ -53,10 +53,8 @@ pub fn client_holds_lessons(
     toggle_on: bool,
     snapshot: &crate::lesson_worker::LessonSnapshot,
     session_id: &str,
-    body: &[u8],
 ) -> bool {
-    toggle_on
-        && (snapshot.relevance.is_mod_session(session_id) || !held_lesson_ids(body).is_empty())
+    toggle_on && snapshot.relevance.is_mod_session(session_id)
 }
 
 #[cfg(test)]

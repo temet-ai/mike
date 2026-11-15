@@ -4,8 +4,9 @@ Memory keeps what you corrected in one session and puts it in front of the next 
 correction becomes a **lesson**: a short standing rule for a project, such as "Put Homebrew
 first on the install page." Later sessions in that project can be handed it, ask for it by
 topic, or find it by search. mike also keeps a search over your project's notes, Claude Code
-memory files and skills. Memory does not change your code, and it never writes a rule or a
-skill into your project folder without your approval.
+memory files and skills. Memory does not change your code. It writes one file into your project folder on its own,
+`.claude/rules/mike-lessons.md`, holding the lessons that should always apply; it
+never writes a skill there without your approval.
 
 Some of this is on in a fresh install and some is off. The table under
 [What is on in a fresh install](#what-is-on-in-a-fresh-install) says which, and what each
@@ -97,6 +98,8 @@ skills in `.claude/skills/<skill>/SKILL.md`. Other Markdown, such as docs and de
 needs the `scripts/mike-knowledge` collector in a mike source checkout, which needs
 Python 3 and PyYAML.
 
+You can add other kinds of knowledge yourself. On **Settings**, **Knowledge** (<http://localhost:9990/settings/knowledge>), point mike at a table in its database, say which columns are the id, title, text and project, preview one item, and save. The new kind is searchable like the rest, and you can switch it off or delete it there; the built-in kinds can only be switched off. If a kind fails or falls behind, mike's project knowledge health check reports it and points to that page.
+
 Searching sends nothing to Anthropic: results go back to the session that asked, as a tool
 result, and that session's next request then contains them like any tool result. Nothing
 leaves your machine, with one exception: embeddings are on by default but point at a
@@ -167,12 +170,12 @@ An installed mike (Homebrew, mise or an archive) runs the four jobs whose script
 
 | Job | What it does |
 |---|---|
-| `learning_promote` | Turns accepted lessons into project memories and skills in your project folders, hourly overnight. |
-| `learning_audit` | Reviews last week's sessions, lessons and tool use and publishes a report, weekly. |
+| `learning_promote` | Runs `mike learning promote` hourly overnight. It writes the lessons that should always apply to `.claude/rules/mike-lessons.md` in your project folder, each tagged `[lesson:<id> rev:<n>]`, and installs skills there. A lesson your own `CLAUDE.md`, `AGENTS.md` or rules files already say is left out. |
+| `learning_audit` | Runs `mike learning-audit` weekly: reviews last week's sessions, lessons and tool use and writes a report under `artifacts/learning-audit`. |
 | `compressor_loop` | Compares sessions with and without shortened file reads and adjusts the [compressor](compression.md)'s settings, daily. |
 | `lesson_relations` | Finds lessons that repeat or contradict each other, daily, before consolidation. |
 
-They need `python3` with PyYAML and `psql` on the PATH the background service uses. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.
+None of them needs Python or `psql`; they run mike's own commands. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.
 
 `mike doctor` has a `scheduled_jobs` line that says how many jobs can run here and names the ones that need a checkout. It warns, with a fix, if a job's script is missing, for example when mike was installed without its `share/mike/scripts` folder.
 
