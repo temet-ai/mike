@@ -47,8 +47,7 @@ pub(crate) async fn post_session_message(
         resolve_mailbox_recipient(handle, &to_session_id).await?
     };
 
-    let mut parsed = validate_send_request(handle, to_session_uuid, &body).await?;
-    link_unthreaded_reply(&state, &mut parsed, to_session_uuid, &body).await;
+    let parsed = validated_and_linked(&state, handle, to_session_uuid, &body).await?;
 
     refuse_closed_fleet_seat(handle, parsed.from_session_uuid, to_session_uuid, true).await?;
 
@@ -107,6 +106,17 @@ pub(crate) async fn post_session_message(
         );
     }
     sent
+}
+
+async fn validated_and_linked(
+    state: &AppState,
+    handle: &crate::store::persistence::PersistHandle,
+    to: uuid::Uuid,
+    body: &PostSessionMessageBody,
+) -> Result<validation::ParsedSend, Response> {
+    let mut parsed = validate_send_request(handle, to, body).await?;
+    link_unthreaded_reply(state, &mut parsed, to, body).await;
+    Ok(parsed)
 }
 
 async fn link_unthreaded_reply(
