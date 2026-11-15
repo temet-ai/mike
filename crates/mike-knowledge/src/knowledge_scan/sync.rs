@@ -142,15 +142,12 @@ pub async fn scan_machine(
         ..ScanReport::default()
     };
     report.failed += record_missing_roots(persist, &plan.missing, memo).await?;
-    report.failed += machine::record_missing(persist, machine, &machine_plan.missing, memo).await?;
     let registered = persist
         .knowledge()
         .register_knowledge_sources(&source_inputs(plan.present.iter()))
         .await?;
-    let machine_registered = persist
-        .knowledge()
-        .register_machine_knowledge_sources(&machine::inputs(machine, machine_plan.present.iter()))
-        .await?;
+    let machine_registered =
+        register_machine_sources(persist, machine, &machine_plan, memo, &mut report).await;
     let mut collected = Vec::new();
     let locations = plan
         .present
@@ -180,6 +177,39 @@ pub async fn scan_machine(
         .record_knowledge_source_heartbeats(&collected)
         .await?;
     Ok(report)
+}
+
+async fn register_machine_sources(
+    persist: &PersistHandle,
+    machine: Uuid,
+    machine_plan: &machine::MachinePlan,
+    memo: &mut ScanMemo,
+    report: &mut ScanReport,
+) -> Vec<Option<RegisteredSource>> {
+    let registered = async {
+        let missing =
+            machine::record_missing(persist, machine, &machine_plan.missing, memo).await?;
+        let sources = persist
+            .knowledge()
+            .register_machine_knowledge_sources(&machine::inputs(
+                machine,
+                machine_plan.present.iter(),
+            ))
+            .await?;
+        Ok::<_, PersistError>((missing, sources))
+    }
+    .await;
+    match registered {
+        Ok((missing, sources)) => {
+            report.failed += missing;
+            sources
+        }
+        Err(error) => {
+            report.failed += machine_plan.present.len();
+            tracing::warn!(%error, "knowledge_scan: machine sources not registered; checkout sources still scanned");
+            Vec::new()
+        }
+    }
 }
 
 async fn sync_batch<'a>(
