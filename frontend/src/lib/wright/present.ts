@@ -1,8 +1,12 @@
 import type {
 	ActionState,
+	FollowupKind,
+	FollowupLimits,
+	FollowupState,
 	RepairState,
 	SteerChange,
 	WrightAction,
+	WrightFollowup,
 	WrightMessage,
 	WrightProblem,
 	WrightRemedy
@@ -369,3 +373,112 @@ export function findingEvidenceRef(kind: string, ref: string): EvidenceRef {
 }
 
 export const GITHUB_COMMIT = 'https://github.com/temet-ai/mike/commit/';
+
+export interface FollowupBadge {
+	label: string;
+	variant: 'chip-active' | 'chip-muted' | 'chip-warning' | 'chip-analyzed';
+}
+
+const FOLLOWUP_BADGE: Record<FollowupState, FollowupBadge> = {
+	open: { label: 'Not filed', variant: 'chip-muted' },
+	filed: { label: 'Filed', variant: 'chip-analyzed' },
+	handed_off: { label: 'Being fixed', variant: 'chip-analyzed' },
+	fixed: { label: 'Fixed', variant: 'chip-active' },
+	dropped: { label: 'Dropped', variant: 'chip-muted' },
+	stuck: { label: 'Stuck', variant: 'chip-warning' }
+};
+
+export function followupBadge(state: FollowupState): FollowupBadge {
+	return FOLLOWUP_BADGE[state] ?? { label: humanise(state), variant: 'chip-muted' };
+}
+
+const FOLLOWUP_KIND: Record<FollowupKind, string> = {
+	check_tuning: 'Check tuning',
+	code_defect: 'Code bug',
+	hardening: 'Hardening',
+	root_cause: 'Why it keeps happening'
+};
+
+export function followupKind(kind: FollowupKind): string {
+	return FOLLOWUP_KIND[kind] ?? humanise(kind);
+}
+
+/** The operator's choices for the Show control, in the order the page lists them. */
+export const FOLLOWUP_FILTERS: { value: 'all' | FollowupState; label: string }[] = [
+	{ value: 'all', label: 'All' },
+	{ value: 'stuck', label: 'Stuck' },
+	{ value: 'handed_off', label: 'Being fixed' },
+	{ value: 'filed', label: 'Filed' },
+	{ value: 'open', label: 'Not filed' },
+	{ value: 'fixed', label: 'Fixed' },
+	{ value: 'dropped', label: 'Dropped' }
+];
+
+/** "Kind · check · owned by part": the part is left out when the follow-up names none. */
+export function followupMeta(f: WrightFollowup): string {
+	const parts = [followupKind(f.kind)];
+	if (f.check_name) parts.push(problemTitle(f.check_name));
+	if (f.owning_part) parts.push(`owned by ${f.owning_part}`);
+	return parts.join(' · ');
+}
+
+function when(iso: string | null): string {
+	return iso === null ? '' : ` ${dayAndTime(iso)}`;
+}
+
+/** "attempt 2 of 3" once the limit is known, "attempt 2" until then. */
+export function attemptText(attempts: number, limits: FollowupLimits | null): string {
+	return limits === null ? `attempt ${attempts}` : `attempt ${attempts} of ${limits.max_attempts}`;
+}
+
+/** What the row says its state is, in one sentence. */
+export function followupLine(f: WrightFollowup, limits: FollowupLimits | null = null): string {
+	switch (f.state) {
+		case 'open':
+			return 'No issue yet.';
+		case 'filed':
+			return `Issue #${f.issue_number ?? '?'} is open. No session has picked it up.`;
+		case 'handed_off':
+			return `${f.fixer_machine ?? 'A session'}, ${attemptText(f.attempts, limits)}${
+				f.handed_off_at === null ? '' : `, since ${dayAndTime(f.handed_off_at)}`
+			}.`;
+		case 'fixed':
+			return `Closed${when(f.closed_at)}.`;
+		case 'dropped':
+			return `Closed${when(f.closed_at)}${f.closed_reason ? `: ${humanise(f.closed_reason)}` : ''}.`;
+		case 'stuck': {
+			const ended = `${f.attempts} ${f.attempts === 1 ? 'session' : 'sessions'} ended without a fix.`;
+			const noIssue = f.issue_url === null ? ' No issue was filed.' : '';
+			return `${ended} Wright has stopped trying.${noIssue}`;
+		}
+		default:
+			return humanise(f.state);
+	}
+}
+
+/** The plain meaning of a state, for the badge's tooltip; the daily limits are named once known. */
+export function followupTooltip(
+	state: FollowupState,
+	limits: FollowupLimits | null = null
+): string {
+	switch (state) {
+		case 'open':
+			return `Wright wrote this down and has not opened an issue for it.${
+				limits === null ? '' : ` It files at most ${limits.daily_filed} a day.`
+			}`;
+		case 'filed':
+			return `Wright opened the issue and is waiting for a quiet machine to start a session on it.${
+				limits === null ? '' : ` It starts at most ${limits.daily_handoffs} a day.`
+			}`;
+		case 'handed_off':
+			return 'A session is working on the issue. Wright marks it fixed when the issue closes or its pull request merges.';
+		case 'fixed':
+			return 'The issue closed or its pull request merged.';
+		case 'dropped':
+			return 'The GitHub issue was closed as not planned, by the fixer session or by anyone.';
+		case 'stuck':
+			return 'Sessions tried this and none finished it. Wright has stopped. Read the issue and decide.';
+		default:
+			return humanise(state);
+	}
+}

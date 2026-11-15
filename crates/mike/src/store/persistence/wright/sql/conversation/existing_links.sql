@@ -7,3 +7,5 @@ UNION ALL
 SELECT 'finding' AS kind, id FROM wright.findings WHERE id = ANY($4)
 UNION ALL
 SELECT 'repair' AS kind, id FROM wright.repairs WHERE id = ANY($5)
+UNION ALL
+SELECT 'followup' AS kind, id FROM wright.followups WHERE id = ANY($6)

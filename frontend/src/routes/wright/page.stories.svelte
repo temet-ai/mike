@@ -96,6 +96,42 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 />
 
 <Story
+	name="Follow-ups"
+	loaders={[setup(normalScenario(), true)]}
+	play={async ({ canvas }) => {
+		const band = await canvas.findByRole('button', { name: /Follow-ups/ });
+		await waitFor(() => expect(band).toHaveTextContent('1 stuck · 6 listed'));
+		const stuck = (
+			await canvas.findByText('Mail to a seat that never reads is retried forever', {
+				exact: false
+			})
+		).closest('li') as HTMLElement;
+		await expect(
+			within(stuck).getByText('3 sessions ended without a fix. Wright has stopped trying.')
+		).toBeVisible();
+		await expect(within(stuck).getByRole('link', { name: /Open issue #277/ })).toBeVisible();
+		await expect(within(stuck).getByRole('link', { name: /Problem 703/ })).toHaveAttribute(
+			'href',
+			'#problem-703'
+		);
+
+		const show = canvas.getByRole('combobox', { name: 'Show' });
+		await userEvent.selectOptions(show, 'handed_off');
+		await waitFor(() =>
+			expect(canvas.queryByText(/Mail to a seat that never reads is retried/)).toBeNull()
+		);
+		await expect(
+			canvas.getByText('Raise the slow-query threshold for the capture schema')
+		).toBeVisible();
+		await waitFor(() => expect(band).toHaveTextContent('1 listed'));
+		await userEvent.selectOptions(show, 'all');
+		await expect(
+			await canvas.findByText(/Mail to a seat that never reads is retried/)
+		).toBeVisible();
+	}}
+/>
+
+<Story
 	name="Undo conflict"
 	loaders={[setup({ ...normalScenario(), undo: 'conflict' }, true)]}
 	play={async ({ canvas }) => {
@@ -166,7 +202,8 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 				messages: null,
 				findings: null,
 				repairs: null,
-				investigations: null
+				investigations: null,
+				followups: null
 			},
 			true
 		)
@@ -177,6 +214,11 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 			canvas.getByText(/Wright's known fixes appear here once they are deployed/)
 		).toBeVisible();
 		await expect(canvas.getByText('A tool called with the wrong inputs')).toBeVisible();
+		await expect(
+			await canvas.findByText('Not in the running mike yet.', {
+				selector: '#wright-band-followups p'
+			})
+		).toBeVisible();
 		await expect(canvas.queryByRole('alert')).toBeNull();
 	}}
 />

@@ -49,6 +49,7 @@ impl AnswerEngine for EngineerAnswers {
         let run = RunRequest {
             mode: RunMode::Answer,
             problem_id: None,
+            followup_id: None,
             brief: request.brief,
             inputs: request.inputs,
         };

@@ -180,6 +180,7 @@ fn claude_args_restrict_tools_to_read_and_mcp_to_mike() {
     let request = RunRequest {
         mode: RunMode::Investigate,
         problem_id: Some(1),
+        followup_id: None,
         brief: "brief".to_owned(),
         inputs: Vec::new(),
     };

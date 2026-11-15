@@ -9,6 +9,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	import { replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
+	import { Select } from '$lib/components/ui/select';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
 	import WrightActionRow from '$lib/components/wright/WrightActionRow.svelte';
@@ -16,6 +17,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	import WrightConversation from '$lib/components/wright/WrightConversation.svelte';
 	import WrightNote from '$lib/components/wright/WrightNote.svelte';
 	import WrightFixRow from '$lib/components/wright/WrightFixRow.svelte';
+	import WrightFollowupRow from '$lib/components/wright/WrightFollowupRow.svelte';
 	import WrightProblemDetail from '$lib/components/wright/WrightProblemDetail.svelte';
 	import WrightProblemRow from '$lib/components/wright/WrightProblemRow.svelte';
 	import type { WrightProblem } from '$lib/api/wright';
@@ -26,7 +28,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 		readOperatorToken,
 		storeOperatorToken
 	} from '$lib/wright/pairing';
-	import { groupByDay } from '$lib/wright/present';
+	import { FOLLOWUP_FILTERS, groupByDay } from '$lib/wright/present';
 	import { createWrightStore } from '$lib/wright/store.svelte';
 	import { proxyEvents } from '$lib/ws.svelte';
 
@@ -38,6 +40,12 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 
 	const problems = $derived<WrightProblem[]>([...store.open.rows, ...store.earlier.rows]);
 	const problemById = (id: number): WrightProblem | undefined => problems.find((p) => p.id === id);
+	const stuckFollowups = $derived(store.followups.rows.filter((f) => f.state === 'stuck').length);
+	const followupMeta = $derived(
+		stuckFollowups > 0
+			? `${stuckFollowups} stuck · ${store.followups.rows.length} listed`
+			: `${store.followups.rows.length} listed`
+	);
 	const actionDays = $derived(groupByDay(store.actions.rows, (a) => a.created_at));
 
 	function readHash(): void {
@@ -131,6 +139,42 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	{/if}
 {/snippet}
 
+{#snippet followupList()}
+	{#if store.followups.status === 'loading'}
+		<WrightNote>Loading.</WrightNote>
+	{:else if store.followups.status === 'missing'}
+		<WrightNote>Not in the running mike yet.</WrightNote>
+	{:else if store.followups.status === 'error'}
+		<LoadErrorBanner
+			title="Could not load follow-ups"
+			detail={store.followups.error ?? ''}
+			onRetry={() => void store.setFollowupFilter(store.followupFilter)}
+		/>
+	{:else if store.followups.rows.length === 0}
+		<WrightNote>
+			{store.followupFilter === 'all'
+				? 'Nothing filed yet. Wright adds a follow-up each time its engineer finds something to change.'
+				: 'No follow-ups in that state.'}
+		</WrightNote>
+	{:else}
+		<ul class="wr-rows" role="list">
+			{#each store.followups.rows as followup (followup.id)}
+				<WrightFollowupRow {followup} limits={store.followupLimits} />
+			{/each}
+		</ul>
+		{#if store.followups.cursor !== null}
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={store.followups.loadingMore}
+				onclick={() => void store.moreFollowups()}
+			>
+				Load more
+			</Button>
+		{/if}
+	{/if}
+{/snippet}
+
 <div class="wr-scroll">
 	<section class="wr" aria-label="Wright">
 		<PageIntro
@@ -177,6 +221,27 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 							'Nothing open. Wright checks every hour, and straight away when something fails.',
 							() => void store.moreOpen()
 						)}
+					</WrightBand>
+
+					<WrightBand
+						id="followups"
+						label="Follow-ups"
+						meta={followupMeta}
+						held={store.followups.held.length}
+						onShowHeld={store.showHeldFollowups}
+					>
+						<div class="wr-filter">
+							<Select
+								label="Show"
+								value={store.followupFilter}
+								options={FOLLOWUP_FILTERS}
+								onchange={(event) =>
+									void store.setFollowupFilter(
+										event.currentTarget.value as typeof store.followupFilter
+									)}
+							/>
+						</div>
+						{@render followupList()}
 					</WrightBand>
 
 					<WrightBand
@@ -325,6 +390,10 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.wr-filter {
+		inline-size: 14rem;
 	}
 
 	.wr-subday {

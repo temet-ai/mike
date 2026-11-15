@@ -99,6 +99,8 @@ async fn relay_refuses_writes_and_wright_routes_with_403() -> anyhow::Result<()>
         ("POST", "/api/lessons"),
         ("PATCH", "/api/wright/engineer-limits"),
         ("GET", "/api/wright/problems"),
+        ("GET", "/api/wright/followups"),
+        ("PATCH", "/api/wright/followup-limits"),
         ("GET", "/api/settings"),
         ("DELETE", "/api/sessions/1"),
     ] {

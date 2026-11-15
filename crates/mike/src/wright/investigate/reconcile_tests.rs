@@ -101,6 +101,7 @@ async fn insert(persist: &PersistHandle, host: &str, pid: i32) -> anyhow::Result
             host,
             machine_uuid: None,
             owner_pid: pid,
+            followup_id: None,
         })
         .await?)
 }

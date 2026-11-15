@@ -56,7 +56,7 @@ Schemas:
 | `remote_control` | Remote Control channels, frames and session links |
 | `work` | Work threads, criteria, items and attention tracking |
 | `eval` | Evaluation bundles, labels, runs, rates and alarms |
-| `wright` | Wright's checks (`checks`), their runs, problems and episodes |
+| `wright` | Wright's checks (`checks`), their runs, problems and episodes, and its follow-up register (`followups`, `followup_findings`, `followup_limits`) |
 | `mike` | Read-API views and row-change notification functions |
 
 ---
@@ -6430,6 +6430,59 @@ and the `wright_checks` MCP tool read and write it while mike runs.
 
 `wright.check_runs.check_name` and `wright.problems.check_name` reference `wright.checks(name)` with
 `ON DELETE CASCADE`: removing a check removes its runs, problems and episodes.
+
+### `wright.followups`
+
+Added in migration `20261115050000_wright_followups.sql` (temet-ai/mike#269). One row per piece of
+follow-up work an engineer run found that is not a fix for its own problem. The follow-up worker
+(lease `wright_followups`) files each `open` row as a `wright` GitHub issue and hands it to a fixer
+session. Read at `GET /api/wright/followups`; Wright's conversation lists a problem's follow-ups
+through `PersistHandle::web().wright_followups_for_problem`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | |
+| `kind` | `TEXT NOT NULL` | `check_tuning`, `code_defect`, `hardening` or `root_cause` (CHECK) |
+| `check_name` | `TEXT NULL` | References `wright.checks(name)` `ON DELETE SET NULL` |
+| `owning_part` | `TEXT NULL` | Repository path the work belongs to |
+| `title` / `body` | `TEXT NOT NULL` | Non-blank; title at most 200 characters (CHECK) |
+| `state` | `TEXT NOT NULL DEFAULT 'open'` | `open` (not filed), `filed` (issue exists), `handed_off` (a fixer works it), `fixed`, `dropped`, `stuck` (fixers ended `max_attempts` times without finishing) (CHECK) |
+| `issue_number` / `issue_url` | `INTEGER NULL` / `TEXT NULL` | Required once the state is `filed`, `handed_off` or `fixed` (CHECK) |
+| `attempts` | `INTEGER NOT NULL DEFAULT 0` | Fixer sessions that ended without finishing |
+| `fixer_session` / `fixer_machine` | `UUID NULL` / `TEXT NULL` | Required while `handed_off` (CHECK) |
+| `filed_at` / `handed_off_at` / `closed_at` / `closed_reason` | `TIMESTAMPTZ NULL` / `TEXT NULL` | `closed_at` is set exactly when the state is `fixed` or `dropped` (CHECK) |
+| `created_at` / `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:** `uq_wright_followups_one_live` is unique on `(kind, COALESCE(check_name, ''),
+COALESCE(owning_part, ''))` where the state is `open`, `filed`, `handed_off` or `stuck`: a second
+finding on the same thing becomes evidence on the open row. `idx_wright_followups_state (state, id)`
+serves the list; `idx_wright_followups_check` serves the per-check read.
+
+`wright.investigations.followup_id` (`BIGINT NULL REFERENCES wright.followups(id) ON DELETE SET
+NULL`) names the follow-up an engineer run was started for.
+
+### `wright.followup_findings`
+
+The engineer findings that evidence a follow-up: `(followup_id, finding_id)` primary key, both
+columns `ON DELETE CASCADE`, `created_at`. A `root_cause` follow-up opened from a recurring remedy
+has none until its engineer run finishes. `idx_wright_followup_findings_finding (finding_id)`
+serves the per-problem read.
+
+### `wright.followup_limits`
+
+One row (`id boolean PRIMARY KEY CHECK (id)`), changed only through `PATCH
+/api/wright/followup-limits` with the operator token.
+
+| Column | Default | Range / meaning |
+|---|---|---|
+| `repo` | `temet-ai/mike` | Repository the issues go to; non-blank |
+| `daily_filed` | 3 | Issues filed a day, 0 to 20 |
+| `daily_handoffs` | 2 | Fixer sessions started a day, 0 to 10 |
+| `max_attempts` | 2 | Fixer attempts before `stuck`, 1 to 5 |
+| `recurrence_actions` | 10 | Verified actions of one remedy that make it recurring, 2 to 1000 |
+| `recurrence_days` | 7 | Window for that count, 1 to 30 |
+| `fixers` | `[]` | JSON array of `{machine, host, folder}`; empty means the local checkout |
+| `updated_at` | `now()` | |
 
 ---
 

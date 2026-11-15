@@ -209,6 +209,52 @@ export interface MessagesPage {
 	pending_reply: boolean;
 }
 
+export type FollowupState = 'open' | 'filed' | 'handed_off' | 'fixed' | 'dropped' | 'stuck';
+export type FollowupKind = 'check_tuning' | 'code_defect' | 'hardening' | 'root_cause';
+
+/** One row of the register of filed work, from `crates/mike/src/api/wright/followups.rs`. */
+export interface WrightFollowup {
+	id: number;
+	kind: FollowupKind;
+	check_name: string | null;
+	owning_part: string | null;
+	title: string;
+	body: string;
+	state: FollowupState;
+	issue_number: number | null;
+	issue_url: string | null;
+	attempts: number;
+	fixer_session: string | null;
+	fixer_machine: string | null;
+	filed_at: string | null;
+	handed_off_at: string | null;
+	closed_at: string | null;
+	closed_reason: string | null;
+	created_at: string;
+	updated_at: string;
+	findings: number[];
+	problems: number[];
+}
+
+export interface FollowupsPage {
+	followups: WrightFollowup[];
+	next_before: number | null;
+}
+
+/** The numbers the follow-up flow runs on, from `GET /api/wright/followup-limits`. */
+export interface FollowupLimits {
+	repo: string;
+	daily_filed: number;
+	daily_handoffs: number;
+	max_attempts: number;
+	recurrence_actions: number;
+	recurrence_days: number;
+}
+
+export interface FollowupLimitsResponse {
+	limits: FollowupLimits;
+}
+
 export class WrightApiError extends ApiError {
 	constructor(
 		message: string,
@@ -352,6 +398,20 @@ export function listRepairs(params: PagedParams = {}): Promise<RepairsPage> {
 
 export function getRepair(id: number): Promise<WrightRepair> {
 	return request('GET', `/api/wright/repairs/${id}`);
+}
+
+export interface ListFollowupsParams {
+	state?: FollowupState;
+	limit?: number;
+	before?: number | null;
+}
+
+export function listFollowups(params: ListFollowupsParams = {}): Promise<FollowupsPage> {
+	return request('GET', `/api/wright/followups${query({ ...params })}`);
+}
+
+export function getFollowupLimits(): Promise<FollowupLimitsResponse> {
+	return request('GET', '/api/wright/followup-limits');
 }
 
 export function listMessages(
