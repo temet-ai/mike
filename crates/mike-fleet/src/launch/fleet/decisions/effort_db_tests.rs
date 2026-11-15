@@ -12,7 +12,6 @@ use crate::feature_toggles::FeatureToggles;
 use crate::llm::OpenRouterClient;
 use crate::settings::SettingsOverlay;
 use crate::store::persistence::fleet::tests::seed::{seed_request, seed_response, usage};
-use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 struct Seeded {

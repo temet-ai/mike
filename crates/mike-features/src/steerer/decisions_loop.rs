@@ -259,20 +259,31 @@ async fn run_with(
     });
     let id = store.insert_decision_loop_run(now, &report).await?;
     let ctx = bar_issues::Context { run: id, now };
-    let filed = bar_issues::file_under_bar(persist, tracker, &scores, &ctx).await;
-    if !filed.is_empty() {
-        report["bar_issues"] = json!(filed);
-        bar_issues::store_report(persist, id, &report).await;
-    }
+    let filed = file_and_record(persist, tracker, &scores, &ctx, &mut report).await;
     tracing::info!(
         run = id,
         points = scores.len(),
         failing = scores.iter().filter(|s| !s.findings.is_empty()).count(),
-        issues = filed.len(),
+        issues = filed,
         synced_outcomes = synced,
         "decisions_loop: scored the decision points"
     );
     Ok(report)
+}
+
+async fn file_and_record(
+    persist: &PersistHandle,
+    tracker: &dyn bar_gh::IssueTracker,
+    scores: &[PointScore],
+    ctx: &bar_issues::Context,
+    report: &mut Value,
+) -> usize {
+    let filed = bar_issues::file_under_bar(persist, tracker, scores, ctx).await;
+    if !filed.is_empty() {
+        report["bar_issues"] = json!(filed);
+        bar_issues::store_report(persist, ctx.run, report).await;
+    }
+    filed.len()
 }
 
 #[cfg(test)]

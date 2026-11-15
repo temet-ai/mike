@@ -56,17 +56,18 @@ pub fn detail_from(target: Option<&str>, result: Option<&str>) -> ToolCallDetail
     }
 }
 
+type DetailRow = (String, Option<String>, Option<String>);
+
 pub async fn fetch_tool_call_details(
     pool: &PgPool,
     turn_id: i64,
     session_db_id: i64,
 ) -> HashMap<String, ToolCallDetail> {
-    let rows: Result<Vec<(String, Option<String>, Option<String>)>, sqlx::Error> =
-        sqlx::query_as(DETAILS_SQL)
-            .bind(turn_id)
-            .bind(session_db_id)
-            .fetch_all(pool)
-            .await;
+    let rows: Result<Vec<DetailRow>, sqlx::Error> = sqlx::query_as(DETAILS_SQL)
+        .bind(turn_id)
+        .bind(session_db_id)
+        .fetch_all(pool)
+        .await;
     match rows {
         Ok(rows) => rows
             .into_iter()

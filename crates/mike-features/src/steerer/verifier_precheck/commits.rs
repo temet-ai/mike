@@ -23,20 +23,24 @@ pub async fn recent_commits(persist: &PersistHandle, session_db_id: i64) -> Vec<
     .bind(session_db_id)
     .bind(RECENT_COMMITS)
     .fetch_all(persist.pool());
-    match tokio::time::timeout(QUERY_TIMEOUT, query).await {
-        Ok(Ok(rows)) => rows
+    let rows = match tokio::time::timeout(QUERY_TIMEOUT, query).await {
+        Ok(rows) => rows.map_err(|error| error.to_string()),
+        Err(_) => Err("timed out".to_owned()),
+    };
+    lines_or_warn(rows, session_db_id)
+}
+
+fn lines_or_warn(
+    rows: Result<Vec<(String, Option<String>)>, String>,
+    session_db_id: i64,
+) -> Vec<String> {
+    match rows {
+        Ok(rows) => rows
             .iter()
             .map(|(subject, sha)| line(subject, sha.as_deref()))
             .collect(),
-        Ok(Err(error)) => {
+        Err(error) => {
             tracing::warn!(%error, session_db_id, "verifier pre-check: recent commits read failed");
-            Vec::new()
-        }
-        Err(_) => {
-            tracing::warn!(
-                session_db_id,
-                "verifier pre-check: recent commits read timed out"
-            );
             Vec::new()
         }
     }
