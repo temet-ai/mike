@@ -7,7 +7,7 @@ use super::close::session_mismatch;
 use super::open::{agent_command, run_argv, session_uuid_from_args, with_caller_path};
 use super::place::{Place, choose_space, run_space_id, spaces_matching};
 use super::probe::agent_ran;
-use super::prompt::turn_started;
+use super::prompt::{blocked_detail, turn_started};
 use super::terminal::{Terminal, live_addresses};
 
 fn app_ls() -> serde_json::Value {
@@ -243,4 +243,16 @@ fn validation_fails_when_herdr_core_cannot_find_claude() {
     let found = json!({"output": "2.1.318 (Claude Code)", "wait": {"exit_code": 0}});
     assert!(agent_ran(&found).passed);
     assert!(!agent_ran(&json!({})).passed);
+}
+
+#[test]
+fn blocked_detail_with_a_named_dialog_names_it() {
+    assert_eq!(
+        blocked_detail("t3", Some("the folder trust dialog")),
+        "herdr-core terminal t3 is blocked on the folder trust dialog"
+    );
+    assert_eq!(
+        blocked_detail("t3", None),
+        "herdr-core terminal t3 is blocked on a dialog"
+    );
 }

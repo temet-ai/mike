@@ -1,8 +1,9 @@
 use std::time::Duration;
 
-use super::cli::{HcCli, argv};
+use super::cli::{DEFAULT_TIMEOUT, HcCli, argv};
 use super::terminal::{self, Terminal};
 use crate::launch::error::LaunchError;
+use crate::launch::herdr::prompt::blocked_jev;
 
 const POLL: Duration = Duration::from_millis(500);
 const SEND_MARGIN: Duration = Duration::from_secs(30);
@@ -31,13 +32,12 @@ pub async fn deliver(
 ) -> Result<PromptOutcome, LaunchError> {
     let before = terminal::get(cli, address).await?;
     if before.as_ref().and_then(|t| t.status.as_deref()) == Some("blocked") {
+        let dialog = blocked_dialog(cli, address).await;
         return Ok(PromptOutcome {
             delivered: false,
             confirmed: false,
             agent_state: Some("blocked".to_string()),
-            detail: Some(format!(
-                "herdr-core terminal {address} is blocked on a dialog"
-            )),
+            detail: Some(blocked_detail(address, dialog.as_deref())),
         });
     }
     let wait = Duration::from_millis(wait_ms);
@@ -73,6 +73,23 @@ pub async fn deliver(
             });
         }
         tokio::time::sleep(POLL).await;
+    }
+}
+
+async fn blocked_dialog(cli: &HcCli, address: &str) -> Option<String> {
+    let screen = cli
+        .hc_text(&argv(&["read", address]), DEFAULT_TIMEOUT)
+        .await
+        .ok()
+        .filter(|screen| !screen.trim().is_empty())?;
+    let decider = crate::llm::decisions::ambient::decider(blocked_jev::POINT);
+    blocked_jev::dialog(decider.as_ref(), &screen).await
+}
+
+pub fn blocked_detail(address: &str, dialog: Option<&str>) -> String {
+    match dialog {
+        Some(dialog) => format!("herdr-core terminal {address} is blocked on {dialog}"),
+        None => format!("herdr-core terminal {address} is blocked on a dialog"),
     }
 }
 

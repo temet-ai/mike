@@ -47,7 +47,8 @@ pub(crate) async fn post_session_message(
         resolve_mailbox_recipient(handle, &to_session_id).await?
     };
 
-    let parsed = validate_send_request(handle, to_session_uuid, &body).await?;
+    let mut parsed = validate_send_request(handle, to_session_uuid, &body).await?;
+    link_unthreaded_reply(&state, &mut parsed, to_session_uuid, &body).await;
 
     refuse_closed_fleet_seat(handle, parsed.from_session_uuid, to_session_uuid, true).await?;
 
@@ -106,6 +107,27 @@ pub(crate) async fn post_session_message(
         );
     }
     sent
+}
+
+async fn link_unthreaded_reply(
+    state: &AppState,
+    parsed: &mut validation::ParsedSend,
+    to: uuid::Uuid,
+    body: &PostSessionMessageBody,
+) {
+    if parsed.in_reply_to_param.is_some() || parsed.thread_id_param.is_some() {
+        return;
+    }
+    let Some(from) = parsed.from_session_uuid else {
+        return;
+    };
+    let target =
+        crate::api::mail_reply_link::reply_target_on_send(&state.base, from, to, &body.message)
+            .await;
+    if let Some(id) = target {
+        parsed.in_reply_to_param = Some(id);
+        parsed.threading_requested = true;
+    }
 }
 
 async fn refuse_closed_fleet_seat(

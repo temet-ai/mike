@@ -5,7 +5,11 @@ use serde_json::Value;
 use crate::compress::file_reads::glob::glob_match;
 
 const MIN_RULE_CHARS: usize = 25;
-const MAX_RULE_CHARS: usize = 320;
+const MAX_RULE_CHARS: usize = 600;
+const FILLER: [&str; 24] = [
+    "the", "and", "for", "not", "use", "you", "are", "with", "from", "that", "this", "its", "any",
+    "all", "but", "into", "has", "have", "when", "one", "each", "every", "than", "then",
+];
 const MAX_FILE_BYTES: usize = 60_000;
 const MAX_RULE_FILES: usize = 12;
 const NORMATIVE: [&str; 9] = [
@@ -68,14 +72,42 @@ fn is_rule(text: &str) -> bool {
         && NORMATIVE.iter().any(|w| lower.contains(w))
 }
 
+fn continues(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    line.len() > trimmed.len()
+        && !trimmed.is_empty()
+        && bullet(line).is_none()
+        && !trimmed.starts_with('#')
+        && !trimmed.starts_with('|')
+}
+
+fn items(body: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut open = false;
+    for line in body.lines() {
+        if let Some(start) = bullet(line) {
+            out.push(start.to_owned());
+            open = true;
+        } else if open && continues(line) {
+            if let Some(last) = out.last_mut() {
+                last.push(' ');
+                last.push_str(line.trim());
+            }
+        } else {
+            open = false;
+        }
+    }
+    out
+}
+
 pub fn parse_rules(source: &str, text: &str) -> Vec<Rule> {
     let (scope, body) = frontmatter_scope(text);
-    body.lines()
-        .filter_map(bullet)
+    items(body)
+        .into_iter()
         .filter(|line| is_rule(line))
         .map(|line| Rule {
             source: source.to_owned(),
-            text: line.to_owned(),
+            text: line,
             scope: scope.clone(),
         })
         .collect()
@@ -148,7 +180,7 @@ impl TurnTools {
 fn tokens(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| w.len() >= 3)
+        .filter(|w| w.len() >= 3 && !FILLER.contains(w))
         .map(|w| w.trim_end_matches('s').to_owned())
         .collect()
 }

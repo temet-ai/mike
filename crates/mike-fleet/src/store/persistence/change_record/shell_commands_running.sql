@@ -3,6 +3,7 @@ WITH calls AS (
            u.session_id,
            coalesce(rs.completed_at, u.created_at) AS started,
            r.created_at AS finished,
+           u.input->>'command' AS command,
            least(
                CASE WHEN u.input->>'timeout' ~ '^[0-9]{1,9}$'
                     THEN (u.input->>'timeout')::bigint
@@ -45,7 +46,8 @@ alive AS (
 SELECT c.session_id,
        c.started AS "started!",
        c.finished AS "finished?",
-       c.names_checkout AS "names_checkout!"
+       c.names_checkout AS "names_checkout!",
+       c.command AS "command?"
   FROM calls c
   LEFT JOIN overdue o ON o.id = c.id
   LEFT JOIN alive a ON a.id = c.id

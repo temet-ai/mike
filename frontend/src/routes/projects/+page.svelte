@@ -6,6 +6,8 @@
 	import { resolve } from '$app/paths';
 	import { Search, X } from '@lucide/svelte';
 	import { getFleetProjectsWithCounts, FleetApiError } from '$lib/fleet/api';
+	import { getProjectMergeSuggestions, type ProjectMergeSuggestion } from '$lib/api';
+	import ProjectMergeSuggestions from '$lib/components/projects/ProjectMergeSuggestions.svelte';
 	import {
 		createProjectFor as createProjectIn,
 		mergeProject as mergeProjectIn,
@@ -49,8 +51,34 @@
 		}
 	}
 
+	let mergeSuggestions = $state<ProjectMergeSuggestion[]>([]);
+	let mergeTargetUuid = $state<string | undefined>(undefined);
+
+	async function loadMergeSuggestions(): Promise<void> {
+		try {
+			const res = await getProjectMergeSuggestions();
+			mergeSuggestions = Array.isArray(res.suggestions) ? res.suggestions : [];
+		} catch {
+			mergeSuggestions = [];
+		}
+	}
+
+	const listedMergeSuggestions = $derived(
+		mergeSuggestions.filter(
+			(s) =>
+				projects.some((p) => p.project_path === s.source_path) &&
+				projects.some((p) => p.project_uuid === s.target_uuid)
+		)
+	);
+
+	function reviewMerge(suggestion: ProjectMergeSuggestion): void {
+		mergeTargetUuid = suggestion.target_uuid;
+		settingsPath = suggestion.source_path;
+	}
+
 	onMount(() => {
 		void refresh();
+		void loadMergeSuggestions();
 		const p = page.url.searchParams.get('p');
 		if (p) expandedProjectPath = p;
 		hydrated = true;
@@ -119,12 +147,14 @@
 
 	async function mergeProject(path: string, intoProjectUuid: string): Promise<void> {
 		expandedProjectPath = await mergeProjectIn(projectList, path, intoProjectUuid);
+		mergeSuggestions = mergeSuggestions.filter((s) => s.source_path !== path);
 	}
 
 	let settingsPath = $state<string | null>(null);
 	const settingsProject = $derived(projects.find((p) => p.project_path === settingsPath));
 
 	function openSettings(path: string): void {
+		mergeTargetUuid = undefined;
 		settingsPath = path;
 	}
 
@@ -149,6 +179,7 @@
 			onRenameProject={renameProject}
 			onMergeProject={mergeProject}
 			onCreateProject={createProjectFor}
+			initialTargetUuid={mergeTargetUuid}
 			onClose={() => (settingsPath = null)}
 		/>
 	{/key}
@@ -256,6 +287,7 @@
 				</div>
 			{:else}
 				<div class="pt-list-col flex flex-col gap-6 px-6 py-4" data-slot="projects-list">
+					<ProjectMergeSuggestions suggestions={listedMergeSuggestions} onMerge={reviewMerge} />
 					<ProjectDirectory
 						projects={nonEmptyProjects}
 						query={searchQuery}

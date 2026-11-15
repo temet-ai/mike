@@ -8,7 +8,7 @@ use crate::llm::OpenRouterClient;
 use crate::settings::SettingsOverlay;
 use crate::store::persistence::PersistHandle;
 
-pub const INLINE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(800);
+pub const INLINE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1200);
 
 fn breaks(error: &crate::llm::LlmError) -> bool {
     matches!(

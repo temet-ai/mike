@@ -4,6 +4,7 @@
 	import Page from './+page.svelte';
 	import type { FleetProjectWithCounts } from '$lib/fleet/types';
 	import { stubFetchJsonRouter, typed } from '$lib/test-support/storyFetchStubs';
+	import type { ProjectMergeSuggestions } from '$lib/api';
 	import type { SessionSummary } from '$lib/types';
 	import type { TagsResponse, ThreadsListResponse } from '$lib/comms/types';
 	import 'augmented-ui/augmented-ui.min.css';
@@ -137,6 +138,30 @@
 		}
 	];
 
+	const DUPLICATE_CANDIDATES: FleetProjectWithCounts[] = [
+		{ ...PROJECTS[1]!, project_uuid: 'uuid-ios-app' },
+		{ ...PROJECTS[2]!, project_uuid: 'uuid-android-app' },
+		{ ...PROJECTS[4]!, project_uuid: 'uuid-temet-proxy' },
+		{ ...PROJECTS[5]!, project_uuid: 'uuid-temet-aide' }
+	];
+
+	function stubMergeSuggestions(suggestions: ProjectMergeSuggestions['suggestions']): void {
+		stubFetchJsonRouter((_method, url) => {
+			if (url.includes('/api/projects/merge-suggestions')) {
+				return typed<ProjectMergeSuggestions>({ layer: 'on', suggestions });
+			}
+			if (url.includes('/api/sessions')) return typed<SessionSummary[]>([]);
+			if (url.includes('/api/tags')) return typed<TagsResponse>({ tags: [] });
+			return typed<FleetProjectWithCounts[]>(DUPLICATE_CANDIDATES);
+		});
+	}
+
+	const PAGE_PARAMETERS = {
+		sveltekit_experimental: {
+			state: { page: { url: new URL('http://localhost/projects'), params: {} } }
+		}
+	};
+
 	const { Story } = defineMeta({
 		title: 'Routes/Projects/Index',
 		component: Page,
@@ -161,6 +186,9 @@
 						project_path: projectPath,
 						custom_name: customName
 					});
+				}
+				if (url.includes('/api/projects/merge-suggestions')) {
+					return typed<ProjectMergeSuggestions>({ layer: 'off', suggestions: [] });
 				}
 				if (url.includes('/api/sessions')) return typed<SessionSummary[]>([]);
 				if (url.includes('/api/tags')) return typed<TagsResponse>({ tags: [] });
@@ -477,6 +505,83 @@
 		await expect(messyNameSpan?.textContent).toBe('AI tools scratch');
 		const messyPathSpan = messyRow.querySelector('[data-slot="project-row-fullpath"]');
 		await expect(messyPathSpan?.textContent).toBe(messyPath);
+	}}
+>
+	{#snippet template()}
+		<div class="h-[700px] w-[900px] overflow-hidden bg-[var(--surface-bg)]">
+			<Page />
+		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="Possible duplicates"
+	loaders={[
+		async () => {
+			stubMergeSuggestions([
+				{
+					source_path: 'mobile/storefront/ios-app',
+					target_uuid: 'uuid-android-app',
+					target_path: 'mobile/storefront/android-app',
+					probability: 0.82
+				},
+				{
+					source_path: 'projects/temet/temet-aide',
+					target_uuid: 'uuid-temet-proxy',
+					target_path: 'projects/temet/temet-proxy',
+					probability: 0.74
+				}
+			]);
+			return {};
+		}
+	]}
+	parameters={PAGE_PARAMETERS}
+	play={async ({ canvasElement }) => {
+		const list = await waitFor(() => {
+			const el = canvasElement.querySelector('[data-slot="project-merge-suggestions"]');
+			if (!el) throw new Error('suggestions not yet rendered');
+			return el as HTMLElement;
+		});
+		await expect(within(list).getByText('Possible duplicates')).toBeInTheDocument();
+		const rows = list.querySelectorAll('[data-slot="project-merge-suggestion"]');
+		await expect(rows.length).toBe(2);
+		await expect(within(list).getByText('82% likely the same project')).toBeInTheDocument();
+		await expect(within(list).getByText('projects/temet/temet-aide')).toBeInTheDocument();
+		await expect(document.body.querySelector('[data-testid="project-settings-dialog"]')).toBeNull();
+
+		await userEvent.click(
+			within(list).getByRole('button', {
+				name: 'Merge mobile/storefront/ios-app into mobile/storefront/android-app'
+			})
+		);
+		const dialog = await within(document.body).findByTestId('project-settings-dialog');
+		const warning = dialog.querySelector('[data-slot="project-settings-warning"]') as HTMLElement;
+		await waitFor(() => expect(warning.textContent).toContain('will move'));
+		await expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled();
+	}}
+>
+	{#snippet template()}
+		<div class="h-[700px] w-[900px] overflow-hidden bg-[var(--surface-bg)]">
+			<Page />
+		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="No duplicates"
+	loaders={[
+		async () => {
+			stubMergeSuggestions([]);
+			return {};
+		}
+	]}
+	parameters={PAGE_PARAMETERS}
+	play={async ({ canvasElement }) => {
+		await waitFor(() =>
+			expect(canvasElement.querySelector('[data-slot="projects-list"]')).not.toBeNull()
+		);
+		await expect(canvasElement.querySelector('[data-slot="project-merge-suggestions"]')).toBeNull();
+		await expect(canvasElement.querySelector('[data-slot="projects-error"]')).toBeNull();
 	}}
 >
 	{#snippet template()}

@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
+use std::time::{Duration, Instant};
 
+use dashmap::DashMap;
 use serde_json::{Value, json};
 
 use super::purpose::{
@@ -15,6 +18,38 @@ pub const QUESTION_SET: &str = "topic_merge_v1";
 pub const MIN_SAME: f64 = 0.7;
 const MAX_CALLS: usize = 12;
 const MAX_CANDIDATES: usize = 4;
+const REMEMBER_FOR: Duration = Duration::from_secs(24 * 60 * 60);
+
+static VERDICTS: LazyLock<DashMap<String, (Instant, Option<String>)>> = LazyLock::new(DashMap::new);
+
+fn verdict_key(topic: &SkillPurpose, candidates: &[&SkillPurpose]) -> String {
+    let names: Vec<&str> = candidates.iter().map(|c| c.topic.as_str()).collect();
+    format!(
+        "{}\u{1f}{}\u{1f}{}",
+        topic.project_id,
+        topic.topic,
+        names.join("\u{1f}")
+    )
+}
+
+fn remembered(key: &str, now: Instant) -> Option<Option<String>> {
+    VERDICTS
+        .get(key)
+        .filter(|entry| now.duration_since(entry.0) < REMEMBER_FOR)
+        .map(|entry| entry.1.clone())
+}
+
+fn remember(key: String, survivor: Option<&SkillPurpose>, now: Instant) {
+    VERDICTS.insert(key, (now, survivor.map(|s| s.topic.clone())));
+}
+
+pub fn applied_for(verdict: Option<Option<(usize, f64)>>) -> &'static str {
+    match verdict {
+        Some(Some(_)) => "chosen",
+        Some(None) => "skipped",
+        None => "none",
+    }
+}
 
 fn question_key(index: usize) -> String {
     format!("candidate_{index}")
@@ -83,6 +118,12 @@ async fn survivor_for<'a>(
             .copied()
             .find(|s| same_purpose(&s.topic, &topic.topic))
     };
+    let key = verdict_key(topic, &candidates);
+    if decider.applies()
+        && let Some(found) = remembered(&key, Instant::now())
+    {
+        return found.and_then(|name| candidates.iter().copied().find(|c| c.topic == name));
+    }
     if !pace.may_ask() {
         return by_words();
     }
@@ -100,16 +141,24 @@ async fn survivor_for<'a>(
         .await;
     pace.spent(&asked);
     let verdict = compose(&asked, candidates.len());
-    let (applied, score) = match verdict {
-        Some(Some((_, p))) => ("chosen", p),
-        Some(None) => ("none", 1.0 - max_noul(&asked, candidates.len())),
-        None => ("none", 0.0),
+    let score = match verdict {
+        Some(Some((_, p))) => p,
+        Some(None) => 1.0 - max_noul(&asked, candidates.len()),
+        None => 0.0,
     };
     decider
-        .mark(&asked, asked.composed(json!({ "score": score })), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({ "score": score })),
+            applied_for(verdict),
+        )
         .await;
     match verdict {
-        Some(found) if decider.applies() => found.map(|(index, _)| candidates[index]),
+        Some(found) if decider.applies() => {
+            let survivor = found.map(|(index, _)| candidates[index]);
+            remember(key, survivor, Instant::now());
+            survivor
+        }
         _ => by_words(),
     }
 }

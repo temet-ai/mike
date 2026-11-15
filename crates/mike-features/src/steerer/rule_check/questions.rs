@@ -5,7 +5,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::noul;
 
 pub const POINT: &str = "rule_check";
-pub const QUESTION_SET: &str = "rule_check_v1";
+pub const QUESTION_SET: &str = "rule_check_v2";
 
 pub fn key(index: usize) -> String {
     format!("rule_{index}")

@@ -14,6 +14,7 @@ use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 
+use super::anchor_carry::carry_anchors;
 use super::builder::{BuildReport, Builder};
 use super::config::SemanticConfig;
 use super::drift_job::DriftRun;
@@ -138,6 +139,25 @@ impl SemanticWorker {
         Ok(floors_due(has_floors, last_computed, last_attempt))
     }
 
+    async fn carry(&self, cfg: &SemanticConfig, embedder: &EmbedderRow) {
+        let carried = carry_anchors(
+            &self.persist,
+            &self.embedding,
+            embedder,
+            cfg.allow_remote_embedding,
+        )
+        .await;
+        match carried {
+            Ok(0) => {}
+            Ok(carried) => {
+                tracing::info!(carried, embedder = %embedder.embedder_key, "semantic: anchors carried to the current embedder");
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "semantic: anchors could not be carried to the current embedder");
+            }
+        }
+    }
+
     async fn periodic(
         &self,
         cfg: &SemanticConfig,
@@ -161,6 +181,7 @@ impl SemanticWorker {
             };
             report.floors_written = run.compute_all().await?.len();
         }
+        self.carry(cfg, embedder).await;
         let env = self.base.decision_env();
         report.tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref())
             .await?

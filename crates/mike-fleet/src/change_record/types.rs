@@ -126,6 +126,7 @@ pub struct ShellRun {
     pub started: DateTime<Utc>,
     pub finished: Option<DateTime<Utc>>,
     pub names_checkout: bool,
+    pub command: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
