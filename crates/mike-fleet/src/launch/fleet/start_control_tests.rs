@@ -116,6 +116,10 @@ async fn a_failed_start_mails_the_session_that_created_the_fleet() -> anyhow::Re
         })
         .await?;
     let run = format!("fleet-{slug}");
+    sqlx::query("INSERT INTO launch.runs (run_id, backend) VALUES ($1, 'herdr')")
+        .bind(&run)
+        .execute(persist.pool())
+        .await?;
     let ready = persist
         .fleet()
         .transition_fleet_state(&row, "ready", None, None)

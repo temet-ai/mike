@@ -197,9 +197,9 @@ pub async fn staff(
     super::run_text_notes::record(persist, (&def, &facts)).await;
     let (room, surfaces) = room(state).await;
     let live = super::staff_limits::live_worker_seats(status);
-    let room = room.min(super::staff_limits::seat_room(&def, live, held.len()));
+    let (room, why) = super::staff_limits::binding_room(&def, (live, held.len()), (room, surfaces));
     if ready.len() > room {
-        tell_no_room(row.fleet_uuid, &ready[room..], &surfaces);
+        tell_no_room(row.fleet_uuid, &ready[room..], &why);
     }
     let claimed = claim_all((&def, &facts), ready.into_iter().take(room));
     let run_note = if super::brief_notes::as_notes(&def) {

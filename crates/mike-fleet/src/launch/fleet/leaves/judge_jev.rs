@@ -9,7 +9,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 
 pub const POINT: &str = "leaf_judge";
-pub const QUESTION_SET: &str = "leaf_judge_v1";
+pub const QUESTION_SET: &str = "leaf_judge_v2";
 pub const PASS_AT: f64 = 0.75;
 pub const FAIL_AT: f64 = 0.25;
 const DIFF_HEAD_CHARS: usize = 4000;
@@ -34,7 +34,7 @@ pub fn questions(criteria: &[CriterionText]) -> BTreeMap<String, Question> {
                 key(criterion),
                 noul(
                     &format!(
-                        "A fleet worker reported its task done. Does the evidence (the report, the exercised command and its exit code, the changed tests and the diff) show that criterion {} is met: {}",
+                        "A fleet worker reported its task done. Does the evidence (the report, the exercised command and its exit code, the changed tests and the diff) show that this task's part of criterion {} is met, judged by task_brief, while the parts given to the tasks in shared_with are theirs to show: {}",
                         criterion.id, criterion.text
                     ),
                     "The evidence shows the criterion is met.",
@@ -64,6 +64,8 @@ pub fn state(input: &JudgeInput) -> Value {
         "floor_passed_at": input.floor.sha(),
         "diff": diff_excerpt(&input.diff),
         "open_obligations": input.open_obligations,
+        "task_brief": input.task_brief,
+        "shared_with": input.shared_with,
         "round": input.earlier_verdicts.len() + 1,
         "earlier_verdicts": input.earlier_verdicts,
     })
