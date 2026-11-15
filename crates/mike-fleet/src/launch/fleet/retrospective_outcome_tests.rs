@@ -195,10 +195,31 @@ async fn a_retrospective_with_no_turns_ends_failed_with_the_reason_and_tells_the
             tab_ref: None,
         })
         .await?;
+    let launch_id: i64 = sqlx::query_scalar(
+        "INSERT INTO launch.launches (session_uuid, backend, folder, run_id, seat, pid)
+         VALUES ($1, 'herdr', $2, $3, 'retrospective', 2000000000) RETURNING id",
+    )
+    .bind(silent)
+    .bind(&repo_path)
+    .bind(&job.run_id)
+    .fetch_one(persist.pool())
+    .await?;
     let row = save(&persist, &row, &job)
         .await?
         .ok_or_else(|| anyhow::anyhow!("job not saved"))?;
     cleanup(&persist, &row, job).await?;
+    let (closed, reason, exited): (bool, Option<String>, Option<bool>) = sqlx::query_as(
+        "SELECT closed_at IS NOT NULL, close_reason, close_process_exited FROM launch.launches WHERE id = $1",
+    )
+    .bind(launch_id)
+    .fetch_one(persist.pool())
+    .await?;
+    assert!(closed, "the retrospective launch is still open");
+    assert_eq!(
+        reason.as_deref(),
+        Some(super::retrospective_worker::CLOSE_REASON)
+    );
+    assert_eq!(exited, Some(true));
     let after = persist
         .fleet()
         .find_fleet(&row.fleet_uuid.to_string())
