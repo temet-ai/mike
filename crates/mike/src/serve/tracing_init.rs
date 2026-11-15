@@ -30,14 +30,18 @@ pub(crate) fn set_log_level(level: &str) {
     let Some(handle) = FILTER_HANDLE.get() else {
         return;
     };
-    match tracing_subscriber::EnvFilter::try_new(level) {
-        Ok(filter) => {
-            if let Err(error) = handle.reload(filter) {
-                tracing::warn!(%error, level, "log level reload failed");
-            }
-        }
-        Err(error) => tracing::warn!(%error, level, "log level is not a valid filter"),
+    if let Err(error) = reload_filter(handle, level) {
+        log_level_reload_failed(&error, level);
     }
+}
+
+fn reload_filter(handle: &FilterHandle, level: &str) -> Result<(), String> {
+    let filter = tracing_subscriber::EnvFilter::try_new(level).map_err(|e| e.to_string())?;
+    handle.reload(filter).map_err(|e| e.to_string())
+}
+
+fn log_level_reload_failed(error: &str, level: &str) {
+    tracing::warn!(error, level, "log level reload failed");
 }
 
 fn build_filter_layer(config: &ProxyConfig) -> FilterLayer {

@@ -18,10 +18,6 @@ impl LiveConfig {
         }
     }
 
-    pub fn unfolded(config: ProxyConfig) -> Self {
-        Self::new(config.clone(), config)
-    }
-
     pub fn load(&self) -> Arc<ProxyConfig> {
         self.current.load_full()
     }
@@ -54,7 +50,7 @@ mod tests {
     fn refold_changed_row_updates_current_without_touching_base() {
         let base = ProxyConfig::default();
         let before = base.mailbox_stale_minutes;
-        let live = LiveConfig::unfolded(base);
+        let live = LiveConfig::new(base.clone(), base);
         live.refold(&[(
             "mailbox_stale_minutes".to_owned(),
             serde_json::Value::from(before + 7),
@@ -66,7 +62,7 @@ mod tests {
 
     #[test]
     fn edit_boot_values_bound_address_survives_refold() {
-        let live = LiveConfig::unfolded(ProxyConfig::default());
+        let live = LiveConfig::new(ProxyConfig::default(), ProxyConfig::default());
         live.edit_boot_values(|c| c.proxy_listen_addr = "127.0.0.1:1".to_owned());
         live.refold(&[]);
         assert_eq!(live.load().proxy_listen_addr, "127.0.0.1:1");

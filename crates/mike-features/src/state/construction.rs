@@ -56,12 +56,7 @@ impl AppState {
         let persist = services::seed_persistence(&config).await?;
         let tracker = TaskTracker::new();
         let llm_usage_sink = services::seed_llm_usage_sink(persist.as_ref(), &tracker).await;
-        let unfolded_config = config.clone();
-        services::fold_db_settings(persist.as_ref(), &mut config).await;
-        let live_config = Arc::new(mike_base::config::live::LiveConfig::new(
-            unfolded_config,
-            config.clone(),
-        ));
+        let live_config = services::fold_into_live_config(persist.as_ref(), &mut config).await;
         services::attach_persist_to_store(&mut store, persist.as_ref());
         let steerer_openrouter_key = llm_wiring::seed_openrouter_key_slot(&config);
         let embedding_service = pipeline::wire_embedding_service(&mut store, &config.embedding);
@@ -75,9 +70,7 @@ impl AppState {
             services::seed_filter_service(persist.as_ref(), &filter_config).await?;
         let (steerer_registry, steerer_service, settings_service) =
             services::seed_config(persist.as_ref(), &settings_overlay, &config).await;
-        if let Some(service) = &settings_service {
-            service.attach_live_config(live_config.clone());
-        }
+        services::attach_live_config(settings_service.as_ref(), &live_config);
         let feature_toggle_overlay = pipeline::build_feature_toggle_overlay(&config);
         let feature_toggle_service =
             services::seed_feature_toggle_service(persist.as_ref(), &feature_toggle_overlay).await;

@@ -76,17 +76,31 @@ async fn reload_loop(signal: Arc<Notify>, targets: ReloadTargets, shutdown: Canc
 }
 
 async fn reload_once(targets: &ReloadTargets) {
-    if let Some(toggles) = &targets.toggles
-        && let Err(error) = toggles.reload_from_db().await
-    {
+    reload_toggles(targets.toggles.as_deref()).await;
+    reload_settings(targets.settings.as_deref()).await;
+    apply_live_config(targets).await;
+    log_reloaded();
+}
+
+async fn reload_toggles(toggles: Option<&FeatureToggleService>) {
+    let Some(toggles) = toggles else {
+        return;
+    };
+    if let Err(error) = toggles.reload_from_db().await {
         tracing::warn!(%error, "db_listener: feature toggle reload failed");
     }
-    if let Some(settings) = &targets.settings
-        && let Err(error) = settings.reload_from_db().await
-    {
+}
+
+async fn reload_settings(settings: Option<&SettingsService>) {
+    let Some(settings) = settings else {
+        return;
+    };
+    if let Err(error) = settings.reload_from_db().await {
         tracing::warn!(%error, "db_listener: settings reload failed");
     }
-    apply_live_config(targets).await;
+}
+
+fn log_reloaded() {
     tracing::debug!("db_listener: feature toggles and settings reloaded from the database");
 }
 
