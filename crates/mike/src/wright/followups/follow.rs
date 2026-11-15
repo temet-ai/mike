@@ -77,7 +77,7 @@ where
     S: FixerSessions,
 {
     let mut report = FollowReport::default();
-    for row in ctx.persist.web().live_wright_handoffs().await? {
+    for row in ctx.persist.web().tracked_wright_followups().await? {
         match follow_one(ctx, limits, &row).await {
             Ok(followed) => report.followed.push((row.id, followed)),
             Err(e) => report.failed.push((row.id, e.to_string())),
@@ -108,6 +108,54 @@ async fn issue<R: CommandRunner>(
     parse_issue(&out).map_err(FollowupError::Output)
 }
 
+pub(crate) fn answered_comment(children: &[i32]) -> String {
+    let list = children
+        .iter()
+        .map(|n| format!("#{n}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "Wright: every cause this root cause split into is closed ({list}), so this is answered."
+    )
+}
+
+async fn close_answered_root<R, S>(
+    ctx: &FollowupContext<R, S>,
+    limits: &FollowupLimits,
+    row: &FollowupRow,
+    number: i32,
+) -> Result<Option<String>, FollowupError>
+where
+    R: CommandRunner,
+    S: FixerSessions,
+{
+    if row.kind != "root_cause" {
+        return Ok(None);
+    }
+    let web = ctx.persist.web();
+    let Some(children) = web.wright_followup_children_closed(row.id).await? else {
+        return Ok(None);
+    };
+    let comment = answered_comment(&children);
+    let issue_number = number.to_string();
+    let cmd = Cmd::new(
+        Program::Gh,
+        &[
+            "issue",
+            "close",
+            &issue_number,
+            "-R",
+            &limits.repo,
+            "--comment",
+            &comment,
+        ],
+    );
+    checked(&ctx.runner, &cmd).await?;
+    web.mark_wright_followup_closed(row.id, "fixed", &comment)
+        .await?;
+    Ok(Some(comment))
+}
+
 async fn follow_one<R, S>(
     ctx: &FollowupContext<R, S>,
     limits: &FollowupLimits,
@@ -134,6 +182,12 @@ where
             return Ok(Followed::Dropped(how));
         }
         Verdict::Open => {}
+    }
+    if let Some(how) = close_answered_root(ctx, limits, row, number).await? {
+        return Ok(Followed::Fixed(how));
+    }
+    if row.state != "handed_off" {
+        return Ok(Followed::Working);
     }
     let session = row.fixer_session.ok_or_else(|| missing("fixer session"))?;
     let since = row.handed_off_at.unwrap_or(row.updated_at);

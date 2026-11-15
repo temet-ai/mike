@@ -62,6 +62,81 @@ async fn follow_open_issue_with_live_fixer_leaves_it_handed_off() -> anyhow::Res
 }
 
 #[tokio::test]
+async fn follow_filed_issue_closed_by_someone_else_marks_it_fixed_and_open_stays_filed()
+-> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let limits = env.limits(FollowupLimitsPatch::default()).await?;
+    let closed = env.filed("retro", 64).await?;
+    let open = env.filed("reap", 65).await?;
+    let runner = FakeRunner::new()
+        .on(Program::Gh, "issue view 64", ok(&closed_by_pr()))
+        .on(Program::Gh, "issue view 65", ok(OPEN));
+    let ctx = env.ctx(runner, FakeSessions { ended: None });
+    follow(&ctx, &limits).await?;
+    assert_eq!(env.state_of(closed).await?.0, "fixed");
+    assert_eq!(env.state_of(open).await?.0, "filed");
+    env.db.cleanup().await
+}
+
+#[tokio::test]
+async fn follow_root_cause_closes_its_issue_once_every_cause_it_split_into_is_closed()
+-> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let limits = env.limits(FollowupLimitsPatch::default()).await?;
+    let child = env.filed("reap", 66).await?;
+    let finding: i64 = sqlx::query_scalar(
+        "SELECT finding_id FROM wright.followup_findings WHERE followup_id = $1",
+    )
+    .bind(child)
+    .fetch_one(env.persist.pool())
+    .await?;
+    let root = env
+        .persist
+        .web()
+        .record_wright_followup(&crate::store::persistence::wright::NewFollowup {
+            kind: "root_cause",
+            check_name: None,
+            owning_part: None,
+            title: "Find why launches die",
+            body: "The fix keeps firing.",
+            finding_id: finding,
+            same_as: None,
+        })
+        .await?;
+    anyhow::ensure!(
+        env.persist
+            .web()
+            .mark_wright_followup_filed(root, 67, "https://github.com/o/r/issues/67")
+            .await?
+    );
+    let runner = FakeRunner::new()
+        .on(Program::Gh, "issue view 66", ok(OPEN))
+        .on(Program::Gh, "issue view 67", ok(OPEN))
+        .on(Program::Gh, "issue close 67", ok(""));
+    let ctx = env.ctx(runner, FakeSessions { ended: None });
+    follow(&ctx, &limits).await?;
+    assert_eq!(env.state_of(root).await?.0, "filed");
+    anyhow::ensure!(
+        env.persist
+            .web()
+            .mark_wright_followup_closed(child, "fixed", "merged")
+            .await?
+    );
+    follow(&ctx, &limits).await?;
+    assert_eq!(env.state_of(root).await?.0, "fixed");
+    let closes: Vec<String> = ctx
+        .runner
+        .calls()
+        .iter()
+        .map(|cmd| cmd.args.join(" "))
+        .filter(|line| line.starts_with("issue close 67"))
+        .collect();
+    assert_eq!(closes.len(), 1, "{closes:?}");
+    assert!(closes[0].contains("#66"), "{}", closes[0]);
+    env.db.cleanup().await
+}
+
+#[tokio::test]
 async fn follow_ended_fixer_returns_followup_then_stuck_after_max_attempts() -> anyhow::Result<()> {
     let env = Env::boot().await?;
     let limits = env

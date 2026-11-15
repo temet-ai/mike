@@ -12,6 +12,8 @@ const MARK_FILED: &str = include_str!("sql/followups/mark_filed.sql");
 const NEXT_HANDOFF: &str = include_str!("sql/followups/next_handoff.sql");
 const HANDOFFS_TODAY: &str = include_str!("sql/followups/handoffs_today.sql");
 const LIVE_HANDOFFS: &str = include_str!("sql/followups/live_handoffs.sql");
+const TRACKED: &str = include_str!("sql/followups/tracked.sql");
+const CHILDREN_CLOSED: &str = include_str!("sql/followups/children_closed.sql");
 const MARK_HANDED_OFF: &str = include_str!("sql/followups/mark_handed_off.sql");
 const MARK_CLOSED: &str = include_str!("sql/followups/mark_closed.sql");
 const RETURN_FOLLOWUP: &str = include_str!("sql/followups/return_followup.sql");
@@ -116,6 +118,25 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                 .fetch_all(self.pool())
                 .await?,
         )
+    }
+
+    pub(crate) async fn tracked_wright_followups(self) -> Result<Vec<FollowupRow>, PersistError> {
+        Ok(
+            sqlx::query_as(TRACKED) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
+                .fetch_all(self.pool())
+                .await?,
+        )
+    }
+
+    pub(crate) async fn wright_followup_children_closed(
+        self,
+        id: i64,
+    ) -> Result<Option<Vec<i32>>, PersistError> {
+        let row: Option<Option<Vec<i32>>> = sqlx::query_scalar(CHILDREN_CLOSED) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
+            .bind(id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.flatten())
     }
 
     pub(crate) async fn mark_wright_followup_handed_off(

@@ -123,13 +123,32 @@ async fn repair_with_no_change_is_refused() -> anyhow::Result<()> {
     bench.cleanup().await
 }
 
+async fn failed_repair_runs(bench: &Bench, problem: i64, runs: i64) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO wright.investigations (mode, problem_id, session_uuid, state, host,
+                                            deadline_at, ended_at, end_reason)
+         SELECT 'repair', $1, gen_random_uuid(), 'failed', 'test', now(), now(), 'no repair.json'
+           FROM generate_series(1, $2)",
+    )
+    .bind(problem)
+    .bind(runs)
+    .execute(bench.ctx.persist.pool())
+    .await?;
+    Ok(())
+}
+
 #[tokio::test]
-async fn repair_whose_engineer_run_fails_is_refused_with_the_reason() -> anyhow::Result<()> {
-    let engineer = fix_ending(RepairRun {
+async fn repair_whose_engineer_run_fails_again_is_refused_with_the_reason() -> anyhow::Result<()> {
+    let bench = Bench::boot(fix_ending(RepairRun {
         failure: Some("killed at the wall-time limit".to_owned()),
         ..RepairRun::default()
-    });
-    let (bench, _, repair) = ended(engineer).await?;
+    }))
+    .await?;
+    let (problem, finding) = bench.defect().await?;
+    failed_repair_runs(&bench, problem, 2).await?;
+    tick(&bench.ctx, true).await?;
+    let repair = bench.repair_of(finding).await?;
+    assert!(!bench.worktree(finding).exists());
     assert_eq!(repair.state, states::REFUSED);
     assert!(
         repair
@@ -143,6 +162,30 @@ async fn repair_whose_engineer_run_fails_is_refused_with_the_reason() -> anyhow:
 
 fn fix_ending(result: RepairRun) -> WritesFiles {
     WritesFiles::new(&[("src/calc.sh", FIXED)]).ending(result)
+}
+
+#[tokio::test]
+async fn repair_whose_first_engineer_run_fails_is_released_and_tried_again() -> anyhow::Result<()> {
+    let bench = Bench::boot(fix_ending(RepairRun {
+        failure: Some("left no repair.json".to_owned()),
+        ..RepairRun::default()
+    }))
+    .await?;
+    let (problem, finding) = bench.defect().await?;
+    failed_repair_runs(&bench, problem, 1).await?;
+    let report = tick(&bench.ctx, true).await?;
+    assert!(matches!(
+        report.attempted,
+        Some((_, AttemptEnd::NotStarted))
+    ));
+    let left: i64 = sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")
+        .bind(finding)
+        .fetch_one(bench.ctx.persist.pool())
+        .await?;
+    assert_eq!(left, 0, "a first failed run releases the finding");
+    assert!(!bench.worktree(finding).exists());
+    assert_eq!(bench.scratch.gate_log(), "");
+    bench.cleanup().await
 }
 
 #[tokio::test]
