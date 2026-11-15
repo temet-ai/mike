@@ -25,7 +25,34 @@ impl super::DecisionStore<'_> {
         synced += self.sync_lesson_outcomes().await?;
         synced += self.sync_fleet_and_project_outcomes().await?;
         synced += self.sync_event_outcomes().await?;
+        synced += self.sync_operator_and_usage_outcomes().await?;
         Ok(synced)
+    }
+
+    async fn sync_operator_and_usage_outcomes(&self) -> Result<u64, PersistError> {
+        crate::metrics::time_db("sync_operator_and_usage_outcomes", async move {
+            let searches =
+                sqlx::query_file!("src/llm/decisions/sql/outcomes/search_result_used.sql")
+                    .execute(self.0.pool())
+                    .await?
+                    .rows_affected();
+            let prelabels =
+                sqlx::query_file!("src/llm/decisions/sql/outcomes/operator_eval_label.sql")
+                    .execute(self.0.pool())
+                    .await?
+                    .rows_affected();
+            let proposals =
+                sqlx::query_file!("src/llm/decisions/sql/outcomes/placement_decision.sql")
+                    .execute(self.0.pool())
+                    .await?
+                    .rows_affected();
+            let askers = sqlx::query_file!("src/llm/decisions/sql/outcomes/asker_followed_up.sql")
+                .execute(self.0.pool())
+                .await?
+                .rows_affected();
+            Ok(searches + prelabels + proposals + askers)
+        })
+        .await
     }
 
     async fn sync_turn_reactions(&self) -> Result<u64, PersistError> {

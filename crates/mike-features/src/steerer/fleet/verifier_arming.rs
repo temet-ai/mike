@@ -167,8 +167,9 @@ pub async fn ensure_verifier_context_fallback(
 }
 
 fn criteria_source_decider(ctx: &FleetCtx, ph: &PersistHandle) -> Option<Decider> {
+    let keyed = crate::llm::key::keyed_client(&ctx.llm, &ctx.key_slot)?;
     Decider::for_point(
-        &ctx.llm,
+        &keyed,
         ph,
         ctx.toggles.load().decisions,
         &ctx.settings.load(),

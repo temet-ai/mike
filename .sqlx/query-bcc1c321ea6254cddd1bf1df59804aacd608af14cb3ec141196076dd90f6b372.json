@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH suggested AS (\n    SELECT r.id AS record_id, r.created_at, th.id AS thread_id, th.status\n      FROM decisions.records r\n      JOIN work.threads th\n        ON th.project_id = r.project_id\n       AND th.slug = r.composed -> 'verdict' ->> 'slug'\n     WHERE r.point = 'thread_status'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'suggested'\n       AND th.status NOT IN ('done', 'parked')\n),\nmoving AS (\n    SELECT DISTINCT ON (s.record_id)\n           s.record_id, l.id AS log_id, l.created_at AS entry_at\n      FROM suggested s\n      JOIN work.thread_log l\n        ON l.thread_id = s.thread_id\n       AND l.kind = 'checkpoint'\n       AND l.created_at > s.created_at\n       AND l.created_at <= s.created_at + interval '24 hours'\n     ORDER BY s.record_id, l.created_at, l.id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT m.record_id, 'wrong', 'thread_kept_moving',\n       jsonb_build_object('thread_log_id', m.log_id, 'checkpoint_at', m.entry_at)\n  FROM moving m\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = m.record_id AND o.label_source = 'thread_kept_moving')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "bcc1c321ea6254cddd1bf1df59804aacd608af14cb3ec141196076dd90f6b372"
+}

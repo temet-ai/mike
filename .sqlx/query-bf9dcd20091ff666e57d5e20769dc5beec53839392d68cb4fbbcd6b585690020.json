@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH answered AS (\n    SELECT r.id AS record_id,\n           substring(a.key FROM 6)::bigint AS turn_id,\n           a.value ->> 'choice' AS prelabel\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_each(r.composed -> 'answers') a(key, value)\n     WHERE r.point = 'label_prelabel'\n       AND r.applied = 'labelled'\n       AND r.created_at >= now() - interval '30 days'\n       AND a.key ~ '^turn_[0-9]+$'\n       AND a.value ->> 'choice' IS NOT NULL\n),\nhuman AS (\n    SELECT DISTINCT ON (l.operator_turn_id) l.operator_turn_id, l.label\n      FROM eval.labels l\n     WHERE l.source = 'spa'\n       AND l.subject_kind = 'turn'\n       AND l.axis = 'reaction'\n       AND l.action = 'assert'\n       AND l.operator_turn_id IN (SELECT turn_id FROM answered)\n     ORDER BY l.operator_turn_id, l.created_at DESC, l.id DESC\n),\ncompared AS (\n    SELECT a.record_id, a.turn_id, a.prelabel, h.label AS human,\n           CASE WHEN a.prelabel = h.label THEN 'right' ELSE 'wrong' END AS verdict\n      FROM answered a\n      JOIN human h ON h.operator_turn_id = a.turn_id\n),\none_per_verdict AS (\n    SELECT DISTINCT ON (c.record_id, c.verdict) c.*\n      FROM compared c\n     ORDER BY c.record_id, c.verdict, c.turn_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT o.record_id, o.verdict, 'operator_gold_label',\n       jsonb_build_object('turn_id', o.turn_id, 'prelabel', o.prelabel, 'human', o.human)\n  FROM one_per_verdict o\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes x\n                    WHERE x.record_id = o.record_id\n                      AND x.label_source = 'operator_gold_label'\n                      AND x.label = o.verdict)\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "bf9dcd20091ff666e57d5e20769dc5beec53839392d68cb4fbbcd6b585690020"
+}

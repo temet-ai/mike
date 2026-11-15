@@ -90,7 +90,7 @@ fn state_keeps_the_end_of_a_long_screen() {
 #[tokio::test]
 async fn dialog_with_the_layer_off_uses_the_screen_rule() {
     assert_eq!(
-        dialog(None, TRUST).await.as_deref(),
+        dialog_via(None, None, TRUST).await.as_deref(),
         Some("the folder trust dialog")
     );
 }

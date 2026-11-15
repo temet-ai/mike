@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH guessed AS (\n    SELECT r.id AS record_id, r.created_at,\n           substring(a.key FROM 10)::bigint AS lesson_id,\n           COALESCE((a.value -> 'probabilities' ->> 'accept')::float8,\n                    CASE WHEN a.value ->> 'choice' = 'accept'\n                         THEN (a.value ->> 'confidence')::float8\n                         ELSE 0 END) AS accept\n      FROM decisions.records r\n      CROSS JOIN LATERAL jsonb_each(r.composed -> 'answers') a(key, value)\n     WHERE r.point = 'proposal_order'\n       AND r.applied = 'ordered'\n       AND r.created_at >= now() - interval '30 days'\n       AND a.key ~ '^proposal_[0-9]+$'\n),\ncompared AS (\n    SELECT g.record_id, g.lesson_id, g.accept, pr.decision,\n           CASE WHEN (g.accept >= 0.5) = (pr.decision = 'accepted')\n                THEN 'right' ELSE 'wrong' END AS verdict\n      FROM guessed g\n      JOIN memory.lesson_placement_reviews pr\n        ON pr.lesson_id = g.lesson_id\n       AND pr.decided_at >= g.created_at\n     WHERE g.accept IS NOT NULL\n       AND pr.decision IN ('accepted', 'declined')\n),\none_per_verdict AS (\n    SELECT DISTINCT ON (c.record_id, c.verdict) c.*\n      FROM compared c\n     ORDER BY c.record_id, c.verdict, c.lesson_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT o.record_id, o.verdict, 'operator_proposal_decision',\n       jsonb_build_object('lesson_id', o.lesson_id, 'accept_probability', o.accept,\n                          'decision', o.decision)\n  FROM one_per_verdict o\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes x\n                    WHERE x.record_id = o.record_id\n                      AND x.label_source = 'operator_proposal_decision'\n                      AND x.label = o.verdict)\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "0a69c80b3697efee8c2b5576beefaf32b5c29c63c9c707db0221abae6ce3ac27"
+}

@@ -140,9 +140,16 @@ pub async fn link(decider: &Decider, reply: &str, candidates: &[Candidate]) -> L
     };
     let applied = if decider.applies() { applied } else { "none" };
     decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
+        .mark(&asked, asked.composed(verdict_of(&linked, score)), applied)
         .await;
     linked
+}
+
+pub fn verdict_of(linked: &Linked, score: f64) -> Value {
+    match linked {
+        Linked::Message { id, .. } => json!({"score": score, "linked_message": id}),
+        _ => json!({"score": score}),
+    }
 }
 
 pub fn answer_of(linked: &Linked, applies: bool) -> LinkAnswer {

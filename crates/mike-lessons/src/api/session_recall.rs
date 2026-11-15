@@ -8,7 +8,7 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
-use crate::recall_injector::{self, RecallAnswer, RecallInjectorConfig};
+use crate::recall_injector::{self, NearMissLearning, RecallAnswer, RecallInjectorConfig};
 use crate::state::AppState;
 
 const RECALL_BUDGET: Duration = Duration::from_millis(200);
@@ -47,8 +47,13 @@ pub async fn post_session_recall(
         Some(persist) => {
             let (project, topics) = (request.project.clone(), request.topics.clone());
             let deadline = Instant::now() + RECALL_BUDGET;
+            let learning = state.decision_env().map(|env| NearMissLearning {
+                env,
+                session: Uuid::parse_str(&id).ok(),
+            });
             let answer = by_deadline(deadline, async move {
-                recall_injector::answer_recall(&persist, &project, &topics, &cfg).await
+                recall_injector::answer_recall_with(&persist, &project, &topics, &cfg, learning)
+                    .await
             })
             .await;
             let Some(answer) = answer else {

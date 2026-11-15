@@ -1,12 +1,11 @@
 WITH calls AS (
-    SELECT r.id AS record_id, r.request_id, r.created_at, rq.session_id,
+    SELECT r.id AS record_id, r.created_at, r.session_id,
            r.composed -> 'verdict' -> 'keep' AS keep,
            r.composed -> 'verdict' -> 'hold' AS hold
       FROM decisions.records r
-      LEFT JOIN requests.requests rq ON rq.id = r.request_id
      WHERE r.point = 'lesson_supply'
        AND r.created_at >= now() - interval '30 days'
-       AND r.request_id IS NOT NULL
+       AND r.session_id IS NOT NULL
        AND r.applied IN ('sent', 'held')
 ),
 sent AS (
@@ -16,9 +15,12 @@ sent AS (
       FROM calls c
       CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(c.keep, '[]'::jsonb)) k(id)
       JOIN memory.supplied_items si
-        ON si.request_id = c.request_id
+        ON si.session_id = c.session_id
        AND si.item_kind = 'lesson'
+       AND si.route = 'proxy'
        AND si.lesson_id = k.id::bigint
+       AND si.supplied_at >= c.created_at
+       AND si.supplied_at < c.created_at + interval '2 minutes'
       JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = si.id
      GROUP BY c.record_id
 ),

@@ -2,8 +2,8 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::{
-    decisions_ask, decisions_calibration, steering_evaluations, steering_guard,
-    steering_guard_effect,
+    decisions_ask, decisions_blocked_dialog, decisions_calibration, steering_evaluations,
+    steering_guard, steering_guard_effect,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
@@ -14,6 +14,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/decisions/ask",
         Coverage::Exempt {
             reason: "scripts/docs-agent only: records its Jev calls through the decisions recorder",
+        },
+    ),
+    route(
+        "POST",
+        "/api/decisions/blocked-dialog",
+        Coverage::Exempt {
+            reason: "called by the mike spawn CLI while delivering a prompt; no session workflow needs it as a tool",
         },
     ),
     route(
@@ -75,6 +82,10 @@ pub(super) const ROUTES: &[RouteEntry] = &[
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/api/decisions/ask", post(decisions_ask::post_ask))
+        .route(
+            "/api/decisions/blocked-dialog",
+            post(decisions_blocked_dialog::post_blocked_dialog),
+        )
         .route(
             "/api/decisions/calibration",
             get(decisions_calibration::get_calibration),
