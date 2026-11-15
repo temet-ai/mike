@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(sum(memory.reconcile_knowledge_items(k.kind)), 0)::bigint AS \"changed!\"\n                 FROM memory.knowledge_kinds k WHERE k.enabled",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "changed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b75315939117ffe73d3236b08594a864edc74d11882609ad53b3480c12f664f7"
+}
