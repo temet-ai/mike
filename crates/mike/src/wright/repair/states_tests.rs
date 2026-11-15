@@ -90,6 +90,37 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
 }
 
 #[tokio::test]
+async fn two_machines_claiming_at_once_get_one_repair_per_problem() -> anyhow::Result<()> {
+    let bench = Bench::boot(fix()).await?;
+    let ids = bench.problems(&["a", "b"]).await?;
+    let [a, b] = ids.as_slice() else {
+        anyhow::bail!("expected two problems, got {ids:?}");
+    };
+    for problem in [*a, *a, *b] {
+        bench
+            .finding(problem, "code_defect", true, Some("crates/mike/src/x.rs"))
+            .await?;
+    }
+    let web = bench.ctx.persist.web();
+    let (one, two) = tokio::join!(
+        web.claim_wright_repairs("/scratch/worktrees", Some(uuid::Uuid::new_v4()), 10),
+        web.claim_wright_repairs("/scratch/worktrees", Some(uuid::Uuid::new_v4()), 10),
+    );
+    let mut problems: Vec<i64> = one?
+        .iter()
+        .chain(two?.iter())
+        .map(|c| c.problem_id)
+        .collect();
+    problems.sort_unstable();
+    assert_eq!(
+        problems,
+        vec![*a, *b],
+        "one live repair per problem across machines"
+    );
+    bench.cleanup().await
+}
+
+#[tokio::test]
 async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> anyhow::Result<()> {
     let bench = Bench::boot(fix()).await?;
     let ids = bench.problems(&["a", "b", "c"]).await?;
