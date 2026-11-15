@@ -228,7 +228,7 @@ def prepare_archives(root, staging, build_dir, version, target, epoch, env, comm
             digest = sha256(archive)
             (staging / f"{filename}.sha256").write_text(f"{digest}  {filename}\n")
             extracted = sandbox / name
-            extracted.mkdir()
+            extracted.mkdir(mode=0o700)
             extract_checked(archive, extracted, name, inventory)
             home, cwd = extracted / "home", extracted / "unrelated-cwd"
             home.mkdir()
@@ -297,7 +297,7 @@ def verify_candidate(candidate):
             if digest != item["sha256"] or checksum.read_text() != f"{digest}  {archive.name}\n":
                 raise ReleaseError(f"archive/checksum mismatch: {archive.name}")
             extracted = sandbox / name
-            extracted.mkdir()
+            extracted.mkdir(mode=0o700)
             extract_checked(archive, extracted, name, item["contents"])
             check_scripts(manifest, name, item["contents"])
             notice = (extracted / "NOTICE.json").read_bytes()
