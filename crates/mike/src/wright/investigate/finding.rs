@@ -11,6 +11,9 @@ const MAX_TEXT: usize = 16 * 1024;
 const MAX_EVIDENCE: usize = 100;
 const MAX_REF: usize = 1024;
 const KINDS: [&str; 5] = ["code_defect", "config", "leftover", "external", "unknown"];
+const MAX_FOLLOWUPS: usize = 10;
+const MAX_TITLE: usize = 200;
+const FOLLOWUP_KINDS: [&str; 4] = ["check_tuning", "code_defect", "hardening", "root_cause"];
 const EVIDENCE_KINDS: [&str; 6] = ["request", "problem", "episode", "file", "log", "session"];
 
 #[derive(Debug, Deserialize)]
@@ -32,6 +35,33 @@ struct FindingDoc {
     kind: String,
     remedy: String,
     evidence: Vec<EvidenceRef>,
+    #[serde(default)]
+    followups: Vec<FollowupDoc>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FollowupDoc {
+    kind: String,
+    title: String,
+    body: String,
+    owning_part: Option<String>,
+    same_as: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FollowupDraft {
+    pub(crate) kind: String,
+    pub(crate) title: String,
+    pub(crate) body: String,
+    pub(crate) owning_part: Option<String>,
+    pub(crate) same_as: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Validated {
+    pub(crate) finding: NewFinding,
+    pub(crate) followups: Vec<FollowupDraft>,
 }
 
 fn text(field: &str, value: &str) -> Result<String, String> {
@@ -115,7 +145,53 @@ fn cause(doc: &FindingDoc, repo: &Path) -> Result<(Option<String>, Option<String
     }
 }
 
-pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<NewFinding, String> {
+fn followup(n: usize, doc: &FollowupDoc, repo: &Path) -> Result<FollowupDraft, String> {
+    let at = |field: &str| format!("followups[{n}].{field}");
+    if !FOLLOWUP_KINDS.contains(&doc.kind.as_str()) {
+        return Err(format!(
+            "{} is `{}`; it must be one of {}",
+            at("kind"),
+            doc.kind,
+            FOLLOWUP_KINDS.join(", ")
+        ));
+    }
+    let title = text(&at("title"), &doc.title)?;
+    let length = title.chars().count();
+    if length > MAX_TITLE {
+        return Err(format!(
+            "{} is {length} characters; at most {MAX_TITLE} are kept",
+            at("title")
+        ));
+    }
+    let part = match doc.owning_part.as_deref().map(str::trim) {
+        Some(part) if !part.is_empty() => {
+            Some(owning_part(part, repo).map_err(|e| format!("followups[{n}]: {e}"))?)
+        }
+        _ => None,
+    };
+    Ok(FollowupDraft {
+        kind: doc.kind.clone(),
+        title,
+        body: text(&at("body"), &doc.body)?,
+        owning_part: part,
+        same_as: doc.same_as,
+    })
+}
+
+fn followups(docs: &[FollowupDoc], repo: &Path) -> Result<Vec<FollowupDraft>, String> {
+    if docs.len() > MAX_FOLLOWUPS {
+        return Err(format!(
+            "followups has {} entries; at most {MAX_FOLLOWUPS} are kept",
+            docs.len()
+        ));
+    }
+    docs.iter()
+        .enumerate()
+        .map(|(n, doc)| followup(n, doc, repo))
+        .collect()
+}
+
+pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<Validated, String> {
     if bytes.len() > MAX_FILE_BYTES {
         return Err(format!(
             "{FINDING_FILE} is {} bytes; at most {MAX_FILE_BYTES} are read",
@@ -137,7 +213,8 @@ pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<NewFinding, String> 
         ));
     }
     let (confirmed_cause, owning_part) = cause(&doc, repo)?;
-    Ok(NewFinding {
+    let followups = followups(&doc.followups, repo)?;
+    let finding = NewFinding {
         symptom: text("symptom", &doc.symptom)?,
         suspected_cause: text("suspected_cause", &doc.suspected_cause)?,
         confirmed_cause,
@@ -146,10 +223,25 @@ pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<NewFinding, String> 
         kind: doc.kind,
         remedy: text("remedy", &doc.remedy)?,
         evidence: evidence(&doc.evidence)?,
-    })
+    };
+    Ok(Validated { finding, followups })
 }
 
-pub(crate) fn as_json(finding: &NewFinding) -> Value {
+pub(crate) fn as_json(validated: &Validated) -> Value {
+    let finding = &validated.finding;
+    let followups: Vec<Value> = validated
+        .followups
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "kind": f.kind,
+                "title": f.title,
+                "body": f.body,
+                "owning_part": f.owning_part,
+                "same_as": f.same_as,
+            })
+        })
+        .collect();
     serde_json::json!({
         "symptom": finding.symptom,
         "suspected_cause": finding.suspected_cause,
@@ -159,5 +251,6 @@ pub(crate) fn as_json(finding: &NewFinding) -> Value {
         "kind": finding.kind,
         "remedy": finding.remedy,
         "evidence": finding.evidence,
+        "followups": followups,
     })
 }

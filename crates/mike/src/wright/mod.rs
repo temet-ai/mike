@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub mod cli;
 pub mod conversation;
 pub(crate) mod definition;
+pub mod followups;
 pub mod investigate;
 pub mod remedies;
 pub mod repair;

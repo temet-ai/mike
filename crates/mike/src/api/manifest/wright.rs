@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::wright::{
-    checks, conversation, investigations, problems as api, remedies, repairs,
+    checks, conversation, followups, investigations, problems as api, remedies, repairs,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
@@ -110,6 +110,27 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/wright/followups",
+        Coverage::Exempt {
+            reason: "Wright's follow-up register (issue, fixer session, state) for the Wright page; closed to engineer runs by the sandbox relay and read by no session workflow",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/followup-limits",
+        Coverage::Exempt {
+            reason: "The follow-up filing and hand-off budgets and fixer machines for the Wright page and the operator; sessions never read them",
+        },
+    ),
+    route(
+        "PATCH",
+        "/api/wright/followup-limits",
+        Coverage::Exempt {
+            reason: "Operator-only control of follow-up budgets and fixer machines; no session may change Wright's limits",
+        },
+    ),
+    route(
+        "GET",
         "/api/wright/repairs",
         Coverage::Exempt {
             reason: "Wright's code repairs and their states for the Wright page; no session workflow reads them yet",
@@ -180,6 +201,11 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/wright/engineer-limits",
             get(investigations::get_limits).patch(investigations::patch_limits_as_operator),
+        )
+        .route("/api/wright/followups", get(followups::list_followups))
+        .route(
+            "/api/wright/followup-limits",
+            get(followups::get_followup_limits).patch(followups::patch_followup_limits_as_operator),
         )
         .route("/api/wright/repairs", get(repairs::list_repairs))
         .route("/api/wright/repairs/{id}", get(repairs::get_repair))

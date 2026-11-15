@@ -5,12 +5,19 @@ use serde_json::Value;
 mod checks;
 pub(crate) mod conversation;
 pub(crate) mod conversation_steers;
+mod followups;
+mod followups_flow;
 mod investigations;
 mod problems;
 pub(crate) mod remedies;
 
 mod repairs;
 
+#[cfg(test)]
+mod followups_tests;
+
+pub(crate) use followups::{FollowupRow, NewFollowup, RootCausePick};
+pub(crate) use followups_flow::{Fixer, FollowupLimits, FollowupLimitsPatch};
 pub(crate) use investigations::{
     EngineerLimits, Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation,
     PageQuery, Pick, Usage,

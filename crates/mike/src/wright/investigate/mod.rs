@@ -17,6 +17,7 @@ pub(crate) mod home;
 mod launch;
 pub(crate) mod process;
 pub(crate) mod reconcile;
+mod record;
 pub(crate) mod relay;
 pub(crate) mod relay_inside;
 pub(crate) mod sandbox;
@@ -99,6 +100,7 @@ impl RunMode {
 pub(crate) struct RunRequest {
     pub mode: RunMode,
     pub problem_id: Option<i64>,
+    pub followup_id: Option<i64>,
     pub brief: String,
     pub inputs: Vec<(String, Value)>,
 }
@@ -128,6 +130,8 @@ pub(crate) struct RunHandle {
     pub(crate) mode: RunMode,
     pub(crate) deadline: DateTime<Utc>,
     pub(crate) out_dir: PathBuf,
+    problem_id: Option<i64>,
+    followup_id: Option<i64>,
     dir: RunDir,
     work: PathBuf,
     child: Child,
@@ -165,6 +169,7 @@ async fn claim(
         host: &ctx.machine.host,
         machine_uuid: ctx.machine.uuid,
         owner_pid: i32::try_from(std::process::id()).unwrap_or(i32::MAX),
+        followup_id: req.followup_id,
     };
     match ctx.persist.web().insert_wright_run(&row).await {
         Ok(Inserted::Started {
@@ -204,6 +209,8 @@ pub(crate) async fn start_run(
             mode: req.mode,
             deadline,
             out_dir: dir.output.clone(),
+            problem_id: req.problem_id,
+            followup_id: req.followup_id,
             dir,
             work: launched.work,
             child: launched.child,
@@ -233,6 +240,8 @@ pub(crate) async fn wait(handle: RunHandle) -> RunOutcome {
         mode,
         deadline,
         out_dir,
+        problem_id,
+        followup_id,
         dir,
         work,
         mut child,
@@ -249,6 +258,8 @@ pub(crate) async fn wait(handle: RunHandle) -> RunOutcome {
         mode: &mode,
         out: &out_dir,
         work: &work,
+        problem_id,
+        followup_id,
     };
     let settled = finish::settle(&ctx, &ended, &end).await;
     RunOutcome {

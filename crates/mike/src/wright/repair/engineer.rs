@@ -54,6 +54,7 @@ impl RepairEngineer for InvestigateEngineer {
                 worktree: job.worktree.clone(),
             },
             problem_id: Some(job.problem_id),
+            followup_id: None,
             brief: job.brief.clone(),
             inputs: job.inputs.clone(),
         };

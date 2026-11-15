@@ -1,8 +1,10 @@
 import type {
+	FollowupLimits,
 	ProblemDetail,
 	WrightAction,
 	WrightEpisode,
 	WrightFinding,
+	WrightFollowup,
 	WrightInvestigation,
 	WrightMessage,
 	WrightProblem,
@@ -273,6 +275,117 @@ export function investigationFixture(): WrightInvestigation {
 	};
 }
 
+export function followupLimitsFixture(over: Partial<FollowupLimits> = {}): FollowupLimits {
+	return {
+		repo: 'temet-ai/mike',
+		daily_filed: 3,
+		daily_handoffs: 2,
+		max_attempts: 3,
+		recurrence_actions: 3,
+		recurrence_days: 7,
+		...over
+	};
+}
+
+export function followupFixture(over: Partial<WrightFollowup> = {}): WrightFollowup {
+	return {
+		id: 12,
+		kind: 'code_defect',
+		check_name: 'tool_contract_errors',
+		owning_part: 'crates/mike-mcp/src/tools/work_threads.rs',
+		title: 'work_thread_checkpoint accepts a call without tldr and then rejects it',
+		body: 'The tool schema marks tldr optional while the handler rejects an empty one.\n\nMake the schema say tldr is required, so the model is told before it calls.',
+		state: 'filed',
+		issue_number: 269,
+		issue_url: 'https://github.com/temet-ai/mike/issues/269',
+		attempts: 0,
+		fixer_session: null,
+		fixer_machine: null,
+		filed_at: ago(200),
+		handed_off_at: null,
+		closed_at: null,
+		closed_reason: null,
+		created_at: ago(260),
+		updated_at: ago(200),
+		findings: [5],
+		problems: [707],
+		...over
+	};
+}
+
+/** One follow-up in each state, newest first, as the API lists them. */
+export function followups(): WrightFollowup[] {
+	const session = '9b1c2d3e-4f50-4a61-8b72-0c93d4e5f6a7';
+	return [
+		followupFixture({
+			id: 16,
+			state: 'stuck',
+			title: 'Mail to a seat that never reads is retried forever',
+			kind: 'root_cause',
+			check_name: 'undelivered_mail',
+			owning_part: 'crates/mike-launch/src/mailbox',
+			issue_number: 277,
+			issue_url: 'https://github.com/temet-ai/mike/issues/277',
+			attempts: 3,
+			fixer_session: session,
+			fixer_machine: 'omit',
+			filed_at: ago(60 * 30),
+			handed_off_at: ago(60 * 20),
+			problems: [703]
+		}),
+		followupFixture({
+			id: 15,
+			state: 'handed_off',
+			title: 'Raise the slow-query threshold for the capture schema',
+			kind: 'check_tuning',
+			check_name: 'slow_queries',
+			owning_part: null,
+			issue_number: 275,
+			issue_url: 'https://github.com/temet-ai/mike/issues/275',
+			attempts: 1,
+			fixer_session: session,
+			fixer_machine: 'omit',
+			handed_off_at: ago(45),
+			problems: []
+		}),
+		followupFixture({
+			id: 14,
+			issue_number: 272,
+			issue_url: 'https://github.com/temet-ai/mike/issues/272'
+		}),
+		followupFixture({
+			id: 13,
+			state: 'open',
+			title: 'Hooks that fail on an empty tool list should say so',
+			kind: 'hardening',
+			check_name: 'hook_errors',
+			issue_number: null,
+			issue_url: null,
+			filed_at: null,
+			problems: []
+		}),
+		followupFixture({
+			id: 12,
+			state: 'fixed',
+			attempts: 1,
+			fixer_session: session,
+			fixer_machine: 'omit',
+			handed_off_at: ago(60 * 10),
+			closed_at: ago(60 * 8),
+			closed_reason: 'merged'
+		}),
+		followupFixture({
+			id: 11,
+			state: 'dropped',
+			title: 'Warn when a log warning repeats',
+			check_name: 'log_warnings',
+			closed_at: ago(60 * 40),
+			closed_reason: 'not_planned',
+			problems: []
+		})
+	];
+}
+
 function loaded<T>(rows: T[], cursor: number | null = null): Feed<T> {
 	return { ...emptyFeed<T>(), rows, status: 'ready', cursor, total: rows.length };
 }
@@ -308,6 +421,9 @@ export interface WrightScenario {
 	findings: WrightFinding[] | null;
 	repairs: WrightRepair[] | null;
 	investigations: WrightInvestigation[] | null;
+	/** null: the route answers 404, as before its backend deploys. */
+	followups: WrightFollowup[] | null;
+	followupLimits: FollowupLimits;
 	/** What undoing an action answers: 200, or the 409 conflict. */
 	undo: 'ok' | 'conflict';
 	watchEnabled: boolean;
@@ -324,6 +440,8 @@ export function normalScenario(): WrightScenario {
 		findings: [findingFixture()],
 		repairs: [repairFixture()],
 		investigations: [investigationFixture()],
+		followups: followups(),
+		followupLimits: followupLimitsFixture(),
 		undo: 'ok',
 		watchEnabled: true
 	};
@@ -339,7 +457,8 @@ export function emptyScenario(): WrightScenario {
 		messages: [],
 		findings: [],
 		repairs: [],
-		investigations: []
+		investigations: [],
+		followups: []
 	};
 }
 
@@ -391,6 +510,21 @@ export function installWrightFetch(scenario: WrightScenario): { posted: unknown[
 				next_offset: next,
 				watch_enabled: state.watchEnabled
 			});
+		}
+		if (method === 'GET' && path === '/api/wright/followups') {
+			if (state.followups === null) return json(404, {});
+			const only = params.get('state');
+			const before = Number(params.get('before') ?? Number.MAX_SAFE_INTEGER);
+			const limit = Number(params.get('limit') ?? 50);
+			const rows = state.followups.filter(
+				(f) => (only === null || f.state === only) && f.id < before
+			);
+			const page = rows.filter((_, index) => index < limit);
+			const next = rows.length > limit ? (page.at(-1)?.id ?? null) : null;
+			return json(200, { followups: page, next_before: next });
+		}
+		if (method === 'GET' && path === '/api/wright/followup-limits') {
+			return json(200, { limits: state.followupLimits, ranges: {} });
 		}
 		const one = /^\/api\/wright\/problems\/(\d+)$/.exec(path);
 		if (method === 'GET' && one) {

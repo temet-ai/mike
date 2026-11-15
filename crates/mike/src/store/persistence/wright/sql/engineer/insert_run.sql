@@ -11,8 +11,8 @@ open_episode AS (
     SELECT id FROM wright.episodes WHERE problem_id = $2 AND closed_at IS NULL
 )
 INSERT INTO wright.investigations
-       (mode, problem_id, episode_id, session_uuid, state, host, machine_uuid, pid, deadline_at)
-SELECT $1, $2, (SELECT id FROM open_episode), $3, 'starting', $4, $5, $6,
+       (mode, problem_id, episode_id, session_uuid, state, host, machine_uuid, pid, followup_id, deadline_at)
+SELECT $1, $2, (SELECT id FROM open_episode), $3, 'starting', $4, $5, $6, $7,
        now() + make_interval(secs => lim.wall_seconds)
   FROM lim, today
  WHERE today.started < lim.daily_starts

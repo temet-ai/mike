@@ -6,6 +6,7 @@ use serde_json::Value;
 use super::RunMode;
 use super::context::EngineerContext;
 use super::finding;
+use super::record;
 use super::supervise::RunEnd;
 
 pub(crate) struct Settled {
@@ -48,13 +49,13 @@ async fn end(ctx: &EngineerContext, id: i64, state: &str, code: Option<i32>, rea
 
 async fn investigated(
     ctx: &EngineerContext,
-    id: i64,
+    run: &Ended<'_>,
     code: Option<i32>,
     bytes: &[u8],
-    work: &Path,
 ) -> Settled {
-    let finding = match finding::validate(bytes, work) {
-        Ok(finding) => finding,
+    let id = run.id;
+    let validated = match finding::validate(bytes, run.work) {
+        Ok(validated) => validated,
         Err(reason) => {
             end(ctx, id, "failed", code, Some(&reason)).await;
             return Settled {
@@ -66,13 +67,21 @@ async fn investigated(
     match ctx
         .persist
         .web()
-        .finish_wright_run_with_finding(id, code, &finding)
+        .finish_wright_run_with_finding(id, code, &validated.finding)
         .await
     {
-        Ok(Some(finding_id)) => Settled {
-            output: Ok(finding::as_json(&finding)),
-            finding_id: Some(finding_id),
-        },
+        Ok(Some(finding_id)) => {
+            let origin = record::Origin {
+                finding_id,
+                problem_id: run.problem_id,
+                followup_id: run.followup_id,
+            };
+            record::record(ctx, &origin, &validated).await;
+            Settled {
+                output: Ok(finding::as_json(&validated)),
+                finding_id: Some(finding_id),
+            }
+        }
         Ok(None) => Settled {
             output: Err(
                 "the run's row was no longer live, so its finding was not stored".to_owned(),
@@ -95,6 +104,8 @@ pub(crate) struct Ended<'a> {
     pub(crate) mode: &'a RunMode,
     pub(crate) out: &'a Path,
     pub(crate) work: &'a Path,
+    pub(crate) problem_id: Option<i64>,
+    pub(crate) followup_id: Option<i64>,
 }
 
 pub(crate) async fn settle(ctx: &EngineerContext, run: &Ended<'_>, outcome: &RunEnd) -> Settled {
@@ -119,7 +130,7 @@ pub(crate) async fn settle(ctx: &EngineerContext, run: &Ended<'_>, outcome: &Run
         }
     };
     if matches!(run.mode, RunMode::Investigate) {
-        return investigated(ctx, run.id, code, &bytes, run.work).await;
+        return investigated(ctx, run, code, &bytes).await;
     }
     match json(&bytes, run.mode) {
         Ok(value) => {

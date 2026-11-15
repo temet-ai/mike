@@ -89,6 +89,7 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     crate::wright::remedies::spawn_remedies_worker(state);
     crate::wright::investigate::spawn_engineer_worker(state);
     crate::wright::repair::spawn_wright_repair_worker(state);
+    crate::wright::followups::spawn_followups_worker(state);
     crate::wright::conversation::spawn_conversation_worker(state);
 
     crate::api::handlers::spawn_health_refresher(state);

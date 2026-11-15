@@ -1,11 +1,14 @@
 import * as api from '$lib/api/wright';
 import type {
+	FollowupLimits,
+	FollowupState,
 	MessagesPage,
 	ProblemsPage,
 	ProblemState,
 	WrightAction,
 	WrightEpisode,
 	WrightFinding,
+	WrightFollowup,
 	WrightInvestigation,
 	WrightMessage,
 	WrightProblem,
@@ -25,10 +28,14 @@ import {
 
 const PAGE = 50;
 const MESSAGE_PAGE = 100;
+const FOLLOWUP_PAGE = 25;
 const POLL_MS = 15_000;
 const POLL_PENDING_MS = 3_000;
 
 export type UndoStatus = { state: 'undoing' | 'failed'; reason: string | null };
+
+/** What the Follow-ups Show control offers: every state, or one. */
+export type FollowupFilter = 'all' | FollowupState;
 
 export type DetailFeed = 'episodes' | 'actions' | 'findings' | 'repairs' | 'investigations';
 
@@ -88,6 +95,39 @@ async function actionsFrom(
 	return { rows: page.actions, cursor: page.next_before };
 }
 
+const followupKey = (f: WrightFollowup): number => f.id;
+const byIdDesc = (a: WrightFollowup, b: WrightFollowup): number => b.id - a.id;
+
+async function followupsFrom(
+	filter: FollowupFilter,
+	before: number | null,
+	limit: number = FOLLOWUP_PAGE
+): Promise<FeedPage<WrightFollowup>> {
+	const page = await api.listFollowups({
+		state: filter === 'all' ? undefined : filter,
+		limit,
+		before
+	});
+	return { rows: page.followups, cursor: page.next_before };
+}
+
+/** Newest first from the top until `minRows` are covered, so every row on screen refreshes. */
+async function followupsCovering(
+	filter: FollowupFilter,
+	minRows: number
+): Promise<FeedPage<WrightFollowup>> {
+	const rows: WrightFollowup[] = [];
+	let cursor: number | null = null;
+	let first = true;
+	while (first || (cursor !== null && rows.length < minRows)) {
+		first = false;
+		const page: FeedPage<WrightFollowup> = await followupsFrom(filter, cursor);
+		rows.push(...page.rows);
+		cursor = page.cursor;
+	}
+	return { rows, cursor };
+}
+
 async function allMessages(after: number | null): Promise<MessagesPage> {
 	const out: WrightMessage[] = [];
 	let cursor = after;
@@ -116,6 +156,10 @@ export function createWrightStore() {
 	const actions = $state<Feed<WrightAction>>(emptyFeed());
 	const remedies = $state<Feed<WrightRemedy>>(emptyFeed());
 	const messages = $state<Feed<WrightMessage>>(emptyFeed());
+	const followups = $state<Feed<WrightFollowup>>(emptyFeed());
+	let followupFilter = $state<FollowupFilter>('all');
+	let followupLimits = $state<FollowupLimits | null>(null);
+	let filterSeq = 0;
 	let pendingReply = $state(false);
 	let watchEnabled = $state<boolean | null>(null);
 	const undo = $state<Record<string, UndoStatus>>({});
@@ -149,8 +193,19 @@ export function createWrightStore() {
 		});
 	}
 
+	/** The limits only sharpen the copy ("attempt 2 of 3"); without them the copy still reads. */
+	async function loadLimits(): Promise<void> {
+		try {
+			followupLimits = (await api.getFollowupLimits()).limits;
+		} catch {
+			// Keep what is shown: the page says "attempt N" until the limits arrive.
+		}
+	}
+
 	async function loadAll(): Promise<void> {
 		await Promise.all([
+			fillFeed(followups, () => followupsCovering(followupFilter, 0)),
+			loadLimits(),
 			fillFeed(open, () => problemsCovering('open', 0, noteWatch)),
 			fillFeed(earlier, () => problemsFrom('healthy', 0)),
 			fillFeed(actions, () => actionsFrom(null)),
@@ -176,7 +231,18 @@ export function createWrightStore() {
 	}
 
 	async function refresh(): Promise<void> {
+		const filter = followupFilter;
 		await Promise.all([
+			refreshFeed(
+				followups,
+				async () =>
+					// A filter changed mid-flight: this answer is for the old one, so it adds nothing.
+					filter === followupFilter
+						? followupsCovering(filter, followups.rows.length)
+						: { rows: [], cursor: null },
+				followupKey
+			),
+			loadLimits(),
 			refreshFeed(open, () => problemsCovering('open', open.rows.length, noteWatch), problemKey),
 			refreshFeed(earlier, () => problemsCovering('healthy', earlier.rows.length), problemKey),
 			refreshFeed(actions, () => actionsFrom(null), actionKey),
@@ -239,6 +305,20 @@ export function createWrightStore() {
 				(i) => i.id
 			)
 		]);
+	}
+
+	/** The operator's choice: the list is read again for that state and replaces what was shown. */
+	async function setFollowupFilter(filter: FollowupFilter): Promise<void> {
+		followupFilter = filter;
+		const mine = ++filterSeq;
+		const next = emptyFeed<WrightFollowup>();
+		await fillFeed(next, () => followupsCovering(filter, 0));
+		if (mine !== filterSeq) return;
+		followups.rows = next.rows;
+		followups.held = [];
+		followups.cursor = next.cursor;
+		followups.error = next.error;
+		followups.status = next.status;
 	}
 
 	function applyAction(updated: WrightAction): void {
@@ -351,6 +431,15 @@ export function createWrightStore() {
 		get messages() {
 			return messages;
 		},
+		get followups() {
+			return followups;
+		},
+		get followupFilter() {
+			return followupFilter;
+		},
+		get followupLimits() {
+			return followupLimits;
+		},
 		get pendingReply() {
 			return pendingReply;
 		},
@@ -377,6 +466,9 @@ export function createWrightStore() {
 		send,
 		moreOpen: () => moreFeed(open, (offset) => problemsFrom('open', offset), problemKey),
 		moreEarlier: () => moreFeed(earlier, (offset) => problemsFrom('healthy', offset), problemKey),
+		moreFollowups: () =>
+			moreFeed(followups, (before) => followupsFrom(followupFilter, before), followupKey),
+		setFollowupFilter,
 		moreActions: () => moreFeed(actions, (before) => actionsFrom(before), actionKey),
 		moreDetail: (id: number, which: DetailFeed): Promise<void> => {
 			const d = detailFor(id);
@@ -423,6 +515,7 @@ export function createWrightStore() {
 		},
 		showHeldOpen: () => showHeld(open, byOpenedDesc),
 		showHeldEarlier: () => showHeld(earlier, byOpenedDesc),
+		showHeldFollowups: () => showHeld(followups, byIdDesc),
 		showHeldActions: () => showHeld(actions, byCreatedDesc),
 		startLive
 	};

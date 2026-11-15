@@ -5,6 +5,7 @@ use serde_json::json;
 
 pub(crate) mod checks;
 pub(crate) mod conversation;
+pub(crate) mod followups;
 pub(crate) mod investigations;
 pub(crate) mod problems;
 pub(crate) mod relay;
@@ -19,6 +20,8 @@ mod conversation_post_tests;
 mod conversation_tests;
 #[cfg(test)]
 mod conversation_undo_tests;
+#[cfg(test)]
+mod followups_tests;
 #[cfg(test)]
 mod investigations_tests;
 #[cfg(test)]
@@ -43,6 +46,21 @@ pub(crate) fn page_limit(value: Option<i64>, default: i64, label: &str) -> Resul
     }
     Err(format!(
         "{label} is {value}; it must be between 1 and {PAGE_MAX_LIMIT}"
+    ))
+}
+
+pub(crate) fn page_limit_up_to(
+    value: Option<i64>,
+    default: i64,
+    max: i64,
+    label: &str,
+) -> Result<i64, String> {
+    let value = value.unwrap_or(default);
+    if (1..=max).contains(&value) {
+        return Ok(value);
+    }
+    Err(format!(
+        "{label} is {value}; it must be between 1 and {max}"
     ))
 }
 

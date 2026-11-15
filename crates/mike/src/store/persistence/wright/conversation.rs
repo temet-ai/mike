@@ -3,6 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
+use super::FollowupRow;
 use crate::store::persistence::PersistError;
 
 const POST: &str = include_str!("sql/conversation/post.sql");
@@ -28,6 +29,7 @@ pub(crate) struct LinkIds {
     pub(crate) actions: Vec<i64>,
     pub(crate) findings: Vec<i64>,
     pub(crate) repairs: Vec<i64>,
+    pub(crate) followups: Vec<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
@@ -256,6 +258,7 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                 .bind(&ids.actions)
                 .bind(&ids.findings)
                 .bind(&ids.repairs)
+                .bind(&ids.followups)
                 .fetch_all(self.pool())
                 .await?,
         )
@@ -266,10 +269,36 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         named: &[i64],
         limit: i64,
     ) -> Result<Vec<Value>, PersistError> {
-        Ok(sqlx::query_scalar(EVIDENCE)
+        let mut problems: Vec<Value> = sqlx::query_scalar(EVIDENCE)
             .bind(named)
             .bind(limit)
             .fetch_all(self.pool())
-            .await?)
+            .await?;
+        for problem in &mut problems {
+            let Some(id) = problem.get("problem_id").and_then(Value::as_i64) else {
+                continue;
+            };
+            let followups = self.wright_followups_for_problem(id).await?;
+            if let Some(object) = problem.as_object_mut() {
+                object.insert(
+                    "followups".to_owned(),
+                    Value::Array(followups.iter().map(followup_evidence).collect()),
+                );
+            }
+        }
+        Ok(problems)
     }
+}
+
+fn followup_evidence(row: &FollowupRow) -> Value {
+    serde_json::json!({
+        "followup_id": row.id,
+        "kind": row.kind,
+        "state": row.state,
+        "title": row.title,
+        "issue_number": row.issue_number,
+        "issue_url": row.issue_url,
+        "fixer_session": row.fixer_session,
+        "fixer_machine": row.fixer_machine,
+    })
 }

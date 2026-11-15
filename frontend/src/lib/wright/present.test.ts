@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { WrightAction, WrightRemedy } from '$lib/api/wright';
-import { problemFixture } from '$lib/components/__fixtures__/wright';
+import {
+	followupFixture,
+	followupLimitsFixture,
+	problemFixture
+} from '$lib/components/__fixtures__/wright';
 import { mergeInPlace, withHeld } from './feed';
 import { hashWithoutPair, pairTokenFromHash } from './pairing';
 import {
@@ -8,6 +12,11 @@ import {
 	describeSteer,
 	findingEvidenceRef,
 	fixVerdict,
+	followupBadge,
+	followupKind,
+	followupLine,
+	followupMeta,
+	followupTooltip,
 	problemLinks,
 	problemTitle,
 	repairSteps
@@ -164,5 +173,66 @@ describe('day labels', () => {
 		expect(dayLabel(new Date(2026, 10, 14, 9, 0).toISOString(), now)).toBe('Today');
 		expect(dayLabel(new Date(2026, 10, 13, 9, 0).toISOString(), now)).toBe('Yesterday');
 		expect(dayLabel(new Date(2026, 9, 15, 9, 0).toISOString(), now)).toBe('15 Oct');
+	});
+});
+
+describe('follow-ups', () => {
+	const limits = followupLimitsFixture({ max_attempts: 3 });
+
+	it('names each state and its badge', () => {
+		expect(followupBadge('open')).toEqual({ label: 'Not filed', variant: 'chip-muted' });
+		expect(followupBadge('handed_off').label).toBe('Being fixed');
+		expect(followupBadge('stuck').variant).toBe('chip-warning');
+		expect(followupBadge('fixed').variant).toBe('chip-active');
+	});
+
+	it('labels the kind, falling back to the code for a new one', () => {
+		expect(followupKind('root_cause')).toBe('Why it keeps happening');
+		expect(followupKind('something_new' as never)).toBe('Something new');
+	});
+
+	it('builds the meta line and leaves out an empty owner', () => {
+		expect(followupMeta(followupFixture({ owning_part: 'crates/x' }))).toBe(
+			'Code bug · A tool called with the wrong inputs · owned by crates/x'
+		);
+		expect(followupMeta(followupFixture({ owning_part: null, check_name: null }))).toBe('Code bug');
+	});
+
+	it('says the attempt limit once it is known', () => {
+		const f = followupFixture({
+			state: 'handed_off',
+			attempts: 2,
+			fixer_machine: 'omit',
+			handed_off_at: null
+		});
+		expect(followupLine(f, limits)).toBe('omit, attempt 2 of 3.');
+		expect(followupLine(f, null)).toBe('omit, attempt 2.');
+	});
+
+	it('writes the state line for each state', () => {
+		expect(followupLine(followupFixture({ state: 'open' }))).toBe('No issue yet.');
+		expect(followupLine(followupFixture({ state: 'filed', issue_number: 9 }))).toBe(
+			'Issue #9 is open. No session has picked it up.'
+		);
+		expect(followupLine(followupFixture({ state: 'stuck', attempts: 3 }))).toBe(
+			'3 sessions ended without a fix. Wright has stopped trying.'
+		);
+		expect(followupLine(followupFixture({ state: 'stuck', attempts: 1, issue_url: null }))).toBe(
+			'1 session ended without a fix. Wright has stopped trying. No issue was filed.'
+		);
+		expect(
+			followupLine(
+				followupFixture({ state: 'dropped', closed_at: null, closed_reason: 'not_planned' })
+			)
+		).toBe('Closed: Not planned.');
+	});
+
+	it('explains Dropped as closed as not planned and names the daily caps', () => {
+		expect(followupTooltip('dropped')).toBe(
+			'The GitHub issue was closed as not planned, by the fixer session or by anyone.'
+		);
+		expect(followupTooltip('open', limits)).toContain('at most 3 a day');
+		expect(followupTooltip('filed', limits)).toContain('at most 2 a day');
+		expect(followupTooltip('open')).not.toContain('at most');
 	});
 });

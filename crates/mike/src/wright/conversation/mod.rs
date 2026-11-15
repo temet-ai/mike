@@ -20,6 +20,8 @@ pub(crate) mod worker;
 #[cfg(test)]
 pub(crate) mod fakes_tests;
 #[cfg(test)]
+mod followup_tests;
+#[cfg(test)]
 mod job_tests;
 #[cfg(test)]
 mod steer_tests;
