@@ -16,6 +16,7 @@ pub(crate) struct Job {
     pub(crate) description: &'static str,
     pub(crate) script: &'static str,
     pub(crate) checkout_only: bool,
+    pub(crate) mike_command: Option<&'static [&'static str]>,
     pub(super) args: &'static [&'static str],
     pub(super) timeout: Duration,
     pub(super) cadence: Cadence,
@@ -33,6 +34,7 @@ pub(super) const PROMOTE: Job = Job {
     description: "Turns accepted lessons into project memories and skills in the project folders on this machine, so Claude Code sessions here find them.",
     script: "scripts/learning-promote",
     checkout_only: false,
+    mike_command: Some(&["learning", "promote"]),
     args: &[],
     timeout: Duration::from_secs(15 * 60),
     cadence: Cadence {
@@ -55,6 +57,7 @@ pub(super) const AUDIT: Job = Job {
     description: "Reviews the previous week's sessions, lessons and tool use and publishes a report, so you can see whether the learning is helping.",
     script: "scripts/learning-audit",
     checkout_only: false,
+    mike_command: Some(&["learning-audit"]),
     args: &["--weekly", "--sync"],
     timeout: Duration::from_secs(30 * 60),
     cadence: Cadence {
@@ -77,6 +80,7 @@ pub(super) const COMPRESSOR_LOOP: Job = Job {
     description: "Compares sessions that got shortened file reads with those that did not and adjusts the compressor's settings, so it keeps only the cuts that do no harm.",
     script: "scripts/compressor-loop",
     checkout_only: false,
+    mike_command: Some(&["compressor-loop"]),
     args: &["--days", "7", "--apply"],
     timeout: Duration::from_secs(20 * 60),
     cadence: Cadence {
@@ -100,6 +104,7 @@ pub(super) const SIX_HOURLY_FIXTURE: Job = Job {
     description: "A test job on the hour every six hours.",
     script: "scripts/six-hourly-fixture",
     checkout_only: true,
+    mike_command: None,
     args: &[],
     timeout: Duration::from_secs(30 * 60),
     cadence: Cadence {
@@ -122,6 +127,7 @@ pub(super) const LESSONS_COMMIT: Job = Job {
     description: "Commits the lesson files the knowledge collector writes into .claude/lessons of this checkout, so the durable copy of the lessons is in git.",
     script: "scripts/lessons-commit",
     checkout_only: true,
+    mike_command: None,
     args: &[],
     timeout: Duration::from_secs(10 * 60),
     cadence: Cadence {
@@ -144,6 +150,7 @@ pub(super) const USAGE_AUDIT: Job = Job {
     description: "Reports where the week's Claude tokens went and raises an alarm when the cache re-write rate, context size, dead steering rules or evaluation metrics look wrong.",
     script: "scripts/usage-audit.sh",
     checkout_only: true,
+    mike_command: None,
     args: &[],
     timeout: Duration::from_secs(30 * 60),
     cadence: Cadence {
@@ -166,6 +173,7 @@ pub(super) const LESSON_RELATIONS: Job = Job {
     description: "Finds lessons that supersede, refine, repeat or contradict each other and has a second model adjudicate each claim, so the nightly consolidation can retire a lesson a newer one contradicts.",
     script: "scripts/lesson-relations",
     checkout_only: false,
+    mike_command: Some(&["detect-lesson-relations"]),
     args: &[],
     timeout: Duration::from_secs(45 * 60),
     cadence: Cadence {
@@ -188,6 +196,7 @@ pub(super) const MEMORY_REVIEW: Job = Job {
     description: "A Claude Code session reads what memory returned to sessions since the last review, judges whether each return helped, and records the fix on the memory-keeper thread and the issue that covers it.",
     script: "scripts/memory-review",
     checkout_only: true,
+    mike_command: None,
     args: &[],
     timeout: Duration::from_secs(45 * 60),
     cadence: Cadence {
@@ -210,6 +219,7 @@ pub(super) const DECISIONS_LOOP: Job = Job {
     description: "Scores every Jev decision point against its labels (AUROC, holds that were right, fail-open rate, spend), copies the turn guard's labels beside the decisions they settle, and files a finding on the jev-decisions thread for a point below its bar.",
     script: "scripts/decisions-loop",
     checkout_only: false,
+    mike_command: Some(&["decisions", "loop"]),
     args: &[],
     timeout: Duration::from_secs(10 * 60),
     cadence: Cadence {

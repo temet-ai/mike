@@ -146,15 +146,30 @@ fn unrunnable(why: String, started: Instant) -> RunReport {
 }
 
 pub(super) fn script_dir_missing(root: &Path, job: &Job) -> bool {
-    !root.join(job.script).parent().is_some_and(Path::is_dir)
+    job.mike_command.is_none() && !root.join(job.script).parent().is_some_and(Path::is_dir)
+}
+
+fn program(root: &Path, job: &Job) -> Result<Vec<std::ffi::OsString>, String> {
+    let script = root.join(job.script);
+    if script.is_file() {
+        return Ok(vec![script.into_os_string()]);
+    }
+    let Some(subcommand) = job.mike_command else {
+        return Err(format!("{} does not exist", script.display()));
+    };
+    let exe =
+        std::env::current_exe().map_err(|e| format!("finding the mike binary failed: {e}"))?;
+    Ok(std::iter::once(exe.into_os_string())
+        .chain(subcommand.iter().map(std::ffi::OsString::from))
+        .collect())
 }
 
 pub(super) async fn run_job(root: &Path, job: &Job) -> RunReport {
     let started = Instant::now();
-    let script = root.join(job.script);
-    if !script.is_file() {
-        return unrunnable(format!("{} does not exist", script.display()), started);
-    }
+    let program = match program(root, job) {
+        Ok(program) => program,
+        Err(why) => return unrunnable(why, started),
+    };
     let mut command = Command::new("sh");
     if let Some(url) = job_database_url() {
         command.env(DATABASE_URL_VAR, url);
@@ -164,7 +179,7 @@ pub(super) async fn run_job(root: &Path, job: &Job) -> RunReport {
         .arg(LAUNCH)
         .arg("sh")
         .arg(job.nice.to_string())
-        .arg(&script)
+        .args(&program)
         .args(job.args)
         .current_dir(root)
         .stdin(Stdio::null())
@@ -277,16 +292,25 @@ mod tests {
     #[test]
     fn only_a_directory_without_the_scripts_folder_has_no_script_dir() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        assert!(script_dir_missing(dir.path(), &PROMOTE));
-        std::fs::create_dir_all(dir.path().join("scripts"))?;
+        let script_only = Job {
+            mike_command: None,
+            ..PROMOTE
+        };
+        assert!(script_dir_missing(dir.path(), &script_only));
         assert!(!script_dir_missing(dir.path(), &PROMOTE));
+        std::fs::create_dir_all(dir.path().join("scripts"))?;
+        assert!(!script_dir_missing(dir.path(), &script_only));
         Ok(())
     }
 
     #[tokio::test]
     async fn a_checkout_without_the_script_is_unrunnable() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        let report = run_job(dir.path(), &quick(Duration::from_secs(30))).await;
+        let script_only = Job {
+            mike_command: None,
+            ..quick(Duration::from_secs(30))
+        };
+        let report = run_job(dir.path(), &script_only).await;
         let RunResult::Unrunnable(why) = report.result else {
             anyhow::bail!("expected Unrunnable, got {:?}", report.result);
         };

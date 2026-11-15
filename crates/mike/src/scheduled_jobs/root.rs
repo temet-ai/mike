@@ -69,6 +69,13 @@ pub(crate) fn locate_in(job: &Job, exe: Option<&Path>, cwd: Option<&Path>) -> Lo
         .find(|share| has_script(share, job));
     match package {
         Some(root) => found(root),
+        None if job.mike_command.is_some() => match cwd {
+            Some(cwd) => found(cwd.to_path_buf()),
+            None => Located {
+                root: None,
+                presence: Presence::Present,
+            },
+        },
         None => Located {
             root: cwd.map(Path::to_path_buf),
             presence: Presence::Missing,
