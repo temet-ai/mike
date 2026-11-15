@@ -10,7 +10,7 @@ use crate::llm::decisions::point::{Asked, Decider, choice};
 use crate::llm::decisions::{Question, record::DecisionSubject};
 
 pub const POINT: &str = "thread_pick";
-pub const QUESTION_SET: &str = "thread_pick_v1";
+pub const QUESTION_SET: &str = "thread_pick_v2";
 pub const NONE_KEY: &str = "none";
 pub const MIN_PICK: f64 = 0.5;
 const QUESTION: &str = "thread";

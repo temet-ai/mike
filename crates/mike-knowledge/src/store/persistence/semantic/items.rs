@@ -60,6 +60,17 @@ pub struct NewItem {
     pub data: serde_json::Value,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnchorSource {
+    pub request_id: Option<i64>,
+    pub origin_session_uuid: Option<String>,
+    pub origin_turn_id: Option<i64>,
+    pub source_ref: String,
+    pub pattern: String,
+    pub text: String,
+    pub data: serde_json::Value,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SemanticItemRow {
     pub id: i64,
@@ -134,6 +145,34 @@ fn columns(items: &[NewItem]) -> Columns {
 }
 
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    pub async fn anchors_missing_from(
+        self,
+        embedder_key: &str,
+        limit: i64,
+    ) -> Result<Vec<AnchorSource>, PersistError> {
+        crate::metrics::time_db("anchors_missing_from", async move {
+            Ok(sqlx::query_as!(
+                AnchorSource,
+                r#"SELECT DISTINCT ON (a.source_ref)
+                          a.request_id, a.origin_session_uuid::text AS origin_session_uuid,
+                          a.origin_turn_id, a.source_ref, a.pattern AS "pattern!", a.text, a.data
+                     FROM memory.semantic_items a
+                    WHERE a.kind = 'anchor' AND a.embedder_key <> $1 AND a.pattern IS NOT NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM memory.semantic_items b
+                           WHERE b.kind = 'anchor' AND b.source_ref = a.source_ref
+                             AND b.embedder_key = $1)
+                    ORDER BY a.source_ref, a.recorded_at DESC, a.id DESC
+                    LIMIT $2"#,
+                embedder_key,
+                limit,
+            )
+            .fetch_all(&self.pool)
+            .await?)
+        })
+        .await
+    }
+
     pub async fn semantic_request_prompts(
         self,
         ids: &[i64],

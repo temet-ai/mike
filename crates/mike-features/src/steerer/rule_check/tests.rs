@@ -44,6 +44,31 @@ fn parse_rules_keeps_normative_bullets_and_the_path_scope() {
 }
 
 #[test]
+fn parse_rules_joins_a_bullet_wrapped_over_several_lines() {
+    let text = "- Use `TestDb` from `test_support/`; never the capture DB\n  or its hosting instance.\n- Next rule must stand alone here.\n";
+    let rules = parse_rules("rules.md", text);
+    assert_eq!(rules.len(), 2);
+    assert!(
+        rules[0]
+            .text
+            .ends_with("never the capture DB or its hosting instance.")
+    );
+    assert_eq!(rules[1].text, "Next rule must stand alone here.");
+}
+
+#[test]
+fn relevant_ignores_filler_words_shared_with_the_turn() {
+    let rules = vec![rule(
+        "AGENTS.md",
+        "Hand-edit the export only for approved token changes.",
+        &[],
+    )];
+    let input = json!({"command": "rg -n the and for use src"});
+    let turn = TurnTools::from_calls([("Bash", &input)]);
+    assert!(relevant(&rules, &turn, 5).is_empty());
+}
+
+#[test]
 fn parse_rules_reads_numbered_items() {
     let rules = parse_rules(
         "AGENTS.md",

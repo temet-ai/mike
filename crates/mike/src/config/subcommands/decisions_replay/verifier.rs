@@ -4,7 +4,9 @@ use chrono::{DateTime, Utc};
 use super::point::{Judged, Prepared, ReplayPoint};
 use crate::llm::decisions::point::Asked;
 use crate::steerer::verdict::{Need, SteererVerdict};
-use crate::steerer::verifier_precheck::questions::{DISCLOSED, ONLY_ANSWER, UNFINISHED};
+use crate::steerer::verifier_precheck::questions::{
+    DISCLOSED, DONE_EARLIER, NOT_OPERATOR_ASK, ONLY_ANSWER, STILL_RUNNING, UNFINISHED,
+};
 use crate::steerer::verifier_precheck::{self, FireInput, POINT, QUESTION_SET};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::decisions_replay::VerifierItem;
@@ -98,7 +100,9 @@ impl ReplayPoint for VerifierPrecheck {
         let right = fire_right(&item.item);
         match question {
             UNFINISHED => Some(right),
-            DISCLOSED | ONLY_ANSWER => Some(!right),
+            DISCLOSED | ONLY_ANSWER | STILL_RUNNING | NOT_OPERATOR_ASK | DONE_EARLIER => {
+                Some(!right)
+            }
             _ => None,
         }
     }

@@ -37,6 +37,37 @@ fn compose_failed_answer_falls_back_to_the_word_rule() {
     assert_eq!(compose(&Asked::failed_with("timeout"), 1), None);
 }
 
+#[test]
+fn applied_for_keep_apart_answer_marks_skipped() {
+    assert_eq!(applied_for(Some(None)), "skipped");
+    assert_eq!(applied_for(Some(Some((0, 0.9)))), "chosen");
+    assert_eq!(applied_for(None), "none");
+}
+
+#[test]
+fn remembered_verdict_within_a_day_is_reused_and_expires_after() {
+    let topic = purpose("remembered-worker-wake-loops", 3);
+    let other = purpose("remembered-worker-message-delivery", 2);
+    let key = verdict_key(&topic, &[&other]);
+    let then = Instant::now();
+    remember(key.clone(), None, then);
+    assert_eq!(remembered(&key, then + Duration::from_secs(60)), Some(None));
+    assert_eq!(remembered(&key, then + REMEMBER_FOR), None);
+    remember(key.clone(), Some(&other), then);
+    assert_eq!(
+        remembered(&key, then),
+        Some(Some("remembered-worker-message-delivery".to_owned()))
+    );
+}
+
+#[test]
+fn verdict_key_new_candidate_set_asks_again() {
+    let topic = purpose("fleet-coordination", 3);
+    let a = purpose("fleet-verification", 2);
+    let b = purpose("fleet-messaging", 2);
+    assert_ne!(verdict_key(&topic, &[&a]), verdict_key(&topic, &[&a, &b]));
+}
+
 #[tokio::test]
 async fn plan_moves_without_a_decider_equals_the_word_rule() {
     let purposes = vec![

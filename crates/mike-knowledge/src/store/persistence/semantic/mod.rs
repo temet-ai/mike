@@ -13,7 +13,7 @@ pub use candidates::{CandidateDecision, CandidateMemberRow, NewCandidate, Patter
 pub use drift::{DriftRow, DriftSums, NewDriftRow};
 pub use embedders::{EmbedderRow, NewEmbedder, PruneReport, VerifySample};
 pub use floors::{FloorRow, FloorSample, FloorStats, NewFloor};
-pub use items::{DirectiveSource, ItemCount, NewItem, SemanticItemRow, TurnSource};
+pub use items::{AnchorSource, DirectiveSource, ItemCount, NewItem, SemanticItemRow, TurnSource};
 pub use retrieval::{
     AnchorVector, CandidateRow, CandidateSearch, FacetVector, ScopeFilter, TaggerBacktestCase,
 };

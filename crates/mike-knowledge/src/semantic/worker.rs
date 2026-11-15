@@ -14,6 +14,7 @@ use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 
+use super::anchor_carry::carry_anchors;
 use super::builder::{BuildReport, Builder};
 use super::config::SemanticConfig;
 use super::drift_job::DriftRun;
@@ -79,6 +80,26 @@ fn log_failed(e: &SemanticError) {
     tracing::warn!(error = %e, "semantic: tick failed");
 }
 
+fn log_carried(embedder: &str, carried: Result<u64, SemanticError>) {
+    match carried {
+        Ok(0) => {}
+        Ok(carried) => log_carry_count(embedder, carried),
+        Err(e) => log_carry_error(&e),
+    }
+}
+
+fn log_carry_count(embedder: &str, carried: u64) {
+    tracing::info!(
+        carried,
+        embedder,
+        "semantic: anchors carried to the current embedder"
+    );
+}
+
+fn log_carry_error(e: &SemanticError) {
+    tracing::warn!(error = %e, "semantic: anchors could not be carried to the current embedder");
+}
+
 fn log_tick(result: &Result<TickReport, SemanticError>) {
     let Err(e) = result else { return };
     if e.is_embedding_disabled() {
@@ -138,6 +159,17 @@ impl SemanticWorker {
         Ok(floors_due(has_floors, last_computed, last_attempt))
     }
 
+    async fn carry(&self, cfg: &SemanticConfig, embedder: &EmbedderRow) {
+        let carried = carry_anchors(
+            &self.persist,
+            &self.embedding,
+            embedder,
+            cfg.allow_remote_embedding,
+        )
+        .await;
+        log_carried(&embedder.embedder_key, carried);
+    }
+
     async fn periodic(
         &self,
         cfg: &SemanticConfig,
@@ -161,6 +193,7 @@ impl SemanticWorker {
             };
             report.floors_written = run.compute_all().await?.len();
         }
+        self.carry(cfg, embedder).await;
         let env = self.base.decision_env();
         report.tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref())
             .await?

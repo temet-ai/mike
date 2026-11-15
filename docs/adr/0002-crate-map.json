@@ -686,7 +686,14 @@
   "reminders/agent_lessons": "lessons",
   "quiescence_worker/proposer_tick": "lessons",
   "api/launch_cross_crate_tests/fleet_carry_tests": "lessons",
-  "reminders/push_delivery_tests": "lessons"
+  "reminders/push_delivery_tests": "lessons",
+  "reminders/supply_floor": "lessons",
+  "analysis/phrase_point": "eval",
+  "analysis/phrase_worker": "eval",
+  "api/decisions_ask": "state",
+  "api/decisions_calibration": "state",
+  "api/mail_reply_link": "launch",
+  "api/mail_reply_link_tests": "launch"
  },
  "schemas": {
   "comment": "Owning crate per Postgres schema, or per schema.table where a table belongs elsewhere (ADR 0003). Longest key wins. Only the owner writes; other crates read the owner's tables or its contract views.",

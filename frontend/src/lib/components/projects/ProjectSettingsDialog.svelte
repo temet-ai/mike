@@ -16,13 +16,21 @@
 		onMergeProject: (projectPath: string, intoProjectUuid: string) => Promise<void>;
 		onCreateProject: (projectPath: string, name: string) => Promise<void>;
 		onClose: () => void;
+		initialTargetUuid?: string;
 	}
 
 	const KEEP = 'keep';
 	const NEW = 'new';
 
-	const { project, projects, onRenameProject, onMergeProject, onCreateProject, onClose }: Props =
-		$props();
+	const {
+		project,
+		projects,
+		onRenameProject,
+		onMergeProject,
+		onCreateProject,
+		onClose,
+		initialTargetUuid
+	}: Props = $props();
 
 	let name = $state('');
 	let search = $state('');
@@ -65,6 +73,9 @@
 
 	onMount(() => {
 		name = project.custom_name ?? '';
+		if (initialTargetUuid && candidates.some((p) => p.project_uuid === initialTargetUuid)) {
+			picked = initialTargetUuid;
+		}
 	});
 
 	$effect(() => {
