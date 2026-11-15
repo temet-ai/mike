@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::super::jobs::{LESSONS_COMMIT, PROMOTE};
+use super::super::jobs::{Job, LESSONS_COMMIT, PROMOTE};
 use super::{Presence, locate_in};
 
 fn write_script(root: &Path, script: &str) -> anyhow::Result<()> {
@@ -77,8 +77,24 @@ fn a_shipped_job_with_no_script_anywhere_is_missing_and_keeps_the_working_direct
     let dir = tempfile::tempdir()?;
     let (_share, exe) = package_with_binary(dir.path())?;
     let elsewhere = tempfile::tempdir()?;
-    let located = locate_in(&PROMOTE, Some(&exe), Some(elsewhere.path()));
+    let script_only = Job {
+        mike_command: None,
+        ..PROMOTE
+    };
+    let located = locate_in(&script_only, Some(&exe), Some(elsewhere.path()));
     assert_eq!(located.presence, Presence::Missing);
+    assert_eq!(located.root.as_deref(), Some(elsewhere.path()));
+    Ok(())
+}
+
+#[test]
+fn a_mike_subcommand_job_runs_without_any_script_folder() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (_share, exe) = package_with_binary(dir.path())?;
+    let elsewhere = tempfile::tempdir()?;
+    let located = locate_in(&PROMOTE, Some(&exe), Some(elsewhere.path()));
+    assert_eq!(located.presence, Presence::Present);
+    assert!(located.runs_here());
     assert_eq!(located.root.as_deref(), Some(elsewhere.path()));
     Ok(())
 }

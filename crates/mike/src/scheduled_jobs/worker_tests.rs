@@ -27,6 +27,7 @@ static TURNED_OFF: Job = Job {
 static NO_SCRIPTS: Job = Job {
     name: "worker_test_no_scripts",
     cadence: NEVER_OPEN,
+    mike_command: None,
     ..PROMOTE
 };
 
