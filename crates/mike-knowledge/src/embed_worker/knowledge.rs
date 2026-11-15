@@ -156,7 +156,10 @@ async fn lead_sweep(
     upkeep: &mut SweepUpkeep,
     lease_interval: Duration,
 ) -> Result<bool, PersistError> {
-    if !service.is_available() || !persist.holds_worker_role(LEASE_ROLE, lease_interval).await {
+    if !service.is_available()
+        || breaker.should_skip(Instant::now())
+        || !persist.holds_worker_role(LEASE_ROLE, lease_interval).await
+    {
         *upkeep = SweepUpkeep::default();
         return Ok(false);
     }
