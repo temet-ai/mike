@@ -15,8 +15,8 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) const CHECK: &str = "orphan_launches";
 pub(super) const REPO: &str = "temet-ai/mike";
-pub(super) const QUIET_PROBE: &str = "0.10 0.20 0.30 1/200 999\n8\nlock-free\n";
-pub(super) const BUSY_PROBE: &str = "12.50 9.00 8.00 9/200 999\n8\nlock-free\n";
+pub(super) const QUIET_PROBE: &str = "0.10 0.20 0.30 1/200 999\n8\n";
+pub(super) const BUSY_PROBE: &str = "12.50 9.00 8.00 9/200 999\n8\n";
 
 pub(super) fn ok(stdout: &str) -> CmdOutput {
     CmdOutput {
@@ -148,7 +148,6 @@ impl Env {
                 host: "testhost".to_owned(),
                 checkout: None,
                 loadavg: PathBuf::from("/nonexistent/loadavg"),
-                build_lock: PathBuf::from("/nonexistent/build.lock"),
             },
         }
     }

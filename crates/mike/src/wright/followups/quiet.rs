@@ -5,7 +5,7 @@ use super::context::{Here, Place, Target};
 use super::runner::{Cmd, CommandRunner, output};
 use crate::wright::investigate::admission::{Locks, load_over, machine_busy};
 
-const REMOTE_PROBE: &str = "cat /proc/loadavg; nproc; if flock -n /run/user/$(id -u)/mike-heavy-build.lock true; then echo lock-free; else echo lock-held; fi";
+const REMOTE_PROBE: &str = "cat /proc/loadavg; nproc";
 const PROBE_TIMEOUT: Duration = Duration::from_secs(20);
 
 pub(crate) fn parse_probe(stdout: &str) -> Result<(), String> {
@@ -13,23 +13,15 @@ pub(crate) fn parse_probe(stdout: &str) -> Result<(), String> {
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty());
-    let (Some(loadavg), Some(nproc), Some(lock)) = (lines.next(), lines.next(), lines.next())
-    else {
+    let (Some(loadavg), Some(nproc)) = (lines.next(), lines.next()) else {
         return Err(format!(
-            "the probe printed {stdout:?}, not load, processors and lock"
+            "the probe printed {stdout:?}, not load and processors"
         ));
     };
     let processors: usize = nproc
         .parse()
         .map_err(|e| format!("the probe's processor count {nproc:?} is not a number: {e}"))?;
-    if let Some(reason) = load_over(loadavg, processors) {
-        return Err(reason);
-    }
-    match lock {
-        "lock-free" => Ok(()),
-        "lock-held" => Err("a heavy build holds mike-heavy-build.lock".to_owned()),
-        other => Err(format!("the probe's lock line is {other:?}")),
-    }
+    load_over(loadavg, processors).map_or(Ok(()), Err)
 }
 
 async fn remote<R: CommandRunner>(runner: &R, host: &str) -> Result<(), String> {
@@ -51,7 +43,6 @@ fn local(here: &Here, folder: &str) -> Result<(), String> {
     let locks = Locks {
         loadavg: &here.loadavg,
         deploy: &deploy,
-        build: &here.build_lock,
     };
     machine_busy(&locks).map_or(Ok(()), Err)
 }
