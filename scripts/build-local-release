@@ -142,12 +142,10 @@ echo "==> Building $target at ${sha:0:9} for a $kind; log: $log"
 started=$SECONDS
 {
   cargo fetch --locked
-  # A release installs node_modules from scratch; a deploy keeps them between commits.
+  (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
   if [ "$deploy" = 0 ]; then
-    (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
     nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
   else
-    (cd frontend && pnpm fetch --frozen-lockfile)
     nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"} --deploy-build
   fi
 } >"$log" 2>&1 || die "the build failed; see $log"
