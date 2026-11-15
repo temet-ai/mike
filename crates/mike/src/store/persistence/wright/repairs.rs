@@ -8,6 +8,7 @@ use crate::store::persistence::PersistError;
 const CLAIM: &str = include_str!("sql/repairs_claim.sql");
 const ADVANCE: &str = include_str!("sql/repairs_advance.sql");
 const UNCLAIM: &str = include_str!("sql/repairs_unclaim.sql");
+const WAITING: &str = include_str!("sql/repairs_waiting.sql");
 const LANDED: &str = include_str!("sql/repairs_landed.sql");
 const MARK_DEPLOYED: &str = include_str!("sql/repairs_mark_deployed.sql");
 const MARK_HEALTHY: &str = include_str!("sql/repairs_mark_healthy.sql");
@@ -129,6 +130,10 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
             .fetch_optional(self.pool())
             .await?;
         Ok(gone.is_some())
+    }
+
+    pub(crate) async fn wright_repair_waiting(self) -> Result<bool, PersistError> {
+        Ok(sqlx::query_scalar(WAITING).fetch_one(self.pool()).await?)
     }
 
     pub(crate) async fn landed_wright_repairs(self) -> Result<Vec<(i64, String)>, PersistError> {

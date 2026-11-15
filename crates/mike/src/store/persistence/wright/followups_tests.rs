@@ -369,6 +369,37 @@ async fn followup_handoff_skips_a_code_defect_the_repair_path_owns() -> anyhow::
 }
 
 #[tokio::test]
+async fn followup_handoff_leaves_repair_its_part_and_skips_an_answered_root_cause()
+-> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let web = env.persist.web();
+    let (problem, episode) = env.problem(CHECK, true).await?;
+    let finding = env.finding(problem, episode).await?;
+    sqlx::query(
+        "UPDATE wright.findings SET kind = 'code_defect', cause_established = true,
+                confirmed_cause = 'reaper never closes the launch', owning_part = 'reap'
+          WHERE id = $1",
+    )
+    .bind(finding)
+    .execute(env.persist.pool())
+    .await?;
+    let root = env.record("root_cause", None, finding).await?;
+    let repaired_part = env.record("code_defect", Some("reap"), finding).await?;
+    let other_part = env.record("code_defect", Some("retro"), finding).await?;
+    for id in [root, repaired_part, other_part] {
+        env.file(id).await?;
+    }
+    let next = web
+        .next_wright_handoff()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no handoff"))?;
+    assert_eq!(next.id, other_part);
+    env.hand_off(other_part).await?;
+    assert!(web.next_wright_handoff().await?.is_none());
+    env.db.cleanup().await
+}
+
+#[tokio::test]
 async fn followup_returned_twice_is_stuck_and_still_blocks_a_duplicate() -> anyhow::Result<()> {
     let env = Env::boot().await?;
     let web = env.persist.web();

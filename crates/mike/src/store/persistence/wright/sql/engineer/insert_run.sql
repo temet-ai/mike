@@ -4,7 +4,8 @@ WITH lim AS (
 today AS (
     SELECT count(*) AS started
       FROM wright.investigations
-     WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+     WHERE mode = 'investigate'
+       AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
        AND (state IN ('starting', 'running', 'killed') OR tokens > 0 OR tool_calls > 0)
 ),
 open_episode AS (
@@ -15,5 +16,5 @@ INSERT INTO wright.investigations
 SELECT $1, $2, (SELECT id FROM open_episode), $3, 'starting', $4, $5, $6, $7,
        now() + make_interval(secs => lim.wall_seconds)
   FROM lim, today
- WHERE today.started < lim.daily_starts
+ WHERE $1 <> 'investigate' OR today.started < lim.daily_starts
 RETURNING id, episode_id, deadline_at
