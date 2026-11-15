@@ -95,7 +95,7 @@ fn compose_two_axis_operator_acceptance_labels_accepted_even_when_not_seen_as_de
         shape,
         &[
             (questions::ACCEPTED, 0.8),
-            (questions::CORRECTED, 0.1),
+            (questions::NAMES_AN_ERROR, 0.1),
             (questions::DELIVERED, 0.1),
             (questions::ABANDONED, 0.9),
         ],
@@ -110,13 +110,13 @@ fn compose_two_axis_both_yes_is_corrected_even_when_acceptance_is_stronger() -> 
     let shape = Shape::TwoAxis { has_next: true };
     let c = composed(
         shape,
-        &[(questions::ACCEPTED, 0.9), (questions::CORRECTED, 0.6)],
+        &[(questions::ACCEPTED, 0.9), (questions::PUSHES_BACK, 0.6)],
     )?;
     assert_eq!(c.reaction, Reaction::Corrected);
     assert_eq!(c.label, JudgeLabel::Corrected);
     let below = composed(
         shape,
-        &[(questions::ACCEPTED, 0.7), (questions::CORRECTED, 0.4)],
+        &[(questions::ACCEPTED, 0.7), (questions::ASKS_AGAIN, 0.4)],
     )?;
     assert_eq!(below.reaction, Reaction::Accepted);
     Ok(())
@@ -196,7 +196,7 @@ fn compose_two_axis_correction_beats_acceptance() -> anyhow::Result<()> {
     let c = composed(
         shape,
         &[
-            (questions::CORRECTED, 0.8),
+            (questions::NAMES_AN_ERROR, 0.8),
             (questions::ACCEPTED, 0.7),
             (questions::DELIVERED, 0.9),
         ],
@@ -248,8 +248,10 @@ fn state_cuts_the_front_of_a_long_turn_and_keeps_its_end() {
 fn questions_only_ask_for_the_next_message_when_one_exists() {
     let with = questions::questions(Shape::TwoAxis { has_next: true });
     let without = questions::questions(Shape::TwoAxis { has_next: false });
-    assert!(with.contains_key(questions::CORRECTED));
-    assert!(!without.contains_key(questions::CORRECTED));
+    for key in questions::CORRECTION_SIGNALS {
+        assert!(with.contains_key(key), "{key}");
+        assert!(!without.contains_key(key), "{key}");
+    }
     assert!(questions::questions(Shape::Legacy).contains_key(questions::OWN_ERROR));
 }
 
@@ -293,6 +295,92 @@ fn the_accepted_question_no_longer_takes_a_next_step_and_the_others_carry_their_
     let asked = questions::questions(Shape::TwoAxis { has_next: true });
     let text = |key: &str| format!("{:?}", asked.get(key));
     assert!(!text(questions::ACCEPTED).contains("next step"));
-    assert!(text(questions::CORRECTED).contains("turn's own work"));
+    assert!(text(questions::NAMES_AN_ERROR).contains("assistant's own work"));
     assert!(text(questions::SHIPPED).contains("offer"));
+    assert!(text(questions::ACCEPTED).contains("`operator_next_message`"));
+    assert!(text(questions::DELIVERED).contains("`operator_request`"));
+}
+
+#[test]
+fn compose_correction_signals_any_one_at_or_over_half_is_corrected() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    for key in questions::CORRECTION_SIGNALS {
+        let c = composed(shape, &[(key, 0.5), (questions::ACCEPTED, 0.9)])?;
+        assert_eq!(c.reaction, Reaction::Corrected, "{key}");
+        assert_eq!(c.label, JudgeLabel::Corrected, "{key}");
+        assert!((c.confidence - 0.5).abs() < 1e-9, "{key}");
+    }
+    let strongest = composed(
+        shape,
+        &[
+            (questions::NAMES_AN_ERROR, 0.6),
+            (questions::SOUNDS_FRUSTRATED, 0.8),
+        ],
+    )?;
+    assert!((strongest.confidence - 0.8).abs() < 1e-9);
+    Ok(())
+}
+
+#[test]
+fn compose_correction_signals_all_under_half_fall_through() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    let signals: Vec<(&str, f64)> = questions::CORRECTION_SIGNALS
+        .iter()
+        .map(|key| (*key, 0.49))
+        .collect();
+    let mut accepted = signals.clone();
+    accepted.push((questions::ACCEPTED, 0.8));
+    assert_eq!(composed(shape, &accepted)?.reaction, Reaction::Accepted);
+    let unclear = composed(shape, &signals)?;
+    assert_eq!(unclear.reaction, Reaction::Unclear);
+    assert!((unclear.confidence - 0.51).abs() < 1e-9);
+    Ok(())
+}
+
+#[test]
+fn state_sends_no_tool_counts() {
+    let mut f = facts("done", Some("thanks"));
+    f.tool_call_count = 7;
+    f.tool_error_count = 2;
+    let sent = state(&f, true);
+    assert!(sent.get("tool_call_count").is_none());
+    assert!(sent.get("tool_error_count").is_none());
+}
+
+#[test]
+fn state_flags_a_next_message_that_repeats_the_request() {
+    let repeated = facts("done", Some("  do it \n"));
+    let sent = state(&repeated, true);
+    assert_eq!(sent["next_message_repeats_the_request"], true);
+    assert_eq!(sent["operator_next_message"], "do it");
+    let fresh = state(&facts("done", Some("now the docs")), true);
+    assert_eq!(fresh["next_message_repeats_the_request"], false);
+    assert!(
+        state(&facts("done", None), true)
+            .get("next_message_repeats_the_request")
+            .is_none()
+    );
+}
+
+#[test]
+fn state_drops_a_machine_text_next_message_and_cleans_a_mixed_one() {
+    let machine = facts(
+        "done",
+        Some("<task-notification>\n<status>completed</status>\n</task-notification>"),
+    );
+    assert!(state(&machine, true).get("operator_next_message").is_none());
+    assert_eq!(
+        effective_shape(&machine, Shape::TwoAxis { has_next: true }),
+        Shape::TwoAxis { has_next: false }
+    );
+    let slash = facts("done", Some("/commit"));
+    assert!(state(&slash, true).get("operator_next_message").is_none());
+    let mixed = facts(
+        "done",
+        Some("<system-reminder>date is today</system-reminder>\nthat is still broken"),
+    );
+    assert_eq!(
+        state(&mixed, true)["operator_next_message"],
+        "that is still broken"
+    );
 }

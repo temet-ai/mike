@@ -80,11 +80,49 @@ fn compose_unknown_choice_gives_no_verdict() {
 }
 
 #[test]
-fn state_keeps_short_text_whole_and_reports_its_length() {
+fn state_keeps_short_text_whole() {
     let value = state(&input("continue"));
     assert_eq!(value["text"], json!("continue"));
-    assert_eq!(value["text_chars"], json!(8));
-    assert_eq!(value["author_guess"], json!("operator"));
+}
+
+#[test]
+fn state_sends_only_the_text_and_what_it_follows() {
+    let value = state(&input("continue"));
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .map(|o| o.keys().map(String::as_str).collect())
+        .unwrap_or_default();
+    keys.sort_unstable();
+    assert_eq!(keys, ["follows", "follows_is", "text"]);
+}
+
+#[test]
+fn state_follows_the_reply_when_the_previous_message_is_wholly_machine_text() {
+    let value = state(&with_previous(
+        "continue",
+        "<system-reminder>\nbuild output\n</system-reminder>",
+        "all green",
+    ));
+    assert_eq!(value["follows"], json!("all green"));
+    assert_eq!(value["follows_is"], json!("previous_assistant_reply"));
+}
+
+#[test]
+fn state_follows_only_the_operators_words_of_a_previous_message_with_a_reminder() {
+    let value = state(&with_previous(
+        "continue",
+        "<system-reminder>\nnoise\n</system-reminder>\nbuild the thing",
+        "done",
+    ));
+    assert_eq!(value["follows"], json!("build the thing"));
+    assert_eq!(value["follows_is"], json!("previous_user_message"));
+}
+
+#[test]
+fn operator_comes_after_mail_in_the_options() {
+    let keys: Vec<&str> = OPTIONS.iter().map(|(key, _)| *key).collect();
+    let position = |name: &str| keys.iter().position(|key| *key == name);
+    assert!(position("mail") < position("operator"));
 }
 
 #[test]

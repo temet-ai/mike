@@ -16,7 +16,7 @@ use crate::store::persistence::lessons::placement::{SkillPurpose, TopicMove};
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub const POINT: &str = "topic_merge";
-pub const QUESTION_SET: &str = "topic_merge_v2";
+pub const QUESTION_SET: &str = "topic_merge_v3";
 pub const MIN_SAME: f64 = 0.7;
 const MAX_CALLS: usize = 12;
 const MAX_CANDIDATES: usize = 4;
@@ -62,20 +62,17 @@ fn question_key(index: usize) -> String {
     format!("candidate_{index}")
 }
 
-pub fn questions(topic: &str, candidates: &[&SkillPurpose]) -> BTreeMap<String, Question> {
-    candidates
-        .iter()
-        .enumerate()
-        .map(|(index, other)| {
+pub fn questions(count: usize) -> BTreeMap<String, Question> {
+    (0..count)
+        .map(|index| {
             (
                 question_key(index),
                 noul(
                     &format!(
-                        "Do the topics \"{topic}\" and \"{}\" cover the same area of work, so that lessons filed under one belong under the other?",
-                        other.topic
+                        "Do `topic.sample_lessons` and `candidates[{index}].sample_lessons` describe the same area of work?"
                     ),
-                    "both topics name the same area of work",
-                    "the topics name different areas of work",
+                    "both sets of lessons describe the same area of work",
+                    "the sets of lessons describe different areas of work",
                 ),
             )
         })
@@ -91,8 +88,6 @@ fn card(purpose: &SkillPurpose, samples: &Samples) -> Value {
     let sample = samples.get(&(purpose.project_id, purpose.topic.clone()));
     json!({
         "topic": purpose.topic,
-        "lessons": purpose.lessons,
-        "has_shipped_skill": purpose.shipped,
         "sample_lessons": sample.map(Vec::as_slice).unwrap_or_default(),
     })
 }
@@ -218,7 +213,7 @@ async fn ask_verdict(
         .ask(
             QUESTION_SET,
             facts,
-            questions(&topic.topic, candidates),
+            questions(candidates.len()),
             DecisionSubject {
                 project_id: Some(topic.project_id),
                 ..DecisionSubject::default()

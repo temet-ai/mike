@@ -62,6 +62,8 @@ pub async fn classify(env: &DecisionEnv, input: &Unmatched) -> Option<Verdict> {
     let composed = json!({
         "score": verdict.map_or(0.0, |v| v.probability),
         "origin": verdict.map(|v| v.origin.key()),
+        "author_guess": input.author,
+        "sent_by_subagent": input.has_agent_id,
     });
     let applied = if changed { "chosen" } else { "none" };
     decider

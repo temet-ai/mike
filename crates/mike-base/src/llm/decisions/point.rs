@@ -251,6 +251,13 @@ pub fn noul(instructions: &str, yes: &str, no: &str) -> Question {
     }
 }
 
+pub fn noul_shaped(instructions: Value, criteria: Option<Value>) -> Question {
+    Question::NoulShaped {
+        instructions,
+        criteria,
+    }
+}
+
 pub fn choice(instructions: &str, options: &[(&str, &str)]) -> Question {
     Question::Choice {
         instructions: instructions.to_owned(),

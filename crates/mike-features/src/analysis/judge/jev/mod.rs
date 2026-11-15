@@ -31,7 +31,7 @@ pub(crate) fn askable(facts: &TurnFacts<'_>) -> bool {
     !facts.assistant_text.trim().is_empty()
 }
 
-pub(crate) fn effective_shape(facts: &TurnFacts<'_>, shape: Shape) -> Shape {
+pub fn effective_shape(facts: &TurnFacts<'_>, shape: Shape) -> Shape {
     match shape {
         Shape::TwoAxis { has_next: true } if state::present(facts.next_message).is_none() => {
             Shape::TwoAxis { has_next: false }

@@ -86,11 +86,24 @@ fn questions_and_state_name_the_topic_and_each_candidate() {
     let topic = purpose("deploying proxy", 4);
     let other = purpose("proxy deploys", 2);
     let candidates = vec![&other];
-    assert!(questions(&topic.topic, &candidates).contains_key("candidate_0"));
+    let asked = questions(candidates.len());
+    assert!(asked.contains_key("candidate_0"));
+    let Some(Question::Noul { instructions, .. }) = asked.get("candidate_0") else {
+        panic!("candidate_0 is not a noul");
+    };
     assert_eq!(
-        state(&topic, &candidates, &Samples::new())["candidates"][0]["topic"],
-        "proxy deploys"
+        instructions,
+        "Do `topic.sample_lessons` and `candidates[0].sample_lessons` describe the same area of work?"
     );
+    let value = state(&topic, &candidates, &Samples::new());
+    assert_eq!(value["candidates"][0]["topic"], "proxy deploys");
+}
+
+#[test]
+fn card_leaves_out_the_lesson_count_and_the_shipped_flag() {
+    let value = state(&purpose("deploying proxy", 4), &[], &Samples::new());
+    assert!(value["topic"].get("lessons").is_none());
+    assert!(value["topic"].get("has_shipped_skill").is_none());
 }
 
 #[test]

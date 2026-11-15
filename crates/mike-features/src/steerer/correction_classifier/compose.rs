@@ -3,7 +3,8 @@ use serde_json::{Value, json};
 use super::questions::CORRECTS;
 use crate::llm::decisions::point::Asked;
 
-pub const CORRECTION_AT: f64 = 0.55;
+pub const CORRECTION_AT: f64 = 0.7;
+pub const CLARIFICATION_AT: f64 = 0.3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Classified {
@@ -23,6 +24,7 @@ impl Classified {
             "kind": self.kind,
             "probability": self.probability,
             "correction_at": CORRECTION_AT,
+            "clarification_at": CLARIFICATION_AT,
         })
     }
 }
@@ -32,12 +34,12 @@ pub fn compose(asked: &Asked) -> Option<Classified> {
         return None;
     }
     let probability = asked.noul(CORRECTS)?;
-    Some(Classified {
-        kind: if probability >= CORRECTION_AT {
-            "correction"
-        } else {
-            "clarification"
-        },
-        probability,
-    })
+    let kind = if probability >= CORRECTION_AT {
+        "correction"
+    } else if probability <= CLARIFICATION_AT {
+        "clarification"
+    } else {
+        return None;
+    };
+    Some(Classified { kind, probability })
 }

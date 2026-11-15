@@ -9,7 +9,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 
 pub const POINT: &str = "leaf_judge";
-pub const QUESTION_SET: &str = "leaf_judge_v2";
+pub const QUESTION_SET: &str = "leaf_judge_v3";
 pub const PASS_AT: f64 = 0.75;
 pub const FAIL_AT: f64 = 0.25;
 const DIFF_HEAD_CHARS: usize = 4000;
@@ -61,13 +61,10 @@ pub fn state(input: &JudgeInput) -> Value {
         "task": input.task,
         "criteria": input.criteria,
         "report": input.report,
-        "floor_passed_at": input.floor.sha(),
         "diff": diff_excerpt(&input.diff),
         "open_obligations": input.open_obligations,
         "task_brief": input.task_brief,
         "shared_with": input.shared_with,
-        "round": input.earlier_verdicts.len() + 1,
-        "earlier_verdicts": input.earlier_verdicts,
     })
 }
 

@@ -16,7 +16,10 @@ use crate::store::persistence::fleet::effort::{
 };
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
-pub const QUESTION_SET: &str = "fleet_effort_v2";
+pub const QUESTION_SET: &str = "fleet_effort_v3";
+pub const LABEL_AT: f64 = 0.6;
+const CHANNEL_OPEN: &str = "<channel ";
+const CHANNEL_CLOSE: &str = "</channel>";
 pub const OBSERVE_BATCH: i64 = 300;
 pub const LABEL_BATCH: i64 = 8;
 const LABEL_EVERY: Duration = Duration::from_secs(15);
@@ -190,12 +193,42 @@ pub fn state(steps: &[Unlabelled]) -> Value {
     json!({ "steps": rows })
 }
 
+fn started_by(trigger: &str) -> &'static str {
+    match trigger {
+        "mail" => "mail",
+        "operator" => "operator",
+        _ => "seat",
+    }
+}
+
+pub fn mail_body(text: &str) -> &str {
+    let trimmed = text.trim();
+    let Some(open) = trimmed.find(CHANNEL_OPEN) else {
+        return trimmed;
+    };
+    let after = &trimmed[open..];
+    let body = after.split_once('>').map_or("", |(_, body)| body);
+    body.trim()
+        .strip_suffix(CHANNEL_CLOSE)
+        .unwrap_or(body)
+        .trim()
+}
+
+fn prompt_of(step: &Unlabelled) -> &str {
+    let prompt = if step.trigger == "mail" {
+        mail_body(&step.text)
+    } else {
+        &step.text
+    };
+    text::tail(prompt, STEP_TEXT_BYTES)
+}
+
 fn step_facts(step: &Unlabelled) -> Value {
     let mut facts = json!({
         "step": step.request_id,
         "seat": step.seat,
-        "started_by": step.trigger,
-        "prompt": text::tail(&step.text, STEP_TEXT_BYTES),
+        "started_by": started_by(&step.trigger),
+        "prompt": prompt_of(step),
         "tool_calls": text::head(&step.tools, STEP_TEXT_BYTES),
     });
     if step.tools.is_empty() && !step.response.is_empty() {
@@ -210,6 +243,13 @@ fn step_facts(step: &Unlabelled) -> Value {
 }
 
 pub fn compose(asked: &Asked, steps: &[Unlabelled]) -> Vec<(i64, Label, f64)> {
+    answered(asked, steps)
+        .into_iter()
+        .filter(|(_, _, p)| *p >= LABEL_AT)
+        .collect()
+}
+
+pub fn answered(asked: &Asked, steps: &[Unlabelled]) -> Vec<(i64, Label, f64)> {
     if asked.failed() {
         return Vec::new();
     }
@@ -220,6 +260,14 @@ pub fn compose(asked: &Asked, steps: &[Unlabelled]) -> Vec<(i64, Label, f64)> {
             Some((step.request_id, Label::from_key(key)?, p))
         })
         .collect()
+}
+
+fn decided_by(probability: f64) -> &'static str {
+    if probability >= LABEL_AT {
+        "jev"
+    } else {
+        "jev_unsure"
+    }
 }
 
 static LAST_LABELLED: LazyLock<DashMap<String, Instant>> = LazyLock::new(DashMap::new);
@@ -313,12 +361,12 @@ pub async fn label_pass(
             LABEL_EVERY
         },
     );
-    let labelled: Vec<Labelled> = chosen
+    let labelled: Vec<Labelled> = answered(&asked, &steps)
         .iter()
-        .map(|(id, label, _)| Labelled {
+        .map(|(id, label, p)| Labelled {
             request_id: *id,
             label: label.as_str().to_owned(),
-            decided_by: "jev".to_owned(),
+            decided_by: decided_by(*p).to_owned(),
             record_id: asked.record_id,
         })
         .collect();

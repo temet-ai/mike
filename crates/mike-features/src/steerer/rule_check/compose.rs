@@ -1,16 +1,18 @@
 use serde_json::{Value, json};
 
-use super::questions::key;
+use super::questions::{key, requires_key};
 use super::rules::Rule;
 use crate::llm::decisions::point::Asked;
 
-pub const VIOLATION_AT: f64 = 0.8;
+pub const WARN_AT: f64 = 0.8;
+pub const HOLD_AT: f64 = 0.3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Outcome {
     pub rule: usize,
     pub probability: f64,
     pub violated: bool,
+    pub held: bool,
 }
 
 impl Outcome {
@@ -28,7 +30,9 @@ impl Outcome {
             "rule": self.rule,
             "probability": self.probability,
             "violated": self.violated,
-            "violation_at": VIOLATION_AT,
+            "held": self.held,
+            "warn_at": WARN_AT,
+            "hold_at": HOLD_AT,
             "delivered": delivered,
         })
     }
@@ -41,12 +45,21 @@ impl Outcome {
     }
 }
 
+fn chance(asked: &Asked, index: usize) -> Option<f64> {
+    let forbids = asked.noul(&key(index))?;
+    Some(
+        asked
+            .noul(&requires_key(index))
+            .map_or(forbids, |leaves_out| forbids.max(leaves_out)),
+    )
+}
+
 pub fn compose(asked: &Asked, count: usize) -> Option<Outcome> {
     if asked.failed() {
         return None;
     }
     let chances: Vec<f64> = (0..count)
-        .map(|i| asked.noul(&key(i)))
+        .map(|i| chance(asked, i))
         .collect::<Option<_>>()?;
     let (rule, probability) = chances
         .iter()
@@ -56,6 +69,7 @@ pub fn compose(asked: &Asked, count: usize) -> Option<Outcome> {
     Some(Outcome {
         rule,
         probability,
-        violated: probability >= VIOLATION_AT,
+        violated: probability >= WARN_AT,
+        held: probability <= HOLD_AT,
     })
 }

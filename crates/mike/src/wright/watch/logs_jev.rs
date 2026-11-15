@@ -14,9 +14,10 @@ use crate::llm::decisions::reuse::recent_answers;
 use crate::llm::decisions::text::head_chars;
 
 pub(crate) const POINT: &str = "log_group";
-pub(crate) const QUESTION_SET: &str = "log_group_v1";
+pub(crate) const QUESTION_SET: &str = "log_group_v2";
 const SAME: &str = "same";
 const MERGE_AT: f64 = 0.8;
+const KEEP_APART: f64 = 0.3;
 const MAX_ASKS: usize = 20;
 const MESSAGE_CHARS: usize = 300;
 const WORDS_SHARED: f64 = 0.5;
@@ -75,9 +76,9 @@ pub(crate) fn questions() -> BTreeMap<String, Question> {
     BTreeMap::from([(
         SAME.to_owned(),
         noul(
-            "Two log lines from the same component were not grouped by the usual rule. Do they report the same underlying problem, differing only in details such as names, numbers or identifiers?",
-            "They report the same problem.",
-            "They report different problems.",
+            "Do `line_a.message` and `line_b.message` report the same problem?",
+            "The same statement or error; only names, numbers or identifiers differ",
+            "Different SQL statements, tables or error kinds",
         ),
     )])
 }
@@ -171,6 +172,14 @@ fn find(root: &[usize], mut at: usize) -> usize {
     at
 }
 
+pub(crate) fn applied_for(probability: Option<f64>, merge: bool) -> &'static str {
+    match probability {
+        _ if merge => "chosen",
+        Some(p) if p < KEEP_APART => "skipped",
+        _ => "none",
+    }
+}
+
 async fn ask_pair(
     decider: &Decider,
     groups: &[(Key, Vec<&LogLine>)],
@@ -183,7 +192,7 @@ async fn ask_pair(
             state(&groups[a].0, &groups[b].0),
             questions(),
             DecisionSubject::default(),
-            json!({"merge_at": MERGE_AT}),
+            json!({"merge_at": MERGE_AT, "keep_apart": KEEP_APART}),
         )
         .await;
     pace.spent(&asked);
@@ -196,7 +205,7 @@ async fn ask_pair(
         .mark(
             &asked,
             asked.composed(json!({"score": probability.unwrap_or(1.0)})),
-            if merge { "chosen" } else { "none" },
+            applied_for(probability, merge),
         )
         .await;
     merge

@@ -1,8 +1,8 @@
 use serde_json::{Value, json};
 
 use super::questions::{
-    ABANDONED, ACCEPTED, ASKS_OPERATOR, CHECKED, CORRECTED, DELIVERED, LEFT_OPEN, OWN_ERROR,
-    REDIRECTED, SHIPPED, Shape,
+    ABANDONED, ACCEPTED, ASKS_OPERATOR, CHECKED, CORRECTION_SIGNALS, DELIVERED, LEFT_OPEN,
+    OWN_ERROR, REDIRECTED, SHIPPED, Shape,
 };
 use crate::analysis::judge::two_axis::{Delivery, Reaction};
 use crate::analysis::judge::{EvidenceQuality, JudgeLabel};
@@ -55,12 +55,19 @@ fn p(asked: &Asked, key: &str) -> f64 {
     asked.noul(key).unwrap_or(0.0)
 }
 
+fn correction_signal(asked: &Asked) -> f64 {
+    CORRECTION_SIGNALS
+        .iter()
+        .map(|key| p(asked, key))
+        .fold(0.0, f64::max)
+}
+
 fn reaction(asked: &Asked, has_next: bool) -> (Reaction, f64) {
     if !has_next {
         return (Reaction::NoResponse, 1.0);
     }
     let (corrected, redirected, accepted) = (
-        p(asked, CORRECTED),
+        correction_signal(asked),
         p(asked, REDIRECTED),
         p(asked, ACCEPTED),
     );
