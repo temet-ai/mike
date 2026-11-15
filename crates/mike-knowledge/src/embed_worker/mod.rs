@@ -27,6 +27,8 @@ pub mod knowledge_header_tests;
 #[cfg(test)]
 pub mod knowledge_key_tests;
 #[cfg(test)]
+mod knowledge_lease_tests;
+#[cfg(test)]
 pub mod knowledge_report_tests;
 #[cfg(test)]
 pub mod knowledge_session_tests;
