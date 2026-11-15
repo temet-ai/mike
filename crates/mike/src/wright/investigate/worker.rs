@@ -245,12 +245,25 @@ pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
         log_reconcile_failed(&e);
         return None;
     }
+    if repair_waiting(ctx).await {
+        return None;
+    }
     if let Some(request) = next_root_cause(ctx).await {
         return run_request(ctx, request).await;
     }
     let pick = next_pick(ctx).await?;
     let request = read_request(ctx, pick).await?;
     run_request(ctx, request).await
+}
+
+async fn repair_waiting(ctx: &EngineerContext) -> bool {
+    match ctx.persist.web().wright_repair_waiting().await {
+        Ok(waiting) => waiting,
+        Err(e) => {
+            log_pick_failed(&e);
+            true
+        }
+    }
 }
 
 async fn run_request(ctx: &EngineerContext, request: RunRequest) -> Option<RunOutcome> {

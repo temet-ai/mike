@@ -147,6 +147,17 @@ async fn investigate_second_start_is_busy_and_daily_limit_refuses() -> anyhow::R
             limit: 1
         })
     ));
+    let answer = start_run(
+        &rig.ctx,
+        RunRequest {
+            mode: RunMode::Answer,
+            problem_id: None,
+            ..request()
+        },
+    )
+    .await?;
+    expire(&rig.ctx.persist, answer.investigation_id).await?;
+    wait(answer).await;
     rig.ctx.toggles.store(std::sync::Arc::new(
         crate::feature_toggles::FeatureToggles {
             wright: false,
