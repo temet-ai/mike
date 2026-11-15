@@ -21,6 +21,10 @@
 			'href',
 			'/settings/integrations'
 		);
+		await expect(within(navigation).getByRole('link', { name: 'Knowledge' })).toHaveAttribute(
+			'href',
+			'/settings/knowledge'
+		);
 		await expect(within(navigation).getByRole('link', { name: 'Assistants' })).toHaveAttribute(
 			'href',
 			'/settings/assistants'

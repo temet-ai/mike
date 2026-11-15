@@ -24,6 +24,14 @@ fn blocks_added_by_later_prompts_are_all_read_once_each() {
 }
 
 #[test]
+fn ids_are_read_from_a_block_whose_tags_carry_their_revision() {
+    let body = text_body(
+        r"<system-reminder>\nLessons recorded from earlier sessions in this project:\n[lesson:12 rev:3] [correction] run make fmt\n[lesson:7 rev:1] [convention] name the toggle\n</system-reminder>",
+    );
+    assert_eq!(mod_lesson_ids(&body), vec![12, 7]);
+}
+
+#[test]
 fn a_tag_outside_the_mod_block_is_not_a_mod_lesson() {
     let body = text_body(r"notes\n[lesson:5] [correction] pasted by a person\n");
     assert!(mod_lesson_ids(&body).is_empty());
@@ -96,7 +104,8 @@ fn a_body_without_tags_has_no_mod_lessons() {
 fn the_heading_and_tag_format_match_the_mod_source() {
     let source = include_str!("../../../../mods/mike/hooks/lessons.ts");
     assert!(source.contains(&format!("LESSONS_HEADING = '{LESSONS_HEADING}'")));
-    assert!(source.contains(&format!("`{LESSON_TAG_OPEN}${{l.id}}]")));
+    assert!(source.contains(&format!("`{LESSON_TAG_OPEN}${{l.id}}")));
+    assert!(source.contains(&format!("`{REVISION_MARK}${{l.rev}}`")));
 }
 
 #[test]

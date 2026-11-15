@@ -123,6 +123,7 @@ async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
                 prompt: &request.prompt,
                 held: &request.held,
                 held_versions: request.held_versions.as_ref(),
+                held_tags: &[],
                 limit: settings.max_lessons_to_inject,
                 content_only: toggles.recall_injector,
             })

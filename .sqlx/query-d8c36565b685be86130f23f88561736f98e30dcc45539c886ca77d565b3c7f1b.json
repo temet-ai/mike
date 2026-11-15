@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.project_uuid AS \"project_uuid?\", u.input->>'skill' AS skill, count(*) AS \"loads!\"\n             FROM tools.uses u\n             JOIN requests.requests r ON r.id = u.request_id\n             LEFT JOIN sessions.sessions s ON s.id = r.session_id\n             LEFT JOIN projects.projects p ON p.id = coalesce(r.project_id, s.project_id)\n            WHERE u.tool_name = 'Skill' AND u.created_at > now() - make_interval(days => $1)\n            GROUP BY 1, 2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "skill",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "loads!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "d8c36565b685be86130f23f88561736f98e30dcc45539c886ca77d565b3c7f1b"
+}

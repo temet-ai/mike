@@ -28,14 +28,8 @@ SCRIPTS = (
     "scripts/codex-hooks/install",
     "scripts/codex-hooks/mike-codex-hook",
     # Python packages those scripts import.
-    "scripts/learning_audit/",
     "scripts/knowledge/",
     "scripts/tool_reuse/",
-    "scripts/compressor_eval/commands.py",
-    "scripts/compressor_eval/core.py",
-    "scripts/compressor_eval/followups.py",
-    "scripts/compressor_eval/qualification.py",
-    "scripts/compressor_eval/trials.py",
 )
 TREE = "scripts/"
 

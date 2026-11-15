@@ -2,7 +2,7 @@
 title: Portable projects and project knowledge
 status: active
 created: 2026-09-20
-updated: 2026-11-06
+updated: 2026-11-15
 summary: Link checkouts on multiple machines, synchronize original documents and lessons, and retrieve project evidence through Mike MCP.
 ---
 
@@ -214,6 +214,40 @@ GROUP BY 1, 2 ORDER BY 1, 2;
 
 The scanned text is the operator's own notes and skills; it reaches an outside
 model only through the lesson proposer, which is off unless `judge_lessons` is on.
+
+## Knowledge kinds
+
+Kinds of knowledge are data, not a fixed list. The eleven built-in kinds (`artifact`, `lesson`, `note`,
+`thread`, `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`, `session`) can be
+switched off or retuned but not deleted. You can add another from a table in the capture database without a
+code change, on `/settings/knowledge` or through the inspect API, and `search_project_knowledge` finds its
+items like any other (reference `<kind>:<key>`, usable as the `kind` filter).
+
+A definition names the kind (lowercase, `^[a-z][a-z0-9_]{0,39}$`; `launch`, `turn`, `promise`, `work_thread`,
+`memory`, `skill` and `seat` are reserved), a label, a source table, an integer key column, and either
+three columns mike builds a view from (title, body columns, and a project column holding a bigint id or
+a project uuid) or the name of a view you wrote that returns `source_id, project_id, reference, label, name,
+body`. Optional: the watch columns whose update re-embeds an item (default: every column the view reads) and
+`settle_secs`, the wait after a change (0 to 86400). The database refuses a bad definition with a message and the
+field at fault (HTTP 400 `{error, field}`).
+
+| Route | Use |
+|---|---|
+| `GET /api/knowledge/kinds` | Each kind with its definition, watches, items, embedded, waiting, failed, newest error and whether it is behind |
+| `GET /api/knowledge/kinds/tables` | The tables and columns a definition can read |
+| `POST /api/knowledge/kinds/preview` | One item of a definition (reference, header, body) before saving |
+| `POST /api/knowledge/kinds` | Define a kind (201) with `memory.define_knowledge_kind`, which creates the view, the watch and its trigger |
+| `PATCH /api/knowledge/kinds/{kind}` | Switch on or off, change `settle_secs`, `watch_columns`, `label`, `description` (404 for an unknown kind) |
+| `DELETE /api/knowledge/kinds/{kind}` | Delete a kind that is not built in (204); its items and vectors go with it |
+
+Search reads every kind that is not built in through one arm over `memory.knowledge_embedding_state`, which
+carries each item's `name`, `label` and `search_tsv` (written when the item is embedded), so a new kind needs no
+query of its own. Rerank passages and guidance join embedding state by `reference`. Built-in kinds keep their own
+search queries.
+
+Health: when an enabled kind has failed items or its oldest waiting item became ready more than 5 minutes ago (`behind`), the `project_knowledge`
+capability row on `/api/capabilities` is `degraded`, names the kind with its counts and newest error, and points
+to `/settings/knowledge`.
 
 ## Session and MCP use
 

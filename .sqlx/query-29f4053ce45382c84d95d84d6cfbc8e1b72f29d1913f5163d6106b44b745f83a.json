@@ -1,0 +1,245 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT k.kind AS \"kind!\", k.label AS \"label!\", k.description, k.body_view AS \"body_view!\",\n       k.settle_secs AS \"settle_secs!\", k.enabled AS \"enabled!\", k.built_in AS \"built_in!\",\n       k.generated_view AS \"generated_view!\", k.source_table, k.key_column, k.title_column, k.body_columns,\n       k.project_column, k.created_at AS \"created_at!\",\n       s.items AS \"items!\", s.embedded AS \"embedded!\", s.waiting AS \"waiting!\", s.failed AS \"failed!\",\n       s.newest_error, s.newest_error_at, s.oldest_waiting_ready_at,\n       COALESCE(s.oldest_waiting_ready_at < now() - interval '5 minutes', false) AS \"behind!\",\n       COALESCE(w.watches, '[]'::jsonb) AS \"watches!\"\n  FROM memory.knowledge_kinds k\n  JOIN memory.knowledge_kind_stats() s ON s.kind = k.kind\n  LEFT JOIN LATERAL (\n      SELECT jsonb_agg(jsonb_build_object(\n                 'id', kw.id, 'table', kw.watched_table, 'key_column', kw.key_column,\n                 'update_columns', kw.update_columns, 'via_table', kw.via_table,\n                 'via_match_column', kw.via_match_column, 'via_key_column', kw.via_key_column)\n             ORDER BY kw.id) AS watches\n        FROM memory.knowledge_kind_watches kw\n       WHERE kw.kind = k.kind) w ON true\n ORDER BY k.built_in DESC, k.kind\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body_view!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "body_view"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "settle_secs!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "settle_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "built_in!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "built_in"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "generated_view!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "generated_view"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source_table",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "source_table"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "key_column",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "key_column"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "title_column",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "title_column"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "body_columns",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "body_columns"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "project_column",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "project_column"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "items!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "embedded!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "waiting!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "failed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 18,
+        "name": "newest_error",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 19,
+        "name": "newest_error_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 20,
+        "name": "oldest_waiting_ready_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 21,
+        "name": "behind!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 22,
+        "name": "watches!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "29f4053ce45382c84d95d84d6cfbc8e1b72f29d1913f5163d6106b44b745f83a"
+}

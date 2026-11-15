@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT format('%I.%I', n.nspname, c.relname) AS \"name!\",\n       jsonb_agg(jsonb_build_object('name', a.attname, 'type', format_type(a.atttypid, a.atttypmod))\n                 ORDER BY a.attnum) AS \"columns!: sqlx::types::Json<Vec<TableColumn>>\"\n  FROM pg_class c\n  JOIN pg_namespace n ON n.oid = c.relnamespace\n  JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped\n WHERE c.relkind IN ('r', 'p', 'v')\n   AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')\n   AND n.nspname NOT LIKE 'pg\\_temp\\_%'\n   AND n.nspname NOT LIKE 'pg\\_toast\\_temp\\_%'\n   AND NOT (c.relkind IN ('r', 'p') AND n.nspname = 'memory' AND c.relname LIKE 'knowledge\\_%')\n GROUP BY n.nspname, c.relname\n ORDER BY n.nspname, c.relname\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "columns!: sqlx::types::Json<Vec<TableColumn>>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "cf93e0b2b55546cbebfa5f112ebc5f579b37b1bbcc160318b33ac99f34318f35"
+}

@@ -47,7 +47,9 @@ pub(super) fn tools() -> Vec<Tool> {
                     ),
                     (
                         "kind",
-                        json!({"type":"string", "enum":["artifact","memory","skill","lesson","note","turn","thread","work_thread","thread_entry","question_answer","unmet_ask","correction","learning","session","mail","seat"]}),
+                        text(
+                            "A knowledge kind name: one defined on the settings page (GET /api/knowledge/kinds) or a built-in one: artifact, memory, skill, lesson, note, turn, thread, work_thread, thread_entry, question_answer, unmet_ask, correction, learning, session, mail, seat.",
+                        ),
                     ),
                     (
                         "since",

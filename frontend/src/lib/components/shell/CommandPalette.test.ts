@@ -166,6 +166,7 @@ describe('CommandPalette — settings', () => {
 			'Workers settings',
 			'Assistants settings',
 			'Embedding settings',
+			'Knowledge settings',
 			'Flagging settings',
 			'Integrations settings',
 			'History settings'
@@ -201,6 +202,7 @@ describe('CommandPalette — settings tab targets', () => {
 		['Workers settings', '/settings/workers'],
 		['Assistants settings', '/settings/assistants'],
 		['Embedding settings', '/settings/embedding'],
+		['Knowledge settings', '/settings/knowledge'],
 		['Flagging settings', '/settings/flagging'],
 		['Integrations settings', '/settings/integrations'],
 		['History settings', '/settings/history']

@@ -2,7 +2,7 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-12
+updated: 2026-11-15
 summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. The migrations are the source of truth.
 ---
 
@@ -1940,6 +1940,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 | `placement_covered_by` | `TEXT NULL` | The memory file or skill, as the proposer was shown it, that already covers the lesson or that it belongs in |
 | `placement_reason` | `TEXT NULL` | One sentence from the model saying why |
 | `placed_at` | `TIMESTAMPTZ NULL` | When the placement was stored |
+| `revision` | `INTEGER NOT NULL DEFAULT 1` | Goes up by one each time `text` changes (trigger `trg_lessons_revision`, `20261115140100_lesson_routes.sql`). The tag `[lesson:<id> rev:<revision>]` tells the proxy which wording a request holds |
 
 **Constraints:**
 - `lessons_placement_consistent`: `(placement_id IS NULL) = (placed_at IS NULL)`
@@ -1971,6 +1972,22 @@ Columns added by the judgement-context migrations (definition as migrated):
 | Column | Definition |
 |---|---|
 | `portable_origin` | jsonb NOT NULL DEFAULT '{}' |
+
+### `memory.lesson_routes`
+
+Added in `20261115140100_lesson_routes.sql`. The one way each accepted lesson reaches sessions of its project,
+decided by `mike learning promote` on a machine that holds a checkout (`crates/mike-lessons/src/lesson_promotion/`).
+A lesson without a row is injected. Inserts, updates and deletes bump the `lessons` change generation, so the
+proxy's lesson snapshot reloads.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_id` | `BIGINT PRIMARY KEY` | FK → `memory.lessons(id)` ON DELETE CASCADE |
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE; indexed by `idx_lesson_routes_project` |
+| `route` | `TEXT NOT NULL` | `standing` (written to the checkout's `.claude/rules/mike-lessons.md`), `injection` (the proxy delivers it) or `covered` (a hand-written `CLAUDE.md`, `AGENTS.md` or rules file already says it) |
+| `covered_by` | `TEXT NULL` | Path of that file; set exactly when `route = 'covered'` |
+| `revision` | `INTEGER NOT NULL` | The lesson revision the route was decided for |
+| `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
 ### `memory.lesson_relations`
 
@@ -2631,7 +2648,12 @@ embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, the view `me
 ### `memory.knowledge_kinds`
 
 Added in `20261115070000_knowledge_items.sql`. One row per kind of project knowledge that is embedded; adding
-a row and its watches makes a new kind part of the system without a code change.
+a row and its watches makes a new kind part of the system without a code change. Since
+`20261115140000_knowledge_kind_definitions.sql` a kind is defined, changed and deleted through
+`memory.define_knowledge_kind`, `memory.update_knowledge_kind` and `memory.delete_knowledge_kind` (inspect routes
+`/api/knowledge/kinds*`, see [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md#knowledge-kinds)); they refuse a bad
+definition with SQLSTATE `MK400` and a message naming the field. `memory.knowledge_kind_stats()` returns per
+kind the items, embedded, waiting and failed counts, the newest error and the oldest waiting `ready_at`.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -2639,10 +2661,14 @@ a row and its watches makes a new kind part of the system without a code change.
 | `body_view` | `TEXT NOT NULL` | A view returning `source_id, project_id, reference, label, name, body`; `memory.knowledge_item_bodies(kind, ids)` reads it by id |
 | `settle_secs` | `INTEGER NOT NULL DEFAULT 0` | Delay after each change before the item is embedded (600 for `thread`) |
 | `enabled` | `BOOLEAN NOT NULL DEFAULT true` | A disabled kind's watches do nothing and the sweep skips its items |
-| `built_in` | `BOOLEAN NOT NULL DEFAULT false` | The eleven kinds the migration defines |
+| `built_in` | `BOOLEAN NOT NULL DEFAULT false` | True for the eleven kinds `20261115070000` inserts; they cannot be deleted |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `label` | `TEXT NOT NULL` | Display name (`20261115140000`; backfilled with `kind`); for a generated view also the label of every item |
+| `description` | `TEXT NULL` | |
+| `generated_view` | `BOOLEAN NOT NULL DEFAULT false` | True when `memory.define_knowledge_kind` created `body_view` from the columns below |
+| `source_table`, `key_column`, `title_column`, `body_columns`, `project_column` | `TEXT` / `TEXT[]` NULL | Set exactly when `generated_view` (CHECK `knowledge_kinds_definition_shape_check`, which also refuses a built-in generated view) |
 
-The built-in body views are `memory.knowledge_body_<kind>_v`.
+The body views are `memory.knowledge_body_<kind>_v`; a generated one is dropped with its kind.
 
 ---
 
@@ -2686,6 +2712,7 @@ leader runs it when it takes the lease and then daily.
 | `ready_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Not embedded before this time: settle time, or the retry backoff after a failure |
 | `attempts` | `INTEGER NOT NULL DEFAULT 0` | Failed attempts since the last change; past 10 a `[permanent]` error stops retrying |
 | `last_error` | `TEXT NULL` | |
+| `last_error_at` | `TIMESTAMPTZ NULL` | When `last_error` was recorded (`20261115140000`); NULL for earlier errors |
 | `model_key` | `TEXT NULL` | The embedder last tried; when the configured key differs, the sweep marks the item once |
 | `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()` | Last change; a save or failure older than this leaves the item waiting |
 
@@ -2693,6 +2720,7 @@ leader runs it when it takes the lease and then daily.
 - `idx_knowledge_items_waiting`: `(ready_at, id) WHERE needs_embedding` — the sweep's only read
 - `idx_knowledge_items_failed`: `kind WHERE last_error IS NOT NULL`
 - `idx_knowledge_items_project`: `project_id` — the per-project health count
+- `idx_knowledge_items_kind_project`: `(kind, project_id, changed_at DESC)` (`20261115140000`) — the newest items of a kind in a project
 
 ---
 
@@ -2704,7 +2732,8 @@ Created in `20260920000010_knowledge_embeddings.sql`; keyed by `(source_kind, so
 an FK to `memory.knowledge_kinds`). One row per item that has vectors, written with its
 `memory.knowledge_embedding_chunks` by `save_knowledge_embeddings`. Deleting a row puts its item back to
 waiting (`trg_knowledge_embedding_state_requeue`). `search.sql`, `guidance.sql` and `rerank_passages.sql`
-join it for semantic search; the health reads (`embedding_health_all.sql`, `embedding_health_project.sql`)
+join it for semantic search (`guidance.sql` and `rerank_passages.sql` by `reference`, for every kind; `search.sql` reads
+every kind that is not built in through one arm over `name`, `label` and `search_tsv`); the health reads (`embedding_health_all.sql`, `embedding_health_project.sql`)
 count items and their embeddings per model.
 
 | Column | Type | Purpose |
@@ -2716,12 +2745,16 @@ count items and their embeddings per model.
 | `model_key` | `TEXT NOT NULL` | The embedder the vectors came from |
 | `completed_at` | `TIMESTAMPTZ NULL` | When the vectors were written |
 | `reference`, `project_id` | `TEXT`, `BIGINT` | Filled from the kind's view by `trg_knowledge_embedding_state_scope` |
+| `name`, `label` | `TEXT NULL` | The item's title and label (`20261115140000`) |
+| `search_tsv` | `TSVECTOR NULL` | Header and body text vector, written when the item is embedded and only for kinds that are not built in |
 | `attempts`, `next_attempt_at`, `last_error`, `source_updated_at`, `source_seq`, `source_hash` | | Kept from before `20261115070000`; no longer written |
 
 **Indexes:**
 - `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)
 - `idx_knowledge_embedding_state_failed`: `model_key WHERE last_error IS NOT NULL` (BTree partial, `20261102410001`) — the capped failure count
 - `idx_knowledge_embedding_state_ready`: `model_key WHERE completed_at IS NOT NULL` (BTree partial, `20261102410002`) — the capped ready count after a model change
+- `idx_knowledge_embedding_state_reference`: `reference` (BTree, `20261115140000`) — the join of `guidance.sql`, `rerank_passages.sql` and the generic search arm
+- `idx_knowledge_embedding_state_search_tsv`: `search_tsv` (GIN, `20261115140000`)
 
 ---
 
@@ -3295,7 +3328,7 @@ Migration `20261015120000_skill_drafts_drop_unused_eval_columns.sql` dropped the
 `assertions` columns the table was created with, because no evaluation step graded them. The pass runs after the topic pass on the lesson proposer's tick, behind the
 `judge_lessons` toggle, and drafts the topic with the most lessons that has no draft at its current
 lesson watermark (the highest lesson id in the topic). The promoter
-(`scripts/learning_audit/promote.py`) ships a draft as the folder's `SKILL.md`, with
+(`mike learning promote`, `crates/mike-lessons/src/lesson_promotion/`) ships a draft as the folder's `SKILL.md`, with
 its reference files under `references/`, only once its status is `accepted` and its watermark is still
 current; otherwise it writes the generated lesson list as before.
 
@@ -3362,7 +3395,7 @@ another version is discarded and the draft starts over.
 
 Added in migration `20261014240000_skill_live_outcomes.sql` (mike#613). How a skill the learning
 promoter shipped has done in real use: one row per project, skill folder and shipment. The
-promoter (`scripts/learning_audit/promote.py`, `live.py`) measures each skill it owns in its
+promoter (`crates/mike-lessons/src/lesson_promotion/`) measures each skill it owns in its
 ledger (`~/.local/state/mike-learning-promotion/skill-installs.json`, matched by project uuid and
 folder, not by name alone) on every run and posts the numbers to
 `POST /api/learning/skill-outcomes`. A load is a `Skill` tool use of the folder in the project
@@ -3458,7 +3491,7 @@ after the third. A model refusal from the call limiter is not a failure.
 
 Added in `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`, routes under
 `/api/skills` in `crates/mike-lessons/src/api/skills/`). Whether mike may write learned skills into a project's
-checkouts on its own: `auto` (the promoter, `scripts/learning_audit/promote.py`, ships drafts that passed
+checkouts on its own: `auto` (the promoter, `mike learning promote`, ships drafts that passed
 evaluation, or a generated skill when there is none) or `ask` (it ships only drafts the user approved). A
 project with no row is `ask`, so a project first seen after this table was created never receives a skill
 unasked; the migration writes `auto` for every unmerged project that existed when it ran. Read and written
@@ -3538,7 +3571,7 @@ an accepted proposal into a rule or agent file yet; the page shows the file and 
 
 Added in migration `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`,
 routes under `/api/skills` in `crates/mike-lessons/src/api/skills/`). The learning promoter
-(`scripts/learning_audit/promote.py`) reads the first three and writes the fourth through
+(`mike learning promote`) reads the first three and writes the fourth through
 `POST /api/skills/installs`.
 
 `memory.skill_drafts` gains four columns: `review` (`approved` or `rejected`, the user's decision,

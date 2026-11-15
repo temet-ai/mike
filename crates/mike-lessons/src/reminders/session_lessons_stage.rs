@@ -1,5 +1,6 @@
 use bytes::Bytes;
 
+use crate::extract::request::TurnOrigin;
 use crate::features_settings::RemindersOverlay;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::session_lessons::{SessionLessonsRequest, apply_session_lessons_with_floor};
@@ -16,6 +17,29 @@ const SESSION_LESSONS_CODES: StageManifestCodes = StageManifestCodes {
 };
 
 pub struct SessionLessonsStage;
+
+fn record_already_present(ctx: &StageContext<'_>, body: &mut StageBody) {
+    if !matches!(
+        ctx.turn_origin,
+        TurnOrigin::Primary | TurnOrigin::PrimaryFirst
+    ) {
+        return;
+    }
+    let present = crate::lesson_delivery::already_present_ids(
+        ctx.lesson_snapshot,
+        ctx.session_id,
+        ctx.project_path,
+        body.body(),
+    );
+    if present.is_empty() {
+        return;
+    }
+    body.decline(
+        "session_lessons",
+        "session_lessons_already_present",
+        serde_json::json!({ "lesson_ids": present }),
+    );
+}
 
 #[async_trait::async_trait]
 impl RequestStage for SessionLessonsStage {
@@ -36,7 +60,6 @@ impl RequestStage for SessionLessonsStage {
             ctx.state.feature_toggle_overlay.load().mod_lesson_delivery,
             ctx.lesson_snapshot,
             ctx.session_id,
-            body.body(),
         ) {
             body.record_unchanged(
                 "session_lessons",
@@ -45,6 +68,7 @@ impl RequestStage for SessionLessonsStage {
             );
             return;
         }
+        record_already_present(ctx, body);
         let reminders = ctx.session_toggles.features.get::<RemindersOverlay>();
         let cfg = RemindersConfig {
             enabled: ctx.session_toggles.reminders,

@@ -10,6 +10,8 @@ pub struct InjectableLessonRow {
     pub text: String,
     pub topic: Option<String>,
     pub agent_id: Option<i64>,
+    pub revision: i32,
+    pub route: Option<String>,
 }
 
 impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
@@ -38,10 +40,12 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
             .ok()
             .map(|identity| identity.machine_uuid);
         crate::metrics::time_db("list_project_injectable_lessons", async move {
-            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.retired_at and machine_uuid, added in 20261111170700 and 20261114210000, before their .sqlx entries are prepared
-                r#"SELECT l.id, p.project_path, lk.code AS kind, l.text, l.topic, l.agent_id
+            let rows = sqlx::query_as::<_, InjectableLessonRow>( // grader-allow: reads memory.lessons.revision and memory.lesson_routes, added in 20261115140100, before their .sqlx entries are prepared
+                r#"SELECT l.id, p.project_path, lk.code AS kind, l.text, l.topic, l.agent_id,
+                          l.revision, lr.route
                      FROM memory.lessons l
                      JOIN projects.projects p ON p.id = l.project_id
+                     LEFT JOIN memory.lesson_routes lr ON lr.lesson_id = l.id
                      JOIN memory.lesson_kinds lk ON lk.id = l.kind_id
                      JOIN memory.lesson_stages ls ON ls.id = l.stage_id
                      JOIN memory.lesson_sources src ON src.id = l.source_id

@@ -1,20 +1,32 @@
-#!/usr/bin/env python3
-"""Turn accepted lessons into project memories and discoverable skills."""
-import argparse
-import fcntl
-import json
-from pathlib import Path
-import sys
-sys.dont_write_bytecode = True  # an installed package is verified file by file
-from learning_audit.promote import promote
-
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--no-sync', action='store_true')
-args = parser.parse_args()
-lock_path = Path.home() / '.local/state/mike-learning-promotion.lock'
-lock_path.parent.mkdir(parents=True, exist_ok=True)
-with lock_path.open('w') as lock:
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    result = promote(sync=not args.no_sync)
-    print(json.dumps(result, indent=2))
-    raise SystemExit(1 if result['conflicts'] else 0)
+#!/bin/sh
+# Turn accepted lessons into skills and standing lesson files once; the
+# learning_promote scheduled job calls this hourly. Exit 1 means a generated
+# file was edited by hand and was left alone.
+#
+# The mike binary is, in order: $MIKE_BIN; the one beside an installed package
+# (<root>/mike next to share/mike/scripts, or <prefix>/bin/mike for a Homebrew
+# prefix); `mike` on PATH; ~/.local/bin/mike.
+set -eu
+mike_bin="${MIKE_BIN:-}"
+here="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+if [ -z "$mike_bin" ]; then
+    case "$here" in
+    */share/mike/scripts)
+        for candidate in "$here/../../../mike" "$here/../../../bin/mike"; do
+            if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+                mike_bin="$candidate"
+                break
+            fi
+        done
+        ;;
+    esac
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$(command -v mike 2>/dev/null || true)"
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$HOME/.local/bin/mike"
+fi
+MIKE_SCRIPTS_ROOT="${MIKE_SCRIPTS_ROOT:-$(dirname "$here")}"
+export MIKE_SCRIPTS_ROOT
+exec "$mike_bin" learning promote "$@"

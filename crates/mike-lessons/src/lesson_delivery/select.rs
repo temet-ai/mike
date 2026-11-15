@@ -2,7 +2,8 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-use crate::lesson_worker::LessonSnapshot;
+use super::held::{HeldTag, held_lesson_tags, is_held};
+use crate::lesson_worker::{InjectableLesson, LessonSnapshot};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DeliveredLesson {
@@ -10,6 +11,7 @@ pub struct DeliveredLesson {
     pub kind: String,
     pub text: String,
     pub revision: String,
+    pub rev: i32,
 }
 
 pub struct PromptLessons<'a> {
@@ -19,8 +21,40 @@ pub struct PromptLessons<'a> {
     pub prompt: &'a str,
     pub held: &'a [i64],
     pub held_versions: Option<&'a HashMap<i64, String>>,
+    pub held_tags: &'a [HeldTag],
     pub limit: usize,
     pub content_only: bool,
+}
+
+fn project_pool<'a>(
+    snapshot: &'a LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+) -> impl Iterator<Item = &'a InjectableLesson> + use<'a> {
+    let project = snapshot
+        .project_for_session(session_id, project_path)
+        .to_owned();
+    snapshot
+        .shared
+        .iter()
+        .chain(snapshot.for_project(&project).iter())
+}
+
+pub fn already_present_ids(
+    snapshot: &LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+    body: &[u8],
+) -> Vec<i64> {
+    let tags = held_lesson_tags(body);
+    let mut ids = Vec::new();
+    for lesson in project_pool(snapshot, session_id, project_path) {
+        let present = !lesson.route.is_injection() || is_held(&tags, lesson);
+        if present && !ids.contains(&lesson.id) {
+            ids.push(lesson.id);
+        }
+    }
+    ids
 }
 
 pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
@@ -31,18 +65,13 @@ pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
         prompt,
         held,
         held_versions,
+        held_tags,
         limit,
         content_only,
     } = request;
     let mut seen = std::collections::HashSet::new();
-    let candidates: Vec<_> = snapshot
-        .shared
-        .iter()
-        .chain(
-            snapshot
-                .for_project(snapshot.project_for_session(session_id, project_path))
-                .iter(),
-        )
+    let candidates: Vec<_> = project_pool(snapshot, session_id, project_path)
+        .filter(|lesson| lesson.route.is_injection() && !is_held(held_tags, lesson))
         .filter(|lesson| {
             held_versions.map_or_else(
                 || !held.contains(&lesson.id),
@@ -63,11 +92,12 @@ pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
             kind: lesson.kind.clone(),
             text: lesson.text.trim().to_owned(),
             revision: revision(lesson),
+            rev: lesson.revision,
         })
         .collect()
 }
 
-fn revision(lesson: &crate::lesson_worker::InjectableLesson) -> String {
+fn revision(lesson: &InjectableLesson) -> String {
     hex::encode(Sha256::digest(
         format!("{}:{}:{:?}", lesson.kind, lesson.text, lesson.topic).as_bytes(),
     ))

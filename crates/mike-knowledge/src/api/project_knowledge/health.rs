@@ -1,3 +1,4 @@
+use super::health_kinds::apply_kind_problems;
 use crate::embed_worker::knowledge_report::{KnowledgeSweepReport, fresh_report};
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
@@ -32,6 +33,9 @@ pub async fn embedding_capability(state: &KnowledgeState) -> CapabilityRow {
         Ok(counts) => {
             let sweep = fresh_report(&model, chrono::Utc::now());
             apply_coverage(&mut row, counts, sweep.as_deref());
+            if let Ok(kinds) = handle.knowledge().list_knowledge_kinds().await {
+                apply_kind_problems(&mut row, &kinds);
+            }
         }
         Err(error) => {
             row.detail = format!("Knowledge embedding state unavailable: {error}");

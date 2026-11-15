@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-14
+updated: 2026-11-15
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -179,7 +179,7 @@ recorded in `llm.calls`.
 | Directive proposals | `directive_proposer` (off) | no | Proposes standing directives from corrections the operator restated across sessions, by SQL over captured data; also calibrates guard thresholds across sessions. Proposals wait on `/memory`; nothing is injected | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
 | Change record | `change_record` (off) | no | Watches checkouts for file changes, commits, pushes and checks so `what_changed` answers without git | MCP `what_changed`; REST `/api/changes` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | Retention sweep, mailbox reaper, workspace reaper, channel-link sweep, work registry, health refresher, DB cost monitor, resync | `retention_sweep`, `channel_link_sweep`, `db_resync` (on); the rest always | no | Local housekeeping: TTL deletes (365 d default), expired mail, lapsed roster rows, channel links, DB statement budgets, fallback-to-primary resync | REST `/api/sync/status`, `/api/db-cost` | [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md) |
-| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule: `learning_promote`, `learning_audit`, `compressor_loop`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
+| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule (none runs Python; `learning_promote`, `learning_audit` and `compressor_loop` are `sh` wrappers for `mike learning promote`, `mike learning-audit`, `mike compressor-loop`): `learning_promote`, `learning_audit`, `compressor_loop`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 
 #### Jev decisions layer
 
@@ -196,8 +196,9 @@ Where the Jev decisions layer lives: the client `OpenRouterClient::decide` and t
 | Workspace roster: which sessions are live in a project, heartbeats, channel claims | `workspace/`, `workspace_reaper.rs` | REST `/api/workspace/*`; MCP `get_workspace_roster`, `get_fleet_graph`; toggle `workspace_capture_registration` (on) | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md) |
 | Mail between sessions, threads, questions and answers; delivery as a reminder, as native peer mail, or over a Claude Code channel | `store/persistence/mailbox/`, `mcp_channel.rs`, `mailbox_reaper.rs` | MCP `send_session_message`, `get_session_messages`, `ask`, `answer`, `decline`, `read_thread`; REST `/api/sessions/{id}/message*`, `/api/threads/*`; UI `/comms`, `/sessions/<id>/comms`; toggles `native_peer_mail`, `mailbox_redelivery` (off); mod `mike-mail` | [`INJECTION_TRUST.md`](INJECTION_TRUST.md), user guide [reading-sessions](user-guide/reading-sessions.md) |
 | Work threads: work that outlives a session, with checkpoints and dependencies | `work_threads/` | `mike thread import`; REST `/api/work-threads/*`; MCP `work_thread_list\|get\|checkpoint\|add_entry`; mod `thread` | user guide [threads](user-guide/threads.md) |
+| Knowledge kinds defined as data (a table and its columns become a searchable kind; no code) | `api/project_knowledge/kinds.rs`, `memory.define_knowledge_kind` | REST `GET`/`POST /api/knowledge/kinds`, `GET /api/knowledge/kinds/tables`, `POST /api/knowledge/kinds/preview`, `PATCH`/`DELETE /api/knowledge/kinds/{kind}`; UI `/settings/knowledge` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md#knowledge-kinds) |
 | Project knowledge: projects, locations, knowledge sources (memory files, skills), hybrid search | `knowledge_scan/`, `api/handlers/knowledge*`, `scripts/knowledge/` | REST `/api/knowledge/*`, `/api/projects/*`; MCP `define_project`, `register_project_location`, `search_project_knowledge`, `read_project_knowledge`; UI `/projects/<path>` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md), user guide [projects](user-guide/projects.md) |
-| Skills: drafts from accepted lessons, policy, install and retire, live outcomes | `lesson_proposer/`, `scripts/learning-promote` | REST `/api/skills/*`; UI `/skills` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
+| Skills: drafts from accepted lessons, policy, install and retire, live outcomes | `lesson_proposer/`, `lesson_promotion/` (`mike learning promote`; standing lessons to `.claude/rules/mike-lessons.md`, routes in `memory.lesson_routes`) | REST `/api/skills/*`; CLI `mike learning promote`; UI `/skills` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 | Claude Code mods: sessions pane, mail on the status line, `/recall`, fleet pane, `/mods`, thread skills, wiretap | `mods/` | `mike claude-code mods [--with-wiretap]` | [`mods/README.md`](../mods/README.md), user guide [mods](user-guide/mods.md) |
 
 ### Setup, operation and repair

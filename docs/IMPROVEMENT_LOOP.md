@@ -2,7 +2,7 @@
 title: The Improvement Loop
 status: active
 created: 2026-09-29
-updated: 2026-11-06
+updated: 2026-11-15
 summary: What mike does with a corrected turn — how a correction becomes a lesson, how a directive proposal is approved, what evidence the turn guard gathers, how an action's effect is measured honestly, and what the operator sees and does.
 ---
 
@@ -140,7 +140,7 @@ learning audit lists the `rule` and `agent` lessons in full as proposals for the
 an existing topic of the same project onto the surviving topic (the shipped one, then the larger),
 so a new draft for the same purpose patches that skill instead of adding another; the promoter
 holds back any overlapping topic that is still separate. The promoter
-(`scripts/learning_audit/promote.py`) also keeps each project at or under
+(`mike learning promote`, `crates/mike-lessons/src/lesson_promotion/`) also keeps each project at or under
 `lessons.skills.max_per_project` skills (default 12): before a new skill ships past the cap it
 retires the shipped skill with the fewest loads in the last 30 days (then the oldest), never one
 shipped in the last seven days, and holds the new skill back when none can be retired. The audit

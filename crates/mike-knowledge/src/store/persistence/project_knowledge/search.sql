@@ -129,6 +129,43 @@ WITH own_turn AS (
     -- given.
     SELECT CASE WHEN $14::text IS NULL AND $15::timestamptz IS NULL AND $16::timestamptz IS NULL
                 THEN 4 * ($5::bigint + $6::bigint) + 180 ELSE 2000 END AS m
+), kind_hit_ids AS (
+    SELECT h.id
+      FROM memory.knowledge_embedding_state h
+      JOIN memory.knowledge_kinds nk ON nk.kind = h.source_kind AND NOT nk.built_in
+     WHERE $2 <> '' AND h.project_id = $1 AND h.completed_at IS NOT NULL
+       AND h.search_tsv @@ (SELECT match_tsq FROM q)
+       AND ($3::text IS NULL OR h.source_kind = $3::text)
+    UNION
+    SELECT h.id
+      FROM memory.knowledge_kinds nk
+      JOIN semantic s2 ON starts_with(s2.reference, nk.kind || ':')
+      JOIN memory.knowledge_embedding_state h ON h.reference = s2.reference AND h.source_kind = nk.kind
+     WHERE NOT nk.built_in AND h.project_id = $1 AND h.completed_at IS NOT NULL
+       AND ($3::text IS NULL OR h.source_kind = $3::text)
+    UNION
+    (SELECT newest.state_id
+       FROM memory.knowledge_kinds nk
+      CROSS JOIN LATERAL (
+          SELECT e.id AS state_id, hi.changed_at
+            FROM memory.knowledge_items hi
+            JOIN memory.knowledge_embedding_state e ON e.item_id = hi.id AND e.completed_at IS NOT NULL
+           WHERE $2 = '' AND hi.kind = nk.kind AND hi.project_id = $1
+             AND ($3::text IS NULL OR hi.kind = $3::text)
+           ORDER BY hi.changed_at DESC
+           LIMIT (SELECT m FROM bound)) newest
+      WHERE NOT nk.built_in
+      ORDER BY newest.changed_at DESC
+      LIMIT (SELECT m FROM bound))
+), kind_hits AS MATERIALIZED (
+    SELECT e.id, e.source_kind, e.source_id, e.reference, e.project_id, e.search_tsv, i.changed_at
+      FROM kind_hit_ids k
+      JOIN memory.knowledge_embedding_state e ON e.id = k.id
+      JOIN memory.knowledge_items i ON i.id = e.item_id
+), kind_bodies AS MATERIALIZED (
+    SELECT g.kind, b.source_id, b.label, b.name, b.body
+      FROM (SELECT h.source_kind AS kind, array_agg(h.source_id) AS ids FROM kind_hits h GROUP BY h.source_kind) g
+     CROSS JOIN LATERAL memory.knowledge_item_bodies(g.kind, g.ids) b
 ), candidates AS (
     SELECT COALESCE(r.search_tsv @@ q.ident_tsq, false) AS is_ident,
            'artifact:' || r.id AS reference, 'artifact' AS source_kind, r.title,
@@ -505,6 +542,18 @@ WITH own_turn AS (
                                      ELSE si.source_ref END AS reference) seat_ref
       LEFT JOIN semantic sem ON sem.reference = seat_ref.reference
      WHERE si.project_id = $1 AND ($3::text IS NULL OR $3::text = 'seat') AND ($2 = '' OR si.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+    UNION ALL
+    SELECT COALESCE(kh.search_tsv @@ q.ident_tsq, false),
+           kh.reference, kh.source_kind, kb.name, 'current', NULL::text, kh.changed_at,
+           COALESCE(ts_rank_cd(kh.search_tsv, q.tsq), 0), COALESCE(sem.score, 0),
+           jsonb_build_object('kind_label', kb.label, 'source_id', kh.source_id),
+           kb.body, NULL::jsonb, kh.reference, NULL, NULL, false
+      FROM kind_hits kh
+      JOIN kind_bodies kb ON kb.kind = kh.source_kind AND kb.source_id = kh.source_id
+     CROSS JOIN q
+      LEFT JOIN semantic sem ON sem.reference = kh.reference
+     WHERE kh.project_id = $1 AND ($3::text IS NULL OR $3::text = kh.source_kind)
+       AND ($2 = '' OR kh.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
 ), cheap AS MATERIALIZED (
     SELECT c.*, row_number() OVER () AS rid
       FROM candidates c

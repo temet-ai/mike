@@ -1,6 +1,6 @@
 use super::select::PromptLessons;
 use super::*;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_worker::{LessonRoute, LessonSnapshot};
 
 #[test]
 fn arm_is_stable_for_a_session() {
@@ -32,14 +32,114 @@ fn malformed_tags_are_ignored() {
 }
 
 #[test]
-fn proxy_stands_back_only_when_the_toggle_is_on_and_the_client_holds_lessons() {
+fn held_tags_carry_the_revision_when_the_tag_has_one() {
+    let body = b"[lesson:12 rev:3] a [lesson:7] b [lesson:12 rev:3] again [lesson:12 rev:4] c";
+    assert_eq!(
+        held_lesson_tags(body),
+        vec![
+            HeldTag {
+                id: 12,
+                revision: Some(3)
+            },
+            HeldTag {
+                id: 7,
+                revision: None
+            },
+            HeldTag {
+                id: 12,
+                revision: Some(4)
+            },
+        ]
+    );
+    assert_eq!(held_lesson_ids(body), vec![12, 7]);
+}
+
+#[test]
+fn malformed_revisions_are_ignored() {
+    assert!(
+        held_lesson_tags(b"[lesson:5 rev:] [lesson:5 rev:x] [lesson:5 rev:2 [lesson:5 rev]")
+            .is_empty()
+    );
+}
+
+#[test]
+fn one_held_tag_does_not_make_the_client_a_lesson_holder() {
     let snapshot = LessonSnapshot::default();
-    let tagged = br#"{"text":"[lesson:3] a"}"#;
-    assert!(client_holds_lessons(true, &snapshot, "s1", tagged));
-    assert!(!client_holds_lessons(false, &snapshot, "s1", tagged));
-    assert!(!client_holds_lessons(true, &snapshot, "s1", b"{}"));
+    assert!(!client_holds_lessons(true, &snapshot, "s1"));
     snapshot.relevance.note_mod_session("s2");
-    assert!(client_holds_lessons(true, &snapshot, "s2", b"{}"));
+    assert!(client_holds_lessons(true, &snapshot, "s2"));
+    assert!(!client_holds_lessons(false, &snapshot, "s2"));
+}
+
+fn routed(route: LessonRoute) -> LessonSnapshot {
+    let mut snapshot = snapshot();
+    for lesson in snapshot.by_project.values_mut().flatten() {
+        lesson.route = route;
+    }
+    snapshot
+}
+
+#[test]
+fn lessons_routed_standing_or_covered_are_not_selected() {
+    for route in [LessonRoute::Standing, LessonRoute::Covered] {
+        let snapshot = routed(route);
+        assert!(select_for_prompt(request(&snapshot, &[])).is_empty());
+    }
+    let snapshot = routed(LessonRoute::Injection);
+    assert_eq!(select_for_prompt(request(&snapshot, &[])).len(), 2);
+}
+
+#[test]
+fn lessons_held_at_their_current_revision_are_not_selected() {
+    let snapshot = snapshot();
+    let current = [HeldTag {
+        id: 1,
+        revision: Some(1),
+    }];
+    let mut held = request(&snapshot, &[]);
+    held.held_tags = &current;
+    let chosen = select_for_prompt(held);
+    assert_eq!(chosen.iter().map(|l| l.id).collect::<Vec<_>>(), vec![2]);
+    assert_eq!(chosen[0].rev, 1);
+
+    let snapshot = self::snapshot();
+    let stale = [HeldTag {
+        id: 1,
+        revision: Some(0),
+    }];
+    let mut refresh = request(&snapshot, &[]);
+    refresh.held_tags = &stale;
+    assert_eq!(select_for_prompt(refresh).len(), 2);
+
+    let snapshot = self::snapshot();
+    let untagged_revision = [HeldTag {
+        id: 1,
+        revision: None,
+    }];
+    let mut legacy = request(&snapshot, &[]);
+    legacy.held_tags = &untagged_revision;
+    assert_eq!(select_for_prompt(legacy).len(), 1);
+}
+
+#[test]
+fn already_present_names_routed_and_held_lessons() {
+    let mut snapshot = snapshot();
+    if let Some(lesson) = snapshot
+        .by_project
+        .get_mut("/repo")
+        .and_then(|lessons| lessons.get_mut(1))
+    {
+        lesson.route = LessonRoute::Covered;
+    }
+    let body = b"{\"text\":\"[lesson:1 rev:1] a\"}";
+    assert_eq!(
+        already_present_ids(&snapshot, "s1", "/repo", body),
+        vec![1, 2]
+    );
+    assert_eq!(
+        already_present_ids(&snapshot, "s1", "/repo", b"{}"),
+        vec![2]
+    );
 }
 
 #[test]
@@ -72,6 +172,7 @@ fn request<'a>(snapshot: &'a LessonSnapshot, held: &'a [i64]) -> PromptLessons<'
         prompt: "",
         held,
         held_versions: None,
+        held_tags: &[],
         limit: 5,
         content_only: false,
     }

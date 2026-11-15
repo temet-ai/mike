@@ -28,7 +28,7 @@ use crate::lessons_settings::LessonWorkerConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
-pub use crate::lesson_cache::{InjectableLesson, LessonCache, LessonSnapshot};
+pub use crate::lesson_cache::{InjectableLesson, LessonCache, LessonRoute, LessonSnapshot};
 
 /// Consecutive failed session-consolidation ticks before the breaker
 /// trips and skips embed_documents calls entirely for a cooldown window.

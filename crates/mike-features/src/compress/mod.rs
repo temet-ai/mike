@@ -1,4 +1,5 @@
 pub mod cache_gate;
+pub mod compressor_loop;
 pub mod content_blocks;
 pub mod file_reads;
 pub mod measure;
