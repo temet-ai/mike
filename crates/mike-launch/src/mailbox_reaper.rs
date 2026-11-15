@@ -4,8 +4,25 @@ use std::time::Duration;
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::base_state::BaseState;
+use crate::store::persistence::PersistHandle;
 
 const REAP_INTERVAL: Duration = Duration::from_secs(300);
+
+pub async fn close_reaped_launches(persist: &PersistHandle) {
+    match persist.launch().close_reaped_launches().await {
+        Ok(0) => {}
+        Ok(closed) => log_closed(closed),
+        Err(error) => log_close_failed(&error),
+    }
+}
+
+fn log_closed(closed: u64) {
+    tracing::info!(closed, "mailbox_reaper: closed launches of reaped sessions");
+}
+
+fn log_close_failed(error: &crate::store::persistence::PersistError) {
+    tracing::warn!(%error, "mailbox_reaper: could not close launches of reaped sessions");
+}
 
 pub fn spawn_mailbox_reaper(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -28,6 +45,7 @@ pub fn spawn_mailbox_reaper(state: &BaseState) {
                     break;
                 }
                 _ = ticker.tick() => {
+                    close_reaped_launches(&persist).await;
                     let notice_cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
                     if let Err(err) = persist.launch().tell_inactive_senders(notice_cutoff).await {
                         tracing::warn!(error = %err, "mailbox_reaper: could not notify waiting senders");
