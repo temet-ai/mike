@@ -485,6 +485,9 @@ thirteen genuinely different list contexts, and none is a stripped-down or exten
   it did, its state, what it changed, Undo); not SettingRow's label+control layout.
 - `frontend/src/lib/components/wright/WrightFixRow.svelte` — keep: one known fix with its verdict and
   limits; read-only text and a badge, no control.
+- `frontend/src/lib/components/wright/WrightFollowupRow.svelte` — keep: one follow-up Wright filed
+  (state, issue, fixer session, problems) with a header that toggles its body and a fixed slot for
+  the stuck row's Open issue button; not SettingRow's label+control layout.
 - `frontend/src/lib/components/wright/WrightMessageRow.svelte` — keep: one message in Wright's
   conversation (avatar, sender, body, steer card, evidence chips), the way `CommsTranscript` draws one.
 - `frontend/src/lib/components/wright/WrightProblemRow.svelte` — keep: one problem with its latest

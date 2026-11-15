@@ -41,15 +41,21 @@ async fn root_cause_title(ctx: &EngineerContext, check: Option<&str>, followup_i
 
 fn log_recorded(result: Result<i64, PersistError>, finding_id: i64, title: &str) {
     match result {
-        Ok(id) => tracing::debug!(
-            followup = id,
-            finding = finding_id,
-            "wright: follow-up recorded"
-        ),
-        Err(e) => {
-            tracing::warn!(error = %e, finding = finding_id, %title, "wright: a follow-up could not be recorded")
-        }
+        Ok(id) => log_recorded_ok(id, finding_id),
+        Err(e) => log_record_failed(&e, finding_id, title),
     }
+}
+
+fn log_recorded_ok(id: i64, finding_id: i64) {
+    tracing::debug!(
+        followup = id,
+        finding = finding_id,
+        "wright: follow-up recorded"
+    );
+}
+
+fn log_record_failed(error: &PersistError, finding_id: i64, title: &str) {
+    tracing::warn!(error = %error, finding = finding_id, %title, "wright: a follow-up could not be recorded");
 }
 
 pub(super) async fn record(ctx: &EngineerContext, origin: &Origin, validated: &Validated) {

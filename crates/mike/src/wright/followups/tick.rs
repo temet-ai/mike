@@ -90,15 +90,27 @@ pub(crate) fn log_tick(report: &TickReport) {
         .any(|(_, step)| !matches!(step, super::follow::Followed::Working));
     let handed = matches!(report.handoff, Some(Handoff::HandedOff { .. }));
     if !report.root_causes.is_empty() || !filed.is_empty() || handed || moved {
-        tracing::info!(
-            root_causes = ?report.root_causes,
-            filed = ?filed,
-            handoff = ?report.handoff,
-            followed = ?followed,
-            "wright follow-ups: tick"
-        );
+        log_changes(report, filed, followed);
     }
     if let Some(Handoff::NoQuietMachine(reasons)) = &report.handoff {
-        tracing::debug!(?reasons, "wright follow-ups: no fixer machine is quiet");
+        log_no_quiet_machine(reasons);
     }
+}
+
+fn log_changes<F: std::fmt::Debug, W: std::fmt::Debug>(
+    report: &TickReport,
+    filed: &[F],
+    followed: &[W],
+) {
+    tracing::info!(
+        root_causes = ?report.root_causes,
+        filed = ?filed,
+        handoff = ?report.handoff,
+        followed = ?followed,
+        "wright follow-ups: tick"
+    );
+}
+
+fn log_no_quiet_machine<R: std::fmt::Debug>(reasons: &R) {
+    tracing::debug!(?reasons, "wright follow-ups: no fixer machine is quiet");
 }
