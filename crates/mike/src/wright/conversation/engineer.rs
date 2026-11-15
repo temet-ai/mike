@@ -56,4 +56,8 @@ impl AnswerEngine for EngineerAnswers {
         let outcome = investigate::wait(handle).await;
         settled(outcome.end, outcome.output)
     }
+
+    async fn available(&self) -> bool {
+        EngineerContext::from_state(&self.state).await.is_ok()
+    }
 }
