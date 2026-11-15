@@ -61,7 +61,6 @@ pub(crate) mod states {
     ];
 }
 
-const LEASE_ROLE: &str = "wright_repair";
 const TICK: Duration = Duration::from_secs(2 * 60);
 const TOGGLE_POLL: Duration = Duration::from_secs(15);
 const BACKOFF_FIRST: Duration = Duration::from_secs(5 * 60);
@@ -183,9 +182,6 @@ impl Worker {
         let Some(ctx) = self.ctx.as_ref() else {
             return;
         };
-        if !self.persist.holds_worker_role(LEASE_ROLE, TICK).await {
-            return;
-        }
         if !self.recovered {
             self.recovered = recovered(ctx).await;
             if !self.recovered {

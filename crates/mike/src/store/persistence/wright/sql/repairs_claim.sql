@@ -21,7 +21,7 @@ claimed AS (
            $1::text || '/wright-repair-' || finding_id, 'wright/repair-' || finding_id,
            ARRAY['wright/repair-' || finding_id], $2::uuid
       FROM (SELECT * FROM picked ORDER BY finding_id LIMIT $3) next
-    ON CONFLICT (finding_id) DO NOTHING
+    ON CONFLICT DO NOTHING
     RETURNING id, finding_id, problem_id, owning_part, worktree, branch
 )
 SELECT c.id, c.finding_id, c.problem_id, c.owning_part, c.worktree, c.branch, p.check_name,
