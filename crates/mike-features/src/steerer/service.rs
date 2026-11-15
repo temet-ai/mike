@@ -360,6 +360,12 @@ impl SteeringService {
             })
     }
 
+    pub async fn reload_from_db(&self) -> Result<(), SteeringServiceError> {
+        let rows = self.persist.steerer().list_steerers().await?;
+        self.rebuild_arcswap(rows);
+        Ok(())
+    }
+
     fn rebuild_arcswap(&self, rows: Vec<crate::store::persistence::steering::SteererRow>) {
         let registry = SteererRegistry::from_rows(rows);
         self.registry.store(Arc::new(registry));
