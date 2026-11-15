@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*)\n          FROM (SELECT 1\n                  FROM memory.knowledge_embedding_state e\n                 WHERE (e.project_id = $1 OR (e.project_id IS NULL AND e.source_kind = 'artifact'))\n                   AND e.model_key = ANY($2::text[]) AND e.completed_at IS NOT NULL\n                 LIMIT (SELECT GREATEST(ceil(reltuples::float8 / 5), 0)::bigint\n                          FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass)) lim) * 5\n       >= (SELECT reltuples FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass) AS \"enabled!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8ba88efe7e2e9f4151d369c052f0be7219d32cdafcf07802a6be7d8849b3d194"
+}

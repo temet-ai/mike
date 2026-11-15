@@ -1,12 +1,12 @@
 WITH docs AS (
     SELECT 'artifact:' || r.id AS reference, r.id AS revision_id, s.name AS source_name, d.relative_path,
            r.title, r.body, r.content_hash, r.metadata, r.search_tsv
-    FROM projects.locations loc
-    JOIN memory.knowledge_sources s ON s.location_uuid = loc.location_uuid
-         AND s.name IN ('claude-memory', 'skills')
+    FROM memory.knowledge_sources s
+    LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
     JOIN memory.knowledge_documents d ON d.source_uuid = s.source_uuid AND d.deleted_at IS NULL
     JOIN memory.knowledge_revisions r ON r.id = d.current_revision
-    WHERE loc.project_id = $1 AND r.status NOT IN ('superseded', 'archived', 'rejected')
+    WHERE s.name IN ('claude-memory', 'skills') AND (loc.project_id = $1 OR s.machine_uuid IS NOT NULL)
+      AND r.status NOT IN ('superseded', 'archived', 'rejected')
 ), q AS (
     SELECT to_tsquery('english', replace(plainto_tsquery('english', $2)::text, ' & ', ' | ')) AS tsq
 ), semantic AS (

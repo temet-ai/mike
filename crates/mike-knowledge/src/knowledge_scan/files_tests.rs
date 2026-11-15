@@ -1,7 +1,11 @@
-use super::files::{ScanError, SourceKind, collect_excluding};
+use super::files::{ScanError, Scope, SourceKind, collect_excluding};
 use crate::store::persistence::project_knowledge::DocumentInput;
 use serde_json::json;
 use std::fs;
+
+fn collect_scoped(root: &std::path::Path, scope: &Scope) -> Result<Vec<DocumentInput>, ScanError> {
+    super::files::collect(root, SourceKind::Instructions, scope)
+}
 
 fn collect(root: &std::path::Path, kind: SourceKind) -> Result<Vec<DocumentInput>, ScanError> {
     collect_excluding(root, kind, &[])
@@ -93,6 +97,96 @@ fn collect_tree_leaves_out_thread_worklogs_that_live_in_work_threads() -> anyhow
             "threads/spawn-into-mike/notes.md"
         ]
     );
+    Ok(())
+}
+
+fn instructions_scope() -> Scope {
+    Scope {
+        includes: vec![
+            "CLAUDE.md".into(),
+            "AGENTS.md".into(),
+            ".claude/rules".into(),
+            ".claude/agents".into(),
+        ],
+        ..Scope::default()
+    }
+}
+
+#[test]
+fn collect_instructions_reads_only_the_named_files_and_directories_with_their_relative_paths()
+-> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    write(dir.path(), "CLAUDE.md", "# Project rules")?;
+    write(dir.path(), "AGENTS.md", "# Agents")?;
+    write(dir.path(), "README.md", "# Readme, not named")?;
+    write(dir.path(), "docs/guide.md", "# Guide, not named")?;
+    write(dir.path(), ".claude/rules/testing.md", "# Testing")?;
+    write(dir.path(), ".claude/rules/nested/deep.md", "# Deep")?;
+    write(dir.path(), ".claude/rules/notes.txt", "not markdown")?;
+    write(
+        dir.path(),
+        ".claude/agents/dev.md",
+        "---\nname: dev\ndescription: Developer\n---\nBody",
+    )?;
+    write(dir.path(), ".claude/skills/alpha/SKILL.md", "not named")?;
+    write(dir.path(), ".claude/settings.json", "{}")?;
+    let documents = collect_scoped(dir.path(), &instructions_scope())?;
+    let paths: Vec<&str> = documents.iter().map(|d| d.relative_path.as_str()).collect();
+    assert_eq!(
+        paths,
+        vec![
+            ".claude/agents/dev.md",
+            ".claude/rules/nested/deep.md",
+            ".claude/rules/testing.md",
+            "AGENTS.md",
+            "CLAUDE.md",
+        ]
+    );
+    assert_eq!(documents[0].title, "dev");
+    assert_eq!(documents[0].kind, "instruction");
+    assert_eq!(documents[4].title, "Project rules");
+    Ok(())
+}
+
+#[test]
+fn collect_instructions_skips_the_generated_lessons_file() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    write(
+        dir.path(),
+        ".claude/rules/mike-lessons.md",
+        "<!-- mike-learning-generated:v1 -->\n\n# Lessons\n- one",
+    )?;
+    write(dir.path(), ".claude/rules/kept.md", "# Kept")?;
+    let documents = collect_scoped(dir.path(), &instructions_scope())?;
+    let paths: Vec<&str> = documents.iter().map(|d| d.relative_path.as_str()).collect();
+    assert_eq!(paths, vec![".claude/rules/kept.md"]);
+    Ok(())
+}
+
+#[test]
+fn collect_instructions_with_nothing_named_present_is_empty() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    write(dir.path(), "README.md", "# Readme")?;
+    assert!(collect_scoped(dir.path(), &instructions_scope())?.is_empty());
+    Ok(())
+}
+
+#[test]
+fn collect_instructions_adds_an_extra_file_outside_the_root_under_its_file_name()
+-> anyhow::Result<()> {
+    let home = tempfile::tempdir()?;
+    write(home.path(), "rules/style.md", "# Style")?;
+    write(home.path(), "CLAUDE.md", "# Global")?;
+    let scope = Scope {
+        extras: vec![
+            home.path().join("CLAUDE.md"),
+            home.path().join("missing.md"),
+        ],
+        ..Scope::default()
+    };
+    let documents = collect_scoped(&home.path().join("rules"), &scope)?;
+    let paths: Vec<&str> = documents.iter().map(|d| d.relative_path.as_str()).collect();
+    assert_eq!(paths, vec!["CLAUDE.md", "style.md"]);
     Ok(())
 }
 

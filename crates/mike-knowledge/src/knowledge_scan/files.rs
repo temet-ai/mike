@@ -13,12 +13,21 @@ const SKILL_FILE: &str = "SKILL.md";
 const WORKLOG_FILE: &str = "worklog.md";
 const THREADS_DIRECTORY: &str = "threads";
 const SKIPPED_DIRECTORIES: [&str; 4] = [".git", "node_modules", "target", ".venv"];
+const GENERATED_MARKER: &str = "<!-- mike-learning-generated:v1 -->";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceKind {
     Memory,
     Skills,
     Tree,
+    Instructions,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Scope {
+    pub excludes: Vec<String>,
+    pub includes: Vec<String>,
+    pub extras: Vec<PathBuf>,
 }
 
 impl SourceKind {
@@ -27,6 +36,7 @@ impl SourceKind {
             Self::Memory => "memory",
             Self::Skills => "skill",
             Self::Tree => "artifact",
+            Self::Instructions => "instruction",
         }
     }
 }
@@ -59,22 +69,63 @@ pub fn collect_excluding(
     kind: SourceKind,
     excludes: &[String],
 ) -> Result<Vec<DocumentInput>, ScanError> {
+    let scope = Scope {
+        excludes: excludes.to_vec(),
+        ..Scope::default()
+    };
+    collect(root, kind, &scope)
+}
+
+pub fn collect(
+    root: &Path,
+    kind: SourceKind,
+    scope: &Scope,
+) -> Result<Vec<DocumentInput>, ScanError> {
     let mut paths = match kind {
         SourceKind::Memory => memory_paths(root)?,
         SourceKind::Skills => skill_paths(root)?,
-        SourceKind::Tree => tree_paths(root, excludes)?,
+        SourceKind::Tree | SourceKind::Instructions if scope.includes.is_empty() => {
+            tree_paths(root, &scope.excludes)?
+        }
+        SourceKind::Tree | SourceKind::Instructions => included_paths(root, &scope.includes)?,
     };
+    paths.extend(scope.extras.iter().filter(|extra| extra.is_file()).cloned());
     paths.sort();
+    paths.dedup();
     if paths.len() > MAX_DOCUMENTS {
         return Err(ScanError::TooMany {
             root: root.to_path_buf(),
             count: paths.len(),
         });
     }
-    paths
+    let mut documents = paths
         .iter()
         .map(|path| read_document(root, path, kind))
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+    if kind == SourceKind::Instructions {
+        documents.retain(|document| !is_generated(&document.body));
+    }
+    documents.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+    Ok(documents)
+}
+
+fn is_generated(body: &str) -> bool {
+    body.trim_start().starts_with(GENERATED_MARKER)
+}
+
+fn included_paths(root: &Path, includes: &[String]) -> Result<Vec<PathBuf>, ScanError> {
+    let mut found = Vec::new();
+    for name in includes {
+        let path = root.join(name);
+        match fs::metadata(&path) {
+            Ok(meta) if meta.is_dir() => found.extend(tree_paths(&path, &[])?),
+            Ok(meta) if meta.is_file() => found.push(path),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(source) => return Err(ScanError::Io { path, source }),
+        }
+    }
+    Ok(found)
 }
 
 fn is_markdown(path: &Path) -> bool {
@@ -186,8 +237,11 @@ fn read_document(root: &Path, path: &Path, kind: SourceKind) -> Result<DocumentI
 }
 
 fn relative(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
+    let inside = match path.strip_prefix(root) {
+        Ok(inner) => inner,
+        Err(_) => path.file_name().map_or(path, Path::new),
+    };
+    inside
         .components()
         .map(|part| part.as_os_str().to_string_lossy().into_owned())
         .collect::<Vec<_>>()
@@ -225,7 +279,9 @@ fn title_of(
 ) -> String {
     let declared = match kind {
         SourceKind::Tree => text_field(metadata, "title"),
-        SourceKind::Memory | SourceKind::Skills => text_field(metadata, "name"),
+        SourceKind::Memory | SourceKind::Skills | SourceKind::Instructions => {
+            text_field(metadata, "name")
+        }
     };
     if let Some(name) = declared {
         return name;

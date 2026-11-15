@@ -2876,6 +2876,21 @@ detector's queue read.
 
 ---
 
+### `memory.knowledge_sources` (machine sources)
+
+Migration `20261115190000_knowledge_machine_sources.sql` lets a source belong to a machine instead of a
+checkout: `machine_uuid` (FK → `projects.machines`) is set and `location_uuid` is NULL, enforced by a CHECK
+that exactly one is set, and machine sources are unique on `(machine_uuid, name)` (partial index). The
+scanner registers four per machine, rooted in the Claude home: `agents`, `rules` (plus `CLAUDE.md`),
+`skills` and `agent-memory`. Their documents have no project (`memory.knowledge_body_artifact_v` LEFT JOINs
+`projects.locations`, so their items and embedding state carry `project_id` NULL), and every project's
+search, read and guidance include them. Each checkout also gets the built-in source `instructions`: its
+`CLAUDE.md`, `AGENTS.md`, `.claude/rules/` and `.claude/agents/`, without the generated
+`.claude/rules/mike-lessons.md`. `memory.share_twin_embeddings(item_ids, model_key)` serves an item from a
+twin (same project, or both machine sources, same source name and `relative_path`, same title and
+`content_hash`, embedded for the model) by copying the twin's chunks, so a body scanned on two machines is
+embedded once; the knowledge sweep calls it on each batch before the embedder.
+
 ### `memory.knowledge_sources` (collector health columns)
 
 The table itself was added in `20260920000008_project_knowledge.sql`: one row per explicitly registered

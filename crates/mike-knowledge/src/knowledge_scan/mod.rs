@@ -1,6 +1,7 @@
 pub mod declared;
 pub mod files;
 pub mod frontmatter;
+pub mod machine;
 pub mod sync;
 
 #[cfg(test)]
@@ -9,6 +10,12 @@ pub mod declared_tests;
 pub mod files_tests;
 #[cfg(test)]
 pub mod frontmatter_tests;
+#[cfg(test)]
+pub mod machine_db_tests;
+#[cfg(test)]
+pub mod machine_tests;
+#[cfg(test)]
+pub mod scan_test_support;
 #[cfg(test)]
 pub mod sync_db_tests;
 

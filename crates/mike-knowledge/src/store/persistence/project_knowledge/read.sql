@@ -5,7 +5,7 @@ WITH source_freshness AS (
                'last_scan_at', s.last_scan_at,
                'last_verified_at', GREATEST(s.last_scan_at, s.last_heartbeat_at)) AS freshness
       FROM memory.knowledge_sources s
-      JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
+      LEFT JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
      CROSS JOIN LATERAL (
         SELECT COALESCE(jsonb_agg(f.reason), '[]'::jsonb) AS reasons
           FROM (VALUES
@@ -20,21 +20,21 @@ WITH source_freshness AS (
           ) AS f(reason)
          WHERE f.reason IS NOT NULL
      ) fr
-     WHERE $2 = 'artifact' AND ($1::bigint IS NULL OR sl.project_id = $1)
+     WHERE $2 = 'artifact' AND ($1::bigint IS NULL OR sl.project_id = $1 OR s.machine_uuid IS NOT NULL)
 ), found(item, project_id) AS (
 SELECT jsonb_build_object('reference', 'artifact:' || r.id, 'body', r.body,
     'title', r.title, 'status', r.status, 'kind', r.kind, 'metadata', r.metadata,
     'revision', r.id, 'content_hash', r.content_hash, 'observed_at', r.observed_at,
     'path', d.relative_path, 'root_path', s.root_path, 'last_scan_at', s.last_scan_at,
-    'location_uuid', loc.location_uuid, 'machine_uuid', loc.machine_uuid,
+    'location_uuid', loc.location_uuid, 'machine_uuid', COALESCE(loc.machine_uuid, s.machine_uuid),
     'deleted', d.deleted_at IS NOT NULL, 'current', d.current_revision = r.id,
     'freshness', sf.freshness), loc.project_id
 FROM memory.knowledge_revisions r
 JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid
 JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
-JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
 JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
-WHERE ($1::bigint IS NULL OR loc.project_id = $1) AND $2 = 'artifact' AND r.id = $3
+WHERE ($1::bigint IS NULL OR loc.project_id = $1 OR s.machine_uuid IS NOT NULL) AND $2 = 'artifact' AND r.id = $3
 UNION ALL
 SELECT jsonb_build_object('reference', 'lesson:' || l.uuid, 'body', l.text,
     'kind', k.code, 'status', st.code, 'topic', l.topic, 'expires_at', l.expires_at,
@@ -187,4 +187,4 @@ CROSS JOIN LATERAL memory.knowledge_item_bodies(e.source_kind, ARRAY[e.source_id
 WHERE e.reference = $6 AND e.source_kind = $2 AND ($1::bigint IS NULL OR e.project_id = $1)
 )
 SELECT f.item || jsonb_build_object('project_uuid', p.project_uuid)
-  FROM found f JOIN projects.projects p ON p.id = f.project_id
+  FROM found f LEFT JOIN projects.projects p ON p.id = f.project_id
