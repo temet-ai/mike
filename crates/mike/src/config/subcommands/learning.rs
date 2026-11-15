@@ -10,6 +10,8 @@ use crate::lessons_settings::LessonWorkerConfig;
 use crate::semantic::SemanticConfig;
 use crate::store::persistence::PersistHandle;
 
+pub const CONFLICTS_EXIT: i32 = 3;
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum LearningCommand {
     Promote(PromoteArgs),
@@ -51,9 +53,9 @@ fn package_shares(exe: &std::path::Path) -> Vec<PathBuf> {
         .collect()
 }
 
-fn scripts_root() -> Result<PathBuf> {
+fn scripts_root() -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("MIKE_SCRIPTS_ROOT").filter(|root| !root.is_empty()) {
-        return Ok(PathBuf::from(root));
+        return Some(PathBuf::from(root));
     }
     let cwd = std::env::current_dir().ok();
     let exe = std::env::current_exe().ok();
@@ -73,16 +75,32 @@ fn scripts_root() -> Result<PathBuf> {
         .chain(from_exe)
         .chain(shares)
         .find(|candidate| has_scripts(candidate))
-        .context("could not find the mike scripts folder; set MIKE_SCRIPTS_ROOT to the folder that holds scripts/")
 }
 
-async fn environment() -> Result<Environment> {
+async fn checkout_root(persist: &PersistHandle, machine: uuid::Uuid) -> Result<Option<PathBuf>> {
+    let locations = persist
+        .locations_on_machine(machine)
+        .await
+        .context("could not read this machine's checkouts")?;
+    Ok(locations
+        .into_iter()
+        .map(|location| PathBuf::from(location.root_path))
+        .find(|root| has_scripts(root)))
+}
+
+async fn environment(persist: &PersistHandle) -> Result<Environment> {
     let identity = crate::machine_identity::load_default()
         .await
         .context("could not read this machine's identity")?;
+    let root = match scripts_root() {
+        Some(root) => root,
+        None => checkout_root(persist, identity.machine_uuid).await?.context(
+            "could not find the mike scripts folder beside the binary, in the working directory or in a checkout this machine registered; set MIKE_SCRIPTS_ROOT to the folder that holds scripts/",
+        )?,
+    };
     Ok(Environment {
         home: home_dir()?,
-        root: scripts_root()?,
+        root,
         machine_uuid: identity.machine_uuid,
         machine_name: identity.machine_name,
     })
@@ -100,7 +118,7 @@ async fn run_promote(args: PromoteArgs, cli: CliOverrides) -> Result<()> {
         .context("could not connect to the target database")?;
     let rows = persist.fetch_settings().await?;
     crate::config::apply_settings_overrides(&mut config, &rows);
-    let environment = environment().await?;
+    let environment = environment(&persist).await?;
     let _lock = acquire_lock(&environment.home)?;
     let embedding = EmbeddingService::new(&config.embedding);
     let coverage = CoverageSettings {
@@ -119,7 +137,7 @@ async fn run_promote(args: PromoteArgs, cli: CliOverrides) -> Result<()> {
     .await?;
     println!("{}", serde_json::to_string_pretty(&report.result)?);
     if report.has_conflicts {
-        std::process::exit(1);
+        std::process::exit(CONFLICTS_EXIT);
     }
     Ok(())
 }

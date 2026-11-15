@@ -256,9 +256,9 @@ mod tests {
 
     #[tokio::test]
     async fn a_script_that_exits_nonzero_reports_the_code_and_its_stderr() -> anyhow::Result<()> {
-        let dir = promote_in("echo conflict in memory.md >&2\nexit 3")?;
+        let dir = promote_in("echo conflict in memory.md >&2\nexit 4")?;
         let report = run_job(dir.path(), &quick(Duration::from_secs(30))).await;
-        assert_eq!(report.result, RunResult::Exited(3));
+        assert_eq!(report.result, RunResult::Exited(4));
         assert_eq!(report.tail, vec!["conflict in memory.md".to_owned()]);
         Ok(())
     }
@@ -392,15 +392,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn promote_exit_one_is_an_alarm_for_a_preserved_conflict() -> anyhow::Result<()> {
-        let dir = promote_in("echo 'kept hand edit in memory.md as a conflict' >&2\nexit 1")?;
+    async fn promote_exit_three_is_an_alarm_for_a_preserved_conflict() -> anyhow::Result<()> {
+        let dir = promote_in("echo 'kept hand edit in memory.md as a conflict' >&2\nexit 3")?;
         let report = run_job(dir.path(), &PROMOTE).await;
-        assert_eq!(report.result, RunResult::Alarmed(1));
+        assert_eq!(report.result, RunResult::Alarmed(3));
         assert!(report.result.completed());
         assert_eq!(
             report.tail,
             vec!["kept hand edit in memory.md as a conflict".to_owned()]
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn promote_exit_one_is_a_failure_not_an_alarm() -> anyhow::Result<()> {
+        let dir = promote_in("echo 'Error: could not find the mike scripts folder' >&2\nexit 1")?;
+        let report = run_job(dir.path(), &PROMOTE).await;
+        assert_eq!(report.result, RunResult::Exited(1));
+        assert!(!report.result.completed());
         Ok(())
     }
 
