@@ -10,7 +10,6 @@ pub(crate) struct Here {
     pub(crate) host: String,
     pub(crate) checkout: Option<PathBuf>,
     pub(crate) loadavg: PathBuf,
-    pub(crate) build_lock: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,15 +48,6 @@ fn resolve_checkout() -> Option<PathBuf> {
         .filter(|dir| is_checkout(dir))
 }
 
-fn build_lock_path() -> PathBuf {
-    env_path("MIKE_HEAVY_BUILD_LOCK").unwrap_or_else(|| {
-        env_path("XDG_RUNTIME_DIR")
-            .or_else(|| env_path("TMPDIR"))
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
-            .join("mike-heavy-build.lock")
-    })
-}
-
 fn usable(raw: Option<&str>) -> Option<&str> {
     raw.map(str::trim)
         .filter(|value| !value.is_empty() && !value.starts_with('-'))
@@ -69,7 +59,6 @@ impl Here {
             host: crate::wright::investigate::context::machine().await.host,
             checkout: resolve_checkout(),
             loadavg: PathBuf::from("/proc/loadavg"),
-            build_lock: build_lock_path(),
         }
     }
 

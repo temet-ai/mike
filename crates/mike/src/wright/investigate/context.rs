@@ -41,7 +41,6 @@ pub(crate) struct EnginePaths {
     pub(crate) binaries: Binaries,
     pub(crate) loadavg: PathBuf,
     pub(crate) deploy_lock: PathBuf,
-    pub(crate) build_lock: PathBuf,
 }
 
 impl EnginePaths {
@@ -49,7 +48,6 @@ impl EnginePaths {
         Locks {
             loadavg: &self.loadavg,
             deploy: &self.deploy_lock,
-            build: &self.build_lock,
         }
     }
 }
@@ -157,15 +155,6 @@ fn credentials_path() -> Result<PathBuf, String> {
         .ok_or_else(|| "neither CLAUDE_CONFIG_DIR nor HOME is set".to_owned())
 }
 
-fn build_lock_path() -> PathBuf {
-    env_path("MIKE_HEAVY_BUILD_LOCK").unwrap_or_else(|| {
-        env_path("XDG_RUNTIME_DIR")
-            .or_else(|| env_path("TMPDIR"))
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
-            .join("mike-heavy-build.lock")
-    })
-}
-
 fn bwrap_path() -> Result<PathBuf, String> {
     on_path("bwrap")
         .into_iter()
@@ -235,7 +224,6 @@ pub(crate) fn resolve_paths() -> Result<EnginePaths, String> {
         refresh_slot: true,
         loadavg: PathBuf::from("/proc/loadavg"),
         deploy_lock: repo.join(".deploy").join("deploy.lock"),
-        build_lock: build_lock_path(),
         runs,
         credentials: credentials_path()?,
         bwrap: bwrap_path()?,

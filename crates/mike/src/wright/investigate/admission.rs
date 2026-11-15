@@ -25,7 +25,6 @@ pub(crate) fn lock_held(path: &Path) -> bool {
 pub(crate) struct Locks<'a> {
     pub(crate) loadavg: &'a Path,
     pub(crate) deploy: &'a Path,
-    pub(crate) build: &'a Path,
 }
 
 pub(crate) fn machine_busy(locks: &Locks<'_>) -> Option<String> {
@@ -37,9 +36,6 @@ pub(crate) fn machine_busy(locks: &Locks<'_>) -> Option<String> {
     }
     if lock_held(locks.deploy) {
         return Some(format!("a deploy holds {}", locks.deploy.display()));
-    }
-    if lock_held(locks.build) {
-        return Some(format!("a heavy build holds {}", locks.build.display()));
     }
     None
 }

@@ -17,7 +17,6 @@ fn here(checkout: Option<&str>) -> Here {
         host: "omit".to_owned(),
         checkout: checkout.map(PathBuf::from),
         loadavg: PathBuf::from("/proc/loadavg"),
-        build_lock: PathBuf::from("/tmp/mike-heavy-build.lock"),
     }
 }
 
@@ -27,10 +26,9 @@ fn probe_quiet_load_and_free_lock_is_quiet() {
 }
 
 #[test]
-fn probe_load_over_processors_or_held_lock_is_busy() {
+fn probe_load_over_processors_is_busy_and_a_running_build_is_not() {
     assert!(parse_probe(BUSY_PROBE).is_err_and(|why| why.contains("12.50")));
-    let held = "0.1 0.1 0.1 1/1 1\n8\nlock-held\n";
-    assert!(parse_probe(held).is_err_and(|why| why.contains("heavy build")));
+    assert_eq!(parse_probe("0.1 0.1 0.1 1/1 1\n8\n"), Ok(()));
     assert!(parse_probe("0.1 0.1\n").is_err());
 }
 
