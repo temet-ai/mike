@@ -20,6 +20,8 @@ pub(crate) mod worker;
 #[cfg(test)]
 pub(crate) mod fakes_tests;
 #[cfg(test)]
+mod followup_tests;
+#[cfg(test)]
 mod job_tests;
 #[cfg(test)]
 mod steer_tests;
@@ -51,6 +53,10 @@ pub(crate) struct AnswerRequest {
 #[async_trait]
 pub(crate) trait AnswerEngine: Send + Sync {
     async fn answer(&self, request: AnswerRequest) -> Result<Value, EngineError>;
+
+    async fn available(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

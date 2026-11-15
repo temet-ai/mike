@@ -59,7 +59,6 @@ pub(super) fn paths(root: &Path) -> anyhow::Result<EnginePaths> {
         },
         loadavg: root.join("loadavg"),
         deploy_lock: root.join("deploy.lock"),
-        build_lock: root.join("build.lock"),
     })
 }
 

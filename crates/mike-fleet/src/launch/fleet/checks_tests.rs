@@ -183,6 +183,21 @@ fn a_task_file_marked_new_is_not_missing() -> anyhow::Result<()> {
 }
 
 #[test]
+fn a_task_that_only_creates_files_names_files_it_may_touch() {
+    let def = changed(task_with(json!([]), json!(["src/new_module.gleam"])));
+    assert_eq!(
+        about(&check_definition(&def), "tasks.P2.files"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_task_with_neither_files_nor_new_files_is_missing() {
+    let def = changed(task_with(json!([]), json!([])));
+    assert_eq!(about(&check_definition(&def), "tasks.P2.files").len(), 1);
+}
+
+#[test]
 fn the_files_are_not_read_when_the_repo_is_not_a_folder() {
     let def = changed(task_with(json!(["nowhere/at/all.rs"]), json!([])));
     let env = Environment {

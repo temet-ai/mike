@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use super::watch::git;
 
 const MOST: usize = 200;
-const KEYWORDS: &str = "fn|struct|enum|trait|type|const|static|mod|impl|macro_rules!|class|def|async def|function|interface|func|fun|val|var|let|record|object|data class|final class|abstract class|protocol|module|package";
+const KEYWORDS: &str = "fn|struct|enum|trait|type|const|static|mod|impl|macro_rules!|class|def|async def|function|interface|func|fun|val|var|let|let rec|record|object|data class|final class|abstract class|protocol|module|package|proc|method|iterator|template|macro|converter|defp|defmacro|defmodule|defstruct|local function|local|external";
+const QUALIFIER: &str = r"(\([^)]*\)[[:space:]]*)?([A-Za-z_][A-Za-z0-9_]*[.:])?";
+const C_DECLARATOR: &str = r"^[A-Za-z_][A-Za-z0-9_[:space:]*]*[[:space:]*]";
 const PREFIX: &str = r"^[[:space:]]*(export[[:space:]]+(default[[:space:]]+)?)?(pub(\([a-z]+\))?[[:space:]]+)?(async[[:space:]]+)?(unsafe[[:space:]]+)?(static[[:space:]]+)?(public|private|protected|internal|open|final|override|abstract)?[[:space:]]*";
 const NAME: &str = "[A-Za-z_][A-Za-z0-9_]*";
 
@@ -25,7 +27,9 @@ pub struct Located {
 
 pub fn pattern(symbol: Option<&str>) -> String {
     let name = symbol.map_or(NAME.to_string(), regex::escape);
-    format!("{PREFIX}({KEYWORDS})[[:space:]]+{name}([^A-Za-z0-9_]|$)")
+    format!(
+        r"({PREFIX}({KEYWORDS})[[:space:]]+{QUALIFIER}{name}([^A-Za-z0-9_]|$))|({C_DECLARATOR}{name}[[:space:]]*\()"
+    )
 }
 
 pub async fn locate(repo: &str, symbol: Option<&str>, path: Option<&str>) -> Located {
@@ -116,6 +120,16 @@ mod tests {
             "export default class load_rules {",
             "func load_rules() error {",
             "fun load_rules(): Unit",
+            "proc load_rules*(path: string): seq[Rule] =",
+            "func (s *Store) load_rules(path string) error {",
+            "int load_rules(const char *path)",
+            "static struct rule *load_rules(void);",
+            "defp load_rules(path) do",
+            "local function load_rules(path)",
+            "function M.load_rules(path)",
+            "def self.load_rules(path)",
+            "let rec load_rules path =",
+            "pub fn load_rules(path: String) -> List(Rule) {",
         ] {
             assert!(re.is_match(line), "{line}");
         }
@@ -123,6 +137,8 @@ mod tests {
             "let rules = load_rules(path);",
             "fn load_rules_from(path: &str) {",
             "// fn load_rules was here",
+            "    return load_rules(path);",
+            "rules = load_rules(path)",
         ] {
             assert!(!re.is_match(line), "{line}");
         }

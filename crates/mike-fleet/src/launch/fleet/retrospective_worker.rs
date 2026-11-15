@@ -203,6 +203,8 @@ fn transient(err: &LaunchError) -> bool {
     )
 }
 
+pub(super) const CLOSE_REASON: &str = "retrospective finished: its process has exited";
+
 pub(super) async fn cleanup(
     persist: &PersistHandle,
     row: &FleetRow,
@@ -210,8 +212,9 @@ pub(super) async fn cleanup(
 ) -> Result<(), PersistError> {
     let def =
         FleetDefinition::from_value(&job.source_definition).map_err(PersistError::DataInvariant)?;
-    if let Some(launch) = persist.launch().find_launch_by_session(job.session).await?
-        && !safe_to_cleanup(&launch, crate::workspace_reaper::is_process_alive)
+    let launch = persist.launch().find_launch_by_session(job.session).await?;
+    if let Some(launch) = &launch
+        && !safe_to_cleanup(launch, crate::workspace_reaper::is_process_alive)
     {
         job.phase = Phase::Blocked;
         job.problem =
@@ -223,6 +226,12 @@ pub(super) async fn cleanup(
         job.problem = super::retrospective_outcome::verdict(persist, row, &def, &job).await?;
     }
     persist.launch().close_run(&job.run_id).await?;
+    if let Some(launch) = launch.filter(|launch| launch.closed_at.is_none()) {
+        persist
+            .launch()
+            .record_launch_closed(launch.id, CLOSE_REASON, Some(true))
+            .await?;
+    }
     super::cleanup::after_close(persist, row, &def, &job.source_run).await;
     job.phase = if job.problem.is_some() {
         Phase::Failed

@@ -21,11 +21,9 @@ fn investigate_held_lock_is_busy_and_free_lock_is_not() -> anyhow::Result<()> {
     assert!(lock_held(&lock));
     let load = tmp.path().join("loadavg");
     std::fs::write(&load, "0.00 0.00 0.00 1/1 1")?;
-    let missing = tmp.path().join("build.lock");
     let busy = machine_busy(&Locks {
         loadavg: &load,
         deploy: &lock,
-        build: &missing,
     });
     assert!(busy.is_some_and(|reason| reason.contains("deploy")));
     holder.unlock()?;

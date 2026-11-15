@@ -99,6 +99,7 @@ pub(crate) struct NewInvestigation<'a> {
     pub(crate) host: &'a str,
     pub(crate) machine_uuid: Option<Uuid>,
     pub(crate) owner_pid: i32,
+    pub(crate) followup_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -186,6 +187,7 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
             .bind(run.host)
             .bind(run.machine_uuid)
             .bind(run.owner_pid)
+            .bind(run.followup_id)
             .fetch_optional(self.pool())
             .await;
         match row {

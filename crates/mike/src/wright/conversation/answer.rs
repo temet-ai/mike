@@ -4,7 +4,9 @@ use serde_json::{Value, json};
 pub(crate) const BODY_MAX_CHARS: usize = 32 * 1024;
 pub(crate) const LINKS_MAX: usize = 50;
 pub(crate) const NAMED_MAX: usize = 10;
-pub(crate) const LINK_KINDS: [&str; 5] = ["problem", "episode", "action", "finding", "repair"];
+pub(crate) const LINK_KINDS: [&str; 6] = [
+    "problem", "episode", "action", "finding", "repair", "followup",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct Link {
@@ -80,6 +82,7 @@ pub(crate) fn link_ids(links: &[Link]) -> crate::store::persistence::wright::con
         actions: ids_of(links, "action"),
         findings: ids_of(links, "finding"),
         repairs: ids_of(links, "repair"),
+        followups: ids_of(links, "followup"),
     }
 }
 

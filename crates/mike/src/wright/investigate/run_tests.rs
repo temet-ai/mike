@@ -12,6 +12,7 @@ fn request() -> RunRequest {
     RunRequest {
         mode: RunMode::Investigate,
         problem_id: None,
+        followup_id: None,
         brief: "test brief".to_owned(),
         inputs: vec![("evidence.json".to_owned(), json!({"n": 1}))],
     }
@@ -146,6 +147,17 @@ async fn investigate_second_start_is_busy_and_daily_limit_refuses() -> anyhow::R
             limit: 1
         })
     ));
+    let answer = start_run(
+        &rig.ctx,
+        RunRequest {
+            mode: RunMode::Answer,
+            problem_id: None,
+            ..request()
+        },
+    )
+    .await?;
+    expire(&rig.ctx.persist, answer.investigation_id).await?;
+    wait(answer).await;
     rig.ctx.toggles.store(std::sync::Arc::new(
         crate::feature_toggles::FeatureToggles {
             wright: false,
@@ -222,6 +234,62 @@ async fn investigate_tick_records_one_finding_per_open_episode() -> anyhow::Resu
     .bind(i32::try_from(worker::MAX_ATTEMPTS_PER_EPISODE)?)
     .execute(persist.pool())
     .await?;
+    assert!(worker::tick(&rig.ctx).await.is_none());
+    rig.cleanup().await
+}
+
+const FOLLOWUP_SCRIPT: &str = r#"
+cat > /wright/out/finding.json <<'EOF2'
+{"symptom": "launches stay dead", "suspected_cause": "the reaper skips them", "confirmed_cause": null,
+ "cause_established": false, "owning_part": null, "kind": "unknown",
+ "remedy": "find the reaper gap", "evidence": [{"kind": "problem", "ref": "see brief"}],
+ "followups": [
+  {"kind": "code_defect", "title": "Reaper skips dead launches", "body": "the reaper filter is too narrow", "owning_part": null, "same_as": null},
+  {"kind": "check_tuning", "title": "Raise the orphan threshold", "body": "the check fires on young launches", "owning_part": null, "same_as": null}
+ ]}
+EOF2
+"#;
+
+#[tokio::test]
+async fn investigate_tick_records_every_followup_and_links_a_root_cause_run_to_its_followup()
+-> anyhow::Result<()> {
+    if let Some(reason) = bwrap_missing() {
+        eprintln!("{reason}");
+        return Ok(());
+    }
+    let rig = Rig::boot(script(FOLLOWUP_SCRIPT)).await?;
+    let persist = rig.ctx.persist.clone();
+    open_problem(&persist, "stream aborted").await?;
+    let root = persist
+        .web()
+        .open_root_cause_followup("request_failures", "close_stream", 12, 7)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no root-cause follow-up opened"))?;
+    let outcome = worker::tick(&rig.ctx)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("no run started"))?;
+    let finding_id = outcome
+        .finding_id
+        .ok_or_else(|| anyhow::anyhow!("no finding: {:?}", outcome.output))?;
+    let rows = persist
+        .web()
+        .live_wright_followups(Some("request_failures"), None)
+        .await?;
+    let kinds: Vec<&str> = rows.iter().map(|row| row.kind.as_str()).collect();
+    assert!(kinds.contains(&"code_defect"), "{kinds:?}");
+    assert!(kinds.contains(&"check_tuning"), "{kinds:?}");
+    assert_eq!(
+        kinds.iter().filter(|kind| **kind == "root_cause").count(),
+        1
+    );
+    let linked = persist
+        .web()
+        .list_wright_followups(None, 50, None)
+        .await?
+        .into_iter()
+        .find(|row| row.id == root)
+        .ok_or_else(|| anyhow::anyhow!("root-cause follow-up gone"))?;
+    assert_eq!(linked.findings, vec![finding_id]);
     assert!(worker::tick(&rig.ctx).await.is_none());
     rig.cleanup().await
 }

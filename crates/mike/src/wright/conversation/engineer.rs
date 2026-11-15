@@ -49,11 +49,16 @@ impl AnswerEngine for EngineerAnswers {
         let run = RunRequest {
             mode: RunMode::Answer,
             problem_id: None,
+            followup_id: None,
             brief: request.brief,
             inputs: request.inputs,
         };
         let handle = investigate::start_run(&ctx, run).await.map_err(refused)?;
         let outcome = investigate::wait(handle).await;
         settled(outcome.end, outcome.output)
+    }
+
+    async fn available(&self) -> bool {
+        EngineerContext::from_state(&self.state).await.is_ok()
     }
 }

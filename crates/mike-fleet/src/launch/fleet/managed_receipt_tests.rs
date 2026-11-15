@@ -34,7 +34,7 @@ async fn ahead_of_us(
         let ledger = format!("{run}-ahead-{n}");
         let registration = fence.register(&ledger).map_err(anyhow::Error::msg)?;
         managed_queue::enlist(
-            8_000_000 + n,
+            -8_000_000 + n,
             &Enlisted {
                 repo: &def.repo,
                 lane: Lane::Check,

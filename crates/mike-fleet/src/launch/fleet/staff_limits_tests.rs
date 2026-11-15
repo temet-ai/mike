@@ -16,6 +16,27 @@ fn max_seats_counts_live_and_starting_seats_against_the_limit() {
     assert_eq!(seat_room(&def, 5, 4), 0);
 }
 
+#[test]
+fn a_task_whose_seat_has_closed_does_not_count_against_max_seats() -> anyhow::Result<()> {
+    let status = crate::launch::fleet::render::tests_fixture::fixture()?;
+    assert_eq!(super::live_worker_seats(&status), 2);
+    Ok(())
+}
+
+#[test]
+fn reaching_max_seats_names_the_limit_not_the_terminal() {
+    let def = changed(serde_json::json!({"staffing": {"max_seats": 2}}));
+    let why = super::max_seats_reached(&def, 2, 0).unwrap_or_default();
+    assert!(why.contains("staffing.max_seats is 2"), "{why}");
+    assert_eq!(super::max_seats_reached(&def, 1, 0), None);
+    assert_eq!(super::max_seats_reached(&parsed(&complete()), 9, 9), None);
+    let (room, why) = super::binding_room(&def, (2, 0), (16, "surfaces".to_string()));
+    assert_eq!(room, 0);
+    assert!(why.contains("staffing.max_seats is 2"), "{why}");
+    let (room, why) = super::binding_room(&def, (0, 0), (1, "surfaces".to_string()));
+    assert_eq!((room, why.as_str()), (1, "surfaces"));
+}
+
 #[tokio::test]
 async fn staffing_waits_when_the_host_has_less_free_memory_than_the_floor_and_is_unchanged_without_one()
  {

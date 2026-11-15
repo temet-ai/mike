@@ -1,10 +1,10 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::time::Duration;
 
-use super::brief::{EVIDENCE_INPUT, evidence, investigate_brief};
+use super::brief::{EVIDENCE_INPUT, evidence, investigate_brief, root_cause_brief};
 use super::{EngineerContext, RunMode, RunOutcome, RunRequest, StartRefused, reconcile};
 use crate::state::AppState;
-use crate::store::persistence::wright::Pick;
+use crate::store::persistence::wright::{Pick, RootCausePick};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const LEASE_ROLE: &str = "wright_engineer";
@@ -53,15 +53,16 @@ async fn pass_once(state: &AppState, last_unavailable: &mut Option<String>) -> b
     let Some(persist) = state.persist() else {
         return false;
     };
-    if !persist.holds_worker_role(LEASE_ROLE, TICK).await {
-        return true;
-    }
-    match EngineerContext::from_state(state).await {
-        Ok(ctx) => {
-            *last_unavailable = None;
-            tick(&ctx).await;
+    let ctx = match EngineerContext::from_state(state).await {
+        Ok(ctx) => ctx,
+        Err(reason) => {
+            note_unavailable(last_unavailable, reason);
+            return true;
         }
-        Err(reason) => note_unavailable(last_unavailable, reason),
+    };
+    *last_unavailable = None;
+    if persist.holds_worker_role(LEASE_ROLE, TICK).await {
+        tick(&ctx).await;
     }
     true
 }
@@ -82,17 +83,45 @@ pub(crate) async fn request_for(
     persist: &PersistHandle,
     pick: Pick,
 ) -> Result<Option<RunRequest>, PersistError> {
-    let Some(problem) = persist.web().wright_problem(pick.problem_id).await? else {
+    build_request(persist, pick.problem_id, pick.episode_id, None).await
+}
+
+pub(crate) async fn root_cause_request_for(
+    persist: &PersistHandle,
+    pick: &RootCausePick,
+) -> Result<Option<RunRequest>, PersistError> {
+    build_request(persist, pick.problem_id, pick.episode_id, Some(pick)).await
+}
+
+async fn build_request(
+    persist: &PersistHandle,
+    problem_id: i64,
+    episode_id: i64,
+    root: Option<&RootCausePick>,
+) -> Result<Option<RunRequest>, PersistError> {
+    let Some(problem) = persist.web().wright_problem(problem_id).await? else {
         return Ok(None);
     };
-    let Some(episode) = persist.web().wright_episode(pick.episode_id).await? else {
+    let Some(episode) = persist.web().wright_episode(episode_id).await? else {
         return Ok(None);
+    };
+    let open = persist
+        .web()
+        .live_wright_followups(Some(&problem.check_name), None)
+        .await?;
+    let brief = match root {
+        Some(pick) => root_cause_brief(&problem, &episode, &open, pick),
+        None => investigate_brief(&problem, &episode, &open),
     };
     Ok(Some(RunRequest {
         mode: RunMode::Investigate,
         problem_id: Some(problem.id),
-        brief: investigate_brief(&problem, &episode),
-        inputs: vec![(EVIDENCE_INPUT.to_owned(), evidence(&problem, &episode))],
+        followup_id: root.map(|pick| pick.followup_id),
+        brief,
+        inputs: vec![(
+            EVIDENCE_INPUT.to_owned(),
+            evidence(&problem, &episode, &open, root),
+        )],
     }))
 }
 
@@ -186,14 +215,55 @@ async fn read_request(ctx: &EngineerContext, pick: Pick) -> Option<RunRequest> {
     }
 }
 
+async fn next_root_cause(ctx: &EngineerContext) -> Option<RunRequest> {
+    let web = ctx.persist.web();
+    let max_attempts = match web.wright_followup_limits().await {
+        Ok(limits) => i64::from(limits.max_attempts),
+        Err(e) => {
+            log_pick_failed(&e);
+            return None;
+        }
+    };
+    let pick = match ctx.persist.web().pick_wright_root_cause(max_attempts).await {
+        Ok(pick) => pick?,
+        Err(e) => {
+            log_pick_failed(&e);
+            return None;
+        }
+    };
+    match root_cause_request_for(&ctx.persist, &pick).await {
+        Ok(request) => request,
+        Err(e) => {
+            log_read_failed(&e);
+            None
+        }
+    }
+}
+
 pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
     if let Err(e) = reconcile::reconcile(&ctx.persist, &ctx.machine).await {
         log_reconcile_failed(&e);
         return None;
     }
+    if repair_waiting(ctx).await {
+        return None;
+    }
+    if let Some(request) = next_root_cause(ctx).await {
+        return run_request(ctx, request).await;
+    }
     let pick = next_pick(ctx).await?;
     let request = read_request(ctx, pick).await?;
     run_request(ctx, request).await
+}
+
+async fn repair_waiting(ctx: &EngineerContext) -> bool {
+    match ctx.persist.web().wright_repair_waiting().await {
+        Ok(waiting) => waiting,
+        Err(e) => {
+            log_pick_failed(&e);
+            true
+        }
+    }
 }
 
 async fn run_request(ctx: &EngineerContext, request: RunRequest) -> Option<RunOutcome> {
