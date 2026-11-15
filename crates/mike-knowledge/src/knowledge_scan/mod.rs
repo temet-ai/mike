@@ -83,17 +83,24 @@ async fn tick(
     if !*legacy_merged {
         *legacy_merged = crate::machine_identity::merge_legacy_at_startup(persist, &identity).await;
     }
+    record_machine(persist, &identity).await;
+    match scan_machine(persist, identity.machine_uuid, claude_home, memo).await {
+        Ok(report) => log_report(&report),
+        Err(error) => tracing::warn!(%error, "knowledge_scan: cycle failed"),
+    }
+    record_origins(persist, identity.machine_uuid).await;
+}
+
+async fn record_machine(
+    persist: &PersistHandle,
+    identity: &crate::machine_identity::MachineIdentity,
+) {
     if let Err(error) = persist
         .ensure_machine(identity.machine_uuid, &identity.machine_name)
         .await
     {
         tracing::warn!(%error, "knowledge_scan: recording this machine failed");
     }
-    match scan_machine(persist, identity.machine_uuid, claude_home, memo).await {
-        Ok(report) => log_report(&report),
-        Err(error) => tracing::warn!(%error, "knowledge_scan: cycle failed"),
-    }
-    record_origins(persist, identity.machine_uuid).await;
 }
 
 async fn record_origins(persist: &PersistHandle, machine: uuid::Uuid) {
