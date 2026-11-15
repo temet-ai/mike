@@ -3,7 +3,7 @@ title: "#200 knowledge search speed: what is true on 2026-11-15, the five fixes 
 status: active
 created: 2026-11-15
 updated: 2026-11-15
-summary: The issue's numbers hold on today's build (SQL 1.4-1.7 s, whole call 1.8-5.2 s); one unrelated plan fix landed 11-12, none of the five fixes has. Order 1, 2, 5, then 4; skip 3.
+summary: The issue's numbers hold on today's build (SQL 1.4-1.7 s, whole call 1.8-5.2 s); one unrelated plan fix landed 11-12, none of the five fixes has. Order 5, 2, 1, then 4; skip 3.
 session_id:
   - ddf91a5c-37a8-4a22-a59f-c0fb00adb0a0
 ---
