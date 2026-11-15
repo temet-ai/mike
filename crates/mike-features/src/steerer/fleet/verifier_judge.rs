@@ -8,6 +8,7 @@ use super::verifier_criteria::load_criteria_inputs;
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
 use crate::steerer::checklist_point::Criterion;
+use crate::steerer::verifier::trajectory_digest::fetch_tool_call_details;
 use crate::steerer::verifier::{build_trajectory_digest, written_by_the_operator};
 use crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap;
 use crate::store::persistence::memory_ask_ledger::AskLedgerEntryRow;
@@ -100,7 +101,10 @@ async fn fetch_trajectory_digest(
         .fetch_turn_tool_calls_paired(turn_id, session_db_id)
         .await
     {
-        Ok(rows) => build_trajectory_digest(&rows),
+        Ok(rows) => {
+            let details = fetch_tool_call_details(ph.pool(), turn_id, session_db_id).await;
+            build_trajectory_digest(&rows, &details)
+        }
         Err(e) => {
             log_turn_tool_calls_fetch_failed(session_uuid, turn_id, &e);
             String::new()

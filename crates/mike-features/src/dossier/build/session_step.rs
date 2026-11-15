@@ -69,6 +69,14 @@ fn class_input(
     }
 }
 
+fn probe_origin(record: &SessionRecord) -> &'static str {
+    if record.launches.as_array().is_some_and(|l| !l.is_empty()) {
+        "mike_launch"
+    } else {
+        "direct"
+    }
+}
+
 pub fn probe_candidates(
     loaded: &Loaded,
     session_ids: &[i64],
@@ -86,6 +94,12 @@ pub fn probe_candidates(
                 session_id: *session_id,
                 first_prompt: input.first_prompt?,
                 project_path: input.project_path,
+                origin: probe_origin(record),
+                turn_count: loaded
+                    .turns
+                    .iter()
+                    .filter(|turn| turn.session_id == *session_id)
+                    .count(),
                 reason,
             })
         })

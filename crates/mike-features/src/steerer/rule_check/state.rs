@@ -1,8 +1,8 @@
 use serde_json::{Map, Value, json};
 
 use super::questions::key;
-use super::rules::{Rule, TurnTools, summary_lines};
-use crate::llm::decisions::text::{head_chars, tail_chars};
+use super::rules::{Rule, TurnTools, cut_at_whitespace, summary_lines};
+use crate::llm::decisions::text::tail_chars;
 
 const ASK_CHARS: usize = 600;
 const END_CHARS: usize = 1_500;
@@ -21,7 +21,7 @@ pub fn state(input: &TurnInput<'_>, rules: &[&Rule]) -> Value {
         .map(|(i, rule)| (key(i), Value::String(rule.text.clone())))
         .collect();
     json!({
-        "operator_ask": head_chars(input.operator_ask, ASK_CHARS),
+        "operator_ask": cut_at_whitespace(input.operator_ask, ASK_CHARS),
         "turn_end": tail_chars(input.turn_end, END_CHARS),
         "tool_calls": summary_lines(input.tools),
         "files_written": input.tools.paths.iter().take(FILES_SHOWN).collect::<Vec<_>>(),

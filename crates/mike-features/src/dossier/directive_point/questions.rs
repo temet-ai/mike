@@ -5,7 +5,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::choice;
 
 pub const POINT: &str = "directive";
-pub const QUESTION_SET: &str = "directive_v1";
+pub const QUESTION_SET: &str = "directive_v2";
 
 pub const OPTIONS: &[(&str, &str)] = &[
     (
@@ -18,7 +18,7 @@ pub const OPTIONS: &[(&str, &str)] = &[
     ),
     (
         "neither",
-        "The sentence mentions the action without granting or forbidding it: a request about something else, a question, a quote, or a different meaning of the word such as push back.",
+        "The sentence mentions the action without granting or forbidding it: a request about something else, a question, a quote, what a session says it will do (as in \"if a session says it will push\"), or a different meaning of the word such as push back.",
     ),
 ];
 

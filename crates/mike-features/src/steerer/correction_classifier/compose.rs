@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use super::questions::CORRECTS;
 use crate::llm::decisions::point::Asked;
 
-pub const CORRECTION_AT: f64 = 0.75;
+pub const CORRECTION_AT: f64 = 0.55;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Classified {

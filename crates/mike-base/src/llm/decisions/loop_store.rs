@@ -33,12 +33,17 @@ impl super::DecisionStore<'_> {
         &self,
         since: DateTime<Utc>,
     ) -> Result<Vec<PointCounts>, PersistError> {
+        let (retired_points, retired_sources) = super::retired::retired_columns();
         crate::metrics::time_db("decision_point_counts", async move {
-            Ok(
-                sqlx::query_file_as!(PointCounts, "src/llm/decisions/sql/point_counts.sql", since)
-                    .fetch_all(self.0.pool())
-                    .await?,
+            Ok(sqlx::query_file_as!(
+                PointCounts,
+                "src/llm/decisions/sql/point_counts.sql",
+                since,
+                &retired_points,
+                &retired_sources
             )
+            .fetch_all(self.0.pool())
+            .await?)
         })
         .await
     }
@@ -47,11 +52,14 @@ impl super::DecisionStore<'_> {
         &self,
         since: DateTime<Utc>,
     ) -> Result<Vec<LabelledDecision>, PersistError> {
+        let (retired_points, retired_sources) = super::retired::retired_columns();
         crate::metrics::time_db("labelled_decisions", async move {
             Ok(sqlx::query_file_as!(
                 LabelledDecision,
                 "src/llm/decisions/sql/labelled.sql",
-                since
+                since,
+                &retired_points,
+                &retired_sources
             )
             .fetch_all(self.0.pool())
             .await?)
@@ -126,6 +134,42 @@ impl super::DecisionStore<'_> {
             .bind(report)
             .fetch_one(self.0.pool())
             .await?)
+        })
+        .await
+    }
+
+    pub async fn update_decision_loop_report(
+        &self,
+        run: i64,
+        report: &Value,
+    ) -> Result<(), PersistError> {
+        crate::metrics::time_db("update_decision_loop_report", async move {
+            sqlx::query!(
+                "UPDATE decisions.loop_runs SET report = $2 WHERE id = $1",
+                run,
+                report
+            )
+            .execute(self.0.pool())
+            .await?;
+            Ok(())
+        })
+        .await
+    }
+
+    pub async fn decision_loop_reports_since(
+        &self,
+        since: DateTime<Utc>,
+        key: &str,
+    ) -> Result<Vec<Value>, PersistError> {
+        crate::metrics::time_db("decision_loop_reports_since", async move {
+            let rows = sqlx::query_scalar!(
+                "SELECT report -> $2::text FROM decisions.loop_runs WHERE finished_at >= $1",
+                since,
+                key
+            )
+            .fetch_all(self.0.pool())
+            .await?;
+            Ok(rows.into_iter().flatten().collect())
         })
         .await
     }

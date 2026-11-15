@@ -12,6 +12,7 @@ use crate::steerer::fleet::verifier_criteria::CriteriaInputs;
 use crate::steerer::fleet::verifier_judge::VerifierJudgeContext;
 use crate::steerer::gate::strip_harness_scaffold;
 use crate::steerer::note_policy::SessionNotes;
+use crate::steerer::verifier::trajectory_digest::fetch_tool_call_details;
 use crate::steerer::verifier::{
     build_prior_fires_digest, build_trajectory_digest, summarise_tool_calls,
     written_by_the_operator,
@@ -131,6 +132,7 @@ async fn load_raw_context(
         .fetch_turn_tool_calls_as_of(item.turn_id, trigger.session_db_id, trigger.trigger_at)
         .await?;
     let metas: Vec<TurnToolCallMetaRow> = calls.into_iter().map(Into::into).collect();
+    let details = fetch_tool_call_details(ph.pool(), item.turn_id, trigger.session_db_id).await;
     let (action_rows, action_counts) = load_action_rows(ph, trigger, budget).await?;
     let threads = ph
         .launch()
@@ -143,7 +145,7 @@ async fn load_raw_context(
     let criteria = CriteriaInputs::new(threads, intake).by_default();
     Ok(RawVerifierContext {
         ask_entries,
-        trajectory_digest: build_trajectory_digest(&metas),
+        trajectory_digest: build_trajectory_digest(&metas, &details),
         action_rows,
         action_counts,
         thread_criteria: criteria.thread_criteria,

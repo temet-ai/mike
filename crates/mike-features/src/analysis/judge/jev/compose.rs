@@ -7,6 +7,7 @@ use super::questions::{
 use crate::analysis::judge::two_axis::{Delivery, Reaction};
 use crate::analysis::judge::{EvidenceQuality, JudgeLabel};
 use crate::llm::decisions::point::Asked;
+use crate::store::persistence::operator_turns::projection::map_legacy_outcome;
 
 pub const YES: f64 = 0.5;
 pub const CHECKED_AT: f64 = 0.6;
@@ -63,9 +64,9 @@ fn reaction(asked: &Asked, has_next: bool) -> (Reaction, f64) {
         p(asked, REDIRECTED),
         p(asked, ACCEPTED),
     );
-    if corrected >= YES && corrected >= accepted {
+    if corrected >= YES {
         (Reaction::Corrected, corrected)
-    } else if accepted >= YES && accepted > corrected {
+    } else if accepted >= YES {
         (Reaction::Accepted, accepted)
     } else if redirected >= YES {
         (Reaction::Redirected, redirected)
@@ -117,12 +118,12 @@ fn legacy(asked: &Asked) -> (JudgeLabel, f64) {
     }
 }
 
-fn label_of(reaction: Reaction, delivery: Delivery, shipped: bool) -> JudgeLabel {
-    match (reaction, delivery) {
-        (Reaction::Corrected, _) => JudgeLabel::Corrected,
-        (Reaction::Accepted, _) if shipped => JudgeLabel::Shipped,
-        (Reaction::Accepted, _) => JudgeLabel::Accepted,
-        (Reaction::NoResponse, Delivery::Shipped) => JudgeLabel::Shipped,
+pub(super) fn label_of(reaction: Reaction, delivery: Delivery, shipped: bool) -> JudgeLabel {
+    let delivery = if shipped { Delivery::Shipped } else { delivery };
+    match map_legacy_outcome(reaction.code(), delivery.code(), 1.0, 0.0, false) {
+        "corrected" => JudgeLabel::Corrected,
+        "shipped" => JudgeLabel::Shipped,
+        "accepted" => JudgeLabel::Accepted,
         _ => JudgeLabel::Unknown,
     }
 }

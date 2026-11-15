@@ -138,11 +138,48 @@ fn reconcile_without_a_decision_leaves_the_call_as_it_was() {
 #[test]
 fn state_keeps_the_end_of_the_session_digest() {
     let digest = format!("{}FINISHED", "a".repeat(20_000));
-    let s = state("build it", &digest, 12);
+    let asks = ["build it"; 12];
+    let s = state(&digest, &asks);
     let end = s["session_end"].as_str().unwrap_or_default();
     assert!(end.ends_with("FINISHED"));
     assert_eq!(end.chars().count(), 6_000);
     assert_eq!(s["operator_turns"], 12);
+    assert_eq!(s["first_ask"], "build it");
+}
+
+#[test]
+fn state_carries_the_latest_three_asks_cut_to_300_chars() {
+    let long = "z".repeat(500);
+    let asks = ["one", "two", "three", long.as_str(), "five"];
+    let s = state("digest", &asks);
+    let recent = s["recent_asks"].as_array().cloned().unwrap_or_default();
+    assert_eq!(recent.len(), 3);
+    assert_eq!(recent[0], "three");
+    assert_eq!(recent[1].as_str().map(|a| a.chars().count()), Some(300));
+    assert_eq!(recent[2], "five");
+    assert_eq!(s["first_ask"], "one");
+    assert_eq!(s["operator_turns"], 5);
+}
+
+#[test]
+fn state_without_asks_has_empty_first_and_recent_asks() {
+    let s = state("digest", &[]);
+    assert_eq!(s["first_ask"], "");
+    assert_eq!(s["recent_asks"], serde_json::json!([]));
+    assert_eq!(s["operator_turns"], 0);
+}
+
+#[test]
+fn questions_offer_an_in_progress_outcome() {
+    let asked = super::questions::questions();
+    let text = serde_json::to_string(&asked).unwrap_or_default();
+    assert!(text.contains("in_progress"));
+}
+
+#[test]
+fn compose_in_progress_is_unknown_with_no_quality_score() {
+    let d = compose(&asked(outcome("in_progress", 0.9), quality(4)));
+    assert_eq!(d.map(|d| (d.outcome, d.quality)), Some(("unknown", None)));
 }
 
 fn judged_by_model() -> crate::judge_worker::session_end::run::SessionJudgementV3 {

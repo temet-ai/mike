@@ -6,42 +6,41 @@ use serde_json::{Value, json};
 use super::prompt::Answer;
 use super::{JudgeError, SupplyJudge};
 use crate::llm::decisions::env::{DecisionEnv, head_chars, tail_chars};
-use crate::llm::decisions::point::{Asked, Decider, choice};
+use crate::llm::decisions::point::{Asked, Decider, noul};
 use crate::llm::decisions::{Question, record::DecisionSubject};
 use crate::store::persistence::supplied_items::PendingVerdict;
 
 pub const POINT: &str = "supply_verdict";
-pub const QUESTION_SET: &str = "supply_verdict_v1";
-const QUESTION: &str = "verdict";
+pub const QUESTION_SET: &str = "supply_verdict_v2";
+const SUBJECT: &str = "subject_matches";
+const ACTED: &str = "acted_on_memory";
 const PROMPT_CHARS: usize = 1500;
 const REPLY_CHARS: usize = 2500;
 const NEXT_CHARS: usize = 800;
 const MEMORY_CHARS: usize = 1200;
 const MAX_FILES: usize = 30;
 
-const VERDICTS: &[(&str, &str)] = &[
-    (
-        "used",
-        "the turn's actions or reply followed or relied on what the memory says, and the operator did not correct the turn on that point",
-    ),
-    (
-        "corrected_anyway",
-        "the memory covered what the operator then corrected the turn about, so it was supplied and still not followed",
-    ),
-    (
-        "ignored",
-        "no sign the turn acted on the memory, including memory that had nothing to do with the turn",
-    ),
-];
+const FLOOR: f64 = 0.5;
 
 pub fn questions() -> BTreeMap<String, Question> {
-    BTreeMap::from([(
-        QUESTION.to_owned(),
-        choice(
-            "Was the supplied memory used, corrected anyway, or ignored in this turn?",
-            VERDICTS,
+    BTreeMap::from([
+        (
+            SUBJECT.to_owned(),
+            noul(
+                "Does the memory's subject match what was corrected or asked in this turn: what operator_prompt asks for, or what operator_next_message corrects?",
+                "The memory is about the same thing the operator asked for or corrected in this turn.",
+                "The memory is about something else than what the operator asked for or corrected in this turn.",
+            ),
         ),
-    )])
+        (
+            ACTED.to_owned(),
+            noul(
+                "Did the turn act on the memory: do tools_used, files_touched or final_reply follow or rely on what memory.text says?",
+                "The turn's actions or reply followed or relied on what the memory says.",
+                "Nothing the turn did or said follows or relies on the memory.",
+            ),
+        ),
+    ])
 }
 
 pub fn state(item: &PendingVerdict) -> Value {
@@ -61,21 +60,40 @@ pub fn state(item: &PendingVerdict) -> Value {
     })
 }
 
-pub fn compose(asked: &Asked) -> Option<(Answer, f64)> {
+pub fn verdict_of(acted: f64, subject: f64, reaction: Option<&str>) -> (&'static str, f64) {
+    if acted >= FLOOR {
+        return ("used", acted);
+    }
+    let corrected = reaction == Some("corrected");
+    if corrected && subject >= FLOOR {
+        return ("corrected_anyway", (1.0 - acted) * subject);
+    }
+    let not_acted = 1.0 - acted;
+    if corrected {
+        ("ignored", not_acted * (1.0 - subject))
+    } else {
+        ("ignored", not_acted)
+    }
+}
+
+pub fn compose(asked: &Asked, reaction: Option<&str>) -> Option<(Answer, f64)> {
     if asked.failed() {
         return None;
     }
-    let (verdict, probability) = asked.choice(QUESTION)?;
-    VERDICTS.iter().any(|(k, _)| *k == verdict).then(|| {
-        (
-            Answer {
-                verdict: verdict.to_owned(),
-                rationale: format!("Jev chose {verdict} (probability {probability:.2})"),
-                evidence: String::new(),
-            },
-            probability,
-        )
-    })
+    let acted = asked.noul(ACTED)?;
+    let subject = asked.noul(SUBJECT)?;
+    let (verdict, probability) = verdict_of(acted, subject, reaction);
+    Some((
+        Answer {
+            verdict: verdict.to_owned(),
+            rationale: format!(
+                "Jev: acted on memory {acted:.2}, subject matches {subject:.2}, turn reaction {}, so {verdict} (probability {probability:.2})",
+                reaction.unwrap_or("none")
+            ),
+            evidence: String::new(),
+        },
+        probability,
+    ))
 }
 
 pub struct JevJudge<'a, J> {
@@ -116,16 +134,19 @@ impl<'a, J: SupplyJudge> JevJudge<'a, J> {
         if asked.failed() {
             self.tripped.store(true, Ordering::Relaxed);
         }
-        let composed = compose(&asked);
+        let composed = compose(&asked, item.reaction.as_deref());
         let applied = composed.as_ref().map_or("none", |_| "labelled");
         let score = composed.as_ref().map_or(0.0, |(_, p)| *p);
         let chosen = composed.as_ref().map(|(a, _)| a.verdict.as_str());
         self.decider
             .mark(
                 &asked,
-                asked.composed(
-                    json!({ "score": score, "item_id": item.item_id, "verdict": chosen }),
-                ),
+                asked.composed(json!({
+                    "score": score,
+                    "item_id": item.item_id,
+                    "verdict": chosen,
+                    "reaction": item.reaction,
+                })),
                 applied,
             )
             .await;

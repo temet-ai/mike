@@ -1,5 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::LazyLock;
+use std::time::Duration;
 
+use dashmap::DashMap;
 use serde_json::{Value, json};
 
 use super::logs::LogLine;
@@ -7,6 +10,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::env::Pace;
 use crate::llm::decisions::point::{Asked, Decider, noul};
 use crate::llm::decisions::record::DecisionSubject;
+use crate::llm::decisions::reuse::recent_answers;
 use crate::llm::decisions::text::head_chars;
 
 pub(crate) const POINT: &str = "log_group";
@@ -16,9 +20,15 @@ const MERGE_AT: f64 = 0.8;
 const MAX_ASKS: usize = 20;
 const MESSAGE_CHARS: usize = 300;
 const WORDS_SHARED: f64 = 0.5;
+const SLOW_STATEMENT_PREFIX: &str = "slow statement: execution time exceeded alert threshold:";
+const MAX_REMEMBERED: usize = 20_000;
+const REUSE_FOR: Duration = Duration::from_secs(7 * 24 * 3600);
 
 pub(crate) type Key = (String, String);
 pub(crate) type Groups<'a> = BTreeMap<Key, Vec<&'a LogLine>>;
+type MemoKey = (String, String, String);
+
+static MEMO: LazyLock<DashMap<MemoKey, f64>> = LazyLock::new(DashMap::new);
 
 fn words(shape: &str) -> BTreeSet<&str> {
     shape.split_whitespace().collect()
@@ -30,6 +40,20 @@ pub(crate) fn similar(a: &str, b: &str) -> bool {
     union > 0 && (left.intersection(&right).count() as f64 / union as f64) >= WORDS_SHARED
 }
 
+pub(crate) fn distinct<'a>(a: &'a str, b: &'a str) -> (&'a str, &'a str) {
+    let known = if a.starts_with(SLOW_STATEMENT_PREFIX) && b.starts_with(SLOW_STATEMENT_PREFIX) {
+        SLOW_STATEMENT_PREFIX.len()
+    } else {
+        0
+    };
+    (a[known..].trim_start(), b[known..].trim_start())
+}
+
+fn similar_in_the_distinct_text(a: &str, b: &str) -> bool {
+    let (left, right) = distinct(a, b);
+    similar(left, right)
+}
+
 pub(crate) fn candidate_pairs(
     groups: &[(Key, Vec<&LogLine>)],
     repeats: usize,
@@ -38,7 +62,7 @@ pub(crate) fn candidate_pairs(
     for (at, (key_a, hits_a)) in groups.iter().enumerate() {
         for (offset, (key_b, hits_b)) in groups[at + 1..].iter().enumerate() {
             let below = hits_a.len() < repeats || hits_b.len() < repeats;
-            if key_a.0 == key_b.0 && below && similar(&key_a.1, &key_b.1) {
+            if key_a.0 == key_b.0 && below && similar_in_the_distinct_text(&key_a.1, &key_b.1) {
                 pairs.push((at, at + 1 + offset));
             }
         }
@@ -58,16 +82,46 @@ pub(crate) fn questions() -> BTreeMap<String, Question> {
     )])
 }
 
-fn described(key: &Key, hits: &[&LogLine]) -> Value {
+pub(crate) fn state(a: &Key, b: &Key) -> Value {
+    let (left, right) = distinct(&a.1, &b.1);
     json!({
-        "target": key.0,
-        "message": hits.last().map(|line| head_chars(&line.message, MESSAGE_CHARS)),
-        "lines_like_it": hits.len(),
+        "line_a": {"target": a.0, "message": head_chars(left, MESSAGE_CHARS)},
+        "line_b": {"target": b.0, "message": head_chars(right, MESSAGE_CHARS)},
     })
 }
 
-pub(crate) fn state(a: (&Key, &[&LogLine]), b: (&Key, &[&LogLine])) -> Value {
-    json!({"line_a": described(a.0, a.1), "line_b": described(b.0, b.1)})
+fn memo_key(a: &Key, b: &Key) -> MemoKey {
+    let (first, second) = if a.1 <= b.1 {
+        (&a.1, &b.1)
+    } else {
+        (&b.1, &a.1)
+    };
+    (a.0.clone(), first.clone(), second.clone())
+}
+
+fn remember(key: MemoKey, probability: f64) {
+    if MEMO.len() > MAX_REMEMBERED {
+        MEMO.clear();
+    }
+    MEMO.insert(key, probability);
+}
+
+async fn remembered(decider: &Decider, a: &Key, b: &Key) -> Option<f64> {
+    let key = memo_key(a, b);
+    if let Some(known) = MEMO.get(&key) {
+        return Some(*known);
+    }
+    let (_, asked) = recent_answers(
+        decider.persist(),
+        POINT,
+        QUESTION_SET,
+        &state(a, b),
+        REUSE_FOR,
+    )
+    .await?;
+    let probability = compose(&asked)?;
+    remember(key, probability);
+    Some(probability)
 }
 
 pub(crate) fn compose(asked: &Asked) -> Option<f64> {
@@ -126,7 +180,7 @@ async fn ask_pair(
     let asked = decider
         .ask(
             QUESTION_SET,
-            state((&groups[a].0, &groups[a].1), (&groups[b].0, &groups[b].1)),
+            state(&groups[a].0, &groups[b].0),
             questions(),
             DecisionSubject::default(),
             json!({"merge_at": MERGE_AT}),
@@ -134,6 +188,9 @@ async fn ask_pair(
         .await;
     pace.spent(&asked);
     let probability = compose(&asked);
+    if let Some(known) = probability {
+        remember(memo_key(&groups[a].0, &groups[b].0), known);
+    }
     let merge = probability.is_some_and(|p| p >= MERGE_AT) && decider.applies();
     decider
         .mark(
@@ -150,6 +207,12 @@ pub(crate) async fn merge<'a>(decider: &Decider, groups: Groups<'a>, repeats: us
     let mut pace = Pace::new(MAX_ASKS);
     let mut links = Vec::new();
     for pair in candidate_pairs(&listed, repeats) {
+        if let Some(known) = remembered(decider, &listed[pair.0].0, &listed[pair.1].0).await {
+            if known >= MERGE_AT && decider.applies() {
+                links.push(pair);
+            }
+            continue;
+        }
         if !pace.may_ask() {
             break;
         }

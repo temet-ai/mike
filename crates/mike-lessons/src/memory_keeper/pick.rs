@@ -4,8 +4,8 @@ use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
 use super::resolve::{Pick, Resolution, ResolveInput, ThreadFacts, ranked_candidates};
-use super::resolve_text::operator_text;
-use crate::llm::decisions::env::{DecisionEnv, tail_chars};
+use super::resolve_text::typed_text;
+use crate::llm::decisions::env::{DecisionEnv, head_chars, tail_chars};
 use crate::llm::decisions::point::{Asked, Decider, choice};
 use crate::llm::decisions::{Question, record::DecisionSubject};
 
@@ -35,7 +35,7 @@ pub struct Decided {
 
 fn label(thread: Option<&ThreadFacts>, slug: &str) -> String {
     match thread {
-        Some(t) => tail_chars(&format!("{}: {}", t.title, t.goal), LABEL_CHARS),
+        Some(t) => head_chars(&format!("{}: {}", t.title, t.goal), LABEL_CHARS),
         None => slug.to_owned(),
     }
 }
@@ -172,7 +172,7 @@ pub async fn decide(
     let Some(decider) = env.and_then(|e| e.decider(POINT)).map(Decider::inline) else {
         return off;
     };
-    let Some(message) = input.prompt.and_then(operator_text) else {
+    let Some(message) = input.prompt.and_then(typed_text) else {
         return off;
     };
     ask(&decider, input, &message).await.unwrap_or(off)

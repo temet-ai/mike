@@ -4,7 +4,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::choice;
 
 pub const POINT: &str = "text_origin";
-pub const QUESTION_SET: &str = "text_origin_v1";
+pub const QUESTION_SET: &str = "text_origin_v2";
 pub const ORIGIN: &str = "origin";
 
 pub const OPTIONS: &[(&str, &str)] = &[
@@ -34,7 +34,7 @@ pub fn questions() -> BTreeMap<String, Question> {
     BTreeMap::from([(
         ORIGIN.to_owned(),
         choice(
-            "Who or what wrote state.text? Pick the writer, using state.follows for the message the text came after.",
+            "Who or what wrote state.text? Pick the writer, using state.follows for what came before it: state.follows_is says whether it is the operator's previous message or the end of the assistant's previous reply.",
             OPTIONS,
         ),
     )])

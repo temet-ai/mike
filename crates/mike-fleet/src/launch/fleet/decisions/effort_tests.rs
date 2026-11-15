@@ -132,6 +132,7 @@ fn step(id: i64) -> Unlabelled {
         trigger: "tool_result".into(),
         text: "ran cargo test".into(),
         tools: "Bash: cargo test".into(),
+        response: String::new(),
     }
 }
 
@@ -140,4 +141,52 @@ fn compose_reads_one_label_per_step_and_skips_a_failed_call() {
     let steps = vec![step(1), step(2)];
     assert_eq!(questions(&steps).len(), 2);
     assert!(compose(&Asked::failed_with("timeout"), &steps).is_empty());
+}
+
+#[test]
+fn machinery_tools_only_a_fleet_ask_and_mail_step_is_machinery() {
+    let tools = "mcp__mike__fleet_check: \nmcp__mike__fleet_commit: \nAskUserQuestion: \nmcp__mike__send_session_message: ";
+    assert!(machinery_tools_only(tools));
+}
+
+#[test]
+fn machinery_tools_only_one_project_tool_keeps_the_step_for_jev() {
+    assert!(!machinery_tools_only(
+        "mcp__mike__fleet_report: \nBash: cargo test"
+    ));
+    assert!(!machinery_tools_only(
+        "mcp__mike__search_project_knowledge: x"
+    ));
+}
+
+#[test]
+fn machinery_tools_only_a_step_without_tool_calls_is_not_settled() {
+    assert!(!machinery_tools_only(""));
+}
+
+#[test]
+fn state_a_step_without_tool_calls_carries_the_first_600_characters_of_its_reply() {
+    let mut silent = step(1);
+    silent.tools = String::new();
+    silent.response = "é".repeat(700);
+    let facts = state(&[silent]);
+    let reply = facts["steps"][0]["response_text"]
+        .as_str()
+        .unwrap_or_default();
+    assert_eq!(reply.chars().count(), 600);
+}
+
+#[test]
+fn state_a_step_with_tool_calls_leaves_its_reply_out() {
+    let mut busy = step(1);
+    busy.response = "done".into();
+    let facts = state(&[busy]);
+    assert!(facts["steps"][0].get("response_text").is_none());
+}
+
+#[test]
+fn questions_name_fleet_check_under_machinery_only() {
+    let all = questions(&[step(1)]);
+    let described = format!("{:?}", all["step_1"]);
+    assert_eq!(described.matches("fleet_check").count(), 1);
 }

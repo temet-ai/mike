@@ -126,3 +126,43 @@ fn questions_offer_the_anchor_patterns_and_none() -> anyhow::Result<()> {
     assert_eq!(state(&units)["corrections"][0]["correction_item_id"], 4);
     Ok(())
 }
+
+#[test]
+fn questions_define_each_pattern_by_its_own_example_corrections() -> anyhow::Result<()> {
+    let c = correction(5);
+    let units = vec![Unit {
+        correction: &c,
+        text: "t".to_owned(),
+        anchors: vec![
+            (
+                anchor(10, "wrong-file"),
+                "you edited the wrong file".to_owned(),
+            ),
+            (
+                anchor(11, "stale-build"),
+                "that is the old binary".to_owned(),
+            ),
+            (
+                anchor(12, "wrong-file"),
+                "not that file, the other one".to_owned(),
+            ),
+            (anchor(13, "no-text"), String::new()),
+        ],
+    }];
+    let asked = questions(&units);
+    let Some(Question::Choice { criteria, .. }) = asked.get("correction_5") else {
+        anyhow::bail!("expected a choice question");
+    };
+    let wrong_file = criteria.get("wrong-file").map(String::as_str).unwrap_or("");
+    assert!(wrong_file.contains("you edited the wrong file"));
+    assert!(wrong_file.contains("not that file, the other one"));
+    assert!(!wrong_file.contains("old binary"));
+    let stale = criteria
+        .get("stale-build")
+        .map(String::as_str)
+        .unwrap_or("");
+    assert!(stale.contains("that is the old binary"));
+    let bare = criteria.get("no-text").map(String::as_str).unwrap_or("");
+    assert!(bare.contains("no-text pattern"));
+    Ok(())
+}

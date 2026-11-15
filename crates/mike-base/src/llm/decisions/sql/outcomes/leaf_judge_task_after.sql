@@ -76,10 +76,11 @@ labelled AS (
       FROM passes p
     UNION ALL
     SELECT f.record_id,
-           CASE WHEN f.commit_event_id IS NULL THEN 'wrong' ELSE 'right' END,
+           'right',
            jsonb_build_object('jev_verdict', 'fail', 'passing_verdict_event_id', f.verdict_event_id,
                               'commit_event_id', f.commit_event_id)
       FROM fails f
+     WHERE f.commit_event_id IS NOT NULL
 )
 INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)
 SELECT l.record_id, l.label, 'task_after_pass', l.evidence

@@ -18,6 +18,7 @@ use crate::store::persistence::turn_verdicts::JudgeTurnContextRow;
 use crate::store::persistence::web_repo::WebPersist as _;
 
 const CONTEXT_BATCH: usize = 500;
+const NOT_APPLICABLE: &str = "not_applicable";
 
 pub(super) struct Ready {
     pub item: TurnJudgeItem,
@@ -43,6 +44,7 @@ pub(super) async fn load(
     let ready: Vec<Ready> = items
         .into_iter()
         .filter_map(|item| {
+            scorable_axes(&item)?;
             let context = contexts.remove(&item.turn_id)?;
             Some(Ready { item, context })
         })
@@ -83,6 +85,32 @@ fn axis_positive(question: &str, reaction: Option<&str>, delivery: Option<&str>)
     }
 }
 
+fn scorable_axes(item: &TurnJudgeItem) -> Option<(Option<&str>, Option<&str>)> {
+    let reaction = item.gold_reaction.as_deref();
+    let delivery = item
+        .gold_delivery
+        .as_deref()
+        .filter(|label| *label != NOT_APPLICABLE);
+    (reaction.is_some() || delivery.is_some()).then_some((reaction, delivery))
+}
+
+fn gold_right(item: &TurnJudgeItem, composed: &Composed) -> Option<bool> {
+    let (reaction, delivery) = scorable_axes(item)?;
+    Some(
+        reaction.is_none_or(|gold| gold == composed.reaction.code())
+            && delivery.is_none_or(|gold| gold == composed.delivery.code()),
+    )
+}
+
+fn gold_label(item: &TurnJudgeItem) -> String {
+    let (reaction, delivery) = scorable_axes(item).unwrap_or((None, None));
+    format!(
+        "reaction={} delivery={}",
+        reaction.unwrap_or("-"),
+        delivery.unwrap_or("-")
+    )
+}
+
 fn agrees_with_current(item: &TurnJudgeItem, composed: &Composed) -> Option<bool> {
     match (
         item.live_reaction.as_deref(),
@@ -101,7 +129,7 @@ impl ReplayPoint for TurnJudge {
     type Item = Ready;
     const POINT: &'static str = POINT;
     const QUESTION_SET: &'static str = QUESTION_SET;
-    const OUTCOME_SOURCE: &'static str = "operator_label";
+    const OUTCOME_SOURCE: &'static str = "operator_gold_axes";
 
     fn item_id(item: &Ready) -> String {
         item.item.turn_id.to_string()
@@ -112,7 +140,7 @@ impl ReplayPoint for TurnJudge {
     }
 
     fn label(item: &Ready) -> String {
-        item.item.outcome.clone()
+        gold_label(&item.item)
     }
 
     fn prepare(item: &Ready) -> Prepared {
@@ -126,7 +154,7 @@ impl ReplayPoint for TurnJudge {
 
     fn compose(item: &Ready, asked: &Asked) -> Option<Judged> {
         let composed = jev::compose(asked, shape(&item.context))?;
-        let right = composed.label.outcome_code() == item.item.outcome;
+        let right = gold_right(&item.item, &composed)?;
         Some(Judged {
             composed: composed.json(UNCERTAIN_BELOW as f32),
             score: composed.confidence,

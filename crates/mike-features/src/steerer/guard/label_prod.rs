@@ -41,6 +41,7 @@ impl ProdAnswers {
         let detected = prod_point::detect_checked(
             Some(decider),
             message,
+            c.final_assistant_text.as_deref(),
             DecisionSubject {
                 session_id: Some(c.session_id),
                 operator_turn_id: Some(c.operator_turn_id),

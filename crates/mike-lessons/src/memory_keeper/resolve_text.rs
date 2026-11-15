@@ -84,6 +84,36 @@ pub fn operator_text(prompt: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_owned())
 }
 
+const MACHINE_LEADS: &[&str] = &[
+    "Mail from ",
+    "[mike-mail:",
+    "<channel source=",
+    "[mike work registry]",
+    "The main thread has been idle since ",
+    "The user stepped away and is coming back. Recap in under 40 words",
+];
+
+pub fn typed_words(text: &str) -> String {
+    let Some(clean) = operator_text(text) else {
+        return String::new();
+    };
+    let kept: Vec<&str> = clean
+        .split("\n\n")
+        .filter(|paragraph| {
+            let lead = paragraph.trim_start();
+            !MACHINE_LEADS
+                .iter()
+                .any(|machine| lead.starts_with(machine))
+        })
+        .collect();
+    kept.join("\n\n").trim().to_owned()
+}
+
+pub fn typed_text(prompt: &str) -> Option<String> {
+    let words = typed_words(prompt);
+    (!words.is_empty()).then_some(words)
+}
+
 fn without_tag(text: &str, tag: &str) -> String {
     let open = format!("<{tag}");
     let close = format!("</{tag}>");

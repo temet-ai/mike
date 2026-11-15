@@ -7,6 +7,7 @@ mod tests;
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use dashmap::DashMap;
 use serde_json::json;
@@ -18,11 +19,14 @@ pub use state::Unit;
 use crate::llm::decisions::env::{DecisionEnv, Pace};
 use crate::llm::decisions::point::{Asked, Decider};
 use crate::llm::decisions::record::DecisionSubject;
+use crate::llm::decisions::reuse::recent_answers;
 use crate::store::persistence::dossier_entries::{DirectiveSourceRow, NewDossierEntry};
 
 const GROUP: usize = 6;
 const MAX_CALLS: usize = 4;
 const MAX_REMEMBERED: usize = 50_000;
+const MAX_LOOKUPS: usize = 4;
+const REUSE_FOR: Duration = Duration::from_secs(7 * 24 * 3600);
 
 static MEMO: LazyLock<DashMap<(i64, &'static str), Option<Decision>>> = LazyLock::new(DashMap::new);
 
@@ -37,8 +41,26 @@ fn pending(units: &[Unit]) -> Vec<&Unit> {
     units
         .iter()
         .filter(|u| !MEMO.contains_key(&(u.request_id, u.class)))
-        .take(GROUP * MAX_CALLS)
+        .take(GROUP * MAX_CALLS * MAX_LOOKUPS)
         .collect()
+}
+
+async fn reuse_group(decider: &Decider, group: &[&Unit]) -> bool {
+    let Some((_, asked)) = recent_answers(
+        decider.persist(),
+        POINT,
+        QUESTION_SET,
+        &state::state(group),
+        REUSE_FOR,
+    )
+    .await
+    else {
+        return false;
+    };
+    for d in compose(&asked, group) {
+        remember(group[d.index], d.decision);
+    }
+    true
 }
 
 async fn ask_group(decider: &Decider, group: &[&Unit]) -> Asked {
@@ -81,6 +103,9 @@ async fn ask_pending(decider: &Decider, units: &[Unit]) {
     let wanted = pending(units);
     let mut pace = Pace::new(MAX_CALLS);
     for group in wanted.chunks(GROUP) {
+        if reuse_group(decider, group).await {
+            continue;
+        }
         if !pace.may_ask() {
             break;
         }

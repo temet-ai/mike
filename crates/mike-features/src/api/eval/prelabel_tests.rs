@@ -78,6 +78,43 @@ fn state_and_questions_cover_each_turn_with_the_reaction_vocabulary() -> anyhow:
     let Some(Question::Choice { criteria, .. }) = asked.get("turn_5") else {
         anyhow::bail!("expected a choice question");
     };
-    assert_eq!(criteria.len(), REACTIONS.len());
+    assert_eq!(criteria.len(), REACTIONS.len() - 1);
+    assert!(!criteria.contains_key(NO_RESPONSE));
     Ok(())
+}
+
+fn silent_turn(id: i64, next: &str) -> PrelabelTurn {
+    PrelabelTurn {
+        next_prompt: next.to_owned(),
+        ..turn(id)
+    }
+}
+
+#[test]
+fn a_turn_without_a_next_message_is_set_no_response_in_code_and_not_asked() {
+    let turns = [
+        silent_turn(7_001, ""),
+        silent_turn(7_002, "  \n\t "),
+        silent_turn(7_003, "thanks, now the docs"),
+    ];
+    let speaking = settle_silent(&turns);
+    assert_eq!(speaking.len(), 1);
+    assert_eq!(speaking[0].turn_id, 7_003);
+    let stored = cached(&[7_001, 7_002, 7_003]);
+    assert_eq!(stored.len(), 2);
+    for id in [7_001, 7_002] {
+        assert_eq!(stored[&id].label, "no_response");
+        assert!(!stored[&id].uncertain);
+        assert_eq!(stored[&id].record_id, None);
+    }
+}
+
+#[test]
+fn state_reads_a_whitespace_next_message_as_none() {
+    let turns = [silent_turn(7_010, "  ")];
+    let group: Vec<&PrelabelTurn> = turns.iter().collect();
+    assert_eq!(
+        state(&group)["turns"][0]["operator_next_message"],
+        Value::Null
+    );
 }

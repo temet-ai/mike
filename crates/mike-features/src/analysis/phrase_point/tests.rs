@@ -89,3 +89,11 @@ fn mean_confidence_averages_the_stronger_side_of_each_answer() {
     assert!((mean_confidence(&answered(&[0.9, 0.2]), 2) - 0.85).abs() < 1e-9);
     assert_eq!(mean_confidence(&answered(&[]), 0), 0.0);
 }
+
+#[test]
+fn questions_separate_quoting_and_present_state_from_blaming_an_earlier_condition() {
+    let text = serde_json::to_string(&questions(1)).unwrap_or_default();
+    assert!(text.contains("Quoting the operator's decision"));
+    assert!(text.contains("describing the current state"));
+    assert!(text.contains("already there before the change"));
+}

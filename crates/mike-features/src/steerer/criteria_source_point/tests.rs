@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use super::asks::{HEAD_CHARS, TAIL_CHARS, fit};
 use super::questions::questions;
 use super::{accepted, compose, key, state};
 use crate::llm::decisions::Answer;
@@ -58,6 +59,49 @@ fn state_carries_every_ask_and_each_thread() {
     assert_eq!(value["operator_asks"], "[ask] build a\n[correction] not b");
     assert_eq!(value["threads"][key(1)]["criteria"], "- b is done.");
     assert_eq!(value["threads"][key(0)]["title"], "a title");
+}
+
+#[test]
+fn fit_keeps_the_initial_ask_and_the_newest_asks_when_over_budget() {
+    let middle = "m".repeat(9_000);
+    let asks = format!(
+        "[initial] build the ledger {}\n[clarification] {middle}\n[correction] not b, the end",
+        "i".repeat(2_000)
+    );
+    let fitted = fit(&asks);
+    assert!(fitted.starts_with("[initial] build the ledger iii"));
+    assert!(fitted.ends_with("[correction] not b, the end"));
+    assert!(fitted.chars().count() <= HEAD_CHARS + TAIL_CHARS + 10);
+}
+
+#[test]
+fn fit_drops_a_pasted_skill_body_so_it_cannot_push_the_initial_ask_out() {
+    let body = "x".repeat(8_000);
+    let asks = format!(
+        "[initial] build a\n[clarification] <command-name>/fleet</command-name>\n{body}\n[correction] not b"
+    );
+    let fitted = fit(&asks);
+    assert_eq!(
+        fitted,
+        "[initial] build a\n[clarification]\n[pasted text dropped]\n[correction] not b"
+    );
+}
+
+#[test]
+fn fit_drops_a_skill_header_message_and_a_json_fleet_definition() {
+    let asks = "[initial] build a\n[clarification] # /fleet\nWrite the definition\nmore text\n[clarification] go on\n{\"seats\": [1, 2],\n \"tasks\": []}\n[correction] not b";
+    let fitted = fit(asks);
+    assert_eq!(
+        fitted,
+        "[initial] build a\n[clarification]\n[pasted text dropped]\n[clarification] go on\n[pasted text dropped]\n[correction] not b"
+    );
+    assert!(!fitted.contains("seats"));
+}
+
+#[test]
+fn fit_leaves_a_short_plain_ask_list_unchanged() {
+    let asks = "[initial] build a {not json}\n[correction] not b";
+    assert_eq!(fit(asks), asks);
 }
 
 #[tokio::test]

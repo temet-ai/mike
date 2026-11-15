@@ -70,6 +70,11 @@ fn facts(uncommitted: usize) -> StopFacts {
         open_asks: Vec::new(),
         check_running: false,
         done_when: None,
+        last_commit_sha: None,
+        last_commit_at: None,
+        last_report_at: None,
+        report_filed_awaiting_verdict: false,
+        last_report_refusal: None,
     }
 }
 

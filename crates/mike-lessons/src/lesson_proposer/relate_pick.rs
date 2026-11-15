@@ -22,6 +22,7 @@ const COVERED_KEY: &str = "covered_by";
 const PERSONA_KEY: &str = "persona";
 const LESSON_CHARS: usize = 700;
 const MAX_DOCUMENTS: usize = 8;
+const SUMMARY_CHARS: usize = 300;
 
 pub struct Jev {
     decider: Decider,
@@ -152,10 +153,43 @@ pub fn placement_questions(shown: &[GuidanceRow]) -> BTreeMap<String, Question> 
     out
 }
 
+fn after_frontmatter(body: &str) -> &str {
+    let trimmed = body.trim_start();
+    let Some(rest) = trimmed.strip_prefix("---") else {
+        return trimmed;
+    };
+    match rest.find("\n---") {
+        Some(end) => rest[end + 4..]
+            .trim_start_matches(|c: char| c != '\n')
+            .trim_start(),
+        None => trimmed,
+    }
+}
+
+fn summary_of(document: &GuidanceRow) -> String {
+    let declared = document
+        .metadata
+        .get("summary")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    match declared {
+        Some(summary) => head_chars(summary, SUMMARY_CHARS),
+        None => head_chars(after_frontmatter(&document.body).trim(), SUMMARY_CHARS),
+    }
+}
+
 fn document_cards(shown: &[GuidanceRow]) -> Vec<Value> {
     documents(shown)
         .iter()
-        .map(|d| json!({ "path": d.relative_path, "kind": d.kind_label(), "title": d.title }))
+        .map(|d| {
+            json!({
+                "path": d.relative_path,
+                "kind": d.kind_label(),
+                "title": d.title,
+                "summary": summary_of(d),
+            })
+        })
         .collect()
 }
 

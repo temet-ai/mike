@@ -18,32 +18,74 @@ fn item() -> PendingVerdict {
     }
 }
 
-fn verdict(key: &str, p: f64) -> Asked {
-    Asked::answered(BTreeMap::from([(
-        QUESTION.to_owned(),
-        JevAnswer::Choice {
-            choice: key.to_owned(),
-            probabilities: BTreeMap::from([(key.to_owned(), p)]),
-            confidence: None,
-        },
-    )]))
+fn asked(acted: f64, subject: f64) -> Asked {
+    let noul = |p: f64| JevAnswer::Noul {
+        noul: p,
+        confidence: None,
+    };
+    Asked::answered(BTreeMap::from([
+        (ACTED.to_owned(), noul(acted)),
+        (SUBJECT.to_owned(), noul(subject)),
+    ]))
+}
+
+fn verdict_for(acted: f64, subject: f64, reaction: Option<&str>) -> anyhow::Result<String> {
+    let (answer, _) = compose(&asked(acted, subject), reaction)
+        .ok_or_else(|| anyhow::anyhow!("expected an answer"))?;
+    Ok(answer.verdict)
 }
 
 #[test]
-fn compose_each_verdict_becomes_an_answer_with_its_probability() -> anyhow::Result<()> {
-    for key in ["used", "corrected_anyway", "ignored"] {
-        let (answer, p) =
-            compose(&verdict(key, 0.8)).ok_or_else(|| anyhow::anyhow!("expected an answer"))?;
-        assert_eq!(answer.verdict, key);
-        assert!((p - 0.8).abs() < 1e-9);
+fn compose_acted_is_used_whatever_the_reaction() -> anyhow::Result<()> {
+    assert_eq!(verdict_for(0.9, 0.1, None)?, "used");
+    assert_eq!(verdict_for(0.9, 0.9, Some("corrected"))?, "used");
+    Ok(())
+}
+
+#[test]
+fn compose_not_acted_matching_subject_and_corrected_is_corrected_anyway() -> anyhow::Result<()> {
+    assert_eq!(
+        verdict_for(0.1, 0.8, Some("corrected"))?,
+        "corrected_anyway"
+    );
+    Ok(())
+}
+
+#[test]
+fn compose_corrected_turn_with_unrelated_memory_is_ignored() -> anyhow::Result<()> {
+    assert_eq!(verdict_for(0.1, 0.2, Some("corrected"))?, "ignored");
+    Ok(())
+}
+
+#[test]
+fn compose_matching_subject_without_a_correction_is_ignored() -> anyhow::Result<()> {
+    for reaction in [None, Some("accepted"), Some("redirected")] {
+        assert_eq!(verdict_for(0.1, 0.9, reaction)?, "ignored");
     }
     Ok(())
 }
 
 #[test]
-fn compose_unknown_verdict_or_failed_answer_gives_the_model_path() {
-    assert!(compose(&verdict("maybe", 0.9)).is_none());
-    assert!(compose(&Asked::failed_with("timeout")).is_none());
+fn compose_probability_is_the_chance_of_the_chosen_verdict() {
+    let (v, p) = verdict_of(0.2, 0.75, Some("corrected"));
+    assert_eq!(v, "corrected_anyway");
+    assert!((p - 0.6).abs() < 1e-9);
+    let (v, p) = verdict_of(0.2, 0.75, None);
+    assert_eq!(v, "ignored");
+    assert!((p - 0.8).abs() < 1e-9);
+}
+
+#[test]
+fn compose_failed_or_incomplete_answer_gives_the_model_path() {
+    assert!(compose(&Asked::failed_with("timeout"), None).is_none());
+    let partial = Asked::answered(BTreeMap::from([(
+        ACTED.to_owned(),
+        JevAnswer::Noul {
+            noul: 0.9,
+            confidence: None,
+        },
+    )]));
+    assert!(compose(&partial, None).is_none());
 }
 
 #[test]
@@ -53,5 +95,6 @@ fn state_carries_the_turn_facts_the_model_prompt_carries() {
     assert_eq!(value["tools_used"][0], "Bash");
     assert_eq!(value["final_reply"], "deployed through the script");
     assert_eq!(value["turn_reaction_recorded_by_the_turn_judge"], "none");
-    assert!(questions().contains_key("verdict"));
+    let asked = questions();
+    assert!(asked.contains_key(ACTED) && asked.contains_key(SUBJECT));
 }

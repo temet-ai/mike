@@ -318,15 +318,8 @@ async fn decide_with_jev(
     digest_text: &str,
 ) -> Option<super::jev::SessionJev> {
     let decider = ctx.jev?;
-    let first_ask = turns.first().map_or("", |t| t.user_prompt.as_str());
-    super::jev::decide(
-        decider,
-        session.session_db_id,
-        first_ask,
-        digest_text,
-        turns.len(),
-    )
-    .await
+    let asks: Vec<&str> = turns.iter().map(|t| t.user_prompt.as_str()).collect();
+    super::jev::decide(decider, session.session_db_id, digest_text, &asks).await
 }
 
 async fn mark_jev_stored(ctx: &SessionJudgeCtx<'_>, jev: Option<&super::jev::SessionJev>) {

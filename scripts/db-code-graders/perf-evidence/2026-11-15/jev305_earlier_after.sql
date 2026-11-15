@@ -1,0 +1,1 @@
+SELECT right(final_assistant_text, 300) FROM memory.operator_turns WHERE session_id = 2217087 AND id < 57698 AND btrim(COALESCE(final_assistant_text, '')) <> '' ORDER BY created_at DESC, id DESC LIMIT 2

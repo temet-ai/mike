@@ -27,12 +27,29 @@ fn subject(facts: &TurnFacts<'_>) -> DecisionSubject {
     }
 }
 
+pub(crate) fn askable(facts: &TurnFacts<'_>) -> bool {
+    !facts.assistant_text.trim().is_empty()
+}
+
+pub(crate) fn effective_shape(facts: &TurnFacts<'_>, shape: Shape) -> Shape {
+    match shape {
+        Shape::TwoAxis { has_next: true } if state::present(facts.next_message).is_none() => {
+            Shape::TwoAxis { has_next: false }
+        }
+        other => other,
+    }
+}
+
 pub async fn decide(
     decider: &Decider,
     facts: &TurnFacts<'_>,
     shape: Shape,
     threshold: f32,
 ) -> Option<JevVerdict> {
+    if !askable(facts) {
+        return None;
+    }
+    let shape = effective_shape(facts, shape);
     let with_next = matches!(shape, Shape::TwoAxis { has_next: true });
     let thresholds = json!({
         "yes": YES,

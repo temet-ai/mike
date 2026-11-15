@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT b.request_id AS \"request_id!\",\n                      left(string_agg(b.content, '' ORDER BY b.seq_ord), 600) AS \"reply!\"\n                 FROM responses.stream_blocks b\n                 JOIN responses.stream_block_types bt ON bt.id = b.block_type_id\n                WHERE b.request_id = ANY($1) AND bt.code = 'text'\n                GROUP BY b.request_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "reply!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "a5febf261954cc543f97e0ae2244198cdaeecceea06a19fa5ea67efe3c4cf880"
+}

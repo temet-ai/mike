@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
-use super::author_jev::{Facts, resolve};
+use super::author_jev::{Facts, has_evidence, resolve};
 use super::git::Git;
 use crate::change_record::{ChangeKind, ShellRun, ToolCallNaming};
 use crate::llm::decisions::point::Decider;
@@ -257,6 +257,15 @@ pub struct Window {
     pub to: DateTime<Utc>,
 }
 
+impl Window {
+    pub fn span(self, other: Window) -> Window {
+        Window {
+            from: self.from.min(other.from),
+            to: self.to.max(other.to),
+        }
+    }
+}
+
 pub struct FileChange<'a> {
     pub absolute_path: &'a str,
     pub relative_path: &'a str,
@@ -310,14 +319,18 @@ async fn judge_unknown(
     if candidates.len() < 2 {
         return who;
     }
-    let after = blob_text(git, change.after_sha).await;
-    let facts = Facts {
+    let mut facts = Facts {
         path: change.relative_path,
         calls,
         runs,
-        after: after.as_deref(),
-        changed: change.shell,
+        after: None,
+        changed: change.edit.span(change.shell),
     };
+    if !has_evidence(candidates, &facts) {
+        return who;
+    }
+    let after = blob_text(git, change.after_sha).await;
+    facts.after = after.as_deref();
     resolve(decider, candidates, &facts).await.unwrap_or(who)
 }
 

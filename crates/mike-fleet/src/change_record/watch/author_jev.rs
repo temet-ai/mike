@@ -10,7 +10,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::change_record::EditCall;
 
 pub const POINT: &str = "change_author";
-pub const QUESTION_SET: &str = "change_author_v2";
+pub const QUESTION_SET: &str = "change_author_v3";
 const WHO: &str = "who";
 const UNKNOWN: &str = "unknown";
 
@@ -41,11 +41,32 @@ fn edits_of(session: i64, facts: &Facts<'_>) -> Vec<Value> {
             json!({
                 "tool": call.tool_name,
                 "at": call.at,
+                "ran_from": call.ran_from,
+                "ran_to": call.ran_to,
                 "failed": call.failed,
                 "its_text_is_in_the_final_file": wrote_into_file(call, facts.after),
             })
         })
         .collect()
+}
+
+fn touches(run: &ShellRun, path: &str) -> bool {
+    run.names_checkout
+        || run
+            .command
+            .as_deref()
+            .is_some_and(|command| command.contains(path))
+}
+
+pub fn has_evidence(candidates: &[i64], facts: &Facts<'_>) -> bool {
+    facts
+        .calls
+        .iter()
+        .any(|call| candidates.contains(&call.session_id))
+        || facts
+            .runs
+            .iter()
+            .any(|run| candidates.contains(&run.session_id) && touches(run, facts.path))
 }
 
 fn shells_of(session: i64, facts: &Facts<'_>) -> Vec<Value> {
@@ -89,7 +110,7 @@ pub fn questions(candidates: &[i64]) -> BTreeMap<String, Question> {
             (
                 key(*session),
                 format!(
-                    "Session {session} made this change: one of its edit tool calls or shell commands writes this path, or runs a command such as git, a formatter or a generator that writes it, between changed_between.from and changed_between.to."
+                    "Session {session} made this change: one of its edit tool calls (running from ran_from to ran_to) or shell commands writes this path, or runs a command such as git, a formatter or a generator that writes it, within changed_between.from to changed_between.to."
                 ),
             )
         })

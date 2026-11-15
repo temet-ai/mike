@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
+use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -17,7 +18,8 @@ pub const QUESTION_SET: &str = "fleet_stop_check_v1";
 pub const CLAIM_ABOVE: f64 = 0.6;
 pub const WAITING_ABOVE: f64 = 0.6;
 pub const UNANSWERED_ABOVE: f64 = 0.6;
-const MESSAGE_TAIL_BYTES: usize = 1500;
+const MESSAGE_HEAD_BYTES: usize = 600;
+const MESSAGE_TAIL_BYTES: usize = 900;
 
 const CLAIMS_DONE: &str = "final_message_claims_done";
 const WAITING: &str = "waiting_on_something_running";
@@ -100,7 +102,27 @@ pub fn code_step(facts: &StopFacts, request: &StopRequest) -> Step {
             ),
         );
     }
+    if facts.report_filed_awaiting_verdict {
+        return Step::Settled(
+            Decision::LetThrough,
+            format!(
+                "the report for task {} is filed and waits for its verdict",
+                facts.task
+            ),
+        );
+    }
     Step::Ask
+}
+
+pub fn message_for_jev(message: &str) -> String {
+    if message.len() <= MESSAGE_HEAD_BYTES + MESSAGE_TAIL_BYTES {
+        return message.to_owned();
+    }
+    format!(
+        "{}{}",
+        text::head(message, MESSAGE_HEAD_BYTES),
+        text::tail(message, MESSAGE_TAIL_BYTES)
+    )
 }
 
 pub fn questions(with_message: bool) -> BTreeMap<String, Question> {
@@ -108,7 +130,7 @@ pub fn questions(with_message: bool) -> BTreeMap<String, Question> {
         (
             WAITING.to_owned(),
             noul(
-                "Is the seat waiting on something that is running or on someone else, such as a check, a build permit or a reply?",
+                "Is the seat waiting on something that is running or on someone else, such as a check, a build permit, a reply to its mail, or a verdict on its report?",
                 "The seat is waiting for something outside its control to finish or arrive.",
                 "The seat is not waiting for anything; it stopped on its own.",
             ),
@@ -178,23 +200,31 @@ pub fn compose(asked: &Asked, request: &StopRequest) -> (Decision, String, f64) 
     )
 }
 
-static PUSHED: LazyLock<DashMap<Uuid, (i64, usize)>> = LazyLock::new(DashMap::new);
+static PUSHED: LazyLock<DashMap<Uuid, (i64, DateTime<Utc>)>> = LazyLock::new(DashMap::new);
+
+pub fn pushback_label(facts: &StopFacts, pushed_at: DateTime<Utc>) -> &'static str {
+    if facts.worked_since(pushed_at) {
+        "right"
+    } else {
+        "wrong"
+    }
+}
 
 async fn label_earlier_pushback(decider: &Decider, session: Uuid, facts: &StopFacts) {
-    let Some((_, (record, uncommitted_then))) = PUSHED.remove(&session) else {
+    let Some((_, (record, pushed_at))) = PUSHED.remove(&session) else {
         return;
     };
-    let progressed = facts.check_passed_after_change || facts.uncommitted.len() < uncommitted_then;
-    let label = if progressed { "right" } else { "wrong" };
     record_outcome(
         decider.persist(),
         record,
-        label,
+        pushback_label(facts, pushed_at),
         "next_stop_facts",
         json!({
-            "uncommitted_then": uncommitted_then,
-            "uncommitted_now": facts.uncommitted.len(),
-            "check_passed_after_change": facts.check_passed_after_change,
+            "pushed_at": pushed_at,
+            "last_change_at": facts.last_change_at,
+            "last_commit_at": facts.last_commit_at,
+            "last_report_at": facts.last_report_at,
+            "last_check_finished_at": facts.last_check.as_ref().and_then(|c| c.finished_at),
         }),
     )
     .await;
@@ -205,11 +235,8 @@ pub async fn judge(
     (facts, request): (&StopFacts, &StopRequest),
     (session, session_db_id, fleet_id): (Uuid, Option<i64>, i64),
 ) -> (Decision, String) {
-    let message = text::tail(
-        request.final_message.as_deref().unwrap_or(""),
-        MESSAGE_TAIL_BYTES,
-    );
-    let state: Value = facts.state(message);
+    let message = message_for_jev(request.final_message.as_deref().unwrap_or(""));
+    let state: Value = facts.state(&message);
     let subject = DecisionSubject {
         session_id: session_db_id,
         fleet_run_id: Some(fleet_id),
@@ -231,10 +258,14 @@ pub async fn judge(
         )
         .await;
     let (decision, reason, score) = compose(&asked, request);
+    let verdict = json!({
+        "score": score,
+        "task": facts.task,
+        "seat": facts.seat,
+        "decision": decision,
+    });
     if !decider.applies() {
-        decider
-            .mark(&asked, asked.composed(json!({"score": score})), "none")
-            .await;
+        decider.mark(&asked, asked.composed(verdict), "none").await;
         return (Decision::Off, "the stop check is in shadow mode".to_owned());
     }
     let applied = match decision {
@@ -242,13 +273,11 @@ pub async fn judge(
         Decision::LetThrough => "let_through",
         Decision::Off => "none",
     };
-    decider
-        .mark(&asked, asked.composed(json!({"score": score})), applied)
-        .await;
+    decider.mark(&asked, asked.composed(verdict), applied).await;
     if decision == Decision::PushBack
         && let Some(record) = asked.record_id
     {
-        PUSHED.insert(session, (record, facts.uncommitted.len()));
+        PUSHED.insert(session, (record, Utc::now()));
     }
     (decision, reason)
 }

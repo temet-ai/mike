@@ -162,3 +162,84 @@ async fn resolve_with_a_failing_client_leaves_the_author_unknown() -> anyhow::Re
     assert_eq!(resolve(&decider, &[3, 7], &facts).await, None);
     fx.finish().await
 }
+
+#[test]
+fn state_each_edit_carries_the_window_it_ran_in() {
+    let calls = vec![edit(3, "alpha")];
+    let facts = Facts {
+        path: "src/a.rs",
+        calls: &calls,
+        runs: &[],
+        after: None,
+        changed: now_window(),
+    };
+    let state = state(&[3, 7], &facts);
+    let first = &state["candidate_sessions"][0]["edit_tool_calls_naming_the_file"][0];
+    assert_eq!(first["ran_from"], json!(calls[0].ran_from));
+    assert_eq!(first["ran_to"], json!(calls[0].ran_to));
+}
+
+#[test]
+fn span_covers_an_edit_window_that_starts_before_the_shell_window() {
+    let now = Utc::now();
+    let edit = Window {
+        from: now - chrono::Duration::seconds(29),
+        to: now,
+    };
+    let shell = Window {
+        from: now - chrono::Duration::seconds(2),
+        to: now + chrono::Duration::seconds(5),
+    };
+    let both = edit.span(shell);
+    assert_eq!(both.from, edit.from);
+    assert_eq!(both.to, shell.to);
+}
+
+#[test]
+fn has_evidence_without_an_edit_or_a_command_naming_the_change_is_false() {
+    let runs = vec![run(3), run(7)];
+    let facts = Facts {
+        path: "src/a.rs",
+        calls: &[],
+        runs: &runs,
+        after: None,
+        changed: now_window(),
+    };
+    assert!(!has_evidence(&[3, 7], &facts));
+}
+
+#[test]
+fn has_evidence_an_edit_by_a_candidate_is_true_and_by_a_stranger_is_false() {
+    let calls = vec![edit(3, "alpha")];
+    let facts = Facts {
+        path: "src/a.rs",
+        calls: &calls,
+        runs: &[],
+        after: None,
+        changed: now_window(),
+    };
+    assert!(has_evidence(&[3, 7], &facts));
+    assert!(!has_evidence(&[7, 9], &facts));
+}
+
+#[test]
+fn has_evidence_a_command_naming_the_checkout_or_the_path_is_true() {
+    let checkout = vec![ShellRun {
+        names_checkout: true,
+        ..run(7)
+    }];
+    let path = vec![ShellRun {
+        command: Some("sed -i s/a/b/ src/a.rs".to_owned()),
+        ..run(7)
+    }];
+    for runs in [&checkout, &path] {
+        let facts = Facts {
+            path: "src/a.rs",
+            calls: &[],
+            runs,
+            after: None,
+            changed: now_window(),
+        };
+        assert!(has_evidence(&[3, 7], &facts));
+    }
+}

@@ -30,6 +30,27 @@ fn questions_ask_one_noul_per_criterion() {
 }
 
 #[test]
+fn the_question_counts_a_past_tense_end_state_and_rejects_only_an_instruction() {
+    let asked = questions(1);
+    let Some(crate::llm::decisions::Question::Noul {
+        instructions,
+        criteria,
+    }) = asked.get(&key(0))
+    else {
+        panic!("one noul question per criterion");
+    };
+    assert!(instructions.contains("has been mailed"));
+    assert!(instructions.contains("counts as yes"));
+    assert!(criteria.yes.contains("past tense"));
+    assert!(criteria.no.contains("an instruction (add, run, make sure)"));
+    assert!(
+        criteria
+            .no
+            .contains("naming nothing that is true afterwards")
+    );
+}
+
+#[test]
 fn state_keys_each_criterion_by_position() {
     let value = state(&["The page loads", "  Add a panel  "]);
     assert_eq!(value["criteria"][key(0)], "The page loads");

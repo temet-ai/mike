@@ -24,8 +24,12 @@ pub fn state(facts: &TurnFacts<'_>, with_next: bool) -> Value {
         "tool_call_count": facts.tool_call_count,
         "tool_error_count": facts.tool_error_count,
     });
-    if let (true, Some(next)) = (with_next, facts.next_message) {
+    if let (true, Some(next)) = (with_next, present(facts.next_message)) {
         state["operator_next_message"] = Value::String(truncate_chars(next, NEXT_CHARS).to_owned());
     }
     state
+}
+
+pub fn present(text: Option<&str>) -> Option<&str> {
+    text.filter(|t| !t.trim().is_empty())
 }

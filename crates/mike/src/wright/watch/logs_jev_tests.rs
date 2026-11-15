@@ -78,23 +78,123 @@ fn decider(server: &MockServer, persist: &PersistHandle) -> anyhow::Result<Decid
 }
 
 fn two_wordings() -> Vec<LogLine> {
+    wordings_on("mike::db")
+}
+
+fn wordings_on(target: &str) -> Vec<LogLine> {
     vec![
         line(
-            "mike::db",
+            target,
             "connection to the database was refused by host 1",
             3,
         ),
         line(
-            "mike::db",
+            target,
             "connection to the database was refused by host 2",
             2,
         ),
+        line(target, "the database refused the connection from host 3", 1),
+    ]
+}
+
+fn slow(statement: &str) -> String {
+    format!("{SLOW_STATEMENT_PREFIX} summary={statement}")
+}
+
+#[test]
+fn distinct_drops_only_the_shared_slow_statement_prefix() {
+    let (left, right) = (
+        slow("SELECT id FROM requests"),
+        slow("UPDATE sessions SET seen"),
+    );
+    let (a, b) = distinct(&left, &right);
+    assert_eq!(
+        (a, b),
+        (
+            "summary=SELECT id FROM requests",
+            "summary=UPDATE sessions SET seen"
+        )
+    );
+    let (a, b) = distinct(
+        "db error: connection refused: host a",
+        "db error: connection refused: host b",
+    );
+    assert_eq!(
+        (a, b),
+        (
+            "db error: connection refused: host a",
+            "db error: connection refused: host b"
+        )
+    );
+    let (a, b) = distinct("disk is full", "tls handshake failed");
+    assert_eq!((a, b), ("disk is full", "tls handshake failed"));
+}
+
+#[test]
+fn slow_statements_that_differ_in_their_sql_are_not_candidate_pairs() {
+    let lines = [
+        line("sqlx::query", &slow("SELECT id FROM requests"), 1),
+        line("sqlx::query", &slow("UPDATE sessions SET seen"), 1),
         line(
-            "mike::db",
-            "the database refused the connection from host 3",
+            "sqlx::query",
+            &slow("SELECT id FROM requests WHERE live"),
             1,
         ),
-    ]
+    ];
+    let listed: Vec<_> = groups(&lines).into_iter().collect();
+    let pairs = candidate_pairs(&listed, 2);
+    assert_eq!(pairs.len(), 1);
+    let texts: Vec<&str> = [pairs[0].0, pairs[0].1]
+        .iter()
+        .map(|at| listed[*at].0.1.as_str())
+        .collect();
+    assert!(
+        texts
+            .iter()
+            .all(|text| text.contains("SELECT id FROM requests"))
+    );
+}
+
+#[tokio::test]
+async fn merge_uses_a_remembered_verdict_without_asking_again() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let server = stub(500, json!({})).await;
+    let decider = decider(&server, &persist)?;
+    let lines = wordings_on("mike::memoised");
+    let listed: Vec<_> = groups(&lines).into_iter().collect();
+    remember(memo_key(&listed[0].0, &listed[1].0), 0.93);
+    let joined = merge(&decider, groups(&lines), 3).await;
+    assert_eq!(joined.len(), 1);
+    let asked = server
+        .received_requests()
+        .await
+        .map_or(0, |sent| sent.len());
+    assert_eq!(asked, 0);
+    persist.pool().close().await;
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn merge_asks_a_pair_once_and_remembers_the_answer() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let server = stub(200, reply(0.95)).await;
+    let decider = decider(&server, &persist)?;
+    let lines = wordings_on("mike::asked_once");
+    assert_eq!(merge(&decider, groups(&lines), 3).await.len(), 1);
+    assert_eq!(merge(&decider, groups(&lines), 3).await.len(), 1);
+    let asked = server
+        .received_requests()
+        .await
+        .map_or(0, |sent| sent.len());
+    assert_eq!(asked, 1);
+    persist.pool().close().await;
+    db.cleanup().await
 }
 
 #[test]
@@ -145,7 +245,7 @@ async fn merge_on_a_same_problem_answer_joins_the_groups() -> anyhow::Result<()>
     let persist = PersistHandle::connect(&db.database_url).await?;
     let server = stub(200, reply(0.95)).await;
     let decider = decider(&server, &persist)?;
-    let lines = two_wordings();
+    let lines = wordings_on("mike::joined");
     let joined = merge(&decider, groups(&lines), 3).await;
     assert_eq!(joined.len(), 1);
     persist.pool().close().await;
@@ -161,7 +261,7 @@ async fn merge_with_a_failing_client_leaves_the_groups_as_the_digit_rule_made_th
     let persist = PersistHandle::connect(&db.database_url).await?;
     let server = stub(500, json!({})).await;
     let decider = decider(&server, &persist)?;
-    let lines = two_wordings();
+    let lines = wordings_on("mike::failing");
     let joined = merge(&decider, groups(&lines), 3).await;
     assert_eq!(joined.len(), 2);
     persist.pool().close().await;

@@ -12,8 +12,21 @@ const FILLER: [&str; 24] = [
 ];
 const MAX_FILE_BYTES: usize = 60_000;
 const MAX_RULE_FILES: usize = 12;
-const NORMATIVE: [&str; 9] = [
-    "never", "must", "always", "do not", "don't", "forbid", "refuse", "reject", "only",
+const NORMATIVE: [&str; 14] = [
+    "never",
+    "must",
+    "always",
+    "do not",
+    "don't",
+    "don\u{2019}t",
+    "forbid",
+    "forbids",
+    "forbidden",
+    "refuse",
+    "refuses",
+    "reject",
+    "rejects",
+    "rejected",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,20 +78,28 @@ fn bullet(line: &str) -> Option<&str> {
         .map(str::trim)
 }
 
+fn has_word(lower: &str, word: &str) -> bool {
+    lower.match_indices(word).any(|(at, _)| {
+        let before = lower[..at].chars().next_back();
+        let after = lower[at + word.len()..].chars().next();
+        !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+    })
+}
+
 fn is_rule(text: &str) -> bool {
     let length = text.chars().count();
     let lower = text.to_lowercase();
     (MIN_RULE_CHARS..=MAX_RULE_CHARS).contains(&length)
-        && NORMATIVE.iter().any(|w| lower.contains(w))
+        && NORMATIVE.iter().any(|w| has_word(&lower, w))
 }
 
 fn continues(line: &str) -> bool {
     let trimmed = line.trim_start();
-    line.len() > trimmed.len()
-        && !trimmed.is_empty()
+    !trimmed.is_empty()
         && bullet(line).is_none()
         && !trimmed.starts_with('#')
         && !trimmed.starts_with('|')
+        && !trimmed.starts_with("```")
 }
 
 fn items(body: &str) -> Vec<String> {
@@ -152,6 +173,18 @@ pub struct TurnTools {
 const LINE_CHARS: usize = 200;
 const LINES_KEPT: usize = 15;
 
+pub fn cut_at_whitespace(text: &str, max: usize) -> &str {
+    let Some((end, _)) = text.char_indices().nth(max) else {
+        return text;
+    };
+    let head = &text[..end];
+    if text[end..].starts_with(char::is_whitespace) {
+        return head.trim_end();
+    }
+    head.rfind(char::is_whitespace)
+        .map_or(head, |at| head[..at].trim_end())
+}
+
 impl TurnTools {
     pub fn from_calls<'a>(calls: impl IntoIterator<Item = (&'a str, &'a Value)>) -> Self {
         let mut tools = Self::default();
@@ -161,8 +194,9 @@ impl TurnTools {
                 .find_map(|k| input.get(*k).and_then(Value::as_str));
             let command = input.get("command").and_then(Value::as_str);
             let detail = command.or(path).unwrap_or_default();
-            let cut: String = detail.chars().take(LINE_CHARS).collect();
-            tools.lines.push(format!("{name}: {cut}"));
+            tools
+                .lines
+                .push(format!("{name}: {}", cut_at_whitespace(detail, LINE_CHARS)));
             tools.paths.extend(path.map(str::to_owned));
         }
         tools

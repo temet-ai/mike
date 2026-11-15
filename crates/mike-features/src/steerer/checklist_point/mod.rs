@@ -1,15 +1,21 @@
 pub mod compose;
+pub mod facts;
 pub mod questions;
 pub mod state;
 
 #[cfg(test)]
+mod facts_tests;
+#[cfg(test)]
+mod state_tests;
+#[cfg(test)]
 mod tests;
 
-use serde_json::json;
+use serde_json::{Value, json};
 
-pub use compose::{Checklist, Item, NOT_DONE_AT, compose};
+pub use compose::{Checklist, Item, NOT_DONE_AT, Status, compose};
+pub use facts::{earlier_turns, ends_with_operator_question};
 pub use questions::{POINT, QUESTION_SET};
-pub use state::{Criterion, Evidence, MAX_CRITERIA, intake_criteria, thread_criteria};
+pub use state::{Criterion, Evidence, MAX_CRITERIA, intake_criteria, is_rule, thread_criteria};
 
 use crate::llm::decisions::point::{Asked, Decider};
 use crate::llm::decisions::record::DecisionSubject;
@@ -17,6 +23,15 @@ use crate::llm::decisions::record::DecisionSubject;
 pub struct Checked {
     pub checklist: Checklist,
     pub asked: Asked,
+}
+
+fn composed_of(checklist: &Checklist) -> Value {
+    json!({
+        "score": checklist.confidence(),
+        "fires": checklist.fires(),
+        "flagged": checklist.flagged().len(),
+        "open_stated": checklist.open_stated().len(),
+    })
 }
 
 pub async fn check(
@@ -32,7 +47,7 @@ pub async fn check(
         .ask(
             QUESTION_SET,
             state::state(criteria, evidence),
-            questions::questions(criteria.len()),
+            questions::questions(criteria),
             subject,
             json!({ "not_done_at": NOT_DONE_AT }),
         )
@@ -44,23 +59,26 @@ pub async fn check(
         return None;
     };
     if !decider.applies() {
-        let composed = json!({ "score": checklist.confidence(), "fires": checklist.fires() });
-        decider.mark(&asked, asked.composed(composed), "none").await;
+        decider
+            .mark(&asked, asked.composed(composed_of(&checklist)), "none")
+            .await;
         return None;
     }
     Some(Checked { checklist, asked })
 }
 
 pub async fn mark(decider: &Decider, checked: &Checked) {
-    let fires = checked.checklist.fires();
-    let composed = json!({
-        "score": checked.checklist.confidence(),
-        "fires": fires,
-        "open": checked.checklist.open_stated().len(),
-    });
-    let applied = if fires { "chosen" } else { "skipped" };
+    let applied = if checked.checklist.fires() {
+        "chosen"
+    } else {
+        "skipped"
+    };
     decider
-        .mark(&checked.asked, checked.asked.composed(composed), applied)
+        .mark(
+            &checked.asked,
+            checked.asked.composed(composed_of(&checked.checklist)),
+            applied,
+        )
         .await;
 }
 

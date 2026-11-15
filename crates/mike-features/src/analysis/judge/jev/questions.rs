@@ -36,7 +36,7 @@ fn turn_questions() -> BTreeMap<String, Question> {
         (
             SHIPPED.to_owned(),
             noul(
-                "Does assistant_turn_end say that an irreversible delivery action happened in this turn: a commit, push, pull request, merge, deploy or release?",
+                "Does assistant_turn_end say that an irreversible delivery action happened in this turn: a commit, push, pull request, merge, deploy or release? An offer or a question about doing it (\"Want me to write this up?\") is not shipping.",
                 "The text says a commit, push, pull request, merge, deploy or release was made.",
                 "The text names no such action as done.",
             ),
@@ -81,7 +81,7 @@ fn reaction_questions() -> BTreeMap<String, Question> {
         (
             CORRECTED.to_owned(),
             noul(
-                "Does operator_next_message say or imply the assistant got something wrong in the turn: a mistake, a misread ask, an unchecked claim, an ignored instruction, or work not done? Re-asking for the same thing counts.",
+                "Does operator_next_message say or imply the assistant got something wrong in the turn: a mistake, a misread ask, an unchecked claim, an ignored instruction, or work not done? Re-asking for the same thing counts. It must fault the turn's own work: a complaint about the product, or a new issue the turn did not cause, does not count.",
                 "The next message corrects, challenges or re-asks for something the turn got wrong.",
                 "The next message does not fault the turn.",
             ),
@@ -97,7 +97,7 @@ fn reaction_questions() -> BTreeMap<String, Question> {
         (
             ACCEPTED.to_owned(),
             noul(
-                "Does operator_next_message build on the turn, approve it, thank for it, or give the next step in the same line of work?",
+                "Does operator_next_message build on the turn, approve it, or thank for it?",
                 "The next message accepts the turn and continues.",
                 "The next message does not accept the turn.",
             ),

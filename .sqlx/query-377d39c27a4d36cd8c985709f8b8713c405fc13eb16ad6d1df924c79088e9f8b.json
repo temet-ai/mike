@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT r.id,\n       CASE WHEN (r.composed -> 'verdict' ->> 'send' = 'true') = (e.outcome_label = 'right')\n            THEN 'right' ELSE 'wrong' END,\n       'precheck_decision',\n       jsonb_build_object('evaluation_uuid', e.uuid,\n                          'send', r.composed -> 'verdict' ->> 'send',\n                          'fire_label', e.outcome_label,\n                          'fire_label_source', e.label_source)\n  FROM decisions.records r\n  JOIN steering.evaluations e ON e.uuid = r.evaluation_uuid\n  LEFT JOIN decisions.outcomes done\n    ON done.record_id = r.id AND done.label_source = 'precheck_decision'\n WHERE r.point = ANY($1)\n   AND done.record_id IS NULL\n   AND e.outcome_label IN ('right', 'wrong')\n   AND r.composed -> 'verdict' ->> 'send' IN ('true', 'false')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "377d39c27a4d36cd8c985709f8b8713c405fc13eb16ad6d1df924c79088e9f8b"
+}

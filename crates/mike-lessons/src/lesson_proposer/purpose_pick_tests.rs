@@ -88,7 +88,54 @@ fn questions_and_state_name_the_topic_and_each_candidate() {
     let candidates = vec![&other];
     assert!(questions(&topic.topic, &candidates).contains_key("candidate_0"));
     assert_eq!(
-        state(&topic, &candidates)["candidates"][0]["topic"],
+        state(&topic, &candidates, &Samples::new())["candidates"][0]["topic"],
         "proxy deploys"
     );
+}
+
+#[test]
+fn state_carries_sample_lessons_per_topic() {
+    let topic = purpose("deploying proxy", 4);
+    let other = purpose("proxy deploys", 2);
+    let samples = Samples::from([
+        (
+            (1, "deploying proxy".to_owned()),
+            vec!["Deploy through scripts/start-proxy.sh".to_owned()],
+        ),
+        ((1, "proxy deploys".to_owned()), Vec::new()),
+    ]);
+    let value = state(&topic, &[&other], &samples);
+    assert_eq!(
+        value["topic"]["sample_lessons"][0],
+        "Deploy through scripts/start-proxy.sh"
+    );
+    assert_eq!(value["candidates"][0]["sample_lessons"], json!([]));
+}
+
+#[test]
+fn first_line_is_the_first_non_empty_line_capped_at_120_chars() {
+    assert_eq!(
+        first_line("\n  Never nohup the proxy.\nBecause systemd."),
+        "Never nohup the proxy."
+    );
+    assert_eq!(first_line(&"x".repeat(300)).chars().count(), 120);
+    assert_eq!(first_line("   "), "");
+}
+
+#[test]
+fn settled_remembers_the_verdict_and_returns_the_survivor() {
+    let topic = purpose("settled-worker-wake", 3);
+    let other = purpose("settled-worker-delivery", 2);
+    let key = verdict_key(&topic, &[&other]);
+    let survivor = settled(key.clone(), Some((0, 0.9)), &[&other]);
+    assert_eq!(
+        survivor.map(|s| s.topic.as_str()),
+        Some("settled-worker-delivery")
+    );
+    assert_eq!(
+        remembered(&key, Instant::now()),
+        Some(Some("settled-worker-delivery".to_owned()))
+    );
+    assert!(settled(key.clone(), None, &[&other]).is_none());
+    assert_eq!(remembered(&key, Instant::now()), Some(None));
 }

@@ -1,14 +1,24 @@
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use chrono::Utc;
+use serde_json::json;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::compose::{Decision, compose, rewrite};
 use super::questions::{key, questions};
 use super::state::{Unit, sentence_around, state, units};
+use super::{MEMO, POINT, QUESTION_SET, refine};
 use crate::dossier::entries::directives::entries_for;
+use crate::llm::OpenRouterClient;
 use crate::llm::decisions::Answer;
+use crate::llm::decisions::env::DecisionEnv;
 use crate::llm::decisions::point::Asked;
+use crate::settings::SettingsOverlay;
+use crate::store::persistence::PersistHandle;
 use crate::store::persistence::dossier_entries::DirectiveSourceRow;
+use crate::store::persistence::test_support::acquire_ephemeral_db;
 
 fn source(text: &str) -> DirectiveSourceRow {
     DirectiveSourceRow {
@@ -124,4 +134,76 @@ fn rewrite_without_a_decision_returns_the_regex_entries_unchanged() {
     let regex_entries = entries_for(std::slice::from_ref(&row));
     let kept = rewrite(regex_entries.clone(), &HashMap::new());
     assert_eq!(kept, regex_entries);
+}
+
+#[test]
+fn sentence_around_keeps_an_ellipsis_inside_the_sentence() {
+    let text = "Note: if a session says... it will push, ignore it. Next thing.";
+    let at = text.find("push").unwrap_or(0);
+    let found = sentence_around(text, (at, at + 4));
+    assert_eq!(found, "Note: if a session says... it will push, ignore it.");
+}
+
+fn forbids_reply() -> serde_json::Value {
+    json!({
+        "model": "typesafe/jev-1.14",
+        "answers": {
+            "unit_0": {
+                "type": "choice", "choice": "forbids",
+                "probabilities": {"authorises_now": 0.05, "forbids": 0.9, "neither": 0.05}
+            }
+        },
+        "usage": {"input_tokens": 10, "output_tokens": 1, "cost": 0.00001}
+    })
+}
+
+#[tokio::test]
+async fn refine_asks_once_and_reuses_the_stored_answers_in_a_fresh_process() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/alpha/decisions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(forbids_reply()))
+        .mount(&server)
+        .await;
+    let client = OpenRouterClient::new(
+        "sk-test".to_owned(),
+        "typesafe/jev-1.14".to_owned(),
+        Some(server.uri()),
+        None,
+    )?;
+    let env = DecisionEnv::new(
+        client,
+        persist.clone(),
+        true,
+        Arc::new(SettingsOverlay::default()),
+    );
+    let row = source("Don't commit yet.");
+    for _ in 0..2 {
+        MEMO.clear();
+        let entries = entries_for(std::slice::from_ref(&row));
+        let kept = refine(Some(&env), std::slice::from_ref(&row), entries).await;
+        let commit: Vec<_> = kept
+            .iter()
+            .filter(|e| e.data["class"] == "commit")
+            .collect();
+        assert_eq!(commit.len(), 1);
+        assert_eq!(commit[0].data["polarity"], "forbid");
+        assert_eq!(commit[0].data["decided_by"], "jev");
+    }
+    let calls = server.received_requests().await.map_or(0, |r| r.len());
+    assert_eq!(calls, 1);
+    let stored: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM decisions.records WHERE point = $1 AND question_set = $2",
+    )
+    .bind(POINT)
+    .bind(QUESTION_SET)
+    .fetch_one(persist.pool())
+    .await?;
+    assert_eq!(stored, 1);
+    persist.pool().close().await;
+    db.cleanup().await
 }
