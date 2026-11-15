@@ -76,7 +76,14 @@ if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rus
   # push and stopped again when the hook started it.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
     export MIKE_BUILD_JOBS="${MIKE_BUILD_JOBS:-2}" NEXTEST_TEST_THREADS="${NEXTEST_TEST_THREADS:-2}"
-    if command -v docker >/dev/null 2>&1 && [ "$(docker inspect -f '{{.State.Running}}' mike-test-pg 2>/dev/null)" = false ]; then
+    running=$(command -v docker >/dev/null 2>&1 && docker inspect -f '{{.State.Running}}' mike-test-pg 2>/dev/null)
+    if [ "$running" = false ]; then
+      docker start mike-test-pg >/dev/null && trap 'docker stop mike-test-pg >/dev/null 2>&1' EXIT
+      for _ in $(seq 1 60); do
+        docker exec mike-test-pg pg_isready -U postgres -d postgres >/dev/null 2>&1 && break
+        sleep 1
+      done
+    elif [ -z "$running" ] && command -v docker >/dev/null 2>&1; then
       "$root/scripts/test-db/up.sh" >/dev/null && trap 'docker stop mike-test-pg >/dev/null 2>&1' EXIT
     fi
   fi
