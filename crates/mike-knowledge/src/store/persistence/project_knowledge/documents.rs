@@ -13,6 +13,13 @@ pub struct SourceInput {
     pub root_path: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MachineSourceInput {
+    pub machine_uuid: Uuid,
+    pub name: String,
+    pub root_path: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RegisteredSource {
     pub source_uuid: Uuid,
@@ -107,6 +114,69 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                  JOIN inserted n ON n.location_uuid = i.location_uuid AND n.name = i.name
                                 AND n.root_path = i.root_path"#,
             &locations,
+            &names,
+            &roots
+        )
+        .fetch_all(self.pool())
+        .await?;
+        let mut registered: Vec<Option<RegisteredSource>> =
+            std::iter::repeat_with(|| None).take(inputs.len()).collect();
+        for row in rows {
+            let slot = usize::try_from(row.ord - 1)
+                .ok()
+                .and_then(|index| registered.get_mut(index))
+                .ok_or_else(|| invalid("Source registration answered an unknown position"))?;
+            *slot = Some(RegisteredSource {
+                source_uuid: row.source_uuid,
+                generation: row.generation,
+            });
+        }
+        Ok(registered)
+    }
+
+    pub async fn register_machine_knowledge_sources(
+        self,
+        inputs: &[MachineSourceInput],
+    ) -> Result<Vec<Option<RegisteredSource>>, PersistError> {
+        if inputs
+            .iter()
+            .any(|input| input.name.trim().is_empty() || input.root_path.trim().is_empty())
+        {
+            return Err(invalid("Source name and root path must not be empty"));
+        }
+        let machines: Vec<Uuid> = inputs.iter().map(|input| input.machine_uuid).collect();
+        let names: Vec<String> = inputs.iter().map(|input| input.name.clone()).collect();
+        let roots: Vec<String> = inputs.iter().map(|input| input.root_path.clone()).collect();
+        let rows = sqlx::query!(
+            r#"WITH input AS (
+                   SELECT x.ord, x.machine_uuid, x.name, x.root_path
+                     FROM unnest($1::uuid[], $2::text[], $3::text[])
+                          WITH ORDINALITY AS x(machine_uuid, name, root_path, ord)
+               ), adopted AS (
+                   UPDATE memory.knowledge_sources s
+                      SET machine_uuid = i.machine_uuid
+                     FROM input i
+                    WHERE s.machine_uuid IS NULL AND s.location_uuid IS NULL
+                      AND s.name = i.name AND s.root_path = i.root_path
+                      AND NOT EXISTS (SELECT 1 FROM memory.knowledge_sources o
+                                       WHERE o.machine_uuid = i.machine_uuid AND o.name = i.name)
+                   RETURNING s.machine_uuid, s.name, s.source_uuid, s.generation, s.root_path
+               ), inserted AS (
+                   INSERT INTO memory.knowledge_sources(machine_uuid, name, root_path)
+                   SELECT i.machine_uuid, i.name, i.root_path FROM input i
+                    WHERE NOT EXISTS (SELECT 1 FROM adopted a
+                                       WHERE a.machine_uuid = i.machine_uuid AND a.name = i.name)
+                    ORDER BY i.ord
+                   ON CONFLICT (machine_uuid, name) WHERE machine_uuid IS NOT NULL DO SELECT
+                   RETURNING machine_uuid, name, source_uuid, generation, root_path
+               ), registered AS (
+                   SELECT * FROM adopted UNION ALL SELECT * FROM inserted
+               )
+               SELECT i.ord AS "ord!", n.source_uuid AS "source_uuid!", n.generation AS "generation!"
+                 FROM input i
+                 JOIN registered n ON n.machine_uuid = i.machine_uuid AND n.name = i.name
+                                AND n.root_path = i.root_path"#,
+            &machines,
             &names,
             &roots
         )

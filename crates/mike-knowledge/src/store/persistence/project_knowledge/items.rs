@@ -142,6 +142,27 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(())
     }
 
+    pub async fn share_twin_knowledge_embeddings(
+        self,
+        item_ids: &[i64],
+        model: &str,
+    ) -> Result<Vec<i64>, PersistError> {
+        if item_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let served = sqlx::query_scalar!(
+            r#"SELECT memory.share_twin_embeddings($1::bigint[], $2::text) AS "served!""#,
+            item_ids,
+            model
+        )
+        .fetch_one(self.pool())
+        .await?;
+        if !served.is_empty() {
+            self.forget_knowledge_coverage();
+        }
+        Ok(served)
+    }
+
     pub async fn fail_knowledge_embedding(
         self,
         source: &KnowledgeEmbeddingSource,

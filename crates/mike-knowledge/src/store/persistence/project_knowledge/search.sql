@@ -12,7 +12,7 @@ WITH own_turn AS (
 ), knowledge_scope AS MATERIALIZED (
     SELECT e.id AS state_id, e.reference
     FROM memory.knowledge_embedding_state e
-    WHERE e.project_id = $1 AND e.reference IS NOT NULL
+    WHERE (e.project_id = $1 OR (e.project_id IS NULL AND e.source_kind = 'artifact')) AND e.reference IS NOT NULL
       AND e.model_key = ANY($8::text[]) AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
 ), nearest_first AS (
     SELECT ($11::bool[])[2] AS enabled
@@ -33,7 +33,7 @@ WITH own_turn AS (
     (SELECT e.reference, 1 - n.distance AS score
      FROM nearest_knowledge_chunks n
      JOIN memory.knowledge_embedding_state e ON e.id = n.state_id
-     WHERE e.project_id = $1 AND e.reference IS NOT NULL
+     WHERE (e.project_id = $1 OR (e.project_id IS NULL AND e.source_kind = 'artifact')) AND e.reference IS NOT NULL
        AND e.model_key = ANY($8::text[]) AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
      ORDER BY n.distance
      LIMIT 200)
@@ -104,7 +104,7 @@ WITH own_turn AS (
                'last_scan_at', s.last_scan_at,
                'last_verified_at', GREATEST(s.last_scan_at, s.last_heartbeat_at)) AS freshness
       FROM memory.knowledge_sources s
-      JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
+      LEFT JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
      CROSS JOIN LATERAL (
         SELECT COALESCE(jsonb_agg(f.reason), '[]'::jsonb) AS reasons
           FROM (VALUES
@@ -119,7 +119,7 @@ WITH own_turn AS (
           ) AS f(reason)
          WHERE f.reason IS NOT NULL
      ) fr
-     WHERE sl.project_id = $1
+     WHERE sl.project_id = $1 OR s.machine_uuid IS NOT NULL
 ), bound AS (
     -- The page needs the best N = limit + offset rows. A row beyond position M in both the words and the
     -- meaning list scores below 2/(60 + M), under half of the worst possible score of the N-th row (half,
@@ -172,7 +172,7 @@ WITH own_turn AS (
            r.status, d.relative_path AS path, r.observed_at AS updated_at,
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
            jsonb_build_object('document_uuid', d.document_uuid, 'revision', r.id,
-             'location_uuid', s.location_uuid, 'last_scan_at', s.last_scan_at,
+             'location_uuid', s.location_uuid, 'machine_uuid', s.machine_uuid, 'last_scan_at', s.last_scan_at,
              'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
              'freshness', sf.freshness) AS provenance,
            r.body AS body, NULL::jsonb AS author,
@@ -186,17 +186,18 @@ WITH own_turn AS (
             UNION
             (SELECT d0.current_revision FROM memory.knowledge_documents d0
               JOIN memory.knowledge_sources s0 ON s0.source_uuid = d0.source_uuid
-              JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
+              LEFT JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
               JOIN memory.knowledge_revisions r0 ON r0.id = d0.current_revision
-             WHERE $2 = '' AND l0.project_id = $1
+             WHERE $2 = '' AND (l0.project_id = $1 OR s0.machine_uuid IS NOT NULL)
              ORDER BY r0.observed_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.knowledge_revisions r ON r.id = hit.id
       JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid AND d.current_revision = r.id
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
-      JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+      LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
       JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
-     WHERE loc.project_id = $1 AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+     WHERE (loc.project_id = $1 OR s.machine_uuid IS NOT NULL)
+       AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($3::text IS NULL OR $3::text = 'artifact')
        AND s.name NOT IN ('claude-memory', 'skills')
        AND ($4 OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
@@ -207,7 +208,7 @@ WITH own_turn AS (
            r.status, d.relative_path AS path, r.observed_at AS updated_at,
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
            jsonb_build_object('document_uuid', d.document_uuid, 'revision', r.id,
-             'location_uuid', s.location_uuid, 'last_scan_at', s.last_scan_at,
+             'location_uuid', s.location_uuid, 'machine_uuid', s.machine_uuid, 'last_scan_at', s.last_scan_at,
              'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
              'freshness', sf.freshness) AS provenance,
            r.body AS body, NULL::jsonb AS author,
@@ -221,17 +222,18 @@ WITH own_turn AS (
             UNION
             (SELECT d0.current_revision FROM memory.knowledge_documents d0
               JOIN memory.knowledge_sources s0 ON s0.source_uuid = d0.source_uuid
-              JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
+              LEFT JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
               JOIN memory.knowledge_revisions r0 ON r0.id = d0.current_revision
-             WHERE $2 = '' AND l0.project_id = $1
+             WHERE $2 = '' AND (l0.project_id = $1 OR s0.machine_uuid IS NOT NULL)
              ORDER BY r0.observed_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.knowledge_revisions r ON r.id = hit.id
       JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid AND d.current_revision = r.id
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
-      JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+      LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
       JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
-     WHERE loc.project_id = $1 AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+     WHERE (loc.project_id = $1 OR s.machine_uuid IS NOT NULL)
+       AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($3::text IS NULL OR $3::text IN ('memory', 'skill'))
        AND s.name IN ('claude-memory', 'skills')
        AND ($4 OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))

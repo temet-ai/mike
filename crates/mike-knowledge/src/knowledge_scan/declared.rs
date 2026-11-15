@@ -2,6 +2,7 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::Deserialize;
 
+use super::machine::INSTRUCTIONS_SOURCE;
 use crate::store::persistence::project_knowledge::{MEMORY_SOURCE, SKILLS_SOURCE};
 
 const CONFIG_PATH: &str = ".mike/knowledge.json";
@@ -60,7 +61,10 @@ fn reject(entry: &Entry) -> Option<&'static str> {
     if entry.name.trim().is_empty() {
         return Some("an empty name");
     }
-    if entry.name == MEMORY_SOURCE || entry.name == SKILLS_SOURCE {
+    if entry.name == MEMORY_SOURCE
+        || entry.name == SKILLS_SOURCE
+        || entry.name == INSTRUCTIONS_SOURCE
+    {
         return Some("a name reserved for the proxy's own scan");
     }
     if !stays_inside(&entry.path) {

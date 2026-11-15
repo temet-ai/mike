@@ -4,6 +4,8 @@ pub mod documents;
 pub mod embeddings;
 pub mod guidance;
 pub mod machine_locations;
+#[cfg(test)]
+pub mod machine_sources_db_tests;
 pub mod memos;
 #[cfg(test)]
 pub mod memos_tests;
@@ -36,7 +38,7 @@ pub mod session_scope;
 pub mod window;
 
 pub use crate::store::persistence::project_placement::{MachineLocationRoot, RepoLocationAdoption};
-pub use documents::{DocumentInput, RegisteredSource, ScanInput, SourceInput};
+pub use documents::{DocumentInput, MachineSourceInput, RegisteredSource, ScanInput, SourceInput};
 pub use guidance::{AGENTS_SOURCE, MEMORY_SOURCE, RULES_SOURCE, SKILLS_SOURCE};
 pub use guidance::{GuidanceRow, ShownGuidance};
 pub use lesson_sync::LessonImport;

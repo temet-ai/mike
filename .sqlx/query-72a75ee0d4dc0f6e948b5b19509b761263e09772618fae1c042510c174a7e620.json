@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH input AS (\n                   SELECT x.ord, x.machine_uuid, x.name, x.root_path\n                     FROM unnest($1::uuid[], $2::text[], $3::text[])\n                          WITH ORDINALITY AS x(machine_uuid, name, root_path, ord)\n               ), adopted AS (\n                   UPDATE memory.knowledge_sources s\n                      SET machine_uuid = i.machine_uuid\n                     FROM input i\n                    WHERE s.machine_uuid IS NULL AND s.location_uuid IS NULL\n                      AND s.name = i.name AND s.root_path = i.root_path\n                      AND NOT EXISTS (SELECT 1 FROM memory.knowledge_sources o\n                                       WHERE o.machine_uuid = i.machine_uuid AND o.name = i.name)\n                   RETURNING s.machine_uuid, s.name, s.source_uuid, s.generation, s.root_path\n               ), inserted AS (\n                   INSERT INTO memory.knowledge_sources(machine_uuid, name, root_path)\n                   SELECT i.machine_uuid, i.name, i.root_path FROM input i\n                    WHERE NOT EXISTS (SELECT 1 FROM adopted a\n                                       WHERE a.machine_uuid = i.machine_uuid AND a.name = i.name)\n                    ORDER BY i.ord\n                   ON CONFLICT (machine_uuid, name) WHERE machine_uuid IS NOT NULL DO SELECT\n                   RETURNING machine_uuid, name, source_uuid, generation, root_path\n               ), registered AS (\n                   SELECT * FROM adopted UNION ALL SELECT * FROM inserted\n               )\n               SELECT i.ord AS \"ord!\", n.source_uuid AS \"source_uuid!\", n.generation AS \"generation!\"\n                 FROM input i\n                 JOIN registered n ON n.machine_uuid = i.machine_uuid AND n.name = i.name\n                                AND n.root_path = i.root_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ord!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "source_uuid!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "generation!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "72a75ee0d4dc0f6e948b5b19509b761263e09772618fae1c042510c174a7e620"
+}

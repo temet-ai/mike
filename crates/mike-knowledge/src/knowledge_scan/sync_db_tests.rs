@@ -1,8 +1,7 @@
+use super::scan_test_support::{live_documents, register, write};
 use super::sync::{ScanMemo, encode_project_dir, scan_machine};
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
-use crate::store::persistence::project_knowledge::{
-    KnowledgeQuery, LocationInput, ModelKeys, ShownGuidance,
-};
+use crate::store::persistence::project_knowledge::{KnowledgeQuery, ModelKeys, ShownGuidance};
 use crate::store::persistence::{
     PersistHandle,
     test_support::{acquire_ephemeral_db, seed_project},
@@ -11,48 +10,11 @@ use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
-fn write(path: &Path, text: &str) -> anyhow::Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, text)?;
-    Ok(())
-}
-
-async fn register(
-    handle: &PersistHandle,
-    project: &str,
-    machine: Uuid,
-    root: &Path,
-) -> anyhow::Result<Uuid> {
-    let row = handle
-        .knowledge()
-        .register_project_location(&LocationInput {
-            project: project.into(),
-            machine_uuid: machine,
-            machine_name: format!("machine-{machine}"),
-            root_path: root.to_string_lossy().into_owned(),
-        })
-        .await?;
-    Ok(serde_json::from_value(row["location_uuid"].clone())?)
-}
-
 fn memory_file(home: &Path, root: &Path, name: &str) -> std::path::PathBuf {
     home.join("projects")
         .join(encode_project_dir(&root.to_string_lossy()))
         .join("memory")
         .join(name)
-}
-
-async fn live_documents(handle: &PersistHandle, source: &str) -> anyhow::Result<Vec<String>> {
-    Ok(sqlx::query_scalar(
-        "SELECT d.relative_path FROM memory.knowledge_documents d
-           JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
-          WHERE s.name = $1 AND d.deleted_at IS NULL ORDER BY d.relative_path",
-    )
-    .bind(source)
-    .fetch_all(handle.pool())
-    .await?)
 }
 
 #[tokio::test]
@@ -88,7 +50,7 @@ async fn scan_machine_indexes_memory_and_skills_for_this_machines_locations_only
 
     let mut memo = ScanMemo::default();
     let first = scan_machine(&handle, this_machine, home.path(), &mut memo).await?;
-    assert_eq!((first.scanned, first.updated, first.failed), (2, 2, 0));
+    assert_eq!((first.scanned, first.updated, first.failed), (3, 3, 0));
     assert_eq!(
         live_documents(&handle, "claude-memory").await?,
         vec!["feedback-tests.md".to_owned()]
@@ -99,7 +61,7 @@ async fn scan_machine_indexes_memory_and_skills_for_this_machines_locations_only
     );
 
     let second = scan_machine(&handle, this_machine, home.path(), &mut memo).await?;
-    assert_eq!((second.scanned, second.updated), (2, 0));
+    assert_eq!((second.scanned, second.updated), (3, 0));
 
     write(
         &memory_file(home.path(), mine.path(), "feedback-tests.md"),
@@ -143,7 +105,7 @@ async fn scan_machine_skips_locations_without_the_directories() -> anyhow::Resul
     let machine = Uuid::new_v4();
     register(&handle, "/test/scan-bare", machine, bare.path()).await?;
     let report = scan_machine(&handle, machine, home.path(), &mut ScanMemo::default()).await?;
-    assert_eq!((report.scanned, report.updated, report.failed), (0, 0, 0));
+    assert_eq!((report.scanned, report.updated, report.failed), (1, 1, 0));
     db.cleanup().await?;
     Ok(())
 }
@@ -432,7 +394,7 @@ async fn scan_machine_indexes_declared_sources_and_records_a_vanished_root() -> 
 
     let mut memo = ScanMemo::default();
     let first = scan_machine(&handle, machine, home.path(), &mut memo).await?;
-    assert_eq!((first.scanned, first.updated, first.failed), (1, 1, 1));
+    assert_eq!((first.scanned, first.updated, first.failed), (2, 2, 1));
     assert_eq!(
         live_documents(&handle, "docs").await?,
         vec!["CONFIGURATION.md".to_owned()]

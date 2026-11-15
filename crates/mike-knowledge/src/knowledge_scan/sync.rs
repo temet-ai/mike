@@ -6,7 +6,8 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::declared::{self, DeclaredSource};
-use super::files::{self, ScanError, SourceKind, hex_digest};
+use super::files::{self, ScanError, Scope, SourceKind, hex_digest};
+use super::machine::{self, CHECKOUT_INSTRUCTIONS, INSTRUCTIONS_SOURCE};
 use crate::store::persistence::project_knowledge::{
     MEMORY_SOURCE, RegisteredSource, SKILLS_SOURCE, ScanInput, SourceInput,
 };
@@ -42,12 +43,18 @@ pub struct ScanMemo {
     submitted: HashMap<(Uuid, String), (i64, String)>,
 }
 
-struct Spec {
-    name: String,
-    kind: SourceKind,
-    root: PathBuf,
-    excludes: Vec<String>,
-    declared: bool,
+impl ScanMemo {
+    pub(super) fn forget(&mut self, owner: Uuid, name: &str) {
+        self.submitted.remove(&(owner, name.to_owned()));
+    }
+}
+
+pub(super) struct Spec {
+    pub name: String,
+    pub kind: SourceKind,
+    pub root: PathBuf,
+    pub scope: Scope,
+    pub declared: bool,
 }
 
 impl From<DeclaredSource> for Spec {
@@ -56,7 +63,10 @@ impl From<DeclaredSource> for Spec {
             name: source.name,
             kind: SourceKind::Tree,
             root: source.root,
-            excludes: source.excludes,
+            scope: Scope {
+                excludes: source.excludes,
+                ..Scope::default()
+            },
             declared: true,
         }
     }
@@ -76,7 +86,7 @@ pub fn encode_project_dir(root_path: &str) -> String {
         .collect()
 }
 
-fn builtin_specs(root_path: &str, claude_home: &Path) -> [Spec; 2] {
+fn builtin_specs(root_path: &str, claude_home: &Path) -> [Spec; 3] {
     [
         Spec {
             name: MEMORY_SOURCE.to_owned(),
@@ -85,14 +95,24 @@ fn builtin_specs(root_path: &str, claude_home: &Path) -> [Spec; 2] {
                 .join("projects")
                 .join(encode_project_dir(root_path))
                 .join("memory"),
-            excludes: Vec::new(),
+            scope: Scope::default(),
             declared: false,
         },
         Spec {
             name: SKILLS_SOURCE.to_owned(),
             kind: SourceKind::Skills,
             root: Path::new(root_path).join(".claude").join("skills"),
-            excludes: Vec::new(),
+            scope: Scope::default(),
+            declared: false,
+        },
+        Spec {
+            name: INSTRUCTIONS_SOURCE.to_owned(),
+            kind: SourceKind::Instructions,
+            root: PathBuf::from(root_path),
+            scope: Scope {
+                includes: CHECKOUT_INSTRUCTIONS.map(str::to_owned).to_vec(),
+                ..Scope::default()
+            },
             declared: false,
         },
     ]
@@ -115,19 +135,63 @@ pub async fn scan_machine(
     memo: &mut ScanMemo,
 ) -> Result<ScanReport, PersistError> {
     let plan = plan_sources(persist, machine, claude_home).await?;
+    let machine_plan = machine::plan(claude_home).await;
     let mut report = ScanReport {
-        scanned: plan.present.len(),
+        scanned: plan.present.len() + machine_plan.present.len(),
         failed: plan.unreadable_declarations,
         ..ScanReport::default()
     };
     report.failed += record_missing_roots(persist, &plan.missing, memo).await?;
+    report.failed += machine::record_missing(persist, machine, &machine_plan.missing, memo).await?;
     let registered = persist
         .knowledge()
         .register_knowledge_sources(&source_inputs(plan.present.iter()))
         .await?;
+    let machine_registered = persist
+        .knowledge()
+        .register_machine_knowledge_sources(&machine::inputs(machine, machine_plan.present.iter()))
+        .await?;
     let mut collected = Vec::new();
-    for ((location, spec), source) in plan.present.iter().zip(registered) {
-        match sync_source(persist, *location, spec, source, memo, &mut collected).await {
+    let locations = plan
+        .present
+        .iter()
+        .map(|(location, spec)| (*location, spec));
+    sync_batch(
+        persist,
+        locations,
+        registered,
+        memo,
+        &mut collected,
+        &mut report,
+    )
+    .await;
+    let owned = machine_plan.present.iter().map(|spec| (machine, spec));
+    sync_batch(
+        persist,
+        owned,
+        machine_registered,
+        memo,
+        &mut collected,
+        &mut report,
+    )
+    .await;
+    persist
+        .knowledge()
+        .record_knowledge_source_heartbeats(&collected)
+        .await?;
+    Ok(report)
+}
+
+async fn sync_batch<'a>(
+    persist: &PersistHandle,
+    targets: impl Iterator<Item = (Uuid, &'a Spec)>,
+    registered: Vec<Option<RegisteredSource>>,
+    memo: &mut ScanMemo,
+    collected: &mut Vec<Uuid>,
+    report: &mut ScanReport,
+) {
+    for ((owner, spec), source) in targets.zip(registered) {
+        match sync_source(persist, owner, spec, source, memo, collected).await {
             Ok(true) => report.updated += 1,
             Ok(false) => {}
             Err(error) => {
@@ -137,11 +201,6 @@ pub async fn scan_machine(
             }
         }
     }
-    persist
-        .knowledge()
-        .record_knowledge_source_heartbeats(&collected)
-        .await?;
-    Ok(report)
 }
 
 async fn record_missing_roots(
@@ -229,10 +288,9 @@ async fn sync_source(
     } = source.ok_or(SyncError::RootConflict)?;
     let root = spec.root.clone();
     let kind = spec.kind;
-    let excludes = spec.excludes.clone();
+    let scope = spec.scope.clone();
     let key = (location, spec.name.clone());
-    let collecting =
-        tokio::task::spawn_blocking(move || files::collect_excluding(&root, kind, &excludes));
+    let collecting = tokio::task::spawn_blocking(move || files::collect(&root, kind, &scope));
     let documents = match collecting.await? {
         Ok(documents) => documents,
         Err(error) => {
@@ -269,7 +327,31 @@ async fn sync_source(
 
 #[cfg(test)]
 mod tests {
-    use super::encode_project_dir;
+    use super::{builtin_specs, encode_project_dir};
+    use crate::knowledge_scan::files::SourceKind;
+    use std::path::Path;
+
+    #[test]
+    fn builtin_specs_include_a_checkout_instructions_source_limited_to_the_named_paths() {
+        let specs = builtin_specs("/work/repo", Path::new("/home/x/.claude"));
+        let instructions = specs
+            .iter()
+            .find(|spec| spec.name == "instructions")
+            .map(|spec| (spec.kind, spec.root.as_path(), spec.scope.includes.clone()));
+        assert_eq!(
+            instructions,
+            Some((
+                SourceKind::Instructions,
+                Path::new("/work/repo"),
+                vec![
+                    "CLAUDE.md".to_owned(),
+                    "AGENTS.md".to_owned(),
+                    ".claude/rules".to_owned(),
+                    ".claude/agents".to_owned(),
+                ]
+            ))
+        );
+    }
 
     #[test]
     fn encode_project_dir_replaces_every_non_alphanumeric_character() {

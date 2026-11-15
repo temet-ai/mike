@@ -54,6 +54,7 @@ async fn sweep_rounds(
                 tally.stopped_with(sources.len() - index * settings.concurrency);
                 return Ok(());
             }
+            let window = unserved(persist, window, model, tally).await;
             let results = futures::future::join_all(window.iter().map(|source| {
                 embed_source(persist, service, source, model, settings.chunks_per_call)
             }))
@@ -64,6 +65,37 @@ async fn sweep_rounds(
         }
     }
     Ok(())
+}
+
+async fn unserved<'a>(
+    persist: &PersistHandle,
+    window: &'a [KnowledgeEmbeddingSource],
+    model: &str,
+    tally: &mut SweepTally,
+) -> Vec<&'a KnowledgeEmbeddingSource> {
+    let artifacts: Vec<i64> = window
+        .iter()
+        .filter(|source| source.source_kind == "artifact")
+        .map(|source| source.item_id)
+        .collect();
+    let served = match persist
+        .knowledge()
+        .share_twin_knowledge_embeddings(&artifacts, model)
+        .await
+    {
+        Ok(served) => served,
+        Err(error) => {
+            tracing::warn!(%error, "knowledge twin sharing failed; embedding the items instead");
+            Vec::new()
+        }
+    };
+    for _ in &served {
+        tally.embedded();
+    }
+    window
+        .iter()
+        .filter(|source| !served.contains(&source.item_id))
+        .collect()
 }
 
 async fn record_outcome(

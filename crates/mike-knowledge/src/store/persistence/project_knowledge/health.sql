@@ -21,6 +21,24 @@ src AS (
       JOIN loc ON loc.location_uuid = s.location_uuid
      GROUP BY s.location_uuid
 ),
+machine_src AS (
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+               'source_uuid', s.source_uuid,
+               'machine_uuid', s.machine_uuid,
+               'machine_name', m.name,
+               'name', s.name,
+               'root_path', s.root_path,
+               'generation', s.generation,
+               'last_scan_at', s.last_scan_at,
+               'last_heartbeat_at', s.last_heartbeat_at,
+               'last_failure_at', s.last_failure_at,
+               'last_failure', s.last_failure,
+               'last_failure_generation', s.last_failure_generation
+           ) ORDER BY m.name, s.name, s.source_uuid), '[]'::jsonb) AS sources
+      FROM memory.knowledge_sources s
+      JOIN projects.machines m ON m.machine_uuid = s.machine_uuid
+     WHERE s.machine_uuid IN (SELECT loc.machine_uuid FROM loc)
+),
 total AS (
     SELECT count(*) AS n
       FROM memory.lesson_file_changes
@@ -69,8 +87,10 @@ SELECT jsonb_build_object(
            'project_uuid', p.project_uuid,
            'project_path', p.project_path,
            'as_of', now(),
-           'locations', COALESCE(a.entries, '[]'::jsonb)
+           'locations', COALESCE(a.entries, '[]'::jsonb),
+           'machine_sources', ms.sources
        ) AS "health!"
   FROM projects.projects p
  CROSS JOIN all_locations a
+ CROSS JOIN machine_src ms
  WHERE p.id = $1

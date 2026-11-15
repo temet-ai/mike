@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.source_uuid AS \"dropped!\", w.source_uuid AS \"kept!\"\n           FROM memory.knowledge_sources d\n           JOIN memory.knowledge_sources w ON w.machine_uuid = $2 AND w.name = d.name\n          WHERE d.machine_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dropped!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "source_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kept!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "source_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "94a2909ffc7f35cc7e448e16650b15480e5a345e8d73d77e916cf80a5ee2c28e"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources SET machine_uuid = $2 WHERE machine_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0bbde4061c1f156a20ae2e24d3928cd8950ed591b5e15e60de3385c73b30c168"
+}

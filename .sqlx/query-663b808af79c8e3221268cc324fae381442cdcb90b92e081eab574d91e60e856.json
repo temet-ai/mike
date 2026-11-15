@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH input AS (\n                   SELECT x.ord, x.machine_uuid, x.name, x.root_path\n                     FROM unnest($1::uuid[], $2::text[], $3::text[])\n                          WITH ORDINALITY AS x(machine_uuid, name, root_path, ord)\n               ), inserted AS (\n                   INSERT INTO memory.knowledge_sources(machine_uuid, name, root_path)\n                   SELECT machine_uuid, name, root_path FROM input ORDER BY ord\n                   ON CONFLICT (machine_uuid, name) WHERE machine_uuid IS NOT NULL DO SELECT\n                   RETURNING machine_uuid, name, source_uuid, generation, root_path\n               )\n               SELECT i.ord AS \"ord!\", n.source_uuid AS \"source_uuid!\", n.generation AS \"generation!\"\n                 FROM input i\n                 JOIN inserted n ON n.machine_uuid = i.machine_uuid AND n.name = i.name\n                                AND n.root_path = i.root_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ord!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "source_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "source_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "generation!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "generation"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "663b808af79c8e3221268cc324fae381442cdcb90b92e081eab574d91e60e856"
+}
