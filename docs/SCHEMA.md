@@ -2630,7 +2630,7 @@ embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, the view `me
 
 ### `memory.knowledge_kinds`
 
-Added in `20261115050000_knowledge_items.sql`. One row per kind of project knowledge that is embedded; adding
+Added in `20261115060000_knowledge_items.sql`. One row per kind of project knowledge that is embedded; adding
 a row and its watches makes a new kind part of the system without a code change.
 
 | Column | Type | Purpose |
@@ -2648,7 +2648,7 @@ The built-in body views are `memory.knowledge_body_<kind>_v`.
 
 ### `memory.knowledge_kind_watches`
 
-Added in `20261115050000`. A table whose writes change items of a kind. `memory.attach_knowledge_watch(id)`
+Added in `20261115060000`. A table whose writes change items of a kind. `memory.attach_knowledge_watch(id)`
 validates the names and creates the row trigger `trg_knowledge_item_<id>` running
 `memory.track_knowledge_item()`; `memory.detach_knowledge_watch(id)` drops it.
 
@@ -2667,7 +2667,7 @@ UNIQUE `(kind, watched_table, key_column)`.
 
 ### `memory.knowledge_items`
 
-Added in `20261115050000`. One row per embeddable source, kept by the watch triggers: an insert or a watched
+Added in `20261115060000`. One row per embeddable source, kept by the watch triggers: an insert or a watched
 update of a source that the kind's view still lists upserts the item with `needs_embedding` and
 `ready_at = now() + settle_secs`; a source the view no longer lists loses its item, and its embedding with
 it. The sweep (`pending_embeddings.sql`) reads only waiting, due items through `idx_knowledge_items_waiting`,
@@ -2700,7 +2700,7 @@ leader runs it when it takes the lease and then daily.
 
 Created in `20260920000010_knowledge_embeddings.sql`; keyed by `(source_kind, source_id)` since
 `20261102210000_knowledge_embedding_typed_sources.sql`; linked to `memory.knowledge_items` by `item_id` since
-`20261115050000`, which also moved retry bookkeeping to the item and dropped the kind CHECK (the kind is now
+`20261115060000`, which also moved retry bookkeeping to the item and dropped the kind CHECK (the kind is now
 an FK to `memory.knowledge_kinds`). One row per item that has vectors, written with its
 `memory.knowledge_embedding_chunks` by `save_knowledge_embeddings`. Deleting a row puts its item back to
 waiting (`trg_knowledge_embedding_state_requeue`). `search.sql`, `guidance.sql` and `rerank_passages.sql`
@@ -2716,7 +2716,7 @@ count items and their embeddings per model.
 | `model_key` | `TEXT NOT NULL` | The embedder the vectors came from |
 | `completed_at` | `TIMESTAMPTZ NULL` | When the vectors were written |
 | `reference`, `project_id` | `TEXT`, `BIGINT` | Filled from the kind's view by `trg_knowledge_embedding_state_scope` |
-| `attempts`, `next_attempt_at`, `last_error`, `source_updated_at`, `source_seq`, `source_hash` | | Kept from before `20261115050000`; no longer written |
+| `attempts`, `next_attempt_at`, `last_error`, `source_updated_at`, `source_seq`, `source_hash` | | Kept from before `20261115060000`; no longer written |
 
 **Indexes:**
 - `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)
@@ -6489,7 +6489,7 @@ and the `wright_checks` MCP tool read and write it while mike runs.
 
 ### `wright.followups`
 
-Added in migration `20261115050000_wright_followups.sql` (temet-ai/mike#269). One row per piece of
+Added in migration `20261115060000_wright_followups.sql` (temet-ai/mike#269). One row per piece of
 follow-up work an engineer run found that is not a fix for its own problem. The follow-up worker
 (lease `wright_followups`) files each `open` row as a `wright` GitHub issue and hands it to a fixer
 session. Read at `GET /api/wright/followups`; Wright's conversation lists a problem's follow-ups

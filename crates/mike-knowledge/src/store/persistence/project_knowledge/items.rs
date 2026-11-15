@@ -130,50 +130,9 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         chunks: Value,
     ) -> Result<(), PersistError> {
         let mut tx = self.pool().begin().await?;
-        let state_id = sqlx::query_scalar!(
-            "INSERT INTO memory.knowledge_embedding_state
-                 (item_id, source_kind, source_id, reference, project_id, model_key, completed_at)
-             VALUES ($1, $2, $3, $4, $5, $6, now())
-             ON CONFLICT (item_id) DO UPDATE SET
-                 reference = EXCLUDED.reference, project_id = EXCLUDED.project_id,
-                 model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL
-             RETURNING id",
-            source.item_id,
-            &source.source_kind,
-            source.source_id,
-            &source.reference,
-            source.project_id,
-            model
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM memory.knowledge_embedding_chunks WHERE state_id = $1",
-            state_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO memory.knowledge_embedding_chunks(state_id, ordinal, body, embedding)
-             SELECT $1, x.ordinal, x.body, x.embedding::public.vector
-               FROM jsonb_to_recordset($2) x(ordinal integer, body text, embedding text)",
-            state_id,
-            chunks
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "UPDATE memory.knowledge_items
-                SET needs_embedding = changed_at > $2, project_id = $3, attempts = 0, last_error = NULL,
-                    model_key = $4
-              WHERE id = $1",
-            source.item_id,
-            source.changed_at,
-            source.project_id,
-            model
-        )
-        .execute(&mut *tx)
-        .await?;
+        let state_id = upsert_embedding_state(&mut tx, source, model).await?;
+        replace_embedding_chunks(&mut tx, state_id, chunks).await?;
+        mark_item_embedded(&mut tx, source, model).await?;
         tx.commit().await?;
         self.forget_knowledge_coverage();
         Ok(())
@@ -202,4 +161,73 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         self.forget_knowledge_coverage();
         Ok(())
     }
+}
+
+type Tx<'a> = sqlx::Transaction<'a, sqlx::Postgres>;
+
+async fn upsert_embedding_state(
+    tx: &mut Tx<'_>,
+    source: &KnowledgeEmbeddingSource,
+    model: &str,
+) -> Result<i64, PersistError> {
+    Ok(sqlx::query_scalar!(
+        "INSERT INTO memory.knowledge_embedding_state
+             (item_id, source_kind, source_id, reference, project_id, model_key, completed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())
+         ON CONFLICT (item_id) DO UPDATE SET
+             reference = EXCLUDED.reference, project_id = EXCLUDED.project_id,
+             model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL
+         RETURNING id",
+        source.item_id,
+        &source.source_kind,
+        source.source_id,
+        &source.reference,
+        source.project_id,
+        model
+    )
+    .fetch_one(&mut **tx)
+    .await?)
+}
+
+async fn replace_embedding_chunks(
+    tx: &mut Tx<'_>,
+    state_id: i64,
+    chunks: Value,
+) -> Result<(), PersistError> {
+    sqlx::query!(
+        "DELETE FROM memory.knowledge_embedding_chunks WHERE state_id = $1",
+        state_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO memory.knowledge_embedding_chunks(state_id, ordinal, body, embedding)
+         SELECT $1, x.ordinal, x.body, x.embedding::public.vector
+           FROM jsonb_to_recordset($2) x(ordinal integer, body text, embedding text)",
+        state_id,
+        chunks
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+async fn mark_item_embedded(
+    tx: &mut Tx<'_>,
+    source: &KnowledgeEmbeddingSource,
+    model: &str,
+) -> Result<(), PersistError> {
+    sqlx::query!(
+        "UPDATE memory.knowledge_items
+            SET needs_embedding = changed_at > $2, project_id = $3, attempts = 0, last_error = NULL,
+                model_key = $4
+          WHERE id = $1",
+        source.item_id,
+        source.changed_at,
+        source.project_id,
+        model
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }

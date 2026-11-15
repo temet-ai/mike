@@ -228,11 +228,21 @@ pub async fn run(
             _ = shutdown.cancelled() => return,
             _ = tokio::time::sleep(wait) => {
                 wait = KnowledgeSweepSettings::load(&persist).await.interval;
-                if let Err(error) = lead_sweep(&persist, &service, &mut breaker, &mut upkeep, wait).await {
-                    tracing::warn!(%error, "knowledge embedding sweep failed");
-                }
+                sweep_logging_errors(&persist, &service, &mut breaker, &mut upkeep, wait).await;
             }
         }
+    }
+}
+
+async fn sweep_logging_errors(
+    persist: &PersistHandle,
+    service: &EmbeddingService,
+    breaker: &mut CircuitBreaker,
+    upkeep: &mut SweepUpkeep,
+    lease_interval: Duration,
+) {
+    if let Err(error) = lead_sweep(persist, service, breaker, upkeep, lease_interval).await {
+        tracing::warn!(%error, "knowledge embedding sweep failed");
     }
 }
 
