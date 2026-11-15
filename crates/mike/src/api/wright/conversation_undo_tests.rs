@@ -76,7 +76,7 @@ async fn steer_applies_shows_with_an_undo_and_undoes() -> anyhow::Result<()> {
         sqlx::query_scalar::<_, Value>("SELECT links FROM wright.messages WHERE author = 'wright'")
             .fetch_one(db.handle.pool())
             .await?;
-    assert_eq!(links, json!([{"kind": "finding", "id": 4}]));
+    assert_eq!(links, json!([]));
 
     let id = steer["id"]
         .as_i64()

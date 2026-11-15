@@ -65,13 +65,22 @@ pub(crate) fn parse(value: &Value) -> Result<Answer, String> {
 pub(crate) fn keep_existing(links: Vec<Link>, existing: &[(String, i64)]) -> Vec<Link> {
     links
         .into_iter()
-        .filter(|link| match link.kind.as_str() {
-            "problem" | "episode" => existing
+        .filter(|link| {
+            existing
                 .iter()
-                .any(|(kind, id)| *kind == link.kind && *id == link.id),
-            _ => true,
+                .any(|(kind, id)| *kind == link.kind && *id == link.id)
         })
         .collect()
+}
+
+pub(crate) fn link_ids(links: &[Link]) -> crate::store::persistence::wright::conversation::LinkIds {
+    crate::store::persistence::wright::conversation::LinkIds {
+        problems: ids_of(links, "problem"),
+        episodes: ids_of(links, "episode"),
+        actions: ids_of(links, "action"),
+        findings: ids_of(links, "finding"),
+        repairs: ids_of(links, "repair"),
+    }
 }
 
 pub(crate) fn ids_of(links: &[Link], kind: &str) -> Vec<i64> {

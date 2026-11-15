@@ -21,6 +21,15 @@ const OPERATOR_SESSION: &str = include_str!("sql/conversation/operator_session.s
 const EXISTING_LINKS: &str = include_str!("sql/conversation/existing_links.sql");
 const EVIDENCE: &str = include_str!("sql/conversation/evidence.sql");
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct LinkIds {
+    pub(crate) problems: Vec<i64>,
+    pub(crate) episodes: Vec<i64>,
+    pub(crate) actions: Vec<i64>,
+    pub(crate) findings: Vec<i64>,
+    pub(crate) repairs: Vec<i64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub(crate) struct MessageRow {
     pub(crate) id: i64,
@@ -238,13 +247,15 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
 
     pub(crate) async fn existing_wright_links(
         self,
-        problems: &[i64],
-        episodes: &[i64],
+        ids: &LinkIds,
     ) -> Result<Vec<(String, i64)>, PersistError> {
         Ok(
             sqlx::query_as(EXISTING_LINKS) // grader-allow: runtime query over an include_str! file; no .sqlx entry for the wright conversation tables
-                .bind(problems)
-                .bind(episodes)
+                .bind(&ids.problems)
+                .bind(&ids.episodes)
+                .bind(&ids.actions)
+                .bind(&ids.findings)
+                .bind(&ids.repairs)
                 .fetch_all(self.pool())
                 .await?,
         )

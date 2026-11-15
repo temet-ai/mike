@@ -152,10 +152,7 @@ async fn store(
 ) -> Result<Processed, PersistError> {
     let web = convo.persist.web();
     let existing = web
-        .existing_wright_links(
-            &answer::ids_of(&parsed.links, "problem"),
-            &answer::ids_of(&parsed.links, "episode"),
-        )
+        .existing_wright_links(&answer::link_ids(&parsed.links))
         .await?;
     let links = answer::links_json(&answer::keep_existing(parsed.links, &existing));
     let steer = match &parsed.steer {
