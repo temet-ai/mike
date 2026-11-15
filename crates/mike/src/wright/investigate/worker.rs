@@ -53,15 +53,16 @@ async fn pass_once(state: &AppState, last_unavailable: &mut Option<String>) -> b
     let Some(persist) = state.persist() else {
         return false;
     };
-    if !persist.holds_worker_role(LEASE_ROLE, TICK).await {
-        return true;
-    }
-    match EngineerContext::from_state(state).await {
-        Ok(ctx) => {
-            *last_unavailable = None;
-            tick(&ctx).await;
+    let ctx = match EngineerContext::from_state(state).await {
+        Ok(ctx) => ctx,
+        Err(reason) => {
+            note_unavailable(last_unavailable, reason);
+            return true;
         }
-        Err(reason) => note_unavailable(last_unavailable, reason),
+    };
+    *last_unavailable = None;
+    if persist.holds_worker_role(LEASE_ROLE, TICK).await {
+        tick(&ctx).await;
     }
     true
 }
