@@ -187,8 +187,10 @@ async fn fire_after_precheck(
     resolved: &ResolvedVerdict,
     nudge_message: &str,
     rows: &[uuid::Uuid],
+    context: Option<&VerifierJudgeContext>,
 ) -> Exit {
-    let precheck = verifier_seam::run(window, steerer, resolved, nudge_message, rows).await;
+    let precheck =
+        verifier_seam::run(window, steerer, resolved, nudge_message, rows, context).await;
     if let Some(held) = precheck.as_ref().filter(|p| p.holds()) {
         held.mark(false).await;
         return Exit::would_fire(resolved.verdict.clone());
@@ -239,7 +241,8 @@ async fn judge_past_gate(
         log_shadow_would_fire(window.target, steerer.id);
         return Exit::would_fire(resolved.verdict);
     }
-    fire_after_precheck(window, steerer, &resolved, &nudge_message, rows).await
+    let context = state.verifier_context.as_ref();
+    fire_after_precheck(window, steerer, &resolved, &nudge_message, rows, context).await
 }
 
 async fn evaluate_one_steerer(

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::compose::compose;
+use super::injected::is_injected;
 use super::questions::CORRECTS;
 use super::state::state;
 use crate::llm::decisions::Answer;
@@ -18,15 +19,51 @@ fn answered(p: f64) -> Asked {
 
 #[test]
 fn compose_at_the_threshold_is_a_correction() {
-    assert_eq!(compose(&answered(0.75)).map(|c| c.kind), Some("correction"));
+    assert_eq!(compose(&answered(0.55)).map(|c| c.kind), Some("correction"));
 }
 
 #[test]
 fn compose_below_the_threshold_is_a_clarification() {
     assert_eq!(
-        compose(&answered(0.74)).map(|c| c.kind),
+        compose(&answered(0.54)).map(|c| c.kind),
         Some("clarification")
     );
+}
+
+#[test]
+fn compose_a_plain_correction_scored_in_the_middle_is_a_correction() {
+    assert_eq!(compose(&answered(0.62)).map(|c| c.kind), Some("correction"));
+}
+
+#[test]
+fn mail_peer_and_channel_envelopes_are_injected_text() {
+    assert!(is_injected("Mail from worker-2 (session abc): done"));
+    assert!(is_injected(
+        "  <channel source=\"mike\" kind=\"x\">hi</channel>"
+    ));
+    assert!(is_injected(
+        "Another Claude session sent a message:\nstop that"
+    ));
+}
+
+#[test]
+fn a_message_wholly_of_system_reminder_blocks_is_injected_text() {
+    assert!(is_injected(
+        "<system-reminder>\nno, that is wrong\n</system-reminder>"
+    ));
+    assert!(is_injected(
+        "<system-reminder id=\"a1\">x</system-reminder>\n<system-reminder>y</system-reminder>"
+    ));
+}
+
+#[test]
+fn an_operator_message_is_not_injected_text() {
+    assert!(!is_injected("no, that is wrong"));
+    assert!(!is_injected("The mail from Bob was wrong, fix it"));
+    assert!(!is_injected(
+        "<system-reminder>x</system-reminder>\nno, that is wrong"
+    ));
+    assert!(!is_injected("<system-reminder>unclosed"));
 }
 
 #[test]

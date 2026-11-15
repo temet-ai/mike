@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH let_through AS (\n    SELECT r.id AS record_id,\n           r.created_at,\n           r.composed -> 'verdict' ->> 'task' AS task,\n           f.run_id,\n           f.state AS fleet_state\n      FROM decisions.records r\n      JOIN launch.fleets f ON f.id = r.fleet_run_id\n      LEFT JOIN decisions.outcomes done\n        ON done.record_id = r.id AND done.label_source = 'next_task_state'\n     WHERE r.point = 'fleet_stop_check'\n       AND r.applied = 'let_through'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.composed -> 'verdict' ->> 'task' IS NOT NULL\n       AND f.run_id IS NOT NULL\n       AND done.record_id IS NULL\n), later AS (\n    SELECT l.record_id,\n           l.task,\n           l.fleet_state,\n           COALESCE(bool_or(e.kind = 'floor_failed'\n                            OR (e.kind = 'verdict_recorded' AND e.payload ->> 'passed' = 'false')),\n                    false) AS failed,\n           COALESCE(bool_or(e.kind = 'verdict_recorded' AND e.payload ->> 'passed' = 'true'),\n                    false) AS passed\n      FROM let_through l\n      LEFT JOIN launch.fleet_events e\n        ON e.run_id = l.run_id\n       AND e.task = l.task\n       AND e.kind IN ('verdict_recorded', 'floor_failed')\n       AND e.occurred_at > l.created_at\n     GROUP BY l.record_id, l.task, l.fleet_state\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT d.record_id,\n       CASE WHEN d.failed THEN 'wrong' ELSE 'right' END,\n       'next_task_state',\n       jsonb_build_object('task', d.task,\n                          'failed_after', d.failed,\n                          'passed_after', d.passed,\n                          'fleet_state', d.fleet_state)\n  FROM later d\n WHERE d.failed OR d.passed OR d.fleet_state = 'done'\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3641a5ae85e5877a3bafd2e4ce615a1aed7ae5dc3dfcd85d1ccf70ffd589ab7a"
+}

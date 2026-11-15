@@ -14,6 +14,8 @@ fn input(text: &str) -> Unmatched {
         session_db_id: 3,
         text: text.to_owned(),
         last_user_message: "the earlier message".to_owned(),
+        previous_user_message: "the earlier message".to_owned(),
+        previous_assistant_reply: "I fixed it and pushed.".to_owned(),
         author: "operator".to_owned(),
         has_agent_id: false,
     }
@@ -94,4 +96,44 @@ fn state_cuts_the_middle_of_long_text_and_keeps_both_ends() {
     assert!(text.ends_with("zzz"));
     assert!(!text.contains("MIDDLE"));
     assert!(text.contains("[...]"));
+}
+
+fn with_previous(text: &str, previous_user: &str, reply: &str) -> Unmatched {
+    Unmatched {
+        previous_user_message: previous_user.to_owned(),
+        previous_assistant_reply: reply.to_owned(),
+        ..input(text)
+    }
+}
+
+#[test]
+fn state_follows_the_previous_user_message_when_it_differs_from_the_text() {
+    let value = state(&with_previous("continue", "build the thing", "done"));
+    assert_eq!(value["follows"], json!("build the thing"));
+    assert_eq!(value["follows_is"], json!("previous_user_message"));
+}
+
+#[test]
+fn state_follows_the_assistant_reply_when_the_previous_message_repeats_the_text() {
+    let reply = format!("{}END", "r".repeat(500));
+    let value = state(&with_previous("continue", "continue", &reply));
+    let follows = value["follows"].as_str().unwrap_or_default();
+    assert_eq!(follows.chars().count(), 300);
+    assert!(follows.ends_with("END"));
+    assert_eq!(value["follows_is"], json!("previous_assistant_reply"));
+}
+
+#[test]
+fn state_follows_the_assistant_reply_when_there_is_no_previous_message() {
+    let value = state(&with_previous("continue", "", "all green"));
+    assert_eq!(value["follows"], json!("all green"));
+    assert_eq!(value["follows_is"], json!("previous_assistant_reply"));
+}
+
+#[test]
+fn state_follows_the_reply_when_the_previous_message_equals_the_last_user_message() {
+    let mut repeated = with_previous("hello again", "the earlier message", "ok");
+    repeated.last_user_message = "the earlier message".to_owned();
+    let value = state(&repeated);
+    assert_eq!(value["follows"], json!("ok"));
 }

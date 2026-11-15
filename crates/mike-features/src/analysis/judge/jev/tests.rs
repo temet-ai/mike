@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
-use super::compose::{Composed, compose};
+use super::compose::{Composed, compose, label_of};
 use super::questions::{self, Shape};
 use super::state::{TurnFacts, state};
+use super::{askable, effective_shape};
 use crate::analysis::judge::two_axis::{Delivery, Reaction};
 use crate::analysis::judge::{EvidenceQuality, JudgeLabel};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
+use crate::store::persistence::operator_turns::projection::map_legacy_outcome;
 
 fn answered(shape: Shape, yes: &[(&str, f64)]) -> Asked {
     let mut answers: BTreeMap<String, Answer> = questions::questions(shape)
@@ -104,13 +106,87 @@ fn compose_two_axis_operator_acceptance_labels_accepted_even_when_not_seen_as_de
 }
 
 #[test]
-fn compose_two_axis_takes_the_stronger_of_correction_and_acceptance() -> anyhow::Result<()> {
+fn compose_two_axis_both_yes_is_corrected_even_when_acceptance_is_stronger() -> anyhow::Result<()> {
     let shape = Shape::TwoAxis { has_next: true };
     let c = composed(
         shape,
         &[(questions::ACCEPTED, 0.9), (questions::CORRECTED, 0.6)],
     )?;
-    assert_eq!(c.label, JudgeLabel::Accepted);
+    assert_eq!(c.reaction, Reaction::Corrected);
+    assert_eq!(c.label, JudgeLabel::Corrected);
+    let below = composed(
+        shape,
+        &[(questions::ACCEPTED, 0.7), (questions::CORRECTED, 0.4)],
+    )?;
+    assert_eq!(below.reaction, Reaction::Accepted);
+    Ok(())
+}
+
+#[test]
+fn compose_two_axis_redirected_maps_like_the_operator_side() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    let redirected = composed(shape, &[(questions::REDIRECTED, 0.8)])?;
+    assert_eq!(redirected.reaction, Reaction::Redirected);
+    assert_eq!(redirected.label, JudgeLabel::Accepted);
+    let shipped = composed(
+        shape,
+        &[
+            (questions::REDIRECTED, 0.8),
+            (questions::DELIVERED, 0.9),
+            (questions::SHIPPED, 0.9),
+        ],
+    )?;
+    assert_eq!(shipped.label, JudgeLabel::Shipped);
+    Ok(())
+}
+
+#[test]
+fn label_of_equals_the_operator_side_mapping_for_every_input() {
+    let reactions = [
+        Reaction::Corrected,
+        Reaction::Redirected,
+        Reaction::Accepted,
+        Reaction::NoResponse,
+        Reaction::Unclear,
+    ];
+    let deliveries = [
+        Delivery::Shipped,
+        Delivery::Delivered,
+        Delivery::Partial,
+        Delivery::None,
+        Delivery::Question,
+    ];
+    for reaction in reactions {
+        for delivery in deliveries {
+            for shipped in [false, true] {
+                let effective = if shipped { Delivery::Shipped } else { delivery };
+                let expected =
+                    map_legacy_outcome(reaction.code(), effective.code(), 1.0, 0.0, false);
+                assert_eq!(
+                    label_of(reaction, delivery, shipped).outcome_code(),
+                    expected,
+                    "{} {} {shipped}",
+                    reaction.code(),
+                    delivery.code()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn compose_two_axis_no_next_message_shipped_beats_part_left_open() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: false };
+    let c = composed(
+        shape,
+        &[
+            (questions::DELIVERED, 0.9),
+            (questions::SHIPPED, 0.8),
+            (questions::LEFT_OPEN, 0.8),
+        ],
+    )?;
+    assert_eq!(c.delivery, Delivery::Partial);
+    assert_eq!(c.label, JudgeLabel::Shipped);
     Ok(())
 }
 
@@ -175,4 +251,48 @@ fn questions_only_ask_for_the_next_message_when_one_exists() {
     assert!(with.contains_key(questions::CORRECTED));
     assert!(!without.contains_key(questions::CORRECTED));
     assert!(questions::questions(Shape::Legacy).contains_key(questions::OWN_ERROR));
+}
+
+fn facts<'a>(assistant_text: &'a str, next_message: Option<&'a str>) -> TurnFacts<'a> {
+    TurnFacts {
+        turn_id: 1,
+        session_id: Some(2),
+        operator_request: "do it",
+        assistant_text,
+        tool_call_count: 0,
+        tool_error_count: 0,
+        next_message,
+    }
+}
+
+#[test]
+fn an_empty_next_message_is_no_next_message() {
+    let empty = facts("done", Some("  "));
+    assert!(state(&empty, true).get("operator_next_message").is_none());
+    assert_eq!(
+        effective_shape(&empty, Shape::TwoAxis { has_next: true }),
+        Shape::TwoAxis { has_next: false }
+    );
+    let real = facts("done", Some("thanks"));
+    assert_eq!(
+        effective_shape(&real, Shape::TwoAxis { has_next: true }),
+        Shape::TwoAxis { has_next: true }
+    );
+    assert_eq!(effective_shape(&empty, Shape::Legacy), Shape::Legacy);
+}
+
+#[test]
+fn a_turn_with_no_assistant_text_is_not_asked() {
+    assert!(!askable(&facts("", None)));
+    assert!(!askable(&facts(" \n", Some("thanks"))));
+    assert!(askable(&facts("done", None)));
+}
+
+#[test]
+fn the_accepted_question_no_longer_takes_a_next_step_and_the_others_carry_their_limits() {
+    let asked = questions::questions(Shape::TwoAxis { has_next: true });
+    let text = |key: &str| format!("{:?}", asked.get(key));
+    assert!(!text(questions::ACCEPTED).contains("next step"));
+    assert!(text(questions::CORRECTED).contains("turn's own work"));
+    assert!(text(questions::SHIPPED).contains("offer"));
 }

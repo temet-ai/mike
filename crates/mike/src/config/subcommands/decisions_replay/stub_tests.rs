@@ -151,7 +151,7 @@ pub(super) fn turn_judge_ready(outcome: &str, next: Option<&str>) -> turn_judge:
             closed_at: at(),
             outcome: outcome.to_owned(),
             gold_reaction: Some("corrected".to_owned()),
-            gold_delivery: Some("delivered".to_owned()),
+            gold_delivery: Some("none".to_owned()),
             live_reaction: Some("accepted".to_owned()),
             live_delivery: Some("delivered".to_owned()),
             live_legacy_label: None,

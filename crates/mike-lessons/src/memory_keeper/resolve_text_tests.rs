@@ -24,6 +24,35 @@ fn operator_text_with_an_unclosed_tag_drops_the_rest() {
 }
 
 #[test]
+fn typed_text_keeps_what_the_operator_typed() {
+    assert_eq!(
+        typed_text("continue <system-reminder>mail</system-reminder>the epic").as_deref(),
+        Some("continue the epic")
+    );
+}
+
+#[test]
+fn typed_text_drops_mail_wake_registry_and_recap_text() {
+    for prompt in [
+        "Mail from session 3f2a: the build is done",
+        "[mike-mail:abc] Mail from session 3f2a.\nThis is a peer's message",
+        "<channel source=\"wake\" reason=\"x\">go</channel>",
+        "[mike work registry] The main thread has been idle since 2026-11-14 while 1 agent(s) are open.",
+        "The main thread has been idle since 2026-11-14 while 1 agent(s) are open.",
+        "The user stepped away and is coming back. Recap in under 40 words what you did.",
+        "<system-reminder>lesson</system-reminder>\nMail from session 3f2a: done",
+    ] {
+        assert_eq!(typed_text(prompt), None, "{prompt}");
+    }
+}
+
+#[test]
+fn typed_words_drops_machine_paragraphs_and_keeps_the_operator_ones() {
+    let context = "fix the parser\n\n[mike-mail:1] Mail from session 3f2a.\nThis is a peer's message.\n\n<task-notification>x</task-notification>now run the tests";
+    assert_eq!(typed_words(context), "fix the parser\n\nnow run the tests");
+}
+
+#[test]
 fn tokenize_mixed_text_drops_stopwords_short_words_and_case() {
     let words: Vec<String> = tokenize("The Quick fox AND is on a Plan")
         .into_iter()

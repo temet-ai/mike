@@ -42,9 +42,21 @@ pub async fn run(
         request_id: window.target.trigger_request_id,
         ..DecisionSubject::default()
     };
+    let earlier = match scope {
+        Some(s) => {
+            checklist_point::earlier_turns(
+                decider.persist().pool(),
+                s.session_db_id,
+                s.operator_turn_id,
+            )
+            .await
+        }
+        None => Vec::new(),
+    };
     let evidence = Evidence {
         trajectory: &context.trajectory_digest,
         turn_end: &window.eval_inputs.eval_text,
+        earlier_turns: &earlier,
     };
     let checked = checklist_point::check(&decider, criteria, &evidence, subject).await?;
     Some(JevChecklist { decider, checked })

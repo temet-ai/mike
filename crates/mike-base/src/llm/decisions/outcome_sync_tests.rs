@@ -3,8 +3,7 @@ use serde_json::json;
 use super::outcome_sync_support_tests::{Env, NewRecord, pair};
 
 #[tokio::test]
-async fn request_linked_points_take_the_outcome_of_the_turn_holding_the_request()
--> anyhow::Result<()> {
+async fn request_linked_points_get_no_turn_reaction_label() -> anyhow::Result<()> {
     let Some(env) = Env::boot(2).await? else {
         return Ok(());
     };
@@ -17,16 +16,9 @@ async fn request_linked_points_take_the_outcome_of_the_turn_holding_the_request(
     let mut corrected = NewRecord::new("diagnostic_phrase", "skipped");
     corrected.request_id = Some(turns[1].start_request_id);
     let (a, c) = (env.record(accepted).await?, env.record(corrected).await?);
-    assert_eq!(env.sync().await?, 2);
-    assert_eq!(
-        env.labels(a).await?,
-        vec![pair("right", "next_turn_reaction")]
-    );
-    assert_eq!(
-        env.labels(c).await?,
-        vec![pair("wrong", "next_turn_reaction")]
-    );
     assert_eq!(env.sync().await?, 0);
+    assert!(env.labels(a).await?.is_empty());
+    assert!(env.labels(c).await?.is_empty());
     env.finish().await
 }
 
@@ -59,7 +51,7 @@ async fn directive_with_nothing_applied_or_no_real_turn_label_gets_no_label() ->
 }
 
 #[tokio::test]
-async fn ended_on_by_operator_turn_id_is_labelled_from_the_turn_outcome() -> anyhow::Result<()> {
+async fn ended_on_by_operator_turn_id_gets_no_turn_reaction_label() -> anyhow::Result<()> {
     let Some(env) = Env::boot(1).await? else {
         return Ok(());
     };
@@ -68,12 +60,8 @@ async fn ended_on_by_operator_turn_id_is_labelled_from_the_turn_outcome() -> any
     let mut record = NewRecord::new("ended_on", "chosen");
     record.operator_turn_id = Some(turns[0].id);
     let id = env.record(record).await?;
-    assert_eq!(env.sync().await?, 1);
-    assert_eq!(
-        env.labels(id).await?,
-        vec![pair("right", "next_turn_reaction")]
-    );
     assert_eq!(env.sync().await?, 0);
+    assert!(env.labels(id).await?.is_empty());
     env.finish().await
 }
 
@@ -101,7 +89,7 @@ async fn a_warning_note_followed_by_a_correction_is_right_and_by_acceptance_wron
         env.record(quiet).await?,
     );
     assert_eq!(env.sync().await?, 2);
-    let source = "next_turn_reaction_after_note";
+    let source = "operator_reaction_after_note";
     assert_eq!(env.labels(c).await?, vec![pair("right", source)]);
     assert_eq!(env.labels(r).await?, vec![pair("wrong", source)]);
     assert!(env.labels(q).await?.is_empty());

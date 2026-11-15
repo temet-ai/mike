@@ -6,6 +6,7 @@ pub mod state;
 mod tests;
 
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use dashmap::DashMap;
 use serde_json::json;
@@ -15,11 +16,15 @@ pub use questions::{POINT, QUESTION_SET};
 pub use state::{Candidate, Reason};
 
 use crate::llm::decisions::env::{DecisionEnv, Pace};
+use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
+use crate::llm::decisions::reuse::recent_answers;
 
 const GROUP: usize = 5;
 const MAX_CALLS: usize = 4;
 const MAX_REMEMBERED: usize = 20_000;
+const MAX_LOOKUPS: usize = 4;
+const REUSE_FOR: Duration = Duration::from_secs(7 * 24 * 3600);
 
 static VERDICTS: LazyLock<DashMap<i64, bool>> = LazyLock::new(DashMap::new);
 
@@ -40,8 +45,27 @@ fn pending(candidates: Vec<Candidate>) -> Vec<Candidate> {
     candidates
         .into_iter()
         .filter(|c| !VERDICTS.contains_key(&c.session_id))
-        .take(GROUP * MAX_CALLS)
+        .take(GROUP * MAX_CALLS * MAX_LOOKUPS)
         .collect()
+}
+
+async fn reuse_group(decider: &Decider, group: &[&Candidate]) -> bool {
+    let Some((_, asked)) = recent_answers(
+        decider.persist(),
+        POINT,
+        QUESTION_SET,
+        &state::state(group),
+        REUSE_FOR,
+    )
+    .await
+    else {
+        return false;
+    };
+    let found = compose(&asked, group);
+    if decider.applies() {
+        remember(&found);
+    }
+    true
 }
 
 pub async fn fill(env: &DecisionEnv, candidates: Vec<Candidate>) {
@@ -55,6 +79,9 @@ pub async fn fill(env: &DecisionEnv, candidates: Vec<Candidate>) {
     let refs: Vec<&Candidate> = wanted.iter().collect();
     let mut pace = Pace::new(MAX_CALLS);
     for group in refs.chunks(GROUP) {
+        if reuse_group(&decider, group).await {
+            continue;
+        }
         if !pace.may_ask() {
             break;
         }

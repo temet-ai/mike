@@ -25,6 +25,8 @@ pub struct Candidate {
     pub session_id: i64,
     pub first_prompt: String,
     pub project_path: Option<String>,
+    pub origin: &'static str,
+    pub turn_count: usize,
     pub reason: Reason,
 }
 
@@ -36,7 +38,9 @@ pub fn state(group: &[&Candidate]) -> Value {
                 key(candidate.session_id),
                 json!({
                     "first_prompt": head_chars(&candidate.first_prompt, PROMPT_CHARS),
-                    "project_path": candidate.project_path,
+                    "cwd": candidate.project_path,
+                    "origin": candidate.origin,
+                    "turn_count": candidate.turn_count,
                     "probe_pattern_matched": candidate.reason == Reason::RegexMatch,
                 }),
             )

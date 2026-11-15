@@ -9,6 +9,17 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::work_threads::entry::EntryInput;
 use crate::store::persistence::{PersistError, PersistHandle};
 
+mod bar_evidence;
+mod bar_gh;
+mod bar_issues;
+
+#[cfg(test)]
+#[path = "decisions_loop/bar_issues_tests.rs"]
+mod bar_issues_tests;
+#[cfg(test)]
+#[path = "decisions_loop/bar_run_tests.rs"]
+mod bar_run_tests;
+
 pub const THREAD: &str = "jev-decisions";
 pub const OVERDUE: Duration = Duration::hours(24);
 pub const WINDOW: Duration = Duration::days(14);
@@ -16,6 +27,8 @@ pub const MAX_FAIL_OPEN: f64 = 0.05;
 pub const HOLD_PRECISION_BAR: f64 = 0.8;
 pub const MIN_LABELS: i64 = 30;
 pub const MIN_CALLS_FOR_SILENCE: i64 = 20;
+pub const BAR_SHARE: f64 = 0.75;
+pub const BAR_MIN_LABELLED: usize = 20;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PointScore {
@@ -31,7 +44,25 @@ pub struct PointScore {
     pub applied_labelled: usize,
     pub applied_right: usize,
     pub applied_precision_lower: Option<f64>,
+    pub labelled: usize,
+    pub right: usize,
+    pub share: Option<f64>,
     pub findings: Vec<String>,
+}
+
+impl PointScore {
+    pub fn under_bar(&self) -> bool {
+        self.labelled >= BAR_MIN_LABELLED && self.share.is_some_and(|share| share < BAR_SHARE)
+    }
+}
+
+fn bar_finding(labelled: usize, right: usize, share: Option<f64>) -> Option<String> {
+    let share = share.filter(|share| labelled >= BAR_MIN_LABELLED && *share < BAR_SHARE)?;
+    Some(format!(
+        "right on {right} of {labelled} labelled outcomes ({:.0}%), under the bar {:.0}%",
+        share * 100.0,
+        BAR_SHARE * 100.0
+    ))
 }
 
 pub const APPLIED_PRECISION_BAR: f64 = 0.6;
@@ -114,7 +145,13 @@ pub fn score_point(counts: PointCounts, labelled: &[LabelledDecision]) -> PointS
     let (applied_n, applied_right, applied_lower) = applied_precision(&counts.point, &rows);
     let mut found = findings(&counts, held_lower, held.len());
     found.extend(applied_finding(applied_n, applied_lower));
+    let right = rows.iter().filter(|l| is_right(&l.label)).count();
+    let share = (!rows.is_empty()).then(|| right as f64 / rows.len() as f64);
+    found.extend(bar_finding(rows.len(), right, share));
     PointScore {
+        labelled: rows.len(),
+        right,
+        share,
         applied_labelled: applied_n,
         applied_right,
         applied_precision_lower: applied_lower,
@@ -195,6 +232,14 @@ pub async fn sync_outcomes(persist: &PersistHandle) -> Result<u64, PersistError>
 }
 
 pub async fn run(persist: &PersistHandle, now: DateTime<Utc>) -> Result<Value, PersistError> {
+    run_with(persist, now, &bar_gh::Gh).await
+}
+
+async fn run_with(
+    persist: &PersistHandle,
+    now: DateTime<Utc>,
+    tracker: &dyn bar_gh::IssueTracker,
+) -> Result<Value, PersistError> {
     let store = crate::llm::decisions::store(persist);
     let synced = sync_outcomes(persist).await?;
     let since = now - WINDOW;
@@ -205,21 +250,40 @@ pub async fn run(persist: &PersistHandle, now: DateTime<Utc>) -> Result<Value, P
         .map(|c| score_point(c, &labelled))
         .collect();
     let finding_entry = file_findings(persist, &scores).await;
-    let report = json!({
+    let mut report = json!({
         "synced_outcomes": synced,
         "window_days": WINDOW.num_days(),
         "points": scores,
         "finding_entry": finding_entry,
+        "bar_issues": [],
     });
     let id = store.insert_decision_loop_run(now, &report).await?;
+    let ctx = bar_issues::Context { run: id, now };
+    let filed = file_and_record(persist, tracker, &scores, &ctx, &mut report).await;
     tracing::info!(
         run = id,
         points = scores.len(),
         failing = scores.iter().filter(|s| !s.findings.is_empty()).count(),
+        issues = filed,
         synced_outcomes = synced,
         "decisions_loop: scored the decision points"
     );
     Ok(report)
+}
+
+async fn file_and_record(
+    persist: &PersistHandle,
+    tracker: &dyn bar_gh::IssueTracker,
+    scores: &[PointScore],
+    ctx: &bar_issues::Context,
+    report: &mut Value,
+) -> usize {
+    let filed = bar_issues::file_under_bar(persist, tracker, scores, ctx).await;
+    if !filed.is_empty() {
+        report["bar_issues"] = json!(filed);
+        bar_issues::store_report(persist, ctx.run, report).await;
+    }
+    filed.len()
 }
 
 #[cfg(test)]

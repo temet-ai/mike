@@ -1,8 +1,88 @@
+use std::collections::HashMap;
+
+use sqlx::PgPool;
+use tracing::warn;
+
 use crate::store::persistence::turn_tool_call_reads::TurnToolCallMetaRow;
+
+#[cfg(test)]
+#[path = "trajectory_digest_tests.rs"]
+mod trajectory_digest_tests;
 
 const NO_OP_OPERATIONS: &[&str] = &["read", "search", "fetch"];
 
 const DIGEST_MAX_CHARS: usize = 8_000;
+const DROPPED_NOTE: &str = "... (earlier tool calls dropped at the digest cap)";
+const TARGET_CHARS: usize = 120;
+const RESULT_HEAD_CHARS: usize = 80;
+const FOLDED_TARGETS: usize = 3;
+
+const DETAILS_SQL: &str = "SELECT tu.wire_tool_use_id,
+        left(COALESCE(tu.input->>'command', tu.input->>'file_path', tu.input->>'notebook_path',
+                      tu.input->>'path', tu.input->>'pattern', tu.input->>'url'), 600),
+        left(CASE jsonb_typeof(res.content)
+                  WHEN 'string' THEN res.content #>> '{}'
+                  WHEN 'array' THEN res.content -> 0 ->> 'text'
+             END, 600)
+   FROM tools.uses tu
+   JOIN requests.requests r ON r.id = tu.request_id
+   LEFT JOIN tools.results res ON res.tool_use_id = tu.id
+  WHERE r.operator_turn_id = $1
+    AND tu.session_id = $2";
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ToolCallDetail {
+    pub target: Option<String>,
+    pub result_head: Option<String>,
+}
+
+fn cut(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
+pub fn detail_from(target: Option<&str>, result: Option<&str>) -> ToolCallDetail {
+    ToolCallDetail {
+        target: target
+            .map(|t| {
+                cut(
+                    &t.split_whitespace().collect::<Vec<_>>().join(" "),
+                    TARGET_CHARS,
+                )
+            })
+            .filter(|t| !t.is_empty()),
+        result_head: result
+            .and_then(|r| r.lines().map(str::trim).find(|l| !l.is_empty()))
+            .map(|l| cut(l, RESULT_HEAD_CHARS)),
+    }
+}
+
+type DetailRow = (String, Option<String>, Option<String>);
+
+pub async fn fetch_tool_call_details(
+    pool: &PgPool,
+    turn_id: i64,
+    session_db_id: i64,
+) -> HashMap<String, ToolCallDetail> {
+    let rows: Result<Vec<DetailRow>, sqlx::Error> = sqlx::query_as(DETAILS_SQL)
+        .bind(turn_id)
+        .bind(session_db_id)
+        .fetch_all(pool)
+        .await;
+    match rows {
+        Ok(rows) => rows
+            .into_iter()
+            .map(|(id, target, result)| (id, detail_from(target.as_deref(), result.as_deref())))
+            .collect(),
+        Err(error) => {
+            warn!(
+                %error,
+                turn_id,
+                "trajectory digest: tool call details read failed; the digest names no commands or results"
+            );
+            HashMap::new()
+        }
+    }
+}
 
 fn is_no_op_success(row: &TurnToolCallMetaRow) -> bool {
     matches!(row.operation.as_deref(), Some(op) if NO_OP_OPERATIONS.contains(&op))
@@ -20,189 +100,120 @@ fn tool_outcome_label(row: &TurnToolCallMetaRow) -> &'static str {
     }
 }
 
-pub fn build_trajectory_digest(rows: &[TurnToolCallMetaRow]) -> String {
-    if rows.is_empty() {
-        return String::new();
-    }
+fn target_of<'a>(
+    row: &TurnToolCallMetaRow,
+    details: &'a HashMap<String, ToolCallDetail>,
+) -> Option<&'a str> {
+    details.get(&row.tool_id)?.target.as_deref()
+}
 
-    let mut lines: Vec<String> = Vec::with_capacity(rows.len());
+fn folded_line(
+    run: &[TurnToolCallMetaRow],
+    start: usize,
+    details: &HashMap<String, ToolCallDetail>,
+) -> String {
+    let reqs = match (run.first(), run.last()) {
+        (Some(a), Some(b)) if a.request_id != b.request_id => {
+            format!("{}-{}", a.request_id, b.request_id)
+        }
+        (Some(a), _) => a.request_id.to_string(),
+        _ => String::new(),
+    };
+    let mut line = format!(
+        "{}. {} no-op read(s) (ok) [req {reqs}]",
+        start + 1,
+        run.len()
+    );
+    let targets: Vec<&str> = run.iter().filter_map(|r| target_of(r, details)).collect();
+    if !targets.is_empty() {
+        let shown: Vec<&str> = targets.iter().take(FOLDED_TARGETS).copied().collect();
+        line.push_str(": ");
+        line.push_str(&shown.join(", "));
+        let more = targets.len().saturating_sub(FOLDED_TARGETS);
+        if more > 0 {
+            line.push_str(&format!(", +{more} more"));
+        }
+    }
+    line
+}
+
+fn call_line(
+    row: &TurnToolCallMetaRow,
+    index: usize,
+    details: &HashMap<String, ToolCallDetail>,
+) -> String {
+    let op = row.operation.as_deref().unwrap_or("other");
+    let detail = details.get(&row.tool_id);
+    let target = detail
+        .and_then(|d| d.target.as_deref())
+        .map_or_else(String::new, |t| format!(" `{t}`"));
+    let head = detail
+        .filter(|_| row.has_result)
+        .and_then(|d| d.result_head.as_deref())
+        .map_or_else(String::new, |h| format!(": {h}"));
+    format!(
+        "{}. [req {}] {} ({op}){target} → {}{head} [tool {}]",
+        index + 1,
+        row.request_id,
+        row.tool_name,
+        tool_outcome_label(row),
+        row.tool_id,
+    )
+}
+
+fn digest_lines(
+    rows: &[TurnToolCallMetaRow],
+    details: &HashMap<String, ToolCallDetail>,
+) -> Vec<String> {
+    let mut lines = Vec::with_capacity(rows.len());
     let mut i = 0;
     while i < rows.len() {
+        let start = i;
         if is_no_op_success(&rows[i]) {
-            let start = i;
             while i < rows.len() && is_no_op_success(&rows[i]) {
                 i += 1;
             }
-            let count = i - start;
-            let first_req = rows[start].request_id;
-            let last_req = rows[i - 1].request_id;
-            lines.push(if first_req == last_req {
-                format!(
-                    "{}. {count} no-op read(s) (ok) [req {first_req}]",
-                    start + 1
-                )
-            } else {
-                format!(
-                    "{}. {count} no-op read(s) (ok) [req {first_req}-{last_req}]",
-                    start + 1
-                )
-            });
+            lines.push(folded_line(&rows[start..i], start, details));
         } else {
-            let row = &rows[i];
-            let outcome = tool_outcome_label(row);
-            let op = row.operation.as_deref().unwrap_or("other");
-            lines.push(format!(
-                "{}. [req {}] {} ({op}) → {outcome} [tool {}]",
-                i + 1,
-                row.request_id,
-                row.tool_name,
-                row.tool_id,
-            ));
+            lines.push(call_line(&rows[i], i, details));
             i += 1;
         }
     }
+    lines
+}
 
-    let mut out = String::with_capacity((lines.len() * 40).min(DIGEST_MAX_CHARS));
-    for line in &lines {
-        if out.len() + line.len() + 1 > DIGEST_MAX_CHARS {
-            out.push_str("... (digest truncated at token cap)");
-            break;
-        }
+fn newest_within_cap(lines: &[String]) -> String {
+    let all: usize = lines.iter().map(|l| l.len() + 1).sum();
+    let mut out = String::with_capacity(all.min(DIGEST_MAX_CHARS));
+    let kept = if all <= DIGEST_MAX_CHARS {
+        lines.len()
+    } else {
+        let budget = DIGEST_MAX_CHARS - DROPPED_NOTE.len() - 1;
+        let mut used = 0;
+        out.push_str(DROPPED_NOTE);
+        out.push('\n');
+        lines
+            .iter()
+            .rev()
+            .take_while(|l| {
+                used += l.len() + 1;
+                used <= budget
+            })
+            .count()
+    };
+    for line in &lines[lines.len() - kept..] {
         out.push_str(line);
         out.push('\n');
     }
     out
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn make_paired_row(
-        tool_id: &str,
-        tool_name: &str,
-        request_id: i64,
-        operation: Option<&str>,
-        has_result: bool,
-        result_is_error: Option<bool>,
-    ) -> TurnToolCallMetaRow {
-        TurnToolCallMetaRow {
-            tool_id: tool_id.to_string(),
-            tool_name: tool_name.to_string(),
-            input_bytes: Some(64),
-            ord: 0,
-            request_id,
-            has_result,
-            result_is_error,
-            result_content_bytes: Some(128),
-            operation: operation.map(str::to_string),
-        }
+pub fn build_trajectory_digest(
+    rows: &[TurnToolCallMetaRow],
+    details: &HashMap<String, ToolCallDetail>,
+) -> String {
+    if rows.is_empty() {
+        return String::new();
     }
-
-    #[test]
-    fn digest_empty_for_no_tool_calls() {
-        assert_eq!(build_trajectory_digest(&[]), "");
-    }
-
-    #[test]
-    fn digest_compresses_consecutive_successful_reads() {
-        let rows = vec![
-            make_paired_row("t1", "Read", 100, Some("read"), true, Some(false)),
-            make_paired_row("t2", "Read", 100, Some("read"), true, Some(false)),
-            make_paired_row("t3", "Grep", 101, Some("search"), true, Some(false)),
-        ];
-        let digest = build_trajectory_digest(&rows);
-        assert_eq!(
-            digest.lines().count(),
-            1,
-            "all three no-ops fold into one line"
-        );
-        assert!(digest.contains("3 no-op read(s) (ok)"));
-        assert!(digest.contains("[req 100-101]"));
-    }
-
-    #[test]
-    fn digest_gives_write_and_exec_their_own_line() {
-        let rows = vec![
-            make_paired_row("t1", "Read", 100, Some("read"), true, Some(false)),
-            make_paired_row("t2", "Edit", 100, Some("write"), true, Some(false)),
-            make_paired_row("t3", "Bash", 101, Some("exec"), true, Some(true)),
-        ];
-        let digest = build_trajectory_digest(&rows);
-        assert_eq!(
-            digest.lines().count(),
-            3,
-            "the read stays a separate run since it does not neighbor another no-op"
-        );
-        assert!(digest.contains("Edit (write) → ok [tool t2]"));
-        assert!(digest.contains("Bash (exec) → error [tool t3]"));
-    }
-
-    #[test]
-    fn digest_treats_erroring_read_as_non_compressible() {
-        let rows = vec![make_paired_row(
-            "t1",
-            "Read",
-            100,
-            Some("read"),
-            true,
-            Some(true),
-        )];
-        let digest = build_trajectory_digest(&rows);
-        assert!(
-            digest.contains("Read (read) → error"),
-            "a failed read is a dead-end signal, not noise to fold away"
-        );
-    }
-
-    #[test]
-    fn digest_treats_unknown_operation_as_non_compressible() {
-        let rows = vec![make_paired_row(
-            "t1",
-            "McpCustomTool",
-            100,
-            None,
-            true,
-            Some(false),
-        )];
-        let digest = build_trajectory_digest(&rows);
-        assert!(digest.contains("McpCustomTool (other) → ok [tool t1]"));
-    }
-
-    #[test]
-    fn digest_covers_every_row_by_construction() {
-        let rows: Vec<TurnToolCallMetaRow> = (0..40)
-            .map(|i| {
-                make_paired_row(
-                    &format!("t{i}"),
-                    "Read",
-                    100 + i,
-                    Some("read"),
-                    true,
-                    Some(false),
-                )
-            })
-            .collect();
-        let digest = build_trajectory_digest(&rows);
-        assert!(digest.contains("40 no-op read(s)"));
-    }
-
-    #[test]
-    fn digest_truncates_at_char_cap_rather_than_growing_unbounded() {
-        let rows: Vec<TurnToolCallMetaRow> = (0..2000)
-            .map(|i| {
-                make_paired_row(
-                    &format!("t{i}"),
-                    "Edit",
-                    100 + i,
-                    Some("write"),
-                    true,
-                    Some(false),
-                )
-            })
-            .collect();
-        let digest = build_trajectory_digest(&rows);
-        assert!(digest.len() <= DIGEST_MAX_CHARS + "... (digest truncated at token cap)".len());
-        assert!(digest.contains("truncated at token cap"));
-    }
+    newest_within_cap(&digest_lines(rows, details))
 }

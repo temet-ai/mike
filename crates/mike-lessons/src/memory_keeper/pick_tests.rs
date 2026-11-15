@@ -146,3 +146,19 @@ fn questions_offer_every_candidate_and_none() -> Result<()> {
     assert_eq!(keys, vec!["migration-work", "none", "ui-polish"]);
     Ok(())
 }
+
+#[test]
+fn questions_label_a_thread_by_its_title_even_when_the_goal_is_long() -> Result<()> {
+    let mut long = thread("migration-work");
+    long.goal = "g".repeat(400);
+    let asked = questions(&candidates(), &[long]);
+    let Some(Question::Choice { criteria, .. }) = asked.get(QUESTION) else {
+        anyhow::bail!("expected a choice question");
+    };
+    let label = criteria
+        .get("migration-work")
+        .ok_or_else(|| anyhow::anyhow!("no label"))?;
+    assert!(label.starts_with("migration-work title: g"));
+    assert_eq!(label.chars().count(), LABEL_CHARS);
+    Ok(())
+}

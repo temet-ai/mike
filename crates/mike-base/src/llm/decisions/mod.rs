@@ -180,18 +180,27 @@ pub mod export;
 pub mod fleet_counts;
 pub mod loop_store;
 pub mod outcome_sync;
+mod outcome_sync_anchor;
 mod outcome_sync_events;
 pub mod point;
 pub mod proposal_queue;
 pub mod record;
+pub mod retired;
+pub mod reuse;
 pub mod text;
 
+#[cfg(test)]
+mod outcome_sync_anchor_tests;
 #[cfg(test)]
 mod outcome_sync_events_tests;
 #[cfg(test)]
 mod outcome_sync_fleet_tests;
 #[cfg(test)]
 mod outcome_sync_operator_tests;
+#[cfg(test)]
+mod outcome_sync_retired_tests;
+#[cfg(test)]
+mod outcome_sync_stop_tests;
 #[cfg(test)]
 mod outcome_sync_supply_tests;
 #[cfg(test)]

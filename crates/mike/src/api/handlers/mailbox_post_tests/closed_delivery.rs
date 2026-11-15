@@ -21,7 +21,8 @@ async fn assert_closed_audits(f: &Fleet, recipients: &[Uuid]) -> anyhow::Result<
         .map(Uuid::to_string)
         .collect();
     let found = sqlx::query!(
-        "SELECT sender.session_uuid AS \"sender_uuid?\", failed.attempted_to, failed.reason
+        "SELECT sender.session_uuid AS \"sender_uuid?\", failed.attempted_to AS \"attempted_to!\",
+                failed.reason AS \"reason!\"
            FROM mailbox.failed_sends failed
            LEFT JOIN sessions.sessions sender ON sender.id = failed.attempted_by_session_id
           WHERE failed.attempted_to = ANY($1) OR sender.session_uuid = $2",

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
 use crate::base_state::BaseState;
@@ -9,7 +10,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::llm::decisions::text::tail_chars;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-use crate::store::persistence::work_threads::{EntryInput, HistoryPage, ThreadDetail};
+use crate::store::persistence::work_threads::{EntryInput, HistoryPage, ThreadDetail, ThreadState};
 
 pub const POINT: &str = "thread_status";
 pub const QUESTION_SET: &str = "thread_status_v1";
@@ -19,6 +20,18 @@ const PARKED: &str = "parked";
 const OPEN_STATUSES: [&str; 3] = ["active", "implementing", "review"];
 const FIELD_CHARS: usize = 1200;
 const RECENT_ENTRIES: i64 = 5;
+const HOLD_HOURS: i64 = 48;
+const WAIT_WORDS: [&str; 7] = [
+    "waiting",
+    "waits",
+    "awaiting",
+    "pending",
+    "blocked",
+    "requested",
+    "until",
+];
+const OUTSIDE_STEP_PREFIXES: [&str; 3] = ["deploy", "review", "merge"];
+const OUTSIDE_STEP_WORDS: [&str; 4] = ["check", "checks", "ci", "pr"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Suggestion {
@@ -47,13 +60,60 @@ pub fn questions() -> BTreeMap<String, Question> {
     ])
 }
 
-pub fn state(detail: &ThreadDetail) -> Option<Value> {
+fn hours_since_checkpoint(latest: &ThreadState, now: DateTime<Utc>) -> i64 {
+    (now - latest.updated_at).num_hours().max(0)
+}
+
+fn words_of(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(str::to_lowercase)
+        .collect()
+}
+
+fn names_a_wait(words: &[String]) -> bool {
+    words.iter().any(|word| WAIT_WORDS.contains(&word.as_str()))
+}
+
+fn names_an_outside_step(words: &[String]) -> bool {
+    words.iter().any(|word| {
+        OUTSIDE_STEP_PREFIXES
+            .iter()
+            .any(|prefix| word.starts_with(prefix))
+            || OUTSIDE_STEP_WORDS.contains(&word.as_str())
+    })
+}
+
+fn newest_entry_text(detail: &ThreadDetail) -> String {
+    detail
+        .history
+        .iter()
+        .filter(|entry| entry.kind != "finding")
+        .max_by_key(|entry| entry.ord)
+        .map(|entry| format!("{} {}", entry.summary, entry.body))
+        .unwrap_or_default()
+}
+
+pub fn waits_on_outside_step(detail: &ThreadDetail, now: DateTime<Utc>) -> bool {
+    let Some(latest) = detail.state.as_ref() else {
+        return false;
+    };
+    if hours_since_checkpoint(latest, now) >= HOLD_HOURS {
+        return false;
+    }
+    let text = format!("{} {}", latest.next_up, newest_entry_text(detail));
+    let words = words_of(&text);
+    names_a_wait(&words) && names_an_outside_step(&words)
+}
+
+pub fn state(detail: &ThreadDetail, now: DateTime<Utc>) -> Option<Value> {
     let latest = detail.state.as_ref()?;
     Some(json!({
         "slug": detail.thread.slug,
         "title": detail.thread.title,
         "goal": detail.thread.goal.as_deref().map(|g| tail_chars(g, FIELD_CHARS)),
         "current_status": detail.thread.status,
+        "hours_since_last_checkpoint": hours_since_checkpoint(latest, now),
         "tldr": tail_chars(&latest.tldr, FIELD_CHARS),
         "where_we_are": tail_chars(&latest.where_we_are, FIELD_CHARS),
         "next_up": tail_chars(&latest.next_up, FIELD_CHARS),
@@ -160,7 +220,8 @@ pub async fn run(decider: &Decider, persist: &PersistHandle, project: i64, slug:
     let Ok(detail) = persist.launch().get_work_thread(project, slug, page).await else {
         return;
     };
-    let Some(facts) = state(&detail) else {
+    let now = Utc::now();
+    let Some(facts) = state(&detail, now) else {
         return;
     };
     if !is_open(&detail) || already_suggested(&detail) {
@@ -178,7 +239,8 @@ pub async fn run(decider: &Decider, persist: &PersistHandle, project: i64, slug:
             json!({"suggest_at": SUGGEST_AT}),
         )
         .await;
-    let suggestion = compose(&asked).filter(|_| decider.applies());
+    let waiting = waits_on_outside_step(&detail, now);
+    let suggestion = compose(&asked).filter(|_| decider.applies() && !waiting);
     let written = match &suggestion {
         Some(found) => write_finding(persist, project, &detail, found).await,
         None => false,

@@ -122,3 +122,30 @@ fn questions_cover_every_neighbour_the_home_and_the_documents() {
     assert_eq!(value["stored_lessons"][0]["lesson_id"], 1);
     assert_eq!(value["shown_documents"][0]["path"], "rules/deploy.md");
 }
+
+#[test]
+fn document_cards_carry_the_frontmatter_summary() {
+    let mut doc = document("rules/deploy.md");
+    doc.metadata = json!({ "summary": "Deploys go through scripts/deploy-proxy.sh only." });
+    doc.body = "---\nsummary: x\n---\nbody text".to_owned();
+    let value = state("new rule", &[], &[doc]);
+    assert_eq!(
+        value["shown_documents"][0]["summary"],
+        "Deploys go through scripts/deploy-proxy.sh only."
+    );
+}
+
+#[test]
+fn document_cards_fall_back_to_the_first_300_chars_after_the_frontmatter() {
+    let mut doc = document("rules/deploy.md");
+    doc.body = format!("---\ntitle: T\npaths: a\n---\n\n{}", "w".repeat(500));
+    let value = state("new rule", &[], &[doc]);
+    assert_eq!(value["shown_documents"][0]["summary"], "w".repeat(300));
+    let mut plain = document("rules/other.md");
+    plain.body = "no frontmatter here".to_owned();
+    let value = state("new rule", &[], &[plain]);
+    assert_eq!(
+        value["shown_documents"][0]["summary"],
+        "no frontmatter here"
+    );
+}

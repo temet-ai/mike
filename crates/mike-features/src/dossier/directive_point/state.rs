@@ -20,14 +20,21 @@ pub struct Unit {
 
 pub fn sentence_around(text: &str, span: (usize, usize)) -> String {
     let chars: Vec<char> = text.chars().collect();
-    let ends = |c: &char| matches!(c, '.' | '!' | '?' | '\n');
+    let ends = |i: usize| match chars[i] {
+        '!' | '?' | '\n' => true,
+        '.' => {
+            let before = i > 0 && chars[i - 1] == '.';
+            let after = chars.get(i + 1) == Some(&'.');
+            !before && !after
+        }
+        _ => false,
+    };
     let from = span.0.min(chars.len());
     let to = span.1.min(chars.len()).max(from);
-    let start = chars[..from].iter().rposition(ends).map_or(0, |i| i + 1);
-    let end = chars[to..]
-        .iter()
-        .position(ends)
-        .map_or(chars.len(), |i| to + i + 1);
+    let start = (0..from).rev().find(|&i| ends(i)).map_or(0, |i| i + 1);
+    let end = (to..chars.len())
+        .find(|&i| ends(i))
+        .map_or(chars.len(), |i| i + 1);
     chars[start..end]
         .iter()
         .collect::<String>()

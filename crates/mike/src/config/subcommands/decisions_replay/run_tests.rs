@@ -146,14 +146,7 @@ async fn verifier_precheck_wrong_fire_with_a_confident_veto_is_held() -> anyhow:
     let positives: Vec<Option<bool>> = outcome.questions.iter().map(|(_, s)| s.positive).collect();
     assert_eq!(
         positives,
-        vec![
-            Some(false),
-            Some(true),
-            Some(true),
-            Some(true),
-            Some(true),
-            Some(true)
-        ]
+        vec![Some(false), Some(true), Some(true), Some(true), Some(true)]
     );
     Ok(())
 }

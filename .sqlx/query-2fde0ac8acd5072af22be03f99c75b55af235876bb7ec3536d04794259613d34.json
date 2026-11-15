@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT DISTINCT ON (r.id)\n       r.id,\n       CASE WHEN (e.outcome_label = 'right') = (r.composed -> 'verdict' ->> 'fires' = 'true')\n            THEN 'right' ELSE 'wrong' END,\n       'steerer_nudge_reply',\n       jsonb_build_object('evaluation_uuid', e.uuid,\n                          'nudge_label', e.outcome_label,\n                          'jev_fires', r.composed -> 'verdict' ->> 'fires')\n  FROM decisions.records r\n  JOIN steering.evaluations e\n    ON e.operator_turn_id = r.operator_turn_id AND e.trigger_request_id = r.request_id\n  LEFT JOIN decisions.outcomes done\n    ON done.record_id = r.id AND done.label_source = 'steerer_nudge_reply'\n WHERE r.point = 'steerer_checklist'\n   AND done.record_id IS NULL\n   AND e.mode = 'live'\n   AND e.intervention_uuid IS NOT NULL\n   AND e.label_source = 'session_reply'\n   AND e.outcome_label IN ('right', 'wrong')\n   AND e.verdict_json ->> 'fires' = 'true'\n   AND r.composed -> 'verdict' ->> 'fires' IN ('true', 'false')\n ORDER BY r.id, e.id\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "2fde0ac8acd5072af22be03f99c75b55af235876bb7ec3536d04794259613d34"
+}

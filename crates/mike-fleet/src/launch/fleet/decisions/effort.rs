@@ -16,12 +16,15 @@ use crate::store::persistence::fleet::effort::{
 };
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
-pub const QUESTION_SET: &str = "fleet_effort_v1";
+pub const QUESTION_SET: &str = "fleet_effort_v2";
 pub const OBSERVE_BATCH: i64 = 300;
 pub const LABEL_BATCH: i64 = 8;
 const LABEL_EVERY: Duration = Duration::from_secs(15);
 const RETRY_AFTER_FAILURE: Duration = Duration::from_secs(120);
 const STEP_TEXT_BYTES: usize = 500;
+const STEP_RESPONSE_CHARS: usize = 600;
+const MACHINERY_TOOL_PREFIXES: [&str; 2] = ["mcp__mike__fleet_", "mcp__mike__send_session_message"];
+const MACHINERY_TOOLS: [&str; 1] = ["AskUserQuestion"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
@@ -118,6 +121,22 @@ pub fn trigger_label(trigger: Trigger) -> Option<Label> {
     }
 }
 
+fn machinery_tool(name: &str) -> bool {
+    MACHINERY_TOOLS.contains(&name)
+        || MACHINERY_TOOL_PREFIXES
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+}
+
+pub fn machinery_tools_only(tools: &str) -> bool {
+    let mut lines = tools
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .peekable();
+    lines.peek().is_some()
+        && lines.all(|line| machinery_tool(line.split(':').next().unwrap_or_default().trim()))
+}
+
 pub fn effort_row(request: &SeatRequest) -> EffortRow {
     let trigger = request_trigger(request);
     let label = trigger_label(trigger);
@@ -156,8 +175,8 @@ pub fn questions(steps: &[Unlabelled]) -> BTreeMap<String, Question> {
                 choice(
                     &format!("What was the seat doing in step {}?", step.request_id),
                     &[
-                        ("work", "Reading, searching, editing or testing the project's own code or files to do the task."),
-                        ("machinery", "Using the fleet's protocol rather than the project: checks, commits, reports, mail, status, roster, build permits, hooks."),
+                        ("work", "Reading, searching, editing or running the project's own code or files with its own tools (cargo, git, a shell) to do the task."),
+                        ("machinery", "Using the fleet's protocol rather than the project: running a check with fleet_check, commits, reports, mail, status, roster, build permits, hooks."),
                         ("waiting", "Waiting or polling for something else to finish, sleeping, or idle."),
                     ],
                 ),
@@ -167,19 +186,27 @@ pub fn questions(steps: &[Unlabelled]) -> BTreeMap<String, Question> {
 }
 
 pub fn state(steps: &[Unlabelled]) -> Value {
-    let rows: Vec<Value> = steps
-        .iter()
-        .map(|step| {
-            json!({
-                "step": step.request_id,
-                "seat": step.seat,
-                "started_by": step.trigger,
-                "prompt": text::tail(&step.text, STEP_TEXT_BYTES),
-                "tool_calls": text::head(&step.tools, STEP_TEXT_BYTES),
-            })
-        })
-        .collect();
+    let rows: Vec<Value> = steps.iter().map(step_facts).collect();
     json!({ "steps": rows })
+}
+
+fn step_facts(step: &Unlabelled) -> Value {
+    let mut facts = json!({
+        "step": step.request_id,
+        "seat": step.seat,
+        "started_by": step.trigger,
+        "prompt": text::tail(&step.text, STEP_TEXT_BYTES),
+        "tool_calls": text::head(&step.tools, STEP_TEXT_BYTES),
+    });
+    if step.tools.is_empty() && !step.response.is_empty() {
+        facts["response_text"] = json!(
+            step.response
+                .chars()
+                .take(STEP_RESPONSE_CHARS)
+                .collect::<String>()
+        );
+    }
+    facts
 }
 
 pub fn compose(asked: &Asked, steps: &[Unlabelled]) -> Vec<(i64, Label, f64)> {
@@ -205,6 +232,33 @@ fn paced(run: &str, wait: Duration) {
     LAST_LABELLED.insert(run.to_owned(), Instant::now() + wait);
 }
 
+async fn settle_by_tools(
+    persist: &PersistHandle,
+    steps: Vec<Unlabelled>,
+) -> (usize, Vec<Unlabelled>) {
+    let (settled, rest): (Vec<Unlabelled>, Vec<Unlabelled>) = steps
+        .into_iter()
+        .partition(|step| machinery_tools_only(&step.tools));
+    if settled.is_empty() {
+        return (0, rest);
+    }
+    let labelled: Vec<Labelled> = settled
+        .iter()
+        .map(|step| Labelled {
+            request_id: step.request_id,
+            label: Label::Machinery.as_str().to_owned(),
+            decided_by: "tools".to_owned(),
+            record_id: None,
+        })
+        .collect();
+    let done = persist
+        .fleet()
+        .label_request_efforts(&labelled)
+        .await
+        .map_or(0, |n| n as usize);
+    (done, rest)
+}
+
 pub async fn label_pass(
     decisions: Option<&FleetDecisions>,
     mode: Mode,
@@ -220,8 +274,9 @@ pub async fn label_pass(
     let Ok(steps) = persist.fleet().unlabelled_efforts(run, LABEL_BATCH).await else {
         return 0;
     };
+    let (settled, steps) = settle_by_tools(persist, steps).await;
     if steps.is_empty() {
-        return 0;
+        return settled;
     }
     let subject = DecisionSubject {
         fleet_run_id: Some(fleet_id),
@@ -267,11 +322,12 @@ pub async fn label_pass(
             record_id: asked.record_id,
         })
         .collect();
-    persist
-        .fleet()
-        .label_request_efforts(&labelled)
-        .await
-        .map_or(0, |n| n as usize)
+    settled
+        + persist
+            .fleet()
+            .label_request_efforts(&labelled)
+            .await
+            .map_or(0, |n| n as usize)
 }
 
 pub fn shares_document(rows: &[EffortShare]) -> Value {

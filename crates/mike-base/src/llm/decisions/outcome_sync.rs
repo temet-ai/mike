@@ -1,20 +1,10 @@
 use crate::store::persistence::PersistError;
 
-pub const TURN_REACTION_POINTS: [&str; 7] = [
-    "diagnostic_phrase",
-    "text_origin",
-    "directive",
-    "step_class",
-    "ended_on",
-    "steerer_checklist",
-    "prod_detect",
-];
-
 pub const NOTE_POINTS: [&str; 2] = ["commit_message", "rule_check"];
 
 pub const LESSON_POINTS: [&str; 2] = ["lesson_shape", "topic_assign"];
 
-fn owned(points: &[&str]) -> Vec<String> {
+pub(super) fn owned(points: &[&str]) -> Vec<String> {
     points.iter().map(|p| (*p).to_owned()).collect()
 }
 
@@ -26,6 +16,7 @@ impl super::DecisionStore<'_> {
         synced += self.sync_fleet_and_project_outcomes().await?;
         synced += self.sync_event_outcomes().await?;
         synced += self.sync_operator_and_usage_outcomes().await?;
+        synced += self.sync_anchored_outcomes().await?;
         Ok(synced)
     }
 
@@ -56,28 +47,17 @@ impl super::DecisionStore<'_> {
     }
 
     async fn sync_turn_reactions(&self) -> Result<u64, PersistError> {
-        let points = owned(&TURN_REACTION_POINTS);
         let notes = owned(&NOTE_POINTS);
         crate::metrics::time_db("sync_turn_reaction_outcomes", async move {
-            let direct = sqlx::query_file!(
-                "src/llm/decisions/sql/outcomes/turn_reaction.sql",
-                &points,
-                false,
-                "next_turn_reaction"
-            )
-            .execute(self.0.pool())
-            .await?
-            .rows_affected();
-            let after_note = sqlx::query_file!(
+            Ok(sqlx::query_file!(
                 "src/llm/decisions/sql/outcomes/turn_reaction.sql",
                 &notes,
                 true,
-                "next_turn_reaction_after_note"
+                "operator_reaction_after_note"
             )
             .execute(self.0.pool())
             .await?
-            .rows_affected();
-            Ok(direct + after_note)
+            .rows_affected())
         })
         .await
     }

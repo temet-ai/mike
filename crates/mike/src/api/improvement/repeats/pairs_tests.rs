@@ -49,6 +49,13 @@ fn compose_gives_one_probability_per_pair() {
 }
 
 #[test]
+fn a_probability_under_point_eight_is_a_different_request() {
+    assert!((MIN_SAME - 0.8).abs() < f64::EPSILON);
+    assert!((applied_score(&[0.7]) - 0.3).abs() < 1e-9);
+    assert!((applied_score(&[0.8]) - 0.8).abs() < 1e-9);
+}
+
+#[test]
 fn compose_failed_or_short_answer_keeps_the_cosine_threshold() {
     assert_eq!(compose(&Asked::failed_with("timeout"), 2), None);
     let short = Asked::answered(BTreeMap::from([(question_key(0), answer(0.9))]));

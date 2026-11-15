@@ -1,5 +1,6 @@
 use serde_json::{Value, json};
 
+use super::facts::Facts;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 use crate::steerer::verdict::SteererVerdict;
 
@@ -30,4 +31,12 @@ pub fn state(input: &FireInput<'_>) -> Value {
         "verifier_reason": head_chars(&input.verdict.reason, NUDGE_CHARS),
         "checklist": checklist,
     })
+}
+
+pub fn state_with(input: &FireInput<'_>, facts: &Facts) -> Value {
+    let mut state = state(input);
+    if let (Some(into), Value::Object(from)) = (state.as_object_mut(), facts.json()) {
+        into.extend(from);
+    }
+    state
 }

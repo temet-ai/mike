@@ -24,14 +24,13 @@ pub struct SessionJev {
 pub async fn decide(
     decider: &Decider,
     session_db_id: i64,
-    first_ask: &str,
     digest: &str,
-    turns: usize,
+    asks: &[&str],
 ) -> Option<SessionJev> {
     let asked = decider
         .ask(
             QUESTION_SET,
-            state::state(first_ask, digest, turns),
+            state::state(digest, asks),
             questions::questions(),
             DecisionSubject {
                 session_id: Some(session_db_id),

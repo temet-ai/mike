@@ -62,7 +62,11 @@ impl super::DecisionStore<'_> {
                 .execute(self.0.pool())
                 .await?
                 .rows_affected();
-            Ok(gate + problems + leaves + wakes)
+            let stops = sqlx::query_file!("src/llm/decisions/sql/outcomes/stop_let_through.sql")
+                .execute(self.0.pool())
+                .await?
+                .rows_affected();
+            Ok(gate + problems + leaves + wakes + stops)
         })
         .await
     }

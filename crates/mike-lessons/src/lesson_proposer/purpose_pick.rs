@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
@@ -8,17 +8,24 @@ use serde_json::{Value, json};
 use super::purpose::{
     plan_moves as plan_moves_by_words, same_purpose, shares_a_word, sorted_by_project,
 };
-use crate::llm::decisions::env::{DecisionEnv, Pace};
+use crate::llm::decisions::env::{DecisionEnv, Pace, head_chars};
 use crate::llm::decisions::point::{Asked, Decider, noul};
+use crate::llm::decisions::reuse::recent_answers;
 use crate::llm::decisions::{Question, record::DecisionSubject};
 use crate::store::persistence::lessons::placement::{SkillPurpose, TopicMove};
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub const POINT: &str = "topic_merge";
-pub const QUESTION_SET: &str = "topic_merge_v1";
+pub const QUESTION_SET: &str = "topic_merge_v2";
 pub const MIN_SAME: f64 = 0.7;
 const MAX_CALLS: usize = 12;
 const MAX_CANDIDATES: usize = 4;
 const REMEMBER_FOR: Duration = Duration::from_secs(24 * 60 * 60);
+const REUSE_WITHIN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+const SAMPLE_LESSONS: usize = 3;
+const SAMPLE_CHARS: usize = 120;
+
+type Samples = HashMap<(i64, String), Vec<String>>;
 
 static VERDICTS: LazyLock<DashMap<String, (Instant, Option<String>)>> = LazyLock::new(DashMap::new);
 
@@ -75,15 +82,57 @@ pub fn questions(topic: &str, candidates: &[&SkillPurpose]) -> BTreeMap<String, 
         .collect()
 }
 
-fn card(purpose: &SkillPurpose) -> Value {
-    json!({ "topic": purpose.topic, "lessons": purpose.lessons, "has_shipped_skill": purpose.shipped })
+fn first_line(text: &str) -> String {
+    let line = text.lines().map(str::trim).find(|l| !l.is_empty());
+    head_chars(line.unwrap_or_default(), SAMPLE_CHARS)
 }
 
-pub fn state(topic: &SkillPurpose, candidates: &[&SkillPurpose]) -> Value {
+fn card(purpose: &SkillPurpose, samples: &Samples) -> Value {
+    let sample = samples.get(&(purpose.project_id, purpose.topic.clone()));
     json!({
-        "topic": card(topic),
-        "candidates": candidates.iter().map(|c| card(c)).collect::<Vec<_>>(),
+        "topic": purpose.topic,
+        "lessons": purpose.lessons,
+        "has_shipped_skill": purpose.shipped,
+        "sample_lessons": sample.map(Vec::as_slice).unwrap_or_default(),
     })
+}
+
+pub fn state(topic: &SkillPurpose, candidates: &[&SkillPurpose], samples: &Samples) -> Value {
+    json!({
+        "topic": card(topic, samples),
+        "candidates": candidates.iter().map(|c| card(c, samples)).collect::<Vec<_>>(),
+    })
+}
+
+async fn load_samples(
+    decider: &Decider,
+    samples: &mut Samples,
+    topic: &SkillPurpose,
+    candidates: &[&SkillPurpose],
+) {
+    for purpose in std::iter::once(topic).chain(candidates.iter().copied()) {
+        let key = (purpose.project_id, purpose.topic.clone());
+        if samples.contains_key(&key) {
+            continue;
+        }
+        let lines = match decider
+            .persist()
+            .lessons()
+            .list_lessons_by_topic(purpose.project_id, &purpose.topic)
+            .await
+        {
+            Ok(rows) => rows
+                .iter()
+                .take(SAMPLE_LESSONS)
+                .map(|row| first_line(&row.text))
+                .collect(),
+            Err(error) => {
+                tracing::warn!(%error, topic = %purpose.topic, "topic_merge: lesson samples unavailable");
+                Vec::new()
+            }
+        };
+        samples.insert(key, lines);
+    }
 }
 
 pub fn compose(asked: &Asked, count: usize) -> Option<Option<(usize, f64)>> {
@@ -97,11 +146,28 @@ pub fn compose(asked: &Asked, count: usize) -> Option<Option<(usize, f64)>> {
     Some(best)
 }
 
+fn settled<'a>(
+    key: String,
+    found: Option<(usize, f64)>,
+    candidates: &[&'a SkillPurpose],
+) -> Option<&'a SkillPurpose> {
+    let survivor = found.map(|(index, _)| candidates[index]);
+    remember(key, survivor, Instant::now());
+    survivor
+}
+
+async fn reused(decider: &Decider, state: &Value, count: usize) -> Option<Option<(usize, f64)>> {
+    let (_, asked) =
+        recent_answers(decider.persist(), POINT, QUESTION_SET, state, REUSE_WITHIN).await?;
+    compose(&asked, count)
+}
+
 async fn survivor_for<'a>(
     decider: &Decider,
     pace: &mut Pace,
     survivors: &[&'a SkillPurpose],
     topic: &SkillPurpose,
+    samples: &mut Samples,
 ) -> Option<&'a SkillPurpose> {
     let candidates: Vec<&'a SkillPurpose> = survivors
         .iter()
@@ -124,14 +190,35 @@ async fn survivor_for<'a>(
     {
         return found.and_then(|name| candidates.iter().copied().find(|c| c.topic == name));
     }
+    load_samples(decider, samples, topic, &candidates).await;
+    let facts = state(topic, &candidates, samples);
+    if decider.applies()
+        && let Some(found) = reused(decider, &facts, candidates.len()).await
+    {
+        return settled(key, found, &candidates);
+    }
     if !pace.may_ask() {
         return by_words();
     }
+    let verdict = ask_verdict(decider, pace, facts, topic, &candidates).await;
+    match verdict {
+        Some(found) if decider.applies() => settled(key, found, &candidates),
+        _ => by_words(),
+    }
+}
+
+async fn ask_verdict(
+    decider: &Decider,
+    pace: &mut Pace,
+    facts: Value,
+    topic: &SkillPurpose,
+    candidates: &[&SkillPurpose],
+) -> Option<Option<(usize, f64)>> {
     let asked = decider
         .ask(
             QUESTION_SET,
-            state(topic, &candidates),
-            questions(&topic.topic, &candidates),
+            facts,
+            questions(&topic.topic, candidates),
             DecisionSubject {
                 project_id: Some(topic.project_id),
                 ..DecisionSubject::default()
@@ -153,14 +240,7 @@ async fn survivor_for<'a>(
             applied_for(verdict),
         )
         .await;
-    match verdict {
-        Some(found) if decider.applies() => {
-            let survivor = found.map(|(index, _)| candidates[index]);
-            remember(key, survivor, Instant::now());
-            survivor
-        }
-        _ => by_words(),
-    }
+    verdict
 }
 
 fn max_noul(asked: &Asked, count: usize) -> f64 {
@@ -177,12 +257,13 @@ pub async fn plan_moves(
         return plan_moves_by_words(purposes);
     };
     let mut pace = Pace::new(MAX_CALLS);
+    let mut samples = Samples::new();
     let mut plan = BTreeMap::new();
     for (project_id, topics) in sorted_by_project(purposes) {
         let mut survivors: Vec<&SkillPurpose> = Vec::new();
         let mut moves = Vec::new();
         for topic in topics {
-            match survivor_for(&decider, &mut pace, &survivors, topic).await {
+            match survivor_for(&decider, &mut pace, &survivors, topic, &mut samples).await {
                 Some(survivor) => moves.push(TopicMove {
                     from: topic.topic.clone(),
                     to: survivor.topic.clone(),

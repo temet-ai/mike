@@ -6,13 +6,17 @@ use super::label_prod::ProdAnswers;
 use crate::llm::OpenRouterClient;
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionMode;
+use crate::llm::decisions::record::DecisionSubject;
 use crate::settings::SettingsOverlay;
-use crate::steerer::prod_point::POINT;
+use crate::steerer::prod_point::{self, POINT};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::steering::guard::GuardLabelCandidate;
 use crate::store::test_support::TestDb;
 
 const SHORT_WITH_CONTENT: &str = "no, use the other";
+const FAILING_SHORT: &str = "no, the second one";
+const FAILING_LONG: &str = "please carry on with the earlier plan now";
+const SHARED_MESSAGE: &str = "yes, go with the first";
 const LONG_NUDGE: &str = "please keep going with whatever you were doing before";
 
 fn candidate(turn: i64, text: Option<&str>) -> GuardLabelCandidate {
@@ -126,15 +130,62 @@ async fn labeller_prod_with_jev_failing_uses_the_length_rule_and_stops_asking() 
     let server = stub(500, json!({"error": "down"})).await;
     let answers = ProdAnswers::new(Some(decider(&server, &persist)?));
     assert_eq!(
-        answers
-            .of(&candidate(9_100_020, Some(SHORT_WITH_CONTENT)))
-            .await,
+        answers.of(&candidate(9_100_020, Some(FAILING_SHORT))).await,
         Some(true)
     );
     assert_eq!(
-        answers.of(&candidate(9_100_021, Some(LONG_NUDGE))).await,
+        answers.of(&candidate(9_100_021, Some(FAILING_LONG))).await,
         Some(false)
     );
     assert_eq!(server.received_requests().await.map_or(0, |r| r.len()), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn labeller_and_proposer_share_one_answer_per_message_and_previous_reply()
+-> anyhow::Result<()> {
+    let Some((_db, persist)) = persist().await? else {
+        return Ok(());
+    };
+    let server = stub(200, answered(0.1)).await;
+    let decider = decider(&server, &persist)?;
+    let subject = |turn: i64| DecisionSubject {
+        session_id: Some(1),
+        operator_turn_id: Some(turn),
+        ..DecisionSubject::default()
+    };
+    let reply = Some("Do you want A or B?");
+    let first =
+        prod_point::detect_checked(Some(&decider), SHARED_MESSAGE, reply, subject(9_100_030)).await;
+    let second =
+        prod_point::detect_checked(Some(&decider), SHARED_MESSAGE, reply, subject(9_100_031)).await;
+    assert!(!first.is_prod && !second.is_prod);
+    assert_eq!(server.received_requests().await.map_or(0, |r| r.len()), 1);
+
+    prod_point::detect_checked(
+        Some(&decider),
+        SHARED_MESSAGE,
+        Some("Shall I continue?"),
+        subject(9_100_032),
+    )
+    .await;
+    assert_eq!(server.received_requests().await.map_or(0, |r| r.len()), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn labeller_sends_the_previous_reply_tail_as_a_fact() -> anyhow::Result<()> {
+    let Some((_db, persist)) = persist().await? else {
+        return Ok(());
+    };
+    let server = stub(200, answered(0.1)).await;
+    let answers = ProdAnswers::new(Some(decider(&server, &persist)?));
+    let mut row = candidate(9_100_040, Some("sure, do the second"));
+    row.final_assistant_text = Some("I can do the first or the second.".to_owned());
+    answers.of(&row).await;
+    let requests = server.received_requests().await.unwrap_or_default();
+    let body = String::from_utf8_lossy(&requests[0].body).into_owned();
+    assert!(body.contains("I can do the first or the second."));
+    assert!(body.contains("previous_reply_tail"));
     Ok(())
 }

@@ -5,7 +5,7 @@ use super::point::{Judged, Prepared, ReplayPoint};
 use crate::llm::decisions::point::Asked;
 use crate::steerer::verdict::{Need, SteererVerdict};
 use crate::steerer::verifier_precheck::questions::{
-    DISCLOSED, DONE_EARLIER, NOT_OPERATOR_ASK, ONLY_ANSWER, STILL_RUNNING, UNFINISHED,
+    CRITERION_GOAL, DISCLOSED, DONE_EARLIER, NOT_OPERATOR_ASK, STILL_RUNNING, UNFINISHED,
 };
 use crate::steerer::verifier_precheck::{self, FireInput, POINT, QUESTION_SET};
 use crate::store::persistence::PersistHandle;
@@ -57,7 +57,7 @@ impl ReplayPoint for VerifierPrecheck {
     type Item = Ready;
     const POINT: &'static str = POINT;
     const QUESTION_SET: &'static str = QUESTION_SET;
-    const OUTCOME_SOURCE: &'static str = "turn_guard_label";
+    const OUTCOME_SOURCE: &'static str = "precheck_decision";
 
     fn item_id(item: &Ready) -> String {
         item.item.intervention_uuid.to_string()
@@ -99,10 +99,8 @@ impl ReplayPoint for VerifierPrecheck {
     fn question_positive(item: &Ready, question: &str) -> Option<bool> {
         let right = fire_right(&item.item);
         match question {
-            UNFINISHED => Some(right),
-            DISCLOSED | ONLY_ANSWER | STILL_RUNNING | NOT_OPERATOR_ASK | DONE_EARLIER => {
-                Some(!right)
-            }
+            UNFINISHED | CRITERION_GOAL => Some(right),
+            DISCLOSED | STILL_RUNNING | NOT_OPERATOR_ASK | DONE_EARLIER => Some(!right),
             _ => None,
         }
     }

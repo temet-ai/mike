@@ -23,15 +23,8 @@ pub async fn decide_live(
         .fetch_judge_digest(session_db_id)
         .await
         .ok()?;
-    let first_ask = turns.first().map_or("", |t| t.user_prompt.as_str());
-    decide(
-        decider,
-        session_db_id,
-        first_ask,
-        &judged.input_text,
-        turns.len(),
-    )
-    .await
+    let asks: Vec<&str> = turns.iter().map(|t| t.user_prompt.as_str()).collect();
+    decide(decider, session_db_id, &judged.input_text, &asks).await
 }
 
 pub fn apply_live(judged: &mut SessionJudgementV3, decision: &SessionDecision) -> ModelView {

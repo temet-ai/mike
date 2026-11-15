@@ -14,10 +14,11 @@ use crate::llm::decisions::{Question, record::DecisionSubject};
 use crate::store::persistence::lesson_relations::CandidateLessonPair;
 
 pub const POINT: &str = "lesson_relation";
-pub const QUESTION_SET: &str = "lesson_relation_v1";
+pub const QUESTION_SET: &str = "lesson_relation_v2";
 pub const UNRELATED: &str = "unrelated";
 pub const MIN_CITES: f64 = 0.7;
 pub const MIN_RELATION: f64 = 0.5;
+pub const MAX_DISTANCE: f64 = 0.4;
 const RELATION_KEY: &str = "relation";
 const CITES_KEY: &str = "cites";
 const TEXT_CHARS: usize = 700;
@@ -29,9 +30,12 @@ const RELATIONS: &[(&str, &str)] = &[
     ),
     (
         KIND_REFINES,
-        "the newer lesson adds detail or a narrower condition to the older one, and both stay true",
+        "the newer lesson adds a new condition, command, path or value to the older one, and both stay true",
     ),
-    (KIND_RECURS, "both lessons state the same rule"),
+    (
+        KIND_RECURS,
+        "both lessons state the same rule and the newer one adds no new condition, command, path or value; it only rewords the older one",
+    ),
     (
         KIND_CONTRADICTS,
         "the two cannot both be true and neither is simply the newer version of the other",
@@ -215,14 +219,24 @@ fn score(decision: Option<&PairDecision>) -> f64 {
     }
 }
 
+pub fn too_far(pair: &CandidateLessonPair, cite: Option<&Cite>) -> bool {
+    cite.is_none() && pair.distance > MAX_DISTANCE
+}
+
 pub async fn decide(
     jev: &PairJev,
     pair: &CandidateLessonPair,
 ) -> Option<(PairDecision, Option<i64>)> {
+    let cite = cite_of(pair);
+    if too_far(pair, cite.as_ref()) {
+        return jev
+            .decider
+            .applies()
+            .then_some((PairDecision::Unrelated(1.0), None));
+    }
     if !jev.take() {
         return None;
     }
-    let cite = cite_of(pair);
     let asked = jev
         .decider
         .ask(

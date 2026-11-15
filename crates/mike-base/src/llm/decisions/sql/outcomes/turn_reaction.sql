@@ -34,7 +34,7 @@ SELECT DISTINCT ON (l.record_id)
   JOIN memory.operator_turns t ON t.id = l.turn_id
   JOIN memory.turn_outcomes toc ON toc.id = t.outcome_id
  WHERE toc.code IN ('accepted', 'shipped', 'corrected')
-   AND t.outcome_source IN ('operator', 'judge')
+   AND t.outcome_source = 'operator'
    AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o
                     WHERE o.record_id = l.record_id AND o.label_source = $3)
  ORDER BY l.record_id, t.id

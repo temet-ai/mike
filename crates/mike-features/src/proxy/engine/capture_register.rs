@@ -161,7 +161,7 @@ pub async fn capture_and_register(
         turn_origin: &turn_origin,
         turn_type: &turn_type,
         human_prompt_for_classification: &human_prompt_for_classification,
-        classification_lane: ClassificationLane::of(&intercepted),
+        classification_lane: ClassificationLane::of(&intercepted, body_bytes),
     })
     .await;
 
@@ -230,11 +230,13 @@ struct ClassificationLane<'a> {
     last_user_message: &'a str,
     is_tool_loop: bool,
     has_agent_id: bool,
+    request_body: &'a bytes::Bytes,
 }
 
 impl<'a> ClassificationLane<'a> {
-    fn of(intercepted: &'a InterceptedRequest) -> Self {
+    fn of(intercepted: &'a InterceptedRequest, request_body: &'a bytes::Bytes) -> Self {
         Self {
+            request_body,
             last_user_message: &intercepted.last_user_message,
             is_tool_loop: intercepted.is_tool_loop,
             has_agent_id: intercepted.claude_code_agent_id.is_some(),
@@ -321,15 +323,22 @@ fn spawn_text_origin(
     let Some(env) = state.decision_env() else {
         return;
     };
-    let input = crate::llm::text_origin::Unmatched {
-        request_id: recorded.request_id,
-        session_db_id: recorded.session_db_id,
-        text: text.to_owned(),
-        last_user_message: lane.last_user_message.to_owned(),
-        author: author.to_owned(),
-        has_agent_id: lane.has_agent_id,
-    };
+    let (request_id, session_db_id) = (recorded.request_id, recorded.session_db_id);
+    let (text, author) = (text.to_owned(), author.to_owned());
+    let (last_user_message, has_agent_id) = (lane.last_user_message.to_owned(), lane.has_agent_id);
+    let body = lane.request_body.clone();
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
+        let prior = crate::llm::text_origin::prior_context(&body);
+        let input = crate::llm::text_origin::Unmatched {
+            request_id,
+            session_db_id,
+            text,
+            last_user_message,
+            previous_user_message: prior.user_message,
+            previous_assistant_reply: prior.assistant_reply,
+            author,
+            has_agent_id,
+        };
         crate::llm::text_origin::classify(&env, &input).await;
     });
 }

@@ -14,7 +14,7 @@ use crate::store::persistence::eval_runs::turn_texts::PrelabelTurn;
 use crate::store::persistence::operator_turns::projection::REACTIONS;
 
 pub const POINT: &str = "label_prelabel";
-pub const QUESTION_SET: &str = "label_prelabel_v1";
+pub const QUESTION_SET: &str = "label_prelabel_v2";
 pub const SURE_ABOVE: f64 = 0.8;
 const GROUP: usize = 5;
 const MAX_CALLS: usize = 4;
@@ -42,6 +42,8 @@ const MEANINGS: &[(&str, &str)] = &[
     ),
 ];
 
+const NO_RESPONSE: &str = "no_response";
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Prelabel {
     pub label: String,
@@ -57,8 +59,34 @@ fn question_key(turn_id: i64) -> String {
     format!("turn_{turn_id}")
 }
 
+pub fn is_silent(turn: &PrelabelTurn) -> bool {
+    turn.next_prompt.trim().is_empty()
+}
+
+fn settle_silent(turns: &[PrelabelTurn]) -> Vec<&PrelabelTurn> {
+    let (silent, speaking): (Vec<&PrelabelTurn>, Vec<&PrelabelTurn>) =
+        turns.iter().partition(|turn| is_silent(turn));
+    for turn in silent {
+        PRELABELS.insert(
+            turn.turn_id,
+            Prelabel {
+                label: NO_RESPONSE.to_owned(),
+                probability: 1.0,
+                uncertain: false,
+                record_id: None,
+            },
+        );
+    }
+    speaking
+}
+
 pub fn questions(group: &[&PrelabelTurn]) -> BTreeMap<String, Question> {
     debug_assert_eq!(MEANINGS.len(), REACTIONS.len());
+    let asked: Vec<(&str, &str)> = MEANINGS
+        .iter()
+        .copied()
+        .filter(|(label, _)| *label != NO_RESPONSE)
+        .collect();
     group
         .iter()
         .map(|turn| {
@@ -69,7 +97,7 @@ pub fn questions(group: &[&PrelabelTurn]) -> BTreeMap<String, Question> {
                         "How did the operator react to the assistant's work in turn {}?",
                         turn.turn_id
                     ),
-                    MEANINGS,
+                    &asked,
                 ),
             )
         })
@@ -84,7 +112,7 @@ pub fn state(group: &[&PrelabelTurn]) -> Value {
                 "turn_id": t.turn_id,
                 "operator_prompt": head_chars(&t.user_prompt, PROMPT_CHARS),
                 "assistant_ending": tail_chars(&t.final_text, ENDING_CHARS),
-                "operator_next_message": if t.next_prompt.is_empty() { Value::Null } else { json!(head_chars(&t.next_prompt, NEXT_CHARS)) },
+                "operator_next_message": if is_silent(t) { Value::Null } else { json!(head_chars(&t.next_prompt, NEXT_CHARS)) },
             }))
             .collect::<Vec<_>>(),
     })
@@ -148,13 +176,16 @@ pub fn spawn_fill(env: Option<DecisionEnv>, persist: PersistHandle, turn_ids: &[
 }
 
 async fn fill(env: &DecisionEnv, persist: &PersistHandle, missing: &[i64]) {
-    let Some(decider) = env.decider(POINT) else {
-        return;
-    };
     let Ok(turns) = persist.eval().prelabel_turns(missing).await else {
         return;
     };
-    let refs: Vec<&PrelabelTurn> = turns.iter().collect();
+    let refs = settle_silent(&turns);
+    if refs.is_empty() {
+        return;
+    }
+    let Some(decider) = env.decider(POINT) else {
+        return;
+    };
     let mut pace = Pace::new(MAX_CALLS);
     for group in refs.chunks(GROUP) {
         if !pace.may_ask() {

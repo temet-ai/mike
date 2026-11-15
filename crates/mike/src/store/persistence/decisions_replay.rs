@@ -97,8 +97,7 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                           ORDER BY x.created_at DESC, x.id DESC
                           LIMIT 1
                      ) v ON true
-                    WHERE t.outcome_source = 'operator'
-                      AND t.closed_at IS NOT NULL
+                    WHERE t.closed_at IS NOT NULL
                       AND t.closed_at >= $1
                     ORDER BY t.id DESC
                     LIMIT $2"#,

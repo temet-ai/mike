@@ -9,7 +9,7 @@ use crate::store::persistence::improvement::repeats::PushbackPrompt;
 
 pub(super) const POINT: &str = "repeats_group";
 pub(super) const QUESTION_SET: &str = "repeats_group_v1";
-pub(super) const MIN_SAME: f64 = 0.5;
+pub(super) const MIN_SAME: f64 = 0.8;
 const BAND_BELOW: f32 = 0.10;
 const BAND_ABOVE: f32 = 0.05;
 const GROUP: usize = 5;

@@ -162,3 +162,74 @@ async fn effort_with_the_point_off_records_triggers_and_asks_nothing() -> anyhow
     );
     fx.finish().await
 }
+
+async fn session_of(fx: &DecisionsFixture) -> anyhow::Result<i64> {
+    let Some((session_id, _)) = fx.handle.launch().resolve_session_core(fx.worker).await? else {
+        anyhow::bail!("the worker session was not seeded");
+    };
+    Ok(session_id)
+}
+
+async fn seed_tool_use(fx: &DecisionsFixture, request_id: i64, tool: &str) -> anyhow::Result<()> {
+    let session_id = session_of(fx).await?;
+    sqlx::query(
+        "INSERT INTO tools.uses (wire_tool_use_id, request_id, session_id, ord, tool_name, input, created_at)
+         VALUES ($1, $2, $3, 0, $4, NULL, now())",
+    )
+    .bind(format!("toolu_effort_{request_id}"))
+    .bind(request_id)
+    .bind(session_id)
+    .bind(tool)
+    .execute(fx.handle.pool())
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn effort_a_step_of_fleet_tool_calls_is_machinery_without_asking_jev() -> anyhow::Result<()> {
+    let Some(fx) = DecisionsFixture::boot(json!({})).await? else {
+        return Ok(());
+    };
+    let seeded = seed(&fx).await?;
+    seed_tool_use(&fx, seeded.second, "mcp__mike__fleet_check").await?;
+    assert_eq!(observe(&fx.handle, &fx.run).await, 2);
+    let server = stub(500, json!({})).await;
+    let found = decisions(&server, &fx)?;
+    let run = (fx.run.as_str(), fx.fleet_id);
+    assert_eq!(label_pass(Some(&found), Mode::On, &fx.handle, run).await, 1);
+    assert!(
+        server
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty()
+    );
+    let doc = document(&fx.handle, &fx.run).await;
+    assert_eq!(doc["all_seats"]["labels"]["machinery"]["requests"], 2);
+    fx.finish().await
+}
+
+#[tokio::test]
+async fn effort_a_step_without_tool_calls_is_read_with_its_reply_text() -> anyhow::Result<()> {
+    let Some(fx) = DecisionsFixture::boot(json!({})).await? else {
+        return Ok(());
+    };
+    let seeded = seed(&fx).await?;
+    let session_id = session_of(&fx).await?;
+    sqlx::query(
+        "INSERT INTO responses.stream_blocks (request_id, session_id, block_type_id, seq_ord, content, content_sha256, byte_size)
+         VALUES ($1, $2, 1, 0, $3, repeat('0', 64), 5)",
+    )
+    .bind(seeded.second)
+    .bind(session_id)
+    .bind("waiting on the build")
+    .execute(fx.handle.pool())
+    .await?;
+    assert_eq!(observe(&fx.handle, &fx.run).await, 2);
+    let steps = fx.handle.fleet().unlabelled_efforts(&fx.run, 8).await?;
+    let [step] = steps.as_slice() else {
+        anyhow::bail!("expected one unlabelled step, got {}", steps.len());
+    };
+    assert_eq!(step.response, "waiting on the build");
+    fx.finish().await
+}

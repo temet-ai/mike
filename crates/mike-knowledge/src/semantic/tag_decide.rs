@@ -17,6 +17,8 @@ pub const MIN_PATTERN: f64 = 0.5;
 const GROUP: usize = 6;
 const MAX_CALLS: usize = 8;
 const TEXT_CHARS: usize = 500;
+const DEFINITION_EXAMPLES: usize = 2;
+const DEFINITION_CHARS: usize = 200;
 
 pub struct Unit<'a> {
     pub correction: &'a CorrectionForTagging,
@@ -38,6 +40,23 @@ fn patterns(unit: &Unit<'_>) -> Vec<String> {
     seen
 }
 
+fn definition(unit: &Unit<'_>, pattern: &str) -> String {
+    let examples: Vec<String> = unit
+        .anchors
+        .iter()
+        .filter(|(anchor, text)| anchor.pattern == pattern && !text.trim().is_empty())
+        .take(DEFINITION_EXAMPLES)
+        .map(|(_, text)| format!("\"{}\"", tail_chars(text.trim(), DEFINITION_CHARS)))
+        .collect();
+    if examples.is_empty() {
+        return format!("The operator corrects the same kind of mistake as the {pattern} pattern.");
+    }
+    format!(
+        "The operator corrects the same kind of mistake as the {pattern} pattern, defined by these corrections: {}",
+        examples.join(" | ")
+    )
+}
+
 pub fn questions(group: &[Unit<'_>]) -> BTreeMap<String, Question> {
     group
         .iter()
@@ -45,7 +64,7 @@ pub fn questions(group: &[Unit<'_>]) -> BTreeMap<String, Question> {
             let mut options: Vec<(String, String)> = patterns(unit)
                 .into_iter()
                 .map(|p| {
-                    let meaning = format!("the same kind of correction as the {p} examples");
+                    let meaning = definition(unit, &p);
                     (p, meaning)
                 })
                 .collect();

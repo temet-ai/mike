@@ -1,4 +1,5 @@
 pub mod compose;
+pub mod injected;
 pub mod questions;
 pub mod state;
 
@@ -23,6 +24,9 @@ pub struct Message<'a> {
 }
 
 pub async fn classify(decider: &Decider, message: &Message<'_>) -> Option<Classified> {
+    if injected::is_injected(message.operator_text) {
+        return None;
+    }
     let asked = decider
         .ask(
             QUESTION_SET,

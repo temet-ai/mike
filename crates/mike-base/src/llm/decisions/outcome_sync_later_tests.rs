@@ -220,7 +220,7 @@ async fn leaf_judge_is_scored_by_what_the_task_did_after_the_verdict() -> anyhow
             fleet: "done",
             commit: None,
             passed: Some(10),
-            label: Some("wrong"),
+            label: None,
         },
         Leaf {
             run: "fail-open",
@@ -263,7 +263,7 @@ async fn leaf_judge_is_scored_by_what_the_task_did_after_the_verdict() -> anyhow
             .await?;
         }
     }
-    assert_eq!(env.sync().await?, 4);
+    assert_eq!(env.sync().await?, 3);
     for (id, case) in ids.iter().zip(&cases) {
         let expected: Vec<_> = case
             .label

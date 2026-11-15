@@ -1,95 +1,31 @@
 use std::collections::BTreeMap;
 
-use super::compose::compose;
-use super::questions::{key, questions};
-use super::state::{Criterion, Evidence, intake_criteria, state, thread_criteria};
-use crate::llm::decisions::Answer;
+use super::compose::{Status, compose};
+use super::questions::{BROKEN, DONE, MISSING, NOT_SHOWN_BROKEN, OPEN_STATED, key, questions};
+use super::state::Criterion;
 use crate::llm::decisions::point::Asked;
+use crate::llm::decisions::{Answer, Question};
 use crate::steerer::verdict::{Need, SteererVerdict};
-use crate::store::persistence::acceptance_criteria::{
-    AcceptanceCriteriaMap, AcceptanceCriterionRow,
-};
 
 fn criterion(text: &str, inferred: bool) -> Criterion {
     Criterion {
         text: text.to_owned(),
         inferred,
+        context: None,
     }
 }
 
-fn intake_map(rows: &[(&str, Option<&str>)]) -> AcceptanceCriteriaMap {
-    AcceptanceCriteriaMap {
-        id: 1,
-        version: 1,
-        ask_entry_count: 1,
-        model: None,
-        output_tokens: None,
-        created_at: chrono::Utc::now(),
-        criteria: rows
-            .iter()
-            .zip(0..)
-            .map(|((text, span), ord)| AcceptanceCriterionRow {
-                ord,
-                criterion: (*text).to_owned(),
-                provenance: if span.is_some() {
-                    "operator"
-                } else {
-                    "inferred"
-                }
-                .to_owned(),
-                operator_span: span.map(str::to_owned),
-            })
-            .collect(),
-    }
-}
-
-#[test]
-fn intake_criteria_gives_one_criterion_per_stored_row() {
-    let map = intake_map(&[
-        ("The panel is reachable.", Some("no direct URL")),
-        ("It uses shared primitives.", None),
-        ("  ", None),
-        ("It loads under a second.", Some("make it fast")),
-    ]);
-    assert_eq!(
-        intake_criteria(&map),
-        vec![
-            criterion("The panel is reachable.", false),
-            criterion("It uses shared primitives.", true),
-            criterion("It loads under a second.", false),
-        ]
-    );
-}
-
-#[test]
-fn thread_criteria_keeps_list_items_or_every_plain_line() {
-    let headed = thread_criteria("Acceptance criteria:\n- It ships.\n- It is proven.");
-    assert_eq!(
-        headed,
-        vec![
-            criterion("It ships.", false),
-            criterion("It is proven.", false)
-        ]
-    );
-    let plain = thread_criteria("It ships.\nIt is proven.");
-    assert_eq!(
-        plain,
-        vec![
-            criterion("It ships.", false),
-            criterion("It is proven.", false)
-        ]
-    );
-}
-
-fn answered(ps: &[f64]) -> Asked {
+fn answered(choices: &[(&str, f64)]) -> Asked {
     Asked::answered(
-        ps.iter()
+        choices
+            .iter()
             .enumerate()
-            .map(|(i, p)| {
+            .map(|(i, (choice, p))| {
                 (
                     key(i),
-                    Answer::Noul {
-                        noul: *p,
+                    Answer::Choice {
+                        choice: (*choice).to_owned(),
+                        probabilities: BTreeMap::from([((*choice).to_owned(), *p)]),
                         confidence: None,
                     },
                 )
@@ -109,57 +45,95 @@ fn writer(fires: bool, nudge: &str) -> SteererVerdict {
     }
 }
 
+fn options(question: Option<&Question>) -> Vec<String> {
+    match question {
+        Some(Question::Choice { criteria, .. }) => criteria.keys().cloned().collect(),
+        _ => Vec::new(),
+    }
+}
+
 #[test]
-fn thread_criteria_reads_list_markers_and_the_inferred_tag() {
-    let found = thread_criteria(
-        "- The page loads.\n2. It renders.\n- [inferred, not stated by the operator] It is fast.\n\n",
-    );
+fn questions_ask_an_outcome_for_a_goal_and_broken_for_a_rule() {
+    let asked = questions(&[
+        criterion("PR #256 merged and deployed on omit.", false),
+        criterion("Nothing on omit is touched.", false),
+    ]);
     assert_eq!(
-        found,
-        vec![
-            criterion("The page loads.", false),
-            criterion("It renders.", false),
-            criterion("It is fast.", true),
-        ]
+        options(asked.get(&key(0))),
+        vec![DONE, MISSING, OPEN_STATED]
     );
+    assert_eq!(options(asked.get(&key(1))), vec![BROKEN, NOT_SHOWN_BROKEN]);
 }
 
 #[test]
-fn state_carries_the_end_of_the_digest_and_every_criterion() {
-    let long = format!("{}LAST CALL", "x".repeat(9_000));
-    let value = state(
-        &[criterion("It loads", false)],
-        &Evidence {
-            trajectory: &long,
-            turn_end: "Done.",
-        },
-    );
-    let trajectory = value["evidence"]["trajectory"].as_str().unwrap_or_default();
-    assert!(trajectory.ends_with("LAST CALL"));
-    assert_eq!(value["criteria"][key(0)], "It loads");
-    assert_eq!(questions(1).len(), 1);
-}
-
-#[test]
-fn compose_fires_when_a_stated_criterion_is_not_shown_done() {
+fn compose_fires_when_a_stated_criterion_is_missing_above_the_threshold() {
     let criteria = [criterion("A", false), criterion("B", false)];
-    let Some(list) = compose(&answered(&[0.9, 0.1]), &criteria) else {
+    let Some(list) = compose(&answered(&[(DONE, 0.9), (MISSING, 0.8)]), &criteria) else {
         panic!("answered questions must compose");
     };
     assert!(list.fires());
-    assert_eq!(list.open_stated().len(), 1);
-    assert!((list.confidence() - 0.9).abs() < 1e-9);
+    assert_eq!(list.flagged().len(), 1);
+    assert!((list.confidence() - 0.8).abs() < 1e-9);
     let verdict = list.verdict();
     assert!(verdict.fires);
     assert_eq!(verdict.need, Need::High);
+    assert_eq!(verdict.checklist[0].status, "done");
     assert_eq!(verdict.checklist[1].status, "not_done");
     assert!(verdict.nudge.contains("\"B\""));
 }
 
 #[test]
+fn compose_missing_below_the_threshold_does_not_fire() {
+    let criteria = [criterion("A", false)];
+    let Some(list) = compose(&answered(&[(MISSING, 0.55)]), &criteria) else {
+        panic!("answered questions must compose");
+    };
+    assert!(!list.fires());
+}
+
+#[test]
+fn compose_open_stated_never_fires() {
+    let criteria = [criterion("A", false), criterion("B", false)];
+    let Some(list) = compose(&answered(&[(OPEN_STATED, 0.99), (DONE, 0.7)]), &criteria) else {
+        panic!("answered questions must compose");
+    };
+    assert!(!list.fires());
+    assert_eq!(list.open_stated().len(), 1);
+    let verdict = list.verdict();
+    assert!(verdict.nudge.is_empty());
+    assert_eq!(verdict.checklist[0].status, "partial");
+    assert!(verdict.reason.contains("1 stated as still open"));
+}
+
+#[test]
+fn compose_fires_on_a_broken_rule_with_the_rule_nudge() {
+    let criteria = [
+        criterion("Done.", false),
+        criterion("No secrets are logged.", false),
+    ];
+    let Some(list) = compose(&answered(&[(DONE, 0.9), (BROKEN, 0.75)]), &criteria) else {
+        panic!("answered questions must compose");
+    };
+    assert!(list.fires());
+    assert_eq!(list.items[1].status, Status::Broken);
+    assert!(
+        list.verdict()
+            .nudge
+            .contains("rule \"No secrets are logged.\"")
+    );
+    let Some(kept) = compose(
+        &answered(&[(DONE, 0.9), (NOT_SHOWN_BROKEN, 0.9)]),
+        &criteria,
+    ) else {
+        panic!("answered questions must compose");
+    };
+    assert!(!kept.fires());
+}
+
+#[test]
 fn compose_does_not_fire_on_an_inferred_criterion_alone() {
     let criteria = [criterion("A", false), criterion("B", true)];
-    let Some(list) = compose(&answered(&[0.95, 0.05]), &criteria) else {
+    let Some(list) = compose(&answered(&[(DONE, 0.95), (MISSING, 0.95)]), &criteria) else {
         panic!("answered questions must compose");
     };
     assert!(!list.fires());
@@ -171,7 +145,7 @@ fn compose_does_not_fire_on_an_inferred_criterion_alone() {
 #[test]
 fn merged_keeps_the_writers_nudge_and_the_checklists_decision() {
     let criteria = [criterion("A", false)];
-    let Some(list) = compose(&answered(&[0.1]), &criteria) else {
+    let Some(list) = compose(&answered(&[(MISSING, 0.9)]), &criteria) else {
         panic!("answered questions must compose");
     };
     let merged = list.merged(&writer(false, "Where is A?"));
@@ -182,8 +156,9 @@ fn merged_keeps_the_writers_nudge_and_the_checklists_decision() {
 }
 
 #[test]
-fn compose_failed_or_incomplete_call_gives_the_off_path_result() {
+fn compose_failed_incomplete_or_mismatched_call_gives_the_off_path_result() {
     let criteria = [criterion("A", false), criterion("B", false)];
     assert!(compose(&Asked::failed_with("timeout"), &criteria).is_none());
-    assert!(compose(&answered(&[0.9]), &criteria).is_none());
+    assert!(compose(&answered(&[(DONE, 0.9)]), &criteria).is_none());
+    assert!(compose(&answered(&[(DONE, 0.9), (BROKEN, 0.9)]), &criteria).is_none());
 }

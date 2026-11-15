@@ -110,3 +110,42 @@ fn questions_and_state_carry_the_pair_facts() {
     assert_eq!(value["newer_lesson_id"], 20);
     assert_eq!(value["lesson_a"]["polarity_markers"][0], "FIXED");
 }
+
+#[test]
+fn pairs_beyond_the_distance_ceiling_are_dropped_before_asking() {
+    let mut p = pair("old text", "new text");
+    p.distance = 0.41;
+    assert!(too_far(&p, None));
+    p.distance = 0.4;
+    assert!(!too_far(&p, None));
+    p.distance = 0.12;
+    assert!(!too_far(&p, None));
+}
+
+#[test]
+fn a_far_pair_that_names_the_other_lesson_by_id_is_still_asked() {
+    let mut p = pair("old text", "see lesson #10 for the earlier rule");
+    p.distance = 0.55;
+    let cite = cite_of(&p);
+    assert!(cite.is_some());
+    assert!(!too_far(&p, cite.as_ref()));
+}
+
+#[test]
+fn recurs_means_no_new_condition_command_path_or_value() {
+    let p = pair("old text", "new text");
+    let asked = questions(&p, None);
+    let Some(Question::Choice { criteria, .. }) = asked.get(RELATION_KEY) else {
+        panic!("expected a choice question");
+    };
+    let recurs = criteria
+        .get(KIND_RECURS)
+        .map(String::as_str)
+        .unwrap_or_default();
+    assert!(recurs.contains("adds no new condition, command, path or value"));
+    let refines = criteria
+        .get(KIND_REFINES)
+        .map(String::as_str)
+        .unwrap_or_default();
+    assert!(refines.contains("adds a new condition, command, path or value"));
+}

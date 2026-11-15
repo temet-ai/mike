@@ -1,3 +1,4 @@
+use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -8,7 +9,9 @@ use crate::llm::decisions::Answer;
 use crate::llm::decisions::record::DecisionMode;
 use crate::settings::SettingsOverlay;
 use crate::store::persistence::test_support::{acquire_ephemeral_db, seed_project};
-use crate::store::persistence::work_threads::{CheckpointInput, MetaUpdate, StateFields};
+use crate::store::persistence::work_threads::{
+    CheckpointInput, HistoryEntry, MetaUpdate, StateFields, ThreadIdentity,
+};
 
 fn answered(finished: f64, parked: f64) -> Asked {
     let noul = |p: f64| Answer::Noul {
@@ -60,6 +63,10 @@ fn decider(server: &MockServer, persist: &PersistHandle) -> anyhow::Result<Decid
 }
 
 async fn checkpointed(persist: &PersistHandle) -> anyhow::Result<i64> {
+    checkpointed_with(persist, "").await
+}
+
+async fn checkpointed_with(persist: &PersistHandle, next_up: &str) -> anyhow::Result<i64> {
     let project = seed_project(persist.pool(), "/src/threads").await?;
     let files: Vec<String> = Vec::new();
     persist
@@ -71,7 +78,7 @@ async fn checkpointed(persist: &PersistHandle) -> anyhow::Result<i64> {
                 tldr: "All motion tokens shipped and verified.",
                 state: StateFields {
                     where_we_are: "Everything shipped and verified on all machines.",
-                    next_up: "",
+                    next_up,
                     blockers: "",
                     open_questions: "",
                     decisions: "",
@@ -103,6 +110,98 @@ async fn findings(persist: &PersistHandle, project: i64) -> anyhow::Result<usize
         .iter()
         .filter(|e| e.kind == "finding")
         .count())
+}
+
+fn detail_at(next_up: &str, entry_body: Option<&str>, updated_at: DateTime<Utc>) -> ThreadDetail {
+    ThreadDetail {
+        thread: ThreadIdentity {
+            id: 1,
+            slug: "frontend-motion".to_owned(),
+            title: None,
+            goal: None,
+            status: Some("active".to_owned()),
+            branch: None,
+            worktree: None,
+            last_session_uuid: None,
+            source_path: None,
+            parse_error: None,
+            created_at: updated_at,
+            updated_at,
+        },
+        state: Some(ThreadState {
+            tldr: "Shipped.".to_owned(),
+            where_we_are: "Shipped.".to_owned(),
+            next_up: next_up.to_owned(),
+            blockers: String::new(),
+            open_questions: String::new(),
+            decisions: String::new(),
+            files: Vec::new(),
+            updated_at,
+        }),
+        acceptance_criteria: None,
+        depends_on: Vec::new(),
+        depended_on_by: Vec::new(),
+        history: entry_body
+            .map(|body| HistoryEntry {
+                ord: 1,
+                kind: "note".to_owned(),
+                entry_date: updated_at.date_naive(),
+                session_uuid: None,
+                commit_sha: None,
+                summary: String::new(),
+                body: body.to_owned(),
+                data: None,
+                created_at: updated_at,
+            })
+            .into_iter()
+            .collect(),
+        history_total: 0,
+        history_next_before_ord: None,
+        sessions: Vec::new(),
+    }
+}
+
+#[test]
+fn a_thread_waiting_on_a_requested_deploy_is_held_back_for_two_days() {
+    let now = Utc::now();
+    let waiting = detail_at(
+        "Waiting on the deploy I requested.",
+        None,
+        now - Duration::hours(5),
+    );
+    assert!(waits_on_outside_step(&waiting, now));
+    let in_the_entry = detail_at(
+        "",
+        Some("Review requested, pending merge."),
+        now - Duration::hours(5),
+    );
+    assert!(waits_on_outside_step(&in_the_entry, now));
+    let stale = detail_at(
+        "Waiting on the deploy I requested.",
+        None,
+        now - Duration::hours(49),
+    );
+    assert!(!waits_on_outside_step(&stale, now));
+}
+
+#[test]
+fn a_finished_thread_that_only_mentions_a_deploy_is_not_held_back() {
+    let now = Utc::now();
+    let finished = detail_at(
+        "",
+        Some("Deployed to all machines and verified."),
+        now - Duration::hours(2),
+    );
+    assert!(!waits_on_outside_step(&finished, now));
+}
+
+#[test]
+fn state_carries_the_hours_since_the_last_checkpoint() -> anyhow::Result<()> {
+    let now = Utc::now();
+    let detail = detail_at("", None, now - Duration::hours(7));
+    let facts = state(&detail, now).ok_or_else(|| anyhow::anyhow!("no facts"))?;
+    assert_eq!(facts["hours_since_last_checkpoint"], 7);
+    Ok(())
 }
 
 #[test]
@@ -153,6 +252,21 @@ async fn run_on_a_finished_looking_thread_writes_a_finding_and_leaves_the_status
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     assert_eq!(detail.thread.status.as_deref(), Some("active"));
+    persist.pool().close().await;
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn run_on_a_thread_waiting_on_a_deploy_writes_no_finding() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let project = checkpointed_with(&persist, "Waiting on the deploy I requested.").await?;
+    let server = stub(200, reply(0.2, 0.95)).await;
+    let decider = decider(&server, &persist)?;
+    run(&decider, &persist, project, "frontend-motion").await;
+    assert_eq!(findings(&persist, project).await?, 0);
     persist.pool().close().await;
     db.cleanup().await
 }

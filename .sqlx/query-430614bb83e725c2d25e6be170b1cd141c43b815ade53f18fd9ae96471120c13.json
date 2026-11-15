@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH gold AS (\n    SELECT DISTINCT ON (l.subject_id, l.axis)\n           l.subject_id AS turn_id, l.axis, l.label\n      FROM eval.labels_as_of('infinity'::timestamptz) l\n     WHERE l.subject_kind = 'turn' AND l.tier = 'gold' AND l.source = 'spa'\n       AND l.axis IN ('reaction', 'delivery')\n     ORDER BY l.subject_id, l.axis, l.created_at DESC, l.id DESC\n), axes AS (\n    SELECT g.turn_id,\n           max(g.label) FILTER (WHERE g.axis = 'reaction') AS reaction,\n           max(g.label) FILTER (WHERE g.axis = 'delivery' AND g.label <> 'not_applicable') AS delivery\n      FROM gold g\n     GROUP BY g.turn_id\n), judged AS (\n    SELECT r.id AS record_id,\n           a.turn_id,\n           a.reaction AS gold_reaction,\n           a.delivery AS gold_delivery,\n           r.composed -> 'verdict' ->> 'reaction' AS jev_reaction,\n           r.composed -> 'verdict' ->> 'delivery' AS jev_delivery\n      FROM decisions.records r\n      JOIN axes a ON a.turn_id = r.operator_turn_id\n      LEFT JOIN decisions.outcomes done\n        ON done.record_id = r.id AND done.label_source = 'operator_gold_axes'\n     WHERE r.point = 'turn_judge'\n       AND r.mode IN ('on', 'shadow')\n       AND done.record_id IS NULL\n       AND (a.reaction IS NOT NULL OR a.delivery IS NOT NULL)\n       AND (a.reaction IS NULL OR r.composed -> 'verdict' ->> 'reaction' IS NOT NULL)\n       AND (a.delivery IS NULL OR r.composed -> 'verdict' ->> 'delivery' IS NOT NULL)\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT j.record_id,\n       CASE WHEN (j.gold_reaction IS NULL OR j.gold_reaction = j.jev_reaction)\n                 AND (j.gold_delivery IS NULL OR j.gold_delivery = j.jev_delivery)\n            THEN 'right' ELSE 'wrong' END,\n       'operator_gold_axes',\n       jsonb_build_object('operator_turn_id', j.turn_id,\n                          'gold_reaction', j.gold_reaction,\n                          'jev_reaction', j.jev_reaction,\n                          'gold_delivery', j.gold_delivery,\n                          'jev_delivery', j.jev_delivery)\n  FROM judged j\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "430614bb83e725c2d25e6be170b1cd141c43b815ade53f18fd9ae96471120c13"
+}

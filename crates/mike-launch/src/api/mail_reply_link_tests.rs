@@ -83,6 +83,21 @@ fn compose_the_older_message_is_linked_not_the_newest() {
 }
 
 #[test]
+fn compose_a_pick_below_the_minimum_probability_links_nothing() {
+    assert_eq!(
+        compose(&picked("m1", 0.39), &candidates()),
+        Linked::Nothing { probability: 0.39 }
+    );
+    assert_eq!(
+        compose(&picked("m2", MIN_LINK), &candidates()),
+        Linked::Message {
+            id: Uuid::from_u128(2),
+            probability: MIN_LINK
+        }
+    );
+}
+
+#[test]
 fn compose_none_links_nothing() {
     assert_eq!(
         compose(&picked("none", 0.8), &candidates()),

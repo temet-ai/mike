@@ -18,6 +18,7 @@ pub const POINT: &str = "mail_reply_link";
 pub const QUESTION_SET: &str = "mail_reply_link_v1";
 const WHICH: &str = "which";
 const NONE: &str = "none";
+pub const MIN_LINK: f64 = 0.5;
 const MAX_CANDIDATES: usize = 8;
 const BODY_CHARS: usize = 600;
 const REPLY_CHARS: usize = 1200;
@@ -109,7 +110,7 @@ pub fn compose(asked: &Asked, candidates: &[Candidate]) -> Linked {
     let Some((picked, probability)) = asked.choice(WHICH) else {
         return Linked::Unanswered;
     };
-    if picked == NONE {
+    if picked == NONE || probability < MIN_LINK {
         return Linked::Nothing { probability };
     }
     candidates

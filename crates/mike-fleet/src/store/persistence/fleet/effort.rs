@@ -28,6 +28,7 @@ pub struct Unlabelled {
     pub trigger: String,
     pub text: String,
     pub tools: String,
+    pub response: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,7 +163,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             )
             .fetch_all(&self.pool)
             .await?;
-            Ok(rows
+            let mut steps: Vec<Unlabelled> = rows
                 .into_iter()
                 .map(|r| Unlabelled {
                     request_id: r.request_id,
@@ -170,10 +171,44 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
                     trigger: r.trigger,
                     text: r.text,
                     tools: r.tools,
+                    response: String::new(),
                 })
-                .collect())
+                .collect();
+            let silent: Vec<i64> = steps
+                .iter()
+                .filter(|s| s.tools.is_empty())
+                .map(|s| s.request_id)
+                .collect();
+            let mut replies = self.step_replies(&silent).await?;
+            for step in &mut steps {
+                if let Some(reply) = replies.remove(&step.request_id) {
+                    step.response = reply;
+                }
+            }
+            Ok(steps)
         })
         .await
+    }
+
+    async fn step_replies(
+        &self,
+        request_ids: &[i64],
+    ) -> Result<std::collections::HashMap<i64, String>, PersistError> {
+        if request_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"SELECT b.request_id AS "request_id!",
+                      left(string_agg(b.content, '' ORDER BY b.seq_ord), 600) AS "reply!"
+                 FROM responses.stream_blocks b
+                 JOIN responses.stream_block_types bt ON bt.id = b.block_type_id
+                WHERE b.request_id = ANY($1) AND bt.code = 'text'
+                GROUP BY b.request_id"#,
+            request_ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| (r.request_id, r.reply)).collect())
     }
 
     pub async fn label_request_efforts(self, labelled: &[Labelled]) -> Result<u64, PersistError> {

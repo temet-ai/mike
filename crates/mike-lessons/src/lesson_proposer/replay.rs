@@ -150,6 +150,7 @@ async fn is_prod_message(deps: &ProposerDeps<'_>, saved: &SavedProposal) -> bool
     let answer = crate::steerer::prod_point::detect(
         decider.as_ref(),
         message,
+        candidate.final_assistant_text.as_deref(),
         DecisionSubject {
             session_id: Some(candidate.session_id),
             operator_turn_id: Some(candidate.operator_turn_id),

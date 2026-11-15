@@ -1,3 +1,4 @@
+pub mod asks;
 pub mod questions;
 
 #[cfg(test)]
@@ -9,11 +10,10 @@ pub use questions::{POINT, QUESTION_SET, key};
 
 use crate::llm::decisions::point::{Asked, Decider};
 use crate::llm::decisions::record::DecisionSubject;
-use crate::llm::decisions::text::{head_chars, tail_chars};
+use crate::llm::decisions::text::head_chars;
 use mike_launch::store::persistence::work_threads::criteria::ThreadCriteria;
 
 pub const ACCEPT_AT: f64 = 0.8;
-const ASKS_CHARS: usize = 6_000;
 const CRITERIA_CHARS: usize = 900;
 const TITLE_CHARS: usize = 160;
 
@@ -33,7 +33,7 @@ pub fn state(threads: &[ThreadCriteria], asks: &str) -> Value {
         })
         .collect();
     json!({
-        "operator_asks": tail_chars(asks.trim(), ASKS_CHARS),
+        "operator_asks": asks::fit(asks),
         "threads": by_key,
     })
 }
