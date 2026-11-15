@@ -101,6 +101,10 @@ async fn move_to_key(seeded: &Seeded, key: &str) -> anyhow::Result<()> {
         .bind(key)
         .execute(seeded.handle.pool())
         .await?;
+    sqlx::query("UPDATE memory.knowledge_items SET model_key = $1 WHERE model_key IS NOT NULL")
+        .bind(key)
+        .execute(seeded.handle.pool())
+        .await?;
     Ok(())
 }
 

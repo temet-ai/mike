@@ -8,9 +8,9 @@ pub mod memos;
 #[cfg(test)]
 pub mod memos_tests;
 pub mod model_keys;
-pub use embeddings::{
-    KNOWLEDGE_COUNT_CAP, KnowledgeEmbeddingSource, KnowledgeStateCounts, PENDING_BATCH,
-};
+pub use embeddings::{KNOWLEDGE_COUNT_CAP, KnowledgeStateCounts, PENDING_BATCH};
+pub mod items;
+pub use items::{KnowledgeEmbeddingSource, PendingKnowledge};
 pub use model_keys::{ModelKeys, QueryEmbedding};
 pub mod health;
 pub mod lesson_sync;

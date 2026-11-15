@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.knowledge_items i\n              USING unnest($1::bigint[], $2::timestamptz[]) AS g(id, changed_at)\n              WHERE i.id = g.id AND i.changed_at <= g.changed_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "424345b679484653e70f3a6cf0987d88f218b9afc7e5a7d56a1c9400de3c780d"
+}

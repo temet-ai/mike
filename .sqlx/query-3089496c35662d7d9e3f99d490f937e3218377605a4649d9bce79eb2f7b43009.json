@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"total!\",\n       count(*) FILTER (WHERE NOT i.needs_embedding AND e.model_key = ANY($2::text[])) AS \"ready!\",\n       count(*) FILTER (WHERE i.last_error IS NOT NULL) AS \"failed!\",\n       count(*) FILTER (WHERE NOT i.needs_embedding AND e.model_key = $3) AS \"current_version!\"\n  FROM memory.knowledge_items i\n  LEFT JOIN memory.knowledge_embedding_state e ON e.item_id = i.id\n WHERE i.project_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "ready!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "failed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "current_version!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "3089496c35662d7d9e3f99d490f937e3218377605a4649d9bce79eb2f7b43009"
+}

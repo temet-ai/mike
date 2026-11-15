@@ -50,8 +50,12 @@ async fn seed_state(
     rows: i32,
 ) -> anyhow::Result<()> {
     sqlx::query(
-        "INSERT INTO memory.knowledge_embedding_state(source_kind, source_id, model_key, completed_at)
-         SELECT 'artifact', $1 + g, $2, now() - interval '1 day' FROM generate_series(1, $3) g",
+        "WITH items AS (
+             INSERT INTO memory.knowledge_items (kind, source_id, needs_embedding, model_key)
+             SELECT 'artifact', $1 + g, false, $2 FROM generate_series(1, $3) g
+             RETURNING id, source_id)
+         INSERT INTO memory.knowledge_embedding_state(item_id, source_kind, source_id, model_key, completed_at)
+         SELECT id, 'artifact', source_id, $2, now() - interval '1 day' FROM items",
     )
     .bind(first_id)
     .bind(key)
@@ -129,6 +133,13 @@ async fn rekey_moves_every_url_keyed_row_to_the_host_independent_key() -> anyhow
     .fetch_one(handle.pool())
     .await?;
     assert_eq!(kept, 1);
+    assert_eq!(
+        handle
+            .knowledge()
+            .mark_knowledge_items_for_model(&target)
+            .await?,
+        2
+    );
     db.cleanup().await?;
     Ok(())
 }

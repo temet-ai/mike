@@ -2604,7 +2604,7 @@ Added in `20260920000008_project_knowledge.sql`. Immutable full source text and 
 version of a `memory.knowledge_documents` row; search results refer to these revisions, and generated OKF
 bundles are not original sources. Appended by `ingest.sql` (see `memory.knowledge_documents`). The `artifact`
 rows of `memory.knowledge_embedding_sources_v` are keyed by revision id, so a new revision is a new
-embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, `pending_embeddings.sql` and
+embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, the view `memory.knowledge_body_artifact_v` and
 `machine_merge.rs`.
 
 | Column | Type | Purpose |
@@ -2628,39 +2628,95 @@ embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, `pending_emb
 
 ---
 
-### `memory.knowledge_embedding_state`
+### `memory.knowledge_kinds`
 
-Created in `20260920000010_knowledge_embeddings.sql` keyed by a text `reference` and a content hash;
-reshaped by `20261102210000_knowledge_embedding_typed_sources.sql` to be keyed by `(source_kind, source_id)`
-and to detect change from a version the source keeps instead of hashing every source on every read:
-`artifact` by the revision id itself, `note` by `workspace.session_notes.updated_at`, `thread` by the
-thread's newest `mailbox.messages` id, `lesson` by `memory.lessons.text_md5`. One row per source the
-project-knowledge embedding sweep (`crates/mike-knowledge/src/embed_worker/knowledge.rs`, lease role
-`knowledge_embedding`) has attempted. `pending_embeddings.sql` picks sources from
-`memory.knowledge_embedding_sources_v` that have no row, a different `model_key`, a drifted version, or a
-due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` error);
-`save_knowledge_embeddings` (`store/persistence/project_knowledge/embeddings.rs`) writes the row and its
-`memory.knowledge_embedding_chunks`. The knowledge health reads (`embedding_health_all.sql`,
-`embedding_health_project.sql`) count ready and failed rows per model, capped at `KNOWLEDGE_COUNT_CAP`;
-`search.sql` and `guidance.sql` join it for semantic search.
+Added in `20261115050000_knowledge_items.sql`. One row per kind of project knowledge that is embedded; adding
+a row and its watches makes a new kind part of the system without a code change.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key (since `20261102210000`) |
-| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail', 'session')` (session memory kinds since `20261109160000`, `session` since `20261110130000`) |
-| `source_id` | `BIGINT NOT NULL` | By kind: `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id`, `mailbox.threads.id`, `work.thread_log.id`, `workspace.questions.id`, `memory.turn_verdicts.id` (unmet_ask, correction), `sessions.sessions.id` (learning, session) or `mailbox.messages.id`; no FK |
-| `model_key` | `TEXT NOT NULL` | The embedder the vectors came from; a different key re-embeds the source |
-| `completed_at` | `TIMESTAMPTZ NULL` | NULL until the source has vectors |
-| `attempts` | `INTEGER NOT NULL DEFAULT 0` | |
-| `next_attempt_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
-| `last_error` | `TEXT NULL` | `[transient]`-prefixed errors retry past the attempt cap |
-| `source_updated_at` | `TIMESTAMPTZ NULL` | The note's `updated_at` the vectors match; `note` only |
-| `source_seq` | `BIGINT NULL` | The thread's newest message id the vectors match; `thread` only |
-| `source_hash` | `TEXT NULL` | The lesson's `text_md5` the vectors match; `lesson` only |
+| `kind` | `TEXT PRIMARY KEY` | `^[a-z][a-z0-9_]{0,39}$` |
+| `body_view` | `TEXT NOT NULL` | A view returning `source_id, project_id, reference, label, name, body`; `memory.knowledge_item_bodies(kind, ids)` reads it by id |
+| `settle_secs` | `INTEGER NOT NULL DEFAULT 0` | Delay after each change before the item is embedded (600 for `thread`) |
+| `enabled` | `BOOLEAN NOT NULL DEFAULT true` | A disabled kind's watches do nothing and the sweep skips its items |
+| `built_in` | `BOOLEAN NOT NULL DEFAULT false` | The eleven kinds the migration defines |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
-**Constraints:**
-- `knowledge_embedding_state_source_kind_check`: the eleven kinds above
-- `knowledge_embedding_state_version_shape_check`: `(source_kind IN ('note', 'question_answer', 'learning', 'session') OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`. Thread entries, verdicts and mail are immutable, so their id is their version; answered questions use `settled_at`, learnings and session overviews `generated_at` (`overview_generated_at` for an overview; an overview an operator wrote by hand has none, so it is embedded once and not again when edited).
+The built-in body views are `memory.knowledge_body_<kind>_v`.
+
+---
+
+### `memory.knowledge_kind_watches`
+
+Added in `20261115050000`. A table whose writes change items of a kind. `memory.attach_knowledge_watch(id)`
+validates the names and creates the row trigger `trg_knowledge_item_<id>` running
+`memory.track_knowledge_item()`; `memory.detach_knowledge_watch(id)` drops it.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key; names the trigger |
+| `kind` | `TEXT NOT NULL` | FK → `memory.knowledge_kinds(kind)` ON DELETE CASCADE |
+| `watched_table` | `TEXT NOT NULL` | Schema-qualified table |
+| `key_column` | `TEXT NOT NULL` | Column holding the item's `source_id`, or the value matched through `via_*` |
+| `update_columns` | `TEXT[] NOT NULL DEFAULT '{}'` | Columns whose update marks the item; empty means inserts and deletes only |
+| `via_table`, `via_match_column`, `via_key_column` | `TEXT NULL` | All or none: `key_column` is matched against `via_table.via_match_column`, whose `via_key_column` is the `source_id` (a verdict's turn to its live verdicts, a learning's session uuid to the session id) |
+
+UNIQUE `(kind, watched_table, key_column)`.
+
+---
+
+### `memory.knowledge_items`
+
+Added in `20261115050000`. One row per embeddable source, kept by the watch triggers: an insert or a watched
+update of a source that the kind's view still lists upserts the item with `needs_embedding` and
+`ready_at = now() + settle_secs`; a source the view no longer lists loses its item, and its embedding with
+it. The sweep (`pending_embeddings.sql`) reads only waiting, due items through `idx_knowledge_items_waiting`,
+reads their text from the kind's view by id, and `save_knowledge_embeddings`
+(`store/persistence/project_knowledge/items.rs`) clears `needs_embedding` unless the item changed again
+while it was embedded. `memory.reconcile_knowledge_items(kind)` adds items a trigger missed; the sweep's
+leader runs it when it takes the lease and then daily.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `kind` | `TEXT NOT NULL` | FK → `memory.knowledge_kinds(kind)` ON DELETE CASCADE |
+| `source_id` | `BIGINT NOT NULL` | The source row's id in the kind's view; UNIQUE with `kind` |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE SET NULL; from the view |
+| `needs_embedding` | `BOOLEAN NOT NULL DEFAULT true` | |
+| `ready_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Not embedded before this time: settle time, or the retry backoff after a failure |
+| `attempts` | `INTEGER NOT NULL DEFAULT 0` | Failed attempts since the last change; past 10 a `[permanent]` error stops retrying |
+| `last_error` | `TEXT NULL` | |
+| `model_key` | `TEXT NULL` | The embedder last tried; when the configured key differs, the sweep marks the item once |
+| `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()` | Last change; a save or failure older than this leaves the item waiting |
+
+**Indexes:**
+- `idx_knowledge_items_waiting`: `(ready_at, id) WHERE needs_embedding` — the sweep's only read
+- `idx_knowledge_items_failed`: `kind WHERE last_error IS NOT NULL`
+- `idx_knowledge_items_project`: `project_id` — the per-project health count
+
+---
+
+### `memory.knowledge_embedding_state`
+
+Created in `20260920000010_knowledge_embeddings.sql`; keyed by `(source_kind, source_id)` since
+`20261102210000_knowledge_embedding_typed_sources.sql`; linked to `memory.knowledge_items` by `item_id` since
+`20261115050000`, which also moved retry bookkeeping to the item and dropped the kind CHECK (the kind is now
+an FK to `memory.knowledge_kinds`). One row per item that has vectors, written with its
+`memory.knowledge_embedding_chunks` by `save_knowledge_embeddings`. Deleting a row puts its item back to
+waiting (`trg_knowledge_embedding_state_requeue`). `search.sql`, `guidance.sql` and `rerank_passages.sql`
+join it for semantic search; the health reads (`embedding_health_all.sql`, `embedding_health_project.sql`)
+count items and their embeddings per model.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `item_id` | `BIGINT NOT NULL` | FK → `memory.knowledge_items(id)` ON DELETE CASCADE; UNIQUE |
+| `source_kind` | `TEXT NOT NULL` | FK → `memory.knowledge_kinds(kind)` ON DELETE CASCADE |
+| `source_id` | `BIGINT NOT NULL` | The item's `source_id` |
+| `model_key` | `TEXT NOT NULL` | The embedder the vectors came from |
+| `completed_at` | `TIMESTAMPTZ NULL` | When the vectors were written |
+| `reference`, `project_id` | `TEXT`, `BIGINT` | Filled from the kind's view by `trg_knowledge_embedding_state_scope` |
+| `attempts`, `next_attempt_at`, `last_error`, `source_updated_at`, `source_seq`, `source_hash` | | Kept from before `20261115050000`; no longer written |
 
 **Indexes:**
 - `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)

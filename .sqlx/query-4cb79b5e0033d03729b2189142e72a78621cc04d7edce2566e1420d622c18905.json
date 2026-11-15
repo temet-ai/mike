@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_items\n                SET attempts = attempts + 1, last_error = $3, project_id = $4, model_key = $5,\n                    ready_at = now() + LEAST(3600, 30 * power(2, LEAST(attempts, 7))) * interval '1 second',\n                    needs_embedding = attempts + 1 < 10 OR $3 LIKE '[transient]%'\n              WHERE id = $1 AND changed_at <= $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4cb79b5e0033d03729b2189142e72a78621cc04d7edce2566e1420d622c18905"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_items\n                SET needs_embedding = changed_at > $2, project_id = $3, attempts = 0, last_error = NULL\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eb344e0c2452cc6d0123d7525d41caac22f73c5481789b7ac201db37cf99cff6"
+}
