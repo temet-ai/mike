@@ -1,0 +1,1 @@
+SELECT l.id FROM launch.launches l JOIN sessions.sessions s ON l.session_uuid = s.session_uuid WHERE l.closed_at IS NULL AND EXISTS (SELECT 1 FROM workspace.session_registrations r WHERE r.session_id = s.id AND r.reaped_at IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM workspace.session_registrations r WHERE r.session_id = s.id AND r.released_at IS NULL);

@@ -1,7 +1,10 @@
 use crate::test_db::TestDb;
 use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
+use mike::mailbox_reaper::close_reaped_launches;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::launch::NewLaunch;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::workspace::RegisterWorkspaceSession;
 use mike::workspace::Liveness;
 use mike::workspace::boot_id::CURRENT_BOOT_ID;
@@ -244,6 +247,59 @@ async fn sweep_reaps_only_dead_current_boot_pids() -> anyhow::Result<()> {
             .await?,
         Some(Liveness::Live),
         "A5: a reaped row returns to live on re-register"
+    );
+
+    db.cleanup().await?;
+    Ok(())
+}
+
+async fn open_launch(handle: &PersistHandle, session: uuid::Uuid) -> anyhow::Result<i64> {
+    let mut new = NewLaunch::new("herdr", "/tmp/reaper-launch-test");
+    new.session_uuid = Some(session);
+    Ok(handle.launch().insert_launch(&new).await?)
+}
+
+async fn launch_close(
+    handle: &PersistHandle,
+    launch_id: i64,
+) -> anyhow::Result<(Option<String>, Option<bool>)> {
+    Ok(sqlx::query_as(
+        "SELECT close_reason, close_process_exited FROM launch.launches WHERE id = $1",
+    )
+    .bind(launch_id)
+    .fetch_one(handle.pool())
+    .await?)
+}
+
+#[tokio::test]
+async fn reaped_session_launch_is_closed_and_live_session_launch_stays_open() -> anyhow::Result<()>
+{
+    let Some(factory) = TestDb::bootstrap().await? else {
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let Some(boot_id) = CURRENT_BOOT_ID.clone() else {
+        db.cleanup().await?;
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let project_path = format!("/tmp/reaper-launch-test-{}", uuid::Uuid::new_v4());
+    let scenario = seed_reaper_scenario(&handle, &project_path).await?;
+    let dead_launch = open_launch(&handle, scenario.dead_session).await?;
+    let live_launch = open_launch(&handle, scenario.live_session).await?;
+
+    sweep_once(&handle, &boot_id).await;
+    close_reaped_launches(&handle).await;
+
+    assert_eq!(
+        launch_close(&handle, dead_launch).await?,
+        (Some("process reaped".to_owned()), Some(true)),
+        "a reaped session's open launch is closed as process reaped"
+    );
+    assert_eq!(
+        launch_close(&handle, live_launch).await?,
+        (None, None),
+        "a live session's launch stays open"
     );
 
     db.cleanup().await?;
