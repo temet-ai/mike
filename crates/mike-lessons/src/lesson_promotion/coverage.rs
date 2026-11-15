@@ -46,9 +46,11 @@ pub(super) fn split_units(text: &str) -> Vec<String> {
         if trimmed.starts_with("```") {
             flush(&mut units, &mut current);
             fenced = !fenced;
-        } else if fenced || trimmed.starts_with('#') || trimmed.starts_with("<!--") {
-            flush(&mut units, &mut current);
-        } else if trimmed.is_empty() {
+        } else if fenced
+            || trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("<!--")
+        {
             flush(&mut units, &mut current);
         } else if let Some(item) = list_item(trimmed) {
             flush(&mut units, &mut current);
