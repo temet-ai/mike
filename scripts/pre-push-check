@@ -71,10 +71,14 @@ fi
 
 if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rust-toolchain(\.toml)?$' <<<"$changed"; then
   # GitHub Actions has no minutes, so this hook is the only lint and test a Rust push gets:
-  # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit or the Mac.
+  # a fresh checkout builds here too. On the Pi (aarch64 Linux, which also serves the house)
+  # the build and tests run on two processors, and the test database is started for this
+  # push and stopped again when the hook started it.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
-    echo "pre-push: Rust changes are linted and tested by this hook; push them from omit or the Mac, not this Pi" >&2
-    exit 1
+    export MIKE_BUILD_JOBS="${MIKE_BUILD_JOBS:-2}" NEXTEST_TEST_THREADS="${NEXTEST_TEST_THREADS:-2}"
+    if command -v docker >/dev/null 2>&1 && [ "$(docker inspect -f '{{.State.Running}}' mike-test-pg 2>/dev/null)" = false ]; then
+      "$root/scripts/test-db/up.sh" >/dev/null && trap 'docker stop mike-test-pg >/dev/null 2>&1' EXIT
+    fi
   fi
   [ -d "$root/target" ] || echo "pre-push: no target/ in this checkout; building it to lint and test this push"
   "$root/scripts/cx" fmt --check >/dev/null 2>&1 || {

@@ -112,10 +112,9 @@ own verdict. Once a background gate has exited, read that verdict with
 `scripts/task-wait <output> --grade-only`.
 
 **Which machine builds.** Build, test and push on the machine that holds your
-checkout: omit or the Mac. infra (aarch64) never builds Rust or pushes a Rust change
-(the pre-push hook refuses there); an infra session does that work in its own
-worktree on omit over `ssh`, which is the only reason to `ssh` for a build, and
-infra runs the aarch64 binary omit builds. Heavy builds on a machine queue one at a
+checkout: omit, the Mac or infra. On infra (aarch64) the pre-push hook builds and
+tests on two processors and starts the test database for the push, so Wright's repair
+there lands its own fixes; infra runs the aarch64 binary omit builds. Heavy builds on a machine queue one at a
 time on the build lock that scripts/cx and deploy-proxy.sh take; never wrap a command
 in any other flock or shared lock. Deploy omit, the Mac and infra once a batch of PRs
 has merged, not after each PR.
