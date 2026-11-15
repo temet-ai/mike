@@ -312,15 +312,19 @@ fn toggle_meta_covers_all_keys() {
 }
 
 #[test]
-fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
+fn toggle_workers_apply_immediately_in_both_directions() {
     for key in [
         "judge_worker",
         "session_judge",
+        "session_end_shadow",
         "steerer",
+        "turn_guard",
         "lesson_worker",
         "channel_link_sweep",
+        "retention_sweep",
         "memory_keeper",
         "seat_memory_index",
+        "db_resync",
     ] {
         let meta = TOGGLE_META
             .iter()
@@ -328,10 +332,28 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
             .unwrap_or_else(|| panic!("{key} missing from TOGGLE_META"));
         assert_eq!(
             meta.applies,
-            ToggleApplies::LiveDisable,
-            "{key} must report LiveDisable now that its loop re-reads the toggle"
+            ToggleApplies::Immediate,
+            "{key} must apply immediately: its worker always runs and waits while off"
         );
     }
+}
+
+#[test]
+fn toggle_meta_no_toggle_needs_a_restart() {
+    let restart: Vec<_> = TOGGLE_META
+        .iter()
+        .filter(|m| {
+            matches!(
+                m.applies,
+                ToggleApplies::OnRestart | ToggleApplies::LiveDisable
+            )
+        })
+        .map(|m| m.key)
+        .collect();
+    assert!(
+        restart.is_empty(),
+        "toggles still needing a restart: {restart:?}"
+    );
 }
 
 #[test]
