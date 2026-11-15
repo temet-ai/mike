@@ -116,6 +116,17 @@ pub async fn seed_composer(
     ))
 }
 
+pub async fn apply_composition_enabled(
+    composer: &ComposerService,
+    persist: Option<&PersistHandle>,
+    enabled: bool,
+) {
+    let was_enabled = composer.set_enabled(enabled);
+    if enabled && !was_enabled {
+        seed_composer_when_enabled(persist, &composer.cache(), &composer.volatile_cache()).await;
+    }
+}
+
 async fn seed_composer_when_enabled(
     persist: Option<&PersistHandle>,
     composer_cache: &CompositionCache,

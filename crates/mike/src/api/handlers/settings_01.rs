@@ -120,7 +120,7 @@ pub(crate) async fn list_settings(
         db_name.unwrap_or_else(|| "MIKE_STEERER_OPENROUTER_API_KEY".to_owned())
     };
     let steerer_openrouter_configured_via_env =
-        crate::config::reload_openrouter_key(state.config(), &env_var_name)
+        crate::config::reload_openrouter_key(&state.config(), &env_var_name)
             .is_ok_and(|key| key.is_some());
 
     let value_of = |key: &str| {
@@ -392,7 +392,7 @@ pub(crate) async fn verify_steerer_openrouter_key(
     let env_var_name = resolve_openrouter_env_var_name(&state).await;
 
     use secrecy::ExposeSecret;
-    let key_value = crate::config::reload_openrouter_key(state.config(), &env_var_name)
+    let key_value = crate::config::reload_openrouter_key(&state.config(), &env_var_name)
         .unwrap_or_else(|_| {
             tracing::warn!("cannot reload credentials from selected configuration");
             None

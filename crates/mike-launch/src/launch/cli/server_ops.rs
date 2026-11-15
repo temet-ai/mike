@@ -13,7 +13,7 @@ pub async fn resolve_backend(
     explicit: Option<BackendId>,
     caller: &CallerTerminal,
 ) -> Result<(BackendChoice, Box<dyn TerminalBackend>), LaunchError> {
-    backend_choice::resolve(&state.config.launch, explicit, caller).await
+    backend_choice::resolve(&state.config().launch, explicit, caller).await
 }
 
 pub async fn configured_backend(
@@ -26,6 +26,7 @@ pub async fn configured_backend(
 pub async fn build_runner<'a>(
     state: &'a BaseState,
     backend: &'a dyn TerminalBackend,
+    launch: &'a crate::config::LaunchConfig,
 ) -> Result<Runner<'a>, LaunchError> {
     let cwd = std::env::current_dir().ok();
     Ok(Runner {
@@ -33,11 +34,11 @@ pub async fn build_runner<'a>(
         ledger: Ledger::new(state.persist().cloned())
             .with_mail_briefs(state.feature_toggle_overlay.load().launch_brief)
             .with_queue(super::queue::LocalQueue::default_dir()),
-        config: &state.config.launch,
-        proxy: resolve_proxy_env(&state.config.launch, cwd.as_deref()),
+        config: launch,
+        proxy: resolve_proxy_env(launch, cwd.as_deref()),
         trust: TrustGate::from_home()?,
         briefs_dir: brief::default_briefs_dir()?,
-        inspect_addr: Some(state.config.inspect_listen_addr.clone()),
+        inspect_addr: Some(state.config().inspect_listen_addr.clone()),
         mcp_server: super::mcp_preflight::find_server(),
         backend_reason: None,
     })
@@ -45,13 +46,15 @@ pub async fn build_runner<'a>(
 
 pub async fn kill_for_server(state: &BaseState, session: Uuid) -> Result<KillReport, LaunchError> {
     let backend = configured_backend(state).await?;
-    let runner = build_runner(state, backend.as_ref()).await?;
+    let config = state.config();
+    let runner = build_runner(state, backend.as_ref(), &config.launch).await?;
     kill::execute(&runner, session).await
 }
 
 pub async fn doctor_for_server(state: &BaseState) -> Result<DoctorReport, LaunchError> {
     let backend = configured_backend(state).await?;
-    let runner = build_runner(state, backend.as_ref()).await?;
-    let env = super::doctor_env(&state.config)?;
+    let config = state.config();
+    let runner = build_runner(state, backend.as_ref(), &config.launch).await?;
+    let env = super::doctor_env(&config)?;
     Ok(doctor::execute(&runner, &env).await)
 }

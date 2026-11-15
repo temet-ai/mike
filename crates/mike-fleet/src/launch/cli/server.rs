@@ -155,7 +155,8 @@ async fn open_server(
     watch: bool,
 ) -> Result<ServerOpenStart, LaunchError> {
     let (choice, backend) = resolve_backend(&state, req.backend, &req.caller).await?;
-    let mut runner = build_runner(&state, backend.as_ref()).await?;
+    let config = state.config();
+    let mut runner = build_runner(&state, backend.as_ref(), &config.launch).await?;
     runner.backend_reason = Some(choice.reason.clone());
     let mut follow = watch.then(|| Relaunch::from_request(&req));
     let prompt = stamped_prompt(
@@ -204,7 +205,8 @@ fn spawn_finish(
         };
         let session = started.session();
         let mut pane_never_opened = false;
-        match build_runner(&state, backend.as_ref()).await {
+        let config = state.config();
+        match build_runner(&state, backend.as_ref(), &config.launch).await {
             Ok(runner) => {
                 if let Err(failure) = open::finish(&runner, started).await {
                     pane_never_opened = never_opened(&failure);

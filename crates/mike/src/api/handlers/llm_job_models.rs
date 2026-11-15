@@ -26,7 +26,7 @@ fn job(job: &'static str, model: &str) -> JobModel {
 pub(crate) fn steerer_job_models(state: &AppState) -> Vec<JobModel> {
     let overlay = state.settings_overlay.load();
     let policy = &overlay.llm_provider;
-    let default = overlay.live_steerer_model(&state.config.steerer.model);
+    let default = overlay.live_steerer_model(&state.config().steerer.model);
     let registry = state.steerer_registry.load();
     let mut models = vec![job(
         STEERERS,
@@ -77,14 +77,14 @@ pub(crate) async fn enabled_job_models(
     if toggles.judge_worker {
         let runtime = resolve_turn_judge_runtime(
             &overlay,
-            &state.config.steerer.judge,
-            &state.config.steerer.model,
+            &state.config().steerer.judge,
+            &state.config().steerer.model,
         );
         models.push(job(TURN_JUDGE, &runtime.model));
     }
     if toggles.session_judge {
         let session_judge = state
-            .config
+            .config()
             .sections
             .get::<crate::features_settings::SessionJudgeConfig>();
         let runtime = resolve_session_judge_runtime(&overlay, &session_judge);
@@ -100,7 +100,7 @@ pub(crate) async fn enabled_job_models(
         ));
     }
     let relations = state
-        .config
+        .config()
         .sections
         .get::<crate::lessons_settings::LessonRelationsConfig>();
     if relations.enabled {
@@ -119,20 +119,20 @@ pub(crate) async fn enabled_job_models(
 pub(crate) fn configured_model_refs(state: &AppState) -> Vec<ModelRef> {
     let overlay = state.settings_overlay.load();
     let relations = state
-        .config
+        .config()
         .sections
         .get::<crate::lessons_settings::LessonRelationsConfig>();
     let mut stored: Vec<String> = vec![
-        overlay.live_steerer_model(&state.config.steerer.model),
+        overlay.live_steerer_model(&state.config().steerer.model),
         state
-            .config
+            .config()
             .sections
             .get::<crate::features_settings::SessionJudgeConfig>()
             .model,
         relations.proposer_model.clone(),
         relations.adjudicator_model.clone(),
     ];
-    stored.extend(state.config.steerer.judge.model.clone());
+    stored.extend(state.config().steerer.judge.model.clone());
     stored.extend(overlay.judge_worker_model.clone());
     stored.extend(overlay.session_judge_model.clone());
     stored.extend(

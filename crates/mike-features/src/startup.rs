@@ -18,7 +18,7 @@ fn should_record_build(config: &crate::config::ProxyConfig) -> bool {
 }
 
 pub async fn record_build_identity(state: &crate::state::AppState) {
-    if !should_record_build(state.config()) {
+    if !should_record_build(&state.config()) {
         log_smoke_run_skips_build();
         return;
     }
@@ -26,7 +26,7 @@ pub async fn record_build_identity(state: &crate::state::AppState) {
         return;
     };
     let build = crate::change_log::current_build();
-    let defaults = crate::change_log::code_defaults(state.config());
+    let defaults = crate::change_log::code_defaults(&state.config());
     let recorded = crate::logged::ok_or_warn(
         persist.record_build_if_changed(build, defaults).await,
         "startup.record_build_identity",

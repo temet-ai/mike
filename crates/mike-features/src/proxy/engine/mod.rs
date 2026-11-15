@@ -99,7 +99,7 @@ pub async fn accept(state: &AppState, req: Request<Body>) -> Result<AcceptOutcom
     state.inc_request_count();
 
     let (parts, body) = req.into_parts();
-    let max_body = state.config.max_request_body_bytes;
+    let max_body = state.config().max_request_body_bytes;
     let max_body_usize = usize::try_from(max_body).unwrap_or(usize::MAX);
     let body_bytes = match axum::body::to_bytes(body, max_body_usize).await {
         Ok(bytes) => bytes,

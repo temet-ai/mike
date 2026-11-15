@@ -9,17 +9,13 @@ use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
 use crate::channel_link_settings::ChannelLinkSweepConfig;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const CANDIDATE_WINDOW_MINUTES: i64 = 120;
 
 pub fn spawn_channel_link_sweep(state: &AppState) {
-    if !state.feature_toggle_overlay.load().channel_link_sweep {
-        log_not_spawning_toggle_off();
-        return;
-    }
-
     let Some(persist) = state.persist().cloned() else {
         log_not_spawning_no_persistence();
         return;
@@ -45,10 +41,6 @@ pub fn spawn_channel_link_sweep(state: &AppState) {
     );
 }
 
-fn log_not_spawning_toggle_off() {
-    tracing::debug!("channel_link_sweep: disabled by feature toggle — not spawning");
-}
-
 fn log_not_spawning_no_persistence() {
     tracing::debug!("channel_link_sweep: no persistence — not spawning");
 }
@@ -72,8 +64,8 @@ async fn run(
             }
 
             _ = ticker.tick() => {
-                if !toggles.load().channel_link_sweep {
-                    log_disabled_via_toggle();
+                if !wait_until_on(&toggles, |t| t.channel_link_sweep, &shutdown).await {
+                    log_shutdown_signalled();
                     return;
                 }
 
@@ -85,10 +77,4 @@ async fn run(
 
 fn log_shutdown_signalled() {
     tracing::debug!("channel_link_sweep: shutdown signalled, exiting");
-}
-
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "channel_link_sweep: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
 }

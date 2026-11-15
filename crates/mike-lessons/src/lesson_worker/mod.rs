@@ -46,21 +46,7 @@ const CIRCUIT_BREAKER_COOLDOWN_MAX_SECS: u64 = 3600;
 /// The idle threshold itself is applied in the discovery SQL (`created_at < $1`).
 const SESSION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// Spawn the lesson worker onto the shared `TaskTracker`. Returns
-/// immediately — the worker runs in the background.
-///
-/// No-op when the `lesson_worker` feature toggle is off (default ON) or when
-/// persistence is not wired (no Postgres connection to query).
-///
-/// [`run`] re-reads the `lesson_worker` toggle itself on every tick and
-/// exits cleanly the first time it reads `false` — a UI flip to off stops
-/// this worker within one [`SESSION_POLL_INTERVAL`], no restart required.
-/// Flipping it back on afterward does need a restart: the loop has already
-/// exited and nothing re-spawns it while the process stays up.
 pub fn spawn_lesson_worker(state: &AppState) {
-    // Spawn-time gate: skip spawning entirely when off at boot. The live
-    // toggle is re-read every tick inside run(), so a later flip to off is
-    // caught without needing this initial check to repeat.
     let Some(persist) = state.persist.clone() else {
         tracing::debug!("lesson_worker: persistence not wired — skipping spawn");
         return;
@@ -68,13 +54,21 @@ pub fn spawn_lesson_worker(state: &AppState) {
 
     let embedding = state.embedding_service();
     let shutdown = state.shutdown();
-    let config = state.config.sections.get::<LessonWorkerConfig>();
+    let live_config = state.live_config.clone();
     let cache = state.lesson_cache.clone();
     let toggles = state.feature_toggle_overlay.clone();
 
     state.tracker.spawn(async move {
-        run(persist, embedding, shutdown, config, cache, toggles).await;
+        run(persist, embedding, shutdown, live_config, cache, toggles).await;
     });
+}
+
+fn live_worker_config(live_config: &crate::config::live::LiveConfig) -> LessonWorkerConfig {
+    live_config.load().sections.get::<LessonWorkerConfig>()
+}
+
+fn gc_interval_of(config: &LessonWorkerConfig) -> std::time::Duration {
+    std::time::Duration::from_secs(config.gc_interval_secs.max(1))
 }
 
 /// UTC instant for local midnight on `now`'s calendar date. The DB-backed
@@ -107,7 +101,7 @@ async fn run(
     persist: PersistHandle,
     embedding: EmbeddingService,
     shutdown: CancellationToken,
-    config: LessonWorkerConfig,
+    live_config: Arc<crate::config::live::LiveConfig>,
     cache: LessonCache,
     toggles: Arc<ArcSwap<crate::feature_toggles::FeatureToggles>>,
 ) {
@@ -115,33 +109,16 @@ async fn run(
 
     refresh::refresh_lesson_cache_inner(&persist, &cache).await;
     log_embedding_state_at_startup(&embedding);
-    run_startup_if_enabled(&persist, &config, &toggles).await;
+    let mut startup_pending = true;
 
     let mut session_interval = tokio::time::interval(SESSION_POLL_INTERVAL);
-    // Avoid thundering-herd at startup — miss the first tick rather than
-    // immediately running the consolidation when the process boots.
     session_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
-    let gc_interval_duration = std::time::Duration::from_secs(config.gc_interval_secs.max(1));
-    // Force GC on first tick by pretending the last run was gc_interval ago.
-    // The subtraction may underflow on very old Instants, so default to now
-    // (GC waits one full interval before running). Either is correct.
     let mut last_gc = Instant::now()
-        .checked_sub(gc_interval_duration)
+        .checked_sub(gc_interval_of(&live_worker_config(&live_config)))
         .unwrap_or_else(Instant::now);
 
-    // Circuit breaker over session consolidation's embed_documents calls
-    // only — GC and nightly consolidation are DB-only and unaffected by
-    // the embedding dependency being down. Lives for the worker's whole
-    // lifetime, mirroring judge_worker's loop-local breaker.
     let mut embed_breaker = vector_repair::EmbeddingWork::new();
-
-    let ctx = TickCtx {
-        persist: &persist,
-        embedding: &embedding,
-        cache: &cache,
-        config: &config,
-    };
 
     loop {
         tokio::select! {
@@ -153,18 +130,28 @@ async fn run(
             }
 
             _ = session_interval.tick() => {
-                run_enabled_tick(&ctx, &toggles, gc_interval_duration, &mut last_gc, &mut embed_breaker).await;
+                let config = live_worker_config(&live_config);
+                let ctx = TickCtx {
+                    persist: &persist,
+                    embedding: &embedding,
+                    cache: &cache,
+                    config: &config,
+                };
+                run_startup_catchup_once(&persist, &config, &toggles, &mut startup_pending).await;
+                run_enabled_tick(&ctx, &toggles, gc_interval_of(&config), &mut last_gc, &mut embed_breaker).await;
             }
         }
     }
 }
 
-async fn run_startup_if_enabled(
+async fn run_startup_catchup_once(
     persist: &PersistHandle,
     config: &LessonWorkerConfig,
     toggles: &ArcSwap<crate::feature_toggles::FeatureToggles>,
+    pending: &mut bool,
 ) {
-    if toggles.load().lesson_worker {
+    if *pending && toggles.load().lesson_worker {
+        *pending = false;
         run_startup_nightly_catchup(persist, config).await;
     }
 }
@@ -188,10 +175,8 @@ fn log_shutdown_signalled() {
     tracing::debug!("lesson_worker: shutdown signalled, exiting");
 }
 
-/// Logged when a tick observes the `lesson_worker` feature toggle flipped
-/// off and exits the loop — see [`run`].
 fn log_disabled_via_toggle() {
-    tracing::info!("lesson_worker: disabled via feature toggle — paused until enabled");
+    tracing::debug!("lesson_worker: disabled via feature toggle — paused until enabled");
 }
 
 /// Logged once at startup — see [`run`].
@@ -354,7 +339,7 @@ pub async fn consolidate_once(state: &AppState) {
     let Some(persist) = state.persist.as_ref() else {
         return;
     };
-    let worker_config = state.config.sections.get::<LessonWorkerConfig>();
+    let worker_config = live_worker_config(&state.live_config);
     session_consolidation::run_session_consolidation(
         persist,
         &state.embedding_service(),
@@ -370,11 +355,7 @@ pub async fn nightly_once(state: &AppState) {
     };
     nightly::run_nightly_consolidation(
         persist,
-        state
-            .config
-            .sections
-            .get::<LessonWorkerConfig>()
-            .max_lessons_per_project,
+        live_worker_config(&state.live_config).max_lessons_per_project,
         "manual",
     )
     .await;

@@ -19,6 +19,7 @@ use tokio_util::sync::CancellationToken;
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::features_settings::sections::session_judge::SessionJudgeConfig;
 use crate::llm::{LlmRole, OpenRouterClient};
 use crate::state::AppState;
@@ -33,16 +34,12 @@ pub fn spawn_session_judge_worker(state: &AppState) {
         state.llm_usage_sink.clone(),
     );
 
-    if !state.feature_toggle_overlay.load().session_judge {
-        return;
-    }
-
     let Some(persist) = state.persist.clone() else {
         log_not_spawning_no_persistence();
         return;
     };
 
-    let config = state.config.sections.get::<SessionJudgeConfig>();
+    let config = state.config().sections.get::<SessionJudgeConfig>();
 
     let llm = match crate::llm::OpenRouterClient::new(
         String::new(),
@@ -67,6 +64,7 @@ pub fn spawn_session_judge_worker(state: &AppState) {
     let toggles = state.feature_toggle_overlay.clone();
     let settings = state.settings_overlay.clone();
     let shutdown = state.shutdown();
+    let live_config = state.live_config.clone();
 
     state.tracker.spawn(async move {
         run_session_loop(SessionJudgeWorkerDeps {
@@ -76,7 +74,7 @@ pub fn spawn_session_judge_worker(state: &AppState) {
             key_slot,
             toggles,
             settings,
-            config,
+            live_config,
             shutdown,
         })
         .await;
@@ -104,63 +102,69 @@ struct SessionJudgeWorkerDeps {
     key_slot: crate::llm::key::OpenRouterKeySlot,
     toggles: Arc<ArcSwap<FeatureToggles>>,
     settings: Arc<ArcSwap<crate::settings::SettingsOverlay>>,
-    config: SessionJudgeConfig,
+    live_config: Arc<crate::config::live::LiveConfig>,
     shutdown: CancellationToken,
 }
 
-async fn run_session_loop(deps: SessionJudgeWorkerDeps) {
-    let SessionJudgeWorkerDeps {
-        persist,
-        llm,
-        embedding,
-        key_slot,
-        toggles,
-        settings,
-        config,
-        shutdown,
-    } = deps;
-    let poll = Duration::from_secs(config.poll_interval_secs);
-    let mut interval = tokio::time::interval(poll);
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+impl SessionJudgeWorkerDeps {
+    fn config(&self) -> SessionJudgeConfig {
+        self.live_config.load().sections.get::<SessionJudgeConfig>()
+    }
 
-    log_starting_poll_loop(&config);
+    async fn poll_once(&self, config: &SessionJudgeConfig, breaker: &mut CircuitBreaker) {
+        let poll = Duration::from_secs(config.poll_interval_secs.max(1));
+        if !self
+            .persist
+            .holds_llm_role(LlmRole::SessionJudge, poll)
+            .await
+        {
+            return;
+        }
+        let llm = self
+            .llm
+            .with_timeout(Duration::from_secs(config.request_timeout_secs));
+        let poll_deps = SessionPollDeps {
+            persist: &self.persist,
+            llm: &llm,
+            embedding: &self.embedding,
+            key_slot: &self.key_slot,
+            config,
+            toggles: &self.toggles,
+            settings: &self.settings,
+        };
+        let runtime = resolve_session_judge_runtime(&self.settings.load(), config);
+        run_poll(&poll_deps, &runtime, breaker).await;
+    }
+}
+
+async fn run_session_loop(deps: SessionJudgeWorkerDeps) {
+    let boot = deps.config();
+    log_starting_poll_loop(&boot);
 
     let mut breaker = CircuitBreaker::new(
-        config.circuit_breaker_threshold,
-        Duration::from_secs(config.circuit_breaker_cooldown_base_secs),
-        Duration::from_secs(config.circuit_breaker_cooldown_max_secs),
+        boot.circuit_breaker_threshold,
+        Duration::from_secs(boot.circuit_breaker_cooldown_base_secs),
+        Duration::from_secs(boot.circuit_breaker_cooldown_max_secs),
     );
 
-    let poll_deps = SessionPollDeps {
-        persist: &persist,
-        llm: &llm,
-        embedding: &embedding,
-        key_slot: &key_slot,
-        config: &config,
-        toggles: &toggles,
-        settings: &settings,
-    };
-
+    let mut wait = Duration::ZERO;
     loop {
         tokio::select! {
             biased;
 
-            _ = shutdown.cancelled() => {
+            _ = deps.shutdown.cancelled() => {
                 log_shutdown_signalled();
                 return;
             }
 
-            _ = interval.tick() => {
-                if !toggles.load().session_judge {
-                    log_disabled_via_toggle();
+            _ = tokio::time::sleep(wait) => {
+                let config = deps.config();
+                wait = Duration::from_secs(config.poll_interval_secs.max(1));
+                if !wait_until_on(&deps.toggles, |t| t.session_judge, &deps.shutdown).await {
+                    log_shutdown_signalled();
                     return;
                 }
-                if !persist.holds_llm_role(LlmRole::SessionJudge, poll).await {
-                    continue;
-                }
-
-                let runtime = resolve_session_judge_runtime(&settings.load(), &config);
-                run_poll(&poll_deps, &runtime, &mut breaker).await;
+                deps.poll_once(&config, &mut breaker).await;
             }
         }
     }
@@ -177,12 +181,6 @@ fn log_starting_poll_loop(config: &SessionJudgeConfig) {
 
 fn log_shutdown_signalled() {
     tracing::debug!("session_judge: shutdown signalled, exiting");
-}
-
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "session_judge: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
 }
 
 pub struct SessionJudgeRuntime {

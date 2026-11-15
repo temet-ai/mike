@@ -137,11 +137,11 @@ pub fn entries() -> Vec<SettingMeta> {
         int_meta_applies(
             SHADOW_INTERVAL_SECS_KEY,
             "Shadow tick interval (seconds)",
-            "How often the shadow path polls for sessions to judge. The timer is built at \
-             startup, so a change here takes effect on the next restart.",
+            "How often the shadow path polls for sessions to judge. A change takes effect \
+             after the poll in progress.",
             300,
             (60, 86_400),
-            SettingApplies::OnRestart,
+            SettingApplies::NextCycle,
         ),
     ]
 }

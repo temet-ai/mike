@@ -30,12 +30,6 @@ fn log_broadcast_closed() {
     info!("steerer fleet: broadcast closed");
 }
 
-fn log_steerer_disabled_via_toggle() {
-    info!(
-        "steerer fleet: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
-}
-
 async fn recv_next_event(
     rx: &mut tokio::sync::broadcast::Receiver<ProxyEvent>,
     ctx: &FleetCtx,
@@ -52,8 +46,7 @@ async fn recv_next_event(
         }
     };
     if !ctx.toggles.load().steerer {
-        log_steerer_disabled_via_toggle();
-        return NextEvent::Stop;
+        return NextEvent::Skip;
     }
     NextEvent::Event(Box::new(event))
 }
@@ -99,9 +92,10 @@ pub async fn run_fleet(args: FleetArgs) {
         remote_control_streams,
         injection_gate,
         settings,
+        live_config,
     } = args;
 
-    let ctx = FleetCtx {
+    let mut ctx = FleetCtx {
         event_tx,
         store,
         persist,
@@ -127,10 +121,28 @@ pub async fn run_fleet(args: FleetArgs) {
 
     info!("steerer fleet: started");
 
-    while fleet_tick(&mut rx, &ctx, &mut debounce, &mut request_buf, &mut breaker)
-        .await
-        .is_continue()
-    {}
+    loop {
+        refresh_live_steerer(&mut ctx, live_config.as_deref());
+        if fleet_tick(&mut rx, &ctx, &mut debounce, &mut request_buf, &mut breaker)
+            .await
+            .is_break()
+        {
+            break;
+        }
+    }
+}
+
+fn refresh_live_steerer(ctx: &mut FleetCtx, live_config: Option<&crate::config::live::LiveConfig>) {
+    let Some(live_config) = live_config else {
+        return;
+    };
+    let live = live_config.load();
+    if live.steerer.request_timeout_secs != ctx.config.request_timeout_secs {
+        ctx.llm = ctx
+            .llm
+            .with_timeout(Duration::from_secs(live.steerer.request_timeout_secs));
+    }
+    ctx.config.clone_from(&live.steerer);
 }
 
 async fn handle_response_complete(

@@ -9,7 +9,7 @@ pub struct SteererClient {
 }
 
 pub fn steerer_client(state: &AppState, timeout: Duration) -> Result<SteererClient, String> {
-    let config = &state.config.steerer;
+    let config = &state.config().steerer;
     let overlay = state.settings_overlay.load();
     let model = overlay.live_steerer_model(&config.model);
     let base = OpenRouterClient::new(

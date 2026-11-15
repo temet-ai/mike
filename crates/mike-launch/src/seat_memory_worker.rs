@@ -8,6 +8,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::base_state::BaseState;
 use crate::feature_toggles::FeatureToggles;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::store::persistence::seat_memory::SeatMemoryRefresh;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -19,10 +20,6 @@ const TICK: Duration = Duration::from_secs(30);
 const BACKSTOP: Duration = Duration::from_secs(30 * 60);
 
 pub fn spawn_seat_memory_worker(state: &BaseState) {
-    if !state.feature_toggle_overlay.load().seat_memory_index {
-        log_not_spawned("disabled by feature toggle");
-        return;
-    }
     let Some(persist) = state.persist().cloned() else {
         log_not_spawned("no persistence");
         return;
@@ -58,15 +55,30 @@ async fn run(
     shutdown: CancellationToken,
 ) {
     let mut mark = RefreshMark::default();
+    while wait_until_on(&toggles, |t| t.seat_memory_index, &shutdown).await {
+        if !work_while_on(&persist, &toggles, &shutdown, &mut mark).await {
+            return;
+        }
+        mark = RefreshMark::default();
+        log_disabled();
+    }
+}
+
+async fn work_while_on(
+    persist: &PersistHandle,
+    toggles: &ArcSwap<FeatureToggles>,
+    shutdown: &CancellationToken,
+    mark: &mut RefreshMark,
+) -> bool {
     while toggles.load().seat_memory_index {
-        step(&persist, &mut mark).await;
+        step(persist, mark).await;
         tokio::select! {
             biased;
-            () = shutdown.cancelled() => return,
+            () = shutdown.cancelled() => return false,
             () = tokio::time::sleep(TICK) => {}
         }
     }
-    log_disabled();
+    true
 }
 
 async fn step(persist: &PersistHandle, mark: &mut RefreshMark) {
@@ -106,9 +118,7 @@ fn log_spawned() {
 }
 
 fn log_disabled() {
-    tracing::info!(
-        "seat_memory_index: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
+    tracing::info!("seat_memory_index: disabled via feature toggle — paused until it is turned on");
 }
 
 fn log_failed(what: &str, e: &PersistError) {

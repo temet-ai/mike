@@ -151,7 +151,7 @@ fn home_dir() -> PathBuf {
 }
 
 fn resolve_backend(state: &BaseState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
-    let id: BackendId = state.config.launch.backend.parse()?;
+    let id: BackendId = state.config().launch.backend.parse()?;
     backend_for(id).ok_or(LaunchError::BackendNone)
 }
 
@@ -164,7 +164,7 @@ pub async fn environment_problems(
         Ok(backend) => backend,
         Err(problem) => return vec![Missing::new("terminal", problem.to_string())],
     };
-    let limit = usize::try_from(state.config.launch.max_surfaces).unwrap_or(usize::MAX);
+    let limit = usize::try_from(state.config().launch.max_surfaces).unwrap_or(usize::MAX);
     let mut environment = gather(def, &home_dir(), limit, backend.as_ref()).await;
     environment.reserved_surfaces = seats_other_fleets_are_opening(state, this).await;
     check_environment(def, &environment)

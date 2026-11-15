@@ -29,6 +29,7 @@ pub struct FleetArgs {
     pub remote_control_streams: crate::proxy::remote_control::ReplyStreams,
     pub injection_gate: Arc<crate::injection::InjectionGate>,
     pub settings: crate::settings::SharedSettingsOverlay,
+    pub live_config: Option<Arc<crate::config::live::LiveConfig>>,
 }
 
 pub struct FleetCtx {

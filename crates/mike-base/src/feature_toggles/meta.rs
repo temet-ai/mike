@@ -41,7 +41,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "channel_link_sweep",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     client_serves("client_serves_agent_lessons"),
     client_serves("client_serves_change_record_tail"),
@@ -78,7 +78,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "db_resync",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::OnRestart,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "decisions",
@@ -88,7 +88,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "directive_proposer",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "dossier_builder",
@@ -113,12 +113,12 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "judge_lessons",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "judge_worker",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "launch_brief",
@@ -128,7 +128,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "lesson_worker",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "mailbox_redelivery",
@@ -138,7 +138,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "memory_keeper",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "mod_lesson_delivery",
@@ -183,12 +183,12 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "retention_sweep",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "seat_memory_index",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "semantic_context",
@@ -203,12 +203,12 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "session_end_shadow",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "session_judge",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "shell_output_compression",
@@ -218,12 +218,12 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
         key: "steerer",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "turn_guard",
         scope: ToggleScope::Global,
-        applies: ToggleApplies::LiveDisable,
+        applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
         key: "weasel_intercept",

@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::llm::OpenRouterClient;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
@@ -23,12 +24,6 @@ pub fn spawn_judge_worker(state: &AppState) {
         state.settings_overlay.clone(),
         state.llm_usage_sink.clone(),
     );
-
-    let toggles = state.feature_toggle_overlay.load();
-    if !toggles.judge_worker {
-        log_not_spawning_toggle_off();
-        return;
-    }
 
     let Some(persist) = state.persist.clone() else {
         log_not_spawning_no_persistence();
@@ -47,12 +42,12 @@ pub fn spawn_judge_worker(state: &AppState) {
     let circuit_breaker_threshold = judge_cfg.circuit_breaker_threshold;
     let circuit_breaker_cooldown_base_secs = judge_cfg.circuit_breaker_cooldown_base_secs;
     let circuit_breaker_cooldown_max_secs = judge_cfg.circuit_breaker_cooldown_max_secs;
-    let fallback_model = state.config().steerer.model.clone();
 
     let key_slot = state.steerer_openrouter_key.clone();
     let toggles = state.feature_toggle_overlay.clone();
     let settings = state.settings_overlay.clone();
     let shutdown = state.shutdown();
+    let live_config = state.live_config.clone();
     let shared = LiveJudgeShared::default();
 
     let immediate = ImmediateJudge {
@@ -77,13 +72,12 @@ pub fn spawn_judge_worker(state: &AppState) {
             toggles,
             settings,
             judge_cfg,
-            fallback_model,
             backoff_base_secs,
             backoff_max_secs,
             circuit_breaker_threshold,
             circuit_breaker_cooldown_base_secs,
             circuit_breaker_cooldown_max_secs,
-            interval_secs,
+            live_config,
             shutdown,
             shared,
         })
@@ -91,12 +85,6 @@ pub fn spawn_judge_worker(state: &AppState) {
     });
 
     log_spawned(interval_secs);
-}
-
-fn log_not_spawning_toggle_off() {
-    tracing::info!(
-        "judge_worker: not spawning — the judge_worker feature toggle is off (enable it on /settings)"
-    );
 }
 
 fn log_not_spawning_no_persistence() {
@@ -120,13 +108,12 @@ struct RunArgs {
     toggles: Arc<ArcSwap<FeatureToggles>>,
     settings: Arc<ArcSwap<crate::settings::SettingsOverlay>>,
     judge_cfg: crate::config::steerer::JudgeConfig,
-    fallback_model: String,
     backoff_base_secs: i64,
     backoff_max_secs: i64,
     circuit_breaker_threshold: u32,
     circuit_breaker_cooldown_base_secs: u64,
     circuit_breaker_cooldown_max_secs: u64,
-    interval_secs: u64,
+    live_config: Arc<crate::config::live::LiveConfig>,
     shutdown: CancellationToken,
     shared: LiveJudgeShared,
 }
@@ -137,12 +124,17 @@ struct JudgeTickContext<'a> {
     key_slot: &'a crate::llm::key::OpenRouterKeySlot,
     settings: &'a Arc<ArcSwap<crate::settings::SettingsOverlay>>,
     judge_cfg: &'a crate::config::steerer::JudgeConfig,
-    fallback_model: &'a str,
     backoff_base_secs: i64,
     backoff_max_secs: i64,
     shared: &'a LiveJudgeShared,
-    interval: Duration,
+    live_config: &'a crate::config::live::LiveConfig,
     toggles: &'a Arc<ArcSwap<FeatureToggles>>,
+}
+
+impl JudgeTickContext<'_> {
+    fn interval(&self) -> Duration {
+        Duration::from_secs(self.live_config.load().steerer.judge.interval_secs.max(1))
+    }
 }
 
 async fn run(args: RunArgs) {
@@ -153,21 +145,17 @@ async fn run(args: RunArgs) {
         toggles,
         settings,
         judge_cfg,
-        fallback_model,
         backoff_base_secs,
         backoff_max_secs,
         circuit_breaker_threshold,
         circuit_breaker_cooldown_base_secs,
         circuit_breaker_cooldown_max_secs,
-        interval_secs,
+        live_config,
         shutdown,
         shared,
     } = args;
 
-    log_starting(interval_secs);
-
-    let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    log_starting(live_config.load().steerer.judge.interval_secs);
 
     let mut breaker = CircuitBreaker::new(
         circuit_breaker_threshold,
@@ -181,14 +169,14 @@ async fn run(args: RunArgs) {
         key_slot: &key_slot,
         settings: &settings,
         judge_cfg: &judge_cfg,
-        fallback_model: &fallback_model,
         backoff_base_secs,
         backoff_max_secs,
         shared: &shared,
-        interval: Duration::from_secs(interval_secs),
+        live_config: &live_config,
         toggles: &toggles,
     };
 
+    let mut wait = Duration::ZERO;
     loop {
         tokio::select! {
             biased;
@@ -198,10 +186,11 @@ async fn run(args: RunArgs) {
                 return;
             }
 
-            _ = interval.tick() => {
+            _ = tokio::time::sleep(wait) => {
                 if tick_then_wait_out_defer(&ctx, &toggles, &shutdown, &mut breaker).await.is_break() {
                     return;
                 }
+                wait = ctx.interval();
             }
         }
     }
@@ -218,25 +207,19 @@ fn log_shutdown_signalled() {
     tracing::debug!("judge_worker: shutdown signalled, exiting");
 }
 
-fn log_disabled_via_toggle() {
-    tracing::info!(
-        "judge_worker: disabled via feature toggle — exiting (a UI flip back on needs a restart)"
-    );
-}
-
 async fn tick_then_wait_out_defer(
     ctx: &JudgeTickContext<'_>,
     toggles: &Arc<ArcSwap<FeatureToggles>>,
     shutdown: &CancellationToken,
     breaker: &mut CircuitBreaker,
 ) -> ControlFlow<()> {
-    if !toggles.load().judge_worker {
-        log_disabled_via_toggle();
+    if !wait_until_on(toggles, |t| t.judge_worker, shutdown).await {
+        log_shutdown_signalled();
         return ControlFlow::Break(());
     }
     if !ctx
         .persist
-        .holds_llm_role(crate::llm::LlmRole::JudgeWorker, ctx.interval)
+        .holds_llm_role(crate::llm::LlmRole::JudgeWorker, ctx.interval())
         .await
     {
         return ControlFlow::Continue(());
@@ -279,7 +262,8 @@ async fn run_one_tick(
         };
         return run_live_tick(tick, breaker).await.defer;
     }
-    let runtime = resolve_turn_judge_runtime(&live_settings, ctx.judge_cfg, ctx.fallback_model);
+    let steerer_model = ctx.live_config.load().steerer.model.clone();
+    let runtime = resolve_turn_judge_runtime(&live_settings, ctx.judge_cfg, &steerer_model);
     let Some(effective_llm) =
         crate::llm::key::effective_client_for(ctx.llm, ctx.key_slot, &runtime.model)
     else {

@@ -12,6 +12,7 @@ use super::refresh::refresh;
 use super::snapshot::KeeperCache;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
+use crate::feature_toggles::live_gate::wait_until_on;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::work_threads::WorkThreadError;
@@ -133,16 +134,14 @@ fn log_spawned() {
 }
 
 fn log_toggled_off() {
-    tracing::info!(
-        "memory_keeper: toggle turned off, card worker exiting; turning it back on needs a restart"
-    );
+    tracing::info!("memory_keeper: toggle turned off, card worker paused until it is turned on");
+}
+
+fn log_toggled_on() {
+    tracing::info!("memory_keeper: toggle on, card worker running");
 }
 
 fn spawnable(state: &AppState) -> Option<PersistHandle> {
-    if !state.feature_toggle_overlay.load().memory_keeper {
-        log_not_spawned("toggle off");
-        return None;
-    }
     let persist = state.persist().cloned();
     if persist.is_none() {
         log_not_spawned("no persistence");
@@ -168,22 +167,36 @@ async fn run(
     cache: KeeperCache,
     shutdown: CancellationToken,
 ) {
-    health::set_running(true);
     let mut keeper = Keeper::new(Instant::now());
-    loop {
-        if !toggles.load().memory_keeper {
-            log_toggled_off();
-            break;
+    while wait_until_on(&toggles, |t| t.memory_keeper, &shutdown).await {
+        log_toggled_on();
+        health::set_running(true);
+        let alive = work_while_on(&persist, &toggles, &cache, &shutdown, &mut keeper).await;
+        health::set_running(false);
+        if !alive {
+            return;
         }
-        keeper.tick(&persist, Instant::now()).await;
-        refresh_snapshot(&persist, &cache).await;
+        log_toggled_off();
+    }
+}
+
+async fn work_while_on(
+    persist: &PersistHandle,
+    toggles: &ArcSwap<FeatureToggles>,
+    cache: &KeeperCache,
+    shutdown: &CancellationToken,
+    keeper: &mut Keeper,
+) -> bool {
+    while toggles.load().memory_keeper {
+        keeper.tick(persist, Instant::now()).await;
+        refresh_snapshot(persist, cache).await;
         tokio::select! {
             biased;
-            () = shutdown.cancelled() => break,
+            () = shutdown.cancelled() => return false,
             () = tokio::time::sleep(TICK) => {}
         }
     }
-    health::set_running(false);
+    true
 }
 
 async fn refresh_snapshot(persist: &PersistHandle, cache: &KeeperCache) {

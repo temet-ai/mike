@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::test_db::TestDb;
 
-use mike::db_listener::run;
+use mike::db_listener::{ConfigReloader, run};
 use mike::store::models::{ProxyEvent, ResyncReason, RowChangedOp, RowChangedTable};
 
 fn assert_resync_required(event: ProxyEvent, reason: ResyncReason) -> anyhow::Result<()> {
@@ -61,7 +61,12 @@ async fn run_establishes_listener_and_forwards_consolidation_runs_insert() -> an
     let (tx, mut rx) = broadcast::channel(16);
     let shutdown = CancellationToken::new();
     let task_shutdown = shutdown.clone();
-    let join = tokio::spawn(run(handle.database_url.clone(), tx, task_shutdown));
+    let join = tokio::spawn(run(
+        handle.database_url.clone(),
+        tx,
+        ConfigReloader::default(),
+        task_shutdown,
+    ));
 
     let first = tokio::time::timeout(Duration::from_secs(5), rx.recv())
         .await

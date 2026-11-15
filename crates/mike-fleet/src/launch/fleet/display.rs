@@ -56,7 +56,7 @@ async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) {
     };
     let fleets = here::on_this_machine(fleets, here::checkout_present);
     let backend = state
-        .config
+        .config()
         .launch
         .backend
         .parse::<BackendId>()

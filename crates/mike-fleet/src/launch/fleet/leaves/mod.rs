@@ -35,7 +35,7 @@ pub use report_judge::{
 pub use solver::{Dossier, SolverBrief, TaskTrail, brief, dossier};
 
 pub fn model(state: &BaseState) -> Option<OpenRouterLeaf> {
-    let config = &state.config.steerer;
+    let config = &state.config().steerer;
     let base = OpenRouterClient::new(
         String::new(),
         config.model.clone(),

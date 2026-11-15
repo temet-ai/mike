@@ -157,6 +157,14 @@ impl RequestStore {
             .count()
     }
 
+    pub fn set_max_store_bytes(&mut self, bytes: u64) {
+        if self.retention.max_store_bytes == bytes {
+            return;
+        }
+        self.retention.max_store_bytes = bytes;
+        metrics::gauge!(crate::metrics::GAUGE_STORE_BYTES_BUDGET).set(bytes as f64);
+    }
+
     pub fn evict_to_byte_budget(&mut self) -> ByteBudgetEvictionOutcome {
         let budget = self.retention.max_store_bytes;
         if budget == 0 {

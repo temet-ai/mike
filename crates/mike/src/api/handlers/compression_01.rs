@@ -114,7 +114,7 @@ pub(crate) async fn compress_stats(
 ) -> Result<Json<CompressStatsResponse>, StatusCode> {
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
     let cfg = state
-        .config
+        .config()
         .sections
         .get::<crate::features_settings::CompressConfig>()
         .for_measurement();

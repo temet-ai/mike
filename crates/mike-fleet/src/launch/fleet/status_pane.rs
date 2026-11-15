@@ -53,7 +53,7 @@ pub async fn close(state: &BaseState, row: &FleetRow) {
     let Some(opened) = opened(row.start_report.as_ref()) else {
         return;
     };
-    let Ok(id) = state.config.launch.backend.parse::<BackendId>() else {
+    let Ok(id) = state.config().launch.backend.parse::<BackendId>() else {
         return;
     };
     let Some(backend) = backend_for(id) else {
