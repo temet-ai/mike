@@ -4,17 +4,17 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::choice;
 
 pub const POINT: &str = "text_origin";
-pub const QUESTION_SET: &str = "text_origin_v2";
+pub const QUESTION_SET: &str = "text_origin_v3";
 pub const ORIGIN: &str = "origin";
 
 pub const OPTIONS: &[(&str, &str)] = &[
     (
-        "operator",
-        "A person typed this message at the keyboard, even if it is short or repeats an earlier message.",
-    ),
-    (
         "mail",
         "A message delivered from another session or agent through a mailbox or a peer message.",
+    ),
+    (
+        "operator",
+        "A person typed this message at the keyboard, even if it is short or repeats an earlier message.",
     ),
     (
         "hook",
@@ -34,7 +34,7 @@ pub fn questions() -> BTreeMap<String, Question> {
     BTreeMap::from([(
         ORIGIN.to_owned(),
         choice(
-            "Who or what wrote state.text? Pick the writer, using state.follows for what came before it: state.follows_is says whether it is the operator's previous message or the end of the assistant's previous reply.",
+            "Who or what wrote `text`? Pick the writer, using `follows` for what came before it: `follows_is` says whether it is the operator's previous message or the end of the assistant's previous reply.",
             OPTIONS,
         ),
     )])

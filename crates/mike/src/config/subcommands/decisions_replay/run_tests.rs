@@ -164,7 +164,7 @@ async fn turn_judge_with_a_next_message_asks_the_reaction_questions() -> anyhow:
         .first()
         .ok_or_else(|| anyhow::anyhow!("no outcome"))?;
     let questions = &outcome.line["request"]["questions"];
-    assert!(questions["operator_corrected"].is_object());
+    assert!(questions["names_an_error"].is_object());
     assert_eq!(
         outcome.line["request"]["state"]["operator_next_message"],
         "no, that is still broken"
@@ -175,7 +175,7 @@ async fn turn_judge_with_a_next_message_asks_the_reaction_questions() -> anyhow:
     let corrected = outcome
         .questions
         .iter()
-        .find(|(q, _)| q == "operator_corrected")
+        .find(|(q, _)| q == "names_an_error")
         .map(|(_, s)| s.positive);
     assert_eq!(corrected, Some(Some(true)));
     Ok(())
@@ -191,7 +191,7 @@ async fn turn_judge_without_a_next_message_leaves_the_reaction_questions_out() -
         .outcomes
         .first()
         .ok_or_else(|| anyhow::anyhow!("no outcome"))?;
-    assert!(outcome.line["request"]["questions"]["operator_corrected"].is_null());
+    assert!(outcome.line["request"]["questions"]["names_an_error"].is_null());
     assert!(outcome.line["request"]["state"]["operator_next_message"].is_null());
     Ok(())
 }

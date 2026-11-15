@@ -36,6 +36,13 @@ pub struct Rule {
     pub scope: Vec<String>,
 }
 
+impl Rule {
+    pub fn is_obligation(&self) -> bool {
+        let lower = self.text.to_lowercase();
+        has_word(&lower, "must") || has_word(&lower, "always")
+    }
+}
+
 fn frontmatter_scope(text: &str) -> (Vec<String>, &str) {
     let Some(rest) = text.strip_prefix("---\n") else {
         return (Vec::new(), text);
@@ -167,11 +174,13 @@ pub async fn load(checkout: &str) -> Vec<Rule> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TurnTools {
     pub lines: Vec<String>,
+    pub full: Vec<String>,
     pub paths: Vec<String>,
 }
 
 const LINE_CHARS: usize = 200;
 const LINES_KEPT: usize = 15;
+const MATCHED_LINE_CHARS: usize = 4_000;
 
 pub fn cut_at_whitespace(text: &str, max: usize) -> &str {
     let Some((end, _)) = text.char_indices().nth(max) else {
@@ -197,6 +206,7 @@ impl TurnTools {
             tools
                 .lines
                 .push(format!("{name}: {}", cut_at_whitespace(detail, LINE_CHARS)));
+            tools.full.push(format!("{name}: {detail}"));
             tools.paths.extend(path.map(str::to_owned));
         }
         tools
@@ -243,10 +253,29 @@ pub fn relevant<'a>(rules: &'a [Rule], turn: &TurnTools, limit: usize) -> Vec<&'
     scored.into_iter().take(limit).map(|(_, r)| r).collect()
 }
 
-pub fn summary_lines(turn: &TurnTools) -> Vec<&str> {
-    turn.lines
+pub fn listed_lines(turn: &TurnTools, rules: &[&Rule]) -> Vec<String> {
+    let wanted: BTreeSet<String> = rules.iter().flat_map(|rule| tokens(&rule.text)).collect();
+    let matched: Vec<bool> = turn
+        .full
         .iter()
+        .map(|line| tokens(line).iter().any(|token| wanted.contains(token)))
+        .collect();
+    let mut picked: Vec<usize> = (0..matched.len())
+        .filter(|at| matched[*at])
         .take(LINES_KEPT)
-        .map(String::as_str)
+        .collect();
+    let spare = LINES_KEPT - picked.len();
+    picked.extend((0..matched.len()).filter(|at| !matched[*at]).take(spare));
+    picked.sort_unstable();
+    picked
+        .into_iter()
+        .map(|at| {
+            let text = if matched[at] {
+                cut_at_whitespace(&turn.full[at], MATCHED_LINE_CHARS)
+            } else {
+                turn.lines[at].as_str()
+            };
+            format!("T{:02}| {text}", at + 1)
+        })
         .collect()
 }

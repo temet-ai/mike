@@ -1,18 +1,23 @@
 use std::collections::BTreeMap;
 
+use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
 use super::author::{Authorship, Window, written_texts};
 use crate::change_record::ShellRun;
 use crate::llm::decisions::Question;
-use crate::llm::decisions::point::{Asked, Decider, choice};
+use crate::llm::decisions::point::{Asked, Decider, choice, noul};
 use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::change_record::EditCall;
 
 pub const POINT: &str = "change_author";
-pub const QUESTION_SET: &str = "change_author_v3";
+pub const QUESTION_SET: &str = "change_author_v4";
 const WHO: &str = "who";
+const WRITES: &str = "writes";
 const UNKNOWN: &str = "unknown";
+const WRITES_AT: f64 = 0.7;
+const PICK_AT: f64 = 0.6;
+const COMMAND_CHARS: usize = 300;
 
 pub struct Facts<'a> {
     pub path: &'a str,
@@ -32,20 +37,62 @@ fn wrote_into_file(call: &EditCall, after: Option<&str>) -> Option<bool> {
     Some(texts.iter().all(|text| after.contains(text)))
 }
 
+fn overlaps(started: DateTime<Utc>, ended: DateTime<Utc>, changed: Window) -> bool {
+    started <= changed.to && ended >= changed.from
+}
+
+fn timing(started: DateTime<Utc>, ended: Option<DateTime<Utc>>, changed: Window) -> Value {
+    let ended = ended.unwrap_or(started);
+    json!({
+        "overlaps_change_window": if overlaps(started, ended, changed) { "yes" } else { "no" },
+        "ended_seconds_after_change": (ended - changed.to).num_seconds(),
+    })
+}
+
+fn merged(mut base: Value, extra: Value) -> Value {
+    if let (Some(into), Value::Object(from)) = (base.as_object_mut(), extra) {
+        into.extend(from);
+    }
+    base
+}
+
+pub fn trim_command(command: &str, path: &str) -> String {
+    if command.chars().count() <= COMMAND_CHARS {
+        return command.to_owned();
+    }
+    let named: Vec<&str> = command
+        .lines()
+        .filter(|line| !path.is_empty() && line.contains(path))
+        .collect();
+    let kept = if named.is_empty() {
+        command.to_owned()
+    } else {
+        named.join("\n")
+    };
+    let before = kept
+        .find(path)
+        .filter(|_| !named.is_empty())
+        .map_or(0, |at| kept[..at].chars().count());
+    kept.chars()
+        .skip(before.saturating_sub(COMMAND_CHARS / 3))
+        .take(COMMAND_CHARS)
+        .collect()
+}
+
 fn edits_of(session: i64, facts: &Facts<'_>) -> Vec<Value> {
     facts
         .calls
         .iter()
         .filter(|call| call.session_id == session)
         .map(|call| {
-            json!({
-                "tool": call.tool_name,
-                "at": call.at,
-                "ran_from": call.ran_from,
-                "ran_to": call.ran_to,
-                "failed": call.failed,
-                "its_text_is_in_the_final_file": wrote_into_file(call, facts.after),
-            })
+            merged(
+                json!({
+                    "tool": call.tool_name,
+                    "failed": call.failed,
+                    "its_text_is_in_the_final_file": wrote_into_file(call, facts.after),
+                }),
+                timing(call.ran_from, call.ran_to, facts.changed),
+            )
         })
         .collect()
 }
@@ -75,11 +122,12 @@ fn shells_of(session: i64, facts: &Facts<'_>) -> Vec<Value> {
         .iter()
         .filter(|run| run.session_id == session)
         .map(|run| {
-            json!({
-                "command": run.command,
-                "started": run.started,
-                "finished": run.finished,
-            })
+            merged(
+                json!({
+                    "command": run.command.as_deref().map(|c| trim_command(c, facts.path)),
+                }),
+                timing(run.started, run.finished, facts.changed),
+            )
         })
         .collect()
 }
@@ -95,7 +143,6 @@ pub fn candidate_facts(session: i64, facts: &Facts<'_>) -> Value {
 pub fn state(candidates: &[i64], facts: &Facts<'_>) -> Value {
     json!({
         "changed_file": facts.path,
-        "changed_between": {"from": facts.changed.from, "to": facts.changed.to},
         "candidate_sessions": candidates
             .iter()
             .map(|session| candidate_facts(*session, facts))
@@ -110,7 +157,7 @@ pub fn questions(candidates: &[i64]) -> BTreeMap<String, Question> {
             (
                 key(*session),
                 format!(
-                    "Session {session} made this change: one of its edit tool calls (running from ran_from to ran_to) or shell commands writes this path, or runs a command such as git, a formatter or a generator that writes it, within changed_between.from to changed_between.to."
+                    "Session {session}: a command or edit tool call that overlaps the change window writes `changed_file`."
                 ),
             )
         })
@@ -123,20 +170,33 @@ pub fn questions(candidates: &[i64]) -> BTreeMap<String, Question> {
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
-    BTreeMap::from([(
-        WHO.to_owned(),
-        choice(
-            "Several sessions worked in this checkout while changed_file changed, between changed_between.from and changed_between.to. Read each candidate's shell commands and edit tool calls. Which session made the change?",
-            &listed,
+    BTreeMap::from([
+        (
+            WHO.to_owned(),
+            choice(
+                "Several sessions worked in this checkout while `changed_file` changed. Read each candidate's calls where `overlaps_change_window` is yes. Which session made the change?",
+                &listed,
+            ),
         ),
-    )])
+        (
+            WRITES.to_owned(),
+            noul(
+                "Does any candidate's command or edit that overlaps the change window write `changed_file`?",
+                "A call with overlaps_change_window yes writes changed_file",
+                "No call with overlaps_change_window yes writes changed_file",
+            ),
+        ),
+    ])
 }
 
 pub fn compose(asked: &Asked, candidates: &[i64]) -> Option<(i64, f64)> {
-    if asked.failed() {
+    if asked.failed() || asked.noul(WRITES)? < WRITES_AT {
         return None;
     }
     let (picked, probability) = asked.choice(WHO)?;
+    if probability < PICK_AT {
+        return None;
+    }
     candidates
         .iter()
         .find(|session| key(**session) == picked)
@@ -154,7 +214,7 @@ pub async fn resolve(
             state(candidates, facts),
             questions(candidates),
             DecisionSubject::default(),
-            json!({}),
+            json!({"writes_at": WRITES_AT, "pick_at": PICK_AT}),
         )
         .await;
     let composed = compose(&asked, candidates);

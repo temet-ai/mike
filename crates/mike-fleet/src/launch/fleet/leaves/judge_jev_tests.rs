@@ -144,6 +144,22 @@ fn state_carries_the_task_brief_and_the_tasks_that_share_its_criteria() {
 }
 
 #[test]
+fn state_never_shows_jev_its_own_earlier_answers_the_round_or_the_floor_sha() {
+    let mut third = input(Some(0), &[]);
+    third.earlier_verdicts = vec![super::super::judge::EarlierVerdict {
+        round: 1,
+        passed: false,
+        criteria: vec!["C1".to_owned()],
+        needed: "show C1".to_owned(),
+    }];
+    let state = state(&third);
+    for field in ["earlier_verdicts", "round", "floor_passed_at"] {
+        assert!(state.get(field).is_none(), "{field}");
+    }
+    assert_eq!(state["task"], "T1");
+}
+
+#[test]
 fn the_question_asks_for_this_tasks_part_of_a_criterion() {
     let asked = questions(&[criterion("C1")]);
     let text = serde_json::to_string(&asked["criterion_C1"]).unwrap_or_default();

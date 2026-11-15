@@ -5,7 +5,8 @@ use chrono::{DateTime, Utc};
 
 use super::point::{Judged, Prepared, ReplayPoint};
 use crate::analysis::judge::jev::questions::{
-    ABANDONED, ACCEPTED, ASKS_OPERATOR, CORRECTED, DELIVERED, LEFT_OPEN, REDIRECTED, SHIPPED,
+    ABANDONED, ACCEPTED, ASKS_OPERATOR, CORRECTION_SIGNALS, DELIVERED, LEFT_OPEN, REDIRECTED,
+    SHIPPED,
 };
 use crate::analysis::judge::jev::{
     self, Composed, POINT, QUESTION_SET, Shape, TurnFacts, UNCERTAIN_BELOW,
@@ -66,14 +67,17 @@ fn facts(context: &JudgeTurnContextRow) -> TurnFacts<'_> {
 }
 
 fn shape(context: &JudgeTurnContextRow) -> Shape {
-    Shape::TwoAxis {
-        has_next: context.next_genuine_text.is_some(),
-    }
+    jev::effective_shape(
+        &facts(context),
+        Shape::TwoAxis {
+            has_next: context.next_genuine_text.is_some(),
+        },
+    )
 }
 
 fn axis_positive(question: &str, reaction: Option<&str>, delivery: Option<&str>) -> Option<bool> {
     match question {
-        CORRECTED => reaction.map(|r| r == "corrected"),
+        q if CORRECTION_SIGNALS.contains(&q) => reaction.map(|r| r == "corrected"),
         REDIRECTED => reaction.map(|r| r == "redirected"),
         ACCEPTED => reaction.map(|r| r == "accepted"),
         ABANDONED => delivery.map(|d| d == "none"),

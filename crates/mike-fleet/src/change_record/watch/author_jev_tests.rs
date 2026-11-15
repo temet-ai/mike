@@ -40,15 +40,34 @@ fn now_window() -> Window {
     }
 }
 
+fn picked_with(key: &str, p: f64, writes: f64) -> Asked {
+    Asked::answered(BTreeMap::from([
+        (
+            WHO.to_owned(),
+            Answer::Choice {
+                choice: key.to_owned(),
+                probabilities: BTreeMap::from([(key.to_owned(), p)]),
+                confidence: None,
+            },
+        ),
+        (
+            WRITES.to_owned(),
+            Answer::Noul {
+                noul: writes,
+                confidence: None,
+            },
+        ),
+    ]))
+}
+
 fn picked(key: &str, p: f64) -> Asked {
-    Asked::answered(BTreeMap::from([(
-        WHO.to_owned(),
-        Answer::Choice {
-            choice: key.to_owned(),
-            probabilities: BTreeMap::from([(key.to_owned(), p)]),
-            confidence: None,
-        },
-    )]))
+    picked_with(key, p, 0.9)
+}
+
+fn body(writes: f64) -> serde_json::Value {
+    let mut value = choice_body(WHO, "s7", &["s3", "unknown"]);
+    value["answers"][WRITES] = json!({"type": "noul", "noul": writes});
+    value
 }
 
 #[test]
@@ -59,6 +78,44 @@ fn compose_a_candidate_key_gives_that_session() {
 #[test]
 fn compose_unknown_gives_no_author() {
     assert_eq!(compose(&picked("unknown", 0.9), &[3, 7]), None);
+}
+
+#[test]
+fn compose_a_pick_below_the_floor_gives_no_author() {
+    assert_eq!(compose(&picked("s7", 0.59), &[3, 7]), None);
+    assert_eq!(compose(&picked("s7", 0.6), &[3, 7]), Some((7, 0.6)));
+}
+
+#[test]
+fn compose_without_a_writing_call_gives_no_author() {
+    assert_eq!(compose(&picked_with("s7", 0.95, 0.69), &[3, 7]), None);
+    assert_eq!(
+        compose(&picked_with("s7", 0.95, 0.7), &[3, 7]),
+        Some((7, 0.95))
+    );
+}
+
+#[test]
+fn questions_ask_the_choice_and_the_presence_noul_in_one_request() {
+    let asked = questions(&[3, 7]);
+    assert_eq!(asked.len(), 2);
+    let Some(Question::Choice { criteria, .. }) = asked.get(WHO) else {
+        panic!("who is not a choice");
+    };
+    assert_eq!(
+        criteria.get("s3").map(String::as_str),
+        Some(
+            "Session 3: a command or edit tool call that overlaps the change window writes `changed_file`."
+        )
+    );
+    assert!(criteria.contains_key(UNKNOWN));
+    let Some(Question::Noul { instructions, .. }) = asked.get(WRITES) else {
+        panic!("writes is not a noul");
+    };
+    assert_eq!(
+        instructions,
+        "Does any candidate's command or edit that overlaps the change window write `changed_file`?"
+    );
 }
 
 #[test]
@@ -103,21 +160,19 @@ fn state_with_shell_runs_shows_each_command_and_the_change_window() {
         command: Some("git worktree remove .claude/worktrees/x".to_owned()),
         ..run(7)
     }];
-    let changed = now_window();
     let facts = Facts {
         path: "/work/alpha",
         calls: &[],
         runs: &runs,
         after: None,
-        changed,
+        changed: now_window(),
     };
     let state = state(&[3, 7], &facts);
     assert_eq!(
         state["candidate_sessions"][1]["shell_commands_running_in_the_checkout"][0]["command"],
         "git worktree remove .claude/worktrees/x"
     );
-    assert_eq!(state["changed_between"]["from"], json!(changed.from));
-    assert_eq!(state["changed_between"]["to"], json!(changed.to));
+    assert!(state.get("changed_between").is_none());
 }
 
 #[tokio::test]
@@ -125,7 +180,7 @@ async fn resolve_on_an_answered_choice_names_the_session() -> anyhow::Result<()>
     let Some(fx) = DecisionsFixture::boot(json!({})).await? else {
         return Ok(());
     };
-    let server = stub_jev(200, choice_body(WHO, "s7", &["s3", "unknown"])).await;
+    let server = stub_jev(200, body(0.9)).await;
     let decider = jev_decider(&server, &fx.handle, POINT, DecisionMode::On)?;
     let facts = Facts {
         path: "a.rs",
@@ -142,6 +197,25 @@ async fn resolve_on_an_answered_choice_names_the_session() -> anyhow::Result<()>
             percent: 80
         })
     );
+    fx.finish().await
+}
+
+#[tokio::test]
+async fn resolve_when_no_overlapping_call_writes_the_file_leaves_the_author_unknown()
+-> anyhow::Result<()> {
+    let Some(fx) = DecisionsFixture::boot(json!({})).await? else {
+        return Ok(());
+    };
+    let server = stub_jev(200, body(0.2)).await;
+    let decider = jev_decider(&server, &fx.handle, POINT, DecisionMode::On)?;
+    let facts = Facts {
+        path: "a.rs",
+        calls: &[],
+        runs: &[],
+        after: None,
+        changed: now_window(),
+    };
+    assert_eq!(resolve(&decider, &[3, 7], &facts).await, None);
     fx.finish().await
 }
 
@@ -164,19 +238,82 @@ async fn resolve_with_a_failing_client_leaves_the_author_unknown() -> anyhow::Re
 }
 
 #[test]
-fn state_each_edit_carries_the_window_it_ran_in() {
-    let calls = vec![edit(3, "alpha")];
+fn state_computes_the_time_order_in_code_and_sends_no_raw_timestamps() {
+    let now = Utc::now();
+    let changed = Window {
+        from: now - chrono::Duration::seconds(10),
+        to: now,
+    };
+    let inside = EditCall {
+        ran_from: now - chrono::Duration::seconds(5),
+        ran_to: Some(now - chrono::Duration::seconds(3)),
+        ..edit(3, "alpha")
+    };
+    let before = EditCall {
+        ran_from: now - chrono::Duration::seconds(60),
+        ran_to: Some(now - chrono::Duration::seconds(40)),
+        ..edit(3, "beta")
+    };
+    let runs = vec![ShellRun {
+        started: now - chrono::Duration::seconds(2),
+        finished: Some(now + chrono::Duration::seconds(8)),
+        ..run(7)
+    }];
+    let calls = vec![inside, before];
     let facts = Facts {
         path: "src/a.rs",
         calls: &calls,
-        runs: &[],
+        runs: &runs,
         after: None,
-        changed: now_window(),
+        changed,
     };
     let state = state(&[3, 7], &facts);
-    let first = &state["candidate_sessions"][0]["edit_tool_calls_naming_the_file"][0];
-    assert_eq!(first["ran_from"], json!(calls[0].ran_from));
-    assert_eq!(first["ran_to"], json!(calls[0].ran_to));
+    let edits = &state["candidate_sessions"][0]["edit_tool_calls_naming_the_file"];
+    assert_eq!(edits[0]["overlaps_change_window"], "yes");
+    assert_eq!(edits[0]["ended_seconds_after_change"], -3);
+    assert_eq!(edits[1]["overlaps_change_window"], "no");
+    assert_eq!(edits[1]["ended_seconds_after_change"], -40);
+    let shell = &state["candidate_sessions"][1]["shell_commands_running_in_the_checkout"][0];
+    assert_eq!(shell["overlaps_change_window"], "yes");
+    assert_eq!(shell["ended_seconds_after_change"], 8);
+    for raw in ["at", "ran_from", "ran_to"] {
+        assert!(edits[0].get(raw).is_none());
+    }
+    for raw in ["started", "finished"] {
+        assert!(shell.get(raw).is_none());
+    }
+}
+
+#[test]
+fn trim_command_keeps_a_short_command_whole() {
+    assert_eq!(
+        trim_command("git add src/a.rs", "src/a.rs"),
+        "git add src/a.rs"
+    );
+}
+
+#[test]
+fn trim_command_long_command_keeps_the_lines_naming_the_path() {
+    let noise = "echo unrelated\n".repeat(60);
+    let command = format!("{noise}sed -i s/a/b/ src/a.rs\n{noise}");
+    let trimmed = trim_command(&command, "src/a.rs");
+    assert_eq!(trimmed, "sed -i s/a/b/ src/a.rs");
+}
+
+#[test]
+fn trim_command_long_line_is_cut_to_300_chars_around_the_path() {
+    let command = format!("{}src/a.rs{}", "x ".repeat(400), " y".repeat(400));
+    let trimmed = trim_command(&command, "src/a.rs");
+    assert_eq!(trimmed.chars().count(), 300);
+    assert!(trimmed.contains("src/a.rs"));
+}
+
+#[test]
+fn trim_command_long_command_without_the_path_keeps_its_head() {
+    let command = "echo unrelated ".repeat(60);
+    let trimmed = trim_command(&command, "src/a.rs");
+    assert_eq!(trimmed.chars().count(), 300);
+    assert!(command.starts_with(&trimmed));
 }
 
 #[test]

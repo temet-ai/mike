@@ -28,6 +28,12 @@ pub enum Question {
         instructions: String,
         criteria: NoulCriteria,
     },
+    #[serde(rename = "noul", skip_deserializing)]
+    NoulShaped {
+        instructions: Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        criteria: Option<Value>,
+    },
     Choice {
         instructions: String,
         criteria: BTreeMap<String, String>,
@@ -179,6 +185,7 @@ pub mod env;
 pub mod export;
 pub mod fleet_counts;
 pub mod loop_store;
+pub mod operator_text;
 pub mod outcome_sync;
 mod outcome_sync_anchor;
 mod outcome_sync_events;
@@ -189,6 +196,8 @@ pub mod retired;
 pub mod reuse;
 pub mod text;
 
+#[cfg(test)]
+mod operator_text_tests;
 #[cfg(test)]
 mod outcome_sync_anchor_tests;
 #[cfg(test)]

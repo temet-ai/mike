@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use serde_json::json;
 
 use super::compose::compose;
-use super::questions::{key, questions};
+use super::questions::{key, questions, requires_key};
 use super::rules::{Rule, TurnTools, cut_at_whitespace, parse_rules, relevant};
 use super::state::{TurnInput, state};
-use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
+use crate::llm::decisions::{Answer, Question};
 
 fn rule(source: &str, text: &str, scope: &[&str]) -> Rule {
     Rule {
@@ -178,13 +178,43 @@ fn relevant_returns_nothing_when_the_turn_shares_nothing() {
 #[test]
 fn compose_confident_violation_names_the_rule() {
     let outcome = compose(&answered(&[0.1, 0.9]), 2);
-    assert_eq!(outcome.map(|o| (o.rule, o.violated)), Some((1, true)));
+    assert_eq!(
+        outcome.map(|o| (o.rule, o.violated, o.held)),
+        Some((1, true, false))
+    );
 }
 
 #[test]
-fn compose_below_the_bar_is_not_a_violation() {
+fn compose_below_the_warn_bar_is_not_a_violation() {
     let outcome = compose(&answered(&[0.1, 0.79]), 2);
-    assert_eq!(outcome.map(|o| o.violated), Some(false));
+    assert_eq!(outcome.map(|o| (o.violated, o.held)), Some((false, false)));
+}
+
+#[test]
+fn compose_band_warns_at_the_top_holds_at_the_bottom_and_neither_between() {
+    let band = |p: f64| compose(&answered(&[p]), 1).map(|o| (o.violated, o.held));
+    assert_eq!(band(0.8), Some((true, false)));
+    assert_eq!(band(0.5), Some((false, false)));
+    assert_eq!(band(0.31), Some((false, false)));
+    assert_eq!(band(0.3), Some((false, true)));
+    assert_eq!(band(0.05), Some((false, true)));
+}
+
+#[test]
+fn compose_takes_the_likelier_of_the_forbids_and_requires_answers() {
+    let noul = |p: f64| Answer::Noul {
+        noul: p,
+        confidence: None,
+    };
+    let asked = Asked::answered(BTreeMap::from([
+        (key(0), noul(0.1)),
+        (requires_key(0), noul(0.85)),
+    ]));
+    let outcome = compose(&asked, 1);
+    assert_eq!(
+        outcome.map(|o| (o.probability, o.violated)),
+        Some((0.85, true))
+    );
 }
 
 #[test]
@@ -193,16 +223,110 @@ fn compose_failed_ask_is_none_so_no_note_is_left() {
 }
 
 #[test]
-fn questions_ask_one_noul_per_picked_rule_and_state_names_the_rules() {
+fn is_obligation_needs_must_or_always_as_a_whole_word() {
+    let yes = rule(
+        "AGENTS.md",
+        "Tests must pass before the push goes out.",
+        &[],
+    );
+    let also = rule(
+        "AGENTS.md",
+        "Always run the formatter before a commit.",
+        &[],
+    );
+    let no = rule(
+        "AGENTS.md",
+        "Never pass --no-verify when pushing code.",
+        &[],
+    );
+    let part = rule(
+        "AGENTS.md",
+        "Mustard and alwayson are not triggers, never.",
+        &[],
+    );
+    assert!(yes.is_obligation());
+    assert!(also.is_obligation());
+    assert!(!no.is_obligation());
+    assert!(!part.is_obligation());
+}
+
+fn instructions_of(asked: &BTreeMap<String, Question>, name: &str) -> String {
+    match asked.get(name) {
+        Some(Question::Noul { instructions, .. }) => instructions.clone(),
+        _ => String::new(),
+    }
+}
+
+#[test]
+fn questions_ask_only_the_forbids_side_for_a_rule_that_is_not_an_obligation() {
+    let a = rule("AGENTS.md", "Never do the first thing at all.", &[]);
+    let asked = questions(&[&a]);
+    assert_eq!(asked.len(), 1);
+    assert_eq!(
+        instructions_of(&asked, "rule_0"),
+        "Does a call in `tool_calls` or a path in `files_written` do what `rules.rule_0` forbids?"
+    );
+}
+
+#[test]
+fn questions_add_the_leaves_out_question_for_an_obligation_only() {
     let a = rule("AGENTS.md", "Never do the first thing at all.", &[]);
     let b = rule("CLAUDE.md", "Always do the second thing here.", &[]);
-    assert_eq!(questions(&[&a, &b]).len(), 2);
+    let asked = questions(&[&a, &b]);
+    assert_eq!(asked.len(), 3);
+    assert!(asked.contains_key("rule_1_requires"));
+    assert!(!asked.contains_key("rule_0_requires"));
+    assert_eq!(
+        instructions_of(&asked, "rule_1_requires"),
+        "Do `tool_calls` and `files_written` leave out what `rules.rule_1` requires?"
+    );
+}
+
+#[test]
+fn state_names_the_rules_and_leaves_out_the_operator_ask_and_the_turn_end() {
+    let a = rule("AGENTS.md", "Never do the first thing at all.", &[]);
+    let b = rule("CLAUDE.md", "Always do the second thing here.", &[]);
     let tools = TurnTools::default();
-    let input = TurnInput {
-        operator_ask: "x",
-        turn_end: "y",
-        tools: &tools,
-    };
+    let input = TurnInput { tools: &tools };
     let s = state(&input, &[&a, &b]);
     assert_eq!(s["rules"]["rule_1"], "Always do the second thing here.");
+    assert!(s.get("operator_ask").is_none());
+    assert!(s.get("turn_end").is_none());
+}
+
+#[test]
+fn state_numbers_tool_calls_and_keeps_a_matching_command_whole() {
+    let long = format!("cargo build {} --release", "x ".repeat(200));
+    let first = json!({"command": "ls -la"});
+    let second = json!({"command": long});
+    let tools = TurnTools::from_calls([("Bash", &first), ("Bash", &second)]);
+    let a = rule(
+        "AGENTS.md",
+        "Never run raw cargo build in the checkout.",
+        &[],
+    );
+    let s = state(&TurnInput { tools: &tools }, &[&a]);
+    let lines = s["tool_calls"].as_array().cloned().unwrap_or_default();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0], "T01| Bash: ls -la");
+    let whole = lines[1].as_str().unwrap_or_default();
+    assert!(whole.starts_with("T02| Bash: cargo build"));
+    assert!(whole.ends_with("--release"));
+    assert!(whole.chars().count() > 400);
+}
+
+#[test]
+fn state_cuts_a_command_no_rule_names_at_whitespace() {
+    let long = format!("lsof {} -i", "word ".repeat(80));
+    let input = json!({"command": long});
+    let tools = TurnTools::from_calls([("Bash", &input)]);
+    let a = rule(
+        "AGENTS.md",
+        "Never run raw cargo build in the checkout.",
+        &[],
+    );
+    let s = state(&TurnInput { tools: &tools }, &[&a]);
+    let line = s["tool_calls"][0].as_str().unwrap_or_default();
+    assert!(line.starts_with("T01| Bash: lsof word"));
+    assert!(line.chars().count() < 215);
 }

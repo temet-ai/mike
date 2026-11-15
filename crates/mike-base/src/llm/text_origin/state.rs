@@ -1,5 +1,6 @@
 use serde_json::{Value, json};
 
+use crate::llm::decisions::operator_text::typed_by_operator;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 
 const TEXT_HEAD_CHARS: usize = 900;
@@ -19,16 +20,23 @@ pub struct Unmatched {
     pub has_agent_id: bool,
 }
 
-fn follows(input: &Unmatched) -> (&'static str, &str) {
+fn follows(input: &Unmatched) -> (&'static str, String) {
     let previous = input.previous_user_message.trim();
     let repeats = previous == input.text.trim() || previous == input.last_user_message.trim();
-    if previous.is_empty() || repeats {
-        (
-            "previous_assistant_reply",
-            tail_chars(input.previous_assistant_reply.trim(), REPLY_CHARS),
-        )
+    let typed = if previous.is_empty() || repeats {
+        None
     } else {
-        ("previous_user_message", tail_chars(previous, FOLLOWS_CHARS))
+        typed_by_operator(previous)
+    };
+    match typed {
+        Some(typed) => (
+            "previous_user_message",
+            tail_chars(typed.trim(), FOLLOWS_CHARS).to_owned(),
+        ),
+        None => (
+            "previous_assistant_reply",
+            tail_chars(input.previous_assistant_reply.trim(), REPLY_CHARS).to_owned(),
+        ),
     }
 }
 
@@ -46,10 +54,7 @@ pub fn state(input: &Unmatched) -> Value {
     };
     json!({
         "text": text,
-        "text_chars": total,
         "follows": follows_text,
         "follows_is": follows_kind,
-        "author_guess": input.author,
-        "sent_by_subagent": input.has_agent_id,
     })
 }

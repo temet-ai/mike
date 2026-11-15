@@ -23,15 +23,28 @@ fn candidates() -> Vec<Pick> {
     ]
 }
 
+fn answered_about(key: &str, p: f64, about: f64) -> Asked {
+    Asked::answered(BTreeMap::from([
+        (
+            QUESTION.to_owned(),
+            Answer::Choice {
+                choice: key.to_owned(),
+                probabilities: BTreeMap::from([(key.to_owned(), p)]),
+                confidence: None,
+            },
+        ),
+        (
+            ABOUT.to_owned(),
+            Answer::Noul {
+                noul: about,
+                confidence: None,
+            },
+        ),
+    ]))
+}
+
 fn answered(key: &str, p: f64) -> Asked {
-    Asked::answered(BTreeMap::from([(
-        QUESTION.to_owned(),
-        Answer::Choice {
-            choice: key.to_owned(),
-            probabilities: BTreeMap::from([(key.to_owned(), p)]),
-            confidence: None,
-        },
-    )]))
+    answered_about(key, p, 0.9)
 }
 
 fn thread(slug: &str) -> ThreadFacts {
@@ -78,6 +91,33 @@ fn compose_thread_below_the_floor_supplies_no_thread() -> Result<()> {
 }
 
 #[test]
+fn compose_a_choice_is_read_only_when_the_message_is_about_a_candidate() -> Result<()> {
+    for about in [0.69, 0.5, 0.1] {
+        let picked = compose(&answered_about("ui-polish", 0.95, about), &candidates())
+            .ok_or_else(|| anyhow::anyhow!("expected a decision"))?;
+        assert_eq!(picked.resolution, Resolution::None, "{about}");
+        assert_eq!(picked.applied, "skipped", "{about}");
+    }
+    let picked = compose(&answered_about("ui-polish", 0.95, 0.7), &candidates())
+        .ok_or_else(|| anyhow::anyhow!("expected a decision"))?;
+    assert_eq!(picked.applied, "chosen");
+    Ok(())
+}
+
+#[test]
+fn compose_without_the_presence_answer_gives_the_off_path() {
+    let only_choice = Asked::answered(BTreeMap::from([(
+        QUESTION.to_owned(),
+        Answer::Choice {
+            choice: "ui-polish".to_owned(),
+            probabilities: BTreeMap::from([("ui-polish".to_owned(), 0.9)]),
+            confidence: None,
+        },
+    )]));
+    assert_eq!(compose(&only_choice, &candidates()), None);
+}
+
+#[test]
 fn compose_failed_answer_gives_the_off_path() {
     assert_eq!(compose(&Asked::failed_with("timeout"), &candidates()), None);
 }
@@ -88,7 +128,7 @@ fn compose_unknown_thread_gives_the_off_path() {
 }
 
 #[test]
-fn state_carries_the_message_the_candidates_and_their_signals() {
+fn state_carries_the_message_and_the_candidates_without_the_code_guess() {
     let threads = vec![thread("migration-work"), thread("ui-polish")];
     let input = ResolveInput {
         prompt: Some("what's the status of the migration"),
@@ -108,11 +148,58 @@ fn state_carries_the_message_the_candidates_and_their_signals() {
     );
     assert_eq!(value["recent_turns_newest_first"][0], "newer");
     assert_eq!(value["candidate_threads"][0]["slug"], "migration-work");
-    assert_eq!(
-        value["candidate_threads"][0]["code_signals"][0],
-        "OwnLatest"
-    );
+    for field in ["code_signals", "code_score", "branch"] {
+        assert!(
+            value["candidate_threads"][0].get(field).is_none(),
+            "{field}"
+        );
+    }
     assert_eq!(value["candidate_threads"][0]["days_since_checkpoint"], 2.0);
+}
+
+#[test]
+fn state_keeps_only_the_operators_words_of_each_recent_turn() {
+    let threads = vec![thread("migration-work")];
+    let input = ResolveInput {
+        prompt: Some("continue"),
+        session: SessionFacts {
+            session_uuid: Uuid::from_u128(1),
+            cwd: None,
+            branch: None,
+            recent_turn_text: vec![
+                "older ask",
+                "<system-reminder>\nhook output\n</system-reminder>",
+                "<system-reminder>\nnoise\n</system-reminder>\nnewer ask",
+            ],
+        },
+        threads: &threads,
+        now: chrono::Utc.timestamp_opt(1_794_225_600, 0).unwrap(),
+    };
+    let value = state(&input, "continue", &candidates());
+    assert_eq!(
+        value["recent_turns_newest_first"],
+        serde_json::json!(["newer ask", "older ask"])
+    );
+}
+
+#[test]
+fn questions_ask_which_threads_work_the_message_continues_and_whether_it_is_about_any() -> Result<()>
+{
+    let asked = questions(&candidates(), &[thread("migration-work")]);
+    let Some(Question::Choice { instructions, .. }) = asked.get(QUESTION) else {
+        anyhow::bail!("expected a choice question");
+    };
+    assert_eq!(
+        instructions,
+        "Which thread's work does `operator_message` continue?"
+    );
+    let Some(Question::Noul { instructions, .. }) = asked.get(ABOUT) else {
+        anyhow::bail!("expected a presence noul");
+    };
+    assert!(
+        instructions.contains("`operator_message`") && instructions.contains("`candidate_threads`")
+    );
+    Ok(())
 }
 
 #[tokio::test]

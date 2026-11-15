@@ -118,11 +118,7 @@ async fn rule_note(
         scope.calls.iter().map(|c| (c.tool_name.as_str(), &c.input)),
     );
     let picked = rule_point::rules::relevant(&rules, &tools, rule_point::RULES_PER_TURN);
-    let input = rule_point::TurnInput {
-        operator_ask: &window.eval_inputs.operator_ask,
-        turn_end: &scope.turn.text,
-        tools: &tools,
-    };
+    let input = rule_point::TurnInput { tools: &tools };
     let Some(checked) = rule_point::check(decider, &input, &picked, subject(scope.turn)).await
     else {
         return;

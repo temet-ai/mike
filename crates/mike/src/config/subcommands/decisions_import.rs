@@ -42,7 +42,7 @@ const NOTES: [(&str, &str); 3] = [
 mod decisions_import_tests;
 
 const REPLAY_DAY: &str = "2026-11-13T18:00:00Z";
-const JEV_MODEL: &str = "typesafe/jev-1.14";
+const JEV_MODEL: &str = "typesafe/jev-1.14-20261014";
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ReplayKind {

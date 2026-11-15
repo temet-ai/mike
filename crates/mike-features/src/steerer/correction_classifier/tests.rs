@@ -18,21 +18,28 @@ fn answered(p: f64) -> Asked {
 }
 
 #[test]
-fn compose_at_the_threshold_is_a_correction() {
-    assert_eq!(compose(&answered(0.55)).map(|c| c.kind), Some("correction"));
+fn compose_at_or_above_the_correction_edge_is_a_correction() {
+    assert_eq!(compose(&answered(0.7)).map(|c| c.kind), Some("correction"));
+    assert_eq!(compose(&answered(0.95)).map(|c| c.kind), Some("correction"));
 }
 
 #[test]
-fn compose_below_the_threshold_is_a_clarification() {
+fn compose_at_or_below_the_clarification_edge_is_a_clarification() {
     assert_eq!(
-        compose(&answered(0.54)).map(|c| c.kind),
+        compose(&answered(0.3)).map(|c| c.kind),
+        Some("clarification")
+    );
+    assert_eq!(
+        compose(&answered(0.05)).map(|c| c.kind),
         Some("clarification")
     );
 }
 
 #[test]
-fn compose_a_plain_correction_scored_in_the_middle_is_a_correction() {
-    assert_eq!(compose(&answered(0.62)).map(|c| c.kind), Some("correction"));
+fn compose_between_the_edges_records_no_kind_so_the_keyword_kind_stands() {
+    for p in [0.31, 0.5, 0.55, 0.62, 0.69] {
+        assert!(compose(&answered(p)).is_none(), "{p}");
+    }
 }
 
 #[test]

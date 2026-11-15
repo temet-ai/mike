@@ -232,6 +232,40 @@ fn merged_joins_linked_groups_under_the_largest_groups_key() {
 }
 
 #[test]
+fn question_names_both_messages_and_states_the_criteria() {
+    let asked = questions();
+    let Some(Question::Noul {
+        instructions,
+        criteria,
+    }) = asked.get(SAME)
+    else {
+        panic!("same is not a noul");
+    };
+    assert_eq!(
+        instructions,
+        "Do `line_a.message` and `line_b.message` report the same problem?"
+    );
+    assert_eq!(
+        criteria.yes,
+        "The same statement or error; only names, numbers or identifiers differ"
+    );
+    assert_eq!(
+        criteria.no,
+        "Different SQL statements, tables or error kinds"
+    );
+}
+
+#[test]
+fn applied_for_records_merged_kept_apart_and_undecided_pairs() {
+    assert_eq!(applied_for(Some(0.9), true), "chosen");
+    assert_eq!(applied_for(Some(0.2), false), "skipped");
+    assert_eq!(applied_for(Some(0.3), false), "none");
+    assert_eq!(applied_for(Some(0.5), false), "none");
+    assert_eq!(applied_for(Some(0.85), false), "none");
+    assert_eq!(applied_for(None, false), "none");
+}
+
+#[test]
 fn compose_gives_the_probability_and_nothing_for_a_failed_call() {
     assert_eq!(compose(&answered(0.9)), Some(0.9));
     assert_eq!(compose(&Asked::failed_with("timeout")), None);

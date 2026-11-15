@@ -143,6 +143,63 @@ fn compose_reads_one_label_per_step_and_skips_a_failed_call() {
     assert!(compose(&Asked::failed_with("timeout"), &steps).is_empty());
 }
 
+fn labelled(step_ids: &[i64], key: &str, p: f64) -> Asked {
+    Asked::answered(
+        step_ids
+            .iter()
+            .map(|id| {
+                (
+                    step_key(*id),
+                    crate::llm::decisions::Answer::Choice {
+                        choice: key.to_owned(),
+                        probabilities: BTreeMap::from([(key.to_owned(), p)]),
+                        confidence: None,
+                    },
+                )
+            })
+            .collect(),
+    )
+}
+
+#[test]
+fn compose_keeps_a_label_only_when_its_probability_is_at_least_six_tenths() {
+    let steps = vec![step(1)];
+    assert_eq!(
+        compose(&labelled(&[1], "work", 0.6), &steps),
+        vec![(1, Label::Work, 0.6)]
+    );
+    assert!(compose(&labelled(&[1], "work", 0.59), &steps).is_empty());
+}
+
+#[test]
+fn state_a_mail_step_carries_the_body_without_the_channel_envelope_and_started_by_mail() {
+    let mut mail = step(1);
+    mail.trigger = "mail".into();
+    mail.text = "<channel source=\"mike\" kind=\"mail\" from=\"coordinator\">\nrebase onto main\n</channel>".into();
+    let facts = state(&[mail]);
+    assert_eq!(facts["steps"][0]["prompt"], "rebase onto main");
+    assert_eq!(facts["steps"][0]["started_by"], "mail");
+}
+
+#[test]
+fn state_started_by_is_mail_operator_or_seat() {
+    for (trigger, expected) in [
+        ("mail", "mail"),
+        ("operator", "operator"),
+        ("tool_result", "seat"),
+        ("wakeup", "seat"),
+    ] {
+        let mut s = step(1);
+        s.trigger = trigger.into();
+        assert_eq!(state(&[s])["steps"][0]["started_by"], expected, "{trigger}");
+    }
+}
+
+#[test]
+fn mail_body_without_an_envelope_is_the_text_itself() {
+    assert_eq!(mail_body("  mike-mail: hello  "), "mike-mail: hello");
+}
+
 #[test]
 fn machinery_tools_only_a_fleet_ask_and_mail_step_is_machinery() {
     let tools = "mcp__mike__fleet_check: \nmcp__mike__fleet_commit: \nAskUserQuestion: \nmcp__mike__send_session_message: ";

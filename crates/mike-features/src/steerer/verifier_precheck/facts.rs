@@ -1,12 +1,10 @@
 use serde_json::{Value, json};
 
-use crate::llm::decisions::text::head_chars;
 use crate::steerer::verdict::SteererVerdict;
 use crate::wire::genuine::PromptKind;
 use crate::wire::genuine::templates::match_template;
 use crate::wire::machine_text::{MachineTextKind, classify};
 
-const JUDGED_ASK_CHARS: usize = 800;
 const MIN_QUOTE_CHARS: usize = 12;
 const MAILBOX_MARK: &str = "unread cross-session mailbox message";
 const COMPACTION_STARTS: [&str; 3] = [
@@ -86,8 +84,6 @@ impl Facts {
     pub fn json(&self) -> Value {
         json!({
             "nudge_source": self.nudge_source.code(),
-            "judged_ask": head_chars(&self.judged_ask, JUDGED_ASK_CHARS),
-            "ask_source": self.ask_source.code(),
             "recent_commits": self.recent_commits,
         })
     }

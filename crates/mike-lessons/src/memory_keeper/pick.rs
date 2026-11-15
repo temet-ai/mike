@@ -6,14 +6,17 @@ use serde_json::{Value, json};
 use super::resolve::{Pick, Resolution, ResolveInput, ThreadFacts, ranked_candidates};
 use super::resolve_text::typed_text;
 use crate::llm::decisions::env::{DecisionEnv, head_chars, tail_chars};
-use crate::llm::decisions::point::{Asked, Decider, choice};
+use crate::llm::decisions::operator_text::typed_by_operator;
+use crate::llm::decisions::point::{Asked, Decider, choice, noul};
 use crate::llm::decisions::{Question, record::DecisionSubject};
 
 pub const POINT: &str = "thread_pick";
-pub const QUESTION_SET: &str = "thread_pick_v2";
+pub const QUESTION_SET: &str = "thread_pick_v3";
 pub const NONE_KEY: &str = "none";
 pub const MIN_PICK: f64 = 0.5;
+pub const ABOUT_AT: f64 = 0.7;
 const QUESTION: &str = "thread";
+const ABOUT: &str = "about_a_candidate_thread";
 const MAX_CANDIDATES: usize = 6;
 const PROMPT_CHARS: usize = 600;
 const TURN_CHARS: usize = 300;
@@ -57,13 +60,23 @@ pub fn questions(candidates: &[Pick], threads: &[ThreadFacts]) -> BTreeMap<Strin
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
-    BTreeMap::from([(
-        QUESTION.to_owned(),
-        choice(
-            "Which work thread does the operator's latest message continue? Pick a thread only when the message is about that thread's work; a message that only shares a word with a thread, or asks a general question, continues none.",
-            &refs,
+    BTreeMap::from([
+        (
+            QUESTION.to_owned(),
+            choice(
+                "Which thread's work does `operator_message` continue?",
+                &refs,
+            ),
         ),
-    )])
+        (
+            ABOUT.to_owned(),
+            noul(
+                "Is `operator_message` about the work of any thread in `candidate_threads`?",
+                "The message is about the work of one of the candidate threads.",
+                "The message shares at most a word with the candidate threads, asks a general question or starts unrelated work.",
+            ),
+        ),
+    ])
 }
 
 fn days_since(thread: Option<&ThreadFacts>, now: DateTime<Utc>) -> Option<f64> {
@@ -80,8 +93,9 @@ pub fn state(input: &ResolveInput<'_>, message: &str, candidates: &[Pick]) -> Va
         .recent_turn_text
         .iter()
         .rev()
+        .filter_map(|turn| typed_by_operator(turn))
         .take(3)
-        .map(|t| tail_chars(t, TURN_CHARS))
+        .map(|turn| tail_chars(&turn, TURN_CHARS))
         .collect();
     let cards: Vec<Value> = candidates
         .iter()
@@ -92,9 +106,6 @@ pub fn state(input: &ResolveInput<'_>, message: &str, candidates: &[Pick]) -> Va
                 "title": thread.map(|t| t.title.as_str()),
                 "goal": thread.map(|t| tail_chars(&t.goal, LABEL_CHARS)),
                 "status": thread.map(|t| t.status.as_str()),
-                "branch": thread.and_then(|t| t.branch.as_deref()),
-                "code_signals": pick.signals.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>(),
-                "code_score": (pick.score * 100.0).round() / 100.0,
                 "days_since_checkpoint": days_since(thread, input.now),
             })
         })
@@ -109,6 +120,14 @@ pub fn state(input: &ResolveInput<'_>, message: &str, candidates: &[Pick]) -> Va
 pub fn compose(asked: &Asked, candidates: &[Pick]) -> Option<Picked> {
     if asked.failed() {
         return None;
+    }
+    let about = asked.noul(ABOUT)?;
+    if about < ABOUT_AT {
+        return Some(Picked {
+            resolution: Resolution::None,
+            score: 1.0 - about,
+            applied: "skipped",
+        });
     }
     let (key, probability) = asked.choice(QUESTION)?;
     if key == NONE_KEY {

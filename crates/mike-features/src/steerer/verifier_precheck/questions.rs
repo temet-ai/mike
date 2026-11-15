@@ -5,7 +5,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::noul;
 
 pub const POINT: &str = "verifier_precheck";
-pub const QUESTION_SET: &str = "verifier_precheck_v3";
+pub const QUESTION_SET: &str = "verifier_precheck_v4";
 
 pub const UNFINISHED: &str = "ask_left_unfinished";
 pub const DISCLOSED: &str = "turn_already_says_it";
@@ -19,7 +19,7 @@ pub const VETOES: [&str; 4] = [STILL_RUNNING, NOT_OPERATOR_ASK, DONE_EARLIER, DI
 
 fn still_running() -> Question {
     noul(
-        "Does turn_end say the work is still under way rather than finished: a build, push, gate, agent, check or deploy is still running, or it names the next step it is about to take?",
+        "Does `turn_end` say the work is still under way rather than finished: a build, push, gate, agent, check or deploy is still running, or it names the next step it is about to take?",
         "turn_end reports work in progress or a next step it is about to take, not a finished result.",
         "turn_end presents the work as finished.",
     )
@@ -27,7 +27,7 @@ fn still_running() -> Question {
 
 fn not_operator_ask() -> Question {
     noul(
-        "Is the thing the nudge says was asked for missing from the operator's own words in operator_ask (and in judged_ask when ask_source is operator), so that it comes from machine text such as a checklist, a heading, hook output or a template?",
+        "Is the thing `nudge` says was asked for missing from the words in `ask`, so that it comes from machine text such as a checklist, a heading, hook output or a template?",
         "The operator never asked for what the nudge names; it comes from generated or machine text.",
         "The operator's own words ask for what the nudge names.",
     )
@@ -35,7 +35,7 @@ fn not_operator_ask() -> Question {
 
 fn criterion_goal() -> Question {
     noul(
-        "The nudge quotes an acceptance criterion. Does that criterion match a goal the operator stated in operator_ask (or in judged_ask when ask_source is operator)?",
+        "`nudge` quotes an acceptance criterion. Does that criterion match a goal stated in `ask`?",
         "The operator stated this goal in their own words.",
         "No goal the operator stated matches the criterion.",
     )
@@ -51,7 +51,7 @@ fn done_earlier() -> Question {
 
 fn unfinished() -> Question {
     noul(
-        "Does the nudge point at something operator_ask (or judged_ask) asked for that turn_end does not show as done or checked?",
+        "Does `nudge` point at something `ask` asked for that `turn_end` does not show as done or checked?",
         "The nudge names a real part of the ask that turn_end leaves undone or unchecked.",
         "The nudge names nothing the ask needed, or turn_end shows it done and checked.",
     )

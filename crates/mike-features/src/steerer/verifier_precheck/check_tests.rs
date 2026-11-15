@@ -129,6 +129,7 @@ async fn check_mailbox_nudge_is_held_by_code_without_asking_jev() -> anyhow::Res
     assert_eq!(applied, "held");
     assert_eq!(composed["verdict"]["rule"], json!(MAILBOX_NUDGE));
     assert_eq!(composed["verdict"]["send"], json!(false));
+    assert_eq!(composed["ask_source"], json!("operator"));
     Ok(())
 }
 

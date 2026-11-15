@@ -114,7 +114,7 @@ fn questions_for_a_criteria_nudge_ask_the_goal_match_not_the_operator_words_veto
 }
 
 #[test]
-fn state_carries_the_checklist_status_and_the_turn_end() {
+fn state_carries_the_ask_the_nudge_and_the_turn_end_but_not_the_upstream_verdict() {
     let v = verdict();
     let long = format!("{}All done and tested.", "q".repeat(9_000));
     let input = FireInput {
@@ -124,7 +124,10 @@ fn state_carries_the_checklist_status_and_the_turn_end() {
         verdict: &v,
     };
     let s = state(&input);
-    assert_eq!(s["checklist"][0]["status"], "not_done");
+    assert_eq!(s["ask"], "fix the clearance");
+    assert!(s.get("checklist").is_none());
+    assert!(s.get("verifier_reason").is_none());
+    assert!(s.get("operator_ask").is_none());
     assert!(
         s["turn_end"]
             .as_str()
@@ -134,7 +137,36 @@ fn state_carries_the_checklist_status_and_the_turn_end() {
 }
 
 #[test]
-fn state_with_facts_carries_the_sources_and_the_recent_commits() {
+fn state_with_facts_sends_one_ask_chosen_in_code_and_no_ask_source() {
+    let v = verdict();
+    let facts = Facts {
+        nudge_source: NudgeSource::Verifier,
+        judged_ask: "[initial] fix the clearance".to_owned(),
+        ask_source: AskSource::Operator,
+        recent_commits: Vec::new(),
+    };
+    let own_words = FireInput {
+        operator_ask: "mend the cart",
+        turn_end: "done",
+        nudge: &v.nudge,
+        verdict: &v,
+    };
+    let s = state_with(&own_words, &facts);
+    assert_eq!(s["ask"], "mend the cart");
+    assert!(s.get("judged_ask").is_none());
+    assert!(s.get("ask_source").is_none());
+    let none = FireInput {
+        operator_ask: "  ",
+        ..own_words
+    };
+    assert_eq!(
+        state_with(&none, &facts)["ask"],
+        "[initial] fix the clearance"
+    );
+}
+
+#[test]
+fn state_with_facts_carries_the_source_and_the_recent_commits() {
     let v = verdict();
     let input = FireInput {
         operator_ask: "",
@@ -150,8 +182,6 @@ fn state_with_facts_carries_the_sources_and_the_recent_commits() {
     };
     let s = state_with(&input, &facts);
     assert_eq!(s["nudge_source"], "verifier");
-    assert_eq!(s["ask_source"], "operator");
-    assert_eq!(s["judged_ask"], "[initial] fix the clearance");
+    assert_eq!(s["ask"], "[initial] fix the clearance");
     assert_eq!(s["recent_commits"][0], "7d199613c Fix the clearance");
-    assert_eq!(s["checklist"][0]["status"], "not_done");
 }

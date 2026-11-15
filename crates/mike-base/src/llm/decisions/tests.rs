@@ -67,6 +67,25 @@ fn question_serialises_in_the_wire_shape() {
 }
 
 #[test]
+fn noul_shaped_serialises_object_parts_as_a_noul_and_omits_absent_criteria() {
+    let bare = serde_json::to_value(point::noul_shaped(json!({"question": "q"}), None))
+        .unwrap_or_default();
+    assert_eq!(
+        bare,
+        json!({"type": "noul", "instructions": {"question": "q"}})
+    );
+    let full = serde_json::to_value(point::noul_shaped(
+        json!("q"),
+        Some(json!({"true": {"what": "a"}, "false": {"what": "b"}})),
+    ))
+    .unwrap_or_default();
+    assert_eq!(
+        full,
+        json!({"type": "noul", "instructions": "q", "criteria": {"true": {"what": "a"}, "false": {"what": "b"}}})
+    );
+}
+
+#[test]
 fn decisions_url_replaces_the_v1_suffix() {
     assert_eq!(
         decisions_url("https://openrouter.ai/api/v1"),

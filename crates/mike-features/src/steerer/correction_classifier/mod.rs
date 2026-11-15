@@ -8,12 +8,13 @@ mod tests;
 
 use serde_json::json;
 
+use crate::llm::decisions::operator_text::typed_by_operator;
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::dossier_repo::DossierPersist as _;
 use crate::store::persistence::operator_turns::ListTurnsFilter;
-pub use compose::{CORRECTION_AT, Classified, compose};
+pub use compose::{CLARIFICATION_AT, CORRECTION_AT, Classified, compose};
 pub use questions::{POINT, QUESTION_SET};
 
 pub struct Message<'a> {
@@ -27,17 +28,18 @@ pub async fn classify(decider: &Decider, message: &Message<'_>) -> Option<Classi
     if injected::is_injected(message.operator_text) {
         return None;
     }
+    let typed = typed_by_operator(message.operator_text)?;
     let asked = decider
         .ask(
             QUESTION_SET,
-            state::state(message.operator_text, message.prior_turn),
+            state::state(&typed, message.prior_turn),
             questions::questions(),
             DecisionSubject {
                 session_id: Some(message.session_db_id),
                 request_id: Some(message.request_id),
                 ..DecisionSubject::default()
             },
-            json!({ "correction_at": CORRECTION_AT }),
+            json!({ "correction_at": CORRECTION_AT, "clarification_at": CLARIFICATION_AT }),
         )
         .await;
     match compose(&asked) {
@@ -53,7 +55,10 @@ pub async fn classify(decider: &Decider, message: &Message<'_>) -> Option<Classi
             Some(classified)
         }
         other => {
-            let score = other.as_ref().map_or(0.0, |c| c.probability);
+            let score = other.as_ref().map_or_else(
+                || asked.noul(questions::CORRECTS).unwrap_or(0.0),
+                |c| c.probability,
+            );
             decider
                 .mark(&asked, asked.composed(json!({ "score": score })), "none")
                 .await;
