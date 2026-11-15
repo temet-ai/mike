@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_CORRECTION_PROMPT: &str = "You used the word '{word}' in your previous response, which is a \
-     forbidden quality pattern. Rewrite your response. Start with: \
-     'I used a weasel word, let me fix that:' then give the corrected answer \
-     without using '{word}'.";
+pub const DEFAULT_CORRECTION_PROMPT: &str = "Your reply was cut just before the word '{word}', \
+     which is not accepted here. Continue from exactly where it was cut, without repeating \
+     any of it and without that word.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]

@@ -108,7 +108,7 @@ pub async fn run_proxy_tool_loop(
         upstream_resp,
         body_tx,
         followup_request_id,
-        next_index,
+        stitch::Stitcher::new(next_index),
     );
 }
 

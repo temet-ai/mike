@@ -59,6 +59,7 @@ fn the_stream_scan_stays_the_substring_match_whatever_jev_would_say() {
     assert_eq!(
         scanner
             .push("The design handles robustness concerns.")
+            .map(|hit| hit.word)
             .as_deref(),
         Some("robust")
     );

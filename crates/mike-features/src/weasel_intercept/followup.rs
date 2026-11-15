@@ -3,7 +3,7 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use super::frames::SseFramer;
-use super::stitch;
+use super::stitch::{self, Stitcher};
 use crate::state::AppState;
 use crate::store::models::RequestId;
 
@@ -14,14 +14,14 @@ pub fn spawn_stitched_tee(
     upstream_resp: reqwest::Response,
     body_tx: ClientTx,
     request_id: RequestId,
-    next_index: u64,
+    stitcher: Stitcher,
 ) {
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
     let (store_event_tx, store_event_rx) = tokio::sync::mpsc::channel(512);
 
     crate::observability::spans::spawn_tracked(
         &state.tracker,
-        stitch_to_client_and_parser(upstream_resp, body_tx, parser_tx, next_index),
+        stitch_to_client_and_parser(upstream_resp, body_tx, parser_tx, stitcher),
     );
     crate::observability::spans::spawn_tracked(
         &state.tracker,
@@ -52,7 +52,7 @@ async fn stitch_to_client_and_parser(
     upstream_resp: reqwest::Response,
     body_tx: ClientTx,
     parser_tx: mpsc::Sender<Bytes>,
-    next_index: u64,
+    mut stitcher: Stitcher,
 ) {
     let status = upstream_resp.status();
     if !status.is_success() {
@@ -83,7 +83,7 @@ async fn stitch_to_client_and_parser(
         if parser_alive && parser_tx.send(chunk.clone()).await.is_err() {
             parser_alive = false;
         }
-        if !send_stitched(&mut framer, &chunk, next_index, &body_tx).await {
+        if !send_stitched(&mut framer, &chunk, &mut stitcher, &body_tx).await {
             return;
         }
     }
@@ -96,11 +96,11 @@ async fn stitch_to_client_and_parser(
 async fn send_stitched(
     framer: &mut SseFramer,
     chunk: &[u8],
-    next_index: u64,
+    stitcher: &mut Stitcher,
     body_tx: &ClientTx,
 ) -> bool {
     for frame in framer.push(chunk) {
-        let Some(out) = stitch::onto_the_first_reply(frame, next_index) else {
+        let Some(out) = stitcher.stitch(frame) else {
             continue;
         };
         if body_tx.send(Ok(out)).await.is_err() {

@@ -9,6 +9,57 @@ pub struct StitchPoint {
     pub next_index: u64,
 }
 
+pub struct Stitcher {
+    next_index: u64,
+    drop_leading_space: bool,
+}
+
+impl Stitcher {
+    pub fn new(next_index: u64) -> Self {
+        Self {
+            next_index,
+            drop_leading_space: false,
+        }
+    }
+
+    pub fn after_kept(next_index: u64, kept: &str) -> Self {
+        Self {
+            next_index,
+            drop_leading_space: kept.ends_with(char::is_whitespace),
+        }
+    }
+
+    pub fn stitch(&mut self, frame: Frame) -> Option<Bytes> {
+        if self.drop_leading_space
+            && frame.event == "content_block_delta"
+            && let Some(out) = self.without_leading_space(&frame)
+        {
+            return Some(out);
+        }
+        onto_the_first_reply(frame, self.next_index)
+    }
+
+    fn without_leading_space(&mut self, frame: &Frame) -> Option<Bytes> {
+        let mut json: Value = serde_json::from_str(&frame.data).ok()?;
+        if json.pointer("/delta/type").and_then(Value::as_str) != Some("text_delta") {
+            return None;
+        }
+        let index = json.get("index")?.as_u64()?;
+        let trimmed = json
+            .pointer("/delta/text")?
+            .as_str()?
+            .trim_start()
+            .to_owned();
+        self.drop_leading_space = trimmed.is_empty();
+        json.as_object_mut()?
+            .insert("index".to_owned(), Value::from(index + self.next_index));
+        json.pointer_mut("/delta")?
+            .as_object_mut()?
+            .insert("text".to_owned(), Value::from(trimmed));
+        Some(sse_frame(&frame.event, &json.to_string()))
+    }
+}
+
 pub fn onto_the_first_reply(frame: Frame, next_index: u64) -> Option<Bytes> {
     match frame.event.as_str() {
         "message_start" => None,
@@ -25,6 +76,18 @@ fn reindexed(frame: &Frame, next_index: u64) -> Option<Bytes> {
     json.as_object_mut()?
         .insert("index".to_owned(), Value::from(index + next_index));
     Some(sse_frame(&frame.event, &json.to_string()))
+}
+
+pub fn text_delta_frame(index: u64, text: &str) -> Bytes {
+    sse_frame(
+        "content_block_delta",
+        &serde_json::json!({
+            "type": "content_block_delta",
+            "index": index,
+            "delta": {"type": "text_delta", "text": text}
+        })
+        .to_string(),
+    )
 }
 
 pub fn block_stop_frame(index: u64) -> Bytes {
@@ -135,6 +198,73 @@ mod tests {
         assert_eq!(json["type"], "error");
         let message = json["error"]["message"].as_str().unwrap_or_default();
         assert!(message.contains("502"), "{message}");
+        Ok(())
+    }
+
+    fn text_delta(index: u64, text: &str) -> Frame {
+        let data = serde_json::json!({
+            "type": "content_block_delta",
+            "index": index,
+            "delta": {"type": "text_delta", "text": text}
+        })
+        .to_string();
+        frame("content_block_delta", &data)
+    }
+
+    fn stitched_text(stitcher: &mut Stitcher, frame: Frame) -> anyhow::Result<String> {
+        let out = stitcher
+            .stitch(frame)
+            .ok_or_else(|| anyhow::anyhow!("a delta must be forwarded"))?;
+        let json = data_of(&out)?;
+        Ok(json["delta"]["text"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned())
+    }
+
+    #[test]
+    fn text_delta_frame_carries_the_text_at_the_open_index() -> anyhow::Result<()> {
+        let json = data_of(&text_delta_frame(2, "ed because of a "))?;
+        assert_eq!(json["type"], "content_block_delta");
+        assert_eq!(json["index"], 2);
+        assert_eq!(json["delta"]["type"], "text_delta");
+        assert_eq!(json["delta"]["text"], "ed because of a ");
+        Ok(())
+    }
+
+    #[test]
+    fn stitch_after_kept_ending_in_space_drops_the_continuations_leading_space()
+    -> anyhow::Result<()> {
+        let mut stitcher = Stitcher::after_kept(1, "because of a ");
+        assert_eq!(stitched_text(&mut stitcher, text_delta(0, " "))?, "");
+        assert_eq!(
+            stitched_text(&mut stitcher, text_delta(0, " table"))?,
+            "table"
+        );
+        assert_eq!(
+            stitched_text(&mut stitcher, text_delta(0, " already"))?,
+            " already"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn stitch_after_kept_ending_in_space_renumbers_the_trimmed_delta() -> anyhow::Result<()> {
+        let mut stitcher = Stitcher::after_kept(3, "of a ");
+        let out = stitcher
+            .stitch(text_delta(0, " table"))
+            .ok_or_else(|| anyhow::anyhow!("a delta must be forwarded"))?;
+        assert_eq!(data_of(&out)?["index"], 3);
+        Ok(())
+    }
+
+    #[test]
+    fn stitch_after_kept_ending_in_a_word_keeps_the_continuations_space() -> anyhow::Result<()> {
+        let mut stitcher = Stitcher::after_kept(1, "because of a");
+        assert_eq!(
+            stitched_text(&mut stitcher, text_delta(0, " table"))?,
+            " table"
+        );
         Ok(())
     }
 

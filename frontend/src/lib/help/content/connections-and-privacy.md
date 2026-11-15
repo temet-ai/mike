@@ -19,6 +19,6 @@ Do not expose the listeners through a LAN address, public interface, reverse tun
 
 ## Know what can change or leave the machine
 
-mike is not an invariant byte-for-byte forwarding tunnel. Enabled filtering, compositions, recall, lessons, reminders, mailbox delivery, steering and proxy tools can change outbound requests. The weasel intercept can replace an answer and continue upstream generation. The original incoming request is captured separately from those changes, subject to the fidelity information shown on the inspected record.
+mike is not an invariant byte-for-byte forwarding tunnel. Enabled filtering, compositions, recall, lessons, reminders, mailbox delivery, steering and proxy tools can change outbound requests. The weasel intercept can cut an answer just before a listed word and ask upstream to continue it: the reader sees the reply up to the word, then the model carrying on without it. The original incoming request is captured separately from those changes, subject to the fidelity information shown on the inspected record.
 
 Open [Settings](/settings) to review active features. Optional provider-backed judges, classifiers, verifiers and remote embeddings can send captured text to configured external services. Stored choices survive upgrades; a new default does not silently replace them. Leave optional providers unconfigured unless you intend to send that data.

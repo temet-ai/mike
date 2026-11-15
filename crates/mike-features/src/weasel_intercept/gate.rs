@@ -4,8 +4,8 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use super::frames::Frame;
-use super::scanner::DeltaScanner;
-use super::stitch::StitchPoint;
+use super::scanner::{DeltaScanner, Hit};
+use super::stitch::{self, StitchPoint};
 use crate::extract::response::{
     extract_input_json_delta, extract_text_delta, extract_tool_use_start,
 };
@@ -16,6 +16,8 @@ pub enum Cut {
     Word {
         word: String,
         text: String,
+        kept: String,
+        kept_frame: Option<Bytes>,
     },
     ToolCall {
         call: Box<ProxyToolCall>,
@@ -28,11 +30,18 @@ pub enum Admit {
     Cut(Cut),
 }
 
+struct Held {
+    raw: Bytes,
+    chars: usize,
+    bytes: usize,
+}
+
 pub struct StreamGate {
     words: DeltaScanner,
     tools: Option<ToolCallScanner>,
-    held_text: VecDeque<(Bytes, usize)>,
+    held_text: VecDeque<Held>,
     held_chars: usize,
+    held_bytes: usize,
     open_block: Option<u64>,
     forwarded_blocks: u64,
     held_tool_block: Option<u64>,
@@ -45,6 +54,7 @@ impl StreamGate {
             tools: answers_tool_calls.then(ToolCallScanner::new),
             held_text: VecDeque::new(),
             held_chars: 0,
+            held_bytes: 0,
             open_block: None,
             forwarded_blocks: 0,
             held_tool_block: None,
@@ -134,13 +144,33 @@ impl StreamGate {
         if let Some(tools) = self.tools.as_mut() {
             tools.push_text(&text);
         }
-        if let Some(word) = self.words.push(&text) {
-            return Admit::Cut(Cut::Word {
-                word,
-                text: self.words.text().to_owned(),
-            });
+        if let Some(hit) = self.words.push(&text) {
+            return Admit::Cut(self.cut_at_word(hit, text.len()));
         }
-        self.hold_text(frame.raw, text.chars().count())
+        self.hold_text(Held {
+            raw: frame.raw,
+            chars: text.chars().count(),
+            bytes: text.len(),
+        })
+    }
+
+    fn cut_at_word(&mut self, hit: Hit, chunk_bytes: usize) -> Cut {
+        let text = self.words.text().to_owned();
+        let unsent = text.len().saturating_sub(self.held_bytes + chunk_bytes);
+        self.release_all();
+        let kept = text.get(..hit.start).unwrap_or_default().to_owned();
+        let kept_frame = match (self.open_block, kept.get(unsent..)) {
+            (Some(index), Some(tail)) if !tail.is_empty() => {
+                Some(stitch::text_delta_frame(index, tail))
+            }
+            _ => None,
+        };
+        Cut::Word {
+            word: hit.word,
+            text,
+            kept,
+            kept_frame,
+        }
     }
 
     fn on_block_stop(&mut self, frame: Frame) -> Admit {
@@ -161,18 +191,20 @@ impl StreamGate {
         self.pass(frame.raw)
     }
 
-    fn hold_text(&mut self, raw: Bytes, chars: usize) -> Admit {
-        self.held_text.push_back((raw, chars));
-        self.held_chars += chars;
+    fn hold_text(&mut self, held: Held) -> Admit {
+        self.held_chars += held.chars;
+        self.held_bytes += held.bytes;
+        self.held_text.push_back(held);
         let keep = self.words.hold_chars();
         let mut released = Vec::new();
-        while let Some((_, front)) = self.held_text.front() {
-            if self.held_chars - front < keep {
+        while let Some(front) = self.held_text.front() {
+            if self.held_chars - front.chars < keep {
                 break;
             }
-            self.held_chars -= front;
-            if let Some((raw, _)) = self.held_text.pop_front() {
-                released.push(raw);
+            if let Some(front) = self.held_text.pop_front() {
+                self.held_chars -= front.chars;
+                self.held_bytes -= front.bytes;
+                released.push(front.raw);
             }
         }
         Admit::Forward(released)
@@ -186,7 +218,8 @@ impl StreamGate {
 
     fn release_all(&mut self) -> Vec<Bytes> {
         self.held_chars = 0;
-        self.held_text.drain(..).map(|(raw, _)| raw).collect()
+        self.held_bytes = 0;
+        self.held_text.drain(..).map(|held| held.raw).collect()
     }
 }
 

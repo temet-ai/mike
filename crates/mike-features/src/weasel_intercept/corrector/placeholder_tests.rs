@@ -20,6 +20,7 @@ fn rendered_correction(prompt: &str, response: &str, word: &str) -> anyhow::Resu
     let request = CorrectionRequest::new(
         original_body()?,
         response.to_owned(),
+        response.to_owned(),
         prompt.to_owned(),
         word.to_owned(),
     );
@@ -116,6 +117,7 @@ fn build_body_prompt_with_word_only_still_renders() -> anyhow::Result<()> {
 fn build_body_rejects_unknown_placeholder_naming_it() -> anyhow::Result<()> {
     let request = CorrectionRequest::new(
         original_body()?,
+        "text".to_owned(),
         "text".to_owned(),
         "Fix {word} in {passage}.".to_owned(),
         "robust".to_owned(),

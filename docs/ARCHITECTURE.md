@@ -227,7 +227,7 @@ Scanning covers streamed (`text/event-stream`) responses only. When the intercep
 When armed, the normal SSE tee (§3 step 24) is replaced by a **gated forwarder** (`weasel_intercept::run_gated_forwarder`). It splits the upstream bytes into SSE frames and passes each frame to the client as it arrives. Nothing is held except the newest text: the last `longest phrase − 1` characters of text stay back until newer text shows they cannot be the start of a listed phrase. Thinking, tool calls and every other frame pass at once.
 
 - **No phrase appears** — the client receives the upstream bytes unchanged, a few characters of text behind.
-- **A listed phrase completes** — the gate cuts the reply there. The frames that carry any part of the phrase were still held, so none of it reached the client. The forwarder closes the text block the client has open, mints a new `RequestId`, builds a `CorrectionRequest` body from the original request + the reply's text up to and including the phrase + the operator's correction prompt, and sends it upstream. The corrected answer is stitched onto the same message: its `message_start` is dropped and its content blocks are renumbered to follow the blocks the client already has. The client sees one message: the opening of the first answer, then the corrected one.
+- **A listed phrase completes** — the gate cuts the reply just before it. The scanner returns the byte offset where the phrase starts in the reply's text, and the text before it is the cut's `kept`. The frames that carry any part of the phrase were still held, so none of it reached the client; the held frames are never forwarded. Instead the gate builds one `text_delta` frame for the open block carrying the held text that falls before the phrase (`stitch::text_delta_frame`), and the forwarder sends it, then closes the block, so the client has exactly `kept`. It mints a new `RequestId`, builds a `CorrectionRequest` body from the original request + an assistant turn holding `kept` (trailing whitespace trimmed, since the API rejects an assistant turn that ends in it; left out when nothing is left) + the operator's correction prompt, which by default asks the model to continue from where it was cut without that phrase, and sends it upstream. The continuation is stitched onto the same message: its `message_start` is dropped and its content blocks are renumbered to follow the blocks the client already has. When `kept` ended in whitespace, the continuation's leading whitespace is dropped (`stitch::Stitcher`), because the client already has it. The reader sees one reply: the text up to the phrase, then the model carrying on without it. `weasel_after` still gets the full text, phrase included.
 
 The rest of the first upstream answer is still read to its end for capture, in the background, while the correction is already streaming.
 
@@ -824,13 +824,13 @@ upstream bytes stream
 
 **On `Cut::Word`**:
 
-1. The gate hands over the reply's text up to and including the phrase.
-2. `CorrectionRequest::build_body()` splices the original request body + that text + the correction prompt.
+1. The gate hands over the reply's full text, the text before the phrase (`kept`), and a `text_delta` frame carrying the held part of `kept`; the forwarder sends that frame, then closes the open block.
+2. `CorrectionRequest::build_body()` splices the original request body + an assistant turn holding `kept` with trailing whitespace trimmed + the correction prompt, which asks the model to continue from the cut.
 3. A provisional `RequestId` is allocated for the correction request.
 4. A minimal `InterceptedRequest` is inserted into the in-memory store for the correction.
 5. `RequestStore::insert_request_stub_to_db()` writes the correction stub row and returns the DB-assigned id, which supersedes the provisional one.
 6. The original request is marked `intercepted=true` + `correction_request_id` (bigint FK → `requests(id)`) in both store and DB.
-7. The correction request is sent upstream; its response is teed through its own parser+store_updater pair, and `stitch::onto_the_first_reply` renumbers its frames onto the message the client already has.
+7. The correction request is sent upstream; its response is teed through its own parser+store_updater pair, and `stitch::Stitcher` renumbers its frames onto the message the client already has, dropping the continuation's leading whitespace when `kept` ended in whitespace.
 
 ### Two-Phase Request Write
 
