@@ -136,6 +136,10 @@ class RustChangeScopeTests(unittest.TestCase):
         self.assertIn("--ignore-default-filter", command)
         self.assertEqual(command[-1], "(package(=mike) & test(/^launch::codex(::|$)/))")
 
+    def test_query_file_under_src_selects_its_module_not_the_whole_crate(self):
+        command = self.commands("crates/mike/src/store/persistence/wright/sql/followups/tracked.sql")[0]
+        self.assertEqual(command[-1], "(package(=mike) & test(/^store::persistence(::|$)/))")
+
     def test_workspace_and_query_metadata_do_not_expand_changed_module_db_scope(self):
         source = "crates/mike/src/launch/codex/model.rs"
         self.assertEqual(self.commands(source, "Cargo.toml", "Cargo.lock", "crates/mike/Cargo.toml", ".sqlx/query.json"), self.commands(source))

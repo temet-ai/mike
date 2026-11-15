@@ -113,11 +113,14 @@ def path_area(root, path, package):
                 return ["--test", target["name"]], f"binary(={target['name']})"
         return ["--tests"], f"package(={package['name']})"
     expression = f"package(={package['name']})"
-    if package["name"] in SPLIT_CRATES and relative.startswith("src/") and relative.endswith(".rs"):
-        components = relative[4:-3].split("/")
-        if components[-1] == "mod":
-            components.pop()
-        if components not in (["main"], ["lib"]):
+    if package["name"] in SPLIT_CRATES and relative.startswith("src/"):
+        if relative.endswith(".rs"):
+            components = relative[4:-3].split("/")
+            if components[-1] == "mod":
+                components.pop()
+        else:
+            components = relative[4:].split("/")[:-1]
+        if components and components not in (["main"], ["lib"]):
             module = "::".join(components[:2])
             expression += f" & test(/^{re.escape(module)}(::|$)/)"
     return ["--tests"], expression
