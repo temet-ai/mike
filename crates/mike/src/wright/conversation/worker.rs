@@ -87,7 +87,9 @@ pub(crate) async fn tick(convo: &Conversation) -> Result<Tick, PersistError> {
 }
 
 async fn step(convo: &Conversation) -> Duration {
-    if !convo.persist.holds_worker_role(LEASE_ROLE, IDLE_POLL).await {
+    if !convo.engine.available().await
+        || !convo.persist.holds_worker_role(LEASE_ROLE, IDLE_POLL).await
+    {
         return IDLE_POLL;
     }
     match tick(convo).await {

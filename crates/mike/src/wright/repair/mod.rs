@@ -177,15 +177,15 @@ struct Worker {
 
 impl Worker {
     async fn iteration(&mut self) {
-        if !self.persist.holds_worker_role(LEASE_ROLE, TICK).await {
-            return;
-        }
         if self.ctx.is_none() {
             self.ctx = live_context(&self.persist, &mut self.engineer).await;
         }
         let Some(ctx) = self.ctx.as_ref() else {
             return;
         };
+        if !self.persist.holds_worker_role(LEASE_ROLE, TICK).await {
+            return;
+        }
         if !self.recovered {
             self.recovered = recovered(ctx).await;
             if !self.recovered {
