@@ -99,6 +99,16 @@ pub fn compose(asked: &Asked) -> Verdict {
     Verdict { warnings, score }
 }
 
+pub fn applied_of(asked: &Asked, verdict: &Verdict) -> &'static str {
+    if asked.failed() {
+        "none"
+    } else if verdict.warnings.is_empty() {
+        "passed"
+    } else {
+        "warned"
+    }
+}
+
 pub async fn for_report(
     decisions: Option<&FleetDecisions>,
     (def, seated, fleet_id): (
@@ -188,11 +198,7 @@ async fn ask(decider: &Decider, landed: &Landed<'_>, state: Value) -> Vec<String
             .await;
         return Vec::new();
     }
-    let applied = if verdict.warnings.is_empty() {
-        "none"
-    } else {
-        "warned"
-    };
+    let applied = applied_of(&asked, &verdict);
     decider
         .mark(
             &asked,

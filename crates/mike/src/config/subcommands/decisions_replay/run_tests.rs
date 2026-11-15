@@ -129,7 +129,7 @@ async fn wake_recheck_skip_against_a_wrong_fire_is_right() -> anyhow::Result<()>
 }
 
 #[tokio::test]
-async fn verifier_precheck_send_against_a_wrong_fire_is_wrong() -> anyhow::Result<()> {
+async fn verifier_precheck_wrong_fire_with_a_confident_veto_is_held() -> anyhow::Result<()> {
     let stub = Stub::new(Mode::Answer(0.9));
     let items = vec![verifier_ready("wrong", None)];
     let replayed = replay::<VerifierPrecheck>(&items, &stub).await;
@@ -137,14 +137,24 @@ async fn verifier_precheck_send_against_a_wrong_fire_is_wrong() -> anyhow::Resul
         .outcomes
         .first()
         .ok_or_else(|| anyhow::anyhow!("no outcome"))?;
-    assert_eq!(outcome.line["composed"]["verdict"]["send"], true);
-    assert_eq!(outcome.line["outcome"]["label"], "wrong");
+    assert_eq!(outcome.line["composed"]["verdict"]["send"], false);
+    assert_eq!(outcome.line["outcome"]["label"], "right");
     assert_eq!(
         outcome.line["request"]["state"]["nudge"],
         "You did not run the tests."
     );
     let positives: Vec<Option<bool>> = outcome.questions.iter().map(|(_, s)| s.positive).collect();
-    assert_eq!(positives, vec![Some(false), Some(true), Some(true)]);
+    assert_eq!(
+        positives,
+        vec![
+            Some(false),
+            Some(true),
+            Some(true),
+            Some(true),
+            Some(true),
+            Some(true)
+        ]
+    );
     Ok(())
 }
 

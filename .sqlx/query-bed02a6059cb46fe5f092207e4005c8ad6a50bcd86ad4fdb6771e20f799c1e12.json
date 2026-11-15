@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH items AS (\n                 UPDATE memory.knowledge_items SET model_key = $2\n                  WHERE model_key = ANY($1) AND model_key <> $2)\n             UPDATE memory.knowledge_embedding_state SET model_key = $2\n             WHERE model_key = ANY($1) AND model_key <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bed02a6059cb46fe5f092207e4005c8ad6a50bcd86ad4fdb6771e20f799c1e12"
+}

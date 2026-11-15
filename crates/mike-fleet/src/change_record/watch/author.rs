@@ -316,6 +316,7 @@ async fn judge_unknown(
         calls,
         runs,
         after: after.as_deref(),
+        changed: change.shell,
     };
     resolve(decider, candidates, &facts).await.unwrap_or(who)
 }
@@ -451,6 +452,7 @@ pub async fn of_shell_with(
         calls: &[],
         runs: &runs,
         after: None,
+        changed: shell,
     };
     Ok(resolve(decider, candidates, &facts).await.unwrap_or(who))
 }

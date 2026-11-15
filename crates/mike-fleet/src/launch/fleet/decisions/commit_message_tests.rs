@@ -64,3 +64,21 @@ fn state_lists_the_files_and_cuts_the_diff_at_the_cap() {
 fn questions_ask_two_noul_questions() {
     assert_eq!(questions().len(), 2);
 }
+
+#[test]
+fn applied_of_a_matching_message_is_passed() {
+    let asked = answered(0.95, 0.05);
+    assert_eq!(applied_of(&asked, &compose(&asked)), "passed");
+}
+
+#[test]
+fn applied_of_a_mismatched_message_is_warned() {
+    let asked = answered(0.1, 0.1);
+    assert_eq!(applied_of(&asked, &compose(&asked)), "warned");
+}
+
+#[test]
+fn applied_of_a_failed_call_is_none() {
+    let asked = Asked::failed_with("timeout");
+    assert_eq!(applied_of(&asked, &compose(&asked)), "none");
+}

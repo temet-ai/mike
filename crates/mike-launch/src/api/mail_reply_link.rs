@@ -21,6 +21,7 @@ const NONE: &str = "none";
 const MAX_CANDIDATES: usize = 8;
 const BODY_CHARS: usize = 600;
 const REPLY_CHARS: usize = 1200;
+const SEND_LOOKBACK_HOURS: i64 = 24;
 
 #[derive(Debug, Deserialize)]
 pub struct LinkRequest {
@@ -169,18 +170,29 @@ async fn candidates_of(
     session: Uuid,
     request: &LinkRequest,
 ) -> Result<Vec<Candidate>, StatusCode> {
+    inbox_from(state, session, request.sender, Some(&request.candidates)).await
+}
+
+async fn inbox_from(
+    state: &BaseState,
+    session: Uuid,
+    sender: Uuid,
+    only: Option<&[Uuid]>,
+) -> Result<Vec<Candidate>, StatusCode> {
     let persist = state.persist().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let rows = persist
         .launch()
         .fetch_for_session_with_activity(session)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let since = chrono::Utc::now() - chrono::Duration::hours(SEND_LOOKBACK_HOURS);
     let mut found: Vec<Candidate> = rows
         .inbox
         .into_iter()
         .map(|m| m.row)
-        .filter(|row| row.from_session_uuid == Some(request.sender))
-        .filter(|row| request.candidates.contains(&row.message_uuid))
+        .filter(|row| row.from_session_uuid == Some(sender))
+        .filter(|row| only.is_none_or(|ids| ids.contains(&row.message_uuid)))
+        .filter(|row| only.is_some() || row.queued_at >= since)
         .map(|row| Candidate {
             id: row.message_uuid,
             queued_at: row.queued_at.to_rfc3339(),
@@ -206,6 +218,21 @@ pub async fn post_reply_link(
     }
     let linked = link(&decider, &request.reply, &candidates).await;
     Ok(Json(answer_of(&linked, decider.applies())))
+}
+
+pub async fn reply_target_on_send(
+    state: &BaseState,
+    replier: Uuid,
+    recipient: Uuid,
+    reply: &str,
+) -> Option<Uuid> {
+    let decider = state.decision_env()?.decider(POINT)?.inline();
+    let candidates = inbox_from(state, replier, recipient, None).await.ok()?;
+    if candidates.is_empty() {
+        return None;
+    }
+    let linked = link(&decider, reply, &candidates).await;
+    answer_of(&linked, decider.applies()).in_reply_to
 }
 
 #[cfg(test)]

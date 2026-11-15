@@ -3,15 +3,16 @@ WITH calls AS (
            u.session_id,
            coalesce(rs.completed_at, u.created_at) AS started,
            r.created_at AS finished,
+           u.input->>'command' AS command,
            least(
                CASE WHEN u.input->>'timeout' ~ '^[0-9]{1,9}$'
                     THEN (u.input->>'timeout')::bigint
                     ELSE 120000 END,
                600000
            ) AS timeout_ms,
-           (strpos(u.input->>'command', $1) > 0
+           coalesce(strpos(u.input->>'command', $1) > 0
             OR (starts_with($1, s.cwd || '/')
-                AND strpos(u.input->>'command', substr($1, length(s.cwd) + 2)) > 0)) AS names_checkout
+                AND strpos(u.input->>'command', substr($1, length(s.cwd) + 2)) > 0), false) AS names_checkout
       FROM tools.uses u
       JOIN sessions.sessions s ON s.id = u.session_id
       LEFT JOIN responses.responses rs ON rs.request_id = u.request_id
@@ -45,7 +46,8 @@ alive AS (
 SELECT c.session_id,
        c.started AS "started!",
        c.finished AS "finished?",
-       c.names_checkout AS "names_checkout!"
+       c.names_checkout AS "names_checkout!",
+       c.command AS "command?"
   FROM calls c
   LEFT JOIN overdue o ON o.id = c.id
   LEFT JOIN alive a ON a.id = c.id

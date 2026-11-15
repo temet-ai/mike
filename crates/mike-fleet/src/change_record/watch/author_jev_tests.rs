@@ -29,6 +29,14 @@ fn run(session: i64) -> ShellRun {
         started: Utc::now(),
         finished: None,
         names_checkout: false,
+        command: None,
+    }
+}
+
+fn now_window() -> Window {
+    Window {
+        from: Utc::now(),
+        to: Utc::now(),
     }
 }
 
@@ -67,6 +75,7 @@ fn state_reports_each_candidates_edits_and_whether_the_text_is_in_the_file() {
         calls: &calls,
         runs: &runs,
         after: Some("alpha only"),
+        changed: now_window(),
     };
     let state = state(&[3, 7], &facts);
     let first = &state["candidate_sessions"][0];
@@ -88,6 +97,29 @@ fn state_reports_each_candidates_edits_and_whether_the_text_is_in_the_file() {
     );
 }
 
+#[test]
+fn state_with_shell_runs_shows_each_command_and_the_change_window() {
+    let runs = vec![ShellRun {
+        command: Some("git worktree remove .claude/worktrees/x".to_owned()),
+        ..run(7)
+    }];
+    let changed = now_window();
+    let facts = Facts {
+        path: "/work/alpha",
+        calls: &[],
+        runs: &runs,
+        after: None,
+        changed,
+    };
+    let state = state(&[3, 7], &facts);
+    assert_eq!(
+        state["candidate_sessions"][1]["shell_commands_running_in_the_checkout"][0]["command"],
+        "git worktree remove .claude/worktrees/x"
+    );
+    assert_eq!(state["changed_between"]["from"], json!(changed.from));
+    assert_eq!(state["changed_between"]["to"], json!(changed.to));
+}
+
 #[tokio::test]
 async fn resolve_on_an_answered_choice_names_the_session() -> anyhow::Result<()> {
     let Some(fx) = DecisionsFixture::boot(json!({})).await? else {
@@ -100,6 +132,7 @@ async fn resolve_on_an_answered_choice_names_the_session() -> anyhow::Result<()>
         calls: &[],
         runs: &[],
         after: None,
+        changed: now_window(),
     };
     let who = resolve(&decider, &[3, 7], &facts).await;
     assert_eq!(
@@ -124,6 +157,7 @@ async fn resolve_with_a_failing_client_leaves_the_author_unknown() -> anyhow::Re
         calls: &[],
         runs: &[],
         after: None,
+        changed: now_window(),
     };
     assert_eq!(resolve(&decider, &[3, 7], &facts).await, None);
     fx.finish().await

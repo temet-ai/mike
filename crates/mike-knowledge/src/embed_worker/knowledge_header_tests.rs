@@ -232,6 +232,9 @@ async fn seeded() -> anyhow::Result<Seeded> {
 }
 
 async fn pending(seeded: &Seeded) -> anyhow::Result<Vec<KnowledgeEmbeddingSource>> {
+    sqlx::query("UPDATE memory.knowledge_items SET ready_at = now() WHERE needs_embedding")
+        .execute(seeded.handle.pool())
+        .await?;
     Ok(seeded
         .handle
         .knowledge()

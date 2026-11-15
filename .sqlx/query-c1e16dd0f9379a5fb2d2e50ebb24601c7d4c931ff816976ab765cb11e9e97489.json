@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_items i\n                SET needs_embedding = true, ready_at = now(), changed_at = clock_timestamp()\n               FROM memory.knowledge_embedding_state e\n              WHERE e.item_id = i.id AND NOT i.needs_embedding AND e.completed_at IS NOT NULL\n                AND (e.model_key < $1 OR e.model_key > $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c1e16dd0f9379a5fb2d2e50ebb24601c7d4c931ff816976ab765cb11e9e97489"
+}

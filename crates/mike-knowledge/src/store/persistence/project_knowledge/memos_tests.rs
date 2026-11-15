@@ -110,12 +110,12 @@ async fn knowledge_coverage_after_an_embedding_is_recorded_is_counted_again() ->
         .knowledge_coverage(id, &ModelKeys::only("model-a"))
         .await?;
     let source = KnowledgeEmbeddingSource {
+        item_id: -1,
+        changed_at: chrono::Utc::now(),
         reference: "artifact:1".into(),
         source_kind: "artifact".into(),
         source_id: 1,
-        source_updated_at: None,
-        source_seq: None,
-        source_hash: None,
+        project_id: None,
         header: "artifact".into(),
         body: "text".into(),
     };

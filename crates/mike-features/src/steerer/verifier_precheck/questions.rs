@@ -4,14 +4,43 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::noul;
 
 pub const POINT: &str = "verifier_precheck";
-pub const QUESTION_SET: &str = "verifier_precheck_v1";
+pub const QUESTION_SET: &str = "verifier_precheck_v2";
 
 pub const UNFINISHED: &str = "ask_left_unfinished";
 pub const DISCLOSED: &str = "turn_already_says_it";
 pub const ONLY_ANSWER: &str = "turn_only_answers";
+pub const STILL_RUNNING: &str = "work_still_running";
+pub const NOT_OPERATOR_ASK: &str = "ask_not_in_operator_words";
+pub const DONE_EARLIER: &str = "done_earlier";
+
+pub const VETOES: [&str; 3] = [STILL_RUNNING, NOT_OPERATOR_ASK, DONE_EARLIER];
 
 pub fn questions() -> BTreeMap<String, Question> {
     BTreeMap::from([
+        (
+            STILL_RUNNING.to_owned(),
+            noul(
+                "Does turn_end say the work is still under way rather than finished: a build, push, gate, agent, check or deploy is still running, or it names the next step it is about to take?",
+                "turn_end reports work in progress or a next step it is about to take, not a finished result.",
+                "turn_end presents the work as finished.",
+            ),
+        ),
+        (
+            NOT_OPERATOR_ASK.to_owned(),
+            noul(
+                "Is the thing the nudge says was asked for missing from the operator's own words in operator_ask, so that it comes from machine text such as acceptance criteria, a checklist, a heading, hook output or a template?",
+                "The operator never asked for what the nudge names; it comes from generated or machine text.",
+                "operator_ask, in the operator's own words, asks for what the nudge names.",
+            ),
+        ),
+        (
+            DONE_EARLIER.to_owned(),
+            noul(
+                "Does turn_end say that what the nudge asks about was already done or answered before this turn, naming a commit, a time, an earlier reply or something the operator already has?",
+                "turn_end says it was done or answered earlier.",
+                "turn_end does not say it was done or answered earlier.",
+            ),
+        ),
         (
             UNFINISHED.to_owned(),
             noul(

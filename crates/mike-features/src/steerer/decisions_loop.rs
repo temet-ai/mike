@@ -15,6 +15,7 @@ pub const WINDOW: Duration = Duration::days(14);
 pub const MAX_FAIL_OPEN: f64 = 0.05;
 pub const HOLD_PRECISION_BAR: f64 = 0.8;
 pub const MIN_LABELS: i64 = 30;
+pub const MIN_CALLS_FOR_SILENCE: i64 = 20;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PointScore {
@@ -83,7 +84,7 @@ fn findings(counts: &PointCounts, held_lower: Option<f64>, held_n: usize) -> Vec
             "of {held_n} labelled holds, the share that held a wrong nudge has a lower bound of {lower:.2}, under the bar {HOLD_PRECISION_BAR:.2}"
         ));
     }
-    if counts.calls > 0 && counts.applied_on == 0 {
+    if counts.calls >= MIN_CALLS_FOR_SILENCE && counts.applied_on == 0 {
         out.push("no call in mode on applied anything".to_owned());
     }
     out
@@ -295,7 +296,13 @@ mod tests {
 
     #[test]
     fn calls_that_never_apply_in_mode_on_are_a_finding() {
-        let s = score_point(counts("p", 5, 0, 0), &[]);
+        let s = score_point(counts("p", 25, 0, 0), &[]);
         assert!(s.findings.iter().any(|f| f.contains("applied anything")));
+    }
+
+    #[test]
+    fn too_few_calls_to_judge_silence_are_not_a_finding() {
+        let s = score_point(counts("p", 1, 0, 0), &[]);
+        assert!(s.findings.is_empty(), "{:?}", s.findings);
     }
 }

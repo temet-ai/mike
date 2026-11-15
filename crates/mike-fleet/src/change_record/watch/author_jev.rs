@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
 
-use super::author::{Authorship, written_texts};
+use super::author::{Authorship, Window, written_texts};
 use crate::change_record::ShellRun;
 use crate::llm::decisions::Question;
 use crate::llm::decisions::point::{Asked, Decider, choice};
@@ -10,7 +10,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::store::persistence::change_record::EditCall;
 
 pub const POINT: &str = "change_author";
-pub const QUESTION_SET: &str = "change_author_v1";
+pub const QUESTION_SET: &str = "change_author_v2";
 const WHO: &str = "who";
 const UNKNOWN: &str = "unknown";
 
@@ -19,6 +19,7 @@ pub struct Facts<'a> {
     pub calls: &'a [EditCall],
     pub runs: &'a [ShellRun],
     pub after: Option<&'a str>,
+    pub changed: Window,
 }
 
 fn key(session: i64) -> String {
@@ -52,7 +53,13 @@ fn shells_of(session: i64, facts: &Facts<'_>) -> Vec<Value> {
         .runs
         .iter()
         .filter(|run| run.session_id == session)
-        .map(|run| json!({"started": run.started, "finished": run.finished}))
+        .map(|run| {
+            json!({
+                "command": run.command,
+                "started": run.started,
+                "finished": run.finished,
+            })
+        })
         .collect()
 }
 
@@ -67,6 +74,7 @@ pub fn candidate_facts(session: i64, facts: &Facts<'_>) -> Value {
 pub fn state(candidates: &[i64], facts: &Facts<'_>) -> Value {
     json!({
         "changed_file": facts.path,
+        "changed_between": {"from": facts.changed.from, "to": facts.changed.to},
         "candidate_sessions": candidates
             .iter()
             .map(|session| candidate_facts(*session, facts))
@@ -81,7 +89,7 @@ pub fn questions(candidates: &[i64]) -> BTreeMap<String, Question> {
             (
                 key(*session),
                 format!(
-                    "Session {session} made this change, as its edit tool calls or shell commands show."
+                    "Session {session} made this change: one of its edit tool calls or shell commands writes this path, or runs a command such as git, a formatter or a generator that writes it, between changed_between.from and changed_between.to."
                 ),
             )
         })
@@ -97,7 +105,7 @@ pub fn questions(candidates: &[i64]) -> BTreeMap<String, Question> {
     BTreeMap::from([(
         WHO.to_owned(),
         choice(
-            "Several sessions worked in this checkout while a file changed. Which session made the change to the file?",
+            "Several sessions worked in this checkout while changed_file changed, between changed_between.from and changed_between.to. Read each candidate's shell commands and edit tool calls. Which session made the change?",
             &listed,
         ),
     )])

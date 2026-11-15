@@ -481,6 +481,22 @@ export function mergeProjectInto(
 	});
 }
 
+export interface ProjectMergeSuggestion {
+	source_path: string;
+	target_uuid: string;
+	target_path: string;
+	probability: number;
+}
+
+export interface ProjectMergeSuggestions {
+	layer: string;
+	suggestions: ProjectMergeSuggestion[];
+}
+
+export function getProjectMergeSuggestions(): Promise<ProjectMergeSuggestions> {
+	return rawGetJson<ProjectMergeSuggestions>('/api/projects/merge-suggestions');
+}
+
 export interface CreatedProject {
 	id: number;
 	project_uuid: string;

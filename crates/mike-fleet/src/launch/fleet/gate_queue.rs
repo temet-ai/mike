@@ -91,12 +91,13 @@ pub async fn queue(state: &BaseState, persist: &PersistHandle, row: &FleetRow) {
     ) else {
         return;
     };
+    let decisions = super::decisions::FleetDecisions::from_state(state);
     let runner = Runner {
         persist,
         tracker: &state.tracker,
         run,
         fleet: row.fleet_uuid,
-        decisions: None,
+        decisions: decisions.as_ref(),
     };
     check_run::queue(&runner, &def).await;
     queue_gate(&runner, &def).await;

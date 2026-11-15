@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::compose::compose;
-use super::questions::{DISCLOSED, ONLY_ANSWER, UNFINISHED};
+use super::questions::{DISCLOSED, ONLY_ANSWER, STILL_RUNNING, UNFINISHED, VETOES};
 use super::state::{FireInput, state};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
@@ -58,6 +58,34 @@ fn compose_sends_only_a_clearly_unfinished_ask_whatever_the_other_answers_say() 
     );
     assert_eq!(
         compose(&answered(0.85, 0.9, 0.9)).map(|v| v.send),
+        Some(true)
+    );
+}
+
+fn with_veto(key: &str, p: f64) -> Asked {
+    let noul = |p| Answer::Noul {
+        noul: p,
+        confidence: None,
+    };
+    Asked::answered(BTreeMap::from([
+        (UNFINISHED.to_owned(), noul(0.95)),
+        (key.to_owned(), noul(p)),
+    ]))
+}
+
+#[test]
+fn compose_unfinished_ask_with_any_veto_is_held() {
+    for key in VETOES {
+        let verdict = compose(&with_veto(key, 0.8));
+        assert_eq!(verdict.as_ref().map(|v| v.send), Some(false), "{key}");
+        assert!(verdict.is_some_and(|v| v.score < 0.3), "{key}");
+    }
+}
+
+#[test]
+fn compose_unfinished_ask_with_weak_vetoes_is_sent() {
+    assert_eq!(
+        compose(&with_veto(STILL_RUNNING, 0.2)).map(|v| v.send),
         Some(true)
     );
 }

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_items\n                SET needs_embedding = true, ready_at = now(), attempts = 0, last_error = NULL,\n                    changed_at = clock_timestamp()\n              WHERE model_key IS DISTINCT FROM $1 AND model_key IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c0b80819c1a39fcc6f51dc1f5a630f6599e3ca48503cac9eb1a6ecf81a6b56d8"
+}
