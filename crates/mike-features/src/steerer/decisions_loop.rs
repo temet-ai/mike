@@ -178,7 +178,7 @@ async fn file_findings(persist: &PersistHandle, scores: &[PointScore]) -> Option
     }
 }
 
-async fn sync_outcomes(persist: &PersistHandle) -> Result<u64, PersistError> {
+pub async fn sync_outcomes(persist: &PersistHandle) -> Result<u64, PersistError> {
     let store = crate::llm::decisions::store(persist);
     let mut synced = store
         .sync_evaluation_outcomes(crate::steerer::precheck::POINT)

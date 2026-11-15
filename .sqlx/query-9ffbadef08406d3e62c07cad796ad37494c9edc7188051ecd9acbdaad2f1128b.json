@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH judged AS (\n    SELECT r.id AS record_id, r.created_at, r.session_id,\n           r.composed -> 'verdict' ->> 'outcome' AS outcome\n      FROM decisions.records r\n      JOIN sessions.sessions s ON s.id = r.session_id\n     WHERE r.point = 'session_judge'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied IS NOT NULL\n       AND r.applied <> 'none'\n       AND r.composed -> 'verdict' ->> 'outcome' IN ('success', 'failure')\n       AND s.last_seen < now() - interval '2 hours'\n),\npushed AS (\n    SELECT ce.session_id, min(ce.id) AS push_event_id\n      FROM workspace.change_events ce\n     WHERE ce.kind = 'push'\n       AND ce.at >= now() - interval '60 days'\n       AND ce.session_id IN (SELECT session_id FROM judged)\n       AND ce.detail ->> 'author' IS DISTINCT FROM 'jev'\n     GROUP BY ce.session_id\n),\nfrustrated AS (\n    SELECT t.session_id, min(t.id) AS turn_id\n      FROM memory.operator_turns t\n     WHERE t.outcome_source = 'frustration_close'\n       AND t.session_id IN (SELECT session_id FROM judged)\n     GROUP BY t.session_id\n),\nsettled AS (\n    SELECT j.record_id, j.outcome, p.push_event_id, f.turn_id AS frustration_turn_id,\n           CASE\n               WHEN j.outcome = 'success' AND f.turn_id IS NOT NULL THEN 'wrong'\n               WHEN j.outcome = 'success' AND p.push_event_id IS NOT NULL THEN 'right'\n               WHEN j.outcome = 'failure' AND f.turn_id IS NOT NULL THEN 'right'\n               WHEN j.outcome = 'failure' AND p.push_event_id IS NOT NULL THEN 'wrong'\n           END AS label\n      FROM judged j\n      LEFT JOIN pushed p ON p.session_id = j.session_id\n      LEFT JOIN frustrated f ON f.session_id = j.session_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT s.record_id, s.label, 'session_shipped',\n       jsonb_build_object('jev_outcome', s.outcome, 'push_event_id', s.push_event_id,\n                          'frustration_turn_id', s.frustration_turn_id)\n  FROM settled s\n WHERE s.label IS NOT NULL\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = s.record_id AND o.label_source = 'session_shipped')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "9ffbadef08406d3e62c07cad796ad37494c9edc7188051ecd9acbdaad2f1128b"
+}

@@ -64,6 +64,7 @@ pub async fn grade_event(
             query: &event.query,
             turn_prompt: event.turn_prompt.as_deref(),
             used: &event.used_references,
+            event_id: event.event_id,
         },
     )
     .await;

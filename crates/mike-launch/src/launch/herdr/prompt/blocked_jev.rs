@@ -69,11 +69,15 @@ pub fn questions() -> BTreeMap<String, Question> {
     )])
 }
 
+pub fn tail(screen: &str) -> String {
+    tail_chars(screen, SCREEN_CHARS).to_owned()
+}
+
 pub fn state(screen: &str) -> Value {
     json!({"screen_tail": tail_chars(screen, SCREEN_CHARS)})
 }
 
-pub fn compose(asked: &Asked) -> Option<(&'static str, f64)> {
+fn pick(asked: &Asked) -> Option<(&'static str, &'static str, f64)> {
     if asked.failed() {
         return None;
     }
@@ -81,22 +85,33 @@ pub fn compose(asked: &Asked) -> Option<(&'static str, f64)> {
     DIALOGS
         .iter()
         .find(|(key, _, _)| *key == picked)
-        .map(|(_, name, _)| (*name, probability))
+        .map(|(key, name, _)| (*key, *name, probability))
 }
 
-pub async fn named(decider: &Decider, screen: &str) -> Option<String> {
+pub fn compose(asked: &Asked) -> Option<(&'static str, f64)> {
+    pick(asked).map(|(_, name, probability)| (name, probability))
+}
+
+pub fn name_of(key: &str) -> Option<&'static str> {
+    DIALOGS
+        .iter()
+        .find(|(known, _, _)| *known == key)
+        .map(|(_, name, _)| *name)
+}
+
+pub async fn named_key(decider: &Decider, screen: &str, context: Value) -> Option<&'static str> {
     let asked = decider
         .ask(
             QUESTION_SET,
             state(screen),
             questions(),
             DecisionSubject::default(),
-            json!({}),
+            context,
         )
         .await;
-    let composed = compose(&asked);
-    let score = composed.map_or(1.0, |(_, p)| p);
-    let applied = if composed.is_some() && decider.applies() {
+    let picked = pick(&asked);
+    let score = picked.map_or(1.0, |(_, _, p)| p);
+    let applied = if picked.is_some() && decider.applies() {
         "chosen"
     } else {
         "none"
@@ -104,18 +119,33 @@ pub async fn named(decider: &Decider, screen: &str) -> Option<String> {
     decider
         .mark(&asked, asked.composed(json!({"score": score})), applied)
         .await;
-    composed
-        .filter(|_| decider.applies())
-        .map(|(name, _)| name.to_owned())
+    picked.filter(|_| decider.applies()).map(|(key, _, _)| key)
+}
+
+pub async fn named(decider: &Decider, screen: &str) -> Option<String> {
+    named_key(decider, screen, json!({}))
+        .await
+        .and_then(name_of)
+        .map(str::to_owned)
+}
+
+pub async fn dialog_via(
+    decider: Option<&Decider>,
+    serve: Option<&str>,
+    screen: &str,
+) -> Option<String> {
+    let found = match (decider, serve) {
+        (Some(decider), _) => named(decider, screen).await,
+        (None, Some(base)) => super::blocked_remote::ask(base, screen).await,
+        (None, None) => None,
+    };
+    found.or_else(|| super::blocked::dialog_name(screen))
 }
 
 pub async fn dialog(decider: Option<&Decider>, screen: &str) -> Option<String> {
-    if let Some(decider) = decider
-        && let Some(found) = named(decider, screen).await
-    {
-        return Some(found);
-    }
-    super::blocked::dialog_name(screen)
+    let in_serve = crate::llm::decisions::ambient::installed();
+    let serve = (!in_serve).then(super::blocked_remote::base_url);
+    dialog_via(decider, serve.as_deref(), screen).await
 }
 
 #[cfg(test)]

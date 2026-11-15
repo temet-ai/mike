@@ -130,6 +130,22 @@ fn answer_of_an_unanswered_or_inactive_decision_tells_the_mod_to_use_its_own_rul
     );
 }
 
+#[test]
+fn verdict_of_a_linked_message_carries_the_message_uuid() {
+    let linked = Linked::Message {
+        id: Uuid::from_u128(1),
+        probability: 0.9,
+    };
+    assert_eq!(
+        verdict_of(&linked, 0.9),
+        json!({"score": 0.9, "linked_message": Uuid::from_u128(1)})
+    );
+    assert_eq!(
+        verdict_of(&Linked::Nothing { probability: 0.7 }, 0.7),
+        json!({"score": 0.7})
+    );
+}
+
 #[tokio::test]
 async fn link_on_an_answered_choice_names_the_message() -> anyhow::Result<()> {
     let Some(db) = acquire_ephemeral_db().await? else {

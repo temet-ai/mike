@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH picked AS (\n    SELECT r.id AS record_id, r.created_at,\n           r.state ->> 'changed_file' AS changed_file,\n           r.answers -> 'who' ->> 'choice' AS pick,\n           ARRAY(\n               SELECT substring(c ->> 'id' FROM 2)::bigint\n                 FROM jsonb_array_elements(r.state -> 'candidate_sessions') c\n                WHERE c ->> 'id' ~ '^s[0-9]+$'\n           ) AS candidates\n      FROM decisions.records r\n     WHERE r.point = 'change_author'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.applied = 'chosen'\n       AND r.answers -> 'who' ->> 'choice' ~ '^(s[0-9]+|unknown)$'\n       AND r.state ->> 'changed_file' IS NOT NULL\n),\ncommitted AS (\n    SELECT DISTINCT ON (p.record_id)\n           p.record_id, p.pick, p.candidates, ce.id AS event_id, ce.session_id AS committer\n      FROM picked p\n      JOIN workspace.change_events ce\n        ON ce.kind = 'commit'\n       AND ce.session_id = ANY (p.candidates)\n       AND ce.at > p.created_at\n       AND ce.at <= p.created_at + interval '6 hours'\n       AND (ce.detail ->> 'author') IN ('fleet_seat_trailer', 'shell')\n       AND (ce.checkout = p.changed_file OR p.changed_file = ANY (ce.paths))\n     ORDER BY p.record_id, ce.at, ce.id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT c.record_id,\n       CASE WHEN c.pick = 's' || c.committer THEN 'right' ELSE 'wrong' END,\n       'next_commit_author',\n       jsonb_build_object('change_event_id', c.event_id, 'committer_session', c.committer,\n                          'picked', c.pick)\n  FROM committed c\n WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = c.record_id AND o.label_source = 'next_commit_author')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f86ac058a97378c7d633c3f80b26615a746bd28cfb7e245e01c5c85fe91ab521"
+}

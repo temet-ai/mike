@@ -12,7 +12,7 @@ pub const POINT: &str = "recall_topic";
 pub const QUESTION_SET: &str = "recall_topic_v1";
 pub const NONE_KEY: &str = "none";
 pub const MIN_MAP: f64 = 0.6;
-const MAX_TYPED: usize = 3;
+pub(super) const MAX_TYPED: usize = 3;
 const MAX_CATALOG: usize = 60;
 const CONTEXT_CHARS: usize = 600;
 
@@ -94,12 +94,19 @@ async fn catalog(persist: &PersistHandle, project_path: &str) -> (Option<i64>, V
     (Some(project_id), topics)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct NearMissContext<'a> {
+    pub text: &'a str,
+    pub request_id: Option<i64>,
+    pub session_id: Option<i64>,
+}
+
 pub async fn map_near_misses(
     env: Option<&DecisionEnv>,
     persist: &PersistHandle,
     project_path: &str,
     missing: &[String],
-    (context, request_id): (&str, Option<i64>),
+    context: NearMissContext<'_>,
 ) -> Vec<Mapping> {
     let Some(decider) = env.and_then(|e| e.decider(POINT)) else {
         return Vec::new();
@@ -115,10 +122,11 @@ pub async fn map_near_misses(
     let asked = decider
         .ask(
             QUESTION_SET,
-            state(&missing, &catalog, context),
+            state(&missing, &catalog, context.text),
             questions(&missing, &catalog),
             DecisionSubject {
-                request_id,
+                request_id: context.request_id,
+                session_id: context.session_id,
                 project_id,
                 ..DecisionSubject::default()
             },

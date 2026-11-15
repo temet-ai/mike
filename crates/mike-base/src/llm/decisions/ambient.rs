@@ -16,6 +16,10 @@ pub fn install(state: &BaseState) {
     }
 }
 
+pub fn installed() -> bool {
+    SOURCE.get().is_some()
+}
+
 pub fn env() -> Option<DecisionEnv> {
     SOURCE.get().and_then(|source| source())
 }

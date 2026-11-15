@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH linked AS (\n    SELECT r.id AS record_id, r.created_at,\n           m.id AS message_id, m.from_session_id AS asker_id, m.to_session_id AS replier_id\n      FROM decisions.records r\n      JOIN mailbox.messages m\n        ON m.message_uuid = (r.composed -> 'verdict' ->> 'linked_message')::uuid\n     WHERE r.point = 'mail_reply_link'\n       AND r.applied = 'chosen'\n       AND r.created_at >= now() - interval '30 days'\n       AND r.composed -> 'verdict' ->> 'linked_message' IS NOT NULL\n),\nreplies AS (\n    SELECT DISTINCT ON (l.record_id)\n           l.record_id, l.asker_id, l.replier_id,\n           x.id AS reply_id, x.thread_id AS reply_thread, x.queued_at AS reply_at\n      FROM linked l\n      JOIN mailbox.messages x\n        ON x.in_reply_to_id = l.message_id\n       AND x.from_session_id = l.replier_id\n       AND x.to_session_id = l.asker_id\n       AND x.queued_at >= l.created_at\n       AND x.queued_at < l.created_at + interval '5 minutes'\n     ORDER BY l.record_id, x.queued_at, x.id\n),\nlater AS (\n    SELECT p.record_id,\n           bool_or(COALESCE(f.in_reply_to_id = p.reply_id, false)\n                   OR COALESCE(f.thread_id = p.reply_thread, false)) AS followed_up,\n           bool_or(f.queued_at <= p.reply_at + interval '1 hour'\n                   AND f.in_reply_to_id IS NULL\n                   AND (p.reply_thread IS NULL OR f.thread_id IS DISTINCT FROM p.reply_thread)) AS asked_again\n      FROM replies p\n      JOIN mailbox.messages f\n        ON f.from_session_id = p.asker_id\n       AND f.to_session_id = p.replier_id\n       AND f.queued_at > p.reply_at\n       AND f.queued_at <= p.reply_at + interval '24 hours'\n     GROUP BY p.record_id\n)\nINSERT INTO decisions.outcomes (record_id, label, label_source, evidence)\nSELECT l.record_id,\n       CASE WHEN l.followed_up THEN 'right' ELSE 'wrong' END,\n       'asker_followed_up',\n       jsonb_build_object('followed_up_in_thread', l.followed_up, 'asked_again', l.asked_again)\n  FROM later l\n WHERE (l.followed_up OR l.asked_again)\n   AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o\n                    WHERE o.record_id = l.record_id AND o.label_source = 'asker_followed_up')\nON CONFLICT (record_id, label_source, label) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f7815345b45918a783c7455a2cd67cd80fba2777090a5c15e032b31be492fb52"
+}

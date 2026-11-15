@@ -191,11 +191,15 @@ mod outcome_sync_events_tests;
 #[cfg(test)]
 mod outcome_sync_fleet_tests;
 #[cfg(test)]
+mod outcome_sync_operator_tests;
+#[cfg(test)]
 mod outcome_sync_supply_tests;
 #[cfg(test)]
 mod outcome_sync_support_tests;
 #[cfg(test)]
 mod outcome_sync_tests;
+#[cfg(test)]
+mod outcome_sync_usage_tests;
 #[cfg(test)]
 mod retention_tests;
 #[cfg(test)]

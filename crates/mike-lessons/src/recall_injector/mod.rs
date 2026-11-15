@@ -1,4 +1,5 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
+mod answer;
 #[cfg(test)]
 mod floor_tests;
 pub mod formatter;
@@ -9,6 +10,9 @@ pub mod stage;
 #[cfg(test)]
 mod tests;
 pub mod topic;
+mod topic_memory;
+
+pub use answer::{NearMissLearning, RecallAnswer, answer_recall, answer_recall_with};
 
 use bytes::Bytes;
 use serde_json::Value;
@@ -176,35 +180,6 @@ impl SupplyFloor<'_> {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct RecallAnswer {
-    pub lesson_ids: Vec<i64>,
-    pub text: Option<String>,
-}
-
-pub async fn answer_recall(
-    persist: &PersistHandle,
-    project_path: &str,
-    topics: &[String],
-    cfg: &RecallInjectorConfig,
-) -> RecallAnswer {
-    if project_path.is_empty() || topics.is_empty() {
-        return RecallAnswer::default();
-    }
-    let Some(Gathered { rows, topics }) =
-        gather_lessons_for_topics(persist, project_path, topics, cfg, None).await
-    else {
-        return RecallAnswer::default();
-    };
-    match formatter::format_recall_reminder(&topics, &rows) {
-        Some(text) => RecallAnswer {
-            lesson_ids: rows.iter().map(|row| row.id).collect(),
-            text: Some(text),
-        },
-        None => RecallAnswer::default(),
-    }
-}
-
 struct Gathered {
     rows: Vec<LessonRow>,
     topics: Vec<String>,
@@ -254,7 +229,11 @@ async fn gather_lessons_for_topics(
             persist,
             project_path,
             &missing,
-            (context, request),
+            topic::NearMissContext {
+                text: context,
+                request_id: request,
+                session_id: None,
+            },
         )
         .await
         .into_iter()

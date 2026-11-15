@@ -36,6 +36,7 @@ pub struct Scored<'a> {
     pub query: &'a str,
     pub turn_prompt: Option<&'a str>,
     pub used: &'a [String],
+    pub event_id: i64,
 }
 
 pub fn first_ten_references(returned: &Value) -> Vec<String> {
@@ -124,15 +125,7 @@ pub async fn grade_first_ten(
             .iter()
             .map(|at| at.and_then(|i| scored.documents.get(i)).map(String::as_str))
             .collect();
-        search_decide::grade(
-            jev,
-            scored.query,
-            scored.turn_prompt,
-            &mut results,
-            &texts,
-            scored.used,
-        )
-        .await;
+        search_decide::grade(jev, scored, &mut results, &texts).await;
     }
     let relevant = results
         .iter()

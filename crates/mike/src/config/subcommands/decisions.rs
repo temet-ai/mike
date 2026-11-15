@@ -45,7 +45,10 @@ async fn decisions_loop(args: DecisionsLoopArgs, cli: CliOverrides) -> Result<()
     let persist = super::eval::connect(cli, true).await?;
     let now = chrono::Utc::now();
     if !args.force && !crate::steerer::decisions_loop::overdue(&persist, now).await? {
-        println!("decisions_loop: a run finished in the last 24 h; nothing to do");
+        let synced = crate::steerer::decisions_loop::sync_outcomes(&persist).await?;
+        println!(
+            "decisions_loop: a run finished in the last 24 h; synced {synced} outcomes, scoring skipped"
+        );
         return Ok(());
     }
     let report = crate::steerer::decisions_loop::run(&persist, now).await?;

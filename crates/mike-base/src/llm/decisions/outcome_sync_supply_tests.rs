@@ -73,10 +73,10 @@ async fn lesson_supply_kept_lessons_are_scored_by_their_supplied_item_verdicts()
     let (used, ignored) = (env.lesson().await?, env.lesson().await?);
     let mut kept_used = NewRecord::new("lesson_supply", "sent")
         .verdict(json!({"score": 0.9, "keep": [used], "hold": []}));
-    kept_used.request_id = Some(turns[0].start_request_id);
+    kept_used.session_id = Some(env.session_id);
     let mut kept_ignored = NewRecord::new("lesson_supply", "sent")
         .verdict(json!({"score": 0.9, "keep": [ignored], "hold": []}));
-    kept_ignored.request_id = Some(turns[1].start_request_id);
+    kept_ignored.session_id = Some(env.session_id);
     let (a, b) = (
         env.record(kept_used).await?,
         env.record(kept_ignored).await?,
@@ -108,10 +108,10 @@ async fn lesson_supply_held_lesson_that_later_proved_useful_was_a_wrong_hold() -
     let (useful, useless) = (env.lesson().await?, env.lesson().await?);
     let mut wrong_hold = NewRecord::new("lesson_supply", "held")
         .verdict(json!({"score": 0.7, "keep": [], "hold": [useful]}));
-    wrong_hold.request_id = Some(turns[0].start_request_id);
+    wrong_hold.session_id = Some(env.session_id);
     let mut right_hold = NewRecord::new("lesson_supply", "held")
         .verdict(json!({"score": 0.7, "keep": [], "hold": [useless]}));
-    right_hold.request_id = Some(turns[1].start_request_id);
+    right_hold.session_id = Some(env.session_id);
     let (a, b) = (env.record(wrong_hold).await?, env.record(right_hold).await?);
     let item = supplied(&env, turns[1].start_request_id, Item::Lesson(useful), 5).await?;
     verdict(&env, item, "used", None).await?;

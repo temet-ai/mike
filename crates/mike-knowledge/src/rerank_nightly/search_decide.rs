@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use serde_json::{Value, json};
 
-use super::first_ten::ResultGrade;
+use super::first_ten::{ResultGrade, Scored};
 use crate::llm::decisions::env::{DecisionEnv, head_chars};
 use crate::llm::decisions::point::{Asked, Decider, noul};
 use crate::llm::decisions::{Question, record::DecisionSubject};
@@ -111,12 +111,11 @@ fn mean_applied(answers: &[(usize, f64)]) -> f64 {
 
 pub async fn grade(
     jev: &SearchJev,
-    query: &str,
-    turn_prompt: Option<&str>,
+    scored: &Scored<'_>,
     results: &mut [ResultGrade],
     texts: &[Option<&str>],
-    used: &[String],
 ) {
+    let (query, turn_prompt, used) = (scored.query, scored.turn_prompt, scored.used);
     if !jev.take() {
         return;
     }
@@ -157,7 +156,11 @@ pub async fn grade(
         "none"
     };
     jev.decider
-        .mark(&asked, asked.composed(json!({ "score": score })), applied)
+        .mark(
+            &asked,
+            asked.composed(json!({ "score": score, "search_event_id": scored.event_id })),
+            applied,
+        )
         .await;
     let Some(answers) = answers.filter(|_| jev.decider.applies()) else {
         return;

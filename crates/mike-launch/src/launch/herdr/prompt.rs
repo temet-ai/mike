@@ -1,5 +1,6 @@
 pub mod blocked;
 pub mod blocked_jev;
+pub mod blocked_remote;
 pub mod rescue;
 
 use std::time::Duration;
