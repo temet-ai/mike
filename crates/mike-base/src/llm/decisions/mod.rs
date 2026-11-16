@@ -221,4 +221,6 @@ mod outcome_sync_usage_tests;
 #[cfg(test)]
 mod retention_tests;
 #[cfg(test)]
+mod review_outcome_tests;
+#[cfg(test)]
 mod tests;

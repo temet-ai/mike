@@ -6,6 +6,7 @@ pub mod cross_session_order;
 pub mod decisions_ask;
 pub mod decisions_blocked_dialog;
 pub mod decisions_calibration;
+pub mod decisions_outcome;
 pub mod dossier;
 pub mod eval;
 pub mod handlers;

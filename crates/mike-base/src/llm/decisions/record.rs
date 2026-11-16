@@ -100,6 +100,15 @@ pub struct Applied {
     pub fail_open: bool,
 }
 
+pub const CLAUDE_REVIEW: &str = "claude_review";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewWrite {
+    Inserted(i64),
+    UnknownRecord,
+    AlreadyReviewed,
+}
+
 pub fn question_set_hash(questions: &Value) -> String {
     let digest = Sha256::digest(questions.to_string().as_bytes());
     digest.iter().take(8).map(|b| format!("{b:02x}")).collect()
@@ -215,6 +224,41 @@ impl super::DecisionStore<'_> {
             .execute(self.0.pool())
             .await?;
             Ok(r.rows_affected() > 0)
+        })
+        .await
+    }
+
+    pub async fn insert_review_outcome(
+        &self,
+        record_id: i64,
+        label: &str,
+        evidence: &Value,
+    ) -> Result<ReviewWrite, PersistError> {
+        crate::metrics::time_db("insert_review_outcome", async move {
+            let row = sqlx::query!(
+                r#"WITH rec AS (SELECT id FROM decisions.records WHERE id = $1),
+                        ins AS (
+                            INSERT INTO decisions.outcomes (record_id, label, label_source, evidence)
+                            SELECT rec.id, $2, $3, $4 FROM rec
+                             WHERE NOT EXISTS (
+                                   SELECT 1 FROM decisions.outcomes o
+                                    WHERE o.record_id = $1 AND o.label_source = $3)
+                            ON CONFLICT (record_id, label_source, label) DO NOTHING
+                            RETURNING id)
+                   SELECT EXISTS (SELECT 1 FROM rec) AS "found!",
+                          (SELECT id FROM ins) AS outcome_id"#,
+                record_id,
+                label,
+                CLAUDE_REVIEW,
+                evidence,
+            )
+            .fetch_one(self.0.pool())
+            .await?;
+            Ok(match (row.found, row.outcome_id) {
+                (false, _) => ReviewWrite::UnknownRecord,
+                (true, Some(id)) => ReviewWrite::Inserted(id),
+                (true, None) => ReviewWrite::AlreadyReviewed,
+            })
         })
         .await
     }
