@@ -44,8 +44,12 @@ With `MIKE_BUILD_CACHE=mbx`:
 - mbx's store is `MBX_CACHE_DIR`, default `~/.cache/mike-mbx`;
 - sccache and `RUSTC_WRAPPER` are off, and the lld `--config` arguments cx adds
   for plain cargo are not passed;
-- `MBX_TARGET_VIEWS=0`, `MBX_GC_AUTO=0` and `MBX_TARGET_SEED=0` are set, so mbx
-  never moves, links or collects a real `target/`;
+- `MBX_TARGET_VIEWS=0` and `MBX_TARGET_SEED=0` are set, so mbx never moves,
+  links or collects a real `target/`;
+- mbx's automatic collection stays on (`gc.auto`): a build trims the store to
+  `gc.max_size` once an hour, and further when the disk has less free than
+  `gc.min_free_size`. With it off the store reached 567 GB and filled `/` on
+  16 November 2026;
 - `MBX_SHARE_WORKSPACE_ROOT=1` is set, so a workspace crate compiles to the same
   bytes in every checkout (see "14 November 2026" below).
 

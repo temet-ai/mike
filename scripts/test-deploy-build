@@ -60,8 +60,15 @@ eq "MIKE_DEPLOY_BUILD_CACHE=cargo: cargo" cargo "$(MIKE_DEPLOY_BUILD_CACHE=cargo
 # ── heavy-build.sh: priority, jobs, which subcommands lock ───────────────────
 # shellcheck source=lib/heavy-build.sh
 source "$root/scripts/lib/heavy-build.sh"
-prefix="$(heavy_build_priority | tr '\n' ' ')"
+prefix="$(MIKE_BUILD_SLICE= heavy_build_priority | tr '\n' ' ')"
 eq "lowest CPU priority first" "nice -n 19" "${prefix:0:10}"
+eq "MIKE_BUILD_SLICE empty: no scope" "" "$(MIKE_BUILD_SLICE= heavy_build_slice_prefix)"
+eq "already in the slice: no nested scope" "" "$(MIKE_BUILD_SLICE="$(awk -F/ '{print $(NF-1)}' /proc/self/cgroup 2>/dev/null)" heavy_build_slice_prefix)"
+if [[ -n "$(MIKE_BUILD_SLICE=mike-test.slice heavy_build_slice_prefix)" ]]; then
+    eq "a scope in the named slice comes first" "systemd-run --user --scope --quiet --slice=mike-test.slice -- nice -n 19" \
+        "$(MIKE_BUILD_SLICE=mike-test.slice heavy_build_priority | tr '\n' ' ' | cut -d' ' -f1-9)"
+fi
+prefix="$(MIKE_BUILD_SLICE= heavy_build_priority | tr '\n' ' ')"
 if command -v ionice >/dev/null 2>&1; then
     eq "idle I/O class where ionice exists" "nice -n 19 ionice -c 3 " "$prefix"
 else

@@ -303,7 +303,12 @@ prepare_mbx_build_cache() {
 
   export MBX_BIN="$bin"
   export MBX_CACHE_DIR="${MBX_CACHE_DIR:-$HOME/.cache/mike-mbx}"
-  export MBX_TARGET_VIEWS=0 MBX_GC_AUTO=0 MBX_TARGET_SEED=0
+  export MBX_TARGET_VIEWS=0 MBX_TARGET_SEED=0
+  # mbx's own collection stays on (gc.auto, hourly, inside a build): it keeps the store to
+  # gc.max_size and frees more when the disk drops below gc.min_free_size. With it off the
+  # store reached 567 GB and filled / on 2026-11-16. It only touches mbx's store: with
+  # target views and seeding off, no target/ is managed by mbx.
+  unset MBX_GC_AUTO
   export MBX_LEARNED_INCREMENTAL=0
   # Workspace crates such as mike-base embed their checkout path (query_file! .sql
   # paths), so a recompile in another checkout gives different bytes and every crate
