@@ -305,6 +305,13 @@ async fn dispatch(
     }
 }
 
+fn refused(session: Option<Uuid>, reason: String) -> DefinitionError {
+    if let Some(session) = session {
+        crate::launch::fleet::decisions::stop_facts::note_report_refusal(session, &reason);
+    }
+    DefinitionError::InvalidRequest(reason)
+}
+
 pub async fn report_slice(
     State(state): State<BaseState>,
     Path(key): Path<String>,
@@ -314,7 +321,7 @@ pub async fn report_slice(
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
     let seated = Seated::of_run(persist, &run, &def).await;
     let (task, criteria) =
-        check_report(&def, &seated, &req).map_err(DefinitionError::InvalidRequest)?;
+        check_report(&def, &seated, &req).map_err(|reason| refused(req.session, reason))?;
     let session = req.session.ok_or(DefinitionError::Unavailable)?;
     let fleet = row.fleet_uuid.to_string();
     let facts = commit_facts(
@@ -324,7 +331,7 @@ pub async fn report_slice(
         (&req.task, req.sha.as_deref()),
     )
     .await
-    .map_err(DefinitionError::InvalidRequest)?;
+    .map_err(|reason| refused(Some(session), reason))?;
     let title = report_title(&req);
     let data = report_data(&req, &criteria, &facts);
     let body = format!(
