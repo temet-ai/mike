@@ -6,7 +6,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::{noul, noul_shaped};
 
 pub const POINT: &str = "turn_judge";
-pub const QUESTION_SET: &str = "turn_judge_v2";
+pub const QUESTION_SET: &str = "turn_judge_v3";
 
 pub const NAMES_AN_ERROR: &str = "names_an_error";
 pub const ASKS_AGAIN: &str = "asks_again";

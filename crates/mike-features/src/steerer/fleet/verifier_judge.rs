@@ -47,6 +47,22 @@ async fn fetch_ask_entries(ph: &PersistHandle, session_uuid: Uuid) -> Vec<AskLed
     }
 }
 
+const OPENING_ASKS: i64 = 2;
+
+async fn fetch_opening_asks(ph: &PersistHandle, session_uuid: Uuid) -> Vec<AskLedgerEntryRow> {
+    match ph
+        .dossier()
+        .fetch_opening_asks_for_model(session_uuid, OPENING_ASKS)
+        .await
+    {
+        Ok(entries) => written_by_the_operator(entries),
+        Err(e) => {
+            warn!(session_id = %session_uuid, error = %e, "steerer fleet: opening-ask fetch failed");
+            Vec::new()
+        }
+    }
+}
+
 fn log_latest_turn_lookup_failed(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
@@ -204,6 +220,7 @@ async fn load_raw_verifier_context(
     decider: Option<&Decider>,
 ) -> RawVerifierContext {
     let ask_entries = fetch_ask_entries(ph, session_uuid).await;
+    let opening = fetch_opening_asks(ph, session_uuid).await;
     let trajectory_digest =
         fetch_trajectory_digest(ph, session_uuid, session_db_id, turn_id_override).await;
     let (action_rows, action_counts) =
@@ -215,7 +232,7 @@ async fn load_raw_verifier_context(
     };
     let criteria = load_criteria_inputs(ph, session_uuid, session_db_id)
         .await
-        .picked(decider, &ask_entries, subject)
+        .picked(decider, &opening, &ask_entries, subject)
         .await;
     RawVerifierContext {
         ask_entries,

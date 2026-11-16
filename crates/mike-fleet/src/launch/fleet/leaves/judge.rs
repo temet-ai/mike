@@ -28,18 +28,22 @@ pub struct JudgeAnswer {
     pub checks: Vec<CheckerQuestion>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReportFacts {
     pub commit: String,
     pub criteria: Vec<String>,
     pub exercised_command: String,
     pub exercised_exit: Option<i32>,
     pub exercised_output_ref: String,
+    #[serde(default)]
+    pub exercised_output: String,
+    #[serde(default)]
+    pub check_tests: Vec<String>,
     pub tests_changed: Vec<String>,
     pub unestablished: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CriterionText {
     pub id: String,
     pub text: String,

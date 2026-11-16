@@ -6,6 +6,7 @@ mod tests;
 
 use serde_json::{Map, Value, json};
 
+pub use asks::Asks;
 pub use questions::{POINT, QUESTION_SET, key};
 
 use crate::llm::decisions::point::{Asked, Decider};
@@ -17,7 +18,7 @@ pub const ACCEPT_AT: f64 = 0.8;
 const CRITERIA_CHARS: usize = 900;
 const TITLE_CHARS: usize = 160;
 
-pub fn state(threads: &[ThreadCriteria], asks: &str) -> Value {
+pub fn state(threads: &[ThreadCriteria], asks: &Asks) -> Value {
     let by_key: Map<String, Value> = threads
         .iter()
         .enumerate()
@@ -33,7 +34,8 @@ pub fn state(threads: &[ThreadCriteria], asks: &str) -> Value {
         })
         .collect();
     json!({
-        "operator_asks": asks::fit(asks),
+        "first_ask": asks::first_ask(&asks.first),
+        "later_asks": asks::fit(&asks.later),
         "threads": by_key,
     })
 }
@@ -54,13 +56,13 @@ pub fn compose(asked: &Asked, count: usize) -> Option<Vec<usize>> {
 pub async fn accepted(
     decider: Option<&Decider>,
     threads: &[ThreadCriteria],
-    asks: &str,
+    asks: &Asks,
     subject: DecisionSubject,
 ) -> Vec<usize> {
     let Some(decider) = decider else {
         return Vec::new();
     };
-    if threads.is_empty() || asks.trim().is_empty() {
+    if threads.is_empty() || asks.is_empty() {
         return Vec::new();
     }
     let asked = decider

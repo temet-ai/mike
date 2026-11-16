@@ -1,4 +1,11 @@
+pub mod check_output;
+pub mod check_tests;
+#[cfg(test)]
+mod check_tests_tests;
 pub mod checker;
+pub mod clauses;
+#[cfg(test)]
+mod clauses_tests;
 pub mod judge;
 pub mod judge_jev;
 pub mod judge_pass;

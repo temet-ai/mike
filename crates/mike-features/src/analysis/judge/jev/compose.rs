@@ -10,6 +10,7 @@ use crate::llm::decisions::point::Asked;
 use crate::store::persistence::operator_turns::projection::map_legacy_outcome;
 
 pub const YES: f64 = 0.5;
+pub const CORRECTED_AT: f64 = 0.7;
 pub const CHECKED_AT: f64 = 0.6;
 pub const UNCERTAIN_BELOW: f64 = 0.7;
 
@@ -71,12 +72,14 @@ fn reaction(asked: &Asked, has_next: bool) -> (Reaction, f64) {
         p(asked, REDIRECTED),
         p(asked, ACCEPTED),
     );
-    if corrected >= YES {
+    if corrected >= CORRECTED_AT {
         (Reaction::Corrected, corrected)
     } else if accepted >= YES {
         (Reaction::Accepted, accepted)
     } else if redirected >= YES {
         (Reaction::Redirected, redirected)
+    } else if corrected >= YES {
+        (Reaction::Corrected, corrected)
     } else {
         (
             Reaction::Unclear,
@@ -87,7 +90,7 @@ fn reaction(asked: &Asked, has_next: bool) -> (Reaction, f64) {
 
 fn delivery(asked: &Asked) -> Delivery {
     let delivered = p(asked, DELIVERED) >= YES;
-    if p(asked, ABANDONED) >= YES {
+    if p(asked, ABANDONED) >= YES && !delivered {
         Delivery::None
     } else if p(asked, ASKS_OPERATOR) >= YES && !delivered {
         Delivery::Question

@@ -49,12 +49,15 @@ fn known<P: ReplayPoint>() -> KnownPoint {
 }
 
 pub(in crate::config::subcommands) fn known_point(name: &str) -> Option<KnownPoint> {
-    use super::{correction, turn_judge, verifier, wake};
+    use super::{correction, criteria_source, directive, text_origin, turn_judge, verifier, wake};
     [
         known::<turn_judge::TurnJudge>(),
         known::<correction::Correction>(),
         known::<verifier::VerifierPrecheck>(),
         known::<wake::WakeRecheck>(),
+        known::<text_origin::TextOrigin>(),
+        known::<directive::Directive>(),
+        known::<criteria_source::CriteriaSource>(),
     ]
     .into_iter()
     .find(|k| k.point == name)

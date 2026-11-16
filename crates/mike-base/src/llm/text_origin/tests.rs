@@ -4,6 +4,7 @@ use serde_json::json;
 
 use super::compose::{Origin, compose};
 use super::questions::{OPTIONS, ORIGIN, questions};
+use super::signals::Signals;
 use super::state::{Unmatched, state};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
@@ -18,6 +19,7 @@ fn input(text: &str) -> Unmatched {
         previous_assistant_reply: "I fixed it and pushed.".to_owned(),
         author: "operator".to_owned(),
         has_agent_id: false,
+        signals: Signals::default(),
     }
 }
 

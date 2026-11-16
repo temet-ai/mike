@@ -151,6 +151,35 @@ impl crate::store::persistence::dossier_repo::DossierDb<'_> {
         .await
     }
 
+    pub async fn fetch_opening_asks_for_model(
+        self,
+        session_uuid: Uuid,
+        limit: i64,
+    ) -> Result<Vec<AskLedgerEntryRow>, PersistError> {
+        crate::metrics::time_db("fetch_opening_asks_for_model", async move {
+            let Some(session_db_id) = self.session_row_id(session_uuid).await? else {
+                return Ok(Vec::new());
+            };
+            let rows = sqlx::query_as!(
+                AskLedgerEntryRow,
+                r#"SELECT e.id, e.session_id, e.operator_turn_id, e.kind, e.content, e.created_at
+                     FROM memory.ask_ledger_entries e
+                     LEFT JOIN prompt_kinds.classifications c ON c.request_id = e.request_id
+                     LEFT JOIN prompt_kinds.kinds k ON k.id = c.kind_id
+                    WHERE e.session_id = $1
+                      AND (k.code IS NULL OR k.code = 'operator')
+                    ORDER BY e.created_at ASC
+                    LIMIT $2"#,
+                session_db_id,
+                limit,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            Ok(rows)
+        })
+        .await
+    }
+
     pub async fn count_ask_ledger_for_model(self, session_uuid: Uuid) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_ask_ledger_for_model", async move {
             let Some(session_db_id) = self.session_row_id(session_uuid).await? else {

@@ -5,7 +5,7 @@ use super::verifier_judge::render_intake_criteria;
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
 use crate::steerer::checklist_point::{Criterion, MAX_CRITERIA, intake_criteria, thread_criteria};
-use crate::steerer::criteria_source_point;
+use crate::steerer::criteria_source_point::{self, Asks};
 use crate::steerer::verifier::build_accumulated_ask;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::acceptance_criteria::AcceptanceCriteriaMap;
@@ -77,13 +77,26 @@ impl CriteriaInputs {
     pub async fn picked(
         &self,
         decider: Option<&Decider>,
+        opening: &[AskLedgerEntryRow],
         ask_entries: &[AskLedgerEntryRow],
         subject: DecisionSubject,
     ) -> CriteriaFields {
-        let asks = build_accumulated_ask(ask_entries);
+        let asks = split_asks(opening, ask_entries);
         let accepted =
             criteria_source_point::accepted(decider, &self.threads, &asks, subject).await;
         self.fields(&accepted)
+    }
+}
+
+pub fn split_asks(opening: &[AskLedgerEntryRow], newest: &[AskLedgerEntryRow]) -> Asks {
+    let later: Vec<AskLedgerEntryRow> = newest
+        .iter()
+        .filter(|e| !opening.iter().any(|o| o.id == e.id))
+        .cloned()
+        .collect();
+    Asks {
+        first: build_accumulated_ask(opening),
+        later: build_accumulated_ask(&later),
     }
 }
 

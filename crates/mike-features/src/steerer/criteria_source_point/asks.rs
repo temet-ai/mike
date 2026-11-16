@@ -9,6 +9,25 @@ const COMMAND_OPEN: &str = "<command-name>";
 const SKILL_HEADER: &str = "# /";
 const KIND_CHARS: usize = 20;
 
+pub const FIRST_CHARS: usize = 1_500;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Asks {
+    pub first: String,
+    pub later: String,
+}
+
+impl Asks {
+    pub fn is_empty(&self) -> bool {
+        self.first.trim().is_empty() && self.later.trim().is_empty()
+    }
+}
+
+pub fn first_ask(first: &str) -> String {
+    let kept = without_pasted_bodies(first.trim());
+    head_chars(kept.trim(), FIRST_CHARS).to_owned()
+}
+
 pub fn fit(asks: &str) -> String {
     let kept = without_pasted_bodies(asks.trim());
     let kept = kept.trim();

@@ -29,6 +29,8 @@ fn input(exit: Option<i32>, unestablished: &[&str]) -> JudgeInput {
             exercised_command: "make test".to_owned(),
             exercised_exit: exit,
             exercised_output_ref: "receipt 3".to_owned(),
+            exercised_output: String::new(),
+            check_tests: Vec::new(),
             tests_changed: vec!["a_test.rs".to_owned()],
             unestablished: unestablished.iter().map(|s| (*s).to_owned()).collect(),
         },
@@ -88,6 +90,69 @@ fn compose_a_pass_with_unestablished_claims_or_a_red_exercise_asks_for_a_check()
         compose(&answers(0.9, 0.9), &input(Some(1), &[])),
         Composed::Check
     );
+}
+
+fn with(met: (f64, f64), extra: &[(&str, f64)]) -> Asked {
+    let mut answers = BTreeMap::new();
+    let all = [("criterion_C1", met.0), ("criterion_C2", met.1)];
+    for (key, p) in all.iter().chain(extra) {
+        answers.insert(
+            (*key).to_owned(),
+            Answer::Noul {
+                noul: *p,
+                confidence: None,
+            },
+        );
+    }
+    Asked::answered(answers)
+}
+
+#[test]
+fn compose_a_lean_met_by_the_criterions_own_green_check_passes() {
+    let asked = with(
+        (0.9, 0.6),
+        &[("runs_check_C1", 0.9), ("runs_check_C2", 0.9)],
+    );
+    assert_eq!(
+        compose(&asked, &input(Some(0), &[])),
+        Composed::Pass { weakest: 0.6 }
+    );
+}
+
+#[test]
+fn compose_a_lean_met_by_another_command_asks_for_a_check() {
+    let asked = with(
+        (0.9, 0.6),
+        &[("runs_check_C1", 0.9), ("runs_check_C2", 0.2)],
+    );
+    assert_eq!(compose(&asked, &input(Some(0), &[])), Composed::Check);
+}
+
+#[test]
+fn compose_a_caveat_no_criterion_needs_still_passes() {
+    let asked = with((0.9, 0.9), &[("caveat_C1", 0.1), ("caveat_C2", 0.2)]);
+    assert_eq!(
+        compose(&asked, &input(Some(0), &["an estimate the check allows"])),
+        Composed::Pass { weakest: 0.9 }
+    );
+}
+
+#[test]
+fn compose_a_caveat_a_criterion_needs_asks_for_a_check() {
+    let asked = with((0.9, 0.9), &[("caveat_C1", 0.1), ("caveat_C2", 0.8)]);
+    assert_eq!(
+        compose(&asked, &input(Some(0), &["C2 not seen live"])),
+        Composed::Check
+    );
+}
+
+#[test]
+fn questions_ask_about_caveats_only_when_the_report_lists_some() {
+    let plain = questions(&[criterion("C1")], &input(Some(0), &[]).report);
+    assert!(plain.contains_key("runs_check_C1"));
+    assert!(!plain.contains_key("caveat_C1"));
+    let caveated = questions(&[criterion("C1")], &input(Some(0), &["x"]).report);
+    assert!(caveated.contains_key("caveat_C1"));
 }
 
 #[test]
@@ -161,7 +226,7 @@ fn state_never_shows_jev_its_own_earlier_answers_the_round_or_the_floor_sha() {
 
 #[test]
 fn the_question_asks_for_this_tasks_part_of_a_criterion() {
-    let asked = questions(&[criterion("C1")]);
+    let asked = questions(&[criterion("C1")], &input(Some(0), &[]).report);
     let text = serde_json::to_string(&asked["criterion_C1"]).unwrap_or_default();
     assert!(text.contains("this task's part of criterion C1"), "{text}");
 }

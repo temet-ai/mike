@@ -246,10 +246,15 @@ async fn input_for(
             })
         })
         .collect();
+    let mut facts = facts(report);
+    facts.exercised_output =
+        super::check_output::exercised_output(persist, &report.run, &facts.exercised_command).await;
+    let files = super::check_tests::candidate_files(&facts.exercised_command, &facts.tests_changed);
+    facts.check_tests = super::check_tests::test_names(&def.repo, &report.sha, &files).await;
     JudgeInput {
         task: report.task.clone(),
         criteria,
-        report: facts(report),
+        report: facts,
         floor,
         diff: patch_of(&def.repo, &report.sha).await,
         open_obligations: open_obligations(persist, def, report).await,
@@ -294,6 +299,8 @@ fn facts(report: &ReportToJudge) -> ReportFacts {
         exercised_command: exercised.command,
         exercised_exit: exercised.exit,
         exercised_output_ref: exercised.output_ref,
+        exercised_output: String::new(),
+        check_tests: Vec::new(),
         tests_changed: report.tests_changed.clone(),
         unestablished: report.unestablished.clone(),
     }
