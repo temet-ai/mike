@@ -238,7 +238,12 @@ async fn jev_judge_on_answers_that_show_every_criterion_passes() -> anyhow::Resu
     };
     let server = stub_jev(
         200,
-        noul_body(&[("criterion_C1", 0.9), ("criterion_C2", 0.85)]),
+        noul_body(&[
+            ("criterion_C1", 0.9),
+            ("criterion_C2", 0.85),
+            ("runs_check_C1", 0.9),
+            ("runs_check_C2", 0.9),
+        ]),
     )
     .await;
     let decider = jev_decider(&server, &fx.handle, POINT, DecisionMode::On)?;
