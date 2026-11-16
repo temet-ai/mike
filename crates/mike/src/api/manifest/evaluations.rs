@@ -2,8 +2,8 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::{
-    decisions_ask, decisions_blocked_dialog, decisions_calibration, steering_evaluations,
-    steering_guard, steering_guard_effect,
+    decisions_ask, decisions_blocked_dialog, decisions_calibration, decisions_outcome,
+    steering_evaluations, steering_guard, steering_guard_effect,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
@@ -28,6 +28,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/decisions/calibration",
         Coverage::Exempt {
             reason: "SPA decisions calibration panel on settings/steering; agents read decisions.records through the loop's thread findings",
+        },
+    ),
+    route(
+        "POST",
+        "/api/decisions/records/{id}/outcome",
+        Coverage::Exempt {
+            reason: "the Jev labelling session calls it over HTTP to grade one decision record; investigating sessions only read decisions",
         },
     ),
     route(
@@ -89,6 +96,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/decisions/calibration",
             get(decisions_calibration::get_calibration),
+        )
+        .route(
+            "/api/decisions/records/{id}/outcome",
+            post(decisions_outcome::post_outcome),
         )
         .route(
             "/api/sessions/{id}/evaluations",
