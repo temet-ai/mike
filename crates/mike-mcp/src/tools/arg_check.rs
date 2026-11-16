@@ -199,6 +199,43 @@ pub(crate) fn check_arguments(
     Ok((Some(map), corrections))
 }
 
+pub(crate) fn reject_missing_required(
+    name: &str,
+    arguments: Option<&Map<String, Value>>,
+) -> Result<(), RmcpError> {
+    let (Some(declared), Some(map)) = (catalogue().get(name), arguments) else {
+        return Ok(());
+    };
+    let missing: Vec<String> = declared
+        .required
+        .iter()
+        .filter(|required| !map.contains_key(required.as_str()))
+        .map(|required| format!("`{required}`"))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    let noun = if missing.len() == 1 {
+        "argument"
+    } else {
+        "arguments"
+    };
+    let sent: Vec<String> = map.keys().map(|key| format!("`{key}`")).collect();
+    let sent = if sent.is_empty() {
+        "none".to_string()
+    } else {
+        sent.join(", ")
+    };
+    Err(RmcpError::invalid_params(
+        format!(
+            "missing required {noun} {} for `{name}` (sent: {sent}); it takes: {}",
+            missing.join(", "),
+            declared.listing()
+        ),
+        None,
+    ))
+}
+
 pub(crate) fn with_corrections(
     result: CallToolResult,
     corrections: &Corrections,

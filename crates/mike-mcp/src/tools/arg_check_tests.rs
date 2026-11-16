@@ -163,3 +163,51 @@ fn check_arguments_session_id_is_unknown_on_a_tool_outside_the_three() -> anyhow
     assert!(message.starts_with("unknown argument `session_id` for `read_project_knowledge`"));
     Ok(())
 }
+
+#[test]
+fn reject_missing_required_search_project_knowledge_without_project_names_it() -> anyhow::Result<()>
+{
+    let sent = arguments(json!({"query": "deploy mike to the Mac"}));
+    let message = reject_missing_required("search_project_knowledge", sent.as_ref())
+        .err()
+        .map(|error| error.message.to_string())
+        .ok_or_else(|| anyhow::anyhow!("expected the missing project to be refused"))?;
+    assert!(
+        message.starts_with(
+            "missing required argument `project` for `search_project_knowledge` (sent: `query`); it takes: project (required)"
+        ),
+        "{message}"
+    );
+    Ok(())
+}
+
+#[test]
+fn reject_missing_required_all_required_present_passes() -> anyhow::Result<()> {
+    let sent = arguments(json!({"project": "p", "query": "q"}));
+    reject_missing_required("search_project_knowledge", sent.as_ref())?;
+    Ok(())
+}
+
+#[test]
+fn reject_missing_required_several_missing_are_all_named() -> anyhow::Result<()> {
+    let sent = arguments(json!({}));
+    let message = reject_missing_required("recall_similar_turns", sent.as_ref())
+        .err()
+        .map(|error| error.message.to_string())
+        .ok_or_else(|| anyhow::anyhow!("expected the missing arguments to be refused"))?;
+    assert!(
+        message.starts_with(
+            "missing required arguments `project_path`, `query` for `recall_similar_turns` (sent: none)"
+        ),
+        "{message}"
+    );
+    Ok(())
+}
+
+#[test]
+fn reject_missing_required_absent_arguments_or_open_schema_pass_through() -> anyhow::Result<()> {
+    reject_missing_required("search_project_knowledge", None)?;
+    let sent = arguments(json!({"anything": 1}));
+    reject_missing_required("no_such_tool", sent.as_ref())?;
+    Ok(())
+}

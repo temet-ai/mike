@@ -91,6 +91,7 @@ impl McpServer {
             self.session_uuid.as_deref(),
         )
         .await?;
+        tools::reject_missing_required(name, arguments.as_ref())?;
         tools::call_tool(&self.client, name, arguments)
             .await
             .map(|result| tools::with_corrections(result, &corrections))
