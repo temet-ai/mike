@@ -107,7 +107,7 @@ fn report_tool() -> Tool {
             (
                 "sha",
                 text(
-                    "The commit to judge this report at: your fleet_commit sha, or a later one on the fleet's branch that contains it. Leave it out to use your task's newest fleet_commit; a task with no commit is reported with nothing to judge. `commit` is accepted as the same field.",
+                    "The commit to judge this report at: your fleet_commit sha, or a later one on the fleet's branch that contains it. Leave it out to use your task's newest fleet_commit. Work that never commits (research, comments, artifacts in another repository) reports with no sha: never name a commit from another repository. With no commit, a task that declares a floor is sent back to commit; any other goes to acceptance, which judges it from `evidence` and `look_at`. `commit` is accepted as the same field.",
                 ),
             ),
         ]

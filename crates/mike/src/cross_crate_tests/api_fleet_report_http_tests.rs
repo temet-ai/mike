@@ -234,14 +234,14 @@ fn a_report_goes_to_the_acceptance_seat_only_while_the_record_seats_it() -> anyh
         "start writes one whether or not a seat exists"
     );
     let nobody = Seated::default();
-    assert_eq!(route(&def, &nobody, "0123456789abcdef"), Route::Judge);
-    assert_eq!(route(&def, &nobody, ""), Route::NoCommit);
+    let sha = "0123456789abcdef";
+    assert_eq!(route(&def, &nobody, sha, true), Route::Judge);
+    assert_eq!(route(&def, &nobody, "", true), Route::NoCommit);
+    assert_eq!(route(&def, &nobody, "", false), Route::Recorded);
     let acceptance = Seated::default().with_everything(id(ACCEPTANCE), "acceptance");
-    assert_eq!(
-        route(&def, &acceptance, "0123456789abcdef"),
-        Route::Acceptance
-    );
-    assert_eq!(route(&def, &acceptance, ""), Route::Acceptance);
+    assert_eq!(route(&def, &acceptance, sha, true), Route::Acceptance);
+    assert_eq!(route(&def, &acceptance, "", false), Route::Acceptance);
+    assert_eq!(route(&def, &acceptance, "", true), Route::NoCommit);
     Ok(())
 }
 

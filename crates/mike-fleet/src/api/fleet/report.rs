@@ -230,19 +230,25 @@ pub enum Route {
     Acceptance,
     Judge,
     NoCommit,
+    Recorded,
 }
 
-pub fn route(def: &FleetDefinition, seated: &Seated, sha: &str) -> Route {
-    match (seated.acceptance_seated(def), sha.is_empty()) {
-        (true, _) => Route::Acceptance,
-        (false, true) => Route::NoCommit,
-        (false, false) => Route::Judge,
+pub fn route(def: &FleetDefinition, seated: &Seated, sha: &str, declared_floor: bool) -> Route {
+    match (
+        declared_floor,
+        seated.acceptance_seated(def),
+        sha.is_empty(),
+    ) {
+        (true, _, true) => Route::NoCommit,
+        (_, true, _) => Route::Acceptance,
+        (false, false, true) => Route::Recorded,
+        (_, false, false) => Route::Judge,
     }
 }
 
 fn no_commit_mail(task: &str) -> String {
     format!(
-        "[mike judge] Your report on task {task} names no commit, so there is nothing to judge: commit with fleet_commit and report again with the sha."
+        "[mike judge] Task {task} declares a floor, and a floor runs at a commit; your report names none. Commit with fleet_commit and report again. A task without a floor may report with no commit."
     )
 }
 
@@ -276,12 +282,13 @@ async fn dispatch(
     (run, task, seat, sha): (&str, &str, Uuid, &str),
     (declared_floor, shown): (bool, &str),
 ) -> bool {
-    let route = route(def, seated, sha);
+    let route = route(def, seated, sha, declared_floor);
     match route {
         Route::NoCommit => {
             leaves::tell_seat(persist, seat, &no_commit_mail(task)).await;
             false
         }
+        Route::Recorded => false,
         Route::Acceptance if !declared_floor => tell_acceptance(persist, def, seat, shown).await,
         Route::Acceptance | Route::Judge => {
             if declared_floor {
