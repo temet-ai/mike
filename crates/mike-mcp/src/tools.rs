@@ -64,7 +64,7 @@ use schema::{
     object_schema, order_property,
 };
 
-pub(crate) use arg_check::{check_arguments, with_corrections};
+pub(crate) use arg_check::{check_arguments, reject_missing_required, with_corrections};
 pub use catalogue::{CORE_TOOL_NAMES, Profile, all_tools, tools_for_profile};
 pub(crate) use dispatch::call_tool;
 
