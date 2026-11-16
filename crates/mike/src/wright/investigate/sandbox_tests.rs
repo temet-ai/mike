@@ -176,6 +176,22 @@ fn sandbox_env_carries_only_the_run_variables() -> anyhow::Result<()> {
 }
 
 #[test]
+fn instruction_dirs_bind_the_checkouts_agents_rules_and_skills_that_exist() -> anyhow::Result<()> {
+    let repo = tempfile::tempdir()?;
+    std::fs::create_dir_all(repo.path().join(".claude/agents"))?;
+    std::fs::create_dir_all(repo.path().join(".claude/rules"))?;
+    let dirs = super::home::instruction_dirs(repo.path());
+    assert_eq!(
+        dirs,
+        vec![
+            (repo.path().join(".claude/agents"), ".claude/agents"),
+            (repo.path().join(".claude/rules"), ".claude/rules"),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
 fn claude_args_restrict_tools_to_read_and_mcp_to_mike() {
     let request = RunRequest {
         mode: RunMode::Investigate,
@@ -194,7 +210,8 @@ fn claude_args_restrict_tools_to_read_and_mcp_to_mike() {
     assert_eq!(after("--tools").as_deref(), Some("Read,Glob,Grep,Bash"));
     assert_eq!(after("--permission-mode").as_deref(), Some("dontAsk"));
     assert_eq!(after("--session-id"), Some(session.to_string()));
-    assert_eq!(after("--setting-sources").as_deref(), Some("user"));
+    assert_eq!(after("--setting-sources").as_deref(), Some("user,project"));
+    assert_eq!(after("--agent").as_deref(), Some("wright-engineer"));
     assert!(args.iter().any(|a| a == "--strict-mcp-config"));
     assert_eq!(
         args[..3],

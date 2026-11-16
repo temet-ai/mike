@@ -34,8 +34,10 @@ pub(crate) fn claude_args(req: &RunRequest, session: Uuid) -> Vec<OsString> {
         "dontAsk".to_owned(),
         "--tools".to_owned(),
         req.mode.tools().join(","),
+        "--agent".to_owned(),
+        req.mode.agent().to_owned(),
         "--setting-sources".to_owned(),
-        "user".to_owned(),
+        "user,project".to_owned(),
         "--output-format".to_owned(),
         "json".to_owned(),
     ]
@@ -53,7 +55,7 @@ fn command(program: &Program, req: &RunRequest, session: Uuid) -> Vec<OsString> 
 }
 
 async fn workspace(ctx: &EngineerContext, mode: &RunMode) -> Result<(PathBuf, WorkAccess), String> {
-    if let RunMode::Repair { worktree } = mode {
+    if let RunMode::Repair { worktree, .. } = mode {
         if !worktree.is_absolute() || !worktree.is_dir() {
             return Err(format!(
                 "the repair worktree {} is not an existing absolute directory",
@@ -101,7 +103,7 @@ fn plan(
 ) -> Result<SandboxPlan, String> {
     let masked = sandbox::env_files(&work.0)
         .map_err(|e| format!("cannot list the .env files in {}: {e}", work.0.display()))?;
-    let home_files = home::write_home(
+    let mut home_files = home::write_home(
         start.dir,
         &HomeInputs {
             credentials: &ctx.paths.credentials,
@@ -109,6 +111,7 @@ fn plan(
             tools: req.mode.tools(),
         },
     )?;
+    home_files.extend(home::instruction_dirs(&ctx.paths.repo));
     Ok(SandboxPlan {
         system: sandbox::system_layout(),
         work: work.0,

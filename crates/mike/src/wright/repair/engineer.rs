@@ -52,6 +52,7 @@ impl RepairEngineer for InvestigateEngineer {
         let request = RunRequest {
             mode: RunMode::Repair {
                 worktree: job.worktree.clone(),
+                agent: job.agent,
             },
             problem_id: Some(job.problem_id),
             followup_id: None,

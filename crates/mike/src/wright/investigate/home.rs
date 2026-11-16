@@ -185,6 +185,20 @@ pub(crate) fn write_home(
     ])
 }
 
+const INSTRUCTION_DIRS: [(&str, &str); 3] = [
+    (".claude/agents", ".claude/agents"),
+    (".claude/rules", ".claude/rules"),
+    (".claude/skills", ".claude/skills"),
+];
+
+pub(crate) fn instruction_dirs(repo: &Path) -> Vec<(PathBuf, &'static str)> {
+    INSTRUCTION_DIRS
+        .iter()
+        .map(|(from, to)| (repo.join(from), *to))
+        .filter(|(path, _)| path.is_dir())
+        .collect()
+}
+
 pub(crate) fn inside_mcp_config() -> String {
     format!("{INSIDE_HOME}/mcp.json")
 }
