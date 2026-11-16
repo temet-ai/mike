@@ -1,9 +1,12 @@
-use super::questions::{BROKEN, DONE, MISSING, NOT_SHOWN_BROKEN, OPEN_STATED, key};
+use super::questions::{
+    BROKEN, CLAIMS_FINISHED, DONE, MISSING, NOT_SHOWN_BROKEN, OPEN_STATED, key,
+};
 use super::state::Criterion;
 use crate::llm::decisions::point::Asked;
 use crate::steerer::verdict::{ChecklistItem, Need, SteererVerdict};
 
 pub const NOT_DONE_AT: f64 = 0.6;
+pub const CLAIMS_FINISHED_AT: f64 = 0.7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -75,11 +78,16 @@ impl Item {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Checklist {
     pub items: Vec<Item>,
+    pub claims_finished: f64,
 }
 
 impl Checklist {
     pub fn flagged(&self) -> Vec<&Item> {
-        self.items.iter().filter(|i| i.flags()).collect()
+        let claimed = self.claims_finished >= CLAIMS_FINISHED_AT;
+        self.items
+            .iter()
+            .filter(|i| i.flags() && (i.rule || claimed))
+            .collect()
     }
 
     pub fn open_stated(&self) -> Vec<&Item> {
@@ -90,7 +98,7 @@ impl Checklist {
     }
 
     pub fn fires(&self) -> bool {
-        self.items.iter().any(Item::flags)
+        !self.flagged().is_empty()
     }
 
     pub fn confidence(&self) -> f64 {
@@ -192,5 +200,9 @@ pub fn compose(asked: &Asked, criteria: &[Criterion]) -> Option<Checklist> {
             })
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(Checklist { items })
+    let claims_finished = asked.noul(CLAIMS_FINISHED).unwrap_or(0.0);
+    Some(Checklist {
+        items,
+        claims_finished,
+    })
 }

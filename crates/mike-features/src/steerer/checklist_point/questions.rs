@@ -2,10 +2,11 @@ use std::collections::BTreeMap;
 
 use super::state::Criterion;
 use crate::llm::decisions::Question;
-use crate::llm::decisions::point::choice;
+use crate::llm::decisions::point::{choice, noul};
 
 pub const POINT: &str = "steerer_checklist";
-pub const QUESTION_SET: &str = "steerer_checklist_v2";
+pub const QUESTION_SET: &str = "steerer_checklist_v3";
+pub const CLAIMS_FINISHED: &str = "claims_finished";
 
 pub const DONE: &str = "done";
 pub const OPEN_STATED: &str = "open_stated";
@@ -59,8 +60,16 @@ fn rule_question(index: usize) -> Question {
     )
 }
 
+fn claims_finished_question() -> Question {
+    noul(
+        "Does `evidence.turn_end` tell the operator the whole task is finished, with nothing left to do?",
+        "The turn reports the task as done, shipped or complete, such as \"All done: merged and deployed.\"",
+        "The turn reports progress, a next step, a wait or a question, such as \"The push is running; I'll merge when it passes.\"",
+    )
+}
+
 pub fn questions(criteria: &[Criterion]) -> BTreeMap<String, Question> {
-    criteria
+    let mut set: BTreeMap<String, Question> = criteria
         .iter()
         .enumerate()
         .map(|(i, c)| {
@@ -71,5 +80,7 @@ pub fn questions(criteria: &[Criterion]) -> BTreeMap<String, Question> {
             };
             (key(i), question)
         })
-        .collect()
+        .collect();
+    set.insert(CLAIMS_FINISHED.to_owned(), claims_finished_question());
+    set
 }
