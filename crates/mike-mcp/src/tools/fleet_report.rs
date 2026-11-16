@@ -107,7 +107,7 @@ fn report_tool() -> Tool {
             (
                 "sha",
                 text(
-                    "The commit to judge this report at: your fleet_commit sha, or a later one on the fleet's branch that contains it. `commit` is accepted as the same field.",
+                    "The commit to judge this report at: your fleet_commit sha, or a later one on the fleet's branch that contains it. Leave it out to use your task's newest fleet_commit; a task with no commit is reported with nothing to judge. `commit` is accepted as the same field.",
                 ),
             ),
         ]
@@ -119,7 +119,6 @@ fn report_tool() -> Tool {
             "session_id",
             "task",
             "slice",
-            "sha",
             "criteria",
             "exercised",
             "tests_changed",
@@ -130,10 +129,11 @@ fn report_tool() -> Tool {
         Cow::Borrowed(TOOL_FLEET_REPORT),
         Cow::Borrowed(
             "Report a finished slice of your task, after fleet_commit. Mutating. Use it in \
-             place of mailing acceptance. Typed: `sha` (or `commit`), `criteria`, \
-             `exercised` {command, exit, output_ref}, `tests_changed` (paths or \"none\") and \
-             `unestablished` ([] when nothing) are all required, and a report missing one is \
-             refused naming the field. mike runs the task's declared floor at `sha`, writes a \
+             place of mailing acceptance. Typed: `criteria`, `exercised` {command, exit, \
+             output_ref}, `tests_changed` (paths or \"none\") and `unestablished` ([] when \
+             nothing) are required, and a report missing one is refused naming the field. \
+             `sha` (or `commit`) is optional and defaults to your task's newest fleet_commit. \
+             mike runs the task's declared floor at that commit, writes a \
              `report` note in your notebook with what it finds itself: the commit, the \
              check's verdict at that commit, whether the check ran after your last change and \
              the brief version you read; and tells the judge the floor result and your \
@@ -273,9 +273,6 @@ fn report_incomplete(body: &Value) -> Option<String> {
             "fleet_report is incomplete: `{name}` is missing; {hint}"
         ))
     };
-    if !present(field("sha")) && !present(field("commit")) {
-        return say("sha", "give the commit your fleet_commit returned");
-    }
     if !present(field("criteria")) {
         return say("criteria", "give the task's criterion ids, e.g. [\"C3\"]");
     }
@@ -381,17 +378,15 @@ mod tests {
             fields.insert("commit".into(), sha.unwrap_or_default());
         }
         assert_eq!(report_incomplete(&body), None);
+        if let Some(fields) = body.as_object_mut() {
+            fields.remove("commit");
+        }
+        assert_eq!(report_incomplete(&body), None, "sha is optional");
     }
 
     #[test]
     fn a_report_missing_a_field_is_refused_naming_it() {
-        for field in [
-            "sha",
-            "criteria",
-            "exercised",
-            "tests_changed",
-            "unestablished",
-        ] {
+        for field in ["criteria", "exercised", "tests_changed", "unestablished"] {
             let mut body = complete_report();
             if let Some(fields) = body.as_object_mut() {
                 fields.remove(field);
@@ -420,15 +415,10 @@ mod tests {
     fn report_schema_requires_the_typed_fields() {
         let tools = fleet_report_tools();
         let required = &tools[0].input_schema["required"];
-        for field in [
-            "sha",
-            "criteria",
-            "exercised",
-            "tests_changed",
-            "unestablished",
-        ] {
+        for field in ["criteria", "exercised", "tests_changed", "unestablished"] {
             assert!(required.to_string().contains(field), "{field}");
         }
+        assert!(!required.to_string().contains("\"sha\""), "sha is optional");
     }
 
     #[test]
