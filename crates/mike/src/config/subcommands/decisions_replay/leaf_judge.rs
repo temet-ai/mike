@@ -16,7 +16,7 @@ use crate::store::persistence::PersistHandle;
 
 const PASS: &str = "pass";
 const CHECK: &str = "check";
-const FORGE: &str = "/mnt/data/projects/forge";
+const REPOS_ENV: &str = "MIKE_REPLAY_REPOS";
 const OUTPUT_AS_OF: &str = "SELECT r.content FROM tools.uses u \
        JOIN tools.results r ON r.tool_use_id = u.id \
       WHERE u.tool_name = 'Bash' AND u.input->>'command' ILIKE '%' || $1 || '%' \
@@ -63,7 +63,8 @@ fn expected(record: &Labelled, criteria: &[CriterionText], report: &ReportFacts)
 }
 
 async fn repo_with(sha: &str) -> Option<String> {
-    let dirs = std::fs::read_dir(FORGE).ok()?;
+    let root = std::env::var_os(REPOS_ENV)?;
+    let dirs = std::fs::read_dir(root).ok()?;
     for dir in dirs.flatten() {
         let repo = dir.path().to_string_lossy().into_owned();
         let spec = format!("{sha}^{{commit}}");
