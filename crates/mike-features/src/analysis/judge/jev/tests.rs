@@ -106,14 +106,19 @@ fn compose_two_axis_operator_acceptance_labels_accepted_even_when_not_seen_as_de
 }
 
 #[test]
-fn compose_two_axis_both_yes_is_corrected_even_when_acceptance_is_stronger() -> anyhow::Result<()> {
+fn compose_two_axis_a_clear_correction_beats_a_stronger_acceptance() -> anyhow::Result<()> {
     let shape = Shape::TwoAxis { has_next: true };
     let c = composed(
         shape,
-        &[(questions::ACCEPTED, 0.9), (questions::PUSHES_BACK, 0.6)],
+        &[(questions::ACCEPTED, 0.9), (questions::PUSHES_BACK, 0.75)],
     )?;
     assert_eq!(c.reaction, Reaction::Corrected);
     assert_eq!(c.label, JudgeLabel::Corrected);
+    let leaning = composed(
+        shape,
+        &[(questions::ACCEPTED, 0.9), (questions::PUSHES_BACK, 0.6)],
+    )?;
+    assert_eq!(leaning.reaction, Reaction::Accepted);
     let below = composed(
         shape,
         &[(questions::ACCEPTED, 0.7), (questions::ASKS_AGAIN, 0.4)],
@@ -302,10 +307,11 @@ fn the_accepted_question_no_longer_takes_a_next_step_and_the_others_carry_their_
 }
 
 #[test]
-fn compose_correction_signals_any_one_at_or_over_half_is_corrected() -> anyhow::Result<()> {
+fn compose_correction_signals_any_one_at_or_over_half_without_acceptance_is_corrected()
+-> anyhow::Result<()> {
     let shape = Shape::TwoAxis { has_next: true };
     for key in questions::CORRECTION_SIGNALS {
-        let c = composed(shape, &[(key, 0.5), (questions::ACCEPTED, 0.9)])?;
+        let c = composed(shape, &[(key, 0.5), (questions::ACCEPTED, 0.2)])?;
         assert_eq!(c.reaction, Reaction::Corrected, "{key}");
         assert_eq!(c.label, JudgeLabel::Corrected, "{key}");
         assert!((c.confidence - 0.5).abs() < 1e-9, "{key}");
@@ -383,4 +389,24 @@ fn state_drops_a_machine_text_next_message_and_cleans_a_mixed_one() {
         state(&mixed, true)["operator_next_message"],
         "that is still broken"
     );
+}
+
+#[test]
+fn compose_no_real_work_does_not_stand_when_the_ask_was_delivered() -> anyhow::Result<()> {
+    let shape = Shape::TwoAxis { has_next: true };
+    let c = composed(
+        shape,
+        &[
+            (questions::ABANDONED, 0.6),
+            (questions::DELIVERED, 0.9),
+            (questions::LEFT_OPEN, 0.9),
+        ],
+    )?;
+    assert_eq!(c.delivery, Delivery::Partial);
+    let none = composed(
+        shape,
+        &[(questions::ABANDONED, 0.9), (questions::DELIVERED, 0.2)],
+    )?;
+    assert_eq!(none.delivery, Delivery::None);
+    Ok(())
 }

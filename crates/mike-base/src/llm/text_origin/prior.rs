@@ -6,7 +6,7 @@ pub struct Prior {
     pub assistant_reply: String,
 }
 
-fn text_of(message: &Value) -> String {
+pub(super) fn text_of(message: &Value) -> String {
     match message.get("content") {
         Some(Value::String(text)) => text.trim().to_owned(),
         Some(Value::Array(blocks)) => blocks
@@ -22,7 +22,7 @@ fn text_of(message: &Value) -> String {
     }
 }
 
-fn role_is(message: &Value, role: &str) -> bool {
+pub(super) fn role_is(message: &Value, role: &str) -> bool {
     message.get("role").and_then(Value::as_str) == Some(role)
 }
 

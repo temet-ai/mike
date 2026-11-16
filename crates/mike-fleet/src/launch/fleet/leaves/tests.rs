@@ -102,6 +102,8 @@ fn input(floor: Outcome) -> JudgeInput {
             exercised_command: "scripts/cx nextest run".into(),
             exercised_exit: Some(0),
             exercised_output_ref: "receipt 7".into(),
+            exercised_output: String::new(),
+            check_tests: Vec::new(),
             tests_changed: vec!["report_tests.rs".into()],
             unestablished: Vec::new(),
         },

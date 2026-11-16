@@ -54,7 +54,7 @@ pub(super) async fn load(
     Ok((ready, skipped))
 }
 
-fn facts(context: &JudgeTurnContextRow) -> TurnFacts<'_> {
+pub(super) fn facts(context: &JudgeTurnContextRow) -> TurnFacts<'_> {
     TurnFacts {
         turn_id: context.turn_id,
         session_id: Some(context.session_id),
@@ -66,7 +66,7 @@ fn facts(context: &JudgeTurnContextRow) -> TurnFacts<'_> {
     }
 }
 
-fn shape(context: &JudgeTurnContextRow) -> Shape {
+pub(super) fn shape(context: &JudgeTurnContextRow) -> Shape {
     jev::effective_shape(
         &facts(context),
         Shape::TwoAxis {

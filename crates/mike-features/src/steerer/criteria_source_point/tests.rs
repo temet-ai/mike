@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::asks::{HEAD_CHARS, TAIL_CHARS, fit};
+use super::asks::{Asks, HEAD_CHARS, TAIL_CHARS, first_ask, fit};
 use super::questions::questions;
 use super::{accepted, compose, key, state};
 use crate::llm::decisions::Answer;
@@ -55,8 +55,13 @@ fn compose_failed_or_missing_answer_accepts_nothing() {
 #[test]
 fn state_carries_every_ask_and_each_thread() {
     let threads = [thread("a"), thread("b")];
-    let value = state(&threads, "  [ask] build a\n[correction] not b  ");
-    assert_eq!(value["operator_asks"], "[ask] build a\n[correction] not b");
+    let asks = Asks {
+        first: "  [initial] build a and b  ".to_owned(),
+        later: "  [ask] build a\n[correction] not b  ".to_owned(),
+    };
+    let value = state(&threads, &asks);
+    assert_eq!(value["first_ask"], "[initial] build a and b");
+    assert_eq!(value["later_asks"], "[ask] build a\n[correction] not b");
     assert_eq!(value["threads"][key(1)]["criteria"], "- b is done.");
     assert_eq!(value["threads"][key(0)]["title"], "a title");
 }
@@ -107,6 +112,19 @@ fn fit_leaves_a_short_plain_ask_list_unchanged() {
 #[tokio::test]
 async fn accepted_without_a_decider_takes_no_thread() {
     let threads = [thread("a")];
-    let got = accepted(None, &threads, "build a", DecisionSubject::default()).await;
+    let asks = Asks {
+        first: "build a".to_owned(),
+        later: String::new(),
+    };
+    let got = accepted(None, &threads, &asks, DecisionSubject::default()).await;
     assert!(got.is_empty());
+}
+
+#[test]
+fn first_ask_drops_a_pasted_skill_body_and_keeps_the_ask() {
+    let first = format!("[initial] Finish #221.\n# /fleet\n{}", "x".repeat(3_000));
+    assert_eq!(
+        first_ask(&first),
+        "[initial] Finish #221.\n[pasted text dropped]"
+    );
 }

@@ -329,7 +329,9 @@ fn spawn_text_origin(
     let body = lane.request_body.clone();
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
         let prior = crate::llm::text_origin::prior_context(&body);
+        let signals = crate::llm::text_origin::signals(&body, &text);
         let input = crate::llm::text_origin::Unmatched {
+            signals,
             request_id,
             session_db_id,
             text,

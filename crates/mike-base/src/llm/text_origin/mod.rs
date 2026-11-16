@@ -1,10 +1,13 @@
 pub mod compose;
 pub mod prior;
 pub mod questions;
+pub mod signals;
 pub mod state;
 
 #[cfg(test)]
 mod prior_tests;
+#[cfg(test)]
+mod signals_tests;
 #[cfg(test)]
 mod tests;
 
@@ -13,6 +16,7 @@ use serde_json::json;
 pub use compose::{APPLY_AT, Origin, Verdict, compose};
 pub use prior::{Prior, prior_context};
 pub use questions::{POINT, QUESTION_SET};
+pub use signals::{Signals, current_text, signals};
 pub use state::Unmatched;
 
 use crate::llm::decisions::env::DecisionEnv;

@@ -4,6 +4,7 @@ use serde_json::json;
 
 use super::compose::{Origin, compose};
 use super::questions::{OPTIONS, ORIGIN, questions};
+use super::signals::Signals;
 use super::state::{Unmatched, state};
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
@@ -18,6 +19,7 @@ fn input(text: &str) -> Unmatched {
         previous_assistant_reply: "I fixed it and pushed.".to_owned(),
         author: "operator".to_owned(),
         has_agent_id: false,
+        signals: Signals::default(),
     }
 }
 
@@ -86,14 +88,14 @@ fn state_keeps_short_text_whole() {
 }
 
 #[test]
-fn state_sends_only_the_text_and_what_it_follows() {
+fn state_sends_the_text_what_it_follows_and_the_code_facts() {
     let value = state(&input("continue"));
     let mut keys: Vec<&str> = value
         .as_object()
         .map(|o| o.keys().map(String::as_str).collect())
         .unwrap_or_default();
     keys.sort_unstable();
-    assert_eq!(keys, ["follows", "follows_is", "text"]);
+    assert_eq!(keys, ["facts", "follows", "follows_is", "text"]);
 }
 
 #[test]
