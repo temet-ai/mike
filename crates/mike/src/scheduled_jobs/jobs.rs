@@ -45,10 +45,10 @@ pub(super) const PROMOTE: Job = Job {
     },
     nice: 10,
     leased: false,
-    alarm_exit: Some(1),
+    alarm_exit: Some(3),
     enabled_key: LEARNING_PROMOTE_ENABLED_KEY,
     schedule_text: "hourly at :30 from 20:30 to 03:30 UTC",
-    failure_hint: "It runs `mike learning promote` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike). Exit code 1 means generated files conflict with manual edits; the conflicts are in ~/.local/state/mike-learning-promotion/latest.json.",
+    failure_hint: "It runs `mike learning promote` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike). Exit code 3 means generated files conflict with manual edits; any other non-zero code is a failure; the conflicts are in ~/.local/state/mike-learning-promotion/latest.json.",
 };
 
 pub(super) const AUDIT: Job = Job {
