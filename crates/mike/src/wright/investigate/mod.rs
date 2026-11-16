@@ -22,6 +22,7 @@ pub(crate) mod relay;
 pub(crate) mod relay_inside;
 pub(crate) mod sandbox;
 mod slot;
+pub(crate) mod specialist;
 pub(crate) mod supervise;
 pub(crate) mod worker;
 
@@ -56,7 +57,10 @@ const REPAIR_TOOLS: [&str; 6] = ["Read", "Glob", "Grep", "Bash", "Edit", "Write"
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RunMode {
     Investigate,
-    Repair { worktree: PathBuf },
+    Repair {
+        worktree: PathBuf,
+        agent: &'static str,
+    },
     Answer,
 }
 
@@ -74,6 +78,7 @@ impl RunMode {
             "investigate" => Some(RunMode::Investigate),
             "repair" => Some(RunMode::Repair {
                 worktree: PathBuf::new(),
+                agent: specialist::for_part(""),
             }),
             "answer" => Some(RunMode::Answer),
             _ => None,
@@ -85,6 +90,13 @@ impl RunMode {
             RunMode::Investigate => finding::FINDING_FILE,
             RunMode::Repair { .. } => "repair.json",
             RunMode::Answer => "answer.json",
+        }
+    }
+
+    pub(crate) fn agent(&self) -> &'static str {
+        match self {
+            RunMode::Repair { agent, .. } => agent,
+            RunMode::Investigate | RunMode::Answer => specialist::WRIGHT_ENGINEER,
         }
     }
 

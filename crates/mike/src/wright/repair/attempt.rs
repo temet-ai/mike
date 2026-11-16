@@ -61,6 +61,7 @@ pub(crate) fn job(claim: &ClaimedRepair, worktree: &Path) -> RepairJob {
         problem_id: claim.problem_id,
         finding_id: claim.finding_id,
         worktree: worktree.to_path_buf(),
+        agent: crate::wright::investigate::specialist::for_part(owning(claim)),
         brief,
         inputs: vec![(
             "finding.json".to_owned(),

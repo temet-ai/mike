@@ -9,6 +9,7 @@ pub(crate) struct RepairJob {
     pub(crate) problem_id: i64,
     pub(crate) finding_id: i64,
     pub(crate) worktree: PathBuf,
+    pub(crate) agent: &'static str,
     pub(crate) brief: String,
     pub(crate) inputs: Vec<(String, Value)>,
 }
