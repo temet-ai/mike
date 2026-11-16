@@ -90,11 +90,11 @@ fn write_lines(path: &Path, replayed: &Replayed) -> Result<()> {
 }
 
 async fn finish<P: ReplayPoint>(
-    loaded: (Vec<P::Item>, usize),
+    loaded: impl Future<Output = Result<(Vec<P::Item>, usize)>>,
     jev: &impl Jev,
     out: &Path,
 ) -> Result<Summary> {
-    let (items, skipped) = loaded;
+    let (items, skipped) = loaded.await?;
     if skipped > 0 {
         eprintln!("{skipped} items had no usable context and were skipped");
     }
@@ -115,53 +115,64 @@ async fn execute(
     let out = args.out.as_path();
     match args.point {
         ReplayPointArg::TurnJudge => {
-            let loaded = turn_judge::load(persist, since, limit).await?;
-            finish::<turn_judge::TurnJudge>(loaded, jev, out).await
+            finish::<turn_judge::TurnJudge>(turn_judge::load(persist, since, limit), jev, out).await
         }
         ReplayPointArg::Correction => {
-            let loaded = correction::load(persist, since, limit).await?;
-            finish::<correction::Correction>(loaded, jev, out).await
+            finish::<correction::Correction>(correction::load(persist, since, limit), jev, out)
+                .await
         }
         ReplayPointArg::VerifierPrecheck => {
-            let loaded = verifier::load(persist, since, limit).await?;
-            finish::<verifier::VerifierPrecheck>(loaded, jev, out).await
+            finish::<verifier::VerifierPrecheck>(verifier::load(persist, since, limit), jev, out)
+                .await
         }
         ReplayPointArg::WakeRecheck => {
-            let loaded = wake::load(persist, since, limit).await?;
-            finish::<wake::WakeRecheck>(loaded, jev, out).await
+            finish::<wake::WakeRecheck>(wake::load(persist, since, limit), jev, out).await
         }
+        _ => execute_reviewed(args, persist, jev).await,
+    }
+}
+
+async fn execute_reviewed(
+    args: &DecisionsReplayArgs,
+    persist: &PersistHandle,
+    jev: &impl Jev,
+) -> Result<Summary> {
+    let since = args.since.unwrap_or(DateTime::<Utc>::UNIX_EPOCH);
+    let limit = args.limit.unwrap_or(i64::MAX);
+    let out = args.out.as_path();
+    match args.point {
         ReplayPointArg::TextOrigin => {
-            let loaded = text_origin::load(persist, since, limit).await?;
-            finish::<text_origin::TextOrigin>(loaded, jev, out).await
+            finish::<text_origin::TextOrigin>(text_origin::load(persist, since, limit), jev, out)
+                .await
         }
         ReplayPointArg::Directive => {
-            let loaded = directive::load(persist, since, limit).await?;
-            finish::<directive::Directive>(loaded, jev, out).await
+            finish::<directive::Directive>(directive::load(persist, since, limit), jev, out).await
         }
         ReplayPointArg::CriteriaSource => {
-            let loaded = criteria_source::load(persist, since, limit).await?;
-            finish::<criteria_source::CriteriaSource>(loaded, jev, out).await
+            finish::<criteria_source::CriteriaSource>(
+                criteria_source::load(persist, since, limit),
+                jev,
+                out,
+            )
+            .await
         }
         ReplayPointArg::TurnJudgeReview => {
-            let loaded = turn_review::load(persist, since, limit).await?;
-            finish::<turn_review::TurnReview>(loaded, jev, out).await
+            finish::<turn_review::TurnReview>(turn_review::load(persist, since, limit), jev, out)
+                .await
         }
         ReplayPointArg::LeafJudge => {
-            let loaded = leaf_judge::load(persist, since, limit).await?;
-            finish::<leaf_judge::LeafJudge>(loaded, jev, out).await
+            finish::<leaf_judge::LeafJudge>(leaf_judge::load(persist, since, limit), jev, out).await
         }
         ReplayPointArg::DiagnosticPhrase => {
-            let loaded = phrase::load(persist, since, limit).await?;
-            finish::<phrase::Phrase>(loaded, jev, out).await
+            finish::<phrase::Phrase>(phrase::load(persist, since, limit), jev, out).await
         }
         ReplayPointArg::SteererChecklist => {
-            let loaded = checklist::load(persist, since, limit).await?;
-            finish::<checklist::Checklist>(loaded, jev, out).await
+            finish::<checklist::Checklist>(checklist::load(persist, since, limit), jev, out).await
         }
         ReplayPointArg::SessionJudge => {
-            let loaded = session::load(persist, since, limit).await?;
-            finish::<session::Session>(loaded, jev, out).await
+            finish::<session::Session>(session::load(persist, since, limit), jev, out).await
         }
+        _ => Err(anyhow::anyhow!("not a hand-labelled replay point")),
     }
 }
 

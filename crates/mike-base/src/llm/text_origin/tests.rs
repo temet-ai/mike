@@ -88,14 +88,14 @@ fn state_keeps_short_text_whole() {
 }
 
 #[test]
-fn state_sends_only_the_text_and_what_it_follows() {
+fn state_sends_the_text_what_it_follows_and_the_code_facts() {
     let value = state(&input("continue"));
     let mut keys: Vec<&str> = value
         .as_object()
         .map(|o| o.keys().map(String::as_str).collect())
         .unwrap_or_default();
     keys.sort_unstable();
-    assert_eq!(keys, ["follows", "follows_is", "text"]);
+    assert_eq!(keys, ["facts", "follows", "follows_is", "text"]);
 }
 
 #[test]
