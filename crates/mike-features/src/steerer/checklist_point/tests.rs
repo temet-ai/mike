@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use super::compose::{Status, compose};
-use super::questions::{BROKEN, DONE, MISSING, NOT_SHOWN_BROKEN, OPEN_STATED, key, questions};
+use super::questions::{
+    BROKEN, CLAIMS_FINISHED, DONE, MISSING, NOT_SHOWN_BROKEN, OPEN_STATED, key, questions,
+};
 use super::state::Criterion;
 use crate::llm::decisions::point::Asked;
 use crate::llm::decisions::{Answer, Question};
@@ -16,22 +18,64 @@ fn criterion(text: &str, inferred: bool) -> Criterion {
 }
 
 fn answered(choices: &[(&str, f64)]) -> Asked {
-    Asked::answered(
-        choices
-            .iter()
-            .enumerate()
-            .map(|(i, (choice, p))| {
-                (
-                    key(i),
-                    Answer::Choice {
-                        choice: (*choice).to_owned(),
-                        probabilities: BTreeMap::from([((*choice).to_owned(), *p)]),
-                        confidence: None,
-                    },
-                )
-            })
-            .collect::<BTreeMap<_, _>>(),
-    )
+    answered_claiming(choices, 0.9)
+}
+
+fn answered_claiming(choices: &[(&str, f64)], claims_finished: f64) -> Asked {
+    let mut answers = choices
+        .iter()
+        .enumerate()
+        .map(|(i, (choice, p))| {
+            (
+                key(i),
+                Answer::Choice {
+                    choice: (*choice).to_owned(),
+                    probabilities: BTreeMap::from([((*choice).to_owned(), *p)]),
+                    confidence: None,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    answers.insert(
+        CLAIMS_FINISHED.to_owned(),
+        Answer::Noul {
+            noul: claims_finished,
+            confidence: None,
+        },
+    );
+    Asked::answered(answers)
+}
+
+#[test]
+fn compose_a_missing_goal_does_not_fire_unless_the_turn_claims_the_task_finished() {
+    let criteria = [
+        criterion("A", false),
+        criterion("Nothing on omit is touched.", false),
+    ];
+    let Some(working) = compose(
+        &answered_claiming(&[(MISSING, 0.9), (NOT_SHOWN_BROKEN, 0.9)], 0.1),
+        &criteria,
+    ) else {
+        panic!("answered questions must compose");
+    };
+    assert!(!working.fires());
+    let Some(broken) = compose(
+        &answered_claiming(&[(MISSING, 0.9), (BROKEN, 0.9)], 0.1),
+        &criteria,
+    ) else {
+        panic!("answered questions must compose");
+    };
+    assert!(broken.fires());
+    assert_eq!(broken.flagged().len(), 1);
+}
+
+#[test]
+fn questions_ask_whether_the_turn_claims_the_task_finished() {
+    let asked = questions(&[criterion("A", false)]);
+    assert!(matches!(
+        asked.get(CLAIMS_FINISHED),
+        Some(Question::Noul { .. })
+    ));
 }
 
 fn writer(fires: bool, nudge: &str) -> SteererVerdict {
