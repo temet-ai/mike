@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH latest AS (\n                       SELECT sp.id\n                         FROM requests.requests q\n                         JOIN sessions.sessions s ON s.id = q.session_id\n                         JOIN requests.turn_origins o ON o.id = q.turn_origin_id\n                         JOIN requests.system_prompts sp ON sp.request_id = q.id\n                        WHERE s.session_uuid = $1\n                          AND o.code IN ('primary', 'primary_first')\n                          AND sp.system_prompt_id IS NOT NULL\n                        ORDER BY q.created_at DESC, q.id DESC\n                        LIMIT 1\n                   )\n                   SELECT count(f.id) > 0 AS \"filtered!\"\n                     FROM latest\n                LEFT JOIN requests.system_prompt_firing_rules f\n                       ON f.request_system_prompt_id = latest.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "filtered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "418abd172c309ada9dd2f44ec5ef9472cf53ce18671eef2a87990bde9b2e65ce"
+}

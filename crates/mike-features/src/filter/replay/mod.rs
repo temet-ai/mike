@@ -88,6 +88,10 @@ fn locate_mutable_region(raw: &[u8]) -> Option<MutableRegion> {
     })
 }
 
+pub fn carries_session_system(raw: &[u8]) -> bool {
+    locate_mutable_region(raw).is_some_and(|region| region.start < region.end)
+}
+
 pub fn ruleset_fingerprint(cfg: &super::FilterConfig, project_path: &str) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     for rule in cfg.rules.iter().filter(|r| {

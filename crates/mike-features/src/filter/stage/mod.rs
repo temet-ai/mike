@@ -7,7 +7,7 @@ mod tests;
 use bytes::Bytes;
 
 use crate::extract::request::TurnOrigin;
-use crate::filter::replay::{SystemReplay, ruleset_fingerprint};
+use crate::filter::replay::{SystemReplay, carries_session_system, ruleset_fingerprint};
 use crate::filter::{self, FilterOutcome, project_scope_matches};
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::wire::manifest::AppliedStage;
@@ -67,7 +67,7 @@ impl FilterStage {
             log_replay_skipped(ctx);
             body.decline(
                 "filter",
-                "filter_replay_system_mismatch",
+                mismatch_reason(body.body()),
                 serde_json::json!({ "ruleset_changed": ruleset_changed }),
             );
             return;
@@ -96,6 +96,10 @@ impl FilterStage {
 
 impl FilterStage {
     async fn recover(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
+        if !carries_session_system(body.body()) {
+            body.decline("filter", CONTINUATION, serde_json::json!({}));
+            return;
+        }
         if !was_filtered_before(ctx).await {
             ctx.state.system_replay.mark_unfiltered(ctx.session_id);
             body.decline("filter", "filter_not_in_force", serde_json::json!({}));
@@ -139,6 +143,16 @@ async fn was_filtered_before(ctx: &StageContext<'_>) -> bool {
             tracing::warn!(session_id = %ctx.session_id, error = %err, "filter: could not read whether this session's system prompt was rewritten before the restart");
             false
         }
+    }
+}
+
+const CONTINUATION: &str = "filter_continuation_without_system";
+
+fn mismatch_reason(body: &[u8]) -> &'static str {
+    if carries_session_system(body) {
+        "filter_replay_system_mismatch"
+    } else {
+        CONTINUATION
     }
 }
 

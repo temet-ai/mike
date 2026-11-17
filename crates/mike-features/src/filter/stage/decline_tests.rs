@@ -142,3 +142,42 @@ async fn a_later_request_of_a_session_never_rewritten_is_left_alone_and_asked_on
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn continuation_after_restart_leaves_the_session_undecided() -> anyhow::Result<()> {
+    const CONTINUATION: &[u8] = br#"{"thread":{"type":"continue"},"system":[{"type":"text","text":"x-anthropic-billing-header: cch=1"}],"messages":[]}"#;
+    let config = crate::config::ProxyConfig::for_tests_in_memory();
+    let state = crate::state::AppState::new(config).await?;
+    let session_toggles = state.resolve_session_toggles("session-continuation-restart");
+    let lesson_snapshot = LessonSnapshot::default();
+    let filter_cfg = FilterConfig {
+        rules: vec![drop_rule(1, "nomatch", None)],
+    };
+    let turn_origin = TurnOrigin::Primary;
+    let ctx = StageContext {
+        state: &state,
+        session_toggles: &session_toggles,
+        filter_cfg: &filter_cfg,
+        lesson_snapshot: &lesson_snapshot,
+        session_id: "session-continuation-restart",
+        project_path: "",
+        turn_origin: &turn_origin,
+        request_id: RequestId::next(),
+        is_tool_loop: false,
+        subagent_persona: None,
+        has_agent_id: false,
+    };
+    let mut body = StageBody::new(Bytes::from_static(CONTINUATION), "orig".to_string());
+    FilterStage.apply(&ctx, &mut body).await;
+    assert_eq!(body.body().as_ref(), CONTINUATION);
+    let manifest = body.into_parts().manifest.finish("orig".to_string());
+    assert_eq!(
+        manifest.stages[0].reason_code,
+        "filter_continuation_without_system"
+    );
+    anyhow::ensure!(
+        FilterStage.enabled(&ctx),
+        "the next full re-send must still be asked about"
+    );
+    Ok(())
+}

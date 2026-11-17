@@ -35,6 +35,29 @@ pub fn reminders_served_by_client(session_id: &str) -> bool {
     REMINDERS_SERVED.contains(session_id)
 }
 
+#[derive(serde::Deserialize)]
+struct ThreadShape<'a> {
+    #[serde(borrow, default)]
+    thread: Option<ThreadKind<'a>>,
+}
+
+#[derive(serde::Deserialize)]
+struct ThreadKind<'a> {
+    #[serde(borrow, rename = "type")]
+    kind: std::borrow::Cow<'a, str>,
+}
+
+pub fn is_thread_continuation(body: &[u8]) -> bool {
+    serde_json::from_slice::<ThreadShape<'_>>(body)
+        .ok()
+        .and_then(|s| s.thread)
+        .is_some_and(|t| t.kind == "continue")
+}
+
+pub fn client_reached_session(body: &[u8], text: &str) -> bool {
+    is_thread_continuation(body) || client_text_reached(body, text)
+}
+
 pub fn client_text_reached(body: &[u8], text: &str) -> bool {
     let needle = text.as_bytes();
     !needle.is_empty() && body.windows(needle.len()).any(|window| window == needle)

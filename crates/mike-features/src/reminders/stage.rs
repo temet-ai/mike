@@ -79,7 +79,7 @@ impl RequestStage for SelfIdentityStage {
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
         if ctx.state.self_identity_served.contains(ctx.session_id)
-            && super::client_context::client_text_reached(
+            && super::client_context::client_reached_session(
                 body.body(),
                 &format!(
                     "{}{}",
