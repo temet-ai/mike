@@ -63,15 +63,23 @@ async fn tick(persist: &PersistHandle) {
             return;
         }
     };
-    match reconcile_unplaced_projects(persist, &machine).await {
-        Ok(report) if report.changed() => tracing::info!(
-            merged = report.merged,
-            registered = report.registered,
-            "project_reconcile: cycle finished"
-        ),
+    log_cycle(reconcile_unplaced_projects(persist, &machine).await);
+}
+
+fn log_cycle(outcome: Result<ReconcileReport, PersistError>) {
+    match outcome {
+        Ok(report) if report.changed() => log_changes(report),
         Ok(_) => {}
         Err(error) => tracing::warn!(%error, "project_reconcile: cycle failed"),
     }
+}
+
+fn log_changes(report: ReconcileReport) {
+    tracing::info!(
+        merged = report.merged,
+        registered = report.registered,
+        "project_reconcile: cycle finished"
+    );
 }
 
 pub(crate) async fn reconcile_unplaced_projects(
@@ -110,30 +118,37 @@ async fn place_candidate(
     roots: &[MachineLocationRoot],
 ) -> Result<Placement, PersistError> {
     let placement = decide(persist, candidate, identity, roots).await?;
-    let origin = identity.origin_url.as_deref().unwrap_or("");
     match placement {
         Placement::Skip => {}
         Placement::RegisterAlone => {
             record_location(persist, machine, identity, candidate.id).await?;
-            tracing::info!(
-                project_id = candidate.id,
-                path = %candidate.project_path,
-                origin,
-                "project_reconcile: registered the checkout as a location of its own project"
-            );
+            log_registered(candidate, identity);
         }
         Placement::MergeInto(target) => {
             merge_phantom(persist, machine, (candidate, identity), target).await?;
-            tracing::info!(
-                project_id = candidate.id,
-                merged_into = target,
-                path = %candidate.project_path,
-                origin,
-                "project_reconcile: merged an unplaced project into the project of its origin"
-            );
+            log_merged(candidate, identity, target);
         }
     }
     Ok(placement)
+}
+
+fn log_registered(candidate: &UnplacedProject, identity: &RepoIdentity) {
+    tracing::info!(
+        project_id = candidate.id,
+        path = %candidate.project_path,
+        origin = identity.origin_url.as_deref().unwrap_or(""),
+        "project_reconcile: registered the checkout as a location of its own project"
+    );
+}
+
+fn log_merged(candidate: &UnplacedProject, identity: &RepoIdentity, target: i64) {
+    tracing::info!(
+        project_id = candidate.id,
+        merged_into = target,
+        path = %candidate.project_path,
+        origin = identity.origin_url.as_deref().unwrap_or(""),
+        "project_reconcile: merged an unplaced project into the project of its origin"
+    );
 }
 
 async fn merge_phantom(
