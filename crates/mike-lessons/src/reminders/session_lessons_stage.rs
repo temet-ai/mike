@@ -104,6 +104,24 @@ impl RequestStage for SessionLessonsStage {
             );
             return;
         }
+        if ctx.state.feature_toggle_overlay.load().mod_lesson_delivery
+            && ctx
+                .lesson_snapshot
+                .relevance
+                .holdings()
+                .is_declared(ctx.session_id)
+        {
+            tracing::warn!(
+                session_id = %ctx.session_id,
+                "lessons: the session's client declared lessons but never reached /api/lessons/for-prompt"
+            );
+            body.record_unchanged(
+                "session_lessons",
+                "session_lessons",
+                "session_lessons_client_unreachable",
+            );
+            return;
+        }
         record_already_present(ctx, body);
         let reminders = ctx.session_toggles.features.get::<RemindersOverlay>();
         let cfg = RemindersConfig {

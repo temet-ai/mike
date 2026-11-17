@@ -277,7 +277,12 @@ wait, kept under its own lock, and rebuilt at startup from `memory.lesson_delive
 (sessions whose client called in the last seven days), so a deploy does not send them back
 to proxy injection. The route answers in well under tether's 300 ms budget when the client
 sends `"card": false` (tether does: it shows no memory-keeper card, and choosing one is a
-model call).
+model call). tether also declares, with `"lessons"` in the `serves` of
+`POST /api/sessions/{id}/context`, that it delivers the session's lessons
+(`memory.lesson_delivery_arms.declared_at`, rebuilt at startup). A declared session whose
+client never reached the lesson route is a client failure, not a proxy fallback: the stage
+records `session_lessons_client_unreachable`, logs a warning, and injects nothing. tether
+keeps a late lesson answer and delivers it with the next prompt.
 
 What each session holds is a stored record, `memory.lesson_holdings` (lesson id and
 revision): what the route gave the client, the mod's `held_versions` that still match the

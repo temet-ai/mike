@@ -84,7 +84,8 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
             Ok(sqlx::query_scalar!(
                 r#"SELECT session_uuid::text AS "session!"
                      FROM memory.lesson_delivery_arms
-                    WHERE COALESCE(last_call_at, last_delivery_at, decided_at) >= $1"#,
+                    WHERE COALESCE(last_call_at, last_delivery_at,
+                                   CASE WHEN declared_at IS NULL THEN decided_at END) >= $1"#,
                 since,
             )
             .fetch_all(&self.pool)

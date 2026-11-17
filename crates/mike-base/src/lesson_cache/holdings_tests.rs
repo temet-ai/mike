@@ -69,3 +69,14 @@ fn note_client_marks_the_session_while_another_reader_holds_the_lock() {
     assert!(!reading);
     assert!(holdings.is_client("s1"));
 }
+
+#[test]
+fn note_declared_is_new_once_and_separate_from_the_lesson_route() {
+    let holdings = SessionHoldings::default();
+    assert!(holdings.note_declared("s1"));
+    assert!(!holdings.note_declared("s1"));
+    assert!(holdings.is_declared("s1"));
+    assert!(!holdings.is_client("s1"));
+    holdings.restore_declared(vec!["s2".to_owned()]);
+    assert!(holdings.is_declared("s2"));
+}

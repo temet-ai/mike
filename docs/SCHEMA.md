@@ -2368,6 +2368,7 @@ the set of client sessions. New rows are always `mod`; `control` rows are from t
 | `arm` | `TEXT NOT NULL` | CHECK `IN ('mod', 'control')` |
 | `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 | `last_call_at` | `TIMESTAMPTZ NULL` | The client's last call; added in `20261117070000_lesson_holdings.sql` |
+| `declared_at` | `TIMESTAMPTZ NULL` | When tether declared it serves the session's lessons (`serves` holds `lessons` on `POST /api/sessions/{id}/context`); a declared session that never called is `session_lessons_client_unreachable`. Added in `20261117110000_lesson_client_declared.sql` |
 | `last_delivery_at` | `TIMESTAMPTZ NULL` | Set only by a delivery that carried at least one lesson |
 | `deliveries` | `INTEGER NOT NULL DEFAULT 0` | Count of deliveries that carried at least one lesson |
 | `lessons_delivered` | `INTEGER NOT NULL DEFAULT 0` | Running total of lessons delivered |

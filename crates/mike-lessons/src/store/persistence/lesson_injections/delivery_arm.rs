@@ -34,3 +34,40 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         .await
     }
 }
+
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn record_lesson_client_declared(
+        self,
+        session_uuid: &str,
+    ) -> Result<(), PersistError> {
+        crate::metrics::time_db("record_lesson_client_declared", async move {
+            sqlx::query!(
+                "INSERT INTO memory.lesson_delivery_arms (session_uuid, arm, declared_at)
+                 VALUES ($1::text::uuid, 'mod', now())
+                 ON CONFLICT (session_uuid) DO UPDATE SET declared_at = now()",
+                session_uuid,
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(())
+        })
+        .await
+    }
+
+    pub async fn recent_declared_sessions(
+        self,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<String>, PersistError> {
+        crate::metrics::time_db("recent_declared_sessions", async move {
+            Ok(sqlx::query_scalar!(
+                r#"SELECT session_uuid::text AS "session!"
+                     FROM memory.lesson_delivery_arms
+                    WHERE declared_at >= $1"#,
+                since,
+            )
+            .fetch_all(&self.pool)
+            .await?)
+        })
+        .await
+    }
+}

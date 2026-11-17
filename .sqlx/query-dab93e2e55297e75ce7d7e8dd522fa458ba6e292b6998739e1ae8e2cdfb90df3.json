@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_uuid::text AS \"session!\"\n                     FROM memory.lesson_delivery_arms\n                    WHERE declared_at >= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "dab93e2e55297e75ce7d7e8dd522fa458ba6e292b6998739e1ae8e2cdfb90df3"
+}

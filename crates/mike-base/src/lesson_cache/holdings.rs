@@ -10,6 +10,7 @@ const SESSION_CAPACITY: usize = 16_384;
 #[derive(Debug, Default)]
 pub struct SessionHoldings {
     clients: RwLock<HashSet<String>>,
+    declared: RwLock<HashSet<String>>,
     held: RwLock<HashMap<String, HashMap<i64, i32>>>,
 }
 
@@ -22,23 +23,26 @@ pub struct HeldRow {
 
 impl SessionHoldings {
     pub fn note_client(&self, session: &str) {
-        let mut clients = self.clients.write().unwrap_or_else(PoisonError::into_inner);
-        if clients.contains(session) {
-            return;
-        }
-        if clients.len() >= SESSION_CAPACITY
-            && let Some(evicted) = clients.iter().next().cloned()
-        {
-            clients.remove(&evicted);
-        }
-        clients.insert(session.to_owned());
+        insert_bounded(&self.clients, session);
     }
 
     pub fn is_client(&self, session: &str) -> bool {
-        self.clients
-            .read()
+        contains(&self.clients, session)
+    }
+
+    pub fn note_declared(&self, session: &str) -> bool {
+        insert_bounded(&self.declared, session)
+    }
+
+    pub fn is_declared(&self, session: &str) -> bool {
+        contains(&self.declared, session)
+    }
+
+    pub fn restore_declared(&self, sessions: Vec<String>) {
+        self.declared
+            .write()
             .unwrap_or_else(PoisonError::into_inner)
-            .contains(session)
+            .extend(sessions);
     }
 
     pub fn holds(&self, session: &str, lesson_id: i64, revision: i32) -> bool {
@@ -99,4 +103,23 @@ impl SessionHoldings {
                 .or_insert(row.revision);
         }
     }
+}
+
+fn insert_bounded(set: &RwLock<HashSet<String>>, session: &str) -> bool {
+    if contains(set, session) {
+        return false;
+    }
+    let mut sessions = set.write().unwrap_or_else(PoisonError::into_inner);
+    if sessions.len() >= SESSION_CAPACITY
+        && let Some(evicted) = sessions.iter().next().cloned()
+    {
+        sessions.remove(&evicted);
+    }
+    sessions.insert(session.to_owned())
+}
+
+fn contains(set: &RwLock<HashSet<String>>, session: &str) -> bool {
+    set.read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .contains(session)
 }
