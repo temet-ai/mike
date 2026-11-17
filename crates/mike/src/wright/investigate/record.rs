@@ -76,6 +76,37 @@ pub(super) async fn record(ctx: &EngineerContext, origin: &Origin, validated: &V
     if let Some(followup_id) = origin.followup_id {
         link_root_cause(ctx, origin, check.as_deref(), validated, followup_id).await;
     }
+    if let Some(problem_id) = origin.problem_id {
+        merge_causes(ctx, origin.finding_id, problem_id, &validated.same_cause_as).await;
+    }
+}
+
+async fn merge_causes(ctx: &EngineerContext, finding_id: i64, problem_id: i64, same: &[i64]) {
+    if same.is_empty() {
+        return;
+    }
+    match ctx
+        .persist
+        .web()
+        .merge_wright_causes(problem_id, same)
+        .await
+    {
+        Ok(merged) => log_merged(finding_id, merged),
+        Err(e) => log_merge_failed(finding_id, &e),
+    }
+}
+
+fn log_merged(finding_id: i64, merged: crate::store::persistence::wright::Merged) {
+    tracing::info!(
+        finding = finding_id,
+        causes = merged.causes,
+        problems = merged.problems,
+        "wright: causes merged into the finding's cause"
+    );
+}
+
+fn log_merge_failed(finding_id: i64, error: &PersistError) {
+    tracing::warn!(error = %error, finding = finding_id, "wright: the causes the finding named could not be merged");
 }
 
 async fn link_root_cause(

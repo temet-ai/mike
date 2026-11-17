@@ -106,7 +106,8 @@ impl Supervisor {
         }
         let mut wanted = BTreeMap::new();
         for row in rows {
-            if !self.roots.contains_key(&row.checkout) {
+            let gone = matches!(self.roots.get(&row.checkout), Some(Some(root)) if !Path::new(root).is_dir());
+            if gone || !self.roots.contains_key(&row.checkout) {
                 let root = repository_root(&row.checkout).await;
                 self.roots.insert(row.checkout.clone(), root);
             }

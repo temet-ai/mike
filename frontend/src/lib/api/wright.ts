@@ -414,6 +414,45 @@ export function getFollowupLimits(): Promise<FollowupLimitsResponse> {
 	return request('GET', '/api/wright/followup-limits');
 }
 
+/**
+ * One cause of Wright's open problems, from `GET /api/wright/causes`: the problems that share it,
+ * what has been done about it, and where it ranks. `problem_id` is the most-observed problem in
+ * the cause, the one a row opens. Rows arrive sorted, highest `priority` first.
+ */
+export interface WrightCause {
+	cause_id: number;
+	problem_id: number;
+	check_name: string;
+	/** Can be long SQL text. */
+	resource: string;
+	problems: number;
+	observations: number;
+	opened_at: string;
+	attempts: number;
+	last_attempt_at: string | null;
+	finding_id: number | null;
+	followup_id: number | null;
+	issue_number: number | null;
+	/** A known fix already answers the check. */
+	remedied: boolean;
+	priority: number;
+	/** When the operator was told the cause had waited. */
+	notified_at: string | null;
+	commented_at: string | null;
+}
+
+export interface CausesResponse {
+	causes: WrightCause[];
+	limit: number;
+	/** A cause that nothing has answered for this many hours is "waiting". */
+	waited_hours: number;
+	watch_enabled: boolean;
+}
+
+export function listCauses(params: { limit?: number } = {}): Promise<CausesResponse> {
+	return request('GET', `/api/wright/causes${query({ ...params })}`);
+}
+
 export function listMessages(
 	params: { after?: number | null; limit?: number } = {}
 ): Promise<MessagesPage> {

@@ -99,12 +99,23 @@ impl Watch {
                     None => self.notifier = None,
                 },
                 _ = backstop.tick() => {
+                    if self.checkout_gone() {
+                        break;
+                    }
                     self.stats.backstop_polls.fetch_add(1, Ordering::AcqRel);
                     self.full_pass(every).await;
                 }
                 () = sleep_until(due) => self.name_due().await,
             }
         }
+    }
+
+    fn checkout_gone(&self) -> bool {
+        let gone = !std::path::Path::new(&self.checkout.root).is_dir();
+        if gone {
+            tracing::info!(root = %self.checkout.root, "change record: the checkout is gone; its watcher stops");
+        }
+        gone
     }
 
     async fn on_burst(&mut self, first: Signal) {

@@ -487,6 +487,9 @@ thirteen genuinely different list contexts, and none is a stripped-down or exten
   the Wright page); a wrapping list of chips, not SettingRow's label+control layout.
 - `frontend/src/lib/components/wright/WrightActionRow.svelte` — keep: one action Wright took (time, what
   it did, its state, what it changed, Undo); not SettingRow's label+control layout.
+- `frontend/src/lib/components/wright/WrightCauseRow.svelte` — keep: one cause in Wright's triage
+  queue (state glyph and word, check, problems sharing it, clipped resource, age, attempts) that opens
+  its representative problem; a ranked queue row, not SettingRow's label+control layout.
 - `frontend/src/lib/components/wright/WrightFixRow.svelte` — keep: one known fix with its verdict and
   limits; read-only text and a badge, no control.
 - `frontend/src/lib/components/wright/WrightFollowupRow.svelte` — keep: one follow-up Wright filed

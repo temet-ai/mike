@@ -112,7 +112,8 @@ fn falls_through(error: &LlmError) -> bool {
         | LlmError::ProviderUnavailable { .. }
         | LlmError::CeilingExceeded { .. }
         | LlmError::RateLimited { .. }
-        | LlmError::SpendCeilingExceeded { .. } => true,
+        | LlmError::SpendCeilingExceeded { .. }
+        | LlmError::UsageLimited { .. } => true,
         LlmError::Http { status } => matches!(status, 500..=599 | 401 | 403 | 404 | 429),
     }
 }

@@ -6,6 +6,7 @@ import type {
 	ProblemsPage,
 	ProblemState,
 	WrightAction,
+	WrightCause,
 	WrightEpisode,
 	WrightFinding,
 	WrightFollowup,
@@ -15,6 +16,7 @@ import type {
 	WrightRemedy,
 	WrightRepair
 } from '$lib/api/wright';
+import { byPriorityDesc } from './causes';
 import {
 	emptyFeed,
 	errorMessage,
@@ -29,6 +31,9 @@ import {
 const PAGE = 50;
 const MESSAGE_PAGE = 100;
 const FOLLOWUP_PAGE = 25;
+const CAUSE_LIMIT = 50;
+/** Until the first answer says otherwise; the server's `waited_hours` replaces it. */
+const DEFAULT_WAITED_HOURS = 6;
 const POLL_MS = 15_000;
 const POLL_PENDING_MS = 3_000;
 
@@ -95,6 +100,8 @@ async function actionsFrom(
 	return { rows: page.actions, cursor: page.next_before };
 }
 
+const causeKey = (c: WrightCause): number => c.cause_id;
+
 const followupKey = (f: WrightFollowup): number => f.id;
 const byIdDesc = (a: WrightFollowup, b: WrightFollowup): number => b.id - a.id;
 
@@ -157,6 +164,10 @@ export function createWrightStore() {
 	const remedies = $state<Feed<WrightRemedy>>(emptyFeed());
 	const messages = $state<Feed<WrightMessage>>(emptyFeed());
 	const followups = $state<Feed<WrightFollowup>>(emptyFeed());
+	const causes = $state<Feed<WrightCause>>(emptyFeed());
+	let waitedHours = $state(DEFAULT_WAITED_HOURS);
+	/** Problems fetched for a detail that are not in the open or healthy lists on screen. */
+	const fetchedProblems = $state<Record<number, WrightProblem>>({});
 	let followupFilter = $state<FollowupFilter>('all');
 	let followupLimits = $state<FollowupLimits | null>(null);
 	let filterSeq = 0;
@@ -202,8 +213,16 @@ export function createWrightStore() {
 		}
 	}
 
+	/** The ranked causes, in the server's order; the page keeps the rows it shows until asked. */
+	async function causePage(): Promise<FeedPage<WrightCause>> {
+		const res = await api.listCauses({ limit: CAUSE_LIMIT });
+		waitedHours = res.waited_hours;
+		return { rows: res.causes, cursor: null, total: res.causes.length };
+	}
+
 	async function loadAll(): Promise<void> {
 		await Promise.all([
+			fillFeed(causes, causePage),
 			fillFeed(followups, () => followupsCovering(followupFilter, 0)),
 			loadLimits(),
 			fillFeed(open, () => problemsCovering('open', 0, noteWatch)),
@@ -233,6 +252,7 @@ export function createWrightStore() {
 	async function refresh(): Promise<void> {
 		const filter = followupFilter;
 		await Promise.all([
+			refreshFeed(causes, causePage, causeKey),
 			refreshFeed(
 				followups,
 				async () =>
@@ -257,6 +277,7 @@ export function createWrightStore() {
 		await Promise.all([
 			fillFeed(d.episodes, async () => {
 				const res = await api.getProblem(id, { episode_limit: PAGE, episode_offset: 0 });
+				fetchedProblems[id] = res.problem;
 				return { rows: res.episodes, cursor: res.next_episode_offset, total: res.problem.episodes };
 			}),
 			fillFeed(d.actions, () => actionsFrom(null, id)),
@@ -434,6 +455,15 @@ export function createWrightStore() {
 		get followups() {
 			return followups;
 		},
+		get causes() {
+			return causes;
+		},
+		get waitedHours() {
+			return waitedHours;
+		},
+		get fetchedProblems() {
+			return fetchedProblems;
+		},
 		get followupFilter() {
 			return followupFilter;
 		},
@@ -515,6 +545,7 @@ export function createWrightStore() {
 		},
 		showHeldOpen: () => showHeld(open, byOpenedDesc),
 		showHeldEarlier: () => showHeld(earlier, byOpenedDesc),
+		showHeldCauses: () => showHeld(causes, byPriorityDesc),
 		showHeldFollowups: () => showHeld(followups, byIdDesc),
 		showHeldActions: () => showHeld(actions, byCreatedDesc),
 		startLive

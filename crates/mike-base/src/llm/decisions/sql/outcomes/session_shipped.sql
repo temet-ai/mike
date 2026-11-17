@@ -10,7 +10,7 @@ WITH judged AS (
        AND r.composed -> 'verdict' ->> 'outcome' IN ('success', 'failure')
        AND s.last_seen < now() - interval '2 hours'
 ),
-pushed AS (
+pushed AS MATERIALIZED (
     SELECT ce.session_id, min(ce.id) AS push_event_id
       FROM workspace.change_events ce
      WHERE ce.kind = 'push'
@@ -19,7 +19,7 @@ pushed AS (
        AND ce.detail ->> 'author' IS DISTINCT FROM 'jev'
      GROUP BY ce.session_id
 ),
-frustrated AS (
+frustrated AS MATERIALIZED (
     SELECT t.session_id, min(t.id) AS turn_id
       FROM memory.operator_turns t
      WHERE t.outcome_source = 'frustration_close'

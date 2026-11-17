@@ -15,12 +15,17 @@ WITH dirs AS (
        AND e.source_ref LIKE 'requests.requests:%'
        AND e.effective_at >= now() - make_interval(days => $1)
 ),
+corrected_requests AS MATERIALIZED (
+    SELECT DISTINCT f.next_genuine_request_id AS request_id
+      FROM memory.turn_verdicts v
+      JOIN memory.turn_facts f ON f.operator_turn_id = v.operator_turn_id
+     WHERE v.mode = 'live' AND v.reaction = 'corrected'
+       AND f.next_genuine_request_id IS NOT NULL
+),
 correcting AS (
-    SELECT DISTINCT d.entry_id
+    SELECT d.entry_id
       FROM dirs d
-      JOIN memory.turn_facts f ON f.next_genuine_request_id = d.request_id
-      JOIN memory.turn_verdicts v ON v.operator_turn_id = f.operator_turn_id
-                                 AND v.mode = 'live' AND v.reaction = 'corrected'
+      JOIN corrected_requests cr ON cr.request_id = d.request_id
 ),
 keys AS (
     SELECT d.scope, d.project_id, d.class, d.polarity,

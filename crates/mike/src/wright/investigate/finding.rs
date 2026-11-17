@@ -37,6 +37,8 @@ struct FindingDoc {
     evidence: Vec<EvidenceRef>,
     #[serde(default)]
     followups: Vec<FollowupDoc>,
+    #[serde(default)]
+    same_cause_as: Vec<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,6 +64,28 @@ pub(crate) struct FollowupDraft {
 pub(crate) struct Validated {
     pub(crate) finding: NewFinding,
     pub(crate) followups: Vec<FollowupDraft>,
+    pub(crate) same_cause_as: Vec<i64>,
+}
+
+const MAX_SAME_CAUSE: usize = 100;
+
+fn same_cause(doc: &FindingDoc) -> Result<Vec<i64>, String> {
+    if doc.same_cause_as.len() > MAX_SAME_CAUSE {
+        return Err(format!(
+            "same_cause_as has {} entries; at most {MAX_SAME_CAUSE} are kept",
+            doc.same_cause_as.len()
+        ));
+    }
+    if !doc.cause_established && !doc.same_cause_as.is_empty() {
+        return Err(
+            "same_cause_as is set but cause_established is false; merge causes only on a confirmed cause"
+                .to_owned(),
+        );
+    }
+    let mut ids = doc.same_cause_as.clone();
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
 }
 
 fn text(field: &str, value: &str) -> Result<String, String> {
@@ -214,6 +238,7 @@ pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<Validated, String> {
     }
     let (confirmed_cause, owning_part) = cause(&doc, repo)?;
     let followups = followups(&doc.followups, repo)?;
+    let same_cause_as = same_cause(&doc)?;
     let finding = NewFinding {
         symptom: text("symptom", &doc.symptom)?,
         suspected_cause: text("suspected_cause", &doc.suspected_cause)?,
@@ -224,7 +249,11 @@ pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<Validated, String> {
         remedy: text("remedy", &doc.remedy)?,
         evidence: evidence(&doc.evidence)?,
     };
-    Ok(Validated { finding, followups })
+    Ok(Validated {
+        finding,
+        followups,
+        same_cause_as,
+    })
 }
 
 pub(crate) fn as_json(validated: &Validated) -> Value {
@@ -252,5 +281,6 @@ pub(crate) fn as_json(validated: &Validated) -> Value {
         "remedy": finding.remedy,
         "evidence": finding.evidence,
         "followups": followups,
+        "same_cause_as": validated.same_cause_as,
     })
 }

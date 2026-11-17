@@ -19,6 +19,8 @@ fn record_outcome(e: &LlmError) -> Option<LlmCallOutcome> {
         LlmError::Http { .. } => Some(LlmCallOutcome::HttpError),
         LlmError::OutputTruncated { .. } => Some(LlmCallOutcome::Truncated),
         LlmError::Transport(_) => Some(LlmCallOutcome::TransportError),
+        LlmError::UsageLimited { ran: true, .. } => Some(LlmCallOutcome::RefusedRate),
+        LlmError::UsageLimited { ran: false, .. } => None,
         LlmError::CeilingExceeded { .. }
         | LlmError::RateLimited { .. }
         | LlmError::SpendCeilingExceeded { .. }

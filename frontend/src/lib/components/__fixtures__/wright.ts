@@ -2,6 +2,7 @@ import type {
 	FollowupLimits,
 	ProblemDetail,
 	WrightAction,
+	WrightCause,
 	WrightEpisode,
 	WrightFinding,
 	WrightFollowup,
@@ -45,6 +46,90 @@ export function problemFixture(over: Partial<WrightProblem> = {}): WrightProblem
 		},
 		...over
 	};
+}
+
+export const WAITED_HOURS = 6;
+
+/** The long SQL a slow-query cause carries as its resource, as the real API returns it. */
+export const LONG_RESOURCE =
+	'query 6512464039861100498: WITH own_turn AS ( SELECT max(t.id) AS id FROM memory.operator_turns t WHERE t.session_id = $1 AND t.kind = $2 ), prior AS ( SELECT p.id, p.text FROM memory.operator_turns p JOIN own_turn o ON p.id < o.id WHERE p.session_id = $1 ORDER BY p.id DESC LIMIT 20 ) SELECT * FROM prior';
+
+export function causeFixture(over: Partial<WrightCause> = {}): WrightCause {
+	return {
+		cause_id: 10,
+		problem_id: 707,
+		check_name: 'decisions_health',
+		resource: 'blocked_dialog',
+		problems: 16,
+		observations: 16,
+		opened_at: ago(60 * 30),
+		attempts: 0,
+		last_attempt_at: null,
+		finding_id: null,
+		followup_id: null,
+		issue_number: null,
+		remedied: false,
+		priority: 90,
+		notified_at: null,
+		commented_at: null,
+		...over
+	};
+}
+
+/** One cause in each state, in the server's order (highest priority first). */
+export function causes(): WrightCause[] {
+	return [
+		causeFixture(),
+		causeFixture({
+			cause_id: 18,
+			problem_id: 703,
+			check_name: 'slow_queries',
+			resource: LONG_RESOURCE,
+			problems: 7,
+			observations: 1733,
+			opened_at: ago(60 * 52),
+			attempts: 2,
+			last_attempt_at: ago(60 * 5),
+			finding_id: 5,
+			priority: 80,
+			notified_at: ago(60 * 40)
+		}),
+		causeFixture({
+			cause_id: 21,
+			problem_id: 707,
+			check_name: 'tool_contract_errors',
+			resource: 'mcp__tether__work_thread_checkpoint',
+			problems: 3,
+			observations: 41,
+			opened_at: ago(60 * 9),
+			attempts: 1,
+			last_attempt_at: ago(60 * 3),
+			followup_id: 14,
+			issue_number: 272,
+			priority: 60
+		}),
+		causeFixture({
+			cause_id: 22,
+			problem_id: 703,
+			check_name: 'undelivered_mail',
+			resource: '3dcd7aa2-3126-4122-84e0-051a00751c02',
+			problems: 1,
+			observations: 6,
+			opened_at: ago(60 * 3),
+			remedied: true,
+			priority: 40
+		}),
+		causeFixture({
+			cause_id: 23,
+			problem_id: 707,
+			check_name: 'log_warnings',
+			resource: 'mike.log: connection reset by peer',
+			problems: 1,
+			observations: 2,
+			opened_at: ago(25),
+			priority: 10
+		})
+	];
 }
 
 export function openProblems(): WrightProblem[] {
@@ -424,6 +509,8 @@ export interface WrightScenario {
 	/** null: the route answers 404, as before its backend deploys. */
 	followups: WrightFollowup[] | null;
 	followupLimits: FollowupLimits;
+	/** null: the route answers 404, as before its backend deploys. */
+	causes: WrightCause[] | null;
 	/** What undoing an action answers: 200, or the 409 conflict. */
 	undo: 'ok' | 'conflict';
 	watchEnabled: boolean;
@@ -442,6 +529,7 @@ export function normalScenario(): WrightScenario {
 		investigations: [investigationFixture()],
 		followups: followups(),
 		followupLimits: followupLimitsFixture(),
+		causes: causes(),
 		undo: 'ok',
 		watchEnabled: true
 	};
@@ -458,7 +546,8 @@ export function emptyScenario(): WrightScenario {
 		findings: [],
 		repairs: [],
 		investigations: [],
-		followups: []
+		followups: [],
+		causes: []
 	};
 }
 
@@ -508,6 +597,16 @@ export function installWrightFetch(scenario: WrightScenario): { posted: unknown[
 				limit,
 				offset,
 				next_offset: next,
+				watch_enabled: state.watchEnabled
+			});
+		}
+		if (method === 'GET' && path === '/api/wright/causes') {
+			if (state.causes === null) return json(404, {});
+			const limit = Number(params.get('limit') ?? 50);
+			return json(200, {
+				causes: state.causes.slice(0, limit),
+				limit,
+				waited_hours: WAITED_HOURS,
 				watch_enabled: state.watchEnabled
 			});
 		}

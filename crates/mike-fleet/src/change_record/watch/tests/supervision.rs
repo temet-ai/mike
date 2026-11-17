@@ -38,3 +38,25 @@ async fn a_checkout_with_a_working_session_is_watched_and_a_quiet_one_is_not() -
     shutdown.cancel();
     db.db.cleanup().await
 }
+
+#[tokio::test]
+async fn a_watched_checkout_removed_from_disk_is_no_longer_watched() -> anyhow::Result<()> {
+    let busy = repo().await?;
+    let Some(db) = db(&busy.root).await? else {
+        return Ok(());
+    };
+    let pool = db.persist.pool().clone();
+    let worker = session(&pool, db.project_id, Some(&busy.root)).await?;
+    request(&pool, worker, db.project_id, Utc::now()).await?;
+
+    let shutdown = CancellationToken::new();
+    let mut supervisor = Supervisor::new(db.persist.clone(), quick(true));
+    supervisor.tick(&shutdown).await;
+    assert_eq!(supervisor.watching().len(), 1);
+    std::fs::remove_dir_all(&busy.root)?;
+    supervisor.tick(&shutdown).await;
+    assert!(supervisor.watching().is_empty());
+
+    shutdown.cancel();
+    db.db.cleanup().await
+}

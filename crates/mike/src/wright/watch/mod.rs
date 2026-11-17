@@ -236,8 +236,9 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
         .collect();
     match ctx.persist.web().enabled_wright_checks(&cadences).await {
         Ok(checks) => run_checks(ctx, &checks).await,
-        Err(e) => tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
+        Err(e) => return tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
     }
+    crate::wright::triage::run(&ctx.persist).await;
 }
 
 async fn run_checks(ctx: &WatchContext, checks: &[CheckRow]) {

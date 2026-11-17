@@ -14,6 +14,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
 	import WrightActionRow from '$lib/components/wright/WrightActionRow.svelte';
 	import WrightBand from '$lib/components/wright/WrightBand.svelte';
+	import WrightCauseRow from '$lib/components/wright/WrightCauseRow.svelte';
 	import WrightConversation from '$lib/components/wright/WrightConversation.svelte';
 	import WrightNote from '$lib/components/wright/WrightNote.svelte';
 	import WrightFixRow from '$lib/components/wright/WrightFixRow.svelte';
@@ -28,6 +29,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 		readOperatorToken,
 		storeOperatorToken
 	} from '$lib/wright/pairing';
+	import { causeState } from '$lib/wright/causes';
 	import { FOLLOWUP_FILTERS, groupByDay } from '$lib/wright/present';
 	import { createWrightStore } from '$lib/wright/store.svelte';
 	import { proxyEvents } from '$lib/ws.svelte';
@@ -40,6 +42,15 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 
 	const problems = $derived<WrightProblem[]>([...store.open.rows, ...store.earlier.rows]);
 	const problemById = (id: number): WrightProblem | undefined => problems.find((p) => p.id === id);
+	/** The representative problem of a cause: from the lists, or fetched when its row was opened. */
+	const causeProblem = (id: number): WrightProblem | undefined =>
+		problemById(id) ?? store.fetchedProblems[id];
+	const waitingCauses = $derived(
+		store.causes.rows.filter((c) => causeState(c, store.waitedHours) === 'waiting').length
+	);
+	const causeMeta = $derived(
+		`${waitingCauses > 0 ? `${waitingCauses} waiting · ` : ''}${store.causes.rows.length} ${store.causes.rows.length === 1 ? 'cause' : 'causes'}`
+	);
 	const stuckFollowups = $derived(store.followups.rows.filter((f) => f.state === 'stuck').length);
 	const followupMeta = $derived(
 		stuckFollowups > 0
@@ -139,6 +150,46 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	{/if}
 {/snippet}
 
+{#snippet causeList()}
+	{#if store.causes.status === 'loading'}
+		<WrightNote>Loading.</WrightNote>
+	{:else if store.causes.status === 'missing'}
+		<WrightNote>Not in the running mike yet.</WrightNote>
+	{:else if store.causes.status === 'error'}
+		<LoadErrorBanner
+			title="Could not load the triage queue"
+			detail={store.causes.error ?? ''}
+			onRetry={() => void store.loadAll()}
+		/>
+	{:else if store.causes.rows.length === 0}
+		<WrightNote>Nothing to triage. Every open problem has an answer.</WrightNote>
+	{:else}
+		<ul class="wr-rows" role="list">
+			{#each store.causes.rows as cause (cause.cause_id)}
+				{@const problem = causeProblem(cause.problem_id)}
+				<WrightCauseRow
+					{cause}
+					waitedHours={store.waitedHours}
+					onOpen={(id) => void store.loadDetail(id)}
+				>
+					{#if problem !== undefined}
+						<WrightProblemDetail
+							{problem}
+							detail={store.details[problem.id]}
+							undo={store.undo}
+							onUndo={(id) => void store.undoAction(id)}
+							onMore={(which) => void store.moreDetail(problem.id, which)}
+							onRetry={() => void store.loadDetail(problem.id)}
+						/>
+					{:else}
+						<WrightNote>Loading.</WrightNote>
+					{/if}
+				</WrightCauseRow>
+			{/each}
+		</ul>
+	{/if}
+{/snippet}
+
 {#snippet followupList()}
 	{#if store.followups.status === 'loading'}
 		<WrightNote>Loading.</WrightNote>
@@ -209,6 +260,16 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 			<section class="wr-doing" aria-labelledby="wr-doing-h">
 				<h2 class="machine wr-col-h" id="wr-doing-h">What Wright is doing</h2>
 				<div class="edge mech-group wr-stack">
+					<WrightBand
+						id="triage"
+						label="Triage queue"
+						meta={causeMeta}
+						held={store.causes.held.length}
+						onShowHeld={store.showHeldCauses}
+					>
+						{@render causeList()}
+					</WrightBand>
+
 					<WrightBand
 						id="open"
 						label="Open now"
