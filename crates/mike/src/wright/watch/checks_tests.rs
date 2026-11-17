@@ -67,6 +67,42 @@ async fn mcp_tool_errors_groups_by_tool_and_error_kind() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn tool_contract_errors_drops_a_rejection_older_than_quiet_hours() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let session = db.session(Uuid::new_v4(), "1 minute").await?;
+    let stale = db.request(session, "3 days", "primary").await?;
+    db.tool_error(
+        stale,
+        session,
+        "mcp__mike__read_project_knowledge",
+        "invalid arguments: missing field `reference`",
+    )
+    .await?;
+    let older = db.request(session, "2 days", "primary").await?;
+    let fresh = db.request(session, "10 minutes", "primary").await?;
+    for request in [older, fresh] {
+        db.tool_error(
+            request,
+            session,
+            "mcp__mike__find_text",
+            "invalid arguments: missing field `needle`",
+        )
+        .await?;
+    }
+
+    let findings = db.findings("tool_contract_errors").await?;
+    assert_eq!(findings.len(), 1);
+    assert_eq!(
+        findings[0].resource,
+        "mcp__mike__find_text: invalid arguments: missing field `needle`"
+    );
+    assert_eq!(findings[0].evidence["failures"], 2);
+    assert_eq!(findings[0].evidence["last_request_id"], fresh);
+    assert!(findings[0].evidence["last_tool_use_id"].is_string());
+    db.cleanup().await
+}
+
+#[tokio::test]
 async fn hook_errors_reads_the_hook_and_its_reason() -> anyhow::Result<()> {
     let db = Db::boot().await?;
     let session = db.session(Uuid::new_v4(), "1 minute").await?;
