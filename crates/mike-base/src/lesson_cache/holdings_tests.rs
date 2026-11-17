@@ -43,7 +43,6 @@ fn restore_after_restart_brings_back_clients_and_held_lessons() {
     assert!(holdings.is_client("client"));
     assert!(!holdings.is_client("s1"));
     assert!(holdings.holds("s1", 9, 3));
-    assert_eq!(holdings.held_ids("s1"), vec![9]);
 }
 
 #[test]

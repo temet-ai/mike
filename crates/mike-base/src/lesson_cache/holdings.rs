@@ -54,16 +54,6 @@ impl SessionHoldings {
             .is_some_and(|held| *held == revision)
     }
 
-    pub fn held_ids(&self, session: &str) -> Vec<i64> {
-        let held = self.held.read().unwrap_or_else(PoisonError::into_inner);
-        let mut ids: Vec<i64> = held
-            .get(session)
-            .map(|lessons| lessons.keys().copied().collect())
-            .unwrap_or_default();
-        ids.sort_unstable();
-        ids
-    }
-
     pub fn hold(&self, session: &str, lessons: &[(i64, i32)]) -> Vec<(i64, i32)> {
         if lessons.is_empty() {
             return Vec::new();
