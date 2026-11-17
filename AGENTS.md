@@ -99,6 +99,12 @@ checkout only.
 Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
 push.
 
+**Hand finished branches to the lander.** On omit, don't wait on your own push: once
+the branch is committed, mail `role:lander` the worktree path, branch, and PR title and
+body, then go on working or end. The lander pushes, fixes what the hook refuses (or
+mails you the failing step), merges, removes the worktree and deploys each batch. If
+no lander is on the roster, start one with `mike spawn open` (name and role `lander`).
+
 **Done-checks run now.** A done-check runs within minutes of the deploy: drive a live
 session through the case, restart and check again, or backfill over data already
 captured. Decision points get labels now from `mike decisions replay`. Never "after a day
