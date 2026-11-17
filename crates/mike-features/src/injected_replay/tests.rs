@@ -49,7 +49,7 @@ fn replay_second_request_splices_block_bytes_identical_to_first() {
     let (second_sent, report) = replayed(&registry, LANE, &second_turn());
 
     assert_eq!(report.replayed_indices, vec![0]);
-    assert_eq!(report.dropped, 0);
+    assert_eq!(report.held, 1);
     assert_eq!(
         message_bytes(&second_sent, 0),
         message_bytes(&first_sent, 0)
@@ -76,7 +76,7 @@ fn replay_plain_string_message_rebuilds_the_appenders_wrapping() {
 }
 
 #[test]
-fn replay_changed_message_leaves_body_alone_and_drops_record() {
+fn replay_changed_message_leaves_body_alone_and_keeps_record() {
     let registry = InjectedBlockRegistry::default();
     let first = first_turn();
     assert!(registry.record(LANE, &first, &inject(&first)));
@@ -88,12 +88,50 @@ fn replay_changed_message_leaves_body_alone_and_drops_record() {
 
     assert_eq!(out.as_slice(), changed.as_slice());
     assert!(report.replayed_indices.is_empty());
-    assert_eq!(report.dropped, 1);
-    assert_eq!(registry.records_in(LANE), 0);
+    assert_eq!(registry.records_in(LANE), 1);
+}
+
+fn continuation(text: &str) -> Vec<u8> {
+    format!(
+        r#"{{"thread":{{"type":"continue"}},"messages":[{{"role":"user","content":[{{"type":"text","text":"{text}","cache_control":{{"type":"ephemeral","ttl":"1h"}}}}]}}]}}"#
+    )
+    .into_bytes()
 }
 
 #[test]
-fn replay_after_compaction_drops_record_for_missing_message() {
+fn replay_full_resend_after_continuations_restores_every_block_where_it_was_sent() {
+    let registry = InjectedBlockRegistry::default();
+    let mut sent_turns = Vec::new();
+    for text in ["turn one", "turn two"] {
+        let body = continuation(text);
+        assert!(
+            registry
+                .replay(LANE, &body)
+                .is_none_or(|(_, r)| r.replayed_indices.is_empty())
+        );
+        let sent = inject(&body);
+        assert!(registry.record(LANE, &body, &sent));
+        sent_turns.push(sent);
+    }
+    let resend = br#"{"thread":{"type":"create"},"messages":[{"role":"user","content":"turn one"},{"role":"assistant","content":[{"type":"text","text":"a"}]},{"role":"user","content":"turn two"},{"role":"assistant","content":[{"type":"text","text":"b"}]},{"role":"user","content":[{"type":"text","text":"turn three"}]}]}"#;
+
+    let (out, report) = replayed(&registry, LANE, resend);
+
+    assert_eq!(report.replayed_indices, vec![0, 2]);
+    let value: serde_json::Value = serde_json::from_slice(&out).unwrap_or_default();
+    for (index, sent) in [(0, &sent_turns[0]), (2, &sent_turns[1])] {
+        let was: serde_json::Value = serde_json::from_slice(sent).unwrap_or_default();
+        let mut expected = was["messages"][0]["content"].clone();
+        expected[0]
+            .as_object_mut()
+            .map(|o| o.remove("cache_control"));
+        assert_eq!(value["messages"][index]["content"], expected);
+    }
+    assert_eq!(value["messages"][4]["content"][0]["text"], "turn three");
+}
+
+#[test]
+fn replay_after_compaction_leaves_body_alone() {
     let registry = InjectedBlockRegistry::default();
     let first = second_turn();
     let first_sent = inject(&first);
@@ -104,8 +142,7 @@ fn replay_after_compaction_drops_record_for_missing_message() {
     let (out, report) = replayed(&registry, LANE, compacted);
 
     assert_eq!(out.as_slice(), compacted.as_slice());
-    assert_eq!(report.dropped, 1);
-    assert!(registry.replay(LANE, compacted).is_none());
+    assert!(report.replayed_indices.is_empty());
 }
 
 #[test]
@@ -145,6 +182,6 @@ fn record_same_message_twice_keeps_one_record() {
     let first = first_turn();
     let sent = inject(&first);
     assert!(registry.record(LANE, &first, &sent));
-    assert!(registry.record(LANE, &first, &inject(&sent)));
+    assert!(registry.record(LANE, &first, &inject(&first)));
     assert_eq!(registry.records_in(LANE), 1);
 }

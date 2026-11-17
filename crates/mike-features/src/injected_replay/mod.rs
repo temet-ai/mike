@@ -2,7 +2,7 @@ pub mod splice;
 #[cfg(test)]
 mod tests;
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
 use bytes::Bytes;
@@ -15,17 +15,37 @@ use splice::InjectedBlocks;
 
 pub const STAGE: &str = "injected_block_replay";
 const DEFAULT_LANE_CAPACITY: usize = 256;
-const MAX_RECORDS_PER_LANE: usize = 32;
+const MAX_RECORDS_PER_LANE: usize = 1024;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ReplayReport {
     pub replayed_indices: Vec<usize>,
-    pub dropped: usize,
+    pub held: usize,
+}
+
+#[derive(Debug, Default)]
+struct LaneRecords {
+    by_identity: HashMap<u64, InjectedBlocks>,
+    order: VecDeque<u64>,
+}
+
+impl LaneRecords {
+    fn insert(&mut self, record: InjectedBlocks) {
+        let identity = record.identity;
+        if self.by_identity.insert(identity, record).is_none() {
+            self.order.push_back(identity);
+        }
+        while self.order.len() > MAX_RECORDS_PER_LANE {
+            if let Some(oldest) = self.order.pop_front() {
+                self.by_identity.remove(&oldest);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct InjectedBlockRegistry {
-    lanes: DashMap<String, Vec<InjectedBlocks>>,
+    lanes: DashMap<String, LaneRecords>,
     order: Mutex<VecDeque<String>>,
     capacity: usize,
 }
@@ -46,26 +66,13 @@ impl InjectedBlockRegistry {
     }
 
     pub fn replay(&self, lane: &str, body: &[u8]) -> Option<(Bytes, ReplayReport)> {
-        let mut entry = self.lanes.get_mut(lane)?;
-        let mut current = body.to_vec();
-        let mut report = ReplayReport::default();
-        entry.retain(|record| match splice::splice(&current, record) {
-            Some(next) => {
-                current = next;
-                report.replayed_indices.push(record.index);
-                true
-            }
-            None => {
-                report.dropped += 1;
-                false
-            }
-        });
-        let emptied = entry.is_empty();
-        drop(entry);
-        if emptied {
-            self.lanes.remove(lane);
-        }
-        Some((Bytes::from(current), report))
+        let entry = self.lanes.get(lane)?;
+        let spliced = splice::splice_all(body, &entry.by_identity)?;
+        let report = ReplayReport {
+            held: entry.by_identity.len(),
+            replayed_indices: spliced.message_indices,
+        };
+        Some((Bytes::from(spliced.body), report))
     }
 
     pub fn record(&self, lane: &str, original: &[u8], injected: &[u8]) -> bool {
@@ -73,15 +80,10 @@ impl InjectedBlockRegistry {
             return false;
         };
         let is_new = !self.lanes.contains_key(lane);
-        {
-            let mut records = self.lanes.entry(lane.to_string()).or_default();
-            records.retain(|r| r.index != captured.index);
-            records.push(captured);
-            records.sort_by_key(|r| r.index);
-            while records.len() > MAX_RECORDS_PER_LANE {
-                records.remove(0);
-            }
-        }
+        self.lanes
+            .entry(lane.to_string())
+            .or_default()
+            .insert(captured);
         if is_new {
             self.track_lane(lane);
         }
@@ -104,7 +106,7 @@ impl InjectedBlockRegistry {
 
     #[cfg(test)]
     pub fn records_in(&self, lane: &str) -> usize {
-        self.lanes.get(lane).map_or(0, |r| r.len())
+        self.lanes.get(lane).map_or(0, |r| r.by_identity.len())
     }
 }
 
@@ -125,14 +127,13 @@ pub fn replay_into(registry: &InjectedBlockRegistry, lane: &str, body: &mut Stag
     let Some((new_body, report)) = registry.replay(lane, body.body()) else {
         return;
     };
-    let parameters = serde_json::json!({
-        "message_indices": report.replayed_indices,
-        "dropped": report.dropped,
-    });
     if report.replayed_indices.is_empty() {
-        body.decline(STAGE, "injected_block_message_changed", parameters);
         return;
     }
+    let parameters = serde_json::json!({
+        "message_indices": report.replayed_indices,
+        "held": report.held,
+    });
     body.rewrite(
         new_body.clone(),
         AppliedStage {

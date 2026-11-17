@@ -255,6 +255,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                          JOIN requests.system_prompts sp ON sp.request_id = q.id
                         WHERE s.session_uuid = $1
                           AND o.code IN ('primary', 'primary_first')
+                          AND sp.system_prompt_id IS NOT NULL
                         ORDER BY q.created_at DESC, q.id DESC
                         LIMIT 1
                    )
