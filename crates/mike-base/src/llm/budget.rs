@@ -180,7 +180,7 @@ mod tests {
         lesson: u32,
         other: u32,
     ) -> [u32; ROLE_COUNT] {
-        [steerer, session, worker, lesson, 0, 0, other, 0]
+        [steerer, session, worker, lesson, 0, 0, other, 0, 0]
     }
 
     #[test]

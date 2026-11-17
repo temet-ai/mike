@@ -86,6 +86,8 @@ pub struct FeatureToggles {
 
     pub decisions: bool,
 
+    pub side_calls: bool,
+
     pub directive_proposer: bool,
 
     pub session_end_shadow: bool,
@@ -181,6 +183,7 @@ impl Default for FeatureToggles {
             semantic_context: true,
             turn_guard: false,
             decisions: false,
+            side_calls: false,
             directive_proposer: false,
             session_end_shadow: false,
             judge_lessons: false,
@@ -301,6 +304,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "semantic_context" => Some(toggles.semantic_context),
         "turn_guard" => Some(toggles.turn_guard),
         "decisions" => Some(toggles.decisions),
+        "side_calls" => Some(toggles.side_calls),
         "directive_proposer" => Some(toggles.directive_proposer),
         "self_identity_reminder" => Some(toggles.self_identity_reminder),
         "session_end_shadow" => Some(toggles.session_end_shadow),
@@ -373,6 +377,7 @@ pub fn set_toggle_enabled(
         "semantic_context" => updated.semantic_context = enabled,
         "turn_guard" => updated.turn_guard = enabled,
         "decisions" => updated.decisions = enabled,
+        "side_calls" => updated.side_calls = enabled,
         "directive_proposer" => updated.directive_proposer = enabled,
         "self_identity_reminder" => updated.self_identity_reminder = enabled,
         "session_end_shadow" => updated.session_end_shadow = enabled,

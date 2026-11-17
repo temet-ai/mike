@@ -211,6 +211,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
+        key: "side_calls",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "shell_output_compression",
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,

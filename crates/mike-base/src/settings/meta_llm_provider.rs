@@ -1,3 +1,7 @@
+use super::local_llm::{
+    DEFAULT_LOCAL_KEY_ENV, DEFAULT_SIDE_CALL_MODELS, LOCAL_KEY_ENV_KEY, LOCAL_URL_KEY,
+    SIDE_CALL_MODELS_KEY,
+};
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 use crate::llm::provider::{LlmProvider, PROVIDER_KEY, SLOTS};
 
@@ -65,7 +69,66 @@ pub fn entries() -> Vec<SettingMeta> {
         enum_variants: Some(LlmProvider::VARIANTS),
     }];
     entries.extend((0..SLOTS.len()).filter_map(model_entry));
+    entries.extend(local_entries());
     entries
+}
+
+fn local_entries() -> Vec<SettingMeta> {
+    vec![
+        SettingMeta {
+            key: LOCAL_URL_KEY,
+            group: GROUP,
+            kind: SettingKind::String,
+            scope: SettingScope::Global,
+            applies: SettingApplies::NextCycle,
+            default: serde_json::Value::String(String::new()),
+            label: "Local server URL",
+            description: "Base URL of an OpenAI-compatible local server such as llama-server or Ollama, for example http://mac.local:8080/v1. Models written local/<name> are sent to {url}/chat/completions. Empty means no local server is configured.",
+            min_i64: None,
+            max_i64: None,
+            min_f64: None,
+            max_f64: None,
+            max_len: Some(512),
+            enum_variants: None,
+        },
+        SettingMeta {
+            key: LOCAL_KEY_ENV_KEY,
+            group: GROUP,
+            kind: SettingKind::String,
+            scope: SettingScope::Global,
+            applies: SettingApplies::NextCycle,
+            default: serde_json::Value::String(DEFAULT_LOCAL_KEY_ENV.to_owned()),
+            label: "Local server API key env var",
+            description: "Name of the environment variable the proxy reads the local server's bearer API key from at call time. A missing or empty variable sends no key, which suits a llama-server started without --api-key.",
+            min_i64: None,
+            max_i64: None,
+            min_f64: None,
+            max_f64: None,
+            max_len: Some(256),
+            enum_variants: None,
+        },
+        SettingMeta {
+            key: SIDE_CALL_MODELS_KEY,
+            group: "Side calls",
+            kind: SettingKind::StringList,
+            scope: SettingScope::Global,
+            applies: SettingApplies::NextCycle,
+            default: serde_json::Value::Array(
+                DEFAULT_SIDE_CALL_MODELS
+                    .iter()
+                    .map(|m| serde_json::Value::String((*m).to_owned()))
+                    .collect(),
+            ),
+            label: "Side call models, in order",
+            description: "Models a side call tries in turn; a model that is busy, failing or over the hourly cap is skipped for the next.",
+            min_i64: None,
+            max_i64: None,
+            min_f64: None,
+            max_f64: None,
+            max_len: Some(256),
+            enum_variants: None,
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -97,6 +160,22 @@ mod tests {
         assert_eq!(
             provider.and_then(|e| e.enum_variants),
             Some(LlmProvider::VARIANTS)
+        );
+    }
+
+    #[test]
+    fn local_endpoint_settings_default_to_not_configured_with_the_standard_key_env() {
+        let entries = entries();
+        let find = |key: &str| {
+            entries
+                .iter()
+                .find(|e| e.key == key)
+                .map(|e| e.default.clone())
+        };
+        assert_eq!(find(LOCAL_URL_KEY), Some(serde_json::json!("")));
+        assert_eq!(
+            find(LOCAL_KEY_ENV_KEY),
+            Some(serde_json::json!("MIKE_LOCAL_LLM_API_KEY"))
         );
     }
 

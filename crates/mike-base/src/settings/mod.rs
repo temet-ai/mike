@@ -3,6 +3,7 @@ pub mod feature_overlays;
 pub mod judge_prompts;
 
 pub mod llm_runtime;
+pub mod local_llm;
 pub mod memory_prompts;
 pub mod meta;
 pub mod meta_assistants;
@@ -193,6 +194,10 @@ pub struct SettingsOverlay {
 
     pub llm_provider: std::sync::Arc<crate::llm::provider::ProviderPolicy>,
 
+    pub llm_local_url: String,
+    pub llm_local_api_key_env: String,
+    pub side_call_models: Vec<String>,
+
     pub steerer_model: Option<String>,
 
     pub steerer_reasoning_effort: String,
@@ -290,6 +295,9 @@ impl Default for SettingsOverlay {
             decisions_max_calls_per_hour: meta_decisions::DEFAULT_MAX_CALLS_PER_HOUR,
             decisions_daily_spend_ceiling_usd: meta_decisions::DEFAULT_DAILY_SPEND_CEILING_USD,
             llm_provider: std::sync::Arc::new(crate::llm::provider::ProviderPolicy::default()),
+            llm_local_url: String::new(),
+            llm_local_api_key_env: local_llm::DEFAULT_LOCAL_KEY_ENV.to_owned(),
+            side_call_models: local_llm::default_side_call_models(),
             steerer_model: None,
             steerer_reasoning_effort: "inherit".to_owned(),
             steerer_max_output_tokens: 0,

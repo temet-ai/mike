@@ -9,7 +9,7 @@ pub mod backoff_tests;
 
 const BASE_DELAY: Duration = Duration::from_secs(2);
 pub const MAX_DELAY: Duration = Duration::from_secs(60);
-const TRANSPORTS: usize = 3;
+const TRANSPORTS: usize = 4;
 
 #[derive(Default)]
 pub struct TimeoutBackoff {
@@ -21,6 +21,7 @@ fn slot(provider: Provider) -> usize {
         Provider::OpenRouter => 0,
         Provider::Claude => 1,
         Provider::Codex => 2,
+        Provider::Local => 3,
     }
 }
 

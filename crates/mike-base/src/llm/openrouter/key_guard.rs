@@ -19,7 +19,7 @@ impl OpenRouterClient {
     pub fn wire_model(&self) -> String {
         let own = ModelRef::parse(&self.inner.model);
         match own.provider {
-            Provider::OpenRouter => own.model,
+            Provider::OpenRouter | Provider::Local => own.model,
             Provider::Claude | Provider::Codex => self.inner.model.clone(),
         }
     }

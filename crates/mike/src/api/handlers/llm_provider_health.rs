@@ -9,6 +9,7 @@ const KEY_FIX: &str = "Set MIKE_STEERER_OPENROUTER_API_KEY (or OPENROUTER_API_KE
 const CLAUDE_MISSING_FIX: &str = "Install Claude Code on the machine that runs the proxy, or set MIKE_CLAUDE_CLI_BIN to its path, then run `claude auth status` there. No other provider is used in its place.";
 const CLAUDE_SIGNED_OUT_FIX: &str = "Run `claude auth login` on the machine that runs the proxy, then check that `claude auth status` reports loggedIn true. No other provider is used in its place.";
 const CODEX_MISSING_FIX: &str = "Install the Codex CLI on the machine that runs the proxy (the proxy's PATH must reach `codex`), then run `codex login status` there. No other provider is used in its place.";
+const LOCAL_MISSING_FIX: &str = "Set llm.local.url at /settings to the base URL of the llama-server or Ollama instance (for example http://mac.local:8080/v1), or give the job a claude/, codex/ or OpenRouter model. No other provider is used in its place.";
 const CODEX_SIGNED_OUT_FIX: &str = "Run `codex login` on the machine that runs the proxy, then check that `codex login status` reports a login. No other provider is used in its place.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +94,19 @@ async fn codex_problem() -> Option<ProviderProblem> {
     }
 }
 
+fn local_problem(state: &AppState) -> Option<ProviderProblem> {
+    if !state
+        .settings_overlay
+        .load()
+        .llm_local_url
+        .trim()
+        .is_empty()
+    {
+        return None;
+    }
+    problem("llm.local.url is not set", LOCAL_MISSING_FIX)
+}
+
 pub(crate) async fn provider_problem(
     state: &AppState,
     provider: Provider,
@@ -101,6 +115,7 @@ pub(crate) async fn provider_problem(
         Provider::OpenRouter => openrouter_problem(state),
         Provider::Claude => claude_problem(state).await,
         Provider::Codex => codex_problem().await,
+        Provider::Local => local_problem(state),
     }
 }
 

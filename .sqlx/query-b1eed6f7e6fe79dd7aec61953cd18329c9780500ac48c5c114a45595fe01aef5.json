@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.session_goals\n                   (session_id, goal, next_steps, set_by, display_name, goal_source, updated_at)\n               VALUES ($1, $2, $3, $5, NULLIF($4, ''), $5, now())\n               ON CONFLICT (session_id) DO UPDATE\n                   SET goal         = CASE WHEN btrim(sessions.session_goals.goal) = ''\n                                             OR sessions.session_goals.goal_source = $5\n                                           THEN excluded.goal\n                                           ELSE sessions.session_goals.goal END,\n                       goal_source  = CASE WHEN btrim(sessions.session_goals.goal) = ''\n                                             OR sessions.session_goals.goal_source = $5\n                                           THEN $5\n                                           ELSE sessions.session_goals.goal_source END,\n                       next_steps   = excluded.next_steps,\n                       display_name = COALESCE(NULLIF(sessions.session_goals.display_name, ''),\n                                               excluded.display_name),\n                       set_by       = $5,\n                       updated_at   = now()\n                 WHERE sessions.session_goals.updated_at < $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b1eed6f7e6fe79dd7aec61953cd18329c9780500ac48c5c114a45595fe01aef5"
+}

@@ -223,7 +223,7 @@ impl OpenRouterClient {
         (body, retried)
     }
 
-    fn check_truncation(
+    pub(super) fn check_truncation(
         &self,
         payload: &Value,
         live: Option<&LlmRuntimeSettings>,
@@ -256,6 +256,11 @@ impl OpenRouterClient {
         let live_owned = self.effective_settings();
         let live = live_owned.as_ref();
         let target = ModelRef::parse(&self.inner.model);
+        if target.provider == Provider::Local {
+            return self
+                .attempt_local_verdict(&target.model, system, user, schema, live)
+                .await;
+        }
         if target.provider.needs_openrouter_key() {
             self.require_api_key()?;
         }
@@ -274,7 +279,7 @@ impl OpenRouterClient {
                     .attempt_claude_verdict(&target.model, system, user, schema, live)
                     .await;
             }
-            Provider::OpenRouter => {}
+            Provider::OpenRouter | Provider::Local => {}
         }
 
         let started = Instant::now();

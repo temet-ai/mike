@@ -222,6 +222,7 @@ is a single indexed PK lookup; no separate unique index is needed.
 | `role` | `TEXT NULL` | Free-text role the session declares for itself (e.g. `rust-developer`, `coordinator`); open set, no enum. `GET /api/fleet/graph` resolves a node's role from this column first, falling back to `agents.agents.name` only when the session is a dispatched subagent |
 | `display_name` | `TEXT NULL` | Free-text handle the session declares for itself (e.g. `observer-1`, `rust-dev-alpha`); open set, **not unique**. What peers see instead of a uuid prefix, and what mailbox `name:` addressing resolves against |
 | `instructions` | `TEXT NULL` | The standing brief this session was given — distinct from `goal` (the current objective under that brief) and `next_steps` (what it will do next) |
+| `goal_source` | `TEXT NULL` | Who last wrote `goal` (`mcp`, a registration path, `side-call`, …). Added in `20261117050000_side_calls.sql`. The side-call roster worker writes `goal` only while it is empty or `goal_source = 'side-call'`; NULL on older rows counts as the session's own |
 
 Added in migration `20260713140000_session_goals_role.sql`. `role` is declared, never inferred from goal/title
 text — a goal paragraph is not a role. Free-text because `agent_dispatches.subagent_type` already spans 20+
