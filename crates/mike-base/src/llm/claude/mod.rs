@@ -1,13 +1,15 @@
 use std::path::Path;
 use std::process::Stdio;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use tokio::process::Command;
 
 use super::LlmError;
 use crate::environment::{Environment, ProcessEnvironment};
+use limit::LimitGate;
 
+pub mod limit;
 #[cfg(test)]
 mod tests;
 
@@ -194,6 +196,21 @@ fn transport(message: String) -> LlmError {
 
 struct ExecFailure {
     message: String,
+    limited: bool,
+}
+
+impl ExecFailure {
+    fn into_error(self) -> LlmError {
+        if self.limited {
+            LlmError::UsageLimited {
+                ran: true,
+                wait_secs: 0,
+                message: self.message,
+            }
+        } else {
+            transport(self.message)
+        }
+    }
 }
 
 async fn run_once(
@@ -256,8 +273,10 @@ async fn run_once(
                 resolved_path(bin),
                 output.status
             ),
+            limited: false,
         }));
     }
+    let limited = limit::usage_limited(&stdout);
     if !output.status.success() {
         return Ok(Err(ExecFailure {
             message: format!(
@@ -265,6 +284,7 @@ async fn run_once(
                 output.status,
                 failure_message(&stdout, &stderr)
             ),
+            limited,
         }));
     }
     let outcome = result_object(&stdout)
@@ -272,6 +292,7 @@ async fn run_once(
         .and_then(|result| completion_payload(req.model, &result));
     Ok(outcome.map_err(|message| ExecFailure {
         message: format!("claude: {message}"),
+        limited,
     }))
 }
 
@@ -284,21 +305,66 @@ pub async fn run_in(
     req: ClaudeRequest<'_>,
     environment: &dyn Environment,
 ) -> Result<Value, LlmError> {
+    run_gated(bin, req, environment, &limit::GATE).await
+}
+
+pub async fn run_gated(
+    bin: &str,
+    req: ClaudeRequest<'_>,
+    environment: &dyn Environment,
+    gate: &LimitGate,
+) -> Result<Value, LlmError> {
+    if let Err(wait) = gate.admit(Instant::now()) {
+        return Err(LlmError::UsageLimited {
+            ran: false,
+            wait_secs: wait.as_secs(),
+            message: "an earlier claude call hit the usage limit".to_owned(),
+        });
+    }
+    match run_with_effort(bin, &req, environment).await {
+        Ok(payload) => {
+            gate.answered();
+            Ok(payload)
+        }
+        Err(LlmError::UsageLimited {
+            ran: true, message, ..
+        }) => {
+            let wait = gate.limited(Instant::now());
+            tracing::warn!(
+                wait_secs = wait.as_secs(),
+                error = %message,
+                "claude hit the usage limit; no claude call until the wait ends"
+            );
+            Err(LlmError::UsageLimited {
+                ran: true,
+                wait_secs: wait.as_secs(),
+                message,
+            })
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn run_with_effort(
+    bin: &str,
+    req: &ClaudeRequest<'_>,
+    environment: &dyn Environment,
+) -> Result<Value, LlmError> {
     let effort = claude_effort(req.reasoning_effort);
-    let failure = match run_once(bin, &req, effort, environment).await? {
+    let failure = match run_once(bin, req, effort, environment).await? {
         Ok(payload) => return Ok(payload),
         Err(failure) => failure,
     };
-    if effort.is_none() || !effort_rejected(&failure.message) {
-        return Err(transport(failure.message));
+    if failure.limited || effort.is_none() || !effort_rejected(&failure.message) {
+        return Err(failure.into_error());
     }
     tracing::warn!(
         model = req.model,
         error = %failure.message,
         "claude: model rejected the reasoning effort; resending without it"
     );
-    match run_once(bin, &req, None, environment).await? {
+    match run_once(bin, req, None, environment).await? {
         Ok(payload) => Ok(payload),
-        Err(retry) => Err(transport(retry.message)),
+        Err(retry) => Err(retry.into_error()),
     }
 }

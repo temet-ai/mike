@@ -348,3 +348,45 @@ async fn run_silent_cli_reports_its_path_and_that_it_produced_no_output() -> any
     assert!(message.contains("produced no output"), "{message}");
     Ok(())
 }
+
+#[tokio::test]
+async fn run_gated_usage_limit_refuses_later_calls_without_running_claude() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let calls = dir.path().join("calls");
+    let bin = fake_claude(
+        dir.path(),
+        &format!(
+            "cat >/dev/null\necho x >> {}\necho '{}'\nexit 1",
+            calls.display(),
+            r#"{"type":"result","is_error":true,"api_error_status":429,"result":"You have hit your weekly limit"}"#
+        ),
+    )?;
+    let schema = schema();
+    let gate = LimitGate::new();
+    let bin = bin.display().to_string();
+    let first = run_gated(
+        &bin,
+        request(&schema, "none", Duration::from_secs(10)),
+        &ProcessEnvironment,
+        &gate,
+    )
+    .await;
+    assert!(
+        matches!(first, Err(LlmError::UsageLimited { ran: true, wait_secs, .. }) if wait_secs == limit::FIRST_WAIT.as_secs()),
+        "{first:?}"
+    );
+    let second = run_gated(
+        &bin,
+        request(&schema, "none", Duration::from_secs(10)),
+        &ProcessEnvironment,
+        &gate,
+    )
+    .await;
+    assert!(
+        matches!(second, Err(LlmError::UsageLimited { ran: false, .. })),
+        "{second:?}"
+    );
+    assert!(second.as_ref().is_err_and(LlmError::is_refusal));
+    assert_eq!(std::fs::read_to_string(&calls)?.lines().count(), 1);
+    Ok(())
+}
