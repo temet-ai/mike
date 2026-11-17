@@ -16,7 +16,7 @@ pub mod prompt;
 
 const LEASE_ROLE: &str = "side_call_roster";
 const PASS_EVERY: Duration = Duration::from_secs(60);
-const CALL_TIMEOUT: Duration = Duration::from_secs(30);
+const CALL_TIMEOUT: Duration = Duration::from_secs(60);
 const FAILURE_BACKOFF_MINUTES: i64 = 30;
 const FALLBACK_CALLS_PER_HOUR: u32 = 12;
 const TURNS_READ: i64 = 3;

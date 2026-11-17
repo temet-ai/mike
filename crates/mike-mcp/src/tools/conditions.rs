@@ -36,8 +36,9 @@ Kinds (`kind`, with `spec`): `time` ({}; set after_secs or not_before); `session
 check_finished or commit_landed); `sql` ({query, expect: \"rows\" | \"no_rows\"}: one read-only \
 SELECT, no semicolon, at most 4000 characters, run in a read-only transaction every \
 check_every_secs, 60 or more). Events older than not_before do not count.\n\
-Actions (`action`): `return` (default) pushes `brief` to the target session if it is open, \
-resumes it if it closed within the hour, otherwise starts a new session; `start` starts a new \
+Actions (`action`): `return` (default) pushes `brief` to the target session if it is open and \
+active within the hour, resumes it if it closed within the hour, otherwise starts a new session \
+(also for an open session idle longer when `thread` is set, so its cold cache is not rewritten); `start` starts a new \
 session in `folder` (or the target's folder) with `brief`; `message` mails `target_session`. \
 `target_session` defaults to your own session_id. Pass `thread` (a work thread slug, with \
 `project` or your session_id) to add that thread's state and newest brief to what the session \

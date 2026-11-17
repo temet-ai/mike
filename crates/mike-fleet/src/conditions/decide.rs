@@ -27,14 +27,22 @@ pub fn decide(held: bool, deadline: Option<DateTime<Utc>>, now: DateTime<Utc>) -
     }
 }
 
-pub fn choose_return(presence: Option<&SessionPresence>, now: DateTime<Utc>) -> ReturnVia {
+pub fn choose_return(
+    presence: Option<&SessionPresence>,
+    has_thread: bool,
+    now: DateTime<Utc>,
+) -> ReturnVia {
     let Some(presence) = presence else {
         return ReturnVia::Start;
     };
-    if presence.live {
-        return ReturnVia::Mail;
-    }
     let recent = now - presence.last_request_at <= Duration::minutes(RESUME_WINDOW_MINUTES);
+    if presence.live {
+        return if recent || !has_thread {
+            ReturnVia::Mail
+        } else {
+            ReturnVia::Start
+        };
+    }
     if recent && presence.cwd.is_some() {
         ReturnVia::Resume
     } else {
