@@ -377,6 +377,7 @@ mod tests {
             "scheduled_jobs",
             "db_cost",
             "memory_keeper",
+            "prompt_cache",
         ];
         assert_eq!(rows.len(), expected_ids.len());
         for (row, expected_id) in rows.iter().zip(expected_ids) {

@@ -74,6 +74,8 @@ INSERT INTO wright.checks (name, source, cadence, expects, probe, query, params)
  WHERE b.cause = 'mike'
    AND b.occurred_at >= now() - make_interval(hours => ($1->>'window_hours')::int)
  GROUP BY b.stage
-HAVING count(*) >= ($1->>'min_breaks')::int$q$,
+HAVING count(*) >= ($1->>'min_breaks')::int
+ ORDER BY sum(b.tokens_rewritten) DESC
+ LIMIT 200$q$,
  '{"window_hours": 24, "min_breaks": 3}'::jsonb)
 ON CONFLICT (name) DO NOTHING;

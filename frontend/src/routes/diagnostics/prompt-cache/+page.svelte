@@ -241,15 +241,12 @@
 	}
 	.pc-note {
 		margin: 0;
-		font-size: var(--text-sm);
 		color: var(--text-2);
 	}
 	.pc-note--error {
 		color: var(--status-danger-fg);
 	}
 	.pc-meta {
-		font-family: var(--font-mono, monospace);
-		font-size: var(--text-caption, 11px);
 		color: var(--text-3);
 		white-space: nowrap;
 	}
