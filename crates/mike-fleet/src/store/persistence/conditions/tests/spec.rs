@@ -51,6 +51,32 @@ fn spec_parse_unknown_kind_lists_the_kinds() -> anyhow::Result<()> {
 }
 
 #[test]
+fn spec_parse_words_needs_text_and_a_watched_session() -> anyhow::Result<()> {
+    let session = Uuid::new_v4();
+    let blank = message_of(Spec::parse(
+        "words",
+        &json!({"text": "  ", "session_uuid": session}),
+    ))?;
+    assert!(blank.contains("empty"), "{blank}");
+    let long = message_of(Spec::parse(
+        "words",
+        &json!({"text": "x".repeat(1001), "session_uuid": session}),
+    ))?;
+    assert!(long.contains("1001"), "{long}");
+    let unwatched = message_of(Spec::parse("words", &json!({"text": "the PR is merged"})))?;
+    assert!(unwatched.contains("session_uuid"), "{unwatched}");
+    let spec = Spec::parse(
+        "words",
+        &json!({"text": "the PR is merged", "session_uuid": session}),
+    )?;
+    match spec {
+        Spec::Words(words) => assert_eq!(words.session_uuid, session),
+        other => anyhow::bail!("expected a words spec, got {other:?}"),
+    }
+    Ok(())
+}
+
+#[test]
 fn spec_parse_sql_defaults_to_expecting_rows() -> anyhow::Result<()> {
     let spec = Spec::parse("sql", &json!({"query": "SELECT 1"}))?;
     match spec {

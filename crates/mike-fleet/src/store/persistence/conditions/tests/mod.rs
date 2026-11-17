@@ -4,6 +4,7 @@ mod holds;
 mod presence;
 mod spec;
 mod sql_condition;
+mod words;
 
 use chrono::{Duration, Utc};
 use serde_json::{Value, json};

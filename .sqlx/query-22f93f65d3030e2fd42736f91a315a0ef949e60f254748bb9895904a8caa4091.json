@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS \"session_id!\",\n       EXISTS (\n           SELECT 1\n             FROM memory.operator_turns ot\n            WHERE ot.session_id = s.id\n              AND ot.closed_at >= GREATEST(c.not_before, $3::timestamptz,COALESCE(c.judged_through, c.not_before))\n       ) AS \"landed!\"\n  FROM launch.conditions c\n  JOIN sessions.sessions s ON s.session_uuid = $2\n WHERE c.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "landed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "22f93f65d3030e2fd42736f91a315a0ef949e60f254748bb9895904a8caa4091"
+}

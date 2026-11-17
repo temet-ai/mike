@@ -35,7 +35,10 @@ Kinds (`kind`, with `spec`): `time` ({}; set after_secs or not_before); `session
 `fleet_event` ({run_id, kind, task?, session_uuid?}, kind one of the fleet event kinds such as \
 check_finished or commit_landed); `sql` ({query, expect: \"rows\" | \"no_rows\"}: one read-only \
 SELECT, no semicolon, at most 4000 characters, run in a read-only transaction every \
-check_every_secs, 60 or more). Events older than not_before do not count.\n\
+check_every_secs, 60 or more); `words` ({text, session_uuid}: a plain-words statement about \
+the watched session, such as \"PR 12 is merged\", judged by mike's cheap model from that \
+session's last turns each time it ends a turn, at most once per check_every_secs; when the turns \
+do not say, mike asks that session once by mail). Events older than not_before do not count.\n\
 Actions (`action`): `return` (default) pushes `brief` to the target session if it is open and \
 active within the hour, resumes it if it closed within the hour, otherwise starts a new session \
 (also for an open session idle longer when `thread` is set, so its cold cache is not rewritten); `start` starts a new \
@@ -59,7 +62,7 @@ fn wait_for_properties() -> Vec<(&'static str, Value)> {
             "kind",
             json!({
                 "type": "string",
-                "enum": ["time", "session_turn_ended", "session_ended", "fleet_event", "sql"],
+                "enum": ["time", "session_turn_ended", "session_ended", "fleet_event", "sql", "words"],
                 "description": "What is waited on; its `spec` shape is in the tool description."
             }),
         ),

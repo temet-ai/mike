@@ -53,7 +53,7 @@ async fn thread_context(persist: &PersistHandle, row: &ConditionRow) -> Option<S
     }
 }
 
-async fn send_mail(
+pub(super) async fn send_mail(
     state: &BaseState,
     persist: &PersistHandle,
     to: Uuid,
