@@ -54,10 +54,10 @@ change repaints in place and the rows below stay where they are.
 		}
 	});
 
-	const state = $derived(causeState(cause, waitedHours));
-	const badge = $derived(causeBadge(state));
-	const Glyph = $derived(GLYPH[state]);
-	const waiting = $derived(state === 'waiting');
+	const reached = $derived(causeState(cause, waitedHours));
+	const badge = $derived(causeBadge(reached));
+	const Glyph = $derived(GLYPH[reached]);
+	const waiting = $derived(reached === 'waiting');
 	/** "16 problems · Open 30h · no attempts": the count is left out for a cause of one problem. */
 	const metaLine = $derived(
 		[
@@ -92,7 +92,7 @@ change repaints in place and the rows below stay where they are.
 	class:cause--waiting={waiting}
 	id="cause-{cause.cause_id}"
 	data-slot="wright-cause-row"
-	data-state={state}
+	data-state={reached}
 >
 	<button
 		type="button"
@@ -104,7 +104,7 @@ change repaints in place and the rows below stay where they are.
 		<span class="cause__head">
 			<span class="cause__title">{cause.check_name}</span>
 			<span class="cause__badge">
-				<Tooltip text={causeTooltip(state, waitedHours)}>
+				<Tooltip text={causeTooltip(reached, waitedHours)}>
 					{#snippet child({ props })}
 						<span {...props}>
 							<Badge variant={badge.variant}>

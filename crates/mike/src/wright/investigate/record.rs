@@ -91,16 +91,22 @@ async fn merge_causes(ctx: &EngineerContext, finding_id: i64, problem_id: i64, s
         .merge_wright_causes(problem_id, same)
         .await
     {
-        Ok(merged) => tracing::info!(
-            finding = finding_id,
-            causes = merged.causes,
-            problems = merged.problems,
-            "wright: causes merged into the finding's cause"
-        ),
-        Err(e) => {
-            tracing::warn!(error = %e, finding = finding_id, "wright: the causes the finding named could not be merged")
-        }
+        Ok(merged) => log_merged(finding_id, merged),
+        Err(e) => log_merge_failed(finding_id, &e),
     }
+}
+
+fn log_merged(finding_id: i64, merged: crate::store::persistence::wright::Merged) {
+    tracing::info!(
+        finding = finding_id,
+        causes = merged.causes,
+        problems = merged.problems,
+        "wright: causes merged into the finding's cause"
+    );
+}
+
+fn log_merge_failed(finding_id: i64, error: &PersistError) {
+    tracing::warn!(error = %error, finding = finding_id, "wright: the causes the finding named could not be merged");
 }
 
 async fn link_root_cause(

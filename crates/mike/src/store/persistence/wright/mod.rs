@@ -29,7 +29,7 @@ pub(crate) use investigations::{
 };
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
-pub(crate) use triage::{RecurringCause, WaitingCause};
+pub(crate) use triage::{Merged, RecurringCause, WaitingCause};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {
