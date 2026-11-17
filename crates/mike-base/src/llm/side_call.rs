@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -255,39 +257,64 @@ impl SideCallChain {
         local: &Link,
         ask: &Ask<'_>,
     ) -> Result<SideCallOutcome<T>, LlmError> {
-        let attempt = self.attempt::<T>(local, ask);
-        tokio::pin!(attempt);
-        tokio::select! {
-            biased;
-            settled = &mut attempt => return match settled {
-                Some(Ok(outcome)) => Ok(outcome),
-                Some(Err(error)) if !falls_through(&error) => Err(error),
-                _ => self.in_order(1, ask).await,
-            },
-            () = tokio::time::sleep(self.escalate_after) => {}
+        let mut attempt = std::pin::pin!(self.attempt::<T>(local, ask));
+        match tokio::time::timeout(self.escalate_after, &mut attempt).await {
+            Ok(settled) => self.after_local(settled, ask).await,
+            Err(_) => self.race(local, attempt, ask).await,
         }
+    }
+
+    async fn after_local<T: DeserializeOwned>(
+        &self,
+        settled: Option<Result<SideCallOutcome<T>, LlmError>>,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError> {
+        match settled {
+            Some(Ok(outcome)) => Ok(outcome),
+            Some(Err(error)) if !falls_through(&error) => Err(error),
+            _ => self.in_order(1, ask).await,
+        }
+    }
+
+    async fn race<T: DeserializeOwned, F>(
+        &self,
+        local: &Link,
+        mut attempt: Pin<&mut F>,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError>
+    where
+        F: Future<Output = Option<Result<SideCallOutcome<T>, LlmError>>>,
+    {
         tracing::info!(
             model = local.client.model(),
             after_secs = self.escalate_after.as_secs(),
             "side call: local model is slow, asking the next one too"
         );
-        let escalated = self.in_order::<T>(1, ask);
-        tokio::pin!(escalated);
+        let mut escalated = std::pin::pin!(self.in_order::<T>(1, ask));
         tokio::select! {
             settled = &mut attempt => match settled {
                 Some(Ok(outcome)) => Ok(outcome),
                 _ => escalated.await,
             },
-            answered = &mut escalated => {
-                if answered.is_ok() {
-                    Self::note_failure(local, &LlmError::Timeout);
-                    return answered;
-                }
-                match attempt.await {
-                    Some(Ok(outcome)) => Ok(outcome),
-                    _ => answered,
-                }
-            }
+            answered = &mut escalated => Self::fallback_answered(local, answered, attempt).await,
+        }
+    }
+
+    async fn fallback_answered<T, F>(
+        local: &Link,
+        answered: Result<SideCallOutcome<T>, LlmError>,
+        attempt: Pin<&mut F>,
+    ) -> Result<SideCallOutcome<T>, LlmError>
+    where
+        F: Future<Output = Option<Result<SideCallOutcome<T>, LlmError>>>,
+    {
+        if answered.is_ok() {
+            Self::note_failure(local, &LlmError::Timeout);
+            return answered;
+        }
+        match attempt.await {
+            Some(Ok(outcome)) => Ok(outcome),
+            _ => answered,
         }
     }
 
