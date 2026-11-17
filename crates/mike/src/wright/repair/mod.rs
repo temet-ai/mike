@@ -13,6 +13,7 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) mod attempt;
 pub(crate) mod engineer;
+pub(crate) mod feedback;
 pub(crate) mod follow;
 pub(crate) mod land;
 pub(crate) mod policy;
