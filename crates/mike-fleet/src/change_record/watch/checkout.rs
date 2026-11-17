@@ -99,6 +99,10 @@ impl Watch {
                     None => self.notifier = None,
                 },
                 _ = backstop.tick() => {
+                    if !std::path::Path::new(&self.checkout.root).is_dir() {
+                        tracing::info!(root = %self.checkout.root, "change record: the checkout is gone; its watcher stops");
+                        break;
+                    }
                     self.stats.backstop_polls.fetch_add(1, Ordering::AcqRel);
                     self.full_pass(every).await;
                 }
