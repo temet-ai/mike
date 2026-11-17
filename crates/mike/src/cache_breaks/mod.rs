@@ -161,14 +161,22 @@ pub(crate) async fn rescan_from(persist: &PersistHandle, days: i64) -> Result<()
 
 fn log_scan(result: &Result<ScanOutcome, sqlx::Error>) {
     match result {
-        Ok(o) if o.recorded > 0 => tracing::info!(
-            recorded = o.recorded,
-            scanned_to = o.scanned_to,
-            "prompt cache scan recorded breaks"
-        ),
+        Ok(o) if o.recorded > 0 => log_recorded(o),
         Ok(_) => {}
-        Err(e) => tracing::warn!(error = %e, "prompt cache scan failed"),
+        Err(e) => log_scan_failed(e),
     }
+}
+
+fn log_recorded(outcome: &ScanOutcome) {
+    tracing::info!(
+        recorded = outcome.recorded,
+        scanned_to = outcome.scanned_to,
+        "prompt cache scan recorded breaks"
+    );
+}
+
+fn log_scan_failed(error: &sqlx::Error) {
+    tracing::warn!(%error, "prompt cache scan failed");
 }
 
 async fn run(persist: PersistHandle, shutdown: CancellationToken) {

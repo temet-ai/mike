@@ -2,6 +2,7 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::{TimeDelta, Utc};
 
 use crate::lesson_cache::LessonRelevance;
+use crate::lesson_cache::holdings::HeldRow;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
@@ -66,21 +67,34 @@ pub async fn restore(persist: &PersistHandle, relevance: &LessonRelevance) -> bo
     let declared = persist.lessons().recent_declared_sessions(since).await;
     match (clients, held, declared) {
         (Ok(clients), Ok(held), Ok(declared)) => {
-            tracing::info!(
-                clients = clients.len(),
-                held = held.len(),
-                declared = declared.len(),
-                "lesson delivery: client sessions and held lessons restored"
-            );
-            relevance.holdings().restore(clients, held);
-            relevance.holdings().restore_declared(declared);
+            apply_restored(relevance, clients, held, declared);
             true
         }
         (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => {
-            tracing::warn!(%error, "lesson delivery: restoring client sessions failed");
+            log_restore_failed(&error);
             false
         }
     }
+}
+
+fn apply_restored(
+    relevance: &LessonRelevance,
+    clients: Vec<String>,
+    held: Vec<HeldRow>,
+    declared: Vec<String>,
+) {
+    tracing::info!(
+        clients = clients.len(),
+        held = held.len(),
+        declared = declared.len(),
+        "lesson delivery: client sessions and held lessons restored"
+    );
+    relevance.holdings().restore(clients, held);
+    relevance.holdings().restore_declared(declared);
+}
+
+fn log_restore_failed(error: &impl std::fmt::Display) {
+    tracing::warn!(%error, "lesson delivery: restoring client sessions failed");
 }
 
 pub fn declare_client(state: &AppState, session: &str) {
