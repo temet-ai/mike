@@ -308,7 +308,7 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
     let warnings = checks.iter().find(|c| c.name == "log_warnings");
     assert_eq!(
         warnings.map(|c| c.params.clone()),
-        Some(json!({"level": "WARN", "repeats": 100, "window_minutes": 60}))
+        Some(json!({"level": "WARN", "repeats": 30, "window_minutes": 60}))
     );
     db.cleanup().await
 }

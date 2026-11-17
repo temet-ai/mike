@@ -1,18 +1,21 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Utc};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use uuid::Uuid;
 
 use super::logs_jev::{Groups, POINT, merge};
 use crate::llm::decisions::point::Decider;
+use crate::store::persistence::PersistHandle;
+use crate::store::persistence::web_repo::WebPersist as _;
+use crate::store::persistence::wright::LogLineRow;
 use crate::wright::Finding;
 use crate::wright::definition::int_param;
 
 pub(crate) const TAIL_BYTES: u64 = 4 * 1024 * 1024;
-const STALE_HOURS: i64 = 48;
 const LEVELS: [&str; 3] = ["ERROR", "WARN", "INFO"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +47,12 @@ impl LogParams {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Origin {
+    pub(crate) machine: Uuid,
+    pub(crate) source: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LogLine {
     pub(crate) at: DateTime<Utc>,
@@ -51,6 +60,23 @@ pub(crate) struct LogLine {
     pub(crate) target: String,
     pub(crate) message: String,
     pub(crate) raw: String,
+    pub(crate) origin: Option<Origin>,
+}
+
+impl From<LogLineRow> for LogLine {
+    fn from(row: LogLineRow) -> Self {
+        Self {
+            at: row.at,
+            level: row.level,
+            target: row.target,
+            message: row.message,
+            raw: row.raw,
+            origin: Some(Origin {
+                machine: row.machine_uuid,
+                source: row.source,
+            }),
+        }
+    }
 }
 
 pub(crate) fn shape(message: &str) -> String {
@@ -91,6 +117,7 @@ pub(crate) fn parse_line(raw: &str) -> Option<LogLine> {
             .to_owned(),
         message,
         raw: raw.to_owned(),
+        origin: None,
     })
 }
 
@@ -121,31 +148,45 @@ pub(crate) async fn findings_with(
     decider: Option<&Decider>,
     lines: &[LogLine],
     now: DateTime<Utc>,
-    (file, params): (&Path, &LogParams),
+    params: &LogParams,
 ) -> Vec<Finding> {
     let grouped = group_lines(lines, now, params);
     match decider {
-        Some(decider) => findings_of(merge(decider, grouped, params.repeats).await, file, params),
-        None => findings_of(grouped, file, params),
+        Some(decider) => findings_of(merge(decider, grouped, params.repeats).await, params),
+        None => findings_of(grouped, params),
     }
 }
 
-fn findings_of(grouped: Groups<'_>, file: &Path, params: &LogParams) -> Vec<Finding> {
+fn origins(hits: &[&LogLine]) -> (BTreeSet<String>, BTreeSet<Uuid>) {
+    let mut sources = BTreeSet::new();
+    let mut machines = BTreeSet::new();
+    for origin in hits.iter().filter_map(|l| l.origin.as_ref()) {
+        sources.insert(origin.source.clone());
+        machines.insert(origin.machine);
+    }
+    (sources, machines)
+}
+
+fn findings_of(grouped: Groups<'_>, params: &LogParams) -> Vec<Finding> {
     grouped
         .into_iter()
         .filter(|(_, hits)| hits.len() >= params.repeats || hits.iter().any(|l| is_panic(l)))
-        .map(|((target, message), hits)| Finding {
-            scope: "log".to_owned(),
-            resource: format!("{target}: {message}"),
-            evidence: json!({
-                "level": params.level,
-                "window_minutes": params.window_minutes,
-                "file": file.display().to_string(),
-                "lines": hits.len(),
-                "first_at": hits.first().map(|l| l.at),
-                "last_at": hits.last().map(|l| l.at),
-                "sample_line": hits.last().map(|l| l.raw.clone()),
-            }),
+        .map(|((target, message), hits)| {
+            let (sources, machines) = origins(&hits);
+            Finding {
+                scope: "log".to_owned(),
+                resource: format!("{target}: {message}"),
+                evidence: json!({
+                    "level": params.level,
+                    "window_minutes": params.window_minutes,
+                    "sources": sources,
+                    "machines": machines,
+                    "lines": hits.len(),
+                    "first_at": hits.first().map(|l| l.at),
+                    "last_at": hits.last().map(|l| l.at),
+                    "sample_line": hits.last().map(|l| l.raw.clone()),
+                }),
+            }
         })
         .collect()
 }
@@ -203,26 +244,18 @@ pub(crate) async fn read_tail(path: &Path) -> Result<String, String> {
 }
 
 pub(crate) async fn check(
-    dir: Option<&Path>,
+    persist: &PersistHandle,
     now: DateTime<Utc>,
     params: &Value,
 ) -> Result<Vec<Finding>, String> {
     let params = LogParams::from_value(params)?;
-    let dir = dir.ok_or_else(|| "no log folder is configured (log_dir)".to_owned())?;
-    let file = newest_log(dir).await?;
-    let text = read_tail(&file).await?;
-    let lines: Vec<LogLine> = text.lines().filter_map(parse_line).collect();
-    let newest = lines
-        .iter()
-        .map(|l| l.at)
-        .max()
-        .ok_or_else(|| format!("{} holds no readable log line", file.display()))?;
-    if now - newest > Duration::hours(STALE_HOURS) {
-        return Err(format!(
-            "{} has nothing newer than {newest}; the log is not being written",
-            file.display()
-        ));
-    }
+    let since = now - Duration::minutes(params.window_minutes);
+    let rows = persist
+        .web()
+        .recent_wright_log_lines(since, &params.level)
+        .await
+        .map_err(|e| format!("cannot read wright.log_lines: {e}"))?;
+    let lines: Vec<LogLine> = rows.into_iter().map(LogLine::from).collect();
     let decider = crate::llm::decisions::ambient::decider(POINT);
-    Ok(findings_with(decider.as_ref(), &lines, now, (&file, &params)).await)
+    Ok(findings_with(decider.as_ref(), &lines, now, &params).await)
 }

@@ -18,6 +18,7 @@ fn line(target: &str, message: &str, minutes_ago: i64) -> LogLine {
         target: target.to_owned(),
         message: message.to_owned(),
         raw: message.to_owned(),
+        origin: None,
     }
 }
 
