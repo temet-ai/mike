@@ -30,22 +30,6 @@ impl PersistHandle {
     pub fn host_machine(&self) -> Option<Uuid> {
         self.memo::<HostMachineSlot>().0.get().copied()
     }
-
-    pub async fn stamp_session_machine(
-        &self,
-        session_uuid: Uuid,
-        machine: Uuid,
-    ) -> Result<bool, PersistError> {
-        let done = sqlx::query!(
-            "UPDATE sessions.sessions SET machine_uuid = $2
-              WHERE session_uuid = $1 AND machine_uuid IS NULL",
-            session_uuid,
-            machine,
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(done.rows_affected() > 0)
-    }
 }
 
 pub(super) async fn stamp_session_machine_by_id(
