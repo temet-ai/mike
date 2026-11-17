@@ -170,7 +170,7 @@ fn guidance_lines() -> Vec<String> {
         concat!(
             "Compare with the prior window in report.json. Fix ingestion/delivery failures first. ",
             "For each repeated investigation, inspect its source, search the recipe registry, validate a reusable command, ",
-            "and measure recipe hit/miss/error telemetry next week. Judge quality using relevant subsequent tasks, not project-wide correlation."
+            "and measure its hit/miss/error rate now by replaying the captured repeats against it. Judge quality using relevant subsequent tasks, not project-wide correlation."
         )
         .to_owned(),
     ]
