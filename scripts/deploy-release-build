@@ -157,6 +157,15 @@ mike_bin="$HOME/.local/bin/mike"
   exit 1
 }
 
+# The restart applies the build's migrations to the database every machine shares.
+# migrate-check reads the ledger without writing; a blocked result (out of order,
+# mismatched, missing) stops here, with the running mike and the database untouched.
+echo "==> Pre-migration assessment (read-only) against the target DB"
+"$mike_bin" migrate-check || {
+  echo "deploy-release-build: migration assessment failed; not restarting. The running mike and the database are unchanged; fix the migrations, then deploy again." >&2
+  exit 1
+}
+
 usable_unit() {
   command -v systemctl >/dev/null 2>&1 || return 1
   local state
