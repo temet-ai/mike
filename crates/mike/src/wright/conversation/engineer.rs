@@ -21,9 +21,10 @@ impl EngineerAnswers {
 
 fn refused(refusal: StartRefused) -> EngineError {
     match refusal {
-        StartRefused::Busy | StartRefused::Overloaded(_) | StartRefused::DailyLimit { .. } => {
-            EngineError::Busy(refusal.to_string())
-        }
+        StartRefused::Busy
+        | StartRefused::Overloaded(_)
+        | StartRefused::DailyLimit { .. }
+        | StartRefused::Limited { .. } => EngineError::Busy(refusal.to_string()),
         StartRefused::Disabled | StartRefused::Unavailable(_) => {
             EngineError::NotAvailable(refusal.to_string())
         }
