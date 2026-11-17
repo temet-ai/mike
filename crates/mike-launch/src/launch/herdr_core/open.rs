@@ -193,16 +193,7 @@ pub fn shell_quote(arg: &str) -> String {
 }
 
 pub fn session_uuid_from_args(args: &[String]) -> Option<Uuid> {
-    let mut iter = args.iter();
-    while let Some(arg) = iter.next() {
-        if arg == "--session-id" {
-            return iter.next()?.parse().ok();
-        }
-        if let Some(value) = arg.strip_prefix("--session-id=") {
-            return value.parse().ok();
-        }
-    }
-    None
+    crate::launch::request::claude_args::session_of(args)
 }
 
 async fn wait_reported(cli: &HcCli, address: &str) -> Option<String> {
