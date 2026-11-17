@@ -5,6 +5,7 @@ SELECT p.id AS problem_id, e.id AS episode_id
       SELECT episode_id, count(*) AS attempts
         FROM wright.investigations
        WHERE episode_id IS NOT NULL
+         AND state <> 'unavailable'
        GROUP BY episode_id
   ) a ON a.episode_id = e.id
  WHERE p.state = 'open'

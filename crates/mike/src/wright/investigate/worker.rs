@@ -245,7 +245,7 @@ pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
         log_reconcile_failed(&e);
         return None;
     }
-    if repair_waiting(ctx).await {
+    if repair_waiting(ctx).await || backing_off(ctx).await {
         return None;
     }
     if let Some(request) = next_root_cause(ctx).await {
@@ -254,6 +254,16 @@ pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
     let pick = next_pick(ctx).await?;
     let request = read_request(ctx, pick).await?;
     run_request(ctx, request).await
+}
+
+async fn backing_off(ctx: &EngineerContext) -> bool {
+    match ctx.persist.web().wright_engineer_backing_off().await {
+        Ok(waiting) => waiting,
+        Err(e) => {
+            log_pick_failed(&e);
+            true
+        }
+    }
 }
 
 async fn repair_waiting(ctx: &EngineerContext) -> bool {

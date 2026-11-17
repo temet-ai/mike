@@ -1,5 +1,5 @@
 use crate::store::persistence::web_repo::WebPersist as _;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use tokio::process::Child;
@@ -10,6 +10,7 @@ use super::process;
 use crate::store::persistence::wright::Usage;
 
 const KILL_WAIT: Duration = Duration::from_secs(10);
+const MAX_PAUSED: Duration = Duration::from_secs(2 * 60 * 60);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RunEnd {
@@ -48,6 +49,8 @@ struct Watch<'a> {
     root: i32,
     deadline: DateTime<Utc>,
     paused: bool,
+    last_poll: Instant,
+    paused_total: Duration,
 }
 
 impl Watch<'_> {
@@ -60,7 +63,20 @@ impl Watch<'_> {
         if !self.ctx.toggles.load().wright {
             return Some("the wright toggle was turned off".to_owned());
         }
-        match self.ctx.persist.web().record_wright_usage(self.id).await {
+        let paused = self.paused_since_last_poll();
+        if self.paused_total > MAX_PAUSED {
+            return Some(format!(
+                "the run was paused for {} minutes in all while the machine was busy",
+                self.paused_total.as_secs() / 60
+            ));
+        }
+        match self
+            .ctx
+            .persist
+            .web()
+            .record_wright_usage(self.id, paused.as_secs_f64())
+            .await
+        {
             Ok(Some(usage)) => {
                 self.deadline = usage.deadline_at;
                 if let Some(reason) = breach(&usage, Utc::now()) {
@@ -77,6 +93,17 @@ impl Watch<'_> {
         }
         self.pace();
         None
+    }
+
+    fn paused_since_last_poll(&mut self) -> Duration {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_poll);
+        self.last_poll = now;
+        if !self.paused {
+            return Duration::ZERO;
+        }
+        self.paused_total += elapsed;
+        elapsed
     }
 
     fn pace(&mut self) {
@@ -130,6 +157,8 @@ pub(crate) async fn supervise(
         root,
         deadline,
         paused: false,
+        last_poll: Instant::now(),
+        paused_total: Duration::ZERO,
     };
     loop {
         let wake = watch.next_wake();

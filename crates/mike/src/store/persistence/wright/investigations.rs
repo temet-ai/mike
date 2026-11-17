@@ -21,6 +21,7 @@ const ONE_FINDING: &str = include_str!("sql/engineer/one_finding.sql");
 const LIMITS: &str = include_str!("sql/engineer/limits.sql");
 const PATCH_LIMITS: &str = include_str!("sql/engineer/patch_limits.sql");
 const PICK_PROBLEM: &str = include_str!("sql/engineer/pick_problem.sql");
+const API_BACKOFF: &str = include_str!("sql/engineer/api_backoff.sql");
 const ONE_EPISODE: &str = include_str!("sql/engineer/one_episode.sql");
 const ONE_LIVE_INDEX: &str = "uq_wright_investigations_one_live";
 
@@ -220,10 +221,15 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         Ok(marked.is_some())
     }
 
-    pub(crate) async fn record_wright_usage(self, id: i64) -> Result<Option<Usage>, PersistError> {
+    pub(crate) async fn record_wright_usage(
+        self,
+        id: i64,
+        paused_secs: f64,
+    ) -> Result<Option<Usage>, PersistError> {
         Ok(
             sqlx::query_as(USAGE) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .bind(id)
+                .bind(paused_secs)
                 .fetch_optional(self.pool())
                 .await?,
         )
@@ -334,6 +340,14 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                 .bind(patch.wall_seconds)
                 .bind(patch.tool_calls)
                 .bind(patch.tokens)
+                .fetch_one(self.pool())
+                .await?,
+        )
+    }
+
+    pub(crate) async fn wright_engineer_backing_off(self) -> Result<bool, PersistError> {
+        Ok(
+            sqlx::query_scalar(API_BACKOFF) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .fetch_one(self.pool())
                 .await?,
         )

@@ -15,7 +15,8 @@ spent AS (
      WHERE r.session_id IN (SELECT id FROM s)
 )
 UPDATE wright.investigations i
-   SET tool_calls = calls.n, tokens = spent.n
+   SET tool_calls = calls.n, tokens = spent.n,
+       deadline_at = i.deadline_at + make_interval(secs => $2::double precision)
   FROM calls, spent, wright.engineer_limits l
  WHERE i.id = $1 AND l.id
 RETURNING i.tool_calls, i.tokens, i.deadline_at, i.state,
