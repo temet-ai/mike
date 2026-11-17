@@ -29,7 +29,7 @@ impl LlmCallOutcome {
     }
 }
 
-pub const ROLE_COUNT: usize = 8;
+pub const ROLE_COUNT: usize = 9;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum LlmRole {
@@ -42,6 +42,7 @@ pub enum LlmRole {
     #[default]
     Unattributed,
     Decision,
+    SideCall,
 }
 
 impl LlmRole {
@@ -54,6 +55,7 @@ impl LlmRole {
         Self::LessonProposer,
         Self::Unattributed,
         Self::Decision,
+        Self::SideCall,
     ];
 
     pub const fn slot(self) -> usize {
@@ -66,6 +68,7 @@ impl LlmRole {
             Self::LessonProposer => 5,
             Self::Unattributed => 6,
             Self::Decision => 7,
+            Self::SideCall => 8,
         }
     }
 
@@ -82,6 +85,7 @@ impl LlmRole {
             Self::Eval => Some("eval"),
             Self::LessonProposer => Some("lesson_proposer"),
             Self::Decision => Some("decision"),
+            Self::SideCall => Some("side_call"),
             Self::Unattributed => None,
         }
     }

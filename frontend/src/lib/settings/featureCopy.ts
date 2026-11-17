@@ -47,6 +47,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			"Asks Jev (typesafe/jev-1.14 on OpenRouter) narrow typed questions at mike's decision points, starting with whether a turn-guard nudge is worth sending. It sends the operator's ask, the end of the assistant's final message and the facts about what changed to OpenRouter. Each point has its own mode under Decisions (off, shadow or on); in shadow the answers are only recorded. When a call fails or there is no OpenRouter key, mike behaves as if this were off. Applies to the next decision.",
 		find: 'jev typesafe openrouter pre-check precheck shadow hold nudge'
 	},
+	side_calls: {
+		label: 'Side calls',
+		description:
+			"Fills each interactive session's roster row (name, goal, next steps) from its last few turns with a small call on a cheap model, so sessions don't do it themselves. Models are tried in the order under Side calls: a local server first (no cost, nothing leaves your machines), then OpenRouter or Claude only within an hourly cap. A goal a session wrote itself is never replaced. Applies on the next pass.",
+		find: 'side call bookkeeping roster goal next steps gemma local haiku'
+	},
 	change_record: {
 		label: 'Record of what changed',
 		description:

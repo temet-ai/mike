@@ -23,6 +23,7 @@ pub mod cli_call;
 pub mod codex_call;
 pub mod jev_call;
 pub mod key_guard;
+pub mod local_call;
 pub mod recording;
 
 #[cfg(test)]
@@ -31,6 +32,8 @@ pub mod attribution_tests;
 pub mod basics_tests;
 #[cfg(test)]
 pub mod limiter_tests;
+#[cfg(test)]
+pub mod local_call_tests;
 #[cfg(test)]
 pub mod mandatory_reasoning_tests;
 #[cfg(test)]

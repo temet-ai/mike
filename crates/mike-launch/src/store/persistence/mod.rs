@@ -6,6 +6,7 @@ pub mod listings;
 pub mod mailbox;
 pub mod project_pin_ttl;
 pub mod questions;
+pub mod roster_side_call;
 pub mod seat_memory;
 pub mod session_goals;
 pub mod session_notes;

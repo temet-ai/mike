@@ -28,12 +28,14 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         crate::metrics::time_db("set_session_goal", async move {
             let result = sqlx::query!(
                 r#"INSERT INTO sessions.session_goals
-                       (session_id, goal, next_steps, set_by, role, display_name, instructions, updated_at)
-                   SELECT s.id, COALESCE($2, ''), COALESCE($3, ''), $4, $5, $6, $7, now()
+                       (session_id, goal, next_steps, set_by, role, display_name, instructions, goal_source, updated_at)
+                   SELECT s.id, COALESCE($2, ''), COALESCE($3, ''), $4, $5, $6, $7,
+                          CASE WHEN $2::text IS NOT NULL THEN $4 END, now()
                      FROM sessions.sessions s
                     WHERE s.session_uuid = $1
                    ON CONFLICT (session_id) DO UPDATE
                        SET goal         = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE sessions.session_goals.goal END,
+                           goal_source  = CASE WHEN $2::text IS NOT NULL THEN $4 ELSE sessions.session_goals.goal_source END,
                            next_steps   = CASE WHEN $3::text IS NOT NULL THEN $3 ELSE sessions.session_goals.next_steps END,
                            set_by       = $4,
                            role         = COALESCE($5, sessions.session_goals.role),

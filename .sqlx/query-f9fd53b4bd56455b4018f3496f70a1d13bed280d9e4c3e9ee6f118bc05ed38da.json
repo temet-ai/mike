@@ -1,0 +1,115 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH last_turn AS (\n    SELECT DISTINCT ON (ot.session_id)\n           ot.session_id, ot.closed_at\n      FROM memory.operator_turns ot\n     WHERE ot.closed_at > now() - make_interval(hours => $1::int)\n       AND ot.closed_at < now() - make_interval(secs => $2::int)\n     ORDER BY ot.session_id, ot.closed_at DESC\n)\nSELECT s.id AS \"session_id!\",\n       s.session_uuid AS \"session_uuid!\",\n       s.title AS \"title?\",\n       lt.closed_at AS \"last_closed_at!\",\n       sg.goal AS \"goal?\",\n       sg.next_steps AS \"next_steps?\",\n       sg.display_name AS \"display_name?\",\n       sg.goal_source AS \"goal_source?\"\n  FROM last_turn lt\n  JOIN sessions.sessions s ON s.id = lt.session_id\n  LEFT JOIN sessions.session_goals sg ON sg.session_id = s.id\n WHERE s.flow_producer IS NOT NULL\n   AND (sg.session_id IS NULL\n        OR (sg.updated_at < lt.closed_at\n            AND sg.updated_at < now() - make_interval(mins => $3::int)))\n ORDER BY lt.closed_at DESC\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_closed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "goal?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "next_steps?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "next_steps"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "display_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "goal_source?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal_source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f9fd53b4bd56455b4018f3496f70a1d13bed280d9e4c3e9ee6f118bc05ed38da"
+}

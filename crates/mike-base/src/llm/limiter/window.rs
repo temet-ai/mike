@@ -4,7 +4,7 @@ use crate::llm::budget::{RoleShares, calls_available};
 use crate::llm::usage::{LlmRole, ROLE_COUNT};
 
 #[cfg(any(test, feature = "test-seams"))]
-const EXHAUSTED_USED: u32 = u32::MAX / 8;
+const EXHAUSTED_USED: u32 = u32::MAX / (ROLE_COUNT as u32 + 1);
 
 pub struct RoleWindow {
     window: Duration,

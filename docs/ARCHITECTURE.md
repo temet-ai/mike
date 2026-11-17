@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-11-15
+updated: 2026-11-17
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -591,6 +591,14 @@ All of Steps 1–5 are implemented: `record_lesson` / `list_lessons` / `delete_l
 **Every verdict is recorded.** The live turn sweep writes a `memory.turn_verdicts` row (`mode = 'live'`) in the same statement that stamps `operator_turns`, with the exact user message it sent and the call's usage; if another writer labelled the turn first the verdict is still kept, with `projected = false`. The stamp and the verdict carry the effective rubric version: `r3-2026-08-29` with the built-in prompt, `r3-2026-08-29+<first 12 hex of sha256>` when `judge_worker.system_prompt` holds a different text, so a prompt edit is visible in the label history. The two-axis judge (`analysis/judge/{rubric,two_axis,input_v2,run_v2}.rs`, `judge_worker/v2_judge.rs`) reads the operator's next genuine message from `memory.turn_facts`, cuts the assistant text at `text_cut_at` (builder `judge-input-v2.1`; `judge-input-v2.0` keeps the untrimmed shape) and returns a reaction and a delivery; its callers write `shadow` or `eval` rows and never touch `outcome_id`. `GET /api/operator-turns/{id}/verdicts` and `GET /api/turn-verdicts` return the rows whole.
 
 **Where it is managed (2026-08)**: both judges — this one and the per-turn judge in the same file — are configured on `/settings/workers`, not on `/settings/steering` where their switches first appeared. They call the same OpenRouter model the steerer does, which is why they were grouped there, but neither writes into a live session: they read finished work and record a verdict. The page exposes each judge's model, its system prompt, and its batch/age/threshold settings. Model, prompt, batch size, settled-age and digest size are re-read at the top of every sweep or poll (`resolve_turn_judge_runtime` / `resolve_session_judge_runtime`, `SettingApplies::NextCycle`), so an edit takes effect within one interval; the loop timers and the HTTP timeout are built once at spawn and stay restart-only. An empty prompt setting means the compiled prompt, so clearing the editor restores the built-in rubric rather than sending an empty system prompt.
+
+### Decision: Side Calls Do Session Bookkeeping on a Cheap Model
+
+**Problem**: sessions kept their roster row (name, goal, next steps) by hand, on expensive turns that re-read the whole conversation, and a steering note had to remind them. On 2026-11-16/17, 29 of 47 interactive sessions had no goal.
+
+**Design**: the `side_call_roster` worker (`crates/mike-launch/src/roster_worker/`) runs one pass a minute on the machine that holds its lease, while the `side_calls` toggle (default off) is on. A pass reads at most four interactive sessions (`sessions.flow_producer IS NOT NULL`) whose newest closed turn settled two minutes ago and arrived after the row was last written, at least 15 minutes ago (`roster_candidates.sql`). For each it sends the current row and the last three turns (reminder blocks removed, 1,500 characters each) and writes back name, goal and next steps. A goal is written only while it is empty or was written by a side call (`sessions.session_goals.goal_source`); the write is skipped if the session wrote its row after the turns were read. A session whose call failed waits 30 minutes.
+
+**Model chain** (`crates/mike-base/src/llm/side_call.rs`, setting `side_calls.models`): models are tried in order; the default is `local/gemma-4-12b`, then OpenRouter's flash-lite, then `claude/haiku`. A `local/<name>` model is the `Local` provider (`llm/openrouter/local_call.rs`): an OpenAI-compatible server at `llm.local.url` with the bearer key from the variable named by `llm.local.api_key_env`, called with thinking off and a JSON schema. Local calls skip the shared call limiter (it budgets paid and quota-bound models), check llama-server's `/slots` first and step aside when two or more slots are busy, and run one at a time. The other links count as role `side_call` (share 0, so only the unguaranteed pool) and together make at most 20 calls an hour; a Claude usage-limit error opens that link's breaker for 15 minutes. Every link has its own breaker (three failures, 60 s to 15 min).
 
 ### Decision: One Dossier Renderer for Every Model's View of a Session
 

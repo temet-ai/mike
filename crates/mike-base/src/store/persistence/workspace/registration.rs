@@ -127,12 +127,20 @@ async fn apply_session_identity(
     };
     sqlx::query!(
         "INSERT INTO sessions.session_goals
-                (session_id, goal, next_steps, set_by, role, display_name, instructions, updated_at)
+                (session_id, goal, next_steps, set_by, role, display_name, instructions,
+                 goal_source, updated_at)
             VALUES ($1, COALESCE($2, $7, ''), COALESCE($3, $8, ''), $12,
-                    COALESCE($4, $9), COALESCE($5, $10), COALESCE($6, $11), now())
+                    COALESCE($4, $9), COALESCE($5, $10), COALESCE($6, $11),
+                    CASE WHEN COALESCE($2, $7) IS NOT NULL THEN $12 END, now())
             ON CONFLICT (session_id) DO UPDATE
                 SET goal         = COALESCE($2, NULLIF(sessions.session_goals.goal, ''), $7,
                                             sessions.session_goals.goal),
+                    goal_source  = CASE
+                                       WHEN $2::text IS NOT NULL THEN excluded.set_by
+                                       WHEN NULLIF(sessions.session_goals.goal, '') IS NULL
+                                            AND $7::text IS NOT NULL THEN excluded.set_by
+                                       ELSE sessions.session_goals.goal_source
+                                   END,
                     next_steps   = COALESCE($3, NULLIF(sessions.session_goals.next_steps, ''), $8,
                                             sessions.session_goals.next_steps),
                     set_by       = excluded.set_by,

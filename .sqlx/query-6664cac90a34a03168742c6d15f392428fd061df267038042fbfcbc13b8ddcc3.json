@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ot.closed_at AS \"closed_at!\",\n       left(COALESCE(ot.user_prompt, ''), $3::int) AS \"user_prompt!\",\n       left(COALESCE(ot.final_assistant_text, ''), $3::int) AS \"final_text!\",\n       COALESCE(ot.files_touched, ARRAY[]::text[]) AS \"files_touched!\"\n  FROM memory.operator_turns ot\n WHERE ot.session_id = $1\n   AND ot.closed_at IS NOT NULL\n ORDER BY ot.closed_at DESC\n LIMIT $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "closed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "final_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "files_touched!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6664cac90a34a03168742c6d15f392428fd061df267038042fbfcbc13b8ddcc3"
+}

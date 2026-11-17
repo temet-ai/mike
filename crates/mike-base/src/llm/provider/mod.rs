@@ -6,10 +6,12 @@ use super::model_ref::{ModelRef, ModelRefError, Provider};
 use super::usage::LlmRole;
 use crate::settings::SettingsOverlay;
 
+pub mod local;
 pub mod models;
 #[cfg(test)]
 pub mod tests;
 
+pub use local::{LOCAL_KEY_ENV_KEY, LOCAL_URL_KEY, LocalEndpoint, local_endpoint};
 use models::TierModels;
 pub use models::{SLOTS, slot_for_key};
 
@@ -81,7 +83,7 @@ impl ModelTier {
             LlmRole::SessionJudge | LlmRole::LessonProposer => Some(Self::Fast),
             LlmRole::JudgeWorker => Some(Self::Standard),
             LlmRole::Steerer | LlmRole::LessonRelations => Some(Self::Strong),
-            LlmRole::Eval | LlmRole::Unattributed | LlmRole::Decision => None,
+            LlmRole::Eval | LlmRole::Unattributed | LlmRole::Decision | LlmRole::SideCall => None,
         }
     }
 }
@@ -133,6 +135,7 @@ impl ProviderPolicy {
             Provider::OpenRouter => &self.openrouter,
             Provider::Claude => &self.claude,
             Provider::Codex => &self.codex,
+            Provider::Local => return Vec::new(),
         };
         [ModelTier::Fast, ModelTier::Standard, ModelTier::Strong]
             .into_iter()

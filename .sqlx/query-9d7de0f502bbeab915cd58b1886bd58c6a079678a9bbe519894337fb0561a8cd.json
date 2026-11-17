@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.session_goals\n                (session_id, goal, next_steps, set_by, role, display_name, instructions,\n                 goal_source, updated_at)\n            VALUES ($1, COALESCE($2, $7, ''), COALESCE($3, $8, ''), $12,\n                    COALESCE($4, $9), COALESCE($5, $10), COALESCE($6, $11),\n                    CASE WHEN COALESCE($2, $7) IS NOT NULL THEN $12 END, now())\n            ON CONFLICT (session_id) DO UPDATE\n                SET goal         = COALESCE($2, NULLIF(sessions.session_goals.goal, ''), $7,\n                                            sessions.session_goals.goal),\n                    goal_source  = CASE\n                                       WHEN $2::text IS NOT NULL THEN excluded.set_by\n                                       WHEN NULLIF(sessions.session_goals.goal, '') IS NULL\n                                            AND $7::text IS NOT NULL THEN excluded.set_by\n                                       ELSE sessions.session_goals.goal_source\n                                   END,\n                    next_steps   = COALESCE($3, NULLIF(sessions.session_goals.next_steps, ''), $8,\n                                            sessions.session_goals.next_steps),\n                    set_by       = excluded.set_by,\n                    role         = COALESCE($4, sessions.session_goals.role, $9),\n                    display_name = COALESCE($5, sessions.session_goals.display_name, $10),\n                    instructions = COALESCE($6, sessions.session_goals.instructions, $11),\n                    updated_at   = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9d7de0f502bbeab915cd58b1886bd58c6a079678a9bbe519894337fb0561a8cd"
+}

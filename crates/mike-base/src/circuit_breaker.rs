@@ -29,6 +29,11 @@ impl CircuitBreaker {
         matches!(self.open_until, Some(until) if now >= until)
     }
 
+    pub fn trip_for_max_cooldown(&mut self, now: Instant) {
+        self.cooldown = self.max_cooldown;
+        self.open_until = Some(now + self.max_cooldown);
+    }
+
     pub fn record(&mut self, succeeded: bool, now: Instant) {
         if succeeded {
             self.consecutive_failures = 0;
@@ -146,6 +151,15 @@ mod tests {
             "cooldown must never exceed max_cooldown, got {:?}",
             b.cooldown
         );
+    }
+
+    #[test]
+    fn trip_for_max_cooldown_opens_at_once_for_the_full_max_cooldown() {
+        let mut b = CircuitBreaker::new(3, Duration::from_secs(10), Duration::from_secs(60));
+        let t0 = Instant::now();
+        b.trip_for_max_cooldown(t0);
+        assert!(b.should_skip(t0 + Duration::from_secs(59)));
+        assert!(!b.should_skip(t0 + Duration::from_secs(61)));
     }
 
     #[test]

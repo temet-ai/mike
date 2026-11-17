@@ -3,22 +3,25 @@ use std::fmt;
 use super::{claude, codex};
 
 pub const OPENROUTER_PREFIX: &str = "openrouter/";
+pub const LOCAL_PREFIX: &str = "local/";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
     OpenRouter,
     Claude,
     Codex,
+    Local,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 3] = [Self::OpenRouter, Self::Claude, Self::Codex];
+    pub const ALL: [Provider; 4] = [Self::OpenRouter, Self::Claude, Self::Codex, Self::Local];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::OpenRouter => "openrouter",
             Self::Claude => "claude",
             Self::Codex => "codex",
+            Self::Local => "local",
         }
     }
 
@@ -27,6 +30,7 @@ impl Provider {
             Self::OpenRouter => "OpenRouter",
             Self::Claude => "Claude",
             Self::Codex => "Codex",
+            Self::Local => "Local server",
         }
     }
 
@@ -35,6 +39,7 @@ impl Provider {
             Self::OpenRouter => OPENROUTER_PREFIX,
             Self::Claude => claude::MODEL_PREFIX,
             Self::Codex => codex::MODEL_PREFIX,
+            Self::Local => LOCAL_PREFIX,
         }
     }
 
@@ -71,7 +76,7 @@ impl ModelRef {
     }
 
     pub fn parse(stored: &str) -> Self {
-        for provider in [Provider::Claude, Provider::Codex] {
+        for provider in [Provider::Claude, Provider::Codex, Provider::Local] {
             if let Some(name) = stored
                 .strip_prefix(provider.prefix())
                 .filter(|name| !name.is_empty())
@@ -102,7 +107,7 @@ impl ModelRef {
 
     pub fn format(&self) -> String {
         match self.provider {
-            Provider::Claude | Provider::Codex => {
+            Provider::Claude | Provider::Codex | Provider::Local => {
                 format!("{}{}", self.provider.prefix(), self.model)
             }
             Provider::OpenRouter if explicit_openrouter_name(&self.model) => {
@@ -140,6 +145,14 @@ mod tests {
         assert_eq!(
             parsed("codex/gpt-6-sol"),
             ModelRef::new(Provider::Codex, "gpt-6-sol")
+        );
+    }
+
+    #[test]
+    fn parse_local_prefix_selects_local_and_strips_it() {
+        assert_eq!(
+            parsed("local/gemma-4-12b"),
+            ModelRef::new(Provider::Local, "gemma-4-12b")
         );
     }
 
@@ -191,6 +204,10 @@ mod tests {
             parsed("codex/"),
             ModelRef::new(Provider::OpenRouter, "codex/")
         );
+        assert_eq!(
+            parsed("local/"),
+            ModelRef::new(Provider::OpenRouter, "local/")
+        );
     }
 
     #[test]
@@ -199,6 +216,7 @@ mod tests {
             ModelRef::new(Provider::Claude, "haiku"),
             ModelRef::new(Provider::Claude, "claude-sonnet-5-5"),
             ModelRef::new(Provider::Codex, "gpt-6.1-sol"),
+            ModelRef::new(Provider::Local, "gemma-4-12b"),
             ModelRef::new(Provider::OpenRouter, "anthropic/claude-sonnet-5-5"),
             ModelRef::new(Provider::OpenRouter, "openai/gpt-6-sol"),
             ModelRef::new(Provider::OpenRouter, "openrouter/auto"),
@@ -229,6 +247,10 @@ mod tests {
             ModelRef::new(Provider::Claude, "opus").format(),
             "claude/opus"
         );
+        assert_eq!(
+            ModelRef::new(Provider::Local, "gemma-4-12b").format(),
+            "local/gemma-4-12b"
+        );
     }
 
     #[test]
@@ -245,7 +267,7 @@ mod tests {
     #[test]
     fn validate_rejects_blank_and_bare_prefixes() {
         assert_eq!(ModelRef::validate("  "), Err(ModelRefError::Blank));
-        for prefix in ["claude/", "codex/", "openrouter/"] {
+        for prefix in ["claude/", "codex/", "local/", "openrouter/"] {
             assert_eq!(
                 ModelRef::validate(prefix),
                 Err(ModelRefError::EmptyName { prefix }),
@@ -259,6 +281,7 @@ mod tests {
         for stored in [
             "claude/sonnet",
             "codex/gpt-6-sol",
+            "local/gemma-4-12b",
             "openrouter/openai/gpt-6-sol",
             "google/gemini-3.8-flash",
             "openrouter/auto",
@@ -270,9 +293,9 @@ mod tests {
     #[test]
     fn provider_names_and_prefixes_are_distinct() {
         let names: Vec<&str> = Provider::ALL.iter().map(|p| p.as_str()).collect();
-        assert_eq!(names, vec!["openrouter", "claude", "codex"]);
+        assert_eq!(names, vec!["openrouter", "claude", "codex", "local"]);
         let prefixes: Vec<&str> = Provider::ALL.iter().map(|p| p.prefix()).collect();
-        assert_eq!(prefixes, vec!["openrouter/", "claude/", "codex/"]);
+        assert_eq!(prefixes, vec!["openrouter/", "claude/", "codex/", "local/"]);
     }
 
     #[test]
@@ -280,5 +303,6 @@ mod tests {
         assert!(Provider::OpenRouter.needs_openrouter_key());
         assert!(!Provider::Claude.needs_openrouter_key());
         assert!(!Provider::Codex.needs_openrouter_key());
+        assert!(!Provider::Local.needs_openrouter_key());
     }
 }

@@ -141,7 +141,7 @@ pub fn check_routes_to(provider: LlmProvider, model: &str) -> Result<(), String>
             "must be an OpenRouter model, but `{}` models run through another provider",
             named.provider.prefix()
         ),
-        Provider::Claude | Provider::Codex => format!(
+        Provider::Claude | Provider::Codex | Provider::Local => format!(
             "must start with `{}` followed by a model name, because it is a {} model",
             wanted.prefix(),
             wanted.as_str()

@@ -127,6 +127,10 @@ async fn available_detail(state: &AppState, provider: Provider) -> String {
             CodexLogin::SignedIn(said) if !said.is_empty() => said,
             _ => "codex is installed and logged in".to_owned(),
         },
+        Provider::Local => format!(
+            "A local OpenAI-compatible server is configured at {}",
+            state.settings_overlay.load().llm_local_url
+        ),
     }
 }
 
@@ -172,6 +176,7 @@ async fn models_for(
             let seeds: Vec<&str> = tiers.iter().map(String::as_str).collect();
             (cli_model_options(provider, &seeds, configured), None)
         }
+        Provider::Local => (cli_model_options(provider, &[], configured), None),
     }
 }
 
@@ -188,6 +193,7 @@ async fn provider_entry(
     let key_env_var = match provider {
         Provider::OpenRouter => Some(key_env_var(state).await),
         Provider::Claude | Provider::Codex => None,
+        Provider::Local => Some(state.settings_overlay.load().llm_local_api_key_env.clone()),
     };
     let (models, models_error) = models_for(state, provider, configured).await;
     ProviderEntry {
