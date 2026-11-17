@@ -44,8 +44,10 @@ ORDER BY session_id, agent_instance_id, claude_code_agent_id, wire_id, created_a
 const USAGE_SQL: &str = "
 WITH billed AS MATERIALIZED (
   SELECT q.session_id, q.agent_instance_id, q.claude_code_agent_id, o.code AS origin,
+         r.id IS NOT NULL AND r.token_usage <> '{}'::jsonb AS recorded,
+         r.input_tokens, r.cache_creation_input_tokens, r.cache_read_input_tokens, r.output_tokens,
          CASE WHEN r.id IS NULL THEN NULL
-              WHEN r.token_usage <> '{}'::jsonb THEN r.token_usage
+              WHEN r.token_usage <> '{}'::jsonb THEN NULL
               WHEN length(r.response_body) = 0 THEN NULL
               WHEN get_byte(r.response_body, 0) <> 123 THEN NULL
               WHEN NOT pg_input_is_valid(convert_from(r.response_body, 'UTF8'), 'jsonb') THEN NULL
@@ -57,15 +59,18 @@ WITH billed AS MATERIALIZED (
     AND q.path = '/v1/messages' AND (r.id IS NULL OR r.response_status = 200)
 )
 SELECT session_id, agent_instance_id, claude_code_agent_id, origin,
-       coalesce(sum(CASE WHEN u->>'input_tokens' ~ '^[0-9]+$'
-                         THEN (u->>'input_tokens')::bigint END), 0)::bigint AS fresh,
-       coalesce(sum(CASE WHEN u->>'cache_creation_input_tokens' ~ '^[0-9]+$'
+       coalesce(sum(CASE WHEN recorded THEN input_tokens
+                         WHEN u->>'input_tokens' ~ '^[0-9]+$' THEN (u->>'input_tokens')::bigint END), 0)::bigint AS fresh,
+       coalesce(sum(CASE WHEN recorded THEN cache_creation_input_tokens
+                         WHEN u->>'cache_creation_input_tokens' ~ '^[0-9]+$'
                          THEN (u->>'cache_creation_input_tokens')::bigint END), 0)::bigint AS cache_write,
-       coalesce(sum(CASE WHEN u->>'cache_read_input_tokens' ~ '^[0-9]+$'
+       coalesce(sum(CASE WHEN recorded THEN cache_read_input_tokens
+                         WHEN u->>'cache_read_input_tokens' ~ '^[0-9]+$'
                          THEN (u->>'cache_read_input_tokens')::bigint END), 0)::bigint AS cache_read,
-       coalesce(sum(CASE WHEN u->>'output_tokens' ~ '^[0-9]+$'
-                         THEN (u->>'output_tokens')::bigint END), 0)::bigint AS output,
-       bool_and(u->>'input_tokens' ~ '^[0-9]+$' AND u->>'output_tokens' ~ '^[0-9]+$') AS complete_usage
+       coalesce(sum(CASE WHEN recorded THEN output_tokens
+                         WHEN u->>'output_tokens' ~ '^[0-9]+$' THEN (u->>'output_tokens')::bigint END), 0)::bigint AS output,
+       bool_and(CASE WHEN recorded THEN input_tokens IS NOT NULL AND output_tokens IS NOT NULL
+                     ELSE u->>'input_tokens' ~ '^[0-9]+$' AND u->>'output_tokens' ~ '^[0-9]+$' END) AS complete_usage
 FROM billed
 GROUP BY session_id, agent_instance_id, claude_code_agent_id, origin";
 
