@@ -297,6 +297,38 @@ async fn local_root_binding_picks_the_longest_matching_root() -> anyhow::Result<
 }
 
 #[tokio::test]
+async fn local_root_binding_within_a_floor_skips_a_parent_folder() -> anyhow::Result<()> {
+    let world = World::boot().await?;
+    let outer = world.project("Outer").await?;
+    let inner = world.project("Inner").await?;
+    let machine = Uuid::new_v4();
+    world.location(&outer, machine, "/work").await?;
+    world.location(&inner, machine, "/work/app").await?;
+    let [nested, below_parent] = world.sessions;
+
+    let skipped = world
+        .handle
+        .knowledge()
+        .bind_session_to_local_root_within(
+            below_parent,
+            machine,
+            "/work/repo/src",
+            Some("/work/repo"),
+        )
+        .await?;
+    let kept = world
+        .handle
+        .knowledge()
+        .bind_session_to_local_root_within(nested, machine, "/work/app/src", Some("/work/app"))
+        .await?;
+
+    assert_eq!(skipped.map(|p| p.id), None);
+    assert_eq!(kept.map(|p| p.id), Some(inner.id));
+    assert_ne!(world.state(below_parent).await?.1, outer.id);
+    world.cleanup().await
+}
+
+#[tokio::test]
 async fn local_root_binding_matches_the_root_itself_and_a_trailing_slash() -> anyhow::Result<()> {
     let world = World::boot().await?;
     let project = world.project("Exact").await?;
