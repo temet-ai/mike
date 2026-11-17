@@ -30,12 +30,9 @@ pub fn owns(name: &str) -> bool {
 const WAIT_FOR_DESCRIPTION: &str = "Register what this session is waiting for and what mike does \
 when it holds, then end your turn instead of polling or sleeping. Mutating: it stores one row and \
 nothing runs until the condition holds.\n\
-Kinds (`kind`, with `spec`): `time` ({}; set after_secs or not_before); `session_turn_ended` \
-({session_uuid}, defaults to your own session_id); `session_ended` ({session_uuid}); \
-`fleet_event` ({run_id, kind, task?, session_uuid?}, kind one of the fleet event kinds such as \
-check_finished or commit_landed); `sql` ({query, expect: \"rows\" | \"no_rows\"}: one read-only \
-SELECT, no semicolon, at most 4000 characters, run in a read-only transaction every \
-check_every_secs, 60 or more). Events older than not_before do not count.\n\
+Kinds (`kind`; each one's `spec` is in the `spec` parameter): `time`, `session_turn_ended`, \
+`session_ended`, `fleet_event`, `sql` (a read-only fact) and `words` (plain words about a \
+watched session). Events older than not_before do not count.\n\
 Actions (`action`): `return` (default) pushes `brief` to the target session if it is open and \
 active within the hour, resumes it if it closed within the hour, otherwise starts a new session \
 (also for an open session idle longer when `thread` is set, so its cold cache is not rewritten); `start` starts a new \
@@ -59,16 +56,24 @@ fn wait_for_properties() -> Vec<(&'static str, Value)> {
             "kind",
             json!({
                 "type": "string",
-                "enum": ["time", "session_turn_ended", "session_ended", "fleet_event", "sql"],
-                "description": "What is waited on; its `spec` shape is in the tool description."
+                "enum": ["time", "session_turn_ended", "session_ended", "fleet_event", "sql", "words"],
+                "description": "What is waited on; its `spec` shape is in the `spec` parameter."
             }),
         ),
         (
             "spec",
             json!({
                 "type": "object",
-                "description": "The kind's parameters, e.g. {\"session_uuid\": \"...\"} or \
-                    {\"query\": \"SELECT 1 FROM ...\", \"expect\": \"rows\"}. Omit for `time`."
+                "description": "The kind's parameters. `time`: omit (set after_secs or \
+                    not_before). `session_turn_ended`: {session_uuid}, defaults to your own \
+                    session_id. `session_ended`: {session_uuid}. `fleet_event`: {run_id, kind, \
+                    task?, session_uuid?}, kind a fleet event kind such as check_finished or \
+                    commit_landed. `sql`: {query, expect: \"rows\" | \"no_rows\"}, one read-only \
+                    SELECT, no semicolon, at most 4000 characters, run every check_every_secs \
+                    (60 or more). `words`: {text, session_uuid}, a plain-words statement about \
+                    the watched session such as \"PR 12 is merged\", judged by mike's cheap model \
+                    from that session's last turns each time it ends a turn, at most once per \
+                    check_every_secs; when the turns do not say, mike asks that session once."
             }),
         ),
         (

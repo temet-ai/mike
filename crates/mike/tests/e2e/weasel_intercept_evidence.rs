@@ -353,8 +353,8 @@ async fn a_reply_cut_at_a_listed_phrase_keeps_its_opening_and_continues_as_one_m
         .as_str()
         .unwrap_or_default();
     assert!(
-        cut_reply.starts_with(CLEAN_OPENING) && cut_reply.contains(FORBIDDEN_WORD),
-        "the correction request quotes the reply up to the phrase; got: {cut_reply}"
+        cut_reply.starts_with(CLEAN_OPENING) && !cut_reply.contains(FORBIDDEN_WORD),
+        "the correction request quotes the reply up to the phrase, without it; got: {cut_reply}"
     );
 
     let events = wait_for_events(&proxy.pool, STREAMED_PARTIAL_SESSION, 1).await?;

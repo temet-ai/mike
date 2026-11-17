@@ -32,6 +32,9 @@ impl FleetDb<'_> {
             Spec::SessionEnded(s) => self.session_ended(&s, since).await,
             Spec::FleetEvent(s) => self.fleet_event_seen(&s, since).await,
             Spec::Sql(s) => self.sql_holds(row, &s, now).await,
+            Spec::Words(_) => Err(ConditionError::Invalid(
+                "a words condition is judged by the side-call chain in the conditions worker, not by the store".to_owned(),
+            )),
         }
     }
 

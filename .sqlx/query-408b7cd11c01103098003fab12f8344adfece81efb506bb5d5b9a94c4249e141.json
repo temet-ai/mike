@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_uuid::text AS \"session!\"\n                     FROM memory.lesson_delivery_arms\n                    WHERE COALESCE(last_call_at, last_delivery_at,\n                                   CASE WHEN declared_at IS NULL THEN decided_at END) >= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "408b7cd11c01103098003fab12f8344adfece81efb506bb5d5b9a94c4249e141"
+}

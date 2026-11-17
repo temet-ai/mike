@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id FROM requests.requests r\n           JOIN responses.responses rs ON rs.request_id = r.id\n          WHERE r.session_id = $1 AND rs.upstream_message_id = $2\n          ORDER BY r.id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "839fcb9e0392f4ce61c5616aa50dbaa6f8bc453f266ca7959eede6d1021906ff"
+}

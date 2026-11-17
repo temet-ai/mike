@@ -44,6 +44,7 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | Tools | `/tools` (tool errors are on the same page) | [Prompts, agents and tools](prompts-and-agents.md) |
 | Code findings | `/code-findings` | [Settings](settings.md) (the `code_scan` and `code_findings` switches) |
 | Agent dispatches | `/diagnostics/agent-dispatches` | [Prompts, agents and tools](prompts-and-agents.md) |
+| Prompt cache | `/diagnostics/prompt-cache`: each request that rewrote prompt cache it should have read, with its cause (a mike stage, Claude Code itself, or an expired cache) | [Troubleshooting](troubleshooting.md) |
 
 ### System
 

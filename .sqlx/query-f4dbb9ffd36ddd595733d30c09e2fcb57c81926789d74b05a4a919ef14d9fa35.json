@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_delivery_arms (session_uuid, arm, declared_at)\n                 VALUES ($1::text::uuid, 'mod', now())\n                 ON CONFLICT (session_uuid) DO UPDATE SET declared_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f4dbb9ffd36ddd595733d30c09e2fcb57c81926789d74b05a4a919ef14d9fa35"
+}

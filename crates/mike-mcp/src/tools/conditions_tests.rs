@@ -50,6 +50,7 @@ fn wait_for_description_names_every_kind_and_action() {
         "`session_ended`",
         "`fleet_event`",
         "`sql`",
+        "`words`",
         "`return`",
         "`start`",
         "`message`",

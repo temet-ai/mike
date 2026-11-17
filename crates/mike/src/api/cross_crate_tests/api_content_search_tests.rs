@@ -225,3 +225,131 @@ async fn content_search_unknown_order_is_a_400_naming_both_values() -> anyhow::R
     assert!(message.contains("`newest`"), "{message}");
     harness.cleanup().await
 }
+
+struct Words {
+    first: String,
+    second: String,
+    apart: Uuid,
+    lone_busy: Uuid,
+    together: Uuid,
+}
+
+async fn seed_words(harness: &Harness) -> anyhow::Result<Words> {
+    let unique = Uuid::new_v4().simple().to_string();
+    let first = format!("alpha{unique}");
+    let second = format!("omega{unique}");
+    let project_id = seed_project(harness.handle.pool(), &format!("/csw/{unique}")).await?;
+    let apart = session(harness, project_id, 2).await?;
+    chunk(harness, apart, "prompt", &format!("first {first} here")).await?;
+    chunk(harness, apart, "prompt", &format!("then {second} there")).await?;
+    let lone_busy = session(harness, project_id, 3).await?;
+    for _ in 0..3 {
+        chunk(harness, lone_busy, "prompt", &format!("only {first} again")).await?;
+    }
+    let together = session(harness, project_id, 1).await?;
+    chunk(harness, together, "prompt", &format!("{first} {second}")).await?;
+    Ok(Words {
+        first,
+        second,
+        apart,
+        lone_busy,
+        together,
+    })
+}
+
+#[tokio::test]
+async fn content_search_all_mode_matches_a_session_whose_words_are_in_different_chunks()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let words = seed_words(&harness).await?;
+
+    let (status, answer) = search(
+        &harness,
+        &format!("q={}+{}&mode=all", words.first, words.second),
+    )
+    .await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["mode"], "all");
+    assert_eq!(answer["total_sessions"], 2, "{answer}");
+    assert_eq!(
+        session_ids(&answer),
+        vec![words.apart.to_string(), words.together.to_string()]
+    );
+    assert_eq!(answer["sessions"][0]["words_matched"], 2);
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_any_mode_ranks_by_distinct_words_before_match_count() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let words = seed_words(&harness).await?;
+
+    let (status, answer) = search(
+        &harness,
+        &format!("q={}+{}&mode=any", words.first, words.second),
+    )
+    .await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["total_sessions"], 3, "{answer}");
+    assert_eq!(
+        session_ids(&answer),
+        vec![
+            words.apart.to_string(),
+            words.together.to_string(),
+            words.lone_busy.to_string()
+        ]
+    );
+    assert_eq!(answer["sessions"][2]["words_matched"], 1);
+    assert_eq!(answer["sessions"][2]["match_count"], 3);
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_without_a_mode_still_matches_the_literal_phrase() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let words = seed_words(&harness).await?;
+    let query = format!("q={}+{}", words.first, words.second);
+
+    let (status, default_answer) = search(&harness, &query).await?;
+    let (_, phrase_answer) = search(&harness, &format!("{query}&mode=phrase")).await?;
+
+    assert_eq!(status, StatusCode::OK, "{default_answer}");
+    assert_eq!(default_answer["mode"], "phrase");
+    assert_eq!(
+        session_ids(&default_answer),
+        vec![words.together.to_string()]
+    );
+    assert_eq!(session_ids(&phrase_answer), session_ids(&default_answer));
+    assert!(default_answer["sessions"][0].get("words_matched").is_none());
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_unknown_mode_is_a_400_naming_the_value() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+
+    let (status, answer) = search(&harness, "q=anything&mode=fuzzy").await?;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{answer}");
+    let message = answer["error"].as_str().unwrap_or_default();
+    assert!(message.contains("`fuzzy`"), "{message}");
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_word_mode_over_the_word_cap_is_a_400() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+
+    let (status, answer) = search(&harness, "q=a+b+c+d+e+f+g+h+i&mode=any").await?;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{answer}");
+    let message = answer["error"].as_str().unwrap_or_default();
+    assert!(
+        message.contains("at most 8") && message.contains("got 9"),
+        "{message}"
+    );
+    harness.cleanup().await
+}

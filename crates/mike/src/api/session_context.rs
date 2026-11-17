@@ -48,6 +48,9 @@ pub(crate) async fn post_session_context(
         prompt_context(&state, session, &id, &request.project),
         findings_ready_within_budget(&state, &id),
     );
+    if request.serves.iter().any(|s| s == "lessons") {
+        crate::lesson_delivery::holdings::declare_client(&state, &id);
+    }
     if request.serves.iter().any(|s| s == "git_read_hint") {
         blocks.extend(git_read_hint::hand_over(&state, &id).await);
     }

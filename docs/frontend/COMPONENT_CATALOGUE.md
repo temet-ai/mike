@@ -327,6 +327,10 @@ Tied on importer count (2, the two projects routes) with `ProjectSessionsPanel` 
 canonical, `message-view/RawBodyPanel.svelte`, was deleted on 2026-10-08: nothing had rendered it
 since the 2026-09-08 session-page rework, and the message-view cards draw their own raw bodies.
 
+- `frontend/src/lib/components/cache-breaks/SessionCacheBreaksPanel.svelte` — the session overview's
+  prompt-cache breaks: count, causes and the paginated rows, drawn inside the overview's shared
+  mechanisms card beside Code findings and Lessons, so it has no frame of its own to extend
+  ProjectDetailPanel with.
 - `frontend/src/lib/components/shell/RuntimeSessionPanel.svelte` — the session overview's runtime facts
   for a non-Claude session (Codex): lifecycle, requested and observed model, source, usage that keeps
   unknown apart from zero, and paginated item metadata. It draws rows inside the overview's own frame,
@@ -552,6 +556,10 @@ Canonical: `frontend/src/lib/components/detail/HeadersTable.svelte`
 
 Highest importer count (3); a generic masked key/value table for HTTP headers.
 
+- `frontend/src/lib/components/cache-breaks/CacheBreakTable.svelte` — the rows of prompt-cache breaks
+  (time, kind, cause and stage, where, tokens rewritten, gap, request links) composed from DataTable,
+  shared by the session panel and /diagnostics/prompt-cache; it is a DataTable column set, not a
+  key-value HeadersTable.
 - `frontend/src/lib/components/settings/ModelTable.svelte` — a selectable table of steerer models
   with row-click selection semantics; HeadersTable has no selection concept.
 - `frontend/src/lib/components/settings/ModelUsageTable.svelte` — a fixed, API-ordered usage-stats

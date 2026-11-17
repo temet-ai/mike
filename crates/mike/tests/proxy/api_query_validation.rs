@@ -201,3 +201,46 @@ async fn list_requests_accepts_absent_prompt_sha256_with_200() -> anyhow::Result
     );
     Ok(())
 }
+
+const SESSION_FILTERED_ROUTES: [&str; 3] = [
+    "/api/requests",
+    "/api/file-writes",
+    "/api/tool-results/errors",
+];
+
+#[tokio::test]
+async fn list_routes_reject_an_unknown_query_parameter_naming_it() -> anyhow::Result<()> {
+    let mock = wiremock::MockServer::start().await;
+    let (_proxy_url, inspect_url) = common::start_proxy(&mock.uri()).await?;
+    let client = reqwest::Client::new();
+
+    for route in SESSION_FILTERED_ROUTES.into_iter().chain(["/api/sessions"]) {
+        let resp = client
+            .get(format!("{inspect_url}{route}?no_such_param=1"))
+            .send()
+            .await?;
+        assert_eq!(resp.status().as_u16(), 400, "{route} must refuse it");
+        let body = resp.text().await?;
+        assert!(body.contains("no_such_param"), "{route}: {body:?}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn session_filtered_routes_reject_a_malformed_session_id_naming_it() -> anyhow::Result<()> {
+    let mock = wiremock::MockServer::start().await;
+    let (_proxy_url, inspect_url) = common::start_proxy(&mock.uri()).await?;
+    let client = reqwest::Client::new();
+
+    for route in SESSION_FILTERED_ROUTES {
+        let resp = client
+            .get(format!("{inspect_url}{route}?session_id=not-a-uuid"))
+            .send()
+            .await?;
+        assert_eq!(resp.status().as_u16(), 400, "{route}");
+        let body = resp.text().await?;
+        assert!(body.contains("session_id"), "{route}: {body:?}");
+        assert!(body.contains("not-a-uuid"), "{route}: {body:?}");
+    }
+    Ok(())
+}

@@ -120,8 +120,9 @@ impl From<crate::store::request_summary::RequestSummaryView> for RequestSummary 
 
 pub(crate) async fn list_requests(
     State(state): State<AppState>,
-    Query(params): Query<ListParams>,
+    Query(params): Query<RequestListParams>,
 ) -> Result<impl axum::response::IntoResponse, Response> {
+    let session_uuid = parse_session_id_param(params.session_id.as_deref())?;
     let limit = params.limit.unwrap_or(50).min(200);
     let offset = params.offset.unwrap_or(0);
     let order = params.order.unwrap_or_default();
@@ -161,7 +162,10 @@ pub(crate) async fn list_requests(
             .list_requests_paginated(
                 offset,
                 limit,
-                sha_filter,
+                &crate::store::persistence::listings::RequestListFilters {
+                    prompt_sha256: sha_filter,
+                    session_uuid,
+                },
                 &crate::store::persistence::listings::ListingWindow {
                     order,
                     date_from: window.effective_from,
@@ -189,28 +193,16 @@ pub(crate) async fn list_requests(
     let from = window.effective_from;
     let to = window_upper_bound(&window);
     let store = state.store.read().await;
-    let mut walk: Vec<&InterceptedRequest> = if let Some(sha) = sha_filter {
-        store
-            .recent(usize::MAX)
-            .into_iter()
-            .filter(|req| {
-                req.system_prompt
-                    .prompt_sha256
-                    .as_deref()
-                    .is_some_and(|cand| cand == sha)
-                    && from.is_none_or(|f| req.created_at >= f)
-                    && to.is_none_or(|t| req.created_at < t)
-            })
-            .collect()
-    } else {
-        store
-            .recent(usize::MAX)
-            .into_iter()
-            .filter(|req| {
-                from.is_none_or(|f| req.created_at >= f) && to.is_none_or(|t| req.created_at < t)
-            })
-            .collect()
-    };
+    let session_text = session_uuid.map(|u| u.to_string());
+    let mut walk: Vec<&InterceptedRequest> = store
+        .recent(usize::MAX)
+        .into_iter()
+        .filter(|req| {
+            in_memory_match(req, sha_filter, session_text.as_deref())
+                && from.is_none_or(|f| req.created_at >= f)
+                && to.is_none_or(|t| req.created_at < t)
+        })
+        .collect();
     if order == SortOrder::Asc {
         walk.reverse();
     }
@@ -218,6 +210,11 @@ pub(crate) async fn list_requests(
     add_next_cursor_header(&mut header_map, next_cursor);
     let summaries: Vec<RequestSummary> = page.into_iter().map(RequestSummary::from).collect();
     Ok((header_map, axum::Json(summaries)).into_response())
+}
+
+fn in_memory_match(req: &InterceptedRequest, sha: Option<&str>, session: Option<&str>) -> bool {
+    sha.is_none_or(|sha| req.system_prompt.prompt_sha256.as_deref() == Some(sha))
+        && session.is_none_or(|session| req.session_id.eq_ignore_ascii_case(session))
 }
 
 fn page_in_memory(

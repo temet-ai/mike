@@ -108,17 +108,18 @@ async fn run(
     tracing::info!("lesson_worker: starting");
 
     refresh::refresh_lesson_cache_inner(&persist, &cache).await;
+    let mut loop_state = LoopState {
+        holdings_restored: restore_holdings(&persist, &cache, false).await,
+        startup_pending: true,
+        last_gc: Instant::now()
+            .checked_sub(gc_interval_of(&live_worker_config(&live_config)))
+            .unwrap_or_else(Instant::now),
+        embed_breaker: vector_repair::EmbeddingWork::new(),
+    };
     log_embedding_state_at_startup(&embedding);
-    let mut startup_pending = true;
 
     let mut session_interval = tokio::time::interval(SESSION_POLL_INTERVAL);
     session_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-
-    let mut last_gc = Instant::now()
-        .checked_sub(gc_interval_of(&live_worker_config(&live_config)))
-        .unwrap_or_else(Instant::now);
-
-    let mut embed_breaker = vector_repair::EmbeddingWork::new();
 
     loop {
         tokio::select! {
@@ -130,18 +131,49 @@ async fn run(
             }
 
             _ = session_interval.tick() => {
-                let config = live_worker_config(&live_config);
                 let ctx = TickCtx {
                     persist: &persist,
                     embedding: &embedding,
                     cache: &cache,
-                    config: &config,
+                    config: &live_worker_config(&live_config),
                 };
-                run_startup_catchup_once(&persist, &config, &toggles, &mut startup_pending).await;
-                run_enabled_tick(&ctx, &toggles, gc_interval_of(&config), &mut last_gc, &mut embed_breaker).await;
+                session_tick(&ctx, &toggles, &mut loop_state).await;
             }
         }
     }
+}
+
+struct LoopState {
+    holdings_restored: bool,
+    startup_pending: bool,
+    last_gc: Instant,
+    embed_breaker: vector_repair::EmbeddingWork,
+}
+
+async fn session_tick(
+    ctx: &TickCtx<'_>,
+    toggles: &ArcSwap<crate::feature_toggles::FeatureToggles>,
+    state: &mut LoopState,
+) {
+    state.holdings_restored =
+        restore_holdings(ctx.persist, ctx.cache, state.holdings_restored).await;
+    run_startup_catchup_once(ctx.persist, ctx.config, toggles, &mut state.startup_pending).await;
+    run_enabled_tick(
+        ctx,
+        toggles,
+        gc_interval_of(ctx.config),
+        &mut state.last_gc,
+        &mut state.embed_breaker,
+    )
+    .await;
+}
+
+async fn restore_holdings(persist: &PersistHandle, cache: &LessonCache, done: bool) -> bool {
+    if done {
+        return true;
+    }
+    let snapshot = cache.load_full();
+    crate::lesson_delivery::holdings::restore(persist, &snapshot.relevance).await
 }
 
 async fn run_startup_catchup_once(

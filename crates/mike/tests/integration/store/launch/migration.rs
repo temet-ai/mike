@@ -44,6 +44,7 @@ async fn launch_migration_applied_twice_converges() -> anyhow::Result<()> {
         tables,
         vec![
             "backend_validations",
+            "conditions",
             "fleet_events",
             "fleets",
             "introductions",

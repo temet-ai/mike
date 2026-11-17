@@ -2305,7 +2305,7 @@ lessons as hook context instead, the proxy finds `[lesson:<id>]`-tagged text alr
 request and writes one row per session and lesson on the first request that carried it
 (`record_mod_lesson_injections`, `mod_origin.rs`, `origin = 'mod'`); `backfill.rs` is the historical
 lesson→request backfill. Read by `GET /api/memory/lesson-outcomes` (`outcomes.rs`),
-`GET /api/sessions/{id}/lessons` (`session.rs`), the arm comparison (`arm_comparison.rs`), the
+`GET /api/sessions/{id}/lessons` (`session.rs`), the
 improvement exposures queries (`improvement/lesson_exposures*.sql`), `consolidation_reads/lesson_injections.sql`,
 `session_delivery/evidence.rs` and the Session Flow projection (`session_flow/mike_requests.rs`, `cursor.rs`).
 
@@ -2355,19 +2355,20 @@ Seeded rows: `primary`(1) `subagent`(2).
 ### `memory.lesson_delivery_arms`
 
 Added in `20261014180000_mod_lesson_delivery.sql`, with the `mod_lesson_delivery` feature toggle (global,
-default off). While the toggle is on, the mike mod adds lessons as hook context at prompt submit and the
-proxy stops injecting lessons into the sessions the mod serves; a stable share of sessions stays on proxy
-injection as the control group. One row per session that asked, recording which arm it is in and what the
-mod delivered to it. Written by `record_lesson_delivery`
-(`store/persistence/lesson_injections/delivery_arm.rs`) from `POST /api/lessons/for-prompt`; read by
-`compare_lesson_delivery_arms` (`arm_comparison.rs`) for `GET /api/lessons/delivery-comparison`, the
-weekly audit's bounded measurement of the two arms.
+default off). While the toggle is on, the client (the mike mod or tether) adds lessons as hook context at
+prompt submit and the proxy stops injecting lessons into the sessions it serves. One row per session whose
+client asked. Written by `record_lesson_delivery` (`store/persistence/lesson_injections/delivery_arm.rs`)
+from `POST /api/lessons/for-prompt`; read at startup by `recent_client_sessions` (`holdings.rs`) to rebuild
+the set of client sessions. New rows are always `mod`; `control` rows are from the comparison that ended on
+2026-11-17 and are kept.
 
 | Column | Type | Purpose |
 |---|---|---|
 | `session_uuid` | `UUID PRIMARY KEY` | |
 | `arm` | `TEXT NOT NULL` | CHECK `IN ('mod', 'control')` |
 | `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_call_at` | `TIMESTAMPTZ NULL` | The client's last call; added in `20261117160000_lesson_holdings.sql` |
+| `declared_at` | `TIMESTAMPTZ NULL` | When tether declared it serves the session's lessons (`serves` holds `lessons` on `POST /api/sessions/{id}/context`); a declared session that never called is `session_lessons_client_unreachable`. Added in `20261117170000_lesson_client_declared.sql` |
 | `last_delivery_at` | `TIMESTAMPTZ NULL` | Set only by a delivery that carried at least one lesson |
 | `deliveries` | `INTEGER NOT NULL DEFAULT 0` | Count of deliveries that carried at least one lesson |
 | `lessons_delivered` | `INTEGER NOT NULL DEFAULT 0` | Running total of lessons delivered |
@@ -2375,6 +2376,29 @@ weekly audit's bounded measurement of the two arms.
 
 **Indexes:**
 - `idx_lesson_delivery_arms_decided_at`: `decided_at DESC` (BTree)
+
+---
+
+### `memory.lesson_holdings`
+
+Added in `20261117160000_lesson_holdings.sql`. Which lesson, at which revision, each session was given, so
+the `session_lessons` stage never injects a lesson the session holds, across restarts. Written by
+`record_lesson_holdings` (`store/persistence/lesson_injections/holdings.rs`) from `POST
+/api/lessons/for-prompt` (route `mod`) and from the stage (`proxy` when it injects, `body` for a lesson tag
+it sees in a request); a client `refresh` deletes the session's rows (`forget_lesson_holdings`). Read at
+startup by `recent_lesson_holdings` (the last seven days) into the in-memory record the stage checks.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `session_uuid` | `UUID NOT NULL` | Part of the primary key |
+| `lesson_id` | `BIGINT NOT NULL` | FK `memory.lessons(id)` ON DELETE CASCADE; part of the primary key |
+| `revision` | `INTEGER NOT NULL` | The lesson's revision the session holds |
+| `route` | `TEXT NOT NULL` | CHECK `IN ('mod', 'proxy', 'body')` |
+| `held_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Set again when the held revision changes |
+
+**Indexes:**
+- primary key `(session_uuid, lesson_id)`
+- `idx_lesson_holdings_held_at`: `held_at DESC` (BTree)
 
 ---
 

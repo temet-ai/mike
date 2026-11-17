@@ -8,6 +8,7 @@ use crate::types::SortOrder;
 pub struct ToolErrorFilter {
     pub project: Option<String>,
     pub tool_name: Option<String>,
+    pub session_uuid: Option<uuid::Uuid>,
     pub since: Option<chrono::DateTime<chrono::Utc>>,
     pub until: Option<chrono::DateTime<chrono::Utc>>,
     pub limit: i64,
@@ -67,6 +68,11 @@ fn push_error_filters(qb: &mut QueryBuilder<Postgres>, filter: &ToolErrorFilter)
     }
     if let Some(tool_name) = &filter.tool_name {
         qb.push(" AND tu.tool_name = ").push_bind(tool_name.clone());
+    }
+    if let Some(session_uuid) = filter.session_uuid {
+        qb.push(" AND rq.session_id IN (SELECT id FROM sessions.sessions WHERE session_uuid = ")
+            .push_bind(session_uuid)
+            .push(")");
     }
 }
 

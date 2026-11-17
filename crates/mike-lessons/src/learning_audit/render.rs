@@ -1,6 +1,5 @@
 use serde_json::Value;
 
-use super::delivery;
 use super::findings::generated_skill_loads;
 use super::promotion::PromotionState;
 use super::render_activity::{render_memory_grammar, render_proposer_days, render_skill_live};
@@ -220,9 +219,6 @@ pub(super) fn render(report: &Report, promotion: &PromotionState) -> String {
     lines.extend(render_memory_grammar(&report.data));
     lines.extend(render_lesson_quality(&report.data));
     lines.extend(render_placement(&report.data, promotion));
-    if let Some(comparison) = &report.lesson_delivery {
-        lines.extend(delivery::render(comparison));
-    }
     lines.extend(render_skill_live(&report.data));
     lines.extend(governor_lines(&report.data));
     lines.extend(project_lines(report));

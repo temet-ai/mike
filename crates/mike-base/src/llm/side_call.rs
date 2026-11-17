@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -19,6 +21,7 @@ const BREAKER_THRESHOLD: u32 = 3;
 const BREAKER_BASE_COOLDOWN: Duration = Duration::from_secs(60);
 const BREAKER_MAX_COOLDOWN: Duration = Duration::from_secs(900);
 const FALLBACK_WINDOW: Duration = Duration::from_secs(3600);
+pub const DEFAULT_ESCALATE_AFTER: Duration = Duration::from_secs(15);
 pub const DEFAULT_MAX_FALLBACK_CALLS_PER_HOUR: u32 = 20;
 const USAGE_LIMIT_MARKERS: [&str; 3] = ["usage limit", "limit reached", "rate_limit"];
 
@@ -62,6 +65,13 @@ impl Link {
             .record(succeeded, Instant::now());
     }
 
+    fn trip(&self) {
+        self.breaker
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .trip(Instant::now());
+    }
+
     fn trip_for_max_cooldown(&self) {
         self.breaker
             .lock()
@@ -80,6 +90,13 @@ pub struct SideCallChain {
     links: Vec<Link>,
     max_fallback_calls_per_hour: u32,
     fallback_calls: Mutex<VecDeque<Instant>>,
+    escalate_after: Duration,
+}
+
+struct Ask<'a> {
+    system: &'a str,
+    user: &'a str,
+    schema: &'a Value,
 }
 
 struct Admission<'a> {
@@ -92,12 +109,21 @@ fn falls_through(error: &LlmError) -> bool {
         | LlmError::Transport(_)
         | LlmError::Schema(_)
         | LlmError::OutputTruncated { .. }
-        | LlmError::ProviderUnavailable { .. } => true,
-        LlmError::Http { status } => matches!(status, 500..=599 | 401 | 403 | 404 | 429),
-        LlmError::CeilingExceeded { .. }
+        | LlmError::ProviderUnavailable { .. }
+        | LlmError::CeilingExceeded { .. }
         | LlmError::RateLimited { .. }
-        | LlmError::SpendCeilingExceeded { .. } => false,
+        | LlmError::SpendCeilingExceeded { .. } => true,
+        LlmError::Http { status } => matches!(status, 500..=599 | 401 | 403 | 404 | 429),
     }
+}
+
+fn is_limiter_refusal(error: &LlmError) -> bool {
+    matches!(
+        error,
+        LlmError::CeilingExceeded { .. }
+            | LlmError::RateLimited { .. }
+            | LlmError::SpendCeilingExceeded { .. }
+    )
 }
 
 fn is_local_busy(error: &LlmError) -> bool {
@@ -132,11 +158,18 @@ impl SideCallChain {
             links: clients.into_iter().map(Link::new).collect(),
             max_fallback_calls_per_hour: DEFAULT_MAX_FALLBACK_CALLS_PER_HOUR,
             fallback_calls: Mutex::new(VecDeque::new()),
+            escalate_after: DEFAULT_ESCALATE_AFTER,
         }
     }
 
     pub fn with_max_fallback_calls_per_hour(mut self, max: u32) -> Self {
         self.max_fallback_calls_per_hour = max;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_escalate_after(mut self, after: Duration) -> Self {
+        self.escalate_after = after;
         self
     }
 
@@ -188,11 +221,15 @@ impl SideCallChain {
     }
 
     fn note_failure(link: &Link, error: &LlmError) {
-        if is_local_busy(error) {
+        if is_local_busy(error) || is_limiter_refusal(error) {
             return;
         }
         if link.provider == Provider::Claude && is_usage_limit(error) {
             link.trip_for_max_cooldown();
+            return;
+        }
+        if link.is_local() && matches!(error, LlmError::Timeout) {
+            link.trip();
             return;
         }
         link.record(false);
@@ -204,24 +241,120 @@ impl SideCallChain {
         user: &str,
         schema: Value,
     ) -> Result<SideCallOutcome<T>, LlmError> {
+        let ask = Ask {
+            system,
+            user,
+            schema: &schema,
+        };
+        match self.links.first().filter(|link| link.is_local()) {
+            Some(local) => self.local_first(local, &ask).await,
+            None => self.in_order(0, &ask).await,
+        }
+    }
+
+    async fn local_first<T: DeserializeOwned>(
+        &self,
+        local: &Link,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError> {
+        let mut attempt = std::pin::pin!(self.attempt::<T>(local, ask));
+        match tokio::time::timeout(self.escalate_after, &mut attempt).await {
+            Ok(settled) => self.after_local(settled, ask).await,
+            Err(_) => self.race(local, attempt, ask).await,
+        }
+    }
+
+    async fn after_local<T: DeserializeOwned>(
+        &self,
+        settled: Option<Result<SideCallOutcome<T>, LlmError>>,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError> {
+        match settled {
+            Some(Ok(outcome)) => Ok(outcome),
+            Some(Err(error)) if !falls_through(&error) => Err(error),
+            _ => self.in_order(1, ask).await,
+        }
+    }
+
+    async fn race<T: DeserializeOwned, F>(
+        &self,
+        local: &Link,
+        mut attempt: Pin<&mut F>,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError>
+    where
+        F: Future<Output = Option<Result<SideCallOutcome<T>, LlmError>>>,
+    {
+        tracing::info!(
+            model = local.client.model(),
+            after_secs = self.escalate_after.as_secs(),
+            "side call: local model is slow, asking the next one too"
+        );
+        let mut escalated = std::pin::pin!(self.in_order::<T>(1, ask));
+        tokio::select! {
+            settled = &mut attempt => match settled {
+                Some(Ok(outcome)) => Ok(outcome),
+                _ => escalated.await,
+            },
+            answered = &mut escalated => Self::fallback_answered(local, answered, attempt).await,
+        }
+    }
+
+    async fn fallback_answered<T, F>(
+        local: &Link,
+        answered: Result<SideCallOutcome<T>, LlmError>,
+        attempt: Pin<&mut F>,
+    ) -> Result<SideCallOutcome<T>, LlmError>
+    where
+        F: Future<Output = Option<Result<SideCallOutcome<T>, LlmError>>>,
+    {
+        if answered.is_ok() {
+            Self::note_failure(local, &LlmError::Timeout);
+            return answered;
+        }
+        match attempt.await {
+            Some(Ok(outcome)) => Ok(outcome),
+            _ => answered,
+        }
+    }
+
+    async fn in_order<T: DeserializeOwned>(
+        &self,
+        start: usize,
+        ask: &Ask<'_>,
+    ) -> Result<SideCallOutcome<T>, LlmError> {
         let mut last_error = None;
-        for link in &self.links {
-            let Some(_admission) = self.admit(link) else {
-                continue;
-            };
-            match link
-                .client
-                .attempt_verdict::<T>(system, user, &schema)
-                .await
-            {
-                Ok((value, _usage)) => {
-                    link.record(true);
-                    return Ok(SideCallOutcome {
-                        value,
-                        model: link.client.model().to_owned(),
-                    });
-                }
-                Err(error) if falls_through(&error) => {
+        for link in self.links.iter().skip(start) {
+            match self.attempt::<T>(link, ask).await {
+                None => {}
+                Some(Ok(outcome)) => return Ok(outcome),
+                Some(Err(error)) if falls_through(&error) => last_error = Some(error),
+                Some(Err(error)) => return Err(error),
+            }
+        }
+        Err(last_error.unwrap_or_else(|| nothing_available(self.links.len())))
+    }
+
+    async fn attempt<T: DeserializeOwned>(
+        &self,
+        link: &Link,
+        ask: &Ask<'_>,
+    ) -> Option<Result<SideCallOutcome<T>, LlmError>> {
+        let _admission = self.admit(link)?;
+        let result = link
+            .client
+            .attempt_verdict::<T>(ask.system, ask.user, ask.schema)
+            .await;
+        Some(match result {
+            Ok((value, _usage)) => {
+                link.record(true);
+                Ok(SideCallOutcome {
+                    value,
+                    model: link.client.model().to_owned(),
+                })
+            }
+            Err(error) => {
+                if falls_through(&error) {
                     Self::note_failure(link, &error);
                     tracing::warn!(
                         model = link.client.model(),
@@ -229,11 +362,9 @@ impl SideCallChain {
                         error = %error,
                         "side call: model failed, trying the next one"
                     );
-                    last_error = Some(error);
                 }
-                Err(error) => return Err(error),
+                Err(error)
             }
-        }
-        Err(last_error.unwrap_or_else(|| nothing_available(self.links.len())))
+        })
     }
 }

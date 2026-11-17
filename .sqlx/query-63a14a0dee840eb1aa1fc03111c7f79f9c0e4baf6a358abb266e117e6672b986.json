@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses (wire_tool_use_id, request_id, ord, tool_name, input, session_id,\n                                 operation, file_path)\n         VALUES ($1, $2, 0, 'Edit', '{}'::jsonb, $3, 'write', '/shared/session-filter.rs')\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "63a14a0dee840eb1aa1fc03111c7f79f9c0e4baf6a358abb266e117e6672b986"
+}

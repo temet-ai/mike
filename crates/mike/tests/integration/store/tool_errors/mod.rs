@@ -1,6 +1,7 @@
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 mod fixtures;
 mod paging;
+mod session_filter;
 
 use fixtures::{seed_project, seed_request, seed_session};
 
@@ -68,6 +69,7 @@ async fn list_tool_errors_deduped_to_one_per_tool_use() -> anyhow::Result<()> {
     let filter = ToolErrorFilter {
         project: None,
         tool_name: None,
+        session_uuid: None,
         since: None,
         until: None,
         limit: 100,
@@ -150,6 +152,7 @@ async fn list_tool_errors_count_matches_rows_under_cross_project_filter() -> any
     let filter = ToolErrorFilter {
         project: Some("proj-A-emit".to_string()),
         tool_name: None,
+        session_uuid: None,
         since: None,
         until: None,
         limit: 100,
@@ -174,6 +177,7 @@ async fn list_tool_errors_count_matches_rows_under_cross_project_filter() -> any
     let filter_b = ToolErrorFilter {
         project: Some("proj-B-carry".to_string()),
         tool_name: None,
+        session_uuid: None,
         since: None,
         until: None,
         limit: 100,

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_response_id FROM prompt_cache.scan_state WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_response_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "prompt_cache.scan_state",
+            "name": "last_response_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8b50480958dc583233689f1b3ae87b73cba1b7c272ddbbf835f4a87f67e617e7"
+}

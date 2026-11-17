@@ -14,6 +14,7 @@ use crate::state::AppState;
 use crate::web_base::host_guard;
 
 mod anthropic;
+mod cache_breaks;
 mod changes;
 mod codex_observe;
 mod compression_review;
@@ -89,6 +90,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         eval::ROUTES,
         dossier::ROUTES,
         session_mail::ROUTES,
+        cache_breaks::ROUTES,
         verdicts::ROUTES,
         evaluations::ROUTES,
         eval_metrics::ROUTES,
@@ -145,6 +147,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = eval::register(router);
     let router = dossier::register(router);
     let router = session_mail::register(router);
+    let router = cache_breaks::register(router);
     let router = verdicts::register(router);
     let router = evaluations::register(router);
     let router = eval_metrics::register(router);
@@ -374,6 +377,7 @@ mod tests {
             "scheduled_jobs",
             "db_cost",
             "memory_keeper",
+            "prompt_cache",
         ];
         assert_eq!(rows.len(), expected_ids.len());
         for (row, expected_id) in rows.iter().zip(expected_ids) {

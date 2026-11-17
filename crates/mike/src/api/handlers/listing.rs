@@ -27,14 +27,60 @@ pub(crate) fn window_note_headers(
     headers
 }
 
+pub(crate) struct BadSessionId(String);
+
+impl IntoResponse for BadSessionId {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": format!(
+                    "session_id must be a canonical UUID (8-4-4-4-12 hex digits); got {:?}",
+                    self.0
+                )
+            })),
+        )
+            .into_response()
+    }
+}
+
+impl From<BadSessionId> for Response {
+    fn from(bad: BadSessionId) -> Self {
+        bad.into_response()
+    }
+}
+
+pub(crate) fn parse_session_id_param(
+    raw: Option<&str>,
+) -> Result<Option<uuid::Uuid>, BadSessionId> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    match uuid::Uuid::parse_str(raw) {
+        Ok(id) if raw.len() == 36 => Ok(Some(id)),
+        _ => Err(BadSessionId(raw.to_owned())),
+    }
+}
+
 #[derive(Deserialize)]
-pub(crate) struct ListParams {
+#[serde(deny_unknown_fields)]
+pub(crate) struct RequestListParams {
     pub(crate) offset: Option<usize>,
     pub(crate) limit: Option<usize>,
     pub(crate) order: Option<SortOrder>,
     pub(crate) prompt_sha256: Option<String>,
-    #[serde(default)]
     pub(crate) cursor: Option<String>,
+    pub(crate) date_from: Option<String>,
+    pub(crate) date_to: Option<String>,
+    pub(crate) session_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ListParams {
+    pub(crate) offset: Option<usize>,
+    pub(crate) limit: Option<usize>,
+    pub(crate) order: Option<SortOrder>,
     pub(crate) search: Option<String>,
     #[serde(default)]
     pub(crate) date_from: Option<String>,

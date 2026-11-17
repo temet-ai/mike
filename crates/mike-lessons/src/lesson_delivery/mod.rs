@@ -2,6 +2,7 @@ pub mod attribution;
 #[cfg(test)]
 mod earlier_tests;
 pub mod held;
+pub mod holdings;
 pub mod hooks;
 pub mod origin;
 pub mod select;
@@ -14,26 +15,14 @@ pub use supplied::remember_scores;
 pub use held::{HeldTag, REVISION_MARK, held_lesson_ids, held_lesson_tags, is_held};
 pub use origin::label_mod_lessons;
 pub use select::catalog_for_prompt;
-pub use select::{DeliveredLesson, PromptLessons, already_present_ids, select_for_prompt};
+pub use select::{
+    DeliveredLesson, PromptLessons, already_present_ids, client_held, revisions_of,
+    select_for_prompt, tagged_in_body,
+};
 
 pub const LESSON_TAG_OPEN: &str = "[lesson:";
 pub const LESSONS_HEADING: &str = "Lessons recorded from earlier sessions in this project:";
-pub const CONTROL_PERCENT: u16 = 20;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Arm {
-    Mod,
-    Control,
-}
-
-impl Arm {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Mod => "mod",
-            Self::Control => "control",
-        }
-    }
-}
+pub const CLIENT_ROUTE: &str = "mod";
 
 pub fn bucket(salt: &str, id: &str) -> u16 {
     let mut hasher = Sha256::new();
@@ -43,20 +32,12 @@ pub fn bucket(salt: &str, id: &str) -> u16 {
     u16::from_be_bytes([digest[0], digest[1]]) % 100
 }
 
-pub fn arm_for(session_id: &str) -> Arm {
-    if bucket("", session_id) < CONTROL_PERCENT {
-        Arm::Control
-    } else {
-        Arm::Mod
-    }
-}
-
 pub fn client_holds_lessons(
     toggle_on: bool,
     snapshot: &crate::lesson_worker::LessonSnapshot,
     session_id: &str,
 ) -> bool {
-    toggle_on && snapshot.relevance.is_mod_session(session_id)
+    toggle_on && snapshot.relevance.holdings().is_client(session_id)
 }
 
 #[cfg(test)]

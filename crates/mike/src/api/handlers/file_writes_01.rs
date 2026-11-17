@@ -5,7 +5,10 @@ pub(crate) const FILE_WRITES_DEFAULT_LIMIT: i64 = 100;
 pub(crate) const FILE_WRITES_MAX_LIMIT: i64 = 500;
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FileWritesParams {
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
     #[serde(default)]
     pub(crate) project: Option<String>,
     #[serde(default)]
@@ -81,6 +84,7 @@ pub(crate) async fn list_file_writes(
     State(state): State<AppState>,
     Query(params): Query<FileWritesParams>,
 ) -> Result<Json<FileWritesResponse>, Response> {
+    let session_uuid = parse_session_id_param(params.session_id.as_deref())?;
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
@@ -97,6 +101,7 @@ pub(crate) async fn list_file_writes(
         to: parse_bound(params.to.as_ref(), "to")
             .map_err(|m| (StatusCode::BAD_REQUEST, m).into_response())?,
         path: params.path.as_deref(),
+        session_uuid,
         collisions_only: params.collisions_only,
     };
 

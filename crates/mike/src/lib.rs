@@ -6,6 +6,7 @@ pub use mike_lessons::{
 };
 pub mod api;
 pub mod app;
+pub mod cache_breaks;
 pub mod claude;
 pub mod claude_code;
 pub mod cli;

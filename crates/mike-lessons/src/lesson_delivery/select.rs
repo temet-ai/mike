@@ -45,18 +45,68 @@ pub fn already_present_ids(
     snapshot: &LessonSnapshot,
     session_id: &str,
     project_path: &str,
-    body: &[u8],
-    earlier: &EarlierTurns,
 ) -> Vec<i64> {
-    let tags = held_lesson_tags(body, earlier);
+    let holdings = snapshot.relevance.holdings();
     let mut ids = Vec::new();
     for lesson in project_pool(snapshot, session_id, project_path) {
-        let present = !lesson.route.is_injection() || is_held(&tags, lesson);
+        let present =
+            !lesson.route.is_injection() || holdings.holds(session_id, lesson.id, lesson.revision);
         if present && !ids.contains(&lesson.id) {
             ids.push(lesson.id);
         }
     }
     ids
+}
+
+pub fn revisions_of(
+    snapshot: &LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+    ids: &[i64],
+) -> Vec<(i64, i32)> {
+    let mut held = Vec::new();
+    for lesson in project_pool(snapshot, session_id, project_path) {
+        if ids.contains(&lesson.id) && !held.iter().any(|(id, _)| *id == lesson.id) {
+            held.push((lesson.id, lesson.revision));
+        }
+    }
+    held
+}
+
+pub fn client_held(
+    snapshot: &LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+    held_versions: &HashMap<i64, String>,
+) -> Vec<(i64, i32)> {
+    let mut held = Vec::new();
+    for lesson in project_pool(snapshot, session_id, project_path) {
+        let current = held_versions.get(&lesson.id) == Some(&revision(lesson));
+        if current && !held.iter().any(|(id, _)| *id == lesson.id) {
+            held.push((lesson.id, lesson.revision));
+        }
+    }
+    held
+}
+
+pub fn tagged_in_body(
+    snapshot: &LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+    body: &[u8],
+    earlier: &EarlierTurns,
+) -> Vec<(i64, i32)> {
+    let tags = held_lesson_tags(body, earlier);
+    if tags.is_empty() {
+        return Vec::new();
+    }
+    let mut held = Vec::new();
+    for lesson in project_pool(snapshot, session_id, project_path) {
+        if is_held(&tags, lesson) && !held.iter().any(|(id, _)| *id == lesson.id) {
+            held.push((lesson.id, lesson.revision));
+        }
+    }
+    held
 }
 
 pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {

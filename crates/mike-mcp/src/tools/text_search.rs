@@ -176,7 +176,7 @@ fn search_session_content_tool() -> Tool {
                 json!({
                     "type": "string",
                     "minLength": 1,
-                    "description": "Substring to search for in the conversation (operator prompts + assistant replies). Required; empty string is a 400."
+                    "description": "Text to search for in the conversation (operator prompts + assistant replies): one literal substring by default, or words per `mode`. Required; empty string is a 400."
                 }),
             ),
             (
@@ -209,6 +209,14 @@ fn search_session_content_tool() -> Tool {
                     "type": "string",
                     "enum": ["matches", "recent"],
                     "description": "Session order. `matches` (default): most matching chunks first, then most matches in operator prompts, then newest. `recent`: newest match first."
+                }),
+            ),
+            (
+                "mode",
+                json!({
+                    "type": "string",
+                    "enum": ["phrase", "all", "any"],
+                    "description": "How q is matched. `phrase` (default): q as one literal phrase. `all`: sessions containing every whitespace-separated word of q (up to 8). `any`: sessions containing at least one word. In `all` and `any`, sessions with more distinct words come first."
                 }),
             ),
         ],
@@ -323,6 +331,8 @@ pub(crate) struct SearchSessionContentArgs {
     #[serde(default)]
     pub(crate) order: Option<String>,
     #[serde(default)]
+    pub(crate) mode: Option<String>,
+    #[serde(default)]
     pub(crate) caller_session_id: Option<String>,
 }
 
@@ -365,6 +375,9 @@ fn search_session_content_query(args: &SearchSessionContentArgs) -> Vec<(&'stati
     }
     if let Some(ref order) = args.order {
         query.push(("order", order.clone()));
+    }
+    if let Some(ref mode) = args.mode {
+        query.push(("mode", mode.clone()));
     }
     query
 }

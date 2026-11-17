@@ -32,6 +32,7 @@
 	import SessionCodeFindingsPanel from '$lib/components/code-findings/SessionCodeFindingsPanel.svelte';
 	import SessionMemoryActions from '$lib/components/memory/SessionMemoryActions.svelte';
 	import SessionLessonsPanel from '$lib/components/memory/SessionLessonsPanel.svelte';
+	import SessionCacheBreaksPanel from '$lib/components/cache-breaks/SessionCacheBreaksPanel.svelte';
 	import SessionDeliveryPanel from '$lib/components/memory/SessionDeliveryPanel.svelte';
 	import SessionReconcilePanel from '$lib/components/shell/SessionReconcilePanel.svelte';
 	import TimeSpentPanel from '$lib/components/sessions/TimeSpentPanel.svelte';
@@ -531,6 +532,8 @@
 		<SessionMemoryActions grouped {sessionId} />
 
 		<SessionLessonsPanel grouped {sessionId} />
+
+		<SessionCacheBreaksPanel grouped {sessionId} {now} />
 
 		<SessionDeliveryPanel grouped {sessionId} />
 

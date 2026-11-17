@@ -269,10 +269,28 @@ route answers each lesson with `rev`; the mod omits it if absent). The standing 
 Code saves hook context in the transcript and sends it on every later request, so a
 lesson is put in once and the prompt cache holds.
 
-The proxy reads the same tags back from the request. When the toggle is on and a
-request holds any `[lesson:<id>]` or `[lesson:<id> rev:<n>]` tag, or the session has already asked the route for
-the `mod` arm, the lessons stage leaves the request unchanged
-(`session_lessons_held_by_client` in the transformation manifest). The mod also sends
+Every session whose client asks the route is served by the client; there is no control
+arm. When the toggle is on and the session's client has asked the route, the lessons stage
+leaves the request unchanged (`session_lessons_held_by_client` in the transformation
+manifest). The set of client sessions is marked before the route does anything that can
+wait, kept under its own lock, and rebuilt at startup from `memory.lesson_delivery_arms`
+(sessions whose client called in the last seven days), so a deploy does not send them back
+to proxy injection. The route answers in well under tether's 300 ms budget when the client
+sends `"card": false` (tether does: it shows no memory-keeper card, and choosing one is a
+model call). tether also declares, with `"lessons"` in the `serves` of
+`POST /api/sessions/{id}/context`, that it delivers the session's lessons
+(`memory.lesson_delivery_arms.declared_at`, rebuilt at startup). A declared session whose
+client never reached the lesson route is a client failure, not a proxy fallback: the stage
+records `session_lessons_client_unreachable`, logs a warning, and injects nothing. tether
+keeps a late lesson answer and delivers it with the next prompt.
+
+What each session holds is a stored record, `memory.lesson_holdings` (lesson id and
+revision): what the route gave the client, the mod's `held_versions` that still match the
+current text, what the proxy injected, and tagged lessons seen in any request. The stage
+never injects a lesson the session holds at its revision, including after a restart; it
+does not read held lessons from the request body alone, because Claude Code's
+thread-continuation requests carry only the new messages. A client `refresh` (compaction,
+new session) clears the session's record. The mod also sends
 the ids and content revisions it has added, so a later prompt does not repeat them.
 Changed revisions supersede earlier text with the same lesson id. Successful main-session
 compaction clears the mod's held revisions and asks the proxy to refresh relevant lessons;
@@ -299,11 +317,10 @@ Neither population establishes a causal benefit. The attribution fix prevents ne
 sessions from inheriting a spawning session's turn; existing historical mislinks are excluded
 from this exposure measure, not silently rewritten.
 
-One session in five (a stable share by hash of the session id, `CONTROL_PERCENT` in
-`crates/mike-lessons/src/lesson_delivery/mod.rs`) is the control arm: the route sends nothing
-and the proxy keeps injecting. Each session that asked is recorded in
-`memory.lesson_delivery_arms` with its arm and the lessons and bytes the mod delivered.
-Sessions without the mod never ask and stay on the proxy.
+Each session that asked is recorded in `memory.lesson_delivery_arms` (arm `mod`; rows from
+the ended 2026-10-14 to 2026-11-17 comparison keep their `control` arm) with when its client
+last called and the lessons and bytes it was given. Sessions whose client has no lesson
+route (no mike mod and no tether) never ask and stay on proxy injection.
 
 Text added this way arrives in the client's own request bytes, which capture stores
 unchanged. Two records say where it came from. A request whose body holds the mod's
@@ -317,12 +334,6 @@ request that carried each lesson also writes one `memory.lesson_injections` row 
 and `GET /api/sessions/{id}/delivery` return each lesson's `origins`, and the delivery
 route lists the `mod_lessons` manifest entry among its injection stages. A tag outside
 that block, for example in a pasted file, is not labelled.
-
-`GET /api/lessons/delivery-comparison?from=<ISO>&until=<ISO>` (at most thirty-one days,
-default the last seven; Exempt from MCP) compares the two arms: sessions that made a
-request, genuine operator turns, lessons delivered per turn, the cache-read share of
-input tokens, and the judge's corrected rate among judged turns, each with the counts it
-comes from. The weekly learning audit prints the same table.
 
 ## A mod can make a session keep working: `/goal`
 

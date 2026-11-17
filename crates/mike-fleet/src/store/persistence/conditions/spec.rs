@@ -8,13 +8,15 @@ use super::types::{ConditionError, NewCondition};
 use crate::launch::fleet::events::EventKind;
 
 pub const SQL_MAX_CHARS: usize = 4000;
+pub const WORDS_MAX_CHARS: usize = 1000;
 pub const MIN_CHECK_EVERY_SECS: i32 = 60;
-pub const KINDS: [&str; 5] = [
+pub const KINDS: [&str; 6] = [
     "time",
     "session_turn_ended",
     "session_ended",
     "fleet_event",
     "sql",
+    "words",
 ];
 pub const ACTIONS: [&str; 3] = ["return", "start", "message"];
 
@@ -59,6 +61,15 @@ pub struct SqlSpec {
     pub expect: SqlExpect,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WordsSpec {
+    pub text: String,
+    pub session_uuid: Uuid,
+    #[serde(default)]
+    pub since: Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Spec {
     Time,
@@ -66,6 +77,22 @@ pub enum Spec {
     SessionEnded(SessionSpec),
     FleetEvent(FleetEventSpec),
     Sql(SqlSpec),
+    Words(WordsSpec),
+}
+
+fn words(spec: WordsSpec) -> Result<Spec, ConditionError> {
+    if spec.text.trim().is_empty() {
+        return Err(invalid(
+            "words text is empty; say in plain words what must be true".to_owned(),
+        ));
+    }
+    let chars = spec.text.chars().count();
+    if chars > WORDS_MAX_CHARS {
+        return Err(invalid(format!(
+            "words text is {chars} characters; the limit is {WORDS_MAX_CHARS}"
+        )));
+    }
+    Ok(Spec::Words(spec))
 }
 
 fn invalid(message: String) -> ConditionError {
@@ -122,6 +149,7 @@ impl Spec {
                 validate_sql(&parsed.query)?;
                 Ok(Self::Sql(parsed))
             }
+            "words" => words(decode(kind, spec)?),
             other => Err(invalid(format!(
                 "kind `{other}` is not one of {}",
                 KINDS.join(", ")
@@ -133,6 +161,7 @@ impl Spec {
         match self {
             Self::SessionTurnEnded(s) | Self::SessionEnded(s) => s.since,
             Self::FleetEvent(s) => s.since,
+            Self::Words(s) => s.since,
             Self::Time | Self::Sql(_) => None,
         }
     }

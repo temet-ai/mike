@@ -176,7 +176,7 @@ impl Worker {
     }
 }
 
-fn build_client(state: &BaseState, model: &str) -> Option<OpenRouterClient> {
+pub fn build_client(state: &BaseState, model: &str) -> Option<OpenRouterClient> {
     let config = state.config();
     let base = OpenRouterClient::new(
         String::new(),

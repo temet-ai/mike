@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matches AS (\n    SELECT\n        t.session_id          AS session_pk,\n        s.session_uuid::text  AS session_id,\n        p.project_path,\n        p.display_name        AS project_display_name,\n        s.title,\n        c.turn_id,\n        t.start_request_id    AS request_id,\n        cr.code               AS role,\n        c.chunk_idx,\n        c.chunk_text,\n        t.created_at\n    FROM memory.operator_turn_chunks c\n    JOIN memory.operator_turns t ON t.id = c.turn_id\n    JOIN memory.chunk_roles    cr ON cr.id = c.chunk_role_id\n    JOIN sessions.sessions     s ON s.id = t.session_id\n    JOIN projects.projects     p ON p.id = t.project_id\n    WHERE c.chunk_text ILIKE ANY ($1::text[])\n      AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n      AND t.project_id = $3\n),\nword_hits AS (\n    SELECT m.session_pk, COUNT(DISTINCT w.ord) AS words_matched\n    FROM matches m\n    CROSS JOIN LATERAL unnest($1::text[]) WITH ORDINALITY AS w(pattern, ord)\n    WHERE m.chunk_text ILIKE w.pattern\n    GROUP BY m.session_pk\n),\nsession_agg AS (\n    SELECT\n        m.session_pk, m.session_id, m.project_path, m.project_display_name, m.title,\n        COUNT(*)                AS match_count,\n        COUNT(DISTINCT m.turn_id) AS turn_count,\n        MAX(m.created_at)       AS last_match_at\n    FROM matches m\n    JOIN word_hits wh ON wh.session_pk = m.session_pk AND wh.words_matched >= $2::int\n    GROUP BY m.session_pk, m.session_id, m.project_path, m.project_display_name, m.title\n)\nSELECT\n    COALESCE(SUM(match_count), 0)::bigint AS \"total_matches!\",\n    COUNT(*)::bigint                       AS \"total_sessions!\"\nFROM session_agg\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_matches!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "82d9f7626ab3517478e5bea7d6b0ffbdbfbce34f60d86c70a1cd73db09f3304d"
+}
