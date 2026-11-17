@@ -203,9 +203,11 @@ pub(crate) fn reject_missing_required(
     name: &str,
     arguments: Option<&Map<String, Value>>,
 ) -> Result<(), RmcpError> {
-    let (Some(declared), Some(map)) = (catalogue().get(name), arguments) else {
+    let Some(declared) = catalogue().get(name) else {
         return Ok(());
     };
+    let none_sent = Map::new();
+    let map = arguments.unwrap_or(&none_sent);
     let missing: Vec<String> = declared
         .required
         .iter()

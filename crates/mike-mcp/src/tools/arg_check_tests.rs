@@ -205,9 +205,28 @@ fn reject_missing_required_several_missing_are_all_named() -> anyhow::Result<()>
 }
 
 #[test]
-fn reject_missing_required_absent_arguments_or_open_schema_pass_through() -> anyhow::Result<()> {
-    reject_missing_required("search_project_knowledge", None)?;
+fn reject_missing_required_absent_arguments_are_refused_like_empty_ones() -> anyhow::Result<()> {
+    let message = reject_missing_required("read_project_knowledge", None)
+        .err()
+        .map(|error| error.message.to_string())
+        .ok_or_else(|| anyhow::anyhow!("expected the absent arguments to be refused"))?;
+    assert_eq!(
+        message,
+        "missing required argument `reference` for `read_project_knowledge` (sent: none); it takes: reference (required), project, select"
+    );
+    Ok(())
+}
+
+#[test]
+fn reject_missing_required_absent_arguments_pass_when_nothing_is_required() -> anyhow::Result<()> {
+    reject_missing_required("list_project_locations", None)?;
+    Ok(())
+}
+
+#[test]
+fn reject_missing_required_open_schema_passes_through() -> anyhow::Result<()> {
     let sent = arguments(json!({"anything": 1}));
     reject_missing_required("no_such_tool", sent.as_ref())?;
+    reject_missing_required("no_such_tool", None)?;
     Ok(())
 }
