@@ -225,15 +225,18 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
         .into_iter()
         .map(|cadence| cadence.code().to_owned())
         .collect();
-    let checks = match ctx.persist.web().enabled_wright_checks(&cadences).await {
-        Ok(checks) => checks,
+    match ctx.persist.web().enabled_wright_checks(&cadences).await {
+        Ok(checks) => run_checks(ctx, &checks).await,
         Err(e) => return tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
-    };
-    for check in &checks {
+    }
+    crate::wright::triage::run(&ctx.persist).await;
+}
+
+async fn run_checks(ctx: &WatchContext, checks: &[crate::store::persistence::wright::CheckRow]) {
+    for check in checks {
         match run_check(check, ctx).await {
             Ok((outcome, recorded)) => log_ran(&check.name, &outcome, &recorded),
             Err(e) => log_record_failed(&check.name, &e),
         }
     }
-    crate::wright::triage::run(&ctx.persist).await;
 }
