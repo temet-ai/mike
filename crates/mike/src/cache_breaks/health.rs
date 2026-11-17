@@ -44,7 +44,7 @@ fn by_stage(groups: &[CauseGroup]) -> Vec<(String, i64, i64)> {
             None => stages.push((name, g.breaks, g.tokens_rewritten)),
         }
     }
-    stages.sort_by(|a, b| b.2.cmp(&a.2));
+    stages.sort_by_key(|s| std::cmp::Reverse(s.2));
     stages
 }
 

@@ -159,17 +159,21 @@ pub(crate) async fn rescan_from(persist: &PersistHandle, days: i64) -> Result<()
     store::set_cursor(persist.pool(), first).await
 }
 
+fn log_scan(result: &Result<ScanOutcome, sqlx::Error>) {
+    match result {
+        Ok(o) if o.recorded > 0 => tracing::info!(
+            recorded = o.recorded,
+            scanned_to = o.scanned_to,
+            "prompt cache scan recorded breaks"
+        ),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(error = %e, "prompt cache scan failed"),
+    }
+}
+
 async fn run(persist: PersistHandle, shutdown: CancellationToken) {
     loop {
-        match scan(&persist, &shutdown).await {
-            Ok(o) if o.recorded > 0 => tracing::info!(
-                recorded = o.recorded,
-                scanned_to = o.scanned_to,
-                "prompt cache scan recorded breaks"
-            ),
-            Ok(_) => {}
-            Err(e) => tracing::warn!(error = %e, "prompt cache scan failed"),
-        }
+        log_scan(&scan(&persist, &shutdown).await);
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
