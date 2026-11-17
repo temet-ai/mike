@@ -117,12 +117,8 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         )
         .await
     };
-    if post_filter_body != after_replay
-        && let Some(captured) = state
-            .injected_replay
-            .capture(&lane, &original, &post_filter_body)
-    {
-        crate::injected_replay::store::persist(state, &lane, &captured);
+    if post_filter_body != after_replay {
+        record_injected_replay(state, &lane, &original, &post_filter_body);
     }
 
     let mut body = pipeline::StageBody::from_parts(pipeline::StageBodyParts {
@@ -154,5 +150,11 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         context_focus_asked: manifest.applied(crate::context_focus::STAGE),
         manifest,
         injected_reminders,
+    }
+}
+
+fn record_injected_replay(state: &AppState, lane: &str, original: &[u8], sent: &[u8]) {
+    if let Some(captured) = state.injected_replay.capture(lane, original, sent) {
+        crate::injected_replay::store::persist(state, lane, &captured);
     }
 }
