@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_instances AS (\n    SELECT ai.id AS instance_id,\n           ROW_NUMBER() OVER (ORDER BY ai.first_request_id ASC, ai.id ASC) AS rn\n      FROM agents.instances ai\n      JOIN requests.requests first_req ON first_req.id = ai.first_request_id\n      JOIN requests.turn_origins tor ON tor.id = first_req.turn_origin_id AND tor.code = 'subagent'\n     WHERE ai.session_id = $1\n       AND ai.dispatch_id IS NULL\n),\nsub AS (\n    SELECT rr.id, rr.created_at, rr.subagent_persona,\n           ROW_NUMBER() OVER (ORDER BY rr.id ASC) - 1 AS pos\n      FROM requests.requests rr\n      JOIN requests.turn_origins tor_sa\n        ON tor_sa.id = rr.turn_origin_id\n       AND tor_sa.code = 'subagent'\n     WHERE rr.session_id = $1\n       AND rr.agent_instance_id IS NULL\n),\ndisp AS (\n    SELECT ad.id AS dispatch_id, ad.agent_id, tu.tool_name,\n           ROW_NUMBER() OVER (ORDER BY ad.id ASC) - 1 AS pos\n      FROM agents.dispatches ad\n      JOIN tools.uses tu ON tu.id = ad.tool_use_id\n      JOIN requests.requests r2 ON r2.id = tu.request_id\n     WHERE r2.session_id = $1\n),\ntodo AS (\n    SELECT d.dispatch_id, d.agent_id,\n           CASE WHEN sub.subagent_persona ~ '\\S' THEN sub.subagent_persona END AS persona,\n           ROW_NUMBER() OVER (ORDER BY d.dispatch_id ASC) AS rn\n      FROM disp d\n      LEFT JOIN sub ON sub.pos = d.pos\n     WHERE d.tool_name = 'Agent'\n       AND NOT EXISTS (\n           SELECT 1 FROM agents.instances ai WHERE ai.dispatch_id = d.dispatch_id\n       )\n),\nlinked AS (\n    UPDATE agents.instances ai\n       SET dispatch_id = t.dispatch_id,\n           agent_id    = t.agent_id\n      FROM todo t\n      JOIN open_instances oi ON oi.rn = t.rn\n     WHERE ai.id = oi.instance_id\n    RETURNING ai.id, ai.agent_id, ai.first_request_id\n),\nunlinked AS (\n    SELECT t.dispatch_id, t.agent_id, t.persona,\n           ROW_NUMBER() OVER (PARTITION BY t.persona ORDER BY t.dispatch_id ASC) AS prn\n      FROM todo t\n     WHERE t.rn > (SELECT count(*) FROM open_instances)\n),\nopen_requests AS (\n    SELECT s.id, s.created_at, s.subagent_persona,\n           ROW_NUMBER() OVER (PARTITION BY s.subagent_persona ORDER BY s.id ASC) AS rn\n      FROM sub s\n     WHERE s.subagent_persona IN (SELECT persona FROM unlinked WHERE persona IS NOT NULL)\n),\nins AS (\n    INSERT INTO agents.instances\n        (session_id, dispatch_id, agent_id, subagent_persona, first_request_id, started_at)\n    SELECT $1, u.dispatch_id, u.agent_id, u.persona, orq.id, orq.created_at\n      FROM unlinked u\n      LEFT JOIN open_requests orq\n        ON orq.subagent_persona = u.persona\n       AND orq.rn = u.prn\n    RETURNING id, agent_id, first_request_id\n),\nclaimed AS (\n    UPDATE requests.requests r\n       SET agent_instance_id = ins.id\n      FROM ins\n     WHERE r.id = ins.first_request_id\n       AND r.agent_instance_id IS NULL\n    RETURNING r.id\n),\nstamped AS (\n    UPDATE system_prompts.session_prompts sp\n       SET instance_id = x.id,\n           agent_id    = x.agent_id\n      FROM (SELECT id, agent_id, first_request_id FROM linked\n            UNION ALL\n            SELECT id, agent_id, first_request_id FROM ins) x\n     WHERE sp.request_id = x.first_request_id\n       AND sp.instance_id IS NULL\n    RETURNING sp.id\n)\nSELECT (SELECT count(*) FROM linked) + (SELECT count(*) FROM ins) AS \"created!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "created!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a93a8ebbebc5aef09191050f1d03bead94d4410603864e2c56d806364e0a7fd0"
+}
