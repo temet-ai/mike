@@ -270,6 +270,26 @@ pub(crate) struct GetSessionThreadsArgs {
     pub(crate) session_id: String,
 }
 
+fn list_sessions_query(args: &ListSessionsArgs) -> Vec<(&'static str, String)> {
+    [
+        ("order", args.order.clone()),
+        ("date_from", args.date_from.clone()),
+        ("date_to", args.date_to.clone()),
+        (
+            "min_request_count",
+            args.min_request_count.map(|n| n.to_string()),
+        ),
+        ("project", args.project.clone()),
+        ("machine", args.machine.clone()),
+        ("fields", args.fields.clone()),
+        ("limit", args.limit.map(|n| n.to_string())),
+        ("offset", args.offset.map(|n| n.to_string())),
+    ]
+    .into_iter()
+    .filter_map(|(key, value)| value.map(|value| (key, value)))
+    .collect()
+}
+
 pub(crate) async fn call_tool(
     client: &InspectClient,
     name: &str,
@@ -278,34 +298,7 @@ pub(crate) async fn call_tool(
     match name {
         TOOL_LIST_SESSIONS => {
             let args = parse_args_default::<ListSessionsArgs>(arguments)?;
-            let mut query: Vec<(&str, String)> = Vec::new();
-            if let Some(ref ord) = args.order {
-                query.push(("order", ord.clone()));
-            }
-            if let Some(ref df) = args.date_from {
-                query.push(("date_from", df.clone()));
-            }
-            if let Some(ref dt) = args.date_to {
-                query.push(("date_to", dt.clone()));
-            }
-            if let Some(n) = args.min_request_count {
-                query.push(("min_request_count", n.to_string()));
-            }
-            if let Some(ref p) = args.project {
-                query.push(("project", p.clone()));
-            }
-            if let Some(ref m) = args.machine {
-                query.push(("machine", m.clone()));
-            }
-            if let Some(ref f) = args.fields {
-                query.push(("fields", f.clone()));
-            }
-            if let Some(l) = args.limit {
-                query.push(("limit", l.to_string()));
-            }
-            if let Some(o) = args.offset {
-                query.push(("offset", o.to_string()));
-            }
+            let query = list_sessions_query(&args);
             let (value, note) = client
                 .get_json_with_note("/api/sessions", &query)
                 .await
