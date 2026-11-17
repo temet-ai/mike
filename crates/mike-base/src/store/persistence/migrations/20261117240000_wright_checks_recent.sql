@@ -35,6 +35,19 @@ UPDATE wright.checks
        updated_at = now()
  WHERE name = 'decisions_health';
 
+-- prompt_cache_breaks counted a stage's breaks over window_hours (24), so a stage fixed by a deploy
+-- stayed a problem for a day after its last break, and triage would mail the operator about it. A
+-- stage now also needs a break in the last quiet_hours (6) to stay open.
+UPDATE wright.checks
+   SET params = params || '{"quiet_hours": 6}'::jsonb,
+       query = replace(query,
+                       $old$HAVING count(*) >= ($1->>'min_breaks')::int$old$,
+                       $new$HAVING count(*) >= ($1->>'min_breaks')::int
+   AND max(b.occurred_at) >= now() - make_interval(hours => COALESCE(($1->>'quiet_hours')::int, 6))$new$),
+       expects = 'No mike stage makes Claude Code''s full re-sends miss the prompt cache: fewer than min_breaks breaks caused by one stage in the last window_hours, or none in the last quiet_hours',
+       updated_at = now()
+ WHERE name = 'prompt_cache_breaks';
+
 UPDATE wright.checks
    SET expects = 'No query averages more than mean_ms or reads more than blocks_per_call shared blocks per call over its recent calls (at least min_calls since a base kept in the evidence, a window of at least quiet_hours), and it ran in the last quiet_hours; each is named by its pg_stat_statements queryid',
        query = $q$WITH stats AS (
