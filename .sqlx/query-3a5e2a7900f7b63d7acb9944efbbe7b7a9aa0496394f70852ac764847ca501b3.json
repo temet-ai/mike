@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM overrides.injected_replay_records\n                  WHERE machine_uuid = $1\n                    AND recorded_at <= now() - interval '1 hour'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3a5e2a7900f7b63d7acb9944efbbe7b7a9aa0496394f70852ac764847ca501b3"
+}

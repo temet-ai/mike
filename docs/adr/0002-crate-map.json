@@ -625,6 +625,7 @@
   "store/persistence/recall_embedding": "knowledge",
   "store/persistence/recall_reads": "knowledge",
   "store/persistence/rehydrate": "db",
+  "store/persistence/injected_replay": "proxy",
   "store/persistence/remote_control": "proxy",
   "store/persistence/response_intercepts": "proxy",
   "store/persistence/runtime": "runtime",

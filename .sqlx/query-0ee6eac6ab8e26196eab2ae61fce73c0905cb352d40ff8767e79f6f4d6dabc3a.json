@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO overrides.injected_replay_records (machine_uuid, lane, message_identity, tail)\n                 VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ee6eac6ab8e26196eab2ae61fce73c0905cb352d40ff8767e79f6f4d6dabc3a"
+}

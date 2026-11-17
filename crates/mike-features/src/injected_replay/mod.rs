@@ -1,4 +1,5 @@
 pub mod splice;
+pub mod store;
 #[cfg(test)]
 mod tests;
 
@@ -76,18 +77,24 @@ impl InjectedBlockRegistry {
     }
 
     pub fn record(&self, lane: &str, original: &[u8], injected: &[u8]) -> bool {
-        let Some(captured) = splice::capture(original, injected) else {
-            return false;
-        };
+        self.capture(lane, original, injected).is_some()
+    }
+
+    pub fn capture(&self, lane: &str, original: &[u8], injected: &[u8]) -> Option<InjectedBlocks> {
+        let captured = splice::capture(original, injected)?;
+        self.restore(lane, captured.clone());
+        Some(captured)
+    }
+
+    pub fn restore(&self, lane: &str, record: InjectedBlocks) {
         let is_new = !self.lanes.contains_key(lane);
         self.lanes
             .entry(lane.to_string())
             .or_default()
-            .insert(captured);
+            .insert(record);
         if is_new {
             self.track_lane(lane);
         }
-        true
     }
 
     fn track_lane(&self, lane: &str) {

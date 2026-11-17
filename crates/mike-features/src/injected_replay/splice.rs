@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
+
+use sha2::{Digest, Sha256};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -12,6 +13,17 @@ const PLAIN_STRING_OPEN: &[u8] = br#"[{"type":"text","text":"#;
 pub struct InjectedBlocks {
     pub identity: u64,
     tail: Vec<u8>,
+}
+
+impl InjectedBlocks {
+    pub fn restored(identity: u64, tail: Vec<u8>) -> Option<Self> {
+        (tail.first() == Some(&b',') && tail.last() == Some(&b']'))
+            .then_some(Self { identity, tail })
+    }
+
+    pub fn tail(&self) -> &[u8] {
+        &self.tail
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -92,9 +104,10 @@ fn identity(message: &RawValue) -> Option<u64> {
     content_as_blocks(&mut value);
     strip_cache_control(&mut value);
     let canonical = serde_json::to_vec(&value).ok()?;
-    let mut hasher = DefaultHasher::new();
-    canonical.hash(&mut hasher);
-    Some(hasher.finish())
+    let digest = Sha256::digest(&canonical);
+    let mut first = [0u8; 8];
+    first.copy_from_slice(&digest[..8]);
+    Some(u64::from_be_bytes(first))
 }
 
 fn plain_string_prefix(original: &[u8]) -> Vec<u8> {
