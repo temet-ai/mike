@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 use super::held::{HeldTag, held_lesson_tags, is_held};
+use crate::conversation::EarlierTurns;
 use crate::lesson_worker::{InjectableLesson, LessonSnapshot};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -45,8 +46,9 @@ pub fn already_present_ids(
     session_id: &str,
     project_path: &str,
     body: &[u8],
+    earlier: &EarlierTurns,
 ) -> Vec<i64> {
-    let tags = held_lesson_tags(body);
+    let tags = held_lesson_tags(body, earlier);
     let mut ids = Vec::new();
     for lesson in project_pool(snapshot, session_id, project_path) {
         let present = !lesson.route.is_injection() || is_held(&tags, lesson);

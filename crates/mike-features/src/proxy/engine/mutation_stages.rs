@@ -40,6 +40,13 @@ fn exempt_outcome(body_bytes: &Bytes) -> MutationOutcome {
     }
 }
 
+async fn stage_body(state: &AppState, session_id: &str, body_bytes: &Bytes) -> pipeline::StageBody {
+    let earlier =
+        crate::conversation::restore::earlier_turns(&state.store, session_id, body_bytes).await;
+    pipeline::StageBody::new(body_bytes.clone(), sha256_hex(body_bytes.as_ref()))
+        .with_earlier(earlier)
+}
+
 pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOutcome {
     let MutationStageParams {
         state,
@@ -59,7 +66,7 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
     let filter_cfg = state.filter_config.load_full();
     let lesson_snapshot = state.lesson_cache.load();
     let lane = crate::injected_replay::lane_key(signals);
-    let mut body = pipeline::StageBody::new(body_bytes.clone(), sha256_hex(body_bytes.as_ref()));
+    let mut body = stage_body(state, session_id, body_bytes).await;
     crate::injected_replay::replay_into(&state.injected_replay, &lane, &mut body);
     let after_replay = body.body().clone();
     let stage_ctx = pipeline::StageContext {
@@ -90,6 +97,7 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         firing_rule_ids,
         injected_lesson_ids,
         mut manifest,
+        earlier,
     } = body.into_parts();
 
     let injected_reminders = {
@@ -123,16 +131,16 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         firing_rule_ids,
         injected_lesson_ids,
         manifest,
+        earlier,
     });
     pipeline::run(&pipeline::stages_after_steerer(), &stage_ctx, &mut body).await;
     let pipeline::StageBodyParts {
-        original: _,
         body: post_filter_body,
-        filtered_stored: _filtered_stored,
         filter_applied,
         firing_rule_ids,
         injected_lesson_ids,
         manifest,
+        ..
     } = body.into_parts();
 
     MutationOutcome {

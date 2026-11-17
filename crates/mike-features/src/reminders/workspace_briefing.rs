@@ -1,6 +1,7 @@
 use bytes::Bytes;
 
 use crate::api::workspace::{Briefing, BriefingBuildRequest, build_workspace_briefing};
+use crate::conversation::EarlierTurns;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::proxy::engine::workspace_register::await_workspace_registration;
 use crate::proxy::remote_control::inject::PushDeps;
@@ -24,6 +25,7 @@ const WORKSPACE_BRIEFING_CODES: StageManifestCodes = StageManifestCodes {
 pub struct WorkspaceBriefingRequest<'a> {
     pub state: &'a AppState,
     pub body_bytes: &'a [u8],
+    pub earlier: &'a EarlierTurns,
     pub session_id: &'a str,
     pub project_path: &'a str,
     pub request_id: RequestId,
@@ -61,6 +63,7 @@ pub async fn apply_workspace_briefing(
     let WorkspaceBriefingRequest {
         state,
         body_bytes,
+        earlier,
         session_id,
         project_path,
         request_id,
@@ -68,7 +71,7 @@ pub async fn apply_workspace_briefing(
     } = req;
 
     if state.workspace_briefing_delivered.contains(session_id)
-        || super::client_context::client_text_reached(body_bytes, BRIEFING_SOURCE)
+        || super::client_context::client_text_reached(body_bytes, BRIEFING_SOURCE, earlier)
     {
         return WorkspaceBriefingOutcome::AlreadyDelivered;
     }
@@ -201,6 +204,7 @@ impl RequestStage for WorkspaceBriefingStage {
         let outcome = apply_workspace_briefing(WorkspaceBriefingRequest {
             state: ctx.state,
             body_bytes: body.body(),
+            earlier: body.earlier(),
             session_id: ctx.session_id,
             project_path: ctx.project_path,
             request_id: ctx.request_id,

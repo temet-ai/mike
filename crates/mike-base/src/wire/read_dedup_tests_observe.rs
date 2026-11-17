@@ -9,7 +9,7 @@ fn no_op_on_plain_user_prompt() {
     });
     let mut index = SessionDedupIndex::default();
     let mut stats = SessionDedupStats::default();
-    assert!(observe(&body, &mut index, &mut stats, ts()).is_empty());
+    assert!(observe(DedupInput::whole_body(&body), &mut index, &mut stats, ts()).is_empty());
     assert!(index.is_empty());
     assert_eq!(stats.hit_count, 0);
 }
@@ -28,7 +28,7 @@ fn first_read_indexes_but_is_not_a_hit() {
     });
     let mut index = SessionDedupIndex::default();
     let mut stats = SessionDedupStats::default();
-    let hits = observe(&body, &mut index, &mut stats, ts());
+    let hits = observe(DedupInput::whole_body(&body), &mut index, &mut stats, ts());
     assert!(hits.is_empty());
     assert_eq!(stats.hit_count, 0);
     assert_eq!(index.len(), 1);
@@ -50,7 +50,7 @@ fn duplicate_read_same_path_same_content_is_a_hit() -> anyhow::Result<()> {
             ]}
         ]
     });
-    assert!(observe(&first, &mut index, &mut stats, ts()).is_empty());
+    assert!(observe(DedupInput::whole_body(&first), &mut index, &mut stats, ts()).is_empty());
 
     let second = json!({
         "messages": [
@@ -68,7 +68,12 @@ fn duplicate_read_same_path_same_content_is_a_hit() -> anyhow::Result<()> {
             ]}
         ]
     });
-    let hits = observe(&second, &mut index, &mut stats, ts());
+    let hits = observe(
+        DedupInput::whole_body(&second),
+        &mut index,
+        &mut stats,
+        ts(),
+    );
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].file_path, "/tmp/a.rs");
     assert_eq!(hits[0].prior_tool_use_id, "t1");
@@ -97,7 +102,7 @@ fn different_content_same_path_is_not_a_hit() {
             ]}
         ]
     });
-    observe(&first, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&first), &mut index, &mut stats, ts());
 
     let second = json!({
         "messages": [
@@ -115,7 +120,12 @@ fn different_content_same_path_is_not_a_hit() {
             ]}
         ]
     });
-    let hits = observe(&second, &mut index, &mut stats, ts());
+    let hits = observe(
+        DedupInput::whole_body(&second),
+        &mut index,
+        &mut stats,
+        ts(),
+    );
     assert!(hits.is_empty());
     assert_eq!(stats.hit_count, 0);
 }
@@ -135,7 +145,7 @@ fn edit_invalidates_so_next_identical_read_is_not_a_hit() {
             ]}
         ]
     });
-    observe(&read1, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&read1), &mut index, &mut stats, ts());
     assert_eq!(index.len(), 1);
 
     let edit = json!({
@@ -156,7 +166,7 @@ fn edit_invalidates_so_next_identical_read_is_not_a_hit() {
             ]}
         ]
     });
-    observe(&edit, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&edit), &mut index, &mut stats, ts());
     assert!(index.is_empty(), "Edit on the indexed path must evict it");
 
     let read2 = json!({
@@ -169,7 +179,7 @@ fn edit_invalidates_so_next_identical_read_is_not_a_hit() {
             ]}
         ]
     });
-    let hits = observe(&read2, &mut index, &mut stats, ts());
+    let hits = observe(DedupInput::whole_body(&read2), &mut index, &mut stats, ts());
     assert!(
         hits.is_empty(),
         "post-Edit re-read of the same content must NOT be counted as a hit"
@@ -192,7 +202,7 @@ fn cat_bash_dump_is_read_like_and_hashes_content() {
             ]}
         ]
     });
-    observe(&first, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&first), &mut index, &mut stats, ts());
     assert_eq!(index.len(), 1);
 
     let second = json!({
@@ -211,7 +221,12 @@ fn cat_bash_dump_is_read_like_and_hashes_content() {
             ]}
         ]
     });
-    let hits = observe(&second, &mut index, &mut stats, ts());
+    let hits = observe(
+        DedupInput::whole_body(&second),
+        &mut index,
+        &mut stats,
+        ts(),
+    );
     assert!(hits.is_empty());
     assert_eq!(
         index.len(),
@@ -235,7 +250,7 @@ fn bash_command_containing_path_invalidates_it() {
             ]}
         ]
     });
-    observe(&read1, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&read1), &mut index, &mut stats, ts());
     assert_eq!(index.len(), 1);
 
     let mv = json!({
@@ -254,7 +269,7 @@ fn bash_command_containing_path_invalidates_it() {
             ]}
         ]
     });
-    observe(&mv, &mut index, &mut stats, ts());
+    observe(DedupInput::whole_body(&mv), &mut index, &mut stats, ts());
     assert!(
         index.is_empty(),
         "mv referencing the indexed path must evict it"
@@ -276,7 +291,7 @@ fn tail_role_system_is_ignored() {
     });
     let mut index = SessionDedupIndex::default();
     let mut stats = SessionDedupStats::default();
-    let hits = observe(&body, &mut index, &mut stats, ts());
+    let hits = observe(DedupInput::whole_body(&body), &mut index, &mut stats, ts());
     assert!(hits.is_empty());
     assert_eq!(
         index.len(),
@@ -319,7 +334,7 @@ fn index_stays_bounded_under_a_long_synthetic_session() {
                 ]}
             ]
         });
-        observe(&body, &mut index, &mut stats, ts());
+        observe(DedupInput::whole_body(&body), &mut index, &mut stats, ts());
     }
     assert!(
         index.len() <= MAX_DEDUP_INDEX_ENTRIES_PER_SESSION,

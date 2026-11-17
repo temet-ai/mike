@@ -40,6 +40,7 @@ async fn run(session: &str, floor: Option<&Decider>) -> anyhow::Result<Reminders
             request_id: RequestId::next(),
             push_deps: &noop_push_deps(),
         },
+        &crate::conversation::WHOLE_BODY,
         floor,
     )
     .await)

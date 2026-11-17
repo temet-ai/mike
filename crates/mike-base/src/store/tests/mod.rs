@@ -92,5 +92,6 @@ pub fn make_test_request_with_timestamp(
         correction_request_id: None,
         agent_instance_id: None,
         claude_code_agent_id: None,
+        thread: None,
     }
 }

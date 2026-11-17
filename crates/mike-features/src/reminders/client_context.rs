@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
 use crate::api::workspace::{Briefing, protocol_text};
+use crate::conversation::{EarlierTurns, WHOLE_BODY};
 use crate::launch::session_tail::session_tail_lines;
 use crate::state::AppState;
 use crate::store::updater::analysis_completed;
@@ -55,12 +56,13 @@ pub fn is_thread_continuation(body: &[u8]) -> bool {
 }
 
 pub fn client_reached_session(body: &[u8], text: &str) -> bool {
-    is_thread_continuation(body) || client_text_reached(body, text)
+    is_thread_continuation(body) || client_text_reached(body, text, &WHOLE_BODY)
 }
 
-pub fn client_text_reached(body: &[u8], text: &str) -> bool {
+pub fn client_text_reached(body: &[u8], text: &str, earlier: &EarlierTurns) -> bool {
     let needle = text.as_bytes();
-    !needle.is_empty() && body.windows(needle.len()).any(|window| window == needle)
+    (!needle.is_empty() && body.windows(needle.len()).any(|window| window == needle))
+        || earlier.contains_text(text)
 }
 
 struct Gathered {

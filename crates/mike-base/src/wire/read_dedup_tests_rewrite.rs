@@ -16,7 +16,7 @@ fn rewrite_returns_none_when_no_hit() {
     });
     let mut index = SessionDedupIndex::default();
     let mut stats = SessionDedupStats::default();
-    let (hits, rewritten) = rewrite(&body, &mut index, &mut stats, ts());
+    let (hits, rewritten) = rewrite(DedupInput::whole_body(&body), &mut index, &mut stats, ts());
     assert!(hits.is_empty());
     assert!(rewritten.is_none());
 }
@@ -36,7 +36,7 @@ fn rewrite_replaces_duplicate_read_content_with_stub() -> anyhow::Result<()> {
             ]}
         ]
     });
-    rewrite(&first, &mut index, &mut stats, ts());
+    rewrite(DedupInput::whole_body(&first), &mut index, &mut stats, ts());
 
     let second = json!({
         "messages": [
@@ -54,7 +54,12 @@ fn rewrite_replaces_duplicate_read_content_with_stub() -> anyhow::Result<()> {
             ]}
         ]
     });
-    let (hits, rewritten) = rewrite(&second, &mut index, &mut stats, ts());
+    let (hits, rewritten) = rewrite(
+        DedupInput::whole_body(&second),
+        &mut index,
+        &mut stats,
+        ts(),
+    );
     assert_eq!(hits.len(), 1);
     let new_body = rewritten.ok_or_else(|| anyhow::anyhow!("expected a rewritten body"))?;
     let stubbed = new_body
@@ -86,7 +91,7 @@ fn invalidation_blocks_rewrite(tool_name: &str, invalidating_input: Value) {
             ]}
         ]
     });
-    rewrite(&read1, &mut index, &mut stats, ts());
+    rewrite(DedupInput::whole_body(&read1), &mut index, &mut stats, ts());
     assert_eq!(index.len(), 1);
 
     let invalidate = json!({
@@ -105,7 +110,12 @@ fn invalidation_blocks_rewrite(tool_name: &str, invalidating_input: Value) {
             ]}
         ]
     });
-    rewrite(&invalidate, &mut index, &mut stats, ts());
+    rewrite(
+        DedupInput::whole_body(&invalidate),
+        &mut index,
+        &mut stats,
+        ts(),
+    );
     assert!(
         index.is_empty(),
         "{tool_name} on the indexed path must evict it"
@@ -121,7 +131,7 @@ fn invalidation_blocks_rewrite(tool_name: &str, invalidating_input: Value) {
             ]}
         ]
     });
-    let (hits, rewritten) = rewrite(&read2, &mut index, &mut stats, ts());
+    let (hits, rewritten) = rewrite(DedupInput::whole_body(&read2), &mut index, &mut stats, ts());
     assert!(
         hits.is_empty(),
         "post-{tool_name} re-read of the same content must NOT be counted as a hit"
@@ -171,7 +181,7 @@ fn rewrite_bash_command_containing_path_invalidates_it() {
             ]}
         ]
     });
-    rewrite(&read1, &mut index, &mut stats, ts());
+    rewrite(DedupInput::whole_body(&read1), &mut index, &mut stats, ts());
     assert_eq!(index.len(), 1);
 
     let mv = json!({
@@ -190,7 +200,7 @@ fn rewrite_bash_command_containing_path_invalidates_it() {
             ]}
         ]
     });
-    rewrite(&mv, &mut index, &mut stats, ts());
+    rewrite(DedupInput::whole_body(&mv), &mut index, &mut stats, ts());
     assert!(
         index.is_empty(),
         "mv referencing the indexed path must evict it"
@@ -206,7 +216,7 @@ fn rewrite_bash_command_containing_path_invalidates_it() {
             ]}
         ]
     });
-    let (hits, rewritten) = rewrite(&read2, &mut index, &mut stats, ts());
+    let (hits, rewritten) = rewrite(DedupInput::whole_body(&read2), &mut index, &mut stats, ts());
     assert!(hits.is_empty());
     assert!(rewritten.is_none());
 }

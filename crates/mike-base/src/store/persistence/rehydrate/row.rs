@@ -307,6 +307,7 @@ fn build_intercepted_request(
         correction_request_id: row.correction_request_id.map(|v| v as u64),
         agent_instance_id: row.agent_instance_id,
         claude_code_agent_id: row.claude_code_agent_id,
+        thread: None,
         system_prompt: decoded.system_prompt,
     })
 }

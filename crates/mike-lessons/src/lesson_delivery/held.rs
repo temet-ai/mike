@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use super::LESSON_TAG_OPEN;
+use crate::conversation::EarlierTurns;
 use crate::lesson_worker::InjectableLesson;
 
 pub const REVISION_MARK: &str = " rev:";
@@ -64,9 +65,17 @@ pub fn tag_at(body: &[u8], start: usize) -> Option<(i64, usize)> {
     parse_tag(body, start).map(|found| (found.tag.id, found.end))
 }
 
-pub fn held_lesson_tags(body: &[u8]) -> Vec<HeldTag> {
-    let open = LESSON_TAG_OPEN.as_bytes();
+pub fn held_lesson_tags(body: &[u8], earlier: &EarlierTurns) -> Vec<HeldTag> {
     let mut tags = Vec::new();
+    for message in earlier.raw() {
+        collect_tags(message.get().as_bytes(), &mut tags);
+    }
+    collect_tags(body, &mut tags);
+    tags
+}
+
+fn collect_tags(body: &[u8], tags: &mut Vec<HeldTag>) {
+    let open = LESSON_TAG_OPEN.as_bytes();
     let mut from = 0;
     while let Some(offset) = find(body.get(from..).unwrap_or_default(), open) {
         let start = from + offset;
@@ -77,12 +86,11 @@ pub fn held_lesson_tags(body: &[u8]) -> Vec<HeldTag> {
         }
         from = start + open.len();
     }
-    tags
 }
 
 pub fn held_lesson_ids(body: &[u8]) -> Vec<i64> {
     let mut ids = Vec::new();
-    for tag in held_lesson_tags(body) {
+    for tag in held_lesson_tags(body, &crate::conversation::WHOLE_BODY) {
         if !ids.contains(&tag.id) {
             ids.push(tag.id);
         }

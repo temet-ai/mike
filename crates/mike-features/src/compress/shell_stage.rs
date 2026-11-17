@@ -150,7 +150,8 @@ impl RequestStage for ShellOutputCompressionStage {
         let toggles = ctx.session_toggles;
         let arm = session_arm(toggles, ctx.session_id);
         let policy = ShellOutputPolicy::new(session_limits(toggles)).with_capture(body.original());
-        let reduction = shell_output::reduce_shell_output(body.body().as_ref(), &policy);
+        let reduction =
+            shell_output::reduce_shell_output(body.body().as_ref(), &policy, body.earlier());
         let original_bytes = body.body().len();
         if reduction.stage.outcome == StageOutcome::Applied && arm == ARM_FORWARD {
             forward(body, reduction, original_bytes);

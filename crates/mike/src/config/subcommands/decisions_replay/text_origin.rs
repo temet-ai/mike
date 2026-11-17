@@ -57,6 +57,9 @@ async fn ready(persist: &PersistHandle, record: Labelled) -> Option<Ready> {
         .ok()
         .flatten()?
         .bytes;
+    let body = crate::conversation::restore::whole_body_from_db(persist, &body)
+        .await
+        .map_or(body, Into::into);
     let text = current_text(&body);
     let prior = prior_context(&body);
     let before = decided_before(&record);

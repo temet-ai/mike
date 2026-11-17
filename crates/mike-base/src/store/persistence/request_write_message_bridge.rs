@@ -11,15 +11,16 @@ use crate::store::models::InterceptedRequest;
 async fn stamp_predecessor_and_request_number(
     tx: &mut sqlx::PgConnection,
     request_db_id: i64,
-    predecessor_request_id: Option<i64>,
+    predecessor: &messages::PredecessorDelta,
     session_db_id: i64,
 ) -> Result<(), PersistError> {
     session_locks::lock_request_numbering(&mut *tx, session_db_id).await?;
     let stamp = sqlx::query(STAMP_IN_SEND_ORDER); // grader-allow: no .sqlx entry can be described while crate mike does not compile
     stamp
         .bind(request_db_id)
-        .bind(predecessor_request_id)
+        .bind(predecessor.predecessor_request_id)
         .bind(session_db_id)
+        .bind(predecessor.rule.code())
         .execute(&mut *tx)
         .await?;
     Ok(())
@@ -42,6 +43,7 @@ const STAMP_IN_SEND_ORDER: &str = "WITH mine AS (
          )
          UPDATE requests.requests r
             SET predecessor_request_id = $2,
+                predecessor_rule_id = (SELECT pr.id FROM requests.predecessor_rules pr WHERE pr.code = $4),
                 request_number = COALESCE(r.request_number, n.next_number)
            FROM (
                 SELECT COALESCE((
@@ -200,6 +202,7 @@ fn clean_canonical_message(message: messages::CanonicalMessage) -> messages::Can
 pub async fn write_message_dedup_bridge(
     tx: &mut sqlx::PgConnection,
     req: &InterceptedRequest,
+    agent_instance_id: Option<i64>,
     session_db_id: i64,
     request_db_id: i64,
 ) -> Result<(), PersistError> {
@@ -229,24 +232,26 @@ pub async fn write_message_dedup_bridge(
     let canonical: Vec<messages::CanonicalMessage> =
         canonical.into_iter().map(clean_canonical_message).collect();
 
-    let messages::PredecessorDelta {
-        predecessor_request_id,
-        rows: mut delta_rows,
-        carry_forward,
-    } = messages::resolve_predecessor_and_delta(
+    let mut predecessor = messages::resolve_predecessor_and_delta(
         &mut *tx,
+        req,
         session_db_id,
-        req.created_at,
-        &req.turn_origin,
         &canonical,
-        req.agent_instance_id,
+        agent_instance_id,
     )
     .await?;
 
-    messages::write_request_messages(&mut *tx, request_db_id, &canonical, &carry_forward).await?;
+    messages::write_request_messages(
+        &mut *tx,
+        request_db_id,
+        &canonical,
+        &predecessor.carry_forward,
+    )
+    .await?;
 
-    stamp_predecessor_and_request_number(tx, request_db_id, predecessor_request_id, session_db_id)
-        .await?;
+    stamp_predecessor_and_request_number(tx, request_db_id, &predecessor, session_db_id).await?;
+    let predecessor_request_id = predecessor.predecessor_request_id;
+    let delta_rows = &mut predecessor.rows;
 
     if let Some(sent_bytes) = req.sent_body.as_deref() {
         attach_sent_patches_to_deltas(
@@ -255,7 +260,7 @@ pub async fn write_message_dedup_bridge(
             body_bytes,
             sent_bytes,
             &canonical,
-            &mut delta_rows,
+            delta_rows,
         )
         .await?;
     }
@@ -265,7 +270,7 @@ pub async fn write_message_dedup_bridge(
         request_db_id,
         predecessor_request_id,
         session_db_id,
-        &delta_rows,
+        delta_rows,
     )
     .await?;
     Ok(())

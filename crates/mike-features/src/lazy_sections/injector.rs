@@ -1,10 +1,40 @@
 use serde_json::{Value, json};
 
-pub fn inject_after_trigger(messages: &mut [Value], token: &str, reminder_text: &str) -> bool {
-    let Some(trigger_idx) = latest_trigger_index(messages, token) else {
+use crate::conversation::EarlierTurns;
+
+pub fn inject_after_trigger(
+    messages: &mut [Value],
+    earlier: &EarlierTurns,
+    token: &str,
+    reminder_text: &str,
+) -> bool {
+    let Some(first_after) = first_index_after_trigger(messages, earlier, token) else {
         return false;
     };
-    for msg in messages.iter_mut().skip(trigger_idx + 1) {
+    append_to_first_user(&mut messages[first_after..], reminder_text)
+}
+
+fn first_index_after_trigger(
+    messages: &[Value],
+    earlier: &EarlierTurns,
+    token: &str,
+) -> Option<usize> {
+    if token.is_empty() {
+        return None;
+    }
+    if messages.iter().any(is_assistant) {
+        return latest_trigger_index(messages, token).map(|idx| idx + 1);
+    }
+    let last = earlier.last_with_role("assistant")?;
+    assistant_text_contains(&last, token).then_some(0)
+}
+
+fn is_assistant(msg: &Value) -> bool {
+    msg.get("role").and_then(Value::as_str) == Some("assistant")
+}
+
+fn append_to_first_user(messages: &mut [Value], reminder_text: &str) -> bool {
+    for msg in messages.iter_mut() {
         let Some(obj) = msg.as_object_mut() else {
             continue;
         };
@@ -78,7 +108,12 @@ mod tests {
             assistant_text(&format!("On it. {TOKEN}")),
             user_blocks(vec![json!({"type": "tool_result", "tool_use_id": "t1", "content": "tabs"})]),
         ]))?;
-        assert!(inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         let content = messages[2]["content"]
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("content must be array"))?;
@@ -98,7 +133,12 @@ mod tests {
             {"role": "user", "content": [{"type": "text", "text": "latest"}]},
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(
             messages, before,
             "an older trigger must not re-inject once a newer assistant turn exists"
@@ -114,7 +154,12 @@ mod tests {
             assistant_text(&format!("again {TOKEN}")),
             user_blocks(vec![json!({"type": "text", "text": "turn B"})]),
         ]))?;
-        assert!(inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         let a = messages[1]["content"]
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("content must be array"))?;
@@ -134,7 +179,12 @@ mod tests {
             assistant_text(&format!("plain text turn end {TOKEN}")),
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(messages, before, "messages must be untouched");
         Ok(())
     }
@@ -146,7 +196,12 @@ mod tests {
             {"role": "user", "content": "legacy string-shaped turn"},
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(messages, before);
         Ok(())
     }
@@ -159,7 +214,12 @@ mod tests {
             {"role": "user", "content": [{"type": "text", "text": "follow-up"}]},
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(messages, before);
         Ok(())
     }
@@ -171,7 +231,12 @@ mod tests {
             {"role": "user", "content": [{"type": "text", "text": "next"}]},
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(messages, before);
         Ok(())
     }
@@ -185,7 +250,12 @@ mod tests {
             {"role": "user", "content": [{"type": "text", "text": "next"}]},
         ]))?;
         let before = messages.clone();
-        assert!(!inject_after_trigger(&mut messages, TOKEN, REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            TOKEN,
+            REMINDER
+        ));
         assert_eq!(messages, before);
         Ok(())
     }
@@ -196,7 +266,12 @@ mod tests {
             assistant_text("anything"),
             {"role": "user", "content": [{"type": "text", "text": "next"}]},
         ]))?;
-        assert!(!inject_after_trigger(&mut messages, "", REMINDER));
+        assert!(!inject_after_trigger(
+            &mut messages,
+            &crate::conversation::WHOLE_BODY,
+            "",
+            REMINDER
+        ));
         Ok(())
     }
 }

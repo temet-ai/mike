@@ -237,7 +237,7 @@ So weasel intercept is not the only place the proxy can cut the model's answer a
 
 ## agent_instances capture (Phase 14)
 
-After `snapshot_request` completes for an orchestrator primary turn (`turn_origin == "primary"` or `"primary_first"`), `snapshot_terminal` calls `persist.create_instances_for_dispatches(&req.session_id)` (see `store/terminal_snapshot.rs`). This creates `agent_instances` rows for every agent dispatch in the session and back-fills unbound sub-agent requests. Soft-fails on DB error (WARN + continue) so it never aborts the hot path.
+After `snapshot_request` completes for an orchestrator primary turn (`turn_origin == "primary"` or `"primary_first"`), `snapshot_terminal` calls `persist.create_instances_for_dispatches(&req.session_id)` (see `store/terminal_snapshot.rs`). By then every `subagent` and `workflow_subagent` request already has its `agent_instance_id`, set when the request was written (`store/persistence/agent_instance_capture.rs`: the linked predecessor's instance, else the instance with the same session, `claude_code_agent_id` and turn origin, else an unclaimed instance for the persona, else a new one). The job links each new Agent dispatch, in session order, to an undispatched capture-created `subagent` instance (`dispatch_instances/create_for_session.sql`) and inserts an instance only for a dispatch with none to link; `agents.instances.dispatch_id` is NULL until then. Soft-fails on DB error (WARN + continue) so it never aborts the hot path.
 
 ## Remote Control: the other way a turn reaches the model
 

@@ -16,7 +16,8 @@ impl RequestStage for LazySectionsStage {
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
         let cfg = ctx.filter_cfg;
-        let outcome = lazy_sections::apply_lazy_sections(body.body(), cfg, ctx.project_path);
+        let outcome =
+            lazy_sections::apply_lazy_sections(body.body(), cfg, ctx.project_path, body.earlier());
         let LazySectionsOutcome::Rewrote {
             new_body,
             original_len,

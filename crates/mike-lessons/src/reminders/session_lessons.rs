@@ -1,3 +1,4 @@
+use crate::conversation::{EarlierTurns, WHOLE_BODY};
 use crate::extract::request::TurnOrigin;
 use crate::lesson_worker::{InjectableLesson, LessonSnapshot};
 use crate::proxy::remote_control::inject::PushDeps;
@@ -19,11 +20,12 @@ pub struct SessionLessonsRequest<'a> {
 }
 
 pub async fn apply_session_lessons(req: SessionLessonsRequest<'_>) -> RemindersOutcome {
-    apply_session_lessons_with_floor(req, None).await
+    apply_session_lessons_with_floor(req, &WHOLE_BODY, None).await
 }
 
 pub async fn apply_session_lessons_with_floor(
     req: SessionLessonsRequest<'_>,
+    earlier: &EarlierTurns,
     floor: Option<&crate::llm::decisions::point::Decider>,
 ) -> RemindersOutcome {
     let SessionLessonsRequest {
@@ -47,7 +49,7 @@ pub async fn apply_session_lessons_with_floor(
         return RemindersOutcome::Unchanged;
     }
 
-    let (query, _) = super::session_lessons_query::conversation_query(body_bytes);
+    let (query, _) = super::session_lessons_query::conversation_query(body_bytes, earlier);
     if !matches!(turn_origin, TurnOrigin::Primary | TurnOrigin::PrimaryFirst) {
         return RemindersOutcome::Unchanged;
     }
@@ -55,7 +57,7 @@ pub async fn apply_session_lessons_with_floor(
     if is_tool_loop && !snapshot.relevance.query_ready(session_id, &query) {
         return RemindersOutcome::Unchanged;
     }
-    let held_tags = crate::lesson_delivery::held_lesson_tags(body_bytes);
+    let held_tags = crate::lesson_delivery::held_lesson_tags(body_bytes, earlier);
     let mut seen = std::collections::HashSet::new();
     let candidates: Vec<_> = snapshot
         .shared

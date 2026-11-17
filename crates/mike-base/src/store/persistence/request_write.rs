@@ -23,6 +23,7 @@ pub struct RequestInsertOutcome {
     pub id: i64,
     pub row: RowInsert,
     pub session_id: Option<i64>,
+    pub agent_instance_id: Option<i64>,
 }
 
 pub struct RequestEnvelopePrep<'a> {
@@ -115,6 +116,7 @@ pub fn fallback_id_skip_outcome(
             id: req.id.as_u64() as i64,
             row: RowInsert::AlreadyExisted,
             session_id: None,
+            agent_instance_id: req.agent_instance_id,
         });
     }
     None

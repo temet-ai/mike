@@ -46,6 +46,7 @@ impl RequestStage for RecallInjectorStage {
                 push_deps: &push_deps,
             },
             decisions.as_ref(),
+            body.earlier(),
         )
         .await;
         let (new_body, topics, lesson_count) = match &outcome {

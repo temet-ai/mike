@@ -444,3 +444,28 @@ async fn findings_ready_turns_true_once_analysis_completes_with_no_findings() ->
     assert!(findings_block(&blocks).is_none());
     Ok(())
 }
+
+#[test]
+fn client_text_reached_continue_body_with_marker_in_earlier_turn_is_true() -> anyhow::Result<()> {
+    let marker = "proxy-workspace-briefing";
+    let earlier = crate::compress::history::earlier_from_messages(&[serde_json::json!({
+        "role": "user",
+        "content": [{"type": "text", "text": format!("<system-reminder source=\"{marker}\">roster</system-reminder>")}]
+    })])?;
+    let body = serde_json::to_vec(&serde_json::json!({
+        "thread": {"type": "continue", "previous_message_id": "msg_1"},
+        "messages": [{"role": "user", "content": [{"type": "text", "text": "next"}]}]
+    }))?;
+    assert!(super::client_context::client_text_reached(
+        &body, marker, &earlier
+    ));
+    assert!(!super::client_context::client_text_reached(
+        &body,
+        marker,
+        &crate::conversation::WHOLE_BODY
+    ));
+    assert!(!super::client_context::client_text_reached(
+        &body, "", &earlier
+    ));
+    Ok(())
+}

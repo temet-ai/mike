@@ -102,6 +102,7 @@ async fn recalled(
             push_deps: &push_deps(),
         },
         decisions,
+        &crate::conversation::WHOLE_BODY,
     )
     .await)
 }

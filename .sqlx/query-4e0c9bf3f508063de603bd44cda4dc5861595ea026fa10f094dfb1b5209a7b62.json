@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rr.request_id\n           FROM responses.responses rr\n          WHERE rr.upstream_message_id = $1\n          ORDER BY rr.request_id DESC\n          LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4e0c9bf3f508063de603bd44cda4dc5861595ea026fa10f094dfb1b5209a7b62"
+}

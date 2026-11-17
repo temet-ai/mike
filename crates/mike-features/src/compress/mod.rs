@@ -2,6 +2,7 @@ pub mod cache_gate;
 pub mod compressor_loop;
 pub mod content_blocks;
 pub mod file_reads;
+pub mod history;
 pub mod measure;
 pub mod recovery;
 pub mod shell_output;

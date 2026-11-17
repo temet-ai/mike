@@ -442,6 +442,7 @@
   "error": "core",
   "eval": "eval",
   "eval_metrics": "eval",
+  "conversation": "db",
   "explained": "core",
   "explained_tests": "core",
   "extract": "wire",

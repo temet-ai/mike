@@ -38,6 +38,27 @@ pub async fn find_first_appearance_messages(
         .collect())
 }
 
+pub async fn find_own_search_tool_use_ids(
+    pool: &PgPool,
+    request_ids: &[i64],
+    needle: &str,
+    case_sensitive: bool,
+    tool_name_suffixes: &[String],
+) -> Result<Vec<String>, PersistError> {
+    if request_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(sqlx::query_file_scalar!(
+        "src/store/persistence/rehydrate/find_text_own_search_tool_uses.sql",
+        request_ids,
+        tool_name_suffixes,
+        needle,
+        case_sensitive,
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
 pub async fn find_own_search_request_ids(
     pool: &PgPool,
     request_ids: &[i64],

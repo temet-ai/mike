@@ -238,21 +238,41 @@ fn splice_stub_targets(
     Some(new_body)
 }
 
+pub struct DedupInput<'a> {
+    pub body: &'a Value,
+    pub earlier_assistant: Option<&'a Value>,
+}
+
+impl<'a> DedupInput<'a> {
+    pub fn whole_body(body: &'a Value) -> Self {
+        Self {
+            body,
+            earlier_assistant: None,
+        }
+    }
+}
+
 fn fold(
-    body: &Value,
+    input: DedupInput<'_>,
     index: &mut SessionDedupIndex,
     stats: &mut SessionDedupStats,
     now: DateTime<Utc>,
     armed: bool,
 ) -> (Vec<DedupHit>, Option<Value>) {
+    let body = input.body;
     let Some(msgs) = crate::extract::request::messages_ignoring_trailing_system(body) else {
         return (Vec::new(), None);
     };
-    if msgs.len() < 2 {
+    let Some(user_msg_index) = msgs.len().checked_sub(1) else {
         return (Vec::new(), None);
-    }
-    let user_msg_index = msgs.len() - 1;
-    let assistant_msg = &msgs[msgs.len() - 2];
+    };
+    let assistant_msg = match user_msg_index.checked_sub(1) {
+        Some(i) => &msgs[i],
+        None => match input.earlier_assistant {
+            Some(earlier) => earlier,
+            None => return (Vec::new(), None),
+        },
+    };
     let user_msg = &msgs[user_msg_index];
     if assistant_msg.get("role").and_then(Value::as_str) != Some("assistant")
         || user_msg.get("role").and_then(Value::as_str) != Some("user")
@@ -283,21 +303,21 @@ fn fold(
 }
 
 pub fn observe(
-    body: &Value,
+    input: DedupInput<'_>,
     index: &mut SessionDedupIndex,
     stats: &mut SessionDedupStats,
     now: DateTime<Utc>,
 ) -> Vec<DedupHit> {
-    fold(body, index, stats, now, false).0
+    fold(input, index, stats, now, false).0
 }
 
 pub fn rewrite(
-    body: &Value,
+    input: DedupInput<'_>,
     index: &mut SessionDedupIndex,
     stats: &mut SessionDedupStats,
     now: DateTime<Utc>,
 ) -> (Vec<DedupHit>, Option<Value>) {
-    fold(body, index, stats, now, true)
+    fold(input, index, stats, now, true)
 }
 
 #[cfg(test)]
@@ -307,6 +327,10 @@ pub mod tests_support;
 #[cfg(test)]
 #[path = "read_dedup_tests_observe.rs"]
 pub mod tests_observe;
+
+#[cfg(test)]
+#[path = "read_dedup_tests_thread.rs"]
+pub mod tests_thread;
 
 #[cfg(test)]
 #[path = "read_dedup_tests_rewrite.rs"]

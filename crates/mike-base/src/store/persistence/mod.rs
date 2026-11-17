@@ -1,4 +1,5 @@
 pub mod agent_dispatch_reads;
+pub mod agent_instance_capture;
 pub mod agents;
 pub mod assemble;
 pub mod capture_classification;
@@ -10,6 +11,7 @@ pub mod composition_usage;
 #[cfg(test)]
 pub mod connect_existing_tests;
 pub mod content_search;
+pub mod conversation_reads;
 pub mod dispatch_instances;
 #[cfg(test)]
 pub mod dispatch_instances_tests;

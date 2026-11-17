@@ -63,7 +63,11 @@ pub(crate) async fn compress_estimate(
         &default_enabled_producers,
         &default_protected_paths,
     );
-    let reduction = crate::compress::file_reads::reduce_file_reads(raw.as_ref(), &policy);
+    let reduction = crate::compress::file_reads::reduce_file_reads(
+        raw.as_ref(),
+        &policy,
+        &crate::conversation::WHOLE_BODY,
+    );
     let report = crate::compress::measure::SavingsReport::compute(
         raw.len(),
         reduction.candidate.len(),

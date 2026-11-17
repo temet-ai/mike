@@ -4,6 +4,7 @@ use bytes::Bytes;
 use dashmap::DashSet;
 use serde_json::Value;
 
+use crate::conversation::EarlierTurns;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::state::AppState;
 use crate::store::models::{ReminderSource, RequestId};
@@ -70,13 +71,22 @@ pub fn is_git_read_command(command: &str) -> bool {
         .any(|segment| is_git_read_segment(segment.trim()))
 }
 
-pub fn last_turn_read_git(body: &[u8]) -> Option<usize> {
+fn is_assistant(message: &Value) -> bool {
+    message.get("role").and_then(Value::as_str) == Some("assistant")
+}
+
+pub fn last_turn_read_git(body: &[u8], earlier: &EarlierTurns) -> Option<usize> {
     let parsed: Value = serde_json::from_slice(body).ok()?;
     let messages = parsed.get("messages")?.as_array()?;
-    let last_assistant = messages
-        .iter()
-        .rev()
-        .find(|m| m.get("role").and_then(Value::as_str) == Some("assistant"))?;
+    let from_earlier = if messages.iter().any(is_assistant) {
+        None
+    } else {
+        earlier.last_with_role("assistant")
+    };
+    let last_assistant = match from_earlier.as_ref() {
+        Some(assistant) => assistant,
+        None => messages.iter().rev().find(|m| is_assistant(m))?,
+    };
     let read_git = last_assistant
         .get("content")?
         .as_array()?
@@ -85,15 +95,16 @@ pub fn last_turn_read_git(body: &[u8]) -> Option<usize> {
         .filter(|b| b.get("name").and_then(Value::as_str) == Some("Bash"))
         .filter_map(|b| b.pointer("/input/command").and_then(Value::as_str))
         .any(is_git_read_command);
-    read_git.then_some(messages.len())
+    read_git.then_some(earlier.len() + messages.len())
 }
 
 pub fn hint_reminder(
     session_id: &str,
     body_bytes: &[u8],
+    earlier: &EarlierTurns,
     request_id: RequestId,
 ) -> RemindersOutcome {
-    if last_turn_read_git(body_bytes).is_none()
+    if last_turn_read_git(body_bytes, earlier).is_none()
         || !crate::explained::first_time(session_id, crate::explained::GIT_READ_HINT)
     {
         return RemindersOutcome::Unchanged;
@@ -137,7 +148,7 @@ impl RequestStage for GitReadHintStage {
             );
             return;
         }
-        let outcome = hint_reminder(ctx.session_id, body.body(), ctx.request_id);
+        let outcome = hint_reminder(ctx.session_id, body.body(), body.earlier(), ctx.request_id);
         let RemindersOutcome::Appended { body: new_body, .. } = outcome else {
             record_outcome_without_body_change(body, &GIT_READ_HINT_CODES, &outcome);
             return;

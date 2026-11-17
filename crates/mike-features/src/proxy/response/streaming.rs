@@ -44,7 +44,8 @@ pub async fn forward_streaming(ctx: ResponseCtx) -> Result<Response, ProxyError>
     .await;
 
     let weasel_armed =
-        crate::weasel_intercept::evidence::weasel_armed(&session_toggles, &session_id);
+        crate::weasel_intercept::evidence::weasel_armed(&session_toggles, &session_id)
+            && !server_holds_the_answer(&upstream_body_for_correction, &session_id, request_id);
     if !weasel_armed && crate::weasel_intercept::evidence::guarded_by_client(&session_id) {
         tracing::info!(
             session_id = %session_id,
@@ -91,6 +92,19 @@ pub async fn forward_streaming(ctx: ResponseCtx) -> Result<Response, ProxyError>
         body,
         body_may_be_replaced || context_focus_asked,
     )
+}
+
+fn server_holds_the_answer(sent_body: &[u8], session_id: &str, request_id: RequestId) -> bool {
+    let carries_thread = crate::store::models::ThreadLink::from_body(sent_body).is_some();
+    if carries_thread {
+        tracing::info!(
+            session_id = %session_id,
+            request_id = %request_id,
+            reason_code = "weasel_thread_request",
+            "weasel intercept stands aside: the server keeps this request's answer as thread history"
+        );
+    }
+    carries_thread
 }
 
 async fn mark_streaming_started_in_store(

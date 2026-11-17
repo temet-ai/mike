@@ -752,14 +752,20 @@ Enum text columns from earlier versions (`method`, `status`, `turn_type`, `turn_
 or extended. `agent_instance_id` and `operator_turn_id` are declared as plain bigint here; their FKs are added
 in a trailing `ALTER TABLE` block (see FK Cycle section below).
 
-`predecessor_request_id` and `request_number` are materialised at capture — an `UPDATE` inside the same
-snapshot transaction that writes the `requests.messages` bridge, run unconditionally rather than gated on the
-delta set being non-empty (an identical re-send still has a predecessor). The session-timeline listing and
-`fetch_request_number` read the stored columns directly; the single-row detail path still recomputes the
-predecessor live from the same lineage rule. Lineage scoping: for a `subagent` row the predecessor is the
-prior request within the same `agent_instance_id`, which is a different fact from the dispatching primary
-request the listing exposes as `dispatch_request_id`. Historical rows were populated by the one-shot
-`mike backfill-predecessors` command; both columns are NULL on rows that never took the snapshot path.
+`predecessor_request_id`, `predecessor_rule_id` and `request_number` are materialised at capture — an `UPDATE`
+inside the same snapshot transaction that writes the `requests.messages` bridge, run unconditionally rather than
+gated on the delta set being non-empty (an identical re-send still has a predecessor). The session-timeline
+listing and `fetch_request_number` read the stored columns directly; the single-row detail path still
+recomputes the predecessor live from the same lineage rule. The predecessor is chosen in
+`store/persistence/messages/predecessor.rs`. A body carrying `thread` (Claude Code 2.1.278+) decides it: a
+`continue` takes the request whose response carried `thread.previous_message_id` (rule `thread_link`), a
+`create` has none (`thread_start`). Without `thread`, or when a continue's link does not resolve, the lane
+rule applies (`lane_fallback`, a guess): the latest earlier request in the lane, scoped for a `subagent` or
+`workflow_subagent` row to the same `agent_instance_id`, never a main-thread request for a subagent without an
+instance. `none` means no candidate. This is a different fact from the dispatching primary request the listing
+exposes as `dispatch_request_id`. Historical rows were populated by the one-shot `mike backfill-predecessors`
+command; the columns are NULL on rows that never took the snapshot path, and `predecessor_rule_id` is NULL on
+every row captured before 2026-11-17.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -791,6 +797,7 @@ request the listing exposes as `dispatch_request_id`. Historical rows were popul
 | `operator_turn_id` | `BIGINT NULL` | Plain bigint; FK added via ALTER (see FK Cycle) → `memory.operator_turns(id)` ON DELETE SET NULL |
 | `claude_code_agent_id` | `TEXT NULL` | Captured `x-claude-code-agent-id` header; present only on workflow sub-agent requests. Unindexed — low cardinality per session, not a join key |
 | `predecessor_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; self-referential. Preceding request in the same session/agent-instance chain |
+| `predecessor_rule_id` | `SMALLINT NULL` | FK → `requests.predecessor_rules(id)` (`thread_link`=1, `thread_start`=2, `lane_fallback`=3, `none`=4): which rule chose `predecessor_request_id`. NULL on rows captured before 2026-11-17 |
 | `request_number` | `BIGINT NULL` | 1-based session-chronological ordinal, ordered by `(created_at, id)` |
 | `transformation_manifest` | `JSONB NULL` | Opaque per-request `TransformationManifest` (`crates/mike-base/src/wire/manifest.rs`): ordered original→sent deltas keyed by SHA256 + byte ranges, never content bytes. Unindexed — read whole per request, never filtered on |
 
@@ -945,7 +952,9 @@ Ordered FK bridge per request. One row per `(request, ord)` pair. The content SH
 ### `requests.deltas`
 
 Per-request immutable delta fact table. One row per message change (added or removed) relative to the
-predecessor primary request in the same session. Write-once at snapshot time. `predecessor_request_id` is
+request's predecessor (see `requests.requests.predecessor_rule_id`). When the predecessor comes from a
+thread link (`continue`) or there is none, every row is `added` and none is `removed`, because the body holds
+only the new messages; `removed` rows arise only under the lane rule. Write-once at snapshot time. `predecessor_request_id` is
 a real FK ON DELETE SET NULL (not a soft reference).
 
 `change_kind_id` and `removed_reason_id` are FK lookups (replacing the old TEXT CHECK columns). `role`,
@@ -971,9 +980,18 @@ of the table's row content.
 
 **Indexes:**
 - `idx_request_deltas_request_id`: `request_id` (BTree)
-- `idx_request_deltas_session_id`: `session_id` (BTree)
+- `idx_request_deltas_session_request`: `(session_id, request_id) INCLUDE (change_kind_id, message_id, ord)` (BTree) — serves the `find_text` message scan; replaced `idx_request_deltas_session_id`
 - `idx_request_deltas_message_id`: `message_id` (BTree)
 - `idx_request_deltas_removed_reason`: `removed_reason_id WHERE NOT NULL` (BTree partial) — find all compactions
+
+---
+
+### `requests.predecessor_rules` (vocab)
+
+FK target of `requests.requests.predecessor_rule_id`. `id` `SMALLINT` primary key, `code` `TEXT NOT NULL UNIQUE`:
+`thread_link`(1) the request whose response carries the body's `thread.previous_message_id`; `thread_start`(2)
+`thread.type = create`, no predecessor; `lane_fallback`(3) the latest earlier request in the same lane, a guess;
+`none`(4) no candidate.
 
 ---
 
@@ -1212,6 +1230,7 @@ the `token_usage` JSONB at write time, so per-turn sums are `SUM(col)` instead o
 - `idx_request_responses_completed_at`: `completed_at` BRIN
 - `idx_request_responses_stop_reason`: `stop_reason_id WHERE NOT NULL` (BTree partial)
 - `idx_request_responses_upstream_request_id`: `upstream_request_id WHERE NOT NULL` (BTree partial)
+- `idx_responses_upstream_message_id`: `upstream_message_id INCLUDE (request_id) WHERE NOT NULL` (BTree partial) — resolves a body's `thread.previous_message_id` to the request that answered it
 
 ---
 
@@ -1541,14 +1560,14 @@ on `agent_id` prevents retiring an agent from silently deleting dispatch history
 
 ### `agents.instances`
 
-Tracks the lifecycle of each spawned sub-agent. One row is created when a dispatched agent's first request
-arrives. `first_request_id` is a real FK ON DELETE SET NULL (not a soft reference).
+Tracks the lifecycle of each spawned sub-agent. One row is created when a `subagent` or `workflow_subagent`
+request arrives with no instance to reuse; the post-turn job later links the Agent dispatch to it. `first_request_id` is a real FK ON DELETE SET NULL (not a soft reference).
 
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
 | `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
-| `dispatch_id` | `BIGINT NOT NULL` | FK → `agents.dispatches(id)` ON DELETE CASCADE |
+| `dispatch_id` | `BIGINT NULL` | FK → `agents.dispatches(id)` ON DELETE CASCADE. NULL until the post-turn job links the Agent dispatch to an instance capture created; always NULL for `workflow_subagent` |
 | `agent_id` | `BIGINT NULL` | FK → `agents.agents(id)` ON DELETE SET NULL |
 | `subagent_persona` | `TEXT NULL` | Persona string from the first request |
 | `first_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL |

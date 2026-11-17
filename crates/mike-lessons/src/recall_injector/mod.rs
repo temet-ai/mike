@@ -1,6 +1,8 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 mod answer;
 #[cfg(test)]
+mod earlier_tests;
+#[cfg(test)]
 mod floor_tests;
 pub mod formatter;
 pub mod parser;
@@ -17,6 +19,7 @@ pub use answer::{NearMissLearning, RecallAnswer, answer_recall, answer_recall_wi
 use bytes::Bytes;
 use serde_json::Value;
 
+use crate::conversation::{EarlierTurns, WHOLE_BODY};
 use crate::lazy_sections::has_thinking_blocks;
 use crate::llm::decisions::env::DecisionEnv;
 use crate::llm::decisions::point::Decider;
@@ -64,12 +67,13 @@ pub struct RecallInjectionRequest<'a> {
 }
 
 pub async fn apply_recall_injection(req: RecallInjectionRequest<'_>) -> RecallOutcome {
-    apply_recall_injection_with(req, None).await
+    apply_recall_injection_with(req, None, &WHOLE_BODY).await
 }
 
 pub async fn apply_recall_injection_with(
     req: RecallInjectionRequest<'_>,
     decisions: Option<&DecisionEnv>,
+    earlier: &EarlierTurns,
 ) -> RecallOutcome {
     let RecallInjectionRequest {
         raw,
@@ -88,13 +92,13 @@ pub async fn apply_recall_injection_with(
         return RecallOutcome::Declined("recall_body_not_json");
     };
 
-    let assistant_text = collect_assistant_text(&value);
+    let assistant_text = collect_assistant_text(&value, earlier);
     let topics = scan_recall_tags(&assistant_text);
     if topics.is_empty() {
         return RecallOutcome::Declined("recall_no_tags");
     }
 
-    if has_thinking_blocks(&value) {
+    if has_thinking_blocks(&value, earlier) {
         tracing::debug!(
             "recall_injector: R1 guard fired — thinking blocks present, skipping injection"
         );
@@ -302,38 +306,41 @@ fn inject_recall_reminder(
     }
 }
 
-fn collect_assistant_text(value: &Value) -> String {
-    let Some(messages) = value.get("messages").and_then(Value::as_array) else {
-        return String::new();
-    };
-
+fn collect_assistant_text(value: &Value, earlier: &EarlierTurns) -> String {
     let mut out = String::new();
-    for msg in messages {
-        let role = msg.get("role").and_then(Value::as_str).unwrap_or("");
-        if role != "assistant" {
-            continue;
-        }
-        match msg.get("content") {
-            Some(Value::String(s)) => {
-                if !out.is_empty() {
-                    out.push('\n');
-                }
-                out.push_str(s);
-            }
-            Some(Value::Array(blocks)) => {
-                for block in blocks {
-                    if let Some("text") = block.get("type").and_then(Value::as_str)
-                        && let Some(text) = block.get("text").and_then(Value::as_str)
-                    {
-                        if !out.is_empty() {
-                            out.push('\n');
-                        }
-                        out.push_str(text);
-                    }
-                }
-            }
-            _ => {}
+    for message in earlier.values() {
+        push_assistant_text(&message, &mut out);
+    }
+    if let Some(messages) = value.get("messages").and_then(Value::as_array) {
+        for message in messages {
+            push_assistant_text(message, &mut out);
         }
     }
     out
+}
+
+fn push_assistant_text(msg: &Value, out: &mut String) {
+    if msg.get("role").and_then(Value::as_str) != Some("assistant") {
+        return;
+    }
+    match msg.get("content") {
+        Some(Value::String(s)) => push_line(out, s),
+        Some(Value::Array(blocks)) => {
+            for block in blocks {
+                if let Some("text") = block.get("type").and_then(Value::as_str)
+                    && let Some(text) = block.get("text").and_then(Value::as_str)
+                {
+                    push_line(out, text);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn push_line(out: &mut String, text: &str) {
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out.push_str(text);
 }

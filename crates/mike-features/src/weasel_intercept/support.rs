@@ -114,6 +114,7 @@ pub fn make_correction_intercepted_request(
         correction_request_id: None,
         agent_instance_id: lane.agent_instance_id,
         claude_code_agent_id: lane.claude_code_agent_id,
+        thread: None,
     }
 }
 

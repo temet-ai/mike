@@ -45,3 +45,17 @@ fn observe_body_counts_messages_and_ignores_a_body_without_them() {
     );
     assert!(first_time("explained-body", GIT_READ_HINT));
 }
+
+#[test]
+fn observe_body_continued_thread_is_not_a_compaction() {
+    observe_body(
+        "explained-thread",
+        br#"{"messages":[{"role":"user","content":"a"},{"role":"assistant","content":"b"},{"role":"user","content":"c"}]}"#,
+    );
+    assert!(first_time("explained-thread", MEMORY_TAGS));
+    observe_body(
+        "explained-thread",
+        br#"{"messages":[{"role":"user","content":"d"}],"thread":{"type":"continue","previous_message_id":"msg_1"}}"#,
+    );
+    assert!(!first_time("explained-thread", MEMORY_TAGS));
+}

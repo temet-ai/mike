@@ -1,12 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value as JsonValue;
 use sqlx::PgConnection;
-use std::collections::HashMap;
 
 use crate::store::persistence::PersistError;
 
 use super::canonicalize::CanonicalMessage;
-use super::delta::{DeltaRow, compute_delta, is_reliable_sidecar_origin};
 
 #[derive(sqlx::FromRow)]
 struct PredecessorRef {
@@ -69,7 +67,7 @@ pub async fn fetch_predecessor_primary(
                 PredecessorRef,
                 "SELECT r.id, r.created_at
                    FROM requests.requests r
-                   JOIN requests.turn_origins tor ON tor.id = r.turn_origin_id AND tor.code = 'subagent'
+                   JOIN requests.turn_origins tor ON tor.id = r.turn_origin_id AND tor.code IN ('subagent', 'workflow_subagent')
                   WHERE r.session_id = $1
                     AND r.agent_instance_id = $3
                     AND r.created_at < $2
@@ -123,52 +121,6 @@ pub async fn fetch_predecessor_bridge(
         .into_iter()
         .map(|r| (r.ord, r.message_sha256, r.message_id))
         .collect())
-}
-
-pub struct PredecessorDelta {
-    pub predecessor_request_id: Option<i64>,
-    pub rows: Vec<DeltaRow>,
-    pub carry_forward: HashMap<String, i64>,
-}
-
-pub async fn resolve_predecessor_and_delta(
-    conn: &mut PgConnection,
-    session_db_id: i64,
-    created_at: DateTime<Utc>,
-    turn_origin: &str,
-    canonical: &[CanonicalMessage],
-    agent_instance_id: Option<i64>,
-) -> Result<PredecessorDelta, PersistError> {
-    if is_reliable_sidecar_origin(turn_origin) {
-        let rows = compute_delta(canonical, None);
-        return Ok(PredecessorDelta {
-            predecessor_request_id: None,
-            rows,
-            carry_forward: HashMap::new(),
-        });
-    }
-
-    let predecessor =
-        fetch_predecessor_primary(conn, session_db_id, created_at, agent_instance_id).await?;
-    let pred_bridge: Vec<(i32, String, i64)> = match predecessor {
-        Some((pid, _pca)) => fetch_predecessor_bridge(conn, pid).await?,
-        None => Vec::new(),
-    };
-    let carry_forward: HashMap<String, i64> = pred_bridge
-        .iter()
-        .map(|(_, sha, message_id)| (sha.clone(), *message_id))
-        .collect();
-    let pred_shas: Vec<(i32, String)> = pred_bridge
-        .iter()
-        .map(|(ord, sha, _)| (*ord, sha.clone()))
-        .collect();
-    let pred_bridge_ref: Option<&[(i32, String)]> = predecessor.map(|_| pred_shas.as_slice());
-    let rows = compute_delta(canonical, pred_bridge_ref);
-    Ok(PredecessorDelta {
-        predecessor_request_id: predecessor.map(|(pid, _)| pid),
-        rows,
-        carry_forward,
-    })
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, serde::Serialize)]

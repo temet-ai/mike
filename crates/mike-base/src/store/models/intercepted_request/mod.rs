@@ -5,6 +5,7 @@ use serde::{Serialize, Serializer};
 use super::diagnostics::Diagnostic;
 use super::request_id::RequestId;
 use super::request_status::RequestStatus;
+use super::thread_link::ThreadLink;
 use super::{FailedStreamBlock, SystemPromptObservation, ToolResult};
 use crate::types::{RequestParams, TokenUsage, ToolCall};
 
@@ -104,6 +105,9 @@ pub struct InterceptedRequest {
 
     #[serde(default)]
     pub claude_code_agent_id: Option<String>,
+
+    #[serde(skip)]
+    pub thread: Option<ThreadLink>,
 }
 
 #[cfg(test)]

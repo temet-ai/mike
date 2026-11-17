@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 use tracing::warn;
 
+use crate::conversation::EarlierTurns;
 use crate::wire::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
 
 use super::STAGE_NAME;
@@ -41,13 +42,9 @@ pub fn resolve_overlaps(targets: &mut [TargetEntry], pending: &mut Vec<PendingSp
     *pending = accepted;
 }
 
-fn read_tool_result_content_paths(body: &Value, enabled_producers: &[String]) -> HashSet<String> {
-    let mut allowed = HashSet::new();
-    let Some(messages) = body.get("messages").and_then(Value::as_array) else {
-        return allowed;
-    };
+fn tool_use_names<'a>(earlier: &'a [Value], messages: &'a [Value]) -> HashMap<&'a str, &'a str> {
     let mut use_by_id: HashMap<&str, &str> = HashMap::new();
-    for message in messages {
+    for message in earlier.iter().chain(messages) {
         let Some(blocks) = message.get("content").and_then(Value::as_array) else {
             continue;
         };
@@ -63,6 +60,20 @@ fn read_tool_result_content_paths(body: &Value, enabled_producers: &[String]) ->
             }
         }
     }
+    use_by_id
+}
+
+fn read_tool_result_content_paths(
+    body: &Value,
+    enabled_producers: &[String],
+    earlier: &EarlierTurns,
+) -> HashSet<String> {
+    let mut allowed = HashSet::new();
+    let Some(messages) = body.get("messages").and_then(Value::as_array) else {
+        return allowed;
+    };
+    let earlier_values = earlier.values();
+    let use_by_id = tool_use_names(&earlier_values, messages);
     for (msg_idx, message) in messages.iter().enumerate() {
         let Some(blocks) = message.get("content").and_then(Value::as_array) else {
             continue;
@@ -113,10 +124,11 @@ pub fn enforce_read_tool_result_boundary(
     raw: &[u8],
     body: &Value,
     enabled_producers: &[String],
+    earlier: &EarlierTurns,
     targets: &mut [TargetEntry],
     pending: &mut Vec<PendingSplice>,
 ) {
-    let allowed_paths = read_tool_result_content_paths(body, enabled_producers);
+    let allowed_paths = read_tool_result_content_paths(body, enabled_producers, earlier);
     let mut verified: Vec<PendingSplice> = Vec::with_capacity(pending.len());
     for splice in pending.drain(..) {
         let target = &mut targets[splice.target_index];
@@ -269,6 +281,7 @@ mod tests {
             &raw,
             &parsed,
             &tp.enabled_producers,
+            &crate::conversation::WHOLE_BODY,
             &mut targets,
             &mut pending,
         );
@@ -301,7 +314,7 @@ mod tests {
         });
         let raw = raw_in_history(body)?;
         let tp = TestPolicy::default();
-        let result = reduce_file_reads(&raw, &tp.policy());
+        let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
         assert_eq!(result.stage.outcome, StageOutcome::Applied);
 
         let mut corrupted = result.stage.targets[0].clone();
@@ -319,6 +332,7 @@ mod tests {
             &raw,
             &parsed,
             &tp.enabled_producers,
+            &crate::conversation::WHOLE_BODY,
             &mut targets,
             &mut pending,
         );

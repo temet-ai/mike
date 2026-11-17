@@ -122,6 +122,26 @@ impl PersistHandle {
         )
         .await
     }
+    pub async fn find_own_search_tool_use_ids(
+        &self,
+        request_ids: &[i64],
+        needle: &str,
+        case_sensitive: bool,
+        tool_name_suffixes: &[String],
+    ) -> Result<Vec<String>, PersistError> {
+        crate::metrics::time_db(
+            "find_own_search_tool_use_ids",
+            rehydrate::find_own_search_tool_use_ids(
+                &self.pool,
+                request_ids,
+                needle,
+                case_sensitive,
+                tool_name_suffixes,
+            ),
+        )
+        .await
+    }
+
     pub async fn find_own_search_request_ids(
         &self,
         request_ids: &[i64],

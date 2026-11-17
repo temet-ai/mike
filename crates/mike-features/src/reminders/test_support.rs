@@ -63,6 +63,7 @@ pub fn sample_request(id: RequestId, session_id: &str) -> InterceptedRequest {
         correction_request_id: None,
         agent_instance_id: None,
         claude_code_agent_id: None,
+        thread: None,
     }
 }
 

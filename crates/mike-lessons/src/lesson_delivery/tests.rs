@@ -35,7 +35,7 @@ fn malformed_tags_are_ignored() {
 fn held_tags_carry_the_revision_when_the_tag_has_one() {
     let body = b"[lesson:12 rev:3] a [lesson:7] b [lesson:12 rev:3] again [lesson:12 rev:4] c";
     assert_eq!(
-        held_lesson_tags(body),
+        held_lesson_tags(body, &crate::conversation::WHOLE_BODY),
         vec![
             HeldTag {
                 id: 12,
@@ -57,8 +57,11 @@ fn held_tags_carry_the_revision_when_the_tag_has_one() {
 #[test]
 fn malformed_revisions_are_ignored() {
     assert!(
-        held_lesson_tags(b"[lesson:5 rev:] [lesson:5 rev:x] [lesson:5 rev:2 [lesson:5 rev]")
-            .is_empty()
+        held_lesson_tags(
+            b"[lesson:5 rev:] [lesson:5 rev:x] [lesson:5 rev:2 [lesson:5 rev]",
+            &crate::conversation::WHOLE_BODY
+        )
+        .is_empty()
     );
 }
 
@@ -133,11 +136,23 @@ fn already_present_names_routed_and_held_lessons() {
     }
     let body = b"{\"text\":\"[lesson:1 rev:1] a\"}";
     assert_eq!(
-        already_present_ids(&snapshot, "s1", "/repo", body),
+        already_present_ids(
+            &snapshot,
+            "s1",
+            "/repo",
+            body,
+            &crate::conversation::WHOLE_BODY
+        ),
         vec![1, 2]
     );
     assert_eq!(
-        already_present_ids(&snapshot, "s1", "/repo", b"{}"),
+        already_present_ids(
+            &snapshot,
+            "s1",
+            "/repo",
+            b"{}",
+            &crate::conversation::WHOLE_BODY
+        ),
         vec![2]
     );
 }

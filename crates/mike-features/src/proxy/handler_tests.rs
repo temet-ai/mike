@@ -136,7 +136,7 @@ pub mod global_cache_scope_guard {
     }
 
     fn apply_lazy(raw: &[u8], cfg: &FilterConfig) -> Vec<u8> {
-        match lazy_sections::apply_lazy_sections(raw, cfg, "") {
+        match lazy_sections::apply_lazy_sections(raw, cfg, "", &crate::conversation::WHOLE_BODY) {
             LazySectionsOutcome::Unchanged => raw.to_vec(),
             LazySectionsOutcome::Rewrote { new_body, .. } => new_body.to_vec(),
         }

@@ -39,7 +39,10 @@ pub fn observe(session: &str, messages: usize) {
 }
 
 pub fn observe_body(session: &str, body: &[u8]) {
-    observe(session, message_count(body));
+    let shape = body_shape(body);
+    if !shape.continues_a_thread {
+        observe(session, shape.messages);
+    }
 }
 
 pub fn first_time(session: &str, what: &str) -> bool {
@@ -54,13 +57,34 @@ pub fn new_topics(session: &str, topics: &[String]) -> Vec<String> {
         .collect()
 }
 
-fn message_count(body: &[u8]) -> usize {
+struct BodyShape {
+    messages: usize,
+    continues_a_thread: bool,
+}
+
+fn body_shape(body: &[u8]) -> BodyShape {
+    #[derive(Deserialize)]
+    struct Thread<'a> {
+        #[serde(rename = "type", borrow, default)]
+        kind: Option<&'a str>,
+    }
     #[derive(Deserialize)]
     struct Conversation<'a> {
         #[serde(borrow)]
         messages: Vec<&'a RawValue>,
+        #[serde(borrow, default)]
+        thread: Option<Thread<'a>>,
     }
-    serde_json::from_slice::<Conversation<'_>>(body).map_or(0, |c| c.messages.len())
+    serde_json::from_slice::<Conversation<'_>>(body).map_or(
+        BodyShape {
+            messages: 0,
+            continues_a_thread: false,
+        },
+        |c| BodyShape {
+            messages: c.messages.len(),
+            continues_a_thread: c.thread.and_then(|t| t.kind) == Some("continue"),
+        },
+    )
 }
 
 #[cfg(test)]

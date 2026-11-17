@@ -43,7 +43,7 @@ fn reduce_shell_output_shortens_an_older_bash_result_and_recovers_it_exactly() -
     let body = body_with("Bash", &Value::String(original.clone()), 1);
     let raw = serde_json::to_vec(&body)?;
     let policy = ShellOutputPolicy::new(limits()).with_capture(&raw);
-    let reduction = reduce_shell_output(&raw, &policy);
+    let reduction = reduce_shell_output(&raw, &policy, &crate::conversation::WHOLE_BODY);
     assert_eq!(reduction.stage.outcome, StageOutcome::Applied);
     let sent: Value = serde_json::from_slice(&reduction.candidate)?;
     let text = sent
@@ -60,6 +60,7 @@ fn reduce_shell_output_shortens_an_older_bash_result_and_recovers_it_exactly() -
     let later = reduce_shell_output(
         &later_raw,
         &ShellOutputPolicy::new(limits()).with_capture(&later_raw),
+        &crate::conversation::WHOLE_BODY,
     );
     let later: Value = serde_json::from_slice(&later.candidate)?;
     assert_eq!(later["messages"][2], sent["messages"][2]);
@@ -86,12 +87,14 @@ fn reduce_shell_output_newest_result_is_cut_on_arrival_identically_to_later_requ
     let arrival = reduce_shell_output(
         &arrival_raw,
         &ShellOutputPolicy::new(limits()).with_capture(&arrival_raw),
+        &crate::conversation::WHOLE_BODY,
     );
     assert_eq!(arrival.stage.outcome, StageOutcome::Applied);
     let later_raw = serde_json::to_vec(&body_with("Bash", &content, 4))?;
     let later = reduce_shell_output(
         &later_raw,
         &ShellOutputPolicy::new(limits()).with_capture(&later_raw),
+        &crate::conversation::WHOLE_BODY,
     );
     let arrival: Value = serde_json::from_slice(&arrival.candidate)?;
     let later: Value = serde_json::from_slice(&later.candidate)?;
@@ -108,8 +111,11 @@ fn reduce_shell_output_file_reads_and_listings_stay_whole() -> anyhow::Result<()
         let mut body = body_with("Bash", &Value::String(long_output(200)), 0);
         body["messages"][1]["content"][0]["input"]["command"] = json!(command);
         let raw = serde_json::to_vec(&body)?;
-        let reduction =
-            reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+        let reduction = reduce_shell_output(
+            &raw,
+            &ShellOutputPolicy::new(limits()).with_capture(&raw),
+            &crate::conversation::WHOLE_BODY,
+        );
         assert_eq!(reduction.candidate.as_ref(), raw.as_slice(), "{command}");
         assert_eq!(reduction.stage.targets[0].reason_code, reason);
     }
@@ -119,7 +125,11 @@ fn reduce_shell_output_file_reads_and_listings_stay_whole() -> anyhow::Result<()
 #[test]
 fn reduce_shell_output_other_tools_stay_whole() -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&body_with("Read", &Value::String(long_output(200)), 0))?;
-    let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+    let reduction = reduce_shell_output(
+        &raw,
+        &ShellOutputPolicy::new(limits()).with_capture(&raw),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(reduction.candidate.as_ref(), raw.as_slice());
     assert!(reduction.stage.targets.is_empty());
     Ok(())
@@ -139,7 +149,11 @@ fn reduce_shell_output_identical_outputs_are_each_cut_the_same_way() -> anyhow::
         {"type": "tool_result", "tool_use_id": "t2", "content": output}
     ]}));
     let raw = serde_json::to_vec(&body)?;
-    let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+    let reduction = reduce_shell_output(
+        &raw,
+        &ShellOutputPolicy::new(limits()).with_capture(&raw),
+        &crate::conversation::WHOLE_BODY,
+    );
     let applied = reduction
         .stage
         .targets
@@ -185,8 +199,11 @@ fn reduce_shell_output_skips_injected_error_and_small_results() -> anyhow::Resul
     ];
     for (body, limits, reason) in cases {
         let raw = serde_json::to_vec(&body)?;
-        let reduction =
-            reduce_shell_output(&raw, &ShellOutputPolicy::new(limits).with_capture(&raw));
+        let reduction = reduce_shell_output(
+            &raw,
+            &ShellOutputPolicy::new(limits).with_capture(&raw),
+            &crate::conversation::WHOLE_BODY,
+        );
         assert_eq!(reduction.candidate.as_ref(), raw.as_slice(), "{reason}");
         assert_eq!(reduction.stage.targets[0].reason_code, reason);
     }
@@ -196,13 +213,21 @@ fn reduce_shell_output_skips_injected_error_and_small_results() -> anyhow::Resul
 #[test]
 fn reduce_shell_output_without_capture_is_not_recoverable_and_skips() -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&body_with("Bash", &Value::String(long_output(200)), 1))?;
-    let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()));
+    let reduction = reduce_shell_output(
+        &raw,
+        &ShellOutputPolicy::new(limits()),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(reduction.candidate.as_ref(), raw.as_slice());
     assert_eq!(
         reduction.stage.targets[0].reason_code,
         "original_not_recoverable"
     );
-    let malformed = reduce_shell_output(b"not json", &ShellOutputPolicy::new(limits()));
+    let malformed = reduce_shell_output(
+        b"not json",
+        &ShellOutputPolicy::new(limits()),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(malformed.stage.outcome, StageOutcome::Skipped);
     Ok(())
 }

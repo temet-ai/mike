@@ -63,7 +63,7 @@ fn an_older_whole_read_is_replaced_by_a_pointer_when_a_newer_whole_read_follows(
         closing_turn(),
     ])?;
     let policy = TestPolicy::default().with_grace(3);
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     let older = target(&reduced, "t1")?;
     assert_eq!(older.outcome, StageOutcome::Applied);
     assert_eq!(older.reason_code, reason::FILE_READ_SUPERSEDED);
@@ -88,7 +88,7 @@ fn a_partial_newer_read_does_not_supersede_a_whole_one() -> anyhow::Result<()> {
         closing_turn(),
     ])?;
     let policy = TestPolicy::default().with_grace(3);
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(target(&reduced, "t1")?.reason_code, reason::GRACE_WINDOW);
     Ok(())
 }
@@ -101,7 +101,7 @@ fn a_read_of_a_file_edited_since_is_shortened_inside_the_grace_window() -> anyho
         closing_turn(),
     ])?;
     let policy = TestPolicy::default().with_grace(5);
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     let older = target(&reduced, "t1")?;
     assert_eq!(older.outcome, StageOutcome::Applied);
     assert_eq!(older.reason_code, reason::FILE_READ_REDUCED);
@@ -116,7 +116,7 @@ fn a_read_inside_the_grace_window_stays_whole() -> anyhow::Result<()> {
         closing_turn(),
     ])?;
     let policy = TestPolicy::default().with_grace(3);
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(reduced.candidate.as_ref(), raw.as_slice());
     assert_eq!(target(&reduced, "t1")?.reason_code, reason::GRACE_WINDOW);
     Ok(())
@@ -133,7 +133,7 @@ fn a_protected_path_is_never_superseded() -> anyhow::Result<()> {
     let policy = TestPolicy::default()
         .with_grace(3)
         .with_protected(&["**/CLAUDE.md"]);
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(reduced.candidate.as_ref(), raw.as_slice());
     assert_eq!(target(&reduced, "t1")?.reason_code, reason::PROTECTED_PATH);
     Ok(())
@@ -148,7 +148,11 @@ fn a_warm_cache_holds_new_cuts_and_keeps_earlier_ones() -> anyhow::Result<()> {
     ])?;
     let policy = TestPolicy::default();
     let earlier: std::collections::HashSet<String> = ["t1".to_string()].into();
-    let reduced = reduce_file_reads(&raw, &policy.policy().with_warm_cuts(Some(&earlier)));
+    let reduced = reduce_file_reads(
+        &raw,
+        &policy.policy().with_warm_cuts(Some(&earlier)),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(target(&reduced, "t1")?.outcome, StageOutcome::Applied);
     let held = target(&reduced, "t2")?;
     assert_eq!(held.outcome, StageOutcome::Skipped);
@@ -164,7 +168,11 @@ fn a_cold_cache_allows_every_cut() -> anyhow::Result<()> {
         closing_turn(),
     ])?;
     let policy = TestPolicy::default();
-    let reduced = reduce_file_reads(&raw, &policy.policy().with_warm_cuts(None));
+    let reduced = reduce_file_reads(
+        &raw,
+        &policy.policy().with_warm_cuts(None),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(target(&reduced, "t1")?.outcome, StageOutcome::Applied);
     assert_eq!(target(&reduced, "t2")?.outcome, StageOutcome::Applied);
     Ok(())
@@ -179,8 +187,12 @@ fn the_pointer_is_not_reduced_again_on_the_next_request() -> anyhow::Result<()> 
         closing_turn(),
     ])?;
     let policy = TestPolicy::default().with_grace(3);
-    let first = reduce_file_reads(&raw, &policy.policy());
-    let second = reduce_file_reads(&first.candidate, &policy.policy());
+    let first = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
+    let second = reduce_file_reads(
+        &first.candidate,
+        &policy.policy(),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(second.candidate, first.candidate);
     Ok(())
 }

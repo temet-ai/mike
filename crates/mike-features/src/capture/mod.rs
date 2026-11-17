@@ -91,6 +91,7 @@ pub fn build_intercepted_request(inputs: InterceptedRequestInputs) -> Intercepte
         correction_request_id: None,
         agent_instance_id: None,
         claude_code_agent_id: inputs.claude_code_agent_id,
+        thread: None,
     }
 }
 
@@ -140,10 +141,7 @@ pub async fn insert_stub_and_mint_id(
     intercepted: &mut InterceptedRequest,
     is_new_session: bool,
 ) -> RequestId {
-    let request_id =
-        RequestStore::insert_request_stub_to_db(store, intercepted, is_new_session).await;
-    intercepted.id = request_id;
-    request_id
+    RequestStore::capture_request_stub(store, intercepted, is_new_session).await
 }
 
 pub async fn insert_and_attach_tool_results(

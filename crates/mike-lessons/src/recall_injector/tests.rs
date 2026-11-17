@@ -28,7 +28,7 @@ fn collect_assistant_text_string_content() {
             {"role": "assistant", "content": "world <mem:recall topic=\"x\"/>"},
         ]
     });
-    let text = collect_assistant_text(&v);
+    let text = collect_assistant_text(&v, &crate::conversation::WHOLE_BODY);
     assert!(text.contains("<mem:recall topic=\"x\"/>"));
     assert!(!text.contains("hello"));
 }
@@ -46,14 +46,17 @@ fn collect_assistant_text_array_content() {
             }
         ]
     });
-    let text = collect_assistant_text(&v);
+    let text = collect_assistant_text(&v, &crate::conversation::WHOLE_BODY);
     assert!(text.contains("block text <mem:recall topic=\"y\"/>"));
 }
 
 #[test]
 fn collect_assistant_text_no_messages_returns_empty() {
     let v = json!({"model": "claude-3-5-sonnet-20241022"});
-    assert_eq!(collect_assistant_text(&v), "");
+    assert_eq!(
+        collect_assistant_text(&v, &crate::conversation::WHOLE_BODY),
+        ""
+    );
 }
 
 #[tokio::test]
