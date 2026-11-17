@@ -4,6 +4,9 @@ use crate::wire::manifest::AppliedStage;
 
 pub struct ProxyToolsStage;
 
+static DECLARED_IN: std::sync::LazyLock<dashmap::DashSet<String>> =
+    std::sync::LazyLock::new(dashmap::DashSet::new);
+
 #[async_trait::async_trait]
 impl RequestStage for ProxyToolsStage {
     fn name(&self) -> &'static str {
@@ -31,11 +34,14 @@ impl RequestStage for ProxyToolsStage {
             );
             return;
         }
-        if crate::proxy_tools::session::session_brought_its_own(
-            &ctx.state.sessions_with_mike_tools,
-            ctx.session_id,
-            body.body(),
-        ) {
+        let declared_before = DECLARED_IN.contains(ctx.session_id);
+        if !declared_before
+            && crate::proxy_tools::session::session_brought_its_own(
+                &ctx.state.sessions_with_mike_tools,
+                ctx.session_id,
+                body.body(),
+            )
+        {
             body.decline(
                 "proxy_tools",
                 "proxy_tools_session_has_them",
@@ -53,6 +59,9 @@ impl RequestStage for ProxyToolsStage {
             return;
         };
 
+        if !declared_before {
+            DECLARED_IN.insert(ctx.session_id.to_owned());
+        }
         tracing::info!(
             request_id = %ctx.request_id,
             session_id = %ctx.session_id,
@@ -216,6 +225,36 @@ mod tests {
         let manifest = body.into_parts().manifest.finish("orig".to_string());
         assert_eq!(manifest.stages.len(), 1);
         Ok((changed, manifest.stages[0].reason_code.clone()))
+    }
+
+    #[tokio::test]
+    async fn a_session_mike_declared_for_keeps_its_declaration_once_its_own_tools_appear()
+    -> anyhow::Result<()> {
+        let config = crate::config::ProxyConfig::for_tests_in_memory();
+        let state = crate::state::AppState::new(config).await?;
+        let session_toggles = state.resolve_session_toggles("s");
+        let filter_cfg = FilterConfig::default();
+        let lesson_snapshot = LessonSnapshot::default();
+        let turn_origin = TurnOrigin::Primary;
+        let mut ctx = make_ctx(
+            &state,
+            &session_toggles,
+            &filter_cfg,
+            &lesson_snapshot,
+            &turn_origin,
+        );
+        ctx.session_id = "declared-then-loaded";
+        let mut first = StageBody::new(Bytes::from_static(BODY), "orig".to_string());
+        ProxyToolsStage.apply(&ctx, &mut first).await;
+        anyhow::ensure!(first.filter_applied(), "mike declares on the first request");
+        let loaded: &[u8] = br#"{"model":"m","messages":[{"role":"user","content":"hi"}],"system":"S","tools":[{"name":"Read"},{"name":"mcp__mike__get_workspace_roster"}]}"#;
+        let mut later = StageBody::new(Bytes::from_static(loaded), "orig".to_string());
+        ProxyToolsStage.apply(&ctx, &mut later).await;
+        anyhow::ensure!(
+            later.filter_applied(),
+            "the tools block must not change mid-session"
+        );
+        Ok(())
     }
 
     #[tokio::test]
