@@ -14,7 +14,8 @@
 		'remote_control_link',
 		'llm_role_health',
 		'worker_toggles',
-		'db_cost'
+		'db_cost',
+		'prompt_cache'
 	]);
 
 	let rows = $state<CapabilityRow[]>([]);

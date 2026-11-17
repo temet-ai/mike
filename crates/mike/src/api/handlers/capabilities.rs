@@ -30,6 +30,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
         toggles.memory_keeper,
         &crate::memory_keeper::health::snapshot(),
     );
+    let prompt_cache = crate::cache_breaks::health::capability(&state).await;
 
     Json(CapabilitiesResponse {
         capabilities: vec![
@@ -47,6 +48,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
             scheduled_jobs,
             db_cost,
             memory_keeper,
+            prompt_cache,
         ],
     })
 }

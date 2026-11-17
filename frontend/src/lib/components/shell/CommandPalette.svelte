@@ -15,6 +15,7 @@
 		Filter,
 		FolderGit2,
 		HardDrive,
+		DatabaseZap,
 		History,
 		Home,
 		LineChart,
@@ -71,6 +72,7 @@
 		| '/code-findings'
 		| '/tools#errors'
 		| '/diagnostics/agent-dispatches'
+		| '/diagnostics/prompt-cache'
 		| '/diagnostics/memory'
 		| '/prompts/volatile-lines'
 		| '/help/glossary'
@@ -230,6 +232,13 @@
 			description: 'Cross-session list of sub-agent spawns (Task tool calls).',
 			href: '/diagnostics/agent-dispatches',
 			icon: Users
+		},
+		{
+			id: 'page:prompt-cache',
+			title: 'Prompt cache breaks',
+			description: 'Requests that rewrote prompt cache they should have read, and the cause.',
+			href: '/diagnostics/prompt-cache',
+			icon: DatabaseZap
 		},
 		{
 			id: 'page:memory',

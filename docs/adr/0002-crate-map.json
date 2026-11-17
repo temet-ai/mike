@@ -686,6 +686,7 @@
   "work_threads": "launch",
   "workspace": "db",
   "wright": "web",
+  "cache_breaks": "web",
   "dossier/as_of": "model",
   "eval_metrics/drift_alarms": "eval",
   "state/knowledge_state": "state",
@@ -808,6 +809,7 @@
    "workspace.change_places": "fleet",
    "workspace.questions": "launch",
    "workspace.session_notes": "launch",
+   "prompt_cache": "web",
    "wright": "web"
   }
  },
