@@ -67,18 +67,18 @@ async fn run_parser_all_events(chunks: Vec<Bytes>) -> anyhow::Result<Vec<ProxyEv
 }
 
 #[tokio::test]
-async fn run_parser_keeping_reply_streamed_tool_use_reaches_next_request_chain()
+async fn run_parser_returning_reply_streamed_tool_use_reaches_next_request_chain()
 -> anyhow::Result<()> {
+    use crate::store::RequestStore;
     use crate::store::models::{ThreadKind, ThreadLink};
-    let mut seeded = RequestStore::new(crate::store::tests::small_policy(10));
+    let mut store = RequestStore::new(crate::store::tests::small_policy(10));
     let mut req = crate::store::tests::make_test_request(None, "stream");
     req.request_body = Some(Bytes::from_static(
         br#"{"messages":[{"role":"user","content":"build it"}]}"#,
     ));
     req.sent_body = None;
     req.response_body = None;
-    let id = seeded.insert(req);
-    let store = Arc::new(RwLock::new(seeded));
+    let id = store.insert(req);
 
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
     let (event_tx, _event_rx) = broadcast::channel::<ProxyEvent>(64);
@@ -109,7 +109,10 @@ async fn run_parser_keeping_reply_streamed_tool_use_reaches_next_request_chain()
         parser_tx.send(sse_bytes(kind, data)).await?;
     }
     drop(parser_tx);
-    run_parser_keeping_reply(parser_rx, id, (event_tx, store_tx), Arc::clone(&store)).await;
+    let reply = run_parser_returning_reply(parser_rx, id, event_tx, store_tx)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("no reply assembled"))?;
+    store.remember_reply(id, &reply);
 
     let link = ThreadLink {
         kind: ThreadKind::Continue,
@@ -117,7 +120,7 @@ async fn run_parser_keeping_reply_streamed_tool_use_reaches_next_request_chain()
         predecessor: Some(id),
         predecessor_instance: None,
     };
-    let earlier = store.write().await.earlier_turns(Some(&link));
+    let earlier = store.earlier_turns(Some(&link));
     let values = earlier.values();
     assert_eq!(values.len(), 2);
     assert_eq!(values[1]["content"][0]["id"], "toolu_1");

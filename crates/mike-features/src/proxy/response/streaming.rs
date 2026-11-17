@@ -158,15 +158,7 @@ fn spawn_intercepted_stream(setup: InterceptedStreamSetup<'_>) -> Body {
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
     let (store_event_tx, store_event_rx) = mpsc::channel(512);
 
-    crate::observability::spans::spawn_tracked(
-        &state.tracker,
-        crate::sse::parser::run_parser_keeping_reply(
-            parser_rx,
-            request_id,
-            (state.event_tx.clone(), store_event_tx),
-            state.store.clone(),
-        ),
-    );
+    spawn_parser_keeping_reply(state, request_id, parser_rx, store_event_tx);
 
     spawn_store_updater_for(state, request_id, store_event_rx);
 
@@ -210,18 +202,31 @@ fn spawn_plain_tee(
 
     let (store_event_tx, store_event_rx) = mpsc::channel(512);
 
-    crate::observability::spans::spawn_tracked(
-        &state.tracker,
-        crate::sse::parser::run_parser_keeping_reply(
-            parser_rx,
-            request_id,
-            (state.event_tx.clone(), store_event_tx),
-            state.store.clone(),
-        ),
-    );
+    spawn_parser_keeping_reply(state, request_id, parser_rx, store_event_tx);
 
     spawn_store_updater_for(state, request_id, store_event_rx);
     body
+}
+
+fn spawn_parser_keeping_reply(
+    state: &AppState,
+    request_id: RequestId,
+    parser_rx: mpsc::Receiver<Bytes>,
+    store_event_tx: mpsc::Sender<ProxyEvent>,
+) {
+    let (event_tx, store) = (state.event_tx.clone(), state.store.clone());
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
+        let reply = crate::sse::parser::run_parser_returning_reply(
+            parser_rx,
+            request_id,
+            event_tx,
+            store_event_tx,
+        )
+        .await;
+        if let Some(reply) = reply {
+            store.write().await.remember_reply(request_id, &reply);
+        }
+    });
 }
 
 fn spawn_store_updater_for(

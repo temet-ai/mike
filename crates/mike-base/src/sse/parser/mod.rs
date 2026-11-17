@@ -1,12 +1,10 @@
-use std::sync::Arc;
 use std::time::Instant;
 
 use bytes::Bytes;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
-use tokio::sync::{RwLock, broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc};
 
-use crate::store::RequestStore;
 use crate::store::models::{ProxyEvent, RequestId};
 use crate::wire::sse_message::SseReplyAssembler;
 
@@ -28,17 +26,13 @@ pub async fn run_parser(
     parse_events(parser_rx, request_id, event_tx, store_tx).await;
 }
 
-pub async fn run_parser_keeping_reply(
+pub async fn run_parser_returning_reply(
     parser_rx: mpsc::Receiver<Bytes>,
     request_id: RequestId,
-    channels: (broadcast::Sender<ProxyEvent>, mpsc::Sender<ProxyEvent>),
-    store: Arc<RwLock<RequestStore>>,
-) {
-    let (event_tx, store_tx) = channels;
-    let reply = parse_events(parser_rx, request_id, event_tx, store_tx).await;
-    if let Some(reply) = reply {
-        store.write().await.remember_reply(request_id, &reply);
-    }
+    event_tx: broadcast::Sender<ProxyEvent>,
+    store_tx: mpsc::Sender<ProxyEvent>,
+) -> Option<serde_json::Value> {
+    parse_events(parser_rx, request_id, event_tx, store_tx).await
 }
 
 async fn parse_events(
