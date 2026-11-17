@@ -34,6 +34,13 @@ pub enum LlmError {
         ceiling_usd: f64,
     },
 
+    #[error("Claude usage limit reached; no claude call for the next {wait_secs}s: {message}")]
+    UsageLimited {
+        ran: bool,
+        wait_secs: u64,
+        message: String,
+    },
+
     #[error("model `{model}` runs on {provider}, which is unavailable: {missing}")]
     ProviderUnavailable {
         model: String,
@@ -50,6 +57,7 @@ impl LlmError {
                 | LlmError::RateLimited { .. }
                 | LlmError::SpendCeilingExceeded { .. }
                 | LlmError::ProviderUnavailable { .. }
+                | LlmError::UsageLimited { .. }
         )
     }
 
