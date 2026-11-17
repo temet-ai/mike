@@ -13,14 +13,16 @@ use crate::feature_toggles::FeatureToggles;
 use crate::state::AppState;
 use crate::store::models::ProxyEvent;
 use crate::store::persistence::PersistError;
-use crate::store::persistence::wright::RecordedRun;
+use crate::store::persistence::wright::{CheckRow, RecordedRun};
 use crate::wright::{Cadence, CheckOutcome};
 
 pub(crate) mod bounded;
 pub(crate) mod catalogue;
 pub(crate) mod forks;
 pub(crate) mod logs;
+pub(crate) mod logs_collect;
 pub(crate) mod logs_jev;
+pub(crate) mod logs_text;
 
 #[cfg(test)]
 mod catalogue_tests;
@@ -31,7 +33,11 @@ mod fixtures_tests;
 #[cfg(test)]
 mod forks_tests;
 #[cfg(test)]
+mod logs_collect_tests;
+#[cfg(test)]
 mod logs_tests;
+#[cfg(test)]
+mod logs_text_tests;
 #[cfg(test)]
 mod problems_tests;
 #[cfg(test)]
@@ -74,6 +80,7 @@ pub fn spawn_wright_worker(state: &AppState) {
         persist,
         log_dir: state.config().log_dir.clone(),
         machine: None,
+        repo_root: None,
     };
     let toggles = state.feature_toggle_overlay.clone();
     let events = state.event_tx.subscribe();
@@ -107,6 +114,7 @@ async fn run(
         .await
         .ok()
         .map(|m| m.machine_uuid);
+    ctx.repo_root = logs_collect::discover_root().await;
     let mut schedule = Schedule {
         events: Some(events),
         next_regular: Instant::now(),
@@ -217,6 +225,7 @@ fn log_record_failed(check: &str, e: &PersistError) {
 }
 
 pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
+    logs_collect::collect_on_regular(ctx, kind == Pass::Regular).await;
     if !ctx.persist.holds_worker_role(LEASE_ROLE, TICK).await {
         return;
     }
@@ -232,7 +241,7 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
     crate::wright::triage::run(&ctx.persist).await;
 }
 
-async fn run_checks(ctx: &WatchContext, checks: &[crate::store::persistence::wright::CheckRow]) {
+async fn run_checks(ctx: &WatchContext, checks: &[CheckRow]) {
     for check in checks {
         match run_check(check, ctx).await {
             Ok((outcome, recorded)) => log_ran(&check.name, &outcome, &recorded),

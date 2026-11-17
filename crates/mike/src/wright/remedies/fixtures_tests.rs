@@ -241,6 +241,7 @@ impl Env {
             persist: self.owners.persist.clone(),
             log_dir: None,
             machine: None,
+            repo_root: None,
         };
         let (outcome, recorded) = run_check(&row, &ctx).await?;
         if let CheckOutcome::Unknown(reason) = outcome {
