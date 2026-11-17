@@ -64,6 +64,22 @@ fn earlier_turns_predecessor_not_in_memory_is_unavailable() {
 }
 
 #[test]
+fn earlier_turns_streamed_predecessor_with_remembered_reply_is_chain() {
+    let mut store = RequestStore::new(small_policy(10));
+    let mut req = make_test_request(None, "chain");
+    req.request_body = Some(Bytes::from(
+        json!({"messages":[{"role":"user","content":"u1"}]}).to_string(),
+    ));
+    req.sent_body = None;
+    req.response_body = None;
+    let first = store.insert(req);
+    store.remember_reply(first, &json!({"role":"assistant","content":"a1"}));
+    let earlier = store.earlier_turns(Some(&continues(first)));
+    assert_eq!(earlier.state(), EarlierState::Chain);
+    assert_eq!(texts(&earlier.values()), vec!["u1", "a1"]);
+}
+
+#[test]
 fn earlier_turns_without_link_is_whole_body() {
     let mut store = RequestStore::new(small_policy(10));
     assert_eq!(store.earlier_turns(None).state(), EarlierState::WholeBody);

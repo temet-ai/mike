@@ -327,7 +327,9 @@ fn spawn_text_origin(
     let (text, author) = (text.to_owned(), author.to_owned());
     let (last_user_message, has_agent_id) = (lane.last_user_message.to_owned(), lane.has_agent_id);
     let body = lane.request_body.clone();
+    let persist = state.persist().cloned();
     crate::observability::spans::spawn_tracked(&state.tracker, async move {
+        let body = whole_conversation(persist.as_ref(), body).await;
         let prior = crate::llm::text_origin::prior_context(&body);
         let signals = crate::llm::text_origin::signals(&body, &text);
         let input = crate::llm::text_origin::Unmatched {
@@ -343,6 +345,19 @@ fn spawn_text_origin(
         };
         crate::llm::text_origin::classify(&env, &input).await;
     });
+}
+
+async fn whole_conversation(
+    persist: Option<&crate::store::persistence::PersistHandle>,
+    body: bytes::Bytes,
+) -> bytes::Bytes {
+    let Some(persist) = persist else {
+        return body;
+    };
+    match crate::conversation::restore::whole_body_from_db(persist, &body).await {
+        Some(whole) => bytes::Bytes::from(whole),
+        None => body,
+    }
 }
 
 struct CaptureFinishArgs<'a> {

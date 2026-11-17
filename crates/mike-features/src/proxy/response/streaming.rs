@@ -160,11 +160,11 @@ fn spawn_intercepted_stream(setup: InterceptedStreamSetup<'_>) -> Body {
 
     crate::observability::spans::spawn_tracked(
         &state.tracker,
-        crate::sse::parser::run_parser(
+        crate::sse::parser::run_parser_keeping_reply(
             parser_rx,
             request_id,
-            state.event_tx.clone(),
-            store_event_tx,
+            (state.event_tx.clone(), store_event_tx),
+            state.store.clone(),
         ),
     );
 
@@ -212,11 +212,11 @@ fn spawn_plain_tee(
 
     crate::observability::spans::spawn_tracked(
         &state.tracker,
-        crate::sse::parser::run_parser(
+        crate::sse::parser::run_parser_keeping_reply(
             parser_rx,
             request_id,
-            state.event_tx.clone(),
-            store_event_tx,
+            (state.event_tx.clone(), store_event_tx),
+            state.store.clone(),
         ),
     );
 

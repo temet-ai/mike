@@ -11,6 +11,7 @@ use crate::wire::sse_message::assistant_message_from_sse;
 
 const MAX_CHAIN_DEPTH: usize = 256;
 const MAX_HELD: usize = 64;
+const MAX_REPLIES: usize = 512;
 
 #[derive(Debug, Default)]
 pub struct HeldConversations {
@@ -18,6 +19,8 @@ pub struct HeldConversations {
     order: VecDeque<RequestId>,
     restoring: HashSet<RequestId>,
     by_message: HashMap<String, RequestId>,
+    replies: HashMap<RequestId, Message>,
+    reply_order: VecDeque<RequestId>,
 }
 
 impl HeldConversations {
@@ -47,6 +50,21 @@ impl HeldConversations {
         }
     }
 
+    pub fn reply(&self, id: &RequestId) -> Option<Message> {
+        self.replies.get(id).cloned()
+    }
+
+    pub fn put_reply(&mut self, id: RequestId, reply: Message) {
+        if self.replies.insert(id, reply).is_none() {
+            self.reply_order.push_back(id);
+        }
+        while self.reply_order.len() > MAX_REPLIES {
+            if let Some(oldest) = self.reply_order.pop_front() {
+                self.replies.remove(&oldest);
+            }
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.held.len()
     }
@@ -58,7 +76,7 @@ impl HeldConversations {
 
 struct Answered {
     sent: Bytes,
-    response: Bytes,
+    reply: Message,
     link: Option<ThreadLink>,
 }
 
@@ -109,7 +127,7 @@ impl RequestStore {
         }
         let answered = self.answered(&id)?;
         let sent = body_messages(&answered.sent)?;
-        let reply = assistant_reply(&answered.response)?;
+        let reply = answered.reply;
         let before: Messages = match answered.link.filter(ThreadLink::continues) {
             Some(link) => self.held_before(&link, depth + 1)?,
             None => Arc::from([]),
@@ -124,11 +142,21 @@ impl RequestStore {
         Some(held)
     }
 
+    pub fn remember_reply(&mut self, id: RequestId, reply: &serde_json::Value) {
+        if let Ok(raw) = serde_json::value::to_raw_value(reply) {
+            self.held_conversations.put_reply(id, Arc::from(raw));
+        }
+    }
+
     fn answered(&self, id: &RequestId) -> Option<Answered> {
         let req = self.entries.get(id)?;
+        let reply = match req.response_body.as_deref() {
+            Some(body) => assistant_reply(body)?,
+            None => self.held_conversations.reply(id)?,
+        };
         Some(Answered {
             sent: req.sent_body.clone().or_else(|| req.request_body.clone())?,
-            response: req.response_body.clone()?,
+            reply,
             link: req.thread.clone(),
         })
     }
