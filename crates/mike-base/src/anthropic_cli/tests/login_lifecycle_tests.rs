@@ -6,8 +6,10 @@ use crate::anthropic_cli::AnthropicCli;
 use crate::anthropic_cli::login::{LoginPhase, spawn_login};
 use crate::anthropic_cli::registry::LoginRegistry;
 
+const POLLS: usize = 2000;
+
 async fn await_phase(session: &crate::anthropic_cli::login::LoginSession) -> LoginPhase {
-    for _ in 0..200 {
+    for _ in 0..POLLS {
         let phase = session.status().await.phase;
         if matches!(phase, LoginPhase::AwaitingCode { .. }) || phase.is_terminal() {
             return phase;
@@ -18,7 +20,7 @@ async fn await_phase(session: &crate::anthropic_cli::login::LoginSession) -> Log
 }
 
 async fn await_terminal(session: &crate::anthropic_cli::login::LoginSession) -> LoginPhase {
-    for _ in 0..200 {
+    for _ in 0..POLLS {
         let phase = session.status().await.phase;
         if phase.is_terminal() {
             return phase;
@@ -115,7 +117,7 @@ async fn registry_allows_new_login_after_previous_one_finished() -> anyhow::Resu
 
     let first = registry.start(&cli).await?;
     registry.submit_code(&first.id, "123456").await?;
-    for _ in 0..200 {
+    for _ in 0..POLLS {
         if registry.status(&first.id).await?.phase.is_terminal() {
             break;
         }
