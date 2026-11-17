@@ -341,6 +341,19 @@ async fn finish_by_task(
     Ok(done.rows_affected())
 }
 
+pub async fn close_abandoned_items(
+    pool: &sqlx::PgPool,
+    quiet_hours: i32,
+) -> Result<u64, PersistError> {
+    let done = sqlx::query_file!(
+        "src/store/persistence/work_items_close_abandoned.sql",
+        quiet_hours,
+    )
+    .execute(pool)
+    .await?;
+    Ok(done.rows_affected())
+}
+
 #[cfg(test)]
 #[path = "work_items_missed_tests.rs"]
 pub mod missed_tests;

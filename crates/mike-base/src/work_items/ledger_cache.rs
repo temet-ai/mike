@@ -169,10 +169,13 @@ impl LedgerCache {
         ids.iter()
             .filter_map(|id| {
                 let cached = self.sessions.get(id)?;
-                let after = cached.read_up_to.map_or(DateTime::<Utc>::UNIX_EPOCH, |at| {
-                    at - Duration::minutes(REREAD_OVERLAP_MINUTES)
-                });
-                Some((*id, after))
+                let from = cached
+                    .read_up_to
+                    .or_else(|| cached.items.iter().map(|item| item.launched_at).min())
+                    .map_or(DateTime::<Utc>::UNIX_EPOCH, |at| {
+                        at - Duration::minutes(REREAD_OVERLAP_MINUTES)
+                    });
+                Some((*id, from))
             })
             .collect()
     }

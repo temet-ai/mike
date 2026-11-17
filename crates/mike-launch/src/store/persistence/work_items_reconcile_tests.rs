@@ -125,3 +125,50 @@ async fn a_running_job_with_an_output_file_is_listed_and_closed_once() -> anyhow
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn running_items_close_as_unknown_only_once_their_session_went_quiet() -> anyhow::Result<()> {
+    let Some(db) = test_util::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let session = session_with_a_request(&handle).await?;
+    launch(
+        &handle,
+        session,
+        (WorkKind::Agent, "agent1", "toolu_agent1"),
+        None,
+    )
+    .await?;
+
+    assert!(
+        handle
+            .launch()
+            .sessions_with_abandoned_items(24)
+            .await?
+            .is_empty()
+    );
+    assert_eq!(handle.launch().close_abandoned_items(24).await?, 0);
+
+    sqlx::query(
+        "UPDATE sessions.sessions SET last_seen = now() - interval '25 hours' WHERE id = $1",
+    )
+    .bind(session)
+    .execute(&handle.pool)
+    .await?;
+    assert_eq!(
+        handle.launch().sessions_with_abandoned_items(24).await?,
+        vec![session]
+    );
+    assert_eq!(handle.launch().close_abandoned_items(24).await?, 1);
+    let (state, finished): (String, Option<chrono::DateTime<Utc>>) =
+        sqlx::query_as("SELECT state, finished_at FROM agents.work_items WHERE session_id = $1")
+            .bind(session)
+            .fetch_one(&handle.pool)
+            .await?;
+    assert_eq!(state, "unknown");
+    assert!(finished.is_some());
+    assert_eq!(handle.launch().close_abandoned_items(24).await?, 0);
+    db.cleanup().await?;
+    Ok(())
+}

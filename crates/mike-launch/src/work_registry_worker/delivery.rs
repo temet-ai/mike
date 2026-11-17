@@ -134,6 +134,35 @@ pub async fn settle(
 
 pub async fn rescan(persist: &PersistHandle, session_db_id: i64) -> Result<(), PersistError> {
     persist.launch().backfill_work_items(session_db_id).await?;
+    close_jobs_from_output(persist, session_db_id).await
+}
+
+pub async fn close_abandoned(
+    persist: &PersistHandle,
+    quiet_hours: i32,
+) -> Result<(), PersistError> {
+    for session_db_id in persist
+        .launch()
+        .sessions_with_abandoned_items(quiet_hours)
+        .await?
+    {
+        close_jobs_from_output(persist, session_db_id).await?;
+    }
+    let closed = persist.launch().close_abandoned_items(quiet_hours).await?;
+    if closed > 0 {
+        tracing::info!(
+            closed,
+            quiet_hours,
+            "work_registry: closed items of sessions that went quiet"
+        );
+    }
+    Ok(())
+}
+
+async fn close_jobs_from_output(
+    persist: &PersistHandle,
+    session_db_id: i64,
+) -> Result<(), PersistError> {
     for job in persist.launch().open_background_jobs(session_db_id).await? {
         let Some((ended, at)) = read_end(&job.output_path).await else {
             continue;

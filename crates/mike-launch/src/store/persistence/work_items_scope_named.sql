@@ -4,7 +4,8 @@ WITH active AS (
       JOIN agents.work_items w ON w.session_id = s.id
      WHERE s.session_uuid = ANY($2::uuid[])
        AND (w.launched_at > now() - make_interval(hours => $1::int)
-            OR w.state = 'running')
+            OR (w.state = 'running'
+                AND s.last_seen > now() - make_interval(hours => $1::int)))
 )
 SELECT w.session_id AS "session_id!",
        s.session_uuid::text AS "session_uuid!",
