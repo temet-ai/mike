@@ -34,7 +34,7 @@ chk() {
 
 raw() {
   env -u MIKE_BUILD_CACHE -u MBX_BIN -u MBX_CACHE_DIR -u CARGO_TARGET_DIR -u RUSTC_WRAPPER \
-    -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE -u MIKE_BUILD_IDENTITY CX_PRINT_COMMAND=1 "$@"
+    -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE -u MIKE_BUILD_IDENTITY MIKE_BUILD_SLICE= CX_PRINT_COMMAND=1 "$@"
 }
 # The command line without the low-priority prefix every heavy build carries (checked below).
 plain() {
