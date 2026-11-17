@@ -40,7 +40,7 @@ pub struct PointScore {
     pub sent_labelled: usize,
     pub sent_right: usize,
     pub labels_per_day: f64,
-    pub days_to_min_labels: Option<f64>,
+    pub labels_short: i64,
     pub applied_labelled: usize,
     pub applied_right: usize,
     pub applied_precision_lower: Option<f64>,
@@ -141,7 +141,7 @@ pub fn score_point(counts: PointCounts, labelled: &[LabelledDecision]) -> PointS
     let held_wrong = held.iter().filter(|l| !is_right(&l.label)).count();
     let held_lower = wilson_lower_bound(held_wrong as f64, held.len() as f64);
     let per_day = counts.labelled_last_7d as f64 / 7.0;
-    let missing = (MIN_LABELS - counts.labelled).max(0) as f64;
+    let labels_short = (MIN_LABELS - counts.labelled).max(0);
     let (applied_n, applied_right, applied_lower) = applied_precision(&counts.point, &rows);
     let mut found = findings(&counts, held_lower, held.len());
     found.extend(applied_finding(applied_n, applied_lower));
@@ -162,7 +162,7 @@ pub fn score_point(counts: PointCounts, labelled: &[LabelledDecision]) -> PointS
         sent_labelled: sent.len(),
         sent_right: sent.iter().filter(|l| is_right(&l.label)).count(),
         labels_per_day: per_day,
-        days_to_min_labels: (per_day > 0.0).then(|| missing / per_day),
+        labels_short,
         findings: found,
         counts,
     }
@@ -326,7 +326,7 @@ mod tests {
         let s = score_point(counts("p", 100, 90, 1), &[]);
         assert!(s.findings.is_empty(), "{:?}", s.findings);
         assert!((s.labels_per_day - 1.0).abs() < 1e-9);
-        assert_eq!(s.days_to_min_labels, Some(20.0));
+        assert_eq!(s.labels_short, 20);
     }
 
     #[test]

@@ -99,6 +99,12 @@ checkout only.
 Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
 push.
 
+**Done-checks run now.** A done-check runs within minutes of the deploy: drive a live
+session through the case, restart and check again, or backfill over data already
+captured. Decision points get labels now from `mike decisions replay`. Never "after a day
+of traffic", "check in a week", "once N labels collect" or "ship in shadow first", in a
+brief, a thread's next steps or an issue: finish the work in the session.
+
 **Rust structural limits** (graded by `scripts/lint-rust`): files ≤ 500 lines,
 functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6 arguments;
 `allow`/`expect` attributes that weaken these are rejected, so split by
