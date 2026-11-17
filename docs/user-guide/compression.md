@@ -23,7 +23,7 @@ one flagged build log.
 | Part | What it shortens | A fresh install | Sends changed requests when |
 |---|---|---|---|
 | File-read compression | A file Claude read earlier, in the history | Off | You turn it on **and** set its mode to `forward`, or give it a share above 0 |
-| Shell-output compression | The output of an earlier `Bash` call | Off | The same two things |
+| Shell-output compression | The output of a `Bash` call, as soon as it comes back | Off | The same two things |
 | Rewrite duplicate reads | A `Read`, or `cat <file>`, of a file whose content Claude already has | Off | You turn it on |
 
 "Shadow" is the default mode for the first two. With a switch on and the mode left at
@@ -84,9 +84,13 @@ and `**/*.rules.md`. You can change the list in **Protected paths**.
 
 ## Shell output
 
-The same idea for `Bash` results. It keeps the first and last lines, the lines that look like
-errors or summaries with a few lines around each, and replaces the rest with a marker such as
-`output lines 41-380 omitted (340 lines)`. A result that Claude reported as an error is never
+Shell output is shortened as soon as it comes back, on the request that first carries it to
+Claude, not later in the history. That way the full output is never written to Anthropic's
+cache, and every later request carries the same short version, so the cache stays intact. It
+keeps the first and last lines, the lines that look like errors or summaries with a few lines
+around each, and replaces the rest with a marker such as
+`output lines 41-380 omitted (340 lines)`. The shortened result says how to fetch the exact
+original from mike if Claude needs the rest. A result that Claude reported as an error is never
 shortened, and a cut must save at least a quarter of the result to be worth making.
 
 | Setting under **Shell-output compression** | Default |
@@ -96,7 +100,6 @@ shortened, and a cut must save at least a quarter of the result to be worth maki
 | **Tail lines kept** | 20 |
 | **Lines kept after each error or summary line** | 3 |
 | **Most error or summary lines kept** | 40 |
-| **Answers before output is shortened** | 3 |
 | **Mode** | `shadow` |
 | **Share of sessions forwarded** | 0 |
 
@@ -117,9 +120,14 @@ install starts with it off, so nothing is rewritten until you turn it on. Check 
 ## How mike avoids breaking Anthropic's cache
 
 Anthropic caches the start of a conversation for five minutes, or an hour when the request
-asks for it, and changing early text breaks that cache. While the cache is still warm, mike
-keeps the results it has already shortened shortened and leaves every other result as it was.
-New cuts begin once the cache has gone cold. This is why a cut can wait several minutes
+asks for it, and changing early text breaks that cache.
+
+Shell output avoids this by being cut when it arrives, before it is ever cached, and cut the
+same way on every later request.
+
+File reads are shortened later in the history instead. While the cache is still warm, mike
+keeps the reads it has already shortened shortened and leaves every other read as it was. New
+cuts begin once the cache has gone cold, which is why a file-read cut can wait several minutes
 instead of appearing on the very next request.
 
 ## Flag a capture for review
@@ -146,7 +154,7 @@ the list and **Refresh** reloads it.
 | **Review queue unavailable** | mike could not load the list. Use **Retry**, or run `mike doctor` |
 | Switch on, no `computed only` note on requests | The request had no result large enough, or the session started before the switch. Start a new session |
 | Cuts never reach Anthropic | Mode is `shadow` and the share is 0. That is the default; see above |
-| The cuts you wanted did not happen | A protected path, an error result, a recent result or a still-warm cache each skips a cut. The manifest lists the reason for each skipped result |
+| The cuts you wanted did not happen | A protected path, an error result, a small result, or for file reads a recent read or a still-warm cache, each skips a cut. The manifest lists the reason for each skipped result |
 
 ## What leaves your machine
 

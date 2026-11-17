@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use serde_json::{Value, json};
 
 use crate::compress::recovery::CapturedResults;
@@ -35,10 +33,7 @@ fn body_with(name: &str, content: &Value, answers: usize) -> Value {
 }
 
 fn limits() -> ShellOutputLimits {
-    ShellOutputLimits {
-        grace_turns: 0,
-        ..ShellOutputLimits::default()
-    }
+    ShellOutputLimits::default()
 }
 
 #[test]
@@ -84,27 +79,71 @@ fn reduce_shell_output_shortens_an_older_bash_result_and_recovers_it_exactly() -
 }
 
 #[test]
-fn reduce_shell_output_leaves_the_newest_result_and_other_tools_whole() -> anyhow::Result<()> {
+fn reduce_shell_output_newest_result_is_cut_on_arrival_identically_to_later_requests()
+-> anyhow::Result<()> {
     let content = Value::String(long_output(200));
-    for (name, answers, expected) in [("Bash", 0, Some("freshest_result")), ("Read", 1, None)] {
-        let raw = serde_json::to_vec(&body_with(name, &content, answers))?;
-        let reduction =
-            reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
-        assert_eq!(reduction.candidate.as_ref(), raw.as_slice(), "{name}");
-        assert_eq!(
-            reduction
-                .stage
-                .targets
-                .first()
-                .map(|t| t.reason_code.as_str()),
-            expected
-        );
-    }
+    let arrival_raw = serde_json::to_vec(&body_with("Bash", &content, 0))?;
+    let arrival = reduce_shell_output(
+        &arrival_raw,
+        &ShellOutputPolicy::new(limits()).with_capture(&arrival_raw),
+    );
+    assert_eq!(arrival.stage.outcome, StageOutcome::Applied);
+    let later_raw = serde_json::to_vec(&body_with("Bash", &content, 4))?;
+    let later = reduce_shell_output(
+        &later_raw,
+        &ShellOutputPolicy::new(limits()).with_capture(&later_raw),
+    );
+    let arrival: Value = serde_json::from_slice(&arrival.candidate)?;
+    let later: Value = serde_json::from_slice(&later.candidate)?;
+    assert_eq!(arrival["messages"][2], later["messages"][2]);
     Ok(())
 }
 
 #[test]
-fn reduce_shell_output_skips_injected_error_and_grace_results() -> anyhow::Result<()> {
+fn reduce_shell_output_other_tools_stay_whole() -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&body_with("Read", &Value::String(long_output(200)), 0))?;
+    let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+    assert_eq!(reduction.candidate.as_ref(), raw.as_slice());
+    assert!(reduction.stage.targets.is_empty());
+    Ok(())
+}
+
+#[test]
+fn reduce_shell_output_identical_outputs_are_each_cut_the_same_way() -> anyhow::Result<()> {
+    let output = long_output(200);
+    let mut body = body_with("Bash", &Value::String(output.clone()), 0);
+    let messages = body["messages"]
+        .as_array_mut()
+        .ok_or_else(|| anyhow::anyhow!("messages"))?;
+    messages.push(json!({"role": "assistant", "content": [
+        {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "rg -l x"}}
+    ]}));
+    messages.push(json!({"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "t2", "content": output}
+    ]}));
+    let raw = serde_json::to_vec(&body)?;
+    let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+    let applied = reduction
+        .stage
+        .targets
+        .iter()
+        .filter(|t| t.outcome == StageOutcome::Applied)
+        .count();
+    assert_eq!(applied, 2);
+    let sent: Value = serde_json::from_slice(&reduction.candidate)?;
+    let first = sent
+        .pointer("/messages/2/content/0/content")
+        .and_then(Value::as_str);
+    let second = sent
+        .pointer("/messages/4/content/0/content")
+        .and_then(Value::as_str);
+    assert!(first.is_some_and(|t| t.contains(REDUCTION_MARKER_TAG)));
+    assert!(second.is_some_and(|t| t.contains(REDUCTION_MARKER_TAG)));
+    Ok(())
+}
+
+#[test]
+fn reduce_shell_output_skips_injected_error_and_small_results() -> anyhow::Result<()> {
     let injected = format!(
         "{}\n<system-reminder>hook text</system-reminder>",
         long_output(200)
@@ -122,11 +161,6 @@ fn reduce_shell_output_skips_injected_error_and_grace_results() -> anyhow::Resul
         ),
         (error_body, limits(), "error_result"),
         (
-            body_with("Bash", &Value::String(long_output(200)), 1),
-            ShellOutputLimits::default(),
-            "grace_window",
-        ),
-        (
             body_with("Bash", &Value::String("short".into()), 1),
             limits(),
             "small_result",
@@ -139,30 +173,6 @@ fn reduce_shell_output_skips_injected_error_and_grace_results() -> anyhow::Resul
         assert_eq!(reduction.candidate.as_ref(), raw.as_slice(), "{reason}");
         assert_eq!(reduction.stage.targets[0].reason_code, reason);
     }
-    Ok(())
-}
-
-#[test]
-fn reduce_shell_output_warm_cache_holds_new_cuts_and_reapplies_earlier_ones() -> anyhow::Result<()>
-{
-    let raw = serde_json::to_vec(&body_with("Bash", &Value::String(long_output(200)), 1))?;
-    let none = HashSet::new();
-    let held = reduce_shell_output(
-        &raw,
-        &ShellOutputPolicy::new(limits())
-            .with_capture(&raw)
-            .with_warm_cuts(Some(&none)),
-    );
-    assert_eq!(held.candidate.as_ref(), raw.as_slice());
-    assert_eq!(held.stage.targets[0].reason_code, "cache_warm");
-    let earlier: HashSet<String> = ["t1".to_string()].into_iter().collect();
-    let again = reduce_shell_output(
-        &raw,
-        &ShellOutputPolicy::new(limits())
-            .with_capture(&raw)
-            .with_warm_cuts(Some(&earlier)),
-    );
-    assert_eq!(again.stage.outcome, StageOutcome::Applied);
     Ok(())
 }
 

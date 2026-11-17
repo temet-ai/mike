@@ -252,7 +252,6 @@ session_judge.request_timeout_secs
 session_judge.system_prompt
 session_judge.v3_lookback_hours
 shell_output_compression.forward_share
-shell_output_compression.grace_turns
 shell_output_compression.head_lines
 shell_output_compression.min_bytes
 shell_output_compression.mode

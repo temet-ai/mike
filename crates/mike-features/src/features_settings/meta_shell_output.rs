@@ -5,7 +5,6 @@ pub const DEFAULT_HEAD_LINES: usize = 20;
 pub const DEFAULT_TAIL_LINES: usize = 20;
 pub const DEFAULT_SIGNAL_CONTEXT_LINES: usize = 3;
 pub const DEFAULT_SIGNAL_LINE_CAP: usize = 40;
-pub const DEFAULT_GRACE_TURNS: usize = 3;
 
 const GROUP: &str = "Shell-output compression";
 
@@ -91,13 +90,6 @@ pub fn entries() -> Vec<SettingMeta> {
             label: "Most error or summary lines kept",
             description: "At most this many error or summary lines are kept from the middle of one output; the rest stay in the omitted range, recoverable with the original.",
             range: (0, 10_000),
-        },
-        IntEntry {
-            key: "shell_output_compression.grace_turns",
-            default: DEFAULT_GRACE_TURNS,
-            label: "Answers before output is shortened",
-            description: "Bash output stays whole until the model has answered this many times after it.",
-            range: (0, 1000),
         },
         IntEntry {
             key: "shell_output_compression.forward_share",
