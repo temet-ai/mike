@@ -141,10 +141,11 @@ if managed_service_installed; then
     echo "==> mike runs as an installed service (${SERVICE_ID}, program ${SERVICE_BIN}) — deploying through it; the checkout's .env is not used."
     # The service's environment holds PATH and nothing else, so drop every MIKE_* variable the
     # caller exported (start-proxy.sh exports several) and the database URL: the config file
-    # then decides, as it does for the service.
+    # then decides, as it does for the service. The build's own switches are kept: they
+    # choose how this script builds, not how the service runs.
     while IFS= read -r _name; do
         unset "${_name}"
-    done < <(compgen -v | grep '^MIKE_' || true)
+    done < <(compgen -v | grep '^MIKE_' | grep -v -x -E 'MIKE_DEPLOY_BUILD_CACHE|MIKE_BUILD_JOBS' || true)
     unset DATABASE_URL _name
 else
     # Load .env so MIKE_DATABASE_URL (and other dev-time vars) reach migrate-check,
