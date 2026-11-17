@@ -6,8 +6,9 @@
 #                                  the findings of a whole tree, one count per kind,
 #                                  recorded in $XDG_STATE_HOME/mike/wiring-counts.log
 #
-# Report only: the exit status is 0 whether or not a finding is reported, and also
-# when no mike binary can run the scan (one line says so). The binary is
+# The exit status is 0 whether or not a finding is reported, and also when no mike
+# binary can run the scan (one line says so), except that a range finding of a kind
+# named in $WIRING_BLOCK (space-separated, e.g. pub_fn_no_caller) exits 1. The binary is
 # $MIKE_WIRING_BIN, else the newest target/ build of this checkout, else the
 # installed mike; the first that has `structural wiring` is used. The rules are
 # .mike/structural/wiring.yml of this checkout (of <dir> for --whole when it has one).
@@ -75,4 +76,9 @@ fi
 printf '%s\n' "$out"
 added="$(sed -n 's/^wiring: .*: \([0-9][0-9]*\) new$/\1/p' <<<"$out" | head -1)"
 record "$PWD	$range	${added:-?} new" wiring-scans.log
+block="${WIRING_BLOCK:-}"
+if [[ -n "$block" ]] && grep -Eq "^wiring: (${block// /|}) " <<<"$out"; then
+  echo "wiring-new: $range adds code of a blocking kind ($block) that nothing calls; wire it or drop it" >&2
+  exit 1
+fi
 exit 0

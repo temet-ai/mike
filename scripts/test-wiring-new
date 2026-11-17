@@ -98,6 +98,14 @@ put crates/demo/src/extra.rs 'pub fn orphan() {}
 fn private() {}'; commit touch
 out=$(scan); check "touching a file with an old finding reports nothing" "$(news "$out")" 0
 
+reset; put crates/demo/src/stray.rs 'pub fn stray() {}'; commit stray
+WIRING_BLOCK=pub_fn_no_caller MIKE_WIRING_BIN="$bin" "$wn" "$base..HEAD" >/dev/null 2>&1; rc=$?
+check "a blocking kind fails the scan" "$rc" 1
+
+reset; put crates/demo/src/api/manifest/zed.rs 'pub(super) const ROUTES: &[RouteEntry] = &[route("GET", "/api/zed/{id}", C)];'; commit route
+WIRING_BLOCK=pub_fn_no_caller MIKE_WIRING_BIN="$bin" "$wn" "$base..HEAD" >/dev/null 2>&1; rc=$?
+check "a report-only kind does not fail the scan" "$rc" 0
+
 out=$(MIKE_WIRING_BIN=/nonexistent/mike "$wn" "$base..HEAD" 2>&1); rc=$?
 check "a missing binary skips with exit 0" "$rc $(mentions "$out" skipped)" "0 yes"
 

@@ -57,11 +57,13 @@ for range in $ranges; do
 done
 
 # Wiring: code the range adds that nothing calls, registers, spawns, reads or consumes.
-# Report only; it never changes the push status. wiring-new skips with one line when
-# no mike binary here has `structural wiring`.
+# A pub fn with no caller fails the push (7 of 7 findings real, 2026-11-17); the other
+# kinds report only (route_unconsumed: 7 of 9 false, paths built from a BASE constant
+# and consumers outside the repo). wiring-new skips with one line when no mike binary
+# here has `structural wiring`.
 if grep -qE '^(crates/|frontend/src/|scripts/|mods/|services/|\.mike/)' <<<"$changed"; then
   for range in $ranges; do
-    "$hook_dir/wiring-new" "$range" >&2 || true
+    WIRING_BLOCK=pub_fn_no_caller "$hook_dir/wiring-new" "$range" >&2 || status=1
   done
 fi
 
