@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use super::fire::send_mail;
 use super::words_prompt::{SYSTEM_PROMPT, WordsAnswer, WordsVerdict, ask_body, digest, schema};
 use crate::base_state::BaseState;
-use crate::llm::side_call::SideCallChain;
+use crate::llm::LlmError;
+use crate::llm::side_call::{SideCallChain, SideCallOutcome};
 use crate::roster_worker::build_client;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::conditions::holds::sql_check_due;
@@ -66,21 +67,27 @@ async fn ask_the_chain(state: &BaseState, row: &ConditionRow, user: &str) -> Opt
         .verdict::<WordsAnswer>(SYSTEM_PROMPT, user, schema())
         .await
     {
-        Ok(outcome) => {
-            tracing::info!(
-                condition = %row.condition_uuid,
-                model = outcome.model,
-                answer = ?outcome.value.answer,
-                reason = outcome.value.reason,
-                "conditions: words judged"
-            );
-            Some(outcome.value)
-        }
+        Ok(outcome) => Some(log_judged(row, outcome)),
         Err(error) => {
-            tracing::warn!(condition = %row.condition_uuid, %error, "conditions: no model judged the words; trying again later");
+            log_unjudged(row, &error);
             None
         }
     }
+}
+
+fn log_judged(row: &ConditionRow, outcome: SideCallOutcome<WordsAnswer>) -> WordsAnswer {
+    tracing::info!(
+        condition = %row.condition_uuid,
+        model = outcome.model,
+        answer = ?outcome.value.answer,
+        reason = outcome.value.reason,
+        "conditions: words judged"
+    );
+    outcome.value
+}
+
+fn log_unjudged(row: &ConditionRow, error: &LlmError) {
+    tracing::warn!(condition = %row.condition_uuid, %error, "conditions: no model judged the words; trying again later");
 }
 
 async fn ask_once(
@@ -90,16 +97,23 @@ async fn ask_once(
     spec: &WordsSpec,
 ) {
     match persist.fleet().mark_condition_asked(row.id).await {
-        Ok(true) => {
-            if let Err(error) =
-                send_mail(state, persist, spec.session_uuid, &ask_body(&spec.text)).await
-            {
-                tracing::warn!(condition = %row.condition_uuid, error, "conditions: asking the watched session failed");
-            }
-        }
+        Ok(true) => mail_the_watched_session(state, persist, row, spec).await,
         Ok(false) => {}
-        Err(error) => {
-            tracing::warn!(condition = %row.condition_uuid, %error, "conditions: recording the ask failed");
-        }
+        Err(error) => log_ask_unrecorded(row, &error),
     }
+}
+
+async fn mail_the_watched_session(
+    state: &BaseState,
+    persist: &PersistHandle,
+    row: &ConditionRow,
+    spec: &WordsSpec,
+) {
+    if let Err(error) = send_mail(state, persist, spec.session_uuid, &ask_body(&spec.text)).await {
+        tracing::warn!(condition = %row.condition_uuid, error, "conditions: asking the watched session failed");
+    }
+}
+
+fn log_ask_unrecorded(row: &ConditionRow, error: &impl std::fmt::Display) {
+    tracing::warn!(condition = %row.condition_uuid, %error, "conditions: recording the ask failed");
 }
