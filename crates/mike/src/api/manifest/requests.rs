@@ -148,6 +148,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/tool-uses/counts",
+        Coverage::Exempt {
+            reason: "grouped tool-use counts read by mike-ask's inspect client; sessions reach it through ask, not an MCP tool",
+        },
+    ),
+    route(
+        "GET",
         "/api/tool-uses",
         Coverage::Exempt {
             reason: "homepage tools-zone cross-session feed; SPA-driven, not surfaced via MCP V1",
@@ -205,6 +212,18 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         Coverage::Tool("diagnostic_memory"),
     ),
 ];
+
+fn tool_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/tool-results/errors", get(handlers::list_tool_errors))
+        .route(
+            "/api/tool-results/errors/facets",
+            get(handlers::list_tool_error_facets),
+        )
+        .route("/api/tool-uses/facets", get(handlers::list_tool_use_facets))
+        .route("/api/tool-uses/counts", get(handlers::count_tool_uses))
+        .route("/api/tool-uses", get(handlers::list_tool_uses))
+}
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
@@ -280,13 +299,7 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             "/api/requests/{id}/steering",
             get(handlers::get_request_steering),
         )
-        .route("/api/tool-results/errors", get(handlers::list_tool_errors))
-        .route(
-            "/api/tool-results/errors/facets",
-            get(handlers::list_tool_error_facets),
-        )
-        .route("/api/tool-uses/facets", get(handlers::list_tool_use_facets))
-        .route("/api/tool-uses", get(handlers::list_tool_uses))
+        .merge(tool_routes())
         .route("/api/stats", get(handlers::stats))
         .route("/api/sync/status", get(handlers::get_sync_status))
         .route("/api/metrics", get(handlers::metrics))

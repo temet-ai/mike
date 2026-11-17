@@ -31,8 +31,11 @@ fn filter(order: SortOrder, cursor: Option<KeysetCursor>, offset: i64) -> ToolUs
     ToolUsesFilter {
         project: None,
         tool_name: None,
+        tool_name_prefix: None,
+        input_contains: None,
         session_id: Some(SESSION.to_owned()),
         since: None,
+        until: None,
         errors_only: false,
         limit: 2,
         offset,
@@ -93,6 +96,28 @@ async fn list_tool_uses_cursor_walks_every_row_once_in_both_orders() -> anyhow::
         .map(|r| r.wire_tool_use_id)
         .collect();
     assert_eq!(ids, vec!["tu-page-3", "tu-page-2"]);
+
+    handle.pool().close().await;
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn list_tool_uses_since_and_until_keep_only_the_window() -> anyhow::Result<()> {
+    let Some((handle, db)) = isolated_handle().await? else {
+        return Ok(());
+    };
+    seed_uses(&handle).await?;
+
+    let now = chrono::Utc::now();
+    let mut window = filter(SortOrder::Asc, None, 0);
+    window.limit = 10;
+    window.since = Some(now - chrono::Duration::seconds(510));
+    window.until = Some(now - chrono::Duration::seconds(330));
+    let page = handle.launch().list_tool_uses(&window).await?;
+    let ids: Vec<String> = page.rows.into_iter().map(|r| r.wire_tool_use_id).collect();
+    assert_eq!(ids, vec!["tu-page-2", "tu-page-3", "tu-page-4"]);
+    assert_eq!(page.total.count, 3);
 
     handle.pool().close().await;
     db.cleanup().await?;
