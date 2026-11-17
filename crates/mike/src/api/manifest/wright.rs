@@ -22,6 +22,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "One Wright problem with its episodes and evidence for the Wright page; no session workflow reads it yet",
         },
     ),
+    route(
+        "GET",
+        "/api/wright/causes",
+        Coverage::Exempt {
+            reason: "Wright's triage queue for the Wright page: open problems grouped by cause and ranked; no session workflow reads it yet",
+        },
+    ),
     route("GET", "/api/wright/checks", Coverage::Tool("wright_checks")),
     route(
         "POST",
@@ -169,6 +176,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/api/wright/problems", get(api::list_problems))
+        .route("/api/wright/causes", get(api::list_causes))
         .route("/api/wright/problems/{id}", get(api::get_problem))
         .route(
             "/api/wright/checks",

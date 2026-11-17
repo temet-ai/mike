@@ -15,7 +15,9 @@ pub(crate) fn safe_label(text: &str) -> &str {
     if plain { text } else { WITHHELD }
 }
 
-pub(crate) const FINDING_SHAPE: &str = r#"{ "symptom": string, "suspected_cause": string, "confirmed_cause": string or null, "cause_established": boolean, "owning_part": repository path or null, "kind": "code_defect" | "config" | "leftover" | "external" | "unknown", "remedy": string, "evidence": [ { "kind": "request" | "problem" | "episode" | "file" | "log" | "session", "ref": string } ], "followups": [ { "kind": "check_tuning" | "code_defect" | "hardening" | "root_cause", "title": string, "body": string, "owning_part": repository path or null, "same_as": integer or null } ] }"#;
+pub(crate) const FINDING_SHAPE: &str = r#"{ "symptom": string, "suspected_cause": string, "confirmed_cause": string or null, "cause_established": boolean, "owning_part": repository path or null, "kind": "code_defect" | "config" | "leftover" | "external" | "unknown", "remedy": string, "evidence": [ { "kind": "request" | "problem" | "episode" | "file" | "log" | "session", "ref": string } ], "followups": [ { "kind": "check_tuning" | "code_defect" | "hardening" | "root_cause", "title": string, "body": string, "owning_part": repository path or null, "same_as": integer or null } ], "same_cause_as": [ integer ] }"#;
+
+pub(crate) const SAME_CAUSE_NOTE: &str = "The other causes Wright has open are in /wright/in/evidence.json under open_causes, each with its check, an example resource and how many problems share it. If you confirmed the cause and it also explains some of them, list their cause_id values in same_cause_as: they are merged into this problem's cause and not investigated again. Leave same_cause_as empty when the cause was not established or explains none of them.";
 
 fn task(problem: &ProblemRow, episode: &EpisodeRow, root: Option<&RootCausePick>) -> String {
     let instance = format!(

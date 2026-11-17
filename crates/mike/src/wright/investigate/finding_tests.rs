@@ -174,3 +174,28 @@ fn investigate_finding_bad_followups_are_refused_with_the_position() -> anyhow::
     }
     Ok(())
 }
+
+#[test]
+fn investigate_finding_same_cause_as_is_sorted_and_deduplicated() -> anyhow::Result<()> {
+    let repo = repo()?;
+    let bytes = with("same_cause_as", json!([9, 4, 9]));
+    let validated = validate(&bytes, repo.path()).map_err(anyhow::Error::msg)?;
+    assert_eq!(validated.same_cause_as, vec![4, 9]);
+    assert_eq!(as_json(&validated)["same_cause_as"], json!([4, 9]));
+    Ok(())
+}
+
+#[test]
+fn investigate_finding_same_cause_as_without_an_established_cause_is_refused() -> anyhow::Result<()>
+{
+    let repo = repo()?;
+    let mut doc = established();
+    doc["cause_established"] = json!(false);
+    doc["confirmed_cause"] = Value::Null;
+    doc["same_cause_as"] = json!([3]);
+    let Err(reason) = validate(doc.to_string().as_bytes(), repo.path()) else {
+        anyhow::bail!("merged causes on an unconfirmed cause");
+    };
+    assert!(reason.contains("same_cause_as"));
+    Ok(())
+}

@@ -10,6 +10,7 @@ pub mod followups;
 pub mod investigate;
 pub mod remedies;
 pub mod repair;
+pub(crate) mod triage;
 pub mod watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

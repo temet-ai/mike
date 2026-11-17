@@ -1,7 +1,9 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::time::Duration;
 
-use super::brief::{EVIDENCE_INPUT, evidence, investigate_brief, root_cause_brief};
+use super::brief::{
+    EVIDENCE_INPUT, SAME_CAUSE_NOTE, evidence, investigate_brief, root_cause_brief,
+};
 use super::{EngineerContext, RunMode, RunOutcome, RunRequest, StartRefused, reconcile};
 use crate::state::AppState;
 use crate::store::persistence::wright::{InboxRow, Pick, RootCausePick};
@@ -10,6 +12,7 @@ use crate::store::persistence::{PersistError, PersistHandle};
 const LEASE_ROLE: &str = "wright_engineer";
 const TICK: Duration = Duration::from_secs(60);
 pub(crate) const MAX_ATTEMPTS_PER_EPISODE: i64 = 2;
+const OPEN_CAUSES: i64 = 50;
 
 pub fn spawn_engineer_worker(state: &AppState) {
     if state.persist().is_none() {
@@ -113,12 +116,16 @@ async fn build_request(
         .web()
         .unread_wright_inbox(&problem.check_name)
         .await?;
+    let causes = persist.web().list_wright_causes(OPEN_CAUSES).await?;
     let brief = match root {
         Some(pick) => root_cause_brief(&problem, &episode, &open, pick),
         None => investigate_brief(&problem, &episode, &open),
-    } + &inbox_note(&inbox);
+    } + &inbox_note(&inbox)
+        + "\n\n"
+        + SAME_CAUSE_NOTE;
     let mut evidence = evidence(&problem, &episode, &open, root);
     evidence["inbox"] = serde_json::to_value(&inbox).unwrap_or_default();
+    evidence["open_causes"] = serde_json::to_value(&causes).unwrap_or_default();
     Ok(Some(RunRequest {
         mode: RunMode::Investigate,
         problem_id: Some(problem.id),

@@ -5,6 +5,7 @@ use super::context::FollowupContext;
 use super::file::{FileReport, file};
 use super::follow::{FollowReport, follow};
 use super::handoff::{Handoff, hand_off};
+use super::recurring::comment_recurrences;
 use super::runner::CommandRunner;
 use super::sessions::FixerSessions;
 use crate::store::persistence::wright::FollowupLimits;
@@ -75,6 +76,10 @@ where
             report.followed = Some(followed);
         }
         Err(e) => failed("follow", &e),
+    }
+    match comment_recurrences(ctx, limits).await {
+        Ok(failures) => log_rows("comment recurrence", &failures),
+        Err(e) => failed("comment recurrence", &e),
     }
     report
 }

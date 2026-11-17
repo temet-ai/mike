@@ -114,6 +114,30 @@ pub(crate) async fn list_problems(
 }
 
 #[derive(Debug, Deserialize)]
+pub(crate) struct CausesQuery {
+    limit: Option<i64>,
+}
+
+pub(crate) async fn list_causes(
+    State(state): State<AppState>,
+    Query(query): Query<CausesQuery>,
+) -> Result<Json<Value>, Response> {
+    let handle = state.persist().ok_or_else(persist_unavailable_response)?;
+    let limit = page_limit(query.limit, PROBLEMS_DEFAULT_LIMIT, "limit").map_err(bad_request)?;
+    let causes = handle
+        .web()
+        .list_wright_causes(limit)
+        .await
+        .map_err(persist_error_response)?;
+    Ok(Json(json!({
+        "causes": causes,
+        "limit": limit,
+        "waited_hours": crate::wright::triage::WAITED_HOURS,
+        "watch_enabled": watch_enabled(&state),
+    })))
+}
+
+#[derive(Debug, Deserialize)]
 pub(crate) struct ProblemQuery {
     episode_limit: Option<i64>,
     episode_offset: Option<i64>,

@@ -6666,6 +6666,21 @@ run for the check reads its newest 50 unread events into `evidence.json` under `
 are marked read when that run stores a finding. `wright_inbox_unread (check_name, id) WHERE
 read_at IS NULL` serves the read.
 
+### `wright.causes`
+
+Wright's triage groups (migration `20261117200000_wright_triage.sql`). Columns: `id`, `check_name`
+(`REFERENCES wright.checks(name) ON DELETE CASCADE`), `key` (`resource:<resource with numbers and
+hashes as N, 60 characters>` or `run:<check run id>` for a check whose `params.group_by` is `run`),
+`opened_at`, `merged_into` (`REFERENCES wright.causes(id) ON DELETE SET NULL`, set when an engineer
+finding's `same_cause_as` folds this cause into another), `notified_at` (last mail to the operator
+that the cause waited), `commented_at` (last recurrence comment on its follow-up's issue).
+`UNIQUE (check_name, key)`. `wright.problems.cause_id` (`BIGINT NULL REFERENCES wright.causes(id)
+ON DELETE SET NULL`, partial index `idx_wright_problems_cause`) is set once per problem by triage.
+The view `wright.cause_queue` has one row per cause with an open problem: its representative
+problem and episode (most observed), problem and observation counts, attempts, finding, live
+follow-up and issue, whether a remedy answers the check, and `priority = problems + ln(1 +
+observations) + days open`.
+
 ### `wright.followup_limits`
 
 One row (`id boolean PRIMARY KEY CHECK (id)`), changed only through `PATCH

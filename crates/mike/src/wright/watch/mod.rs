@@ -235,4 +235,5 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
             Err(e) => log_record_failed(&check.name, &e),
         }
     }
+    crate::wright::triage::run(&ctx.persist).await;
 }

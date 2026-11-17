@@ -13,9 +13,12 @@ mod problems;
 pub(crate) mod remedies;
 
 mod repairs;
+mod triage;
 
 #[cfg(test)]
 mod followups_tests;
+#[cfg(test)]
+mod triage_tests;
 
 pub(crate) use followups::{FollowupRow, NewFollowup, RootCausePick};
 pub(crate) use followups_flow::{Fixer, FollowupLimits, FollowupLimitsPatch};
@@ -26,6 +29,7 @@ pub(crate) use investigations::{
 };
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
+pub(crate) use triage::{RecurringCause, WaitingCause};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

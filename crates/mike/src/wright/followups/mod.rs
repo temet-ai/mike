@@ -17,6 +17,7 @@ pub(crate) mod follow;
 pub(crate) mod handoff;
 pub(crate) mod prompt;
 pub(crate) mod quiet;
+pub(crate) mod recurring;
 pub(crate) mod runner;
 pub(crate) mod sessions;
 pub(crate) mod tick;
