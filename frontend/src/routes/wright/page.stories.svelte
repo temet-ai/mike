@@ -55,6 +55,7 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 	play={async ({ canvas }) => {
 		await expect(await canvas.findByText('No conversation yet')).toBeVisible();
 		await expect(canvas.getByText(/Nothing open\./)).toBeVisible();
+		await expect(canvas.getByText(/Nothing to triage\./)).toBeVisible();
 		await expect(canvas.getByText('Nothing done yet.')).toBeVisible();
 		await expect(canvas.getByRole('button', { name: 'Send' })).toBeDisabled();
 	}}
@@ -92,6 +93,53 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 		).toBeVisible();
 		await expect(canvas.getAllByText('Paused').length).toBeGreaterThan(0);
 		await userEvent.click(canvas.getByRole('button', { name: /Known fixes/ }));
+	}}
+/>
+
+<Story
+	name="Triage queue"
+	loaders={[setup(normalScenario(), true)]}
+	play={async ({ canvas }) => {
+		const band = await canvas.findByRole('button', { name: /Triage queue/ });
+		await waitFor(() => expect(band).toHaveTextContent('1 waiting · 5 causes'));
+		const queue = canvas.getByRole('region', { name: 'Triage queue' });
+		const rows = within(queue)
+			.getAllByRole('listitem', { name: '' })
+			.filter((li) => li.matches('[data-slot="wright-cause-row"]'));
+		// The server's order is kept: waiting first, then the rest by priority.
+		await expect(rows.map((li) => li.getAttribute('data-state'))).toEqual([
+			'waiting',
+			'found',
+			'filed',
+			'known_fix',
+			'queued'
+		]);
+		await expect(within(rows[0]!).getByText('blocked_dialog')).toBeVisible();
+		await expect(within(rows[0]!).getByText(/^16 problems/)).toBeVisible();
+		await expect(within(rows[2]!).getByRole('link', { name: /Issue #272/ })).toHaveAttribute(
+			'href',
+			'https://github.com/temet-ai/mike/issues/272'
+		);
+
+		// A click opens the representative problem, the same detail a problem row opens.
+		await userEvent.click(within(rows[0]!).getByRole('button', { name: /decisions_health/ }));
+		await expect(
+			await within(rows[0]!).findByText('work_thread_checkpoint is called without a tldr')
+		).toBeVisible();
+	}}
+/>
+
+<Story
+	name="Triage queue not deployed yet"
+	loaders={[setup({ ...normalScenario(), causes: null }, true)]}
+	play={async ({ canvas }) => {
+		await expect(await canvas.findByText('A tool called with the wrong inputs')).toBeVisible();
+		await expect(
+			await canvas.findByText('Not in the running mike yet.', {
+				selector: '#wright-band-triage p'
+			})
+		).toBeVisible();
+		await expect(canvas.queryByRole('alert')).toBeNull();
 	}}
 />
 
@@ -203,7 +251,8 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 				findings: null,
 				repairs: null,
 				investigations: null,
-				followups: null
+				followups: null,
+				causes: null
 			},
 			true
 		)
