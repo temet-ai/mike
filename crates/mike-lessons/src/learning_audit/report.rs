@@ -78,7 +78,6 @@ pub(super) struct Report {
     pub(super) generated_at: String,
     pub(super) publication: Publication,
     pub(super) exposures: Value,
-    pub(super) lesson_delivery: Option<Value>,
     pub(super) previous_window: Option<PreviousWindow>,
     pub(super) reuse_events: Vec<Value>,
 }

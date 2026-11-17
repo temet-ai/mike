@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_holdings (session_uuid, lesson_id, revision, route)\n                 SELECT $1::text::uuid, l.id, u.revision, $2\n                   FROM UNNEST($3::bigint[], $4::int[]) AS u(lesson_id, revision)\n                   JOIN memory.lessons l ON l.id = u.lesson_id\n                 ON CONFLICT (session_uuid, lesson_id) DO UPDATE SET\n                    revision = EXCLUDED.revision,\n                    route = EXCLUDED.route,\n                    held_at = now()\n                  WHERE memory.lesson_holdings.revision IS DISTINCT FROM EXCLUDED.revision",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51256be695bab69a040e46eccaa4f59e2772b96417e04e6dbfeb2ecdd5126a33"
+}

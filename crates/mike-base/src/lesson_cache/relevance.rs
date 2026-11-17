@@ -4,6 +4,7 @@ use std::time::Instant;
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
+use super::holdings::SessionHoldings;
 use super::marks::{ChangeMark, LessonOutcome};
 use super::outcome;
 use super::snapshot::{InjectableLesson, LessonSnapshot};
@@ -22,6 +23,7 @@ const RESEND_AFTER_REQUESTS: u64 = 40;
 #[derive(Debug, Default)]
 pub struct LessonRelevance {
     state: Mutex<State>,
+    holdings: SessionHoldings,
 }
 
 #[derive(Debug, Default)]
@@ -32,7 +34,6 @@ struct State {
     documents: HashMap<i64, Vec<f32>>,
     delivered: HashMap<String, HashMap<String, u64>>,
     requests: HashMap<String, u64>,
-    mod_sessions: HashSet<String>,
     vectors_key: Option<VectorsKey>,
     outcomes: outcome::Outcomes,
 }
@@ -52,20 +53,8 @@ impl LessonRelevance {
         }
     }
 
-    pub fn note_mod_session(&self, session: &str) {
-        let Ok(mut state) = self.state.try_lock() else {
-            return;
-        };
-        if state.mod_sessions.len() >= SESSION_CAPACITY * 4 {
-            state.mod_sessions.clear();
-        }
-        state.mod_sessions.insert(session.to_owned());
-    }
-
-    pub fn is_mod_session(&self, session: &str) -> bool {
-        self.state
-            .try_lock()
-            .is_ok_and(|state| state.mod_sessions.contains(session))
+    pub fn holdings(&self) -> &SessionHoldings {
+        &self.holdings
     }
 
     pub fn select<'a>(

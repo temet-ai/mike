@@ -1,7 +1,6 @@
 pub use mike_features::api::*;
 pub mod handlers;
 pub mod lesson_delivery;
-pub mod lesson_delivery_comparison;
 pub mod memory_audit;
 pub mod proposals;
 pub mod session_agent_context;

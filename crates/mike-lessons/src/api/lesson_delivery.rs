@@ -1,11 +1,14 @@
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::lesson_delivery::{self, Arm, DeliveredLesson, PromptLessons};
+use crate::lesson_delivery::holdings::{
+    spawn_forget_holdings, spawn_record_call, spawn_record_holdings,
+};
+use crate::lesson_delivery::{self, CLIENT_ROUTE, DeliveredLesson, PromptLessons};
+use crate::lesson_worker::LessonSnapshot;
 use crate::memory_keeper::block::Block;
 use crate::memory_keeper::deliver::{CardAsk, card_for, serves_cards};
 use crate::memory_keeper::supply::Carrier;
@@ -25,6 +28,12 @@ pub struct ForPromptRequest {
     refresh: bool,
     #[serde(default)]
     cwd: Option<String>,
+    #[serde(default = "wants_card")]
+    card: bool,
+}
+
+fn wants_card() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize)]
@@ -51,8 +60,12 @@ pub async fn post_for_prompt(
     let Ok(session) = Uuid::parse_str(&request.session) else {
         return Err(StatusCode::BAD_REQUEST);
     };
-    let card = card(&state, session, &request).await;
-    let lessons = lessons(&state, &request).await;
+    let lessons = lessons(&state, &request);
+    let card = if request.card {
+        card(&state, session, &request).await
+    } else {
+        None
+    };
     let topics = lessons.memory_topics;
     Ok(Json(ForPromptResponse {
         arm: lessons.arm,
@@ -84,7 +97,7 @@ async fn card(state: &AppState, session: Uuid, request: &ForPromptRequest) -> Op
     .await
 }
 
-async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
+fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
     let toggles = state.feature_toggle_overlay.load();
     let settings = state
         .settings_overlay
@@ -98,57 +111,65 @@ async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
             memory_topics: None,
         };
     }
-    let arm = lesson_delivery::arm_for(&request.session);
-    let mut memory_topics = None;
-    let lessons = match arm {
-        Arm::Control => Vec::new(),
-        Arm::Mod => {
-            let snapshot = state.lesson_cache.load();
-            if request.refresh {
-                snapshot.relevance.forget_session(&request.session);
-            }
-            snapshot.relevance.note_mod_session(&request.session);
-            if toggles.recall_injector {
-                memory_topics = Some(lesson_delivery::catalog_for_prompt(
-                    &snapshot,
-                    &request.session,
-                    &request.project,
-                    &request.prompt,
-                ));
-            }
-            lesson_delivery::select_for_prompt(PromptLessons {
-                snapshot: &snapshot,
-                session_id: &request.session,
-                project_path: &request.project,
-                prompt: &request.prompt,
-                held: &request.held,
-                held_versions: request.held_versions.as_ref(),
-                held_tags: &[],
-                limit: settings.max_lessons_to_inject,
-                content_only: toggles.recall_injector,
-            })
-        }
-    };
-    record_arm(state, &request.session, arm, &lessons).await;
+    let snapshot = state.lesson_cache.load();
+    let session = request.session.as_str();
+    snapshot.relevance.holdings().note_client(session);
+    track_client_holdings(state, &snapshot, request);
+    let memory_topics = toggles.recall_injector.then(|| {
+        lesson_delivery::catalog_for_prompt(&snapshot, session, &request.project, &request.prompt)
+    });
+    let lessons = lesson_delivery::select_for_prompt(PromptLessons {
+        snapshot: &snapshot,
+        session_id: session,
+        project_path: &request.project,
+        prompt: &request.prompt,
+        held: &request.held,
+        held_versions: request.held_versions.as_ref(),
+        held_tags: &[],
+        limit: settings.max_lessons_to_inject,
+        content_only: toggles.recall_injector,
+    });
+    record_given(state, &snapshot, session, &lessons);
     Lessons {
-        arm: arm.as_str(),
+        arm: CLIENT_ROUTE,
         lessons,
         memory_topics,
     }
 }
 
-async fn record_arm(state: &AppState, session: &str, arm: Arm, lessons: &[DeliveredLesson]) {
-    let Some(persist) = &state.persist else {
+fn track_client_holdings(state: &AppState, snapshot: &LessonSnapshot, request: &ForPromptRequest) {
+    let session = request.session.as_str();
+    if request.refresh {
+        snapshot.relevance.forget_session(session);
+        snapshot.relevance.holdings().forget(session);
+        spawn_forget_holdings(state, session);
+        return;
+    }
+    let Some(versions) = request.held_versions.as_ref() else {
         return;
     };
+    let held = lesson_delivery::client_held(snapshot, session, &request.project, versions);
+    let fresh = snapshot.relevance.holdings().hold(session, &held);
+    spawn_record_holdings(state, session, CLIENT_ROUTE, fresh);
+}
+
+fn record_given(
+    state: &AppState,
+    snapshot: &LessonSnapshot,
+    session: &str,
+    lessons: &[DeliveredLesson],
+) {
+    let given: Vec<(i64, i32)> = lessons
+        .iter()
+        .map(|lesson| (lesson.id, lesson.rev))
+        .collect();
+    let fresh = snapshot.relevance.holdings().hold(session, &given);
+    spawn_record_holdings(state, session, CLIENT_ROUTE, fresh);
     let bytes: usize = lessons.iter().map(|lesson| lesson.text.len()).sum();
-    let count = i32::try_from(lessons.len()).unwrap_or(i32::MAX);
-    let bytes = i64::try_from(bytes).unwrap_or(i64::MAX);
-    if let Err(error) = persist
-        .lessons()
-        .record_lesson_delivery(session, arm.as_str(), count, bytes)
-        .await
-    {
-        tracing::warn!(session_id = %session, %error, "lesson delivery arm write failed");
-    }
+    spawn_record_call(
+        state,
+        session,
+        i32::try_from(lessons.len()).unwrap_or(i32::MAX),
+        i64::try_from(bytes).unwrap_or(i64::MAX),
+    );
 }

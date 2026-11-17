@@ -1,5 +1,4 @@
 use super::*;
-use crate::lesson_delivery::{self, Arm};
 
 fn ids(count: usize) -> Vec<String> {
     (0..count).map(|n| format!("session-{n}")).collect()
@@ -22,15 +21,4 @@ fn arm_for_many_sessions_puts_about_a_fifth_in_control() {
         (300..=500).contains(&control),
         "control sessions: {control}"
     );
-}
-
-#[test]
-fn arm_for_salted_bucket_differs_from_lesson_arm() {
-    let sample = ids(2000);
-    let both = sample
-        .iter()
-        .filter(|id| keeper_control(id) && lesson_delivery::arm_for(id) == Arm::Control)
-        .count();
-    let keeper = sample.iter().filter(|id| keeper_control(id)).count();
-    assert!(both * 2 < keeper, "both: {both}, keeper control: {keeper}");
 }
