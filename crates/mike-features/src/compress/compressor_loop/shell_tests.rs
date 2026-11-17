@@ -5,8 +5,23 @@ use serde_json::{Value, json};
 
 use super::followups::pick_sources;
 use super::shell::{
-    ShellFollowups, needed_tokens, parse_shell_cut, shell_harm_table, split_output,
+    ShellFollowups, command_kind, needed_tokens, parse_shell_cut, shell_harm_table, split_output,
 };
+
+#[test]
+fn command_kind_names_the_program_and_its_subcommand() {
+    for (command, kind) in [
+        ("rg -n foo src", "rg"),
+        ("cd /repo && cargo test -p mike", "cargo test"),
+        ("cd /repo; git --no-pager log --oneline", "git log"),
+        ("FOO=1 scripts/cx nextest run", "cx nextest"),
+        ("fd -t f x | head", "fd"),
+        ("/usr/bin/ls -la", "ls"),
+        ("", "(empty)"),
+    ] {
+        assert_eq!(command_kind(command), kind, "{command}");
+    }
+}
 use super::test_support::{arms, at, call, cut, primary, source, who};
 use super::types::{Call, Cut, Gaps, Source, stamp};
 

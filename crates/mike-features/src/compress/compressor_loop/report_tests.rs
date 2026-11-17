@@ -117,6 +117,24 @@ fn shell_lines_report_rates_and_the_forward_minus_control_gap() {
             cuts: 40,
             needed_later: 1,
         },
+        by_command: [
+            (
+                "rg".to_string(),
+                ShellRow {
+                    cuts: 30,
+                    needed_later: 6,
+                },
+            ),
+            (
+                "cargo test".to_string(),
+                ShellRow {
+                    cuts: 50,
+                    needed_later: 1,
+                },
+            ),
+        ]
+        .into_iter()
+        .collect(),
     };
     let window = Window {
         start: "2026-11-08T12:00:00.000000+00:00",
@@ -129,6 +147,7 @@ fn shell_lines_report_rates_and_the_forward_minus_control_gap() {
     assert!(lines.contains("| forward | 40 | 6 | 15.0% |"));
     assert!(lines.contains("| control | 40 | 1 | 2.5% |"));
     assert!(lines.contains("\n\nForward minus control: +12.5%.\n"));
+    assert!(lines.contains("| `rg` | 30 | 6 | 20.0% |\n| `cargo test` | 50 | 1 | 2.0% |"));
     assert!(lines.ends_with("Evidence gaps: {}"));
 }
 
