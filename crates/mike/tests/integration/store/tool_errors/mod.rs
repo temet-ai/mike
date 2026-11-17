@@ -423,6 +423,7 @@ async fn list_tool_uses_joins_error_columns_and_scopes_errors_only() -> anyhow::
         tool_name: None,
         session_id: None,
         since: None,
+        until: None,
         errors_only: false,
         limit: 100,
         offset: 0,

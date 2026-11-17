@@ -14,6 +14,7 @@ pub struct ToolUsesFilter {
     pub tool_name: Option<String>,
     pub session_id: Option<String>,
     pub since: Option<chrono::DateTime<chrono::Utc>>,
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
     pub errors_only: bool,
     pub limit: i64,
     pub offset: i64,
@@ -75,6 +76,9 @@ fn push_use_filters(
 ) {
     if let Some(since) = filter.since {
         qb.push(" AND tu.created_at >= ").push_bind(since);
+    }
+    if let Some(until) = filter.until {
+        qb.push(" AND tu.created_at < ").push_bind(until);
     }
     if let Some(tool_name) = &filter.tool_name {
         qb.push(" AND tu.tool_name = ").push_bind(tool_name.clone());

@@ -190,8 +190,10 @@ pub(crate) const TOOL_USES_FEED_MAX_LIMIT: usize = 1000;
 
 #[derive(Debug, Deserialize, Default)]
 pub(crate) struct ToolUsesFeedParams {
-    #[serde(default)]
+    #[serde(default, alias = "date_from")]
     pub(crate) since: Option<String>,
+    #[serde(default, alias = "date_to")]
+    pub(crate) until: Option<String>,
     #[serde(default)]
     pub(crate) limit: Option<usize>,
     #[serde(default)]
@@ -206,7 +208,7 @@ pub(crate) struct ToolUsesFeedParams {
     pub(crate) order: Option<SortOrder>,
     #[serde(default)]
     pub(crate) errors_only: Option<bool>,
-    #[serde(default)]
+    #[serde(default, alias = "next_cursor")]
     pub(crate) cursor: Option<String>,
 }
 
@@ -257,20 +259,8 @@ pub(crate) async fn list_tool_uses(
         .unwrap_or(TOOL_USES_FEED_DEFAULT_LIMIT)
         .clamp(1, TOOL_USES_FEED_MAX_LIMIT);
     let offset = params.offset.unwrap_or(0);
-    let since: Option<chrono::DateTime<chrono::Utc>> = match params.since.as_deref() {
-        Some(s) => match chrono::DateTime::parse_from_rfc3339(s) {
-            Ok(dt) => Some(dt.with_timezone(&chrono::Utc)),
-            Err(e) => {
-                tracing::warn!(
-                    since = %s,
-                    error = %e,
-                    "list_tool_uses: invalid `since`; ignoring"
-                );
-                None
-            }
-        },
-        None => None,
-    };
+    let since = parse_instant("since", params.since.as_deref())?;
+    let until = parse_instant("until", params.until.as_deref())?;
     let cursor = parse_cursor(params.cursor.as_deref())?;
 
     let filter = crate::store::persistence::tool_uses::ToolUsesFilter {
@@ -278,6 +268,7 @@ pub(crate) async fn list_tool_uses(
         tool_name: params.tool_name,
         session_id: params.session_id,
         since,
+        until,
         errors_only: params.errors_only.unwrap_or(false),
         limit: limit as i64,
         offset: offset as i64,
@@ -331,6 +322,26 @@ impl From<InvalidCursor> for Response {
         )
             .into_response()
     }
+}
+
+fn parse_instant(
+    name: &str,
+    raw: Option<&str>,
+) -> Result<Option<chrono::DateTime<chrono::Utc>>, Response> {
+    let Some(raw) = raw.filter(|r| !r.is_empty()) else {
+        return Ok(None);
+    };
+    chrono::DateTime::parse_from_rfc3339(raw)
+        .map(|dt| Some(dt.with_timezone(&chrono::Utc)))
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({
+                    "error": format!("invalid {name} {raw:?}: {e}; expected RFC 3339"),
+                })),
+            )
+                .into_response()
+        })
 }
 
 pub(crate) fn parse_cursor(
