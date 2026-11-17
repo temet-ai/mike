@@ -169,7 +169,7 @@ async fn return_to_session(
 ) -> Result<Outcome, String> {
     let target = target_of(row)?;
     let presence = presence_of(persist, target).await;
-    match choose_return(presence.as_ref(), Utc::now()) {
+    match choose_return(presence.as_ref(), row.thread_slug.is_some(), Utc::now()) {
         ReturnVia::Mail => {
             let via = send_mail(state, persist, target, &body).await?;
             Ok(Outcome {

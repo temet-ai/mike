@@ -193,7 +193,7 @@ fn briefing_points_at_the_coordination_entry_points() {
     let me = Uuid::new_v4();
     let roster = vec![peer(me, true, None, "/repo")];
     let text = briefing(me, &roster, Utc::now());
-    assert!(text.contains("set_session_goal"), "{text}");
+    assert!(!text.contains("set_session_goal"), "{text}");
     assert!(text.contains("send_session_message"), "{text}");
     assert!(!text.contains("skill"), "{text}");
     assert!(!text.contains("register_workspace_session"), "{text}");
