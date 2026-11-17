@@ -391,6 +391,9 @@ TARGET_DIR="$(cargo metadata --format-version 1 --no-deps --offline 2>/dev/null 
     | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p' | head -n1)"
 [[ -z "${TARGET_DIR}" ]] && TARGET_DIR="${PROJECT_ROOT}/target"
 MIKE_BIN="${TARGET_DIR}/${BUILD_PROFILE}/mike"
+# The deploy builds through mbx into target/mbx-deploy and stages its binary in
+# .deploy, so a fresh clone has no target/<profile>/mike; read the staged one.
+[[ -x "${MIKE_BIN}" ]] || MIKE_BIN="${DEPLOY_DIR}/mike.staged"
 
 eval "$("${MIKE_BIN}" print-config --shell)"
 
