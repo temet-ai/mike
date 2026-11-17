@@ -117,10 +117,12 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         )
         .await
     };
-    if post_filter_body != after_replay {
-        state
+    if post_filter_body != after_replay
+        && let Some(captured) = state
             .injected_replay
-            .record(&lane, &original, &post_filter_body);
+            .capture(&lane, &original, &post_filter_body)
+    {
+        crate::injected_replay::store::persist(state, &lane, &captured);
     }
 
     let mut body = pipeline::StageBody::from_parts(pipeline::StageBodyParts {

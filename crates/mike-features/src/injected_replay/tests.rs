@@ -185,3 +185,26 @@ fn record_same_message_twice_keeps_one_record() {
     assert!(registry.record(LANE, &first, &inject(&first)));
     assert_eq!(registry.records_in(LANE), 1);
 }
+
+#[test]
+fn restore_from_stored_fields_replays_like_the_original_after_a_restart() {
+    let before_restart = InjectedBlockRegistry::default();
+    let first = first_turn();
+    let first_sent = inject(&first);
+    let Some(captured) = before_restart.capture(LANE, &first, &first_sent) else {
+        panic!("the injected block is captured");
+    };
+    let Some(rebuilt) =
+        splice::InjectedBlocks::restored(captured.identity, captured.tail().to_vec())
+    else {
+        panic!("a stored record rebuilds");
+    };
+    let after_restart = InjectedBlockRegistry::default();
+    after_restart.restore(LANE, rebuilt);
+
+    let (expected, _) = replayed(&before_restart, LANE, &second_turn());
+    let (got, report) = replayed(&after_restart, LANE, &second_turn());
+
+    assert_eq!(report.replayed_indices, vec![0]);
+    assert_eq!(got, expected);
+}

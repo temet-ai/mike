@@ -18,6 +18,7 @@ pub mod eval_repo;
 pub mod eval_runs;
 pub mod filter_rules;
 pub mod improvement;
+pub mod injected_replay;
 pub mod judge;
 pub mod judge_digest;
 pub mod memory_ask_ledger;

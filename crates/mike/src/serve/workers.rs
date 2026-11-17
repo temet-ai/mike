@@ -38,6 +38,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::quiescence_worker::spawn_quiescence_worker(state);
 
+    crate::injected_replay::store::spawn_injected_replay_store(state);
+
     crate::reminders::code_findings_push::Pusher {
         deps: state.push_deps(),
         notes: state.code_notes.clone(),

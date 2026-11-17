@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT lane, message_identity, tail\n                   FROM overrides.injected_replay_records\n                  WHERE machine_uuid = $1\n                    AND recorded_at > now() - interval '1 hour'\n                  ORDER BY recorded_at, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lane",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.injected_replay_records",
+            "name": "lane"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_identity",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.injected_replay_records",
+            "name": "message_identity"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tail",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "overrides.injected_replay_records",
+            "name": "tail"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c41300bff3b263bee114878a16f77d461ed1a35249ebb44dedcc4bf45781994e"
+}
