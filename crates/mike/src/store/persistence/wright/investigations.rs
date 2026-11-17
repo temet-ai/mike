@@ -345,12 +345,14 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         )
     }
 
-    pub(crate) async fn wright_engineer_backing_off(self) -> Result<bool, PersistError> {
-        Ok(
+    pub(crate) async fn wright_engineer_blocked_until(
+        self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PersistError> {
+        let until: Option<Option<chrono::DateTime<chrono::Utc>>> =
             sqlx::query_scalar(API_BACKOFF) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
-                .fetch_one(self.pool())
-                .await?,
-        )
+                .fetch_optional(self.pool())
+                .await?;
+        Ok(until.flatten())
     }
 
     pub(crate) async fn pick_wright_problem(

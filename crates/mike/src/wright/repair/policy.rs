@@ -7,7 +7,7 @@ pub(crate) const MAX_LINES: u64 = 600;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Category {
-    WrightAuthority,
+    OffSwitch,
     Authentication,
     GateConfig,
     Credentials,
@@ -17,7 +17,9 @@ pub(crate) enum Category {
 impl Category {
     pub(crate) fn describe(self) -> &'static str {
         match self {
-            Category::WrightAuthority => "Wright's own authority, limits, measures or toggle",
+            Category::OffSwitch => {
+                "the feature toggles, which hold the operator's switch that turns Wright off"
+            }
             Category::Authentication => "authentication",
             Category::GateConfig => "gate, hook or lint configuration",
             Category::Credentials => "credentials",
@@ -83,27 +85,12 @@ const GATE_FILES: [&str; 13] = [
     "CLAUDE.md",
 ];
 
-const WRIGHT_PREFIXES: [&str; 4] = [
-    "crates/mike/src/wright/",
-    "crates/mike/src/store/persistence/wright/",
-    "crates/mike/src/api/wright/",
-    "crates/mike/src/api/manifest/wright.rs",
-];
-
 fn stem(segment: &str) -> &str {
     segment.split('.').next().unwrap_or(segment)
 }
 
-fn is_wright(path: &str, segments: &[&str]) -> bool {
-    WRIGHT_PREFIXES
-        .iter()
-        .any(|prefix| path.starts_with(prefix))
-        || segments.iter().any(|s| {
-            let s = s.to_ascii_lowercase();
-            s == "wright" || s.starts_with("wright_") || s.starts_with("wright.")
-        })
-        || segments.iter().any(|s| stem(s) == "feature_toggles")
-        || (segments.contains(&"migrations") && path.to_ascii_lowercase().contains("wright"))
+fn is_off_switch(segments: &[&str]) -> bool {
+    segments.iter().any(|s| stem(s) == "feature_toggles")
 }
 
 fn is_authentication(segments: &[&str]) -> bool {
@@ -145,8 +132,8 @@ pub(crate) fn category(path: &str) -> Option<Category> {
     {
         return Some(Category::Deploy);
     }
-    if is_wright(path, &segments) {
-        return Some(Category::WrightAuthority);
+    if is_off_switch(&segments) {
+        return Some(Category::OffSwitch);
     }
     if is_credentials(path, &segments) {
         return Some(Category::Credentials);
@@ -157,14 +144,11 @@ pub(crate) fn category(path: &str) -> Option<Category> {
     is_gate(path, &segments).then_some(Category::GateConfig)
 }
 
-pub(crate) fn migration_touches_wright(added_lines: &str) -> bool {
+pub(crate) fn migration_touches_toggles(added_lines: &str) -> bool {
     added_lines
         .lines()
         .filter(|line| line.starts_with('+') && !line.starts_with("+++"))
-        .any(|line| {
-            let line = line.to_ascii_lowercase();
-            line.contains("wright") || line.contains("feature_toggles")
-        })
+        .any(|line| line.to_ascii_lowercase().contains("feature_toggles"))
 }
 
 fn listed(paths: &[&str]) -> String {
@@ -185,9 +169,9 @@ pub(crate) fn check(files: &[ChangedFile], migration_diff: &str) -> Result<(), S
             ));
         }
     }
-    if migration_touches_wright(migration_diff) {
+    if migration_touches_toggles(migration_diff) {
         return Err(
-            "refused: a migration in the patch changes Wright's tables or a feature toggle"
+            "refused: a migration in the patch changes a feature toggle, which holds the operator's switch that turns Wright off"
                 .to_owned(),
         );
     }

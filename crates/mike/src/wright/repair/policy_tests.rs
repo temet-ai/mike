@@ -12,32 +12,8 @@ fn file(path: &str, added: u64, removed: u64) -> ChangedFile {
 fn repair_policy_refuses_every_protected_path_category() {
     let cases = [
         (
-            "crates/mike/src/wright/repair/policy.rs",
-            Category::WrightAuthority,
-        ),
-        (
-            "crates/mike/src/wright/watch/mod.rs",
-            Category::WrightAuthority,
-        ),
-        (
-            "crates/mike/src/store/persistence/wright/repairs.rs",
-            Category::WrightAuthority,
-        ),
-        (
-            "crates/mike/src/api/wright/repairs.rs",
-            Category::WrightAuthority,
-        ),
-        (
-            "crates/mike/src/api/manifest/wright.rs",
-            Category::WrightAuthority,
-        ),
-        (
-            "crates/mike-base/src/store/persistence/migrations/20261115030000_wright_repair.sql",
-            Category::WrightAuthority,
-        ),
-        (
             "crates/mike-base/src/feature_toggles/meta.rs",
-            Category::WrightAuthority,
+            Category::OffSwitch,
         ),
         (
             "crates/mike-base/src/web_base/host_guard/authority.rs",
@@ -50,7 +26,7 @@ fn repair_policy_refuses_every_protected_path_category() {
         ("crates/mike/src/api/auth.rs", Category::Authentication),
         (
             "crates/mike/src/api/wright_conversation/operator_token.rs",
-            Category::WrightAuthority,
+            Category::Authentication,
         ),
         (
             "crates/mike/src/conversation/operator_token.rs",
@@ -106,6 +82,13 @@ fn repair_policy_allows_ordinary_code_docs_and_tests() {
         "crates/mike-lessons/src/lesson_proposer/skill_author.rs",
         "crates/mike/src/api/handlers/health/dto_tests.rs",
         "frontend/src/routes/sessions/+page.svelte",
+        "crates/mike/src/wright/repair/policy.rs",
+        "crates/mike/src/wright/watch/mod.rs",
+        "crates/mike/src/store/persistence/wright/repairs.rs",
+        "crates/mike/src/api/wright/repairs.rs",
+        "crates/mike/src/api/manifest/wright.rs",
+        "crates/mike-base/src/store/persistence/migrations/20261115030000_wright_repair.sql",
+        "frontend/src/routes/wright/+page.svelte",
         "docs/ARCHITECTURE.md",
         "src/calc.sh",
         ".sqlx/query-abc.json",
@@ -116,12 +99,12 @@ fn repair_policy_allows_ordinary_code_docs_and_tests() {
 }
 
 #[test]
-fn repair_policy_refuses_a_migration_that_names_wright_or_a_toggle() {
+fn repair_policy_refuses_a_migration_that_changes_a_toggle_and_allows_one_that_changes_wright() {
     let path = "crates/mike-base/src/store/persistence/migrations/20991231000000_tidy.sql";
     let toggles = "+++ b/x.sql\n+UPDATE config.feature_toggles SET enabled = true;\n";
     assert!(check(&[file(path, 1, 0)], toggles).is_err());
-    let wright = "+DELETE FROM WRIGHT.repairs;\n";
-    assert!(check(&[file(path, 1, 0)], wright).is_err());
+    let wright = "+ALTER TABLE wright.repairs ADD COLUMN note text;\n";
+    assert_eq!(check(&[file(path, 1, 0)], wright), Ok(()));
     let removed_only = "-UPDATE config.feature_toggles SET enabled = true;\n+SELECT 1;\n";
     assert_eq!(check(&[file(path, 1, 1)], removed_only), Ok(()));
 }

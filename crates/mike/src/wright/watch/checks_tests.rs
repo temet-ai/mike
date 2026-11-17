@@ -298,6 +298,9 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
             "slow_queries",
             "tool_contract_errors",
             "undelivered_mail",
+            "wright_engineer_runs",
+            "wright_followups",
+            "wright_repairs",
         ]
     );
     assert!(checks.iter().all(|c| c.enabled));

@@ -130,6 +130,10 @@ pub(crate) enum StartRefused {
     DailyLimit { started: i64, limit: i32 },
     #[error("the engineer is unavailable: {0}")]
     Unavailable(String),
+    #[error("the Claude API refused the last run; no run starts before {until}")]
+    Limited {
+        until: chrono::DateTime<chrono::Utc>,
+    },
     #[error("engineer run {investigation_id} could not start: {reason}")]
     Launch {
         investigation_id: i64,
@@ -196,6 +200,16 @@ async fn claim(
     }
 }
 
+pub(crate) async fn limited_until(ctx: &EngineerContext) -> Option<chrono::DateTime<chrono::Utc>> {
+    match ctx.persist.web().wright_engineer_blocked_until().await {
+        Ok(until) => until.filter(|until| *until > chrono::Utc::now()),
+        Err(e) => {
+            tracing::warn!(error = %e, "wright: the Claude limit could not be read; the run starts");
+            None
+        }
+    }
+}
+
 pub(crate) async fn start_run(
     ctx: &EngineerContext,
     req: RunRequest,
@@ -205,6 +219,9 @@ pub(crate) async fn start_run(
     }
     if let Some(reason) = admission::machine_busy(&ctx.paths.locks()) {
         return Err(StartRefused::Overloaded(reason));
+    }
+    if let Some(until) = limited_until(ctx).await {
+        return Err(StartRefused::Limited { until });
     }
     let session = Uuid::new_v4();
     let (id, deadline) = claim(ctx, &req, session).await?;

@@ -174,7 +174,9 @@ fn log_no_finding(outcome: &RunOutcome, reason: &str) {
 fn log_refused(refused: &StartRefused) {
     match refused {
         StartRefused::Launch { .. } | StartRefused::Unavailable(_) => log_refused_warn(refused),
-        StartRefused::DailyLimit { .. } | StartRefused::Disabled => log_refused_info(refused),
+        StartRefused::DailyLimit { .. } | StartRefused::Disabled | StartRefused::Limited { .. } => {
+            log_refused_info(refused)
+        }
         _ => log_refused_debug(refused),
     }
 }
@@ -270,13 +272,7 @@ pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
 }
 
 async fn backing_off(ctx: &EngineerContext) -> bool {
-    match ctx.persist.web().wright_engineer_backing_off().await {
-        Ok(waiting) => waiting,
-        Err(e) => {
-            log_pick_failed(&e);
-            true
-        }
-    }
+    super::limited_until(ctx).await.is_some()
 }
 
 async fn repair_waiting(ctx: &EngineerContext) -> bool {
