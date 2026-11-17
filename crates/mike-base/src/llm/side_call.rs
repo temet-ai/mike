@@ -92,12 +92,21 @@ fn falls_through(error: &LlmError) -> bool {
         | LlmError::Transport(_)
         | LlmError::Schema(_)
         | LlmError::OutputTruncated { .. }
-        | LlmError::ProviderUnavailable { .. } => true,
-        LlmError::Http { status } => matches!(status, 500..=599 | 401 | 403 | 404 | 429),
-        LlmError::CeilingExceeded { .. }
+        | LlmError::ProviderUnavailable { .. }
+        | LlmError::CeilingExceeded { .. }
         | LlmError::RateLimited { .. }
-        | LlmError::SpendCeilingExceeded { .. } => false,
+        | LlmError::SpendCeilingExceeded { .. } => true,
+        LlmError::Http { status } => matches!(status, 500..=599 | 401 | 403 | 404 | 429),
     }
+}
+
+fn is_limiter_refusal(error: &LlmError) -> bool {
+    matches!(
+        error,
+        LlmError::CeilingExceeded { .. }
+            | LlmError::RateLimited { .. }
+            | LlmError::SpendCeilingExceeded { .. }
+    )
 }
 
 fn is_local_busy(error: &LlmError) -> bool {
@@ -188,7 +197,7 @@ impl SideCallChain {
     }
 
     fn note_failure(link: &Link, error: &LlmError) {
-        if is_local_busy(error) {
+        if is_local_busy(error) || is_limiter_refusal(error) {
             return;
         }
         if link.provider == Provider::Claude && is_usage_limit(error) {

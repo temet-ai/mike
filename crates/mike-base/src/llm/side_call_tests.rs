@@ -2,7 +2,34 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::*;
-use crate::llm::openrouter::test_support::{TestVerdict, client_for, test_schema, valid_response};
+use crate::llm::limiter::CallLimiter;
+use crate::llm::openrouter::test_support::{
+    TestVerdict, client_for, client_with_limiter, test_schema, valid_response,
+};
+
+#[tokio::test]
+async fn verdict_first_link_over_its_call_ceiling_falls_through_to_second() -> anyhow::Result<()> {
+    let refused = answering(false).await;
+    let healthy = answering(true).await;
+    let minute = std::time::Duration::from_secs(60);
+    let exhausted = CallLimiter::new(1000, minute, 0, minute);
+    let chain = SideCallChain::new(vec![
+        client_with_limiter(&refused, exhausted)?.with_model("google/first".to_owned())?,
+        link(&healthy, "google/second")?,
+    ]);
+
+    let outcome = chain
+        .verdict::<TestVerdict>("sys", "user", test_schema())
+        .await?;
+
+    assert_eq!(outcome.value, TestVerdict { label: true });
+    assert_eq!(outcome.model, "google/second");
+    assert_eq!(
+        refused.received_requests().await.unwrap_or_default().len(),
+        0
+    );
+    Ok(())
+}
 
 async fn answering(label: bool) -> MockServer {
     let server = MockServer::start().await;
