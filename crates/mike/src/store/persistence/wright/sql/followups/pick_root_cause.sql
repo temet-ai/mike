@@ -12,6 +12,7 @@ SELECT f.id AS followup_id, lp.problem_id, lp.episode_id, f.check_name, f.title
       SELECT followup_id, count(*) AS attempts
         FROM wright.investigations
        WHERE followup_id IS NOT NULL
+         AND state <> 'unavailable'
        GROUP BY followup_id
   ) a ON a.followup_id = f.id
  WHERE f.kind = 'root_cause'

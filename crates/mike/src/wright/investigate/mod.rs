@@ -18,6 +18,7 @@ mod launch;
 pub(crate) mod process;
 pub(crate) mod reconcile;
 mod record;
+pub(crate) mod refusal;
 pub(crate) mod relay;
 pub(crate) mod relay_inside;
 pub(crate) mod sandbox;

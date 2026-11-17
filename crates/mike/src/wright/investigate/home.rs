@@ -28,7 +28,7 @@ impl RunDir {
             output: root.join("out"),
             home: root.join("home"),
             socket: root.join("sock").join("relay.sock"),
-            stdout: root.join("stdout.log"),
+            stdout: root.join(super::refusal::STDOUT_FILE),
             stderr: root.join("stderr.log"),
             root,
         }

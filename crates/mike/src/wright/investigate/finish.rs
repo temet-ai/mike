@@ -7,6 +7,7 @@ use super::RunMode;
 use super::context::EngineerContext;
 use super::finding;
 use super::record;
+use super::refusal;
 use super::supervise::RunEnd;
 
 pub(crate) struct Settled {
@@ -108,6 +109,15 @@ pub(crate) struct Ended<'a> {
     pub(crate) followup_id: Option<i64>,
 }
 
+impl Ended<'_> {
+    fn stdout(&self) -> std::path::PathBuf {
+        self.out
+            .parent()
+            .unwrap_or(self.out)
+            .join(refusal::STDOUT_FILE)
+    }
+}
+
 pub(crate) async fn settle(ctx: &EngineerContext, run: &Ended<'_>, outcome: &RunEnd) -> Settled {
     let code = match outcome {
         RunEnd::Killed { reason } => {
@@ -122,7 +132,11 @@ pub(crate) async fn settle(ctx: &EngineerContext, run: &Ended<'_>, outcome: &Run
     let bytes = match read(run.out, run.mode, code) {
         Ok(bytes) => bytes,
         Err(reason) => {
-            end(ctx, run.id, "failed", code, Some(&reason)).await;
+            let (state, reason) = match refusal::api_refusal(&run.stdout()) {
+                Some(refused) => ("unavailable", refused),
+                None => ("failed", reason),
+            };
+            end(ctx, run.id, state, code, Some(&reason)).await;
             return Settled {
                 output: Err(reason),
                 finding_id: None,
