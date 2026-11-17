@@ -29,6 +29,7 @@ pub struct SessionPageFilter<'a> {
     pub date_to: Option<DateTime<Utc>>,
     pub search: Option<&'a str>,
     pub project: Option<&'a str>,
+    pub machine: Option<&'a str>,
     pub min_request_count: Option<i64>,
 }
 
@@ -58,6 +59,15 @@ fn push_page_where<'a>(qb: &mut QueryBuilder<Postgres>, filter: &SessionPageFilt
             .push("p.project_path ILIKE '%' || ")
             .push_bind(project)
             .push(" || '%'");
+        sep = " AND ";
+    }
+    if let Some(machine) = filter.machine {
+        qb.push(sep)
+            .push("(s.machine_uuid = sessions.try_uuid(")
+            .push_bind(machine)
+            .push(") OR s.machine_uuid IN (SELECT m.machine_uuid FROM projects.machines m WHERE lower(m.name) = lower(")
+            .push_bind(machine)
+            .push(")))");
         sep = " AND ";
     }
     if let Some(min) = filter.min_request_count.filter(|m| *m > 0) {

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions SET machine_uuid = $2\n          WHERE id = $1 AND machine_uuid IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58825db00ac0c3e0865e5a5954ab30e59128d172ba95ce02348ed16a8f71f79d"
+}

@@ -73,6 +73,13 @@ fn list_sessions_tool() -> Tool {
                 }),
             ),
             (
+                "machine",
+                json!({
+                    "type": "string",
+                    "description": "Only sessions captured on this machine: a machine name (case-insensitive, e.g. `omit`) or a machine uuid. Every row carries `machine` as {uuid, name}, or null for a session captured before machines were recorded."
+                }),
+            ),
+            (
                 "fields",
                 json!({
                     "type": "string",
@@ -233,6 +240,8 @@ pub(crate) struct ListSessionsArgs {
     #[serde(default)]
     pub(crate) project: Option<String>,
     #[serde(default)]
+    pub(crate) machine: Option<String>,
+    #[serde(default)]
     pub(crate) fields: Option<String>,
     #[serde(default)]
     pub(crate) limit: Option<u64>,
@@ -284,6 +293,9 @@ pub(crate) async fn call_tool(
             }
             if let Some(ref p) = args.project {
                 query.push(("project", p.clone()));
+            }
+            if let Some(ref m) = args.machine {
+                query.push(("machine", m.clone()));
             }
             if let Some(ref f) = args.fields {
                 query.push(("fields", f.clone()));

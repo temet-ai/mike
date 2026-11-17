@@ -74,6 +74,7 @@ pub struct WorkspaceRosterRow {
     pub liveness: Liveness,
     pub last_request_at: Option<DateTime<Utc>>,
     pub newest_request_number: Option<i64>,
+    pub machine: Option<super::session_machine::MachineRef>,
     pub channel_present: bool,
     pub channel_cse_id: Option<String>,
     pub heartbeat_age_seconds: Option<i64>,

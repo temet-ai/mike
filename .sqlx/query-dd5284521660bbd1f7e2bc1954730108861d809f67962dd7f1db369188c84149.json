@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH me AS (\n                   SELECT lower(regexp_replace(p.project_path, '^.*/', '')) AS folder\n                     FROM projects.projects p WHERE p.id = $1\n               ), origins AS (\n                   SELECT DISTINCT l.origin_url FROM projects.locations l\n                    WHERE l.project_id = $1 AND l.origin_url IS NOT NULL\n               )\n               SELECT p.project_uuid AS \"project_uuid!\",\n                      COALESCE(p.custom_name, p.display_name, p.project_path) AS \"name!\",\n                      p.project_path AS \"project_path!\", c.items AS \"items!\"\n                 FROM projects.projects p\n                 CROSS JOIN LATERAL (\n                      SELECT count(*) AS items FROM memory.knowledge_items i\n                       WHERE i.project_id = p.id) c\n                WHERE p.merged_into_id IS NULL AND p.id <> $1 AND c.items > 0\n                  AND (EXISTS (SELECT 1 FROM projects.locations l\n                                JOIN origins o ON o.origin_url = l.origin_url\n                               WHERE l.project_id = p.id)\n                       OR (SELECT folder FROM me) <> ''\n                          AND lower(regexp_replace(p.project_path, '^.*/', ''))\n                              = (SELECT folder FROM me))\n                ORDER BY c.items DESC, p.id\n                LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "items!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "dd5284521660bbd1f7e2bc1954730108861d809f67962dd7f1db369188c84149"
+}

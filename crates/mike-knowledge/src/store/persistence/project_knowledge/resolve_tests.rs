@@ -239,3 +239,35 @@ async fn find_knowledge_project_unknown_selector_is_none_and_ambiguous_selector_
     );
     fx.db.cleanup().await
 }
+
+async fn merge_into(handle: &PersistHandle, merged: i64, live: i64) -> anyhow::Result<()> {
+    sqlx::query("UPDATE projects.projects SET merged_into_id = $2 WHERE id = $1")
+        .bind(merged)
+        .bind(live)
+        .execute(handle.pool())
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn resolve_knowledge_project_merged_path_or_uuid_resolves_to_live_project()
+-> anyhow::Result<()> {
+    let fx = fixture().await?;
+    let live = seed(&fx.handle, "/r/merged/live", "merged-live", None).await?;
+    let merged = seed(&fx.handle, "/Users/x/r/merged/live", "merged-live", None).await?;
+    merge_into(&fx.handle, merged.id, live.id).await?;
+
+    assert_eq!(
+        resolved_id(&fx.handle, "/Users/x/r/merged/live").await?,
+        live.id
+    );
+    assert_eq!(
+        resolved_id(&fx.handle, &merged.uuid.to_string()).await?,
+        live.id
+    );
+    assert_eq!(
+        resolved_id(&fx.handle, &merged.id.to_string()).await?,
+        live.id
+    );
+    fx.db.cleanup().await
+}

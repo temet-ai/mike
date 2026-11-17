@@ -8,6 +8,8 @@ mod request_detail_lineage;
 mod session_head;
 #[path = "session_listing_scans.rs"]
 mod session_listing_scans;
+#[path = "session_machine.rs"]
+mod session_machine;
 #[path = "session_summary.rs"]
 mod session_summary;
 #[path = "support.rs"]

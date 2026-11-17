@@ -69,6 +69,11 @@ pub(crate) struct SessionSummary {
     pub(crate) pending_inbox_count: usize,
     #[serde(default)]
     pub(crate) projects_touched: Vec<String>,
+    #[cfg_attr(
+        feature = "ts-export",
+        ts(type = "{ uuid: string; name: string | null } | null")
+    )]
+    pub(crate) machine: Option<crate::store::persistence::session_machine::MachineRef>,
 }
 
 impl SessionSummary {
@@ -110,6 +115,7 @@ impl From<&SessionView> for SessionSummary {
             narrative_overview_generated_at: None,
             pending_inbox_count: 0,
             projects_touched: Vec::new(),
+            machine: None,
             busy: !status_is_terminal(&view.last_status),
         }
     }
@@ -152,6 +158,10 @@ impl From<&SessionSummaryRow> for SessionSummary {
             narrative_overview_generated_at: row.overview_generated_at.map(|dt| dt.to_rfc3339()),
             pending_inbox_count: usize::try_from(row.pending_inbox_count.max(0)).unwrap_or(0),
             projects_touched: row.projects_touched.clone(),
+            machine: crate::store::persistence::session_machine::MachineRef::from_parts(
+                row.machine_uuid,
+                row.machine_name.clone(),
+            ),
             busy: !status_is_terminal(&row.last_status.clone().unwrap_or_default()),
         }
     }

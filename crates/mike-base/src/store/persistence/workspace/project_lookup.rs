@@ -140,18 +140,22 @@ impl PersistHandle {
             let rows = sqlx::query_as!(
                 PathRow,
                 r#"WITH hit AS (
-                     SELECT id, project_path, array_position($2::text[], project_path) AS rank
-                       FROM projects.projects
-                      WHERE project_path = ANY($2::text[])
+                     SELECT COALESCE(p.merged_into_id, p.id) AS id,
+                            array_position($2::text[], p.project_path) AS rank
+                       FROM projects.projects p
+                      WHERE p.project_path = ANY($2::text[])
+                 ), suffixed AS (
+                     SELECT DISTINCT COALESCE(p.merged_into_id, p.id) AS id
+                       FROM projects.projects p
+                      WHERE ($3::boolean OR ($4::boolean AND NOT EXISTS (SELECT 1 FROM hit)))
+                        AND p.project_path LIKE '%' || $1::text
                  )
-                 SELECT id AS "id!", project_path AS "project_path!", rank AS "rank?",
+                 SELECT live.id AS "id!", live.project_path AS "project_path!", h.rank AS "rank?",
                         NULL::timestamptz AS "last_seen?"
-                   FROM hit
+                   FROM hit h JOIN projects.projects live ON live.id = h.id
                  UNION ALL
-                 SELECT id, project_path, NULL::int, last_seen
-                   FROM projects.projects
-                  WHERE ($3::boolean OR ($4::boolean AND NOT EXISTS (SELECT 1 FROM hit)))
-                    AND project_path LIKE '%' || $1::text"#,
+                 SELECT live.id, live.project_path, NULL::int, live.last_seen
+                   FROM suffixed s JOIN projects.projects live ON live.id = s.id"#,
                 project_path,
                 &candidates,
                 relative,

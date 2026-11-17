@@ -92,6 +92,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::retention_worker::spawn_retention_sweep_worker(state);
 
+    crate::project_reconcile::spawn_project_reconcile(state);
+
     crate::seat_memory_worker::spawn_seat_memory_worker(state);
 
     crate::cache_breaks::spawn_cache_break_scanner(state);

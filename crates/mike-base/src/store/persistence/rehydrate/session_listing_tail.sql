@@ -18,6 +18,8 @@
                 sjq.session_judged_at,
                 ranked.overview,
                 ranked.overview_generated_at,
+                ranked.machine_uuid,
+                ranked.machine_name,
                 COALESCE(mbx.pending_inbox_count, 0) AS pending_inbox_count,
          pt.projects_touched
          FROM ranked

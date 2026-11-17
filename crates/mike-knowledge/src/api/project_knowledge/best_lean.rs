@@ -5,7 +5,14 @@ use crate::search_ranking::{identifier_hits, is_outside_project};
 pub const ALSO_REFERENCES: usize = 3;
 pub const LEAD_TITLE_CHARS: usize = 200;
 
-const KEPT_ENVELOPE: [&str; 5] = ["project_uuid", "items", "more", "has_more", "next_offset"];
+const KEPT_ENVELOPE: [&str; 6] = [
+    "project_uuid",
+    "items",
+    "more",
+    "has_more",
+    "next_offset",
+    "twins",
+];
 const KEPT_ITEM_FIELDS: [&str; 6] = [
     "reference",
     "source_kind",

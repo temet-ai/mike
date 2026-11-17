@@ -17,6 +17,7 @@ pub mod doctor;
 pub mod feature_presets;
 pub mod feature_settings;
 pub mod forward;
+pub(crate) mod project_reconcile;
 pub mod retention_worker;
 pub(crate) mod scheduled_jobs;
 pub mod serve;

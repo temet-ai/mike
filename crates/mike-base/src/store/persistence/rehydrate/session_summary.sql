@@ -24,6 +24,8 @@ SELECT s.session_uuid::text AS "session_id!",
         sjq.session_judged_at AS "session_judged_at?",
         s.overview AS "overview?",
         s.overview_generated_at AS "overview_generated_at?",
+        s.machine_uuid AS "machine_uuid?",
+        mm.name AS "machine_name?",
         mbx.pending_inbox_count AS "pending_inbox_count!",
         -- Distinct project paths this session's own requests touched
         -- (issue #32 — requests.requests.project_id can diverge from
@@ -38,6 +40,7 @@ SELECT s.session_uuid::text AS "session_id!",
  FROM sessions.sessions s
  LEFT JOIN runtime.session_observation_v observation ON observation.session_id = s.id
  JOIN projects.projects p ON p.id = s.project_id
+ LEFT JOIN projects.machines mm ON mm.machine_uuid = s.machine_uuid
  LEFT JOIN runtime.model_call_facts r ON r.session_id = s.id
  LEFT JOIN projects.projects rp ON rp.id = r.project_id
  LEFT JOIN LATERAL (
@@ -151,6 +154,6 @@ SELECT s.session_uuid::text AS "session_id!",
       LIMIT 1
  ) newest_status ON TRUE
  WHERE s.id = $1
- GROUP BY s.id, p.id, first_op.user_prompt, first_text.human_prompt,
+ GROUP BY s.id, p.id, mm.machine_uuid, first_op.user_prompt, first_text.human_prompt,
           sjq.session_outcome, sjq.session_quality_score, sjq.session_judged_at,
           mbx.pending_inbox_count
