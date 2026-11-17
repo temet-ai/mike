@@ -15,6 +15,8 @@ const SESSION_TAGGED_TOOLS: [&str; 5] = [
 
 const CALLER_IDENTIFIED_TOOLS: [&str; 2] = ["find_text", "search_session_content"];
 
+const NO_PROJECT: &str = "(no project)";
+
 pub(crate) async fn supply_defaults(
     client: &InspectClient,
     name: &str,
@@ -142,10 +144,16 @@ async fn caller_project(
             None,
         ));
     }
-    detail
-        .pointer("/summary/project")
-        .and_then(Value::as_str)
-        .filter(|project| !project.trim().is_empty())
+    let text = |pointer: &str| {
+        detail
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    };
+    text("/summary/project")
+        .filter(|project| *project != NO_PROJECT)
+        .or_else(|| text("/summary/cwd").filter(|cwd| cwd.starts_with('/')))
         .map(str::to_string)
         .ok_or_else(|| {
             ErrorData::invalid_params(
@@ -160,6 +168,8 @@ async fn caller_project(
 
 #[cfg(test)]
 mod author_tests;
+#[cfg(test)]
+mod cwd_tests;
 #[cfg(test)]
 mod detail_tests;
 #[cfg(test)]

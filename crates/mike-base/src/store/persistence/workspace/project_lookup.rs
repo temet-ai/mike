@@ -106,7 +106,14 @@ impl PersistHandle {
             return Ok(ProjectPathResolution::Resolved(hit.id, hit.path));
         }
         let rows = self.fetch_path_rows(project_path, matching).await?;
-        let (resolution, via_suffix) = decide(project_path, matching, rows);
+        let (mut resolution, mut via_suffix) = decide(project_path, matching, rows);
+        if matches!(resolution, ProjectPathResolution::NotFound)
+            && matching == PathMatch::OrSuffix
+            && project_path.starts_with('/')
+        {
+            resolution = self.resolve_by_location(project_path).await?;
+            via_suffix = true;
+        }
         if let ProjectPathResolution::Resolved(id, path) = &resolution {
             self.id_cache.remember_project(
                 project_path,
@@ -155,6 +162,47 @@ impl PersistHandle {
             Ok(rows)
         })
         .await
+    }
+
+    async fn resolve_by_location(&self, path: &str) -> Result<ProjectPathResolution, PersistError> {
+        let path = path.to_owned();
+        let rows = crate::metrics::time_db("workspace_resolve_project_by_location", async move {
+            Ok::<_, PersistError>(
+                sqlx::query!(
+                    r#"WITH enclosing AS (
+                         SELECT COALESCE(p.merged_into_id, p.id) AS project_id,
+                                length(rtrim(l.root_path, '/')) AS depth
+                           FROM projects.locations l
+                           JOIN projects.projects p ON p.id = l.project_id
+                          WHERE rtrim(l.root_path, '/') <> ''
+                            AND (rtrim(l.root_path, '/') = rtrim($1, '/')
+                                 OR starts_with($1, rtrim(l.root_path, '/') || '/'))
+                     ), deepest AS (
+                         SELECT DISTINCT project_id FROM enclosing
+                          WHERE depth = (SELECT max(depth) FROM enclosing)
+                     )
+                     SELECT p.id AS "id!", p.project_path AS "project_path!"
+                       FROM deepest d JOIN projects.projects p ON p.id = d.project_id
+                      ORDER BY p.id"#,
+                    path,
+                )
+                .fetch_all(&self.pool)
+                .await?,
+            )
+        })
+        .await?;
+        let mut found: Vec<(i64, String)> = rows
+            .into_iter()
+            .map(|row| (row.id, row.project_path))
+            .collect();
+        Ok(match found.len() {
+            0 => ProjectPathResolution::NotFound,
+            1 => {
+                let (id, project_path) = found.remove(0);
+                ProjectPathResolution::Resolved(id, project_path)
+            }
+            _ => ProjectPathResolution::Ambiguous(found.into_iter().map(|row| row.1).collect()),
+        })
     }
 
     pub async fn list_recent_project_paths(&self, limit: i64) -> Result<Vec<String>, PersistError> {

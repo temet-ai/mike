@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH enclosing AS (\n                         SELECT COALESCE(p.merged_into_id, p.id) AS project_id,\n                                length(rtrim(l.root_path, '/')) AS depth\n                           FROM projects.locations l\n                           JOIN projects.projects p ON p.id = l.project_id\n                          WHERE rtrim(l.root_path, '/') <> ''\n                            AND (rtrim(l.root_path, '/') = rtrim($1, '/')\n                                 OR starts_with($1, rtrim(l.root_path, '/') || '/'))\n                     ), deepest AS (\n                         SELECT DISTINCT project_id FROM enclosing\n                          WHERE depth = (SELECT max(depth) FROM enclosing)\n                     )\n                     SELECT p.id AS \"id!\", p.project_path AS \"project_path!\"\n                       FROM deepest d JOIN projects.projects p ON p.id = d.project_id\n                      ORDER BY p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e39686c92a7aed86bd9d11eb85353300481647fc8fe1093a3fca175445abaf03"
+}
