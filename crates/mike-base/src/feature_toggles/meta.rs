@@ -71,6 +71,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
+        key: "conditions",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "context_focus_question",
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n    SELECT 1\n      FROM workspace.session_registrations r\n      JOIN sessions.sessions s ON s.id = r.session_id\n     WHERE s.session_uuid = $1\n       AND (r.released_at >= $2\n            OR r.reaped_at >= $2\n            OR r.lease_expires_at BETWEEN $2 AND now())\n) AS \"holds!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "holds!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "08f2378a646fcb73216abdeb5403616d96b469ea6f9ed183cd29d68f0b0752b2"
+}

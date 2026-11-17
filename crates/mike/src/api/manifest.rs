@@ -77,6 +77,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         launches::ROUTES,
         learning_loop::ROUTES,
         fleets::ROUTES,
+        conditions::ROUTES,
         changes::ROUTES,
         lesson_delivery::ROUTES,
         supplied_items::ROUTES,
@@ -132,6 +133,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = launches::register(router);
     let router = learning_loop::register(router);
     let router = fleets::register(router);
+    let router = conditions::register(router);
     let router = changes::register(router);
     let router = lesson_delivery::register(router);
     let router = supplied_items::register(router);

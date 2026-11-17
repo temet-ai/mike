@@ -22,6 +22,7 @@ pub(crate) use eval_bundles::BundlesQuery;
 pub(crate) use steering_evaluations::SteererEvaluationsQuery;
 pub(crate) use turn_verdicts::TurnVerdictsQuery;
 mod changes;
+mod conditions;
 mod diagnostics;
 pub(crate) use channel::{ClaimRoutes, ClaimedChannelMessage};
 mod filters;

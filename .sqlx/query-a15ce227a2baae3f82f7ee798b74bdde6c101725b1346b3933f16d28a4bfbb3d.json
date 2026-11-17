@@ -1,0 +1,304 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.conditions (\n    machine_uuid, created_by_session, project_id, thread_slug, kind, spec, not_before,\n    deadline, check_every_secs, action, target_session, folder, brief\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\nRETURNING id, condition_uuid, created_at, machine_uuid, created_by_session, project_id, thread_slug, kind, spec, not_before, deadline, check_every_secs, last_checked_at, action, target_session, folder, brief, state, fired_at, outcome, attempts, next_attempt_at, last_error\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "condition_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "condition_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "machine_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "machine_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_by_session",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "created_by_session"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_slug",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "thread_slug"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "spec",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "spec"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "not_before",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "not_before"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "deadline",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "deadline"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "check_every_secs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "check_every_secs"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "last_checked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "last_checked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "action",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "target_session",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "target_session"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "brief",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "brief"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "fired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "fired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "outcome",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "next_attempt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "next_attempt_at"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "last_error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.conditions",
+            "name": "last_error"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "a15ce227a2baae3f82f7ee798b74bdde6c101725b1346b3933f16d28a4bfbb3d"
+}

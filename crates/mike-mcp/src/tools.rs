@@ -11,6 +11,7 @@ mod select_examples;
 mod select_fallback;
 mod select_hint;
 
+mod conditions;
 mod config_history;
 mod cross_session;
 mod diagnostics;
@@ -68,6 +69,7 @@ pub(crate) use arg_check::{check_arguments, reject_missing_required, with_correc
 pub use catalogue::{CORE_TOOL_NAMES, Profile, all_tools, tools_for_profile};
 pub(crate) use dispatch::call_tool;
 
+pub use conditions::{TOOL_CANCEL_CONDITION, TOOL_LIST_CONDITIONS, TOOL_WAIT_FOR};
 pub use config_history::{TOOL_GET_CONFIG_SNAPSHOT, TOOL_LIST_CONFIG_CHANGES};
 pub use cross_session::{TOOL_GET_CROSS_SESSION_CALIBRATION, TOOL_LIST_DIRECTIVE_PROPOSALS};
 pub use diagnostics::{

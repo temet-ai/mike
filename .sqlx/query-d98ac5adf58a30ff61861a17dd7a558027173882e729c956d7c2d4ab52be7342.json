@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.conditions SET last_checked_at = now() WHERE id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d98ac5adf58a30ff61861a17dd7a558027173882e729c956d7c2d4ab52be7342"
+}

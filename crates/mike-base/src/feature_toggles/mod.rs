@@ -88,6 +88,8 @@ pub struct FeatureToggles {
 
     pub side_calls: bool,
 
+    pub conditions: bool,
+
     pub directive_proposer: bool,
 
     pub session_end_shadow: bool,
@@ -184,6 +186,7 @@ impl Default for FeatureToggles {
             turn_guard: false,
             decisions: false,
             side_calls: false,
+            conditions: true,
             directive_proposer: false,
             session_end_shadow: false,
             judge_lessons: false,
@@ -305,6 +308,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "turn_guard" => Some(toggles.turn_guard),
         "decisions" => Some(toggles.decisions),
         "side_calls" => Some(toggles.side_calls),
+        "conditions" => Some(toggles.conditions),
         "directive_proposer" => Some(toggles.directive_proposer),
         "self_identity_reminder" => Some(toggles.self_identity_reminder),
         "session_end_shadow" => Some(toggles.session_end_shadow),
@@ -378,6 +382,7 @@ pub fn set_toggle_enabled(
         "turn_guard" => updated.turn_guard = enabled,
         "decisions" => updated.decisions = enabled,
         "side_calls" => updated.side_calls = enabled,
+        "conditions" => updated.conditions = enabled,
         "directive_proposer" => updated.directive_proposer = enabled,
         "self_identity_reminder" => updated.self_identity_reminder = enabled,
         "session_end_shadow" => updated.session_end_shadow = enabled,

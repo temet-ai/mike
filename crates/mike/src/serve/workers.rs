@@ -59,6 +59,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::roster_worker::spawn_roster_worker(state);
 
+    crate::conditions::spawn_conditions_worker(state);
+
     crate::eval_metrics::spawn_eval_metrics_worker(state);
 
     crate::cross_session::spawn_cross_session_worker(state);

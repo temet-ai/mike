@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n    SELECT 1\n      FROM memory.operator_turns ot\n      JOIN sessions.sessions s ON s.id = ot.session_id\n     WHERE s.session_uuid = $1 AND ot.closed_at >= $2\n) AS \"holds!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "holds!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "124ac1433489b26d230b7e4cbf8b3fb659137ef010963279c1a5cbbb5fa88252"
+}
