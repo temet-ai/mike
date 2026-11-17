@@ -4,6 +4,8 @@ pub mod acceptance_artifacts_tests;
 pub mod brief_note_tests;
 pub mod claude_args;
 #[cfg(test)]
+mod name_tests;
+#[cfg(test)]
 pub mod profile_tests;
 pub mod split;
 #[cfg(test)]
@@ -89,6 +91,16 @@ impl LaunchSpec {
             args.push(id.to_string());
         }
         args.extend(caller_args);
+        if let Some(name) = split
+            .session_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|n| !n.is_empty())
+            && !claude_args::has_name(&split.claude_args)
+        {
+            args.push("--name".to_string());
+            args.push(name.to_string());
+        }
         if split.remote_control && !claude_args::has_remote_control(&split.claude_args) {
             args.push("--remote-control".to_string());
         }

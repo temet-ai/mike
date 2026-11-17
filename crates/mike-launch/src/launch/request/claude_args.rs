@@ -64,6 +64,11 @@ pub fn has_remote_control(args: &[String]) -> bool {
     args.iter().any(|a| a.starts_with("--remote-control"))
 }
 
+pub fn has_name(args: &[String]) -> bool {
+    args.iter()
+        .any(|a| a == "--name" || a == "-n" || a.starts_with("--name="))
+}
+
 pub fn has_channels(args: &[String]) -> bool {
     args.iter().any(|a| {
         a == super::super::DEV_CHANNELS_FLAG
