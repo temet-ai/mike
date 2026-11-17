@@ -19,6 +19,8 @@ pub struct ListingWindow {
     pub date_to: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+pub use rehydrate::RequestListFilters;
+
 pub struct SessionListFilters<'a> {
     pub search: Option<&'a str>,
     pub min_request_count: Option<i64>,
@@ -30,7 +32,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         self,
         offset: usize,
         limit: usize,
-        prompt_sha256: Option<&str>,
+        filters: &RequestListFilters<'_>,
         window: &ListingWindow,
         cursor: Option<super::keyset::KeysetCursor>,
     ) -> Result<
@@ -52,7 +54,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     date_to: window.date_to,
                     cursor,
                 },
-                prompt_sha256,
+                filters,
             ),
         )
         .await

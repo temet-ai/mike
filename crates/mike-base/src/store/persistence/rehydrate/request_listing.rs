@@ -84,6 +84,17 @@ async fn summaries_with_tools(
     Ok(out)
 }
 
+pub struct RequestListFilters<'a> {
+    pub prompt_sha256: Option<&'a str>,
+    pub session_uuid: Option<uuid::Uuid>,
+}
+
+fn push_session_filter(query: &mut QueryBuilder<Postgres>, session_uuid: Option<uuid::Uuid>) {
+    if let Some(session_uuid) = session_uuid {
+        query.push(" AND s.session_uuid = ").push_bind(session_uuid);
+    }
+}
+
 fn push_window(query: &mut QueryBuilder<Postgres>, window: &PageWindow) {
     if let Some(from) = window.date_from {
         query.push(" AND r.created_at >= ").push_bind(from);
@@ -115,6 +126,7 @@ fn push_window(query: &mut QueryBuilder<Postgres>, window: &PageWindow) {
 async fn fetch_requests_by_prompt_sha(
     pool: &PgPool,
     sha: &str,
+    session_uuid: Option<uuid::Uuid>,
     window: &PageWindow,
 ) -> Result<Vec<RequestSummaryRow>, PersistError> {
     let mut query = QueryBuilder::<Postgres>::new(LISTING_COLUMNS);
@@ -127,6 +139,7 @@ async fn fetch_requests_by_prompt_sha(
         )
         .push_bind(sha)
         .push(")");
+    push_session_filter(&mut query, session_uuid);
     push_window(&mut query, window);
     let rows = query
         .build_query_as::<RequestSummaryRow>()
@@ -137,6 +150,7 @@ async fn fetch_requests_by_prompt_sha(
 
 async fn fetch_requests_unfiltered(
     pool: &PgPool,
+    session_uuid: Option<uuid::Uuid>,
     window: &PageWindow,
 ) -> Result<Vec<RequestSummaryRow>, PersistError> {
     let mut query = QueryBuilder::<Postgres>::new(LISTING_COLUMNS);
@@ -144,6 +158,7 @@ async fn fetch_requests_unfiltered(
         .push("FROM requests.requests r LEFT JOIN requests.system_prompts rsp ON rsp.request_id = r.id ")
         .push(LISTING_LOOKUP_JOINS)
         .push("WHERE TRUE");
+    push_session_filter(&mut query, session_uuid);
     push_window(&mut query, window);
     let rows = query
         .build_query_as::<RequestSummaryRow>()
@@ -155,11 +170,12 @@ async fn fetch_requests_unfiltered(
 pub async fn list_requests_paginated(
     pool: &PgPool,
     window: PageWindow,
-    prompt_sha256: Option<&str>,
+    filters: &RequestListFilters<'_>,
 ) -> Result<(Vec<RequestSummaryView>, Option<KeysetCursor>), PersistError> {
-    let probed: Vec<RequestSummaryRow> = match prompt_sha256 {
-        Some(sha) => fetch_requests_by_prompt_sha(pool, sha, &window).await?,
-        None => fetch_requests_unfiltered(pool, &window).await?,
+    let session_uuid = filters.session_uuid;
+    let probed: Vec<RequestSummaryRow> = match filters.prompt_sha256 {
+        Some(sha) => fetch_requests_by_prompt_sha(pool, sha, session_uuid, &window).await?,
+        None => fetch_requests_unfiltered(pool, session_uuid, &window).await?,
     };
     let (rows, next_cursor) = split_page(probed, limit_to_i64(window.limit), |row| KeysetCursor {
         at: row.created_at,
