@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::time::Duration;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
+use super::InjectedBlockRegistry;
 use super::splice::InjectedBlocks;
 
 const EXPIRE_EVERY: Duration = Duration::from_secs(600);
@@ -15,7 +17,7 @@ fn loaded_identity(stored: i64) -> u64 {
     u64::from_be_bytes(stored.to_be_bytes())
 }
 
-pub fn persist(state: &AppState, lane: &str, record: &InjectedBlocks) {
+pub fn persist(state: &BaseState, lane: &str, record: &InjectedBlocks) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };
@@ -39,7 +41,7 @@ pub fn persist(state: &AppState, lane: &str, record: &InjectedBlocks) {
     });
 }
 
-pub fn spawn_injected_replay_store(state: &AppState) {
+pub fn spawn_injected_replay_store(state: &BaseState, registry: Arc<InjectedBlockRegistry>) {
     let state = state.clone();
     let shutdown = state.shutdown();
     state.tracker.clone().spawn(async move {
@@ -59,7 +61,7 @@ pub fn spawn_injected_replay_store(state: &AppState) {
                     if let Some(record) =
                         InjectedBlocks::restored(loaded_identity(row.message_identity), row.tail)
                     {
-                        state.injected_replay.restore(&row.lane, record);
+                        registry.restore(&row.lane, record);
                     }
                 }
                 tracing::info!(loaded, "injected replay: restored the last hour's records");
