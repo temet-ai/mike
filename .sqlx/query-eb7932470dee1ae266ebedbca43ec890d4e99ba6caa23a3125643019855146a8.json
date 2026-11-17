@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.lesson_holdings WHERE session_uuid = $1::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eb7932470dee1ae266ebedbca43ec890d4e99ba6caa23a3125643019855146a8"
+}

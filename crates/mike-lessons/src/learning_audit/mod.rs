@@ -5,7 +5,6 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::store::persistence::PersistHandle;
 
-mod delivery;
 mod exposures;
 mod fetch;
 mod findings;
@@ -19,8 +18,6 @@ mod report;
 mod rows;
 mod tool_reuse;
 
-#[cfg(test)]
-mod delivery_tests;
 #[cfg(test)]
 mod fetch_tests;
 #[cfg(test)]
@@ -81,7 +78,6 @@ pub async fn run(handle: &PersistHandle, request: &AuditRequest) -> Result<Audit
         ));
     }
     report.exposures = exposures::recorded(handle, &window).await?;
-    report.lesson_delivery = Some(delivery::comparison(handle, &window).await?);
     report.previous_window = previous.map(|earlier| earlier.against(&report.totals));
     report.reuse_events = tool_reuse::events_in(&request.tool_reuse_dir, &window)?;
     let rendered = render::render(&report, &promotion);

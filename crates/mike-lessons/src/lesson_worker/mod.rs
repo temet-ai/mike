@@ -108,6 +108,7 @@ async fn run(
     tracing::info!("lesson_worker: starting");
 
     refresh::refresh_lesson_cache_inner(&persist, &cache).await;
+    let mut holdings_restored = restore_holdings(&persist, &cache, false).await;
     log_embedding_state_at_startup(&embedding);
     let mut startup_pending = true;
 
@@ -137,11 +138,20 @@ async fn run(
                     cache: &cache,
                     config: &config,
                 };
+                holdings_restored = restore_holdings(&persist, &cache, holdings_restored).await;
                 run_startup_catchup_once(&persist, &config, &toggles, &mut startup_pending).await;
                 run_enabled_tick(&ctx, &toggles, gc_interval_of(&config), &mut last_gc, &mut embed_breaker).await;
             }
         }
     }
+}
+
+async fn restore_holdings(persist: &PersistHandle, cache: &LessonCache, done: bool) -> bool {
+    if done {
+        return true;
+    }
+    let snapshot = cache.load_full();
+    crate::lesson_delivery::holdings::restore(persist, &snapshot.relevance).await
 }
 
 async fn run_startup_catchup_once(

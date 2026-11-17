@@ -3,23 +3,6 @@ use super::*;
 use crate::lesson_worker::{LessonRoute, LessonSnapshot};
 
 #[test]
-fn arm_is_stable_for_a_session() {
-    let id = "5d1c3b5e-0d3c-4a4e-9a55-3f2a0c0de001";
-    assert_eq!(arm_for(id), arm_for(id));
-}
-
-#[test]
-fn about_a_fifth_of_sessions_are_control() {
-    let control = (0..2000)
-        .filter(|n| arm_for(&format!("session-{n}")) == Arm::Control)
-        .count();
-    assert!(
-        (300..=500).contains(&control),
-        "control sessions: {control}"
-    );
-}
-
-#[test]
 fn held_ids_are_read_from_tagged_text_in_a_json_body() {
     let body = br#"{"messages":[{"role":"user","content":[{"type":"text","text":"<system-reminder>\n[lesson:12] [correction] a\n[lesson:7] [convention] b\n[lesson:12] again\n</system-reminder>"}]}]}"#;
     assert_eq!(held_lesson_ids(body), vec![12, 7]);
@@ -66,10 +49,10 @@ fn malformed_revisions_are_ignored() {
 }
 
 #[test]
-fn one_held_tag_does_not_make_the_client_a_lesson_holder() {
+fn client_holds_lessons_only_for_a_session_its_client_asked_for() {
     let snapshot = LessonSnapshot::default();
     assert!(!client_holds_lessons(true, &snapshot, "s1"));
-    snapshot.relevance.note_mod_session("s2");
+    snapshot.relevance.holdings().note_client("s2");
     assert!(client_holds_lessons(true, &snapshot, "s2"));
     assert!(!client_holds_lessons(false, &snapshot, "s2"));
 }
@@ -134,33 +117,35 @@ fn already_present_names_routed_and_held_lessons() {
     {
         lesson.route = LessonRoute::Covered;
     }
-    let body = b"{\"text\":\"[lesson:1 rev:1] a\"}";
-    assert_eq!(
-        already_present_ids(
-            &snapshot,
-            "s1",
-            "/repo",
-            body,
-            &crate::conversation::WHOLE_BODY
-        ),
-        vec![1, 2]
-    );
-    assert_eq!(
-        already_present_ids(
-            &snapshot,
-            "s1",
-            "/repo",
-            b"{}",
-            &crate::conversation::WHOLE_BODY
-        ),
-        vec![2]
-    );
+    assert_eq!(already_present_ids(&snapshot, "s1", "/repo"), vec![2]);
+    snapshot.relevance.holdings().hold("s1", &[(1, 1)]);
+    assert_eq!(already_present_ids(&snapshot, "s1", "/repo"), vec![1, 2]);
+    assert_eq!(already_present_ids(&snapshot, "s2", "/repo"), vec![2]);
 }
 
 #[test]
-fn arm_names_are_the_stored_values() {
-    assert_eq!(Arm::Mod.as_str(), "mod");
-    assert_eq!(Arm::Control.as_str(), "control");
+fn tagged_in_body_maps_tags_to_held_revisions() {
+    let snapshot = snapshot();
+    let whole = &crate::conversation::WHOLE_BODY;
+    let body = b"{\"text\":\"[lesson:1 rev:1] a [lesson:2 rev:9] b [lesson:77] c\"}";
+    assert_eq!(
+        tagged_in_body(&snapshot, "s1", "/repo", body, whole),
+        vec![(1, 1)]
+    );
+    assert!(tagged_in_body(&snapshot, "s1", "/repo", b"{}", whole).is_empty());
+}
+
+#[test]
+fn client_held_keeps_only_versions_that_match_the_current_text() {
+    let snapshot = snapshot();
+    let given = select_for_prompt(request(&snapshot, &[]));
+    let mut versions: std::collections::HashMap<i64, String> =
+        given.iter().map(|l| (l.id, l.revision.clone())).collect();
+    versions.insert(2, "obsolete".into());
+    assert_eq!(
+        client_held(&snapshot, "s1", "/repo", &versions),
+        vec![(1, 1)]
+    );
 }
 
 fn snapshot() -> LessonSnapshot {

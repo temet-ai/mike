@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_uuid::text AS \"session!\", lesson_id, revision\n                     FROM memory.lesson_holdings\n                    WHERE held_at >= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_holdings",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_holdings",
+            "name": "revision"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "5391d25094d77ded800d59ead4948b913853cf1b594ca1eb77328e592dd0c442"
+}

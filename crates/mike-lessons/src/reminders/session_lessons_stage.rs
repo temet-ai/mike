@@ -2,6 +2,7 @@ use bytes::Bytes;
 
 use crate::extract::request::TurnOrigin;
 use crate::features_settings::RemindersOverlay;
+use crate::lesson_delivery::holdings::spawn_record_holdings;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::session_lessons::{SessionLessonsRequest, apply_session_lessons_with_floor};
 use crate::reminders::stage::{StageManifestCodes, record_outcome_without_body_change};
@@ -18,6 +19,34 @@ const SESSION_LESSONS_CODES: StageManifestCodes = StageManifestCodes {
 
 pub struct SessionLessonsStage;
 
+fn hold(ctx: &StageContext<'_>, route: &'static str, lessons: &[(i64, i32)]) {
+    let fresh = ctx
+        .lesson_snapshot
+        .relevance
+        .holdings()
+        .hold(ctx.session_id, lessons);
+    spawn_record_holdings(ctx.state, ctx.session_id, route, fresh);
+}
+
+fn record_injected(ctx: &StageContext<'_>, outcome: &RemindersOutcome) {
+    let (RemindersOutcome::Appended {
+        source_finding_ids, ..
+    }
+    | RemindersOutcome::DeliveredOutOfBand {
+        source_finding_ids, ..
+    }) = outcome
+    else {
+        return;
+    };
+    let given = crate::lesson_delivery::revisions_of(
+        ctx.lesson_snapshot,
+        ctx.session_id,
+        ctx.project_path,
+        source_finding_ids,
+    );
+    hold(ctx, "proxy", &given);
+}
+
 fn record_already_present(ctx: &StageContext<'_>, body: &mut StageBody) {
     if !matches!(
         ctx.turn_origin,
@@ -25,12 +54,18 @@ fn record_already_present(ctx: &StageContext<'_>, body: &mut StageBody) {
     ) {
         return;
     }
-    let present = crate::lesson_delivery::already_present_ids(
+    let tagged = crate::lesson_delivery::tagged_in_body(
         ctx.lesson_snapshot,
         ctx.session_id,
         ctx.project_path,
         body.body(),
         body.earlier(),
+    );
+    hold(ctx, "body", &tagged);
+    let present = crate::lesson_delivery::already_present_ids(
+        ctx.lesson_snapshot,
+        ctx.session_id,
+        ctx.project_path,
     );
     if present.is_empty() {
         return;
@@ -98,6 +133,7 @@ impl RequestStage for SessionLessonsStage {
             floor.as_ref(),
         )
         .await;
+        record_injected(ctx, &outcome);
         let RemindersOutcome::Appended {
             body: new_body,
             reminder_text,
