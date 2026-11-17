@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH main_origins AS (\n    SELECT id FROM requests.turn_origins WHERE code IN ('primary', 'primary_first')\n)\nSELECT rs.id                                                   AS \"response_id!\",\n       r.id                                                    AS \"request_id!\",\n       r.session_id                                            AS \"session_id!\",\n       r.model,\n       r.created_at                                            AS \"created_at!\",\n       CASE WHEN r.last_user_message LIKE '%Mail from %'\n              OR r.last_user_message LIKE '%<channel source=\"mike\"%' THEN 'mail'\n            ELSE ak.code END                                   AS \"woken_by!\",\n       COALESCE(rs.cache_read_input_tokens, 0)                 AS \"cache_read!\",\n       COALESCE(rs.cache_creation_input_tokens, 0)             AS \"cache_creation!\",\n       COALESCE(rs.input_tokens, 0)                            AS \"input!\",\n       COALESCE((rs.token_usage -> 'cache_creation' ->> 'ephemeral_1h_input_tokens')::bigint, 0) AS \"creation_1h!\",\n       COALESCE((rs.token_usage -> 'cache_creation' ->> 'ephemeral_5m_input_tokens')::bigint, 0) AS \"creation_5m!\",\n       p.id                                                    AS \"prev_request_id!\",\n       p.model                                                 AS prev_model,\n       p.completed_at                                          AS \"prev_done_at!\",\n       p.cache_read                                            AS \"prev_cache_read!\",\n       p.cache_creation                                        AS \"prev_cache_creation!\",\n       p.creation_1h                                           AS \"prev_creation_1h!\",\n       p.creation_5m                                           AS \"prev_creation_5m!\"\n  FROM responses.responses rs\n  JOIN requests.requests r ON r.id = rs.request_id\n  JOIN requests.author_kinds ak ON ak.id = r.author_kind_id\n  CROSS JOIN LATERAL (\n        SELECT q.id, q.model, qs.completed_at,\n               COALESCE(qs.cache_read_input_tokens, 0)     AS cache_read,\n               COALESCE(qs.cache_creation_input_tokens, 0) AS cache_creation,\n               COALESCE((qs.token_usage -> 'cache_creation' ->> 'ephemeral_1h_input_tokens')::bigint, 0) AS creation_1h,\n               COALESCE((qs.token_usage -> 'cache_creation' ->> 'ephemeral_5m_input_tokens')::bigint, 0) AS creation_5m\n          FROM requests.requests q\n          JOIN responses.responses qs ON qs.request_id = q.id\n         WHERE q.session_id = r.session_id\n           AND q.created_at < r.created_at\n           AND q.turn_origin_id IN (SELECT id FROM main_origins)\n           AND q.claude_code_agent_id IS NULL\n           AND qs.response_status = 200\n         ORDER BY q.created_at DESC, q.id DESC\n         LIMIT 1\n  ) p\n WHERE rs.id > $1\n   AND rs.id <= $2\n   AND rs.response_status = 200\n   AND rs.cache_creation_input_tokens > $3\n   AND r.turn_origin_id IN (SELECT id FROM main_origins)\n   AND r.claude_code_agent_id IS NULL\n ORDER BY rs.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "response_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "woken_by!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "cache_read!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "cache_creation!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "input!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "creation_1h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "creation_5m!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "prev_request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "prev_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "prev_done_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "prev_cache_read!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "prev_cache_creation!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "prev_creation_1h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "prev_creation_5m!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      true,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "9c09354e329f2abc663b65fd5da8c8fdc84e9a78e4ec98cb779cc8bc9ee43c23"
+}

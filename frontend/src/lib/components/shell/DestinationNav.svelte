@@ -30,7 +30,8 @@
 		ListChecks,
 		Sparkles,
 		BellRing,
-		Hammer
+		Hammer,
+		DatabaseZap
 	} from '@lucide/svelte';
 	import { BookOpen, FilePen, ListTodo } from '@lucide/svelte';
 	import type { Component } from 'svelte';
@@ -67,6 +68,7 @@
 		| '/code-findings'
 		| '/compression-review'
 		| '/diagnostics/agent-dispatches'
+		| '/diagnostics/prompt-cache'
 		| '/memory'
 		| '/skills'
 		| '/proposals'
@@ -238,6 +240,13 @@
 					href: '/diagnostics/agent-dispatches',
 					icon: Users,
 					hint: 'Cross-session list of sub-agent spawns (Task tool calls)',
+					indent: true
+				},
+				{
+					label: 'Prompt cache',
+					href: '/diagnostics/prompt-cache',
+					icon: DatabaseZap,
+					hint: 'Requests that rewrote prompt cache they should have read, and what changed the prompt',
 					indent: true
 				}
 			]
