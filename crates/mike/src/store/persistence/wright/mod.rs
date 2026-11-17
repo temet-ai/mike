@@ -7,6 +7,7 @@ pub(crate) mod conversation;
 pub(crate) mod conversation_steers;
 mod followups;
 mod followups_flow;
+mod inbox;
 mod investigations;
 mod problems;
 pub(crate) mod remedies;
@@ -18,6 +19,7 @@ mod followups_tests;
 
 pub(crate) use followups::{FollowupRow, NewFollowup, RootCausePick};
 pub(crate) use followups_flow::{Fixer, FollowupLimits, FollowupLimitsPatch};
+pub(crate) use inbox::InboxRow;
 pub(crate) use investigations::{
     EngineerLimits, Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation,
     PageQuery, Pick, Usage,

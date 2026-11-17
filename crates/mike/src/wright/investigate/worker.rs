@@ -4,7 +4,7 @@ use std::time::Duration;
 use super::brief::{EVIDENCE_INPUT, evidence, investigate_brief, root_cause_brief};
 use super::{EngineerContext, RunMode, RunOutcome, RunRequest, StartRefused, reconcile};
 use crate::state::AppState;
-use crate::store::persistence::wright::{Pick, RootCausePick};
+use crate::store::persistence::wright::{InboxRow, Pick, RootCausePick};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const LEASE_ROLE: &str = "wright_engineer";
@@ -109,20 +109,33 @@ async fn build_request(
         .web()
         .live_wright_followups(Some(&problem.check_name), None)
         .await?;
+    let inbox = persist
+        .web()
+        .unread_wright_inbox(&problem.check_name)
+        .await?;
     let brief = match root {
         Some(pick) => root_cause_brief(&problem, &episode, &open, pick),
         None => investigate_brief(&problem, &episode, &open),
-    };
+    } + &inbox_note(&inbox);
+    let mut evidence = evidence(&problem, &episode, &open, root);
+    evidence["inbox"] = serde_json::to_value(&inbox).unwrap_or_default();
     Ok(Some(RunRequest {
         mode: RunMode::Investigate,
         problem_id: Some(problem.id),
         followup_id: root.map(|pick| pick.followup_id),
         brief,
-        inputs: vec![(
-            EVIDENCE_INPUT.to_owned(),
-            evidence(&problem, &episode, &open, root),
-        )],
+        inputs: vec![(EVIDENCE_INPUT.to_owned(), evidence)],
     }))
+}
+
+fn inbox_note(inbox: &[InboxRow]) -> String {
+    if inbox.is_empty() {
+        return String::new();
+    }
+    format!(
+        "\n\nSince Wright last looked at this check, {} things happened to its known fixes, repairs and follow-ups; they are in {EVIDENCE_INPUT} under inbox, oldest first. Start from them instead of searching for what changed.",
+        inbox.len()
+    )
 }
 
 fn log_outcome(outcome: &RunOutcome) {
