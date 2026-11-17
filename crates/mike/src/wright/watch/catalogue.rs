@@ -15,6 +15,7 @@ pub(crate) struct WatchContext {
     pub(crate) persist: PersistHandle,
     pub(crate) log_dir: Option<PathBuf>,
     pub(crate) machine: Option<Uuid>,
+    pub(crate) repo_root: Option<PathBuf>,
 }
 
 async fn run_probe(check: &CheckRow, ctx: &WatchContext) -> Result<Vec<Finding>, String> {
@@ -27,7 +28,7 @@ async fn run_probe(check: &CheckRow, ctx: &WatchContext) -> Result<Vec<Finding>,
                 .ok_or_else(|| format!("{}: a sql check has no query", check.name))?;
             bounded::findings(pool, &check.name, query, &check.params).await
         }
-        Probe::Logs => logs::check(ctx.log_dir.as_deref(), Utc::now(), &check.params).await,
+        Probe::Logs => logs::check(&ctx.persist, Utc::now(), &check.params).await,
         Probe::ColdForks => forks::check(pool, &check.name, &check.params).await,
     }
 }

@@ -9,6 +9,7 @@ mod followups;
 mod followups_flow;
 mod inbox;
 mod investigations;
+mod log_lines;
 mod problems;
 pub(crate) mod remedies;
 
@@ -24,6 +25,7 @@ pub(crate) use investigations::{
     EngineerLimits, Inserted, InvestigationRow, LimitsPatch, LiveRun, NewFinding, NewInvestigation,
     PageQuery, Pick, Usage,
 };
+pub(crate) use log_lines::{LogLineRow, NewLogLine};
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
 

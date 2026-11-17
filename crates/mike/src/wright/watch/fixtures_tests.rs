@@ -32,6 +32,7 @@ impl Db {
             persist: self.handle.clone(),
             log_dir: None,
             machine: None,
+            repo_root: None,
         }
     }
 
