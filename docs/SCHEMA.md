@@ -6572,6 +6572,19 @@ columns `ON DELETE CASCADE`, `created_at`. A `root_cause` follow-up opened from 
 has none until its engineer run finishes. `idx_wright_followup_findings_finding (finding_id)`
 serves the per-problem read.
 
+### `wright.inbox`
+
+Events for Wright's engineer (temet-ai/mike#321), written as they happen by statement-level
+`AFTER UPDATE` triggers on `wright.repairs` (`gate_failed`, `refused`, `landed`, `deployed`,
+`healthy`), `wright.actions` (`verified`, `failed`, `refused`, `ineffective`, `undone`,
+`undo_conflict`) and `wright.followups` (`filed`, `handed_off`, `fixed`, `dropped`, `stuck`), so
+every writer posts without a call site. Columns: `check_name`, `problem_id` (null for a
+follow-up), `kind` (`remedy`, `repair`, `followup`), `ref_id`, `state`, `summary`, `created_at`,
+`read_by` (`REFERENCES wright.investigations ON DELETE SET NULL`) and `read_at`. The next engineer
+run for the check reads its newest 50 unread events into `evidence.json` under `inbox`, and they
+are marked read when that run stores a finding. `wright_inbox_unread (check_name, id) WHERE
+read_at IS NULL` serves the read.
+
 ### `wright.followup_limits`
 
 One row (`id boolean PRIMARY KEY CHECK (id)`), changed only through `PATCH

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
+use super::feedback::{self, Refused};
 use super::land::{Candidate, LandError, Landing};
 use super::policy::patch_summary;
 use super::port::{LiveBuild, RepairEngineer, RepairJob, RepairRun};
@@ -22,6 +23,7 @@ pub(crate) enum AttemptEnd {
 enum Next<T> {
     Go(T),
     Stop(AttemptEnd),
+    Again(Refused),
 }
 
 fn plain_path(part: &str) -> Option<&str> {
@@ -255,6 +257,7 @@ async fn prepare<R, E, B>(
     claim: &ClaimedRepair,
     path: &Path,
     base: String,
+    round: u32,
 ) -> Result<Next<Candidate>, PersistError>
 where
     R: CommandRunner,
@@ -270,6 +273,13 @@ where
         }
         Err(e) => {
             let reason = format!("the patch could not be committed: {e}");
+            if feedback::another_round(round) {
+                return Ok(Next::Again(Refused {
+                    reason,
+                    output: None,
+                    committed: false,
+                }));
+            }
             return Ok(Next::Stop(
                 end(ctx, claim, states::GATE_FAILED, reason, true).await?,
             ));
@@ -307,7 +317,8 @@ async fn land<R, E, B>(
     claim: &ClaimedRepair,
     path: &Path,
     cand: Candidate,
-) -> Result<AttemptEnd, PersistError>
+    round: u32,
+) -> Result<Next<AttemptEnd>, PersistError>
 where
     R: CommandRunner,
 {
@@ -336,9 +347,24 @@ where
                 })
                 .await?;
             cleanup(&ctx.runner, &ctx.repo, claim).await;
-            Ok(AttemptEnd::Landed)
+            Ok(Next::Go(AttemptEnd::Landed))
         }
-        Err(LandError::Failed(reason)) => end(ctx, claim, states::GATE_FAILED, reason, true).await,
+        Err(LandError::Failed(reason)) if feedback::another_round(round) => {
+            let output = ctx
+                .persist
+                .web()
+                .wright_repair(claim.id)
+                .await?
+                .and_then(|row| row.gate_output);
+            Ok(Next::Again(Refused {
+                reason,
+                output,
+                committed: true,
+            }))
+        }
+        Err(LandError::Failed(reason)) => Ok(Next::Stop(
+            end(ctx, claim, states::GATE_FAILED, reason, true).await?,
+        )),
         Err(LandError::Unsettled(reason)) => {
             ctx.persist
                 .web()
@@ -350,10 +376,86 @@ where
                     ..RepairUpdate::default()
                 })
                 .await?;
-            Ok(AttemptEnd::Ended)
+            Ok(Next::Stop(AttemptEnd::Ended))
         }
         Err(LandError::Persist(e)) => Err(e),
     }
+}
+
+async fn refuse<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claim: &ClaimedRepair,
+    refused: Refused,
+) -> Result<AttemptEnd, PersistError>
+where
+    R: CommandRunner,
+{
+    end(ctx, claim, states::GATE_FAILED, refused.reason, true).await
+}
+
+async fn again<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claim: &ClaimedRepair,
+    path: &Path,
+    base: String,
+    round: u32,
+    refused: &Refused,
+) -> Result<Next<String>, PersistError>
+where
+    R: CommandRunner,
+    E: RepairEngineer,
+{
+    let base = match feedback::reopen(&ctx.runner, path, refused).await {
+        Ok(reopened) => reopened.unwrap_or(base),
+        Err(e) => {
+            let reason = format!(
+                "{}; the change could not be reopened for round {round}: {e}",
+                refused.reason
+            );
+            return Ok(Next::Stop(
+                end(ctx, claim, states::GATE_FAILED, reason, true).await?,
+            ));
+        }
+    };
+    ctx.persist
+        .web()
+        .advance_wright_repair(&RepairUpdate {
+            id: claim.id,
+            to: states::EDITING,
+            from: &[states::EDITING, states::PREPARED, states::GATING],
+            base_sha: Some(base.clone()),
+            reason: Some(format!("round {round}: {}", refused.reason)),
+            ..RepairUpdate::default()
+        })
+        .await?;
+    log_round(claim, round, &refused.reason);
+    let job = feedback::feedback_job(&job(claim, path), round, refused);
+    match ctx.engineer.run_in_worktree(&job).await {
+        RepairRun {
+            not_started: None,
+            failure: None,
+        } => Ok(Next::Go(base)),
+        RepairRun {
+            failure: Some(reason),
+            ..
+        }
+        | RepairRun {
+            not_started: Some(reason),
+            ..
+        } => {
+            let reason = format!(
+                "{}; round {round}'s engineer run did not finish: {reason}",
+                refused.reason
+            );
+            Ok(Next::Stop(
+                end(ctx, claim, states::GATE_FAILED, reason, true).await?,
+            ))
+        }
+    }
+}
+
+fn log_round(claim: &ClaimedRepair, round: u32, reason: &str) {
+    tracing::info!(repair = claim.id, finding = claim.finding_id, round, %reason, "wright repair: the change was refused; the engineer edits it again");
 }
 
 pub(crate) async fn attempt<R, E, B>(
@@ -366,13 +468,26 @@ where
     B: LiveBuild,
 {
     let path = PathBuf::from(&claim.worktree);
-    let base = match edit(ctx, claim, &path).await? {
+    let mut base = match edit(ctx, claim, &path).await? {
         Next::Go(base) => base,
         Next::Stop(end) => return Ok(end),
+        Next::Again(refused) => return refuse(ctx, claim, refused).await,
     };
-    let cand = match prepare(ctx, claim, &path, base).await? {
-        Next::Go(cand) => cand,
-        Next::Stop(end) => return Ok(end),
-    };
-    land(ctx, claim, &path, cand).await
+    let mut round = 1;
+    loop {
+        let refused = match prepare(ctx, claim, &path, base.clone(), round).await? {
+            Next::Go(cand) => match land(ctx, claim, &path, cand, round).await? {
+                Next::Go(end) | Next::Stop(end) => return Ok(end),
+                Next::Again(refused) => refused,
+            },
+            Next::Stop(end) => return Ok(end),
+            Next::Again(refused) => refused,
+        };
+        round += 1;
+        base = match again(ctx, claim, &path, base, round, &refused).await? {
+            Next::Go(base) => base,
+            Next::Stop(end) => return Ok(end),
+            Next::Again(refused) => return refuse(ctx, claim, refused).await,
+        };
+    }
 }

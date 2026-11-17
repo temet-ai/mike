@@ -48,6 +48,12 @@ async fn end(ctx: &EngineerContext, id: i64, state: &str, code: Option<i32>, rea
     }
 }
 
+async fn mark_inbox_read(ctx: &EngineerContext, id: i64) {
+    if let Err(e) = ctx.persist.web().mark_wright_inbox_read(id).await {
+        tracing::warn!(error = %e, investigation = id, "wright: the run's inbox events could not be marked read; the next run sees them again");
+    }
+}
+
 async fn investigated(
     ctx: &EngineerContext,
     run: &Ended<'_>,
@@ -72,6 +78,7 @@ async fn investigated(
         .await
     {
         Ok(Some(finding_id)) => {
+            mark_inbox_read(ctx, id).await;
             let origin = record::Origin {
                 finding_id,
                 problem_id: run.problem_id,

@@ -251,3 +251,27 @@ async fn repair_interrupted_after_its_merge_is_recorded_landed_without_a_new_gat
     );
     bench.cleanup().await
 }
+
+#[tokio::test]
+async fn repair_that_lands_posts_a_landed_event_to_its_checks_inbox() -> anyhow::Result<()> {
+    let bench = Bench::boot(fix()).await?;
+    let (_, finding) = bench.defect().await?;
+    tick(&bench.ctx, true).await?;
+    let repair = bench.repair_of(finding).await?;
+    assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);
+    let inbox = bench
+        .ctx
+        .persist
+        .web()
+        .unread_wright_inbox(super::scratch_tests::CHECK_NAME)
+        .await?;
+    let landed = inbox
+        .iter()
+        .find(|event| event.kind == "repair" && event.ref_id == repair.id);
+    assert!(
+        landed.is_some_and(|event| event.state == states::LANDED
+            && event.summary.contains(&format!("repair {}", repair.id))),
+        "{inbox:?}"
+    );
+    bench.cleanup().await
+}

@@ -1,4 +1,5 @@
 use super::attempt::AttemptEnd;
+use super::feedback::{FEEDBACK_INPUT, MAX_ROUNDS};
 use super::fixtures_tests::{BUGGY, Bench, FIXED, WritesFiles, sh};
 use super::port::RepairRun;
 use super::{states, tick};
@@ -77,7 +78,30 @@ async fn repair_with_a_written_gate_passed_log_still_fails_the_gate() -> anyhow:
     assert_eq!(repair.state, states::GATE_FAILED);
     assert_ne!(repair.gate_exit, Some(0));
     let commit = repair.commit_sha.clone().unwrap_or_default();
-    assert_eq!(bench.scratch.gate_log(), format!("fail {commit}\n"));
+    let gates = bench.scratch.gate_log();
+    assert_eq!(gates.lines().count(), MAX_ROUNDS as usize, "{gates}");
+    assert!(
+        gates.lines().all(|line| line.starts_with("fail ")),
+        "{gates}"
+    );
+    assert!(gates.ends_with(&format!("fail {commit}\n")), "{gates}");
+    let jobs = bench.ctx.engineer.jobs();
+    assert_eq!(jobs.len(), MAX_ROUNDS as usize);
+    assert!(
+        jobs[0]
+            .inputs
+            .iter()
+            .all(|(name, _)| name != FEEDBACK_INPUT)
+    );
+    for later in &jobs[1..] {
+        let refusal = later.inputs.iter().find(|(name, _)| name == FEEDBACK_INPUT);
+        assert!(
+            refusal.is_some_and(|(_, value)| value["refused"]
+                .as_str()
+                .is_some_and(|r| r.contains("push hook did not pass"))),
+            "a later round carries the gate's refusal"
+        );
+    }
     assert!(
         repair
             .reason
