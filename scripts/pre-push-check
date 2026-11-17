@@ -61,7 +61,7 @@ done
 # kinds report only (route_unconsumed: 7 of 9 false, paths built from a BASE constant
 # and consumers outside the repo). wiring-new skips with one line when no mike binary
 # here has `structural wiring`.
-if grep -qE '^(crates/|frontend/src/|scripts/|mods/|services/|\.mike/)' <<<"$changed"; then
+if [ -x "$hook_dir/wiring-new" ] && grep -qE '^(crates/|frontend/src/|scripts/|mods/|services/|\.mike/)' <<<"$changed"; then
   for range in $ranges; do
     WIRING_BLOCK=pub_fn_no_caller "$hook_dir/wiring-new" "$range" >&2 || status=1
   done
