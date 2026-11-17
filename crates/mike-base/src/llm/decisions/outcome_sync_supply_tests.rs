@@ -1,4 +1,3 @@
-use chrono::{Duration, Utc};
 use serde_json::json;
 
 use super::outcome_sync_support_tests::{Env, NewRecord, pair};
@@ -22,7 +21,7 @@ async fn supplied(
         "INSERT INTO memory.supplied_items
              (session_id, request_id, item_kind, lesson_id, thread_id, card_hash, route,
               item_text, supplied_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'proxy', 'text', $7)
+         VALUES ($1, $2, $3, $4, $5, $6, 'proxy', 'text', now() + make_interval(mins => $7))
          RETURNING id",
         env.session_id,
         request_id,
@@ -30,7 +29,7 @@ async fn supplied(
         lesson,
         thread,
         hash,
-        Utc::now() + Duration::minutes(minutes_from_now),
+        i32::try_from(minutes_from_now)?,
     )
     .fetch_one(env.handle.pool())
     .await?)
