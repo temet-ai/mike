@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations l SET parent_location_uuid = p.location_uuid\n               FROM unnest($2::uuid[], $3::text[]) AS m(location_uuid, main_root)\n               LEFT JOIN projects.locations p\n                      ON p.machine_uuid = $1 AND rtrim(p.root_path, '/') = m.main_root\n              WHERE l.machine_uuid = $1 AND l.location_uuid = m.location_uuid\n                AND l.parent_location_uuid IS DISTINCT FROM p.location_uuid\n                AND p.location_uuid IS DISTINCT FROM l.location_uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9fd44ef859a29da6d9b062919f3af622afdc5811f3bcc59bc47f11337c8d6dee"
+}

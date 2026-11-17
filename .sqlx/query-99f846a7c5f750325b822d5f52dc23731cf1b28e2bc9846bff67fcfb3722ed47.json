@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.location_uuid, l.root_path, r.id AS project_id, r.project_uuid,\n                      l.origin_url, l.parent_location_uuid, l.present_at, l.created_at\n                 FROM projects.locations l\n                 JOIN projects.projects p ON p.id = l.project_id\n                 JOIN projects.projects r ON r.id = COALESCE(p.merged_into_id, p.id)\n                WHERE l.machine_uuid = $1\n                ORDER BY l.root_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "root_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "origin_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "origin_url"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "parent_location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "parent_location_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "present_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "present_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "99f846a7c5f750325b822d5f52dc23731cf1b28e2bc9846bff67fcfb3722ed47"
+}

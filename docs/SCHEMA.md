@@ -140,14 +140,22 @@ queries, `mailbox.session_real_project_id()` (a session's project from its worki
 | `root_path` | `TEXT NOT NULL` | The checkout's root on that machine; CHECK not blank |
 | `last_seen` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Last registration or knowledge write that named this location |
 | `origin_url` | `TEXT` | The checkout's normalized git remote, recorded by the machine that holds it (`workspace/checkouts.rs`, each knowledge scan); how a checkout on another machine finds its project. NULL for a folder that is not a checkout root |
+| `parent_location_uuid` | `UUID` | FK → `projects.locations(location_uuid)` ON DELETE SET NULL. For a git worktree, the location of its main checkout on the same machine, set by `workspace/checkout_watch.rs` on each knowledge scan; NULL for a main checkout, a clone, or a folder never seen on disk (`20261117220000_location_lifecycle.sql`) |
+| `gone_at` | `TIMESTAMPTZ` | When the machine's knowledge scan first found the root missing on disk; cleared when it returns or the location moves. NULL while present |
+| `present_at` | `TIMESTAMPTZ` | Last time the machine's knowledge scan found the root on disk, refreshed at most every 10 minutes. NULL until first seen; an automatic move needs it |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the row was registered (rows older than the migration carry its time). An automatic move only targets a checkout registered after the missing one was last seen |
+
+`root_path` changes in place when a checkout moves (`store/persistence/location_move.rs`, `mike project move`, `POST /api/projects/locations/move`, or the automatic move in `workspace/checkout_watch.rs`); `location_uuid` stays.
 
 **Constraints:**
 - UNIQUE `(machine_uuid, root_path)`
 - CHECK `btrim(root_path) <> ''` (unnamed)
+- `locations_parent_not_self`: CHECK `parent_location_uuid IS DISTINCT FROM location_uuid`
 
 **Indexes:**
 - `locations_project`: `project_id` (BTree)
 - `locations_origin_url`: `origin_url` (BTree, partial: not null)
+- `locations_parent`: `parent_location_uuid` (BTree, partial: not null)
 
 ---
 

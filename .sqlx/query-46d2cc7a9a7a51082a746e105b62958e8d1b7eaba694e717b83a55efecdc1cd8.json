@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations l\n                SET gone_at = CASE WHEN m.present THEN NULL ELSE COALESCE(l.gone_at, now()) END,\n                    present_at = CASE WHEN m.present THEN now() ELSE l.present_at END\n               FROM unnest($2::uuid[], $3::bool[]) AS m(location_uuid, present)\n              WHERE l.machine_uuid = $1 AND l.location_uuid = m.location_uuid\n                AND CASE WHEN m.present\n                         THEN l.gone_at IS NOT NULL OR l.present_at IS NULL\n                              OR l.present_at < now() - interval '10 minutes'\n                         ELSE l.gone_at IS NULL END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "46d2cc7a9a7a51082a746e105b62958e8d1b7eaba694e717b83a55efecdc1cd8"
+}

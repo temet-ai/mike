@@ -24,17 +24,22 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                'project_path', p.project_path, 'locations',
                COALESCE(jsonb_agg(jsonb_build_object('location_uuid', l.location_uuid,
                  'machine_uuid', l.machine_uuid, 'machine_name', m.name,
-                 'root_path', l.root_path, 'last_seen', l.last_seen)
-                 ORDER BY m.name, l.root_path, l.location_uuid)
+                 'root_path', l.root_path, 'last_seen', l.last_seen,
+                 'worktree_of', l.parent_location_uuid,
+                 'gone', l.gone_at IS NOT NULL, 'gone_at', l.gone_at)
+                 ORDER BY m.name, COALESCE(pl.root_path, l.root_path),
+                          l.parent_location_uuid IS NOT NULL, l.root_path, l.location_uuid)
                  FILTER (WHERE l.location_uuid IS NOT NULL), '[]'::jsonb)) AS "project!"
              FROM projects.projects p
              LEFT JOIN projects.locations l ON l.project_id = p.id
+             LEFT JOIN projects.locations pl ON pl.location_uuid = l.parent_location_uuid
              LEFT JOIN projects.machines m ON m.machine_uuid = l.machine_uuid
              WHERE p.project_path <> '(no project)' AND p.merged_into_id IS NULL
              GROUP BY p.id ORDER BY p.id"#,
         )
         .fetch_all(self.pool())
         .await?;
+        let rows = super::location_view::nest_worktrees(rows);
         Ok(if include_all {
             super::location_view::full_view(rows)
         } else {

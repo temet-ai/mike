@@ -98,6 +98,17 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         let locations: Vec<Uuid> = inputs.iter().map(|input| input.location_uuid).collect();
         let names: Vec<String> = inputs.iter().map(|input| input.name.clone()).collect();
         let roots: Vec<String> = inputs.iter().map(|input| input.root_path.clone()).collect();
+        sqlx::query!(
+            "UPDATE memory.knowledge_sources s SET root_path = x.root_path
+               FROM unnest($1::uuid[], $2::text[], $3::text[]) AS x(location_uuid, name, root_path)
+              WHERE s.location_uuid = x.location_uuid AND s.name = x.name
+                AND s.root_path <> x.root_path",
+            &locations,
+            &names,
+            &roots
+        )
+        .execute(self.pool())
+        .await?;
         let rows = sqlx::query!(
             r#"WITH input AS (
                    SELECT x.ord, x.location_uuid, x.name, x.root_path

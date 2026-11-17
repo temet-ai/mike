@@ -17,6 +17,7 @@ pub mod open_gates;
 pub mod open_outcome;
 pub mod open_record;
 pub mod pinned_launch;
+pub mod project_move;
 pub mod prompt_turn;
 pub mod proxy_env;
 pub mod proxy_ledger;

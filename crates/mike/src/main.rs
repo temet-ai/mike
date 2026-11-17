@@ -94,6 +94,9 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             std::process::exit(code)
         }
         Some(Command::Thread(args)) => mike::work_threads::run(args, cli.overrides).await,
+        Some(Command::Project(args)) => {
+            mike::launch::cli::project_move::run(args, cli.overrides).await
+        }
         Some(Command::Fleet(args)) => {
             let code = mike::launch::fleet::run(args, cli.overrides).await;
             std::process::exit(code)

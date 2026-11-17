@@ -88,6 +88,10 @@ pub async fn record_origins(persist: &PersistHandle, machine: Uuid) -> Result<()
                 .await?;
         }
     }
+    for moved in super::checkout_watch::watch_checkouts(persist, machine).await? {
+        tracing::info!(location = %moved.location_uuid, from = %moved.from, to = %moved.to,
+            "checkouts: a missing checkout reappeared at a new folder; its location moved there");
+    }
     Ok(())
 }
 

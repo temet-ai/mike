@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations l SET parent_location_uuid = p.winner\n           FROM unnest($1::uuid[], $2::uuid[]) AS p(loser, winner)\n          WHERE l.parent_location_uuid = p.loser AND l.location_uuid <> p.winner",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36528356ae0b65cffa351cb3b76df5e505f209b724c8dced2297a16ac463eebe"
+}
