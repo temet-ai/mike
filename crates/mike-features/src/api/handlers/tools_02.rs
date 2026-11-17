@@ -65,7 +65,10 @@ pub struct ToolErrorsResponse {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ToolErrorsParams {
+    #[serde(default)]
+    pub session_id: Option<String>,
     #[serde(default)]
     pub since: Option<String>,
     #[serde(default)]

@@ -114,8 +114,8 @@ async fn content_search_skips_chunks_of_machine_rows() -> anyhow::Result<()> {
     };
     add_chunk(fx.handle.pool(), fx.machine).await?;
     add_chunk(fx.handle.pool(), fx.operator).await?;
-    let totals =
-        content_search::search_content_totals(fx.handle.pool(), "zebra needle", None).await?;
+    let query = content_search::ContentQuery::phrase("zebra needle");
+    let totals = content_search::search_content_totals(fx.handle.pool(), &query, None).await?;
     assert_eq!(totals.total_matches, 1);
     fx.db.cleanup().await?;
     Ok(())

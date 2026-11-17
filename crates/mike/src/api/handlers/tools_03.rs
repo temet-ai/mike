@@ -82,6 +82,7 @@ pub(crate) async fn list_tool_errors(
     State(state): State<AppState>,
     Query(params): Query<ToolErrorsParams>,
 ) -> Result<impl axum::response::IntoResponse, Response> {
+    let session_uuid = parse_session_id_param(params.session_id.as_deref())?;
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
@@ -109,6 +110,7 @@ pub(crate) async fn list_tool_errors(
     let filter = crate::store::persistence::tool_errors::ToolErrorFilter {
         project: params.project,
         tool_name: params.tool_name,
+        session_uuid,
         since: window.effective_from,
         until: window_upper_bound(&window),
         limit: limit as i64,

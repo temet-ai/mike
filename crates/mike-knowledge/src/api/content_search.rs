@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::content_search::{ContentSearchRow, PageRequest, SessionOrder};
+use crate::store::persistence::content_search::{
+    ContentQuery, ContentQueryError, ContentSearchRow, MAX_QUERY_WORDS, PageRequest, SearchMode,
+    SessionOrder,
+};
 
 const CONTENT_SEARCH_MAX_QUERY_BYTES: usize = 8192;
 const DEFAULT_SESSION_LIMIT: u32 = 20;
@@ -26,6 +29,8 @@ pub struct ContentSearchParams {
     offset: Option<u32>,
     #[serde(default)]
     order: Option<String>,
+    #[serde(default)]
+    mode: Option<String>,
     #[serde(default)]
     caller_session_id: Option<String>,
 }
@@ -52,6 +57,8 @@ pub struct ContentSearchSessionDto {
     project_path: String,
     project_display_name: String,
     title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    words_matched: Option<u64>,
     match_count: u64,
     prompt_match_count: u64,
     turn_count: u64,
@@ -63,6 +70,7 @@ pub struct ContentSearchSessionDto {
 #[derive(Debug, Serialize)]
 pub struct ContentSearchResponse {
     query: String,
+    mode: &'static str,
     order: &'static str,
     total_matches: u64,
     total_sessions: u64,
@@ -126,6 +134,28 @@ fn parse_order(order: Option<&str>) -> Result<SessionOrder, Box<Response>> {
     })
 }
 
+fn parse_query(q: &str, mode: Option<&str>) -> Result<ContentQuery, Box<Response>> {
+    let mode = match mode {
+        None => SearchMode::Phrase,
+        Some(value) => SearchMode::parse(value).ok_or_else(|| {
+            Box::new(content_search_error(
+                StatusCode::BAD_REQUEST,
+                &format!("mode must be `phrase`, `all` or `any` (got `{value}`)"),
+            ))
+        })?,
+    };
+    ContentQuery::new(q, mode).map_err(|error| {
+        let message = match error {
+            ContentQueryError::NoWords => "q has no words".to_owned(),
+            ContentQueryError::TooManyWords { count, .. } => format!(
+                "mode `{}` accepts at most {MAX_QUERY_WORDS} words in q (got {count})",
+                mode.as_str()
+            ),
+        };
+        Box::new(content_search_error(StatusCode::BAD_REQUEST, &message))
+    })
+}
+
 async fn resolve_project(
     handle: &PersistHandle,
     selector: Option<&str>,
@@ -143,11 +173,11 @@ async fn resolve_project(
 
 async fn fetch_search_totals(
     handle: &PersistHandle,
-    q: &str,
+    query: &ContentQuery,
     project_id: Option<i64>,
 ) -> Result<crate::store::persistence::content_search::ContentSearchTotals, Response> {
     handle
-        .search_content_totals(q, project_id)
+        .search_content_totals(query, project_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "content_search: totals query failed");
@@ -157,12 +187,12 @@ async fn fetch_search_totals(
 
 async fn fetch_search_page(
     handle: &PersistHandle,
-    q: &str,
+    query: &ContentQuery,
     project_id: Option<i64>,
     page: &PageRequest,
 ) -> Result<Vec<ContentSearchRow>, Response> {
     handle
-        .search_content_page(q, project_id, page)
+        .search_content_page(query, project_id, page)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "content_search: page query failed");
@@ -170,7 +200,11 @@ async fn fetch_search_page(
         })
 }
 
-fn push_new_session_if_needed(sessions: &mut Vec<ContentSearchSessionDto>, row: &ContentSearchRow) {
+fn push_new_session_if_needed(
+    sessions: &mut Vec<ContentSearchSessionDto>,
+    row: &ContentSearchRow,
+    query: &ContentQuery,
+) {
     let is_new_session = sessions
         .last()
         .is_none_or(|s| s.session_id != row.session_id);
@@ -182,6 +216,8 @@ fn push_new_session_if_needed(sessions: &mut Vec<ContentSearchSessionDto>, row: 
         project_path: row.project_path.clone(),
         project_display_name: row.project_display_name.clone(),
         title: row.title.clone(),
+        words_matched: (query.mode() != SearchMode::Phrase)
+            .then_some(row.words_matched.max(0) as u64),
         match_count: row.match_count.max(0) as u64,
         prompt_match_count: row.prompt_match_count.max(0) as u64,
         turn_count: row.turn_count.max(0) as u64,
@@ -191,16 +227,34 @@ fn push_new_session_if_needed(sessions: &mut Vec<ContentSearchSessionDto>, row: 
     });
 }
 
-fn append_match_if_room(sessions: &mut [ContentSearchSessionDto], row: ContentSearchRow, q: &str) {
+fn first_match_in_chunk(
+    chunk_text: &str,
+    query: &ContentQuery,
+) -> Option<crate::web_base::body_search::TextMatch> {
+    query
+        .words()
+        .iter()
+        .filter_map(|word| {
+            crate::web_base::body_search::find_in_str(chunk_text, word, false, 120, 1)
+                .1
+                .into_iter()
+                .next()
+        })
+        .min_by_key(|m| m.byte_offset)
+}
+
+fn append_match_if_room(
+    sessions: &mut [ContentSearchSessionDto],
+    row: ContentSearchRow,
+    query: &ContentQuery,
+) {
     let Some(current) = sessions.last_mut() else {
         return;
     };
     if current.matches.len() >= MAX_MATCHES_PER_SESSION {
         return;
     }
-    let (_, chunk_matches) =
-        crate::web_base::body_search::find_in_str(&row.chunk_text, q, false, 120, 1);
-    let Some(m) = chunk_matches.into_iter().next() else {
+    let Some(m) = first_match_in_chunk(&row.chunk_text, query) else {
         return;
     };
     current.matches.push(ContentSearchMatchDto {
@@ -219,11 +273,14 @@ fn append_match_if_room(sessions: &mut [ContentSearchSessionDto], row: ContentSe
     });
 }
 
-fn group_rows_by_session(rows: Vec<ContentSearchRow>, q: &str) -> Vec<ContentSearchSessionDto> {
+fn group_rows_by_session(
+    rows: Vec<ContentSearchRow>,
+    query: &ContentQuery,
+) -> Vec<ContentSearchSessionDto> {
     let mut sessions: Vec<ContentSearchSessionDto> = Vec::new();
     for row in rows {
-        push_new_session_if_needed(&mut sessions, &row);
-        append_match_if_room(&mut sessions, row, q);
+        push_new_session_if_needed(&mut sessions, &row, query);
+        append_match_if_room(&mut sessions, row, query);
     }
     sessions
 }
@@ -257,6 +314,7 @@ async fn run_search(
 ) -> Result<ContentSearchResponse, Response> {
     validate_query(&params.q).map_err(query_validation_error_response)?;
     let order = parse_order(params.order.as_deref()).map_err(|response| *response)?;
+    let query = parse_query(&params.q, params.mode.as_deref()).map_err(|response| *response)?;
     let handle = state.persist().ok_or_else(|| {
         content_search_error(StatusCode::SERVICE_UNAVAILABLE, "persistence unavailable")
     })?;
@@ -266,14 +324,14 @@ async fn run_search(
         .clamp(1, MAX_SESSION_LIMIT);
     let offset = params.offset.unwrap_or(0);
     let project_id = resolve_project(handle, params.project.as_deref()).await?;
-    let totals = fetch_search_totals(handle, &params.q, project_id).await?;
+    let totals = fetch_search_totals(handle, &query, project_id).await?;
     let page = PageRequest {
         order,
         limit: i64::from(limit),
         offset: i64::from(offset),
     };
-    let rows = fetch_search_page(handle, &params.q, project_id, &page).await?;
-    let sessions = group_rows_by_session(rows, &params.q);
+    let rows = fetch_search_page(handle, &query, project_id, &page).await?;
+    let sessions = group_rows_by_session(rows, &query);
 
     let returned_sessions = sessions.len() as u32;
     let has_more =
@@ -282,6 +340,7 @@ async fn run_search(
 
     Ok(ContentSearchResponse {
         query: params.q,
+        mode: query.mode().as_str(),
         order: order.as_str(),
         total_matches: totals.total_matches.max(0) as u64,
         total_sessions: totals.total_sessions.max(0) as u64,

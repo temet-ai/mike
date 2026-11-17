@@ -31,10 +31,20 @@ pub struct FileWriteFilter<'a> {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub path: Option<&'a str>,
+    pub session_uuid: Option<uuid::Uuid>,
     pub collisions_only: bool,
 }
 
+fn push_session_filter(qb: &mut QueryBuilder<Postgres>, filter: &FileWriteFilter<'_>) {
+    if let Some(session_uuid) = filter.session_uuid {
+        qb.push(" AND r.session_id IN (SELECT id FROM sessions.sessions WHERE session_uuid = ")
+            .push_bind(session_uuid)
+            .push(")");
+    }
+}
+
 fn push_write_filters(qb: &mut QueryBuilder<Postgres>, filter: &FileWriteFilter<'_>) {
+    push_session_filter(qb, filter);
     if let Some(project) = filter.project {
         qb.push(" AND p.project_path ILIKE '%' || ")
             .push_bind(project.to_owned())
@@ -140,6 +150,7 @@ pub async fn fetch_writes_for_paths(
     if let Some(to) = filter.to {
         qb.push(" AND u.created_at < ").push_bind(to);
     }
+    push_session_filter(&mut qb, filter);
     qb.push(" ORDER BY u.file_path, u.created_at, u.id");
     let rows = qb.build_query_as::<FileWriteRow>().fetch_all(pool).await?;
     Ok(rows)
