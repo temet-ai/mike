@@ -135,6 +135,10 @@ fn shell_lines_report_rates_and_the_forward_minus_control_gap() {
         ]
         .into_iter()
         .collect(),
+        left_whole_now: ShellRow {
+            cuts: 12,
+            needed_later: 3,
+        },
     };
     let window = Window {
         start: "2026-11-08T12:00:00.000000+00:00",
@@ -148,6 +152,8 @@ fn shell_lines_report_rates_and_the_forward_minus_control_gap() {
     assert!(lines.contains("| control | 40 | 1 | 2.5% |"));
     assert!(lines.contains("\n\nForward minus control: +12.5%.\n"));
     assert!(lines.contains("| `rg` | 30 | 6 | 20.0% |\n| `cargo test` | 50 | 1 | 2.0% |"));
+    assert!(lines.contains("Not listed: 12 cuts of commands the current policy leaves whole"));
+    assert!(lines.contains("3 needed later (25.0%)."));
     assert!(lines.ends_with("Evidence gaps: {}"));
 }
 

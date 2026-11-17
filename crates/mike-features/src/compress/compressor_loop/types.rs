@@ -151,6 +151,7 @@ pub(super) struct ShellTable {
     pub(super) forward: ShellRow,
     pub(super) control: ShellRow,
     pub(super) by_command: BTreeMap<String, ShellRow>,
+    pub(super) left_whole_now: ShellRow,
 }
 
 impl ShellTable {
