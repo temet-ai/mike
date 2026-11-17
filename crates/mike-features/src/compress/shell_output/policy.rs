@@ -13,7 +13,7 @@ pub const DEFAULT_MIN_SHRINK_PERCENT: usize = 25;
 pub const PRODUCER: &str = "Bash";
 
 pub const POLICY_ID: &str = "shell_output";
-pub const POLICY_VERSION: u32 = 2;
+pub const POLICY_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 pub struct ShellOutputLimits {

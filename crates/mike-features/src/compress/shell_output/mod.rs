@@ -1,3 +1,4 @@
+pub mod command;
 pub mod detect;
 pub mod policy;
 pub mod reason;
@@ -8,7 +9,7 @@ mod tests;
 #[cfg(test)]
 pub mod tests_detect;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use bytes::Bytes;
 use serde_json::Value;
@@ -33,20 +34,27 @@ pub struct ShellOutputReduction {
     pub stage: StageEntry,
 }
 
-fn bash_tool_use_ids(messages: &[Value]) -> HashSet<&str> {
+fn bash_tool_use_ids(messages: &[Value]) -> HashMap<&str, &str> {
     messages
         .iter()
         .filter_map(|m| m.get("content").and_then(Value::as_array))
         .flatten()
         .filter(|b| b.get("type").and_then(Value::as_str) == Some("tool_use"))
         .filter(|b| b.get("name").and_then(Value::as_str) == Some(PRODUCER))
-        .filter_map(|b| b.get("id").and_then(Value::as_str))
+        .filter_map(|b| {
+            let id = b.get("id").and_then(Value::as_str)?;
+            let command = b
+                .pointer("/input/command")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            Some((id, command))
+        })
         .collect()
 }
 
 fn bash_results<'a>(
     messages: &'a [Value],
-    bash_ids: &HashSet<&str>,
+    bash_ids: &HashMap<&str, &str>,
 ) -> impl Iterator<Item = (usize, usize, &'a Value)> {
     messages
         .iter()
@@ -63,13 +71,13 @@ fn bash_results<'a>(
             block
                 .get("tool_use_id")
                 .and_then(Value::as_str)
-                .is_some_and(|id| bash_ids.contains(id))
+                .is_some_and(|id| bash_ids.contains_key(id))
         })
 }
 
 fn repeated_contents<'a>(
     messages: &'a [Value],
-    bash_ids: &HashSet<&str>,
+    bash_ids: &HashMap<&str, &str>,
 ) -> HashMap<&'a str, usize> {
     let mut repeats = HashMap::new();
     for (_, _, block) in bash_results(messages, bash_ids) {

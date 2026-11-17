@@ -19,7 +19,7 @@ fn body_with(name: &str, content: &Value, answers: usize) -> Value {
     let mut messages = vec![
         json!({"role": "user", "content": [{"type": "text", "text": "go"}]}),
         json!({"role": "assistant", "content": [
-            {"type": "tool_use", "id": "t1", "name": name, "input": {"command": "rg -l x"}}
+            {"type": "tool_use", "id": "t1", "name": name, "input": {"command": "cargo build"}}
         ]}),
         json!({"role": "user", "content": [
             {"type": "tool_result", "tool_use_id": "t1", "content": content}
@@ -100,6 +100,23 @@ fn reduce_shell_output_newest_result_is_cut_on_arrival_identically_to_later_requ
 }
 
 #[test]
+fn reduce_shell_output_file_reads_and_listings_stay_whole() -> anyhow::Result<()> {
+    for (command, reason) in [
+        ("sed -n '1,400p' src/lib.rs", "command_reads_file"),
+        ("rg -n needle crates", "command_lists"),
+    ] {
+        let mut body = body_with("Bash", &Value::String(long_output(200)), 0);
+        body["messages"][1]["content"][0]["input"]["command"] = json!(command);
+        let raw = serde_json::to_vec(&body)?;
+        let reduction =
+            reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
+        assert_eq!(reduction.candidate.as_ref(), raw.as_slice(), "{command}");
+        assert_eq!(reduction.stage.targets[0].reason_code, reason);
+    }
+    Ok(())
+}
+
+#[test]
 fn reduce_shell_output_other_tools_stay_whole() -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&body_with("Read", &Value::String(long_output(200)), 0))?;
     let reduction = reduce_shell_output(&raw, &ShellOutputPolicy::new(limits()).with_capture(&raw));
@@ -116,7 +133,7 @@ fn reduce_shell_output_identical_outputs_are_each_cut_the_same_way() -> anyhow::
         .as_array_mut()
         .ok_or_else(|| anyhow::anyhow!("messages"))?;
     messages.push(json!({"role": "assistant", "content": [
-        {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "rg -l x"}}
+        {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "cargo build"}}
     ]}));
     messages.push(json!({"role": "user", "content": [
         {"type": "tool_result", "tool_use_id": "t2", "content": output}

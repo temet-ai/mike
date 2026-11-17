@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use serde_json::Value;
 
@@ -6,6 +6,7 @@ use crate::compress::file_reads::detect::{extract_content, find_subsequence};
 use crate::compress::file_reads::splice::PendingSplice;
 use crate::wire::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
 
+use super::command::{CommandShape, command_shape};
 use super::policy::{PRODUCER, ShellOutputPolicy};
 use super::reason;
 use super::reduction::{REDUCTION_MARKER_TAG, build_reduction};
@@ -15,7 +16,7 @@ const INJECTED_CONTENT_MARKERS: [&str; 2] = ["<system-reminder", "[[mike:"];
 
 pub struct ShellContext<'a> {
     pub raw: &'a [u8],
-    pub bash_ids: &'a HashSet<&'a str>,
+    pub bash_ids: &'a HashMap<&'a str, &'a str>,
     pub policy: &'a ShellOutputPolicy,
     pub repeats: &'a HashMap<&'a str, usize>,
 }
@@ -213,6 +214,22 @@ fn attempt(
     Ok((target, splice))
 }
 
+fn command_exemption(command: &str) -> Option<(&'static str, String)> {
+    match command_shape(command) {
+        CommandShape::Read => Some((
+            reason::COMMAND_READS_FILE,
+            "the command prints chosen lines of a file; the model asked for exactly these lines"
+                .to_string(),
+        )),
+        CommandShape::Listing => Some((
+            reason::COMMAND_LISTS,
+            "the command lists or searches; the model picks entries from anywhere in the list"
+                .to_string(),
+        )),
+        CommandShape::Other => None,
+    }
+}
+
 pub fn inspect_tool_result<'a>(
     block: &'a Value,
     (msg_idx, block_idx): (usize, usize),
@@ -224,9 +241,9 @@ pub fn inspect_tool_result<'a>(
     let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str) else {
         return;
     };
-    if !ctx.bash_ids.contains(tool_use_id) {
+    let Some(command) = ctx.bash_ids.get(tool_use_id) else {
         return;
-    }
+    };
     let base_path = format!("/messages/{msg_idx}/content/{block_idx}");
     let Some((content, json_path)) = extract_content(block, &base_path) else {
         return;
@@ -239,7 +256,9 @@ pub fn inspect_tool_result<'a>(
         ordinal: *ordinal,
     };
     *ordinal += 1;
-    if let Some((code, detail)) = content_exemption(block, content, ctx) {
+    if let Some((code, detail)) =
+        content_exemption(block, content, ctx).or_else(|| command_exemption(command))
+    {
         targets.push(skipped(&candidate, code, detail));
         return;
     }
