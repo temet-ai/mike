@@ -203,6 +203,12 @@ pub(crate) struct ToolUsesFeedParams {
     #[serde(default)]
     pub(crate) tool_name: Option<String>,
     #[serde(default)]
+    pub(crate) tool_name_prefix: Option<String>,
+    #[serde(default)]
+    pub(crate) input_contains: Option<String>,
+    #[serde(default)]
+    pub(crate) group_by: Option<String>,
+    #[serde(default)]
     pub(crate) session_id: Option<String>,
     #[serde(default)]
     pub(crate) order: Option<SortOrder>,
@@ -254,27 +260,8 @@ pub(crate) async fn list_tool_uses(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let limit = params
-        .limit
-        .unwrap_or(TOOL_USES_FEED_DEFAULT_LIMIT)
-        .clamp(1, TOOL_USES_FEED_MAX_LIMIT);
-    let offset = params.offset.unwrap_or(0);
-    let since = parse_instant("since", params.since.as_deref())?;
-    let until = parse_instant("until", params.until.as_deref())?;
-    let cursor = parse_cursor(params.cursor.as_deref())?;
-
-    let filter = crate::store::persistence::tool_uses::ToolUsesFilter {
-        project: params.project,
-        tool_name: params.tool_name,
-        session_id: params.session_id,
-        since,
-        until,
-        errors_only: params.errors_only.unwrap_or(false),
-        limit: limit as i64,
-        offset: offset as i64,
-        cursor,
-        order: params.order.unwrap_or_default(),
-    };
+    let filter = feed_filter(params)?;
+    let (limit, offset, cursor) = (filter.limit as usize, filter.offset as usize, filter.cursor);
     let page = handle.launch().list_tool_uses(&filter).await.map_err(|e| {
         tracing::warn!(error = %e, "list_tool_uses: query failed");
         persist_error_response(e)
@@ -324,24 +311,57 @@ impl From<InvalidCursor> for Response {
     }
 }
 
+pub(crate) struct BadQuery(String);
+
+impl From<BadQuery> for Response {
+    fn from(bad: BadQuery) -> Self {
+        (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": bad.0 })),
+        )
+            .into_response()
+    }
+}
+
+impl From<InvalidCursor> for BadQuery {
+    fn from(_: InvalidCursor) -> Self {
+        Self("invalid cursor".to_owned())
+    }
+}
+
+pub(crate) fn feed_filter(
+    params: ToolUsesFeedParams,
+) -> Result<crate::store::persistence::tool_uses::ToolUsesFilter, BadQuery> {
+    let limit = params
+        .limit
+        .unwrap_or(TOOL_USES_FEED_DEFAULT_LIMIT)
+        .clamp(1, TOOL_USES_FEED_MAX_LIMIT);
+    Ok(crate::store::persistence::tool_uses::ToolUsesFilter {
+        since: parse_instant("since", params.since.as_deref())?,
+        until: parse_instant("until", params.until.as_deref())?,
+        cursor: parse_cursor(params.cursor.as_deref())?,
+        project: params.project,
+        tool_name: params.tool_name,
+        tool_name_prefix: params.tool_name_prefix.filter(|p| !p.is_empty()),
+        input_contains: params.input_contains.filter(|n| !n.is_empty()),
+        session_id: params.session_id,
+        errors_only: params.errors_only.unwrap_or(false),
+        limit: limit as i64,
+        offset: params.offset.unwrap_or(0) as i64,
+        order: params.order.unwrap_or_default(),
+    })
+}
+
 fn parse_instant(
     name: &str,
     raw: Option<&str>,
-) -> Result<Option<chrono::DateTime<chrono::Utc>>, Response> {
+) -> Result<Option<chrono::DateTime<chrono::Utc>>, BadQuery> {
     let Some(raw) = raw.filter(|r| !r.is_empty()) else {
         return Ok(None);
     };
     chrono::DateTime::parse_from_rfc3339(raw)
         .map(|dt| Some(dt.with_timezone(&chrono::Utc)))
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                axum::Json(serde_json::json!({
-                    "error": format!("invalid {name} {raw:?}: {e}; expected RFC 3339"),
-                })),
-            )
-                .into_response()
-        })
+        .map_err(|e| BadQuery(format!("invalid {name} {raw:?}: {e}; expected RFC 3339")))
 }
 
 pub(crate) fn parse_cursor(

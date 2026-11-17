@@ -31,6 +31,8 @@ fn filter(order: SortOrder, cursor: Option<KeysetCursor>, offset: i64) -> ToolUs
     ToolUsesFilter {
         project: None,
         tool_name: None,
+        tool_name_prefix: None,
+        input_contains: None,
         session_id: Some(SESSION.to_owned()),
         since: None,
         until: None,

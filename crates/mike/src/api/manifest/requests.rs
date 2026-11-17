@@ -148,6 +148,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/tool-uses/counts",
+        Coverage::Exempt {
+            reason: "grouped tool-use counts read by mike-ask's inspect client; sessions reach it through ask, not an MCP tool",
+        },
+    ),
+    route(
+        "GET",
         "/api/tool-uses",
         Coverage::Exempt {
             reason: "homepage tools-zone cross-session feed; SPA-driven, not surfaced via MCP V1",
@@ -286,6 +293,7 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             get(handlers::list_tool_error_facets),
         )
         .route("/api/tool-uses/facets", get(handlers::list_tool_use_facets))
+        .route("/api/tool-uses/counts", get(handlers::count_tool_uses))
         .route("/api/tool-uses", get(handlers::list_tool_uses))
         .route("/api/stats", get(handlers::stats))
         .route("/api/sync/status", get(handlers::get_sync_status))

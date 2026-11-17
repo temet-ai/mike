@@ -5,13 +5,17 @@ use super::PersistError;
 use super::keyset::{CappedCount, KeysetCursor, probe_limit, split_page};
 use crate::types::SortOrder;
 
+pub mod counts;
 pub mod seat_reads;
 
+pub use counts::{ToolUseCount, ToolUseGroup};
 pub use seat_reads::SessionToolRead;
 
 pub struct ToolUsesFilter {
     pub project: Option<String>,
     pub tool_name: Option<String>,
+    pub tool_name_prefix: Option<String>,
+    pub input_contains: Option<String>,
     pub session_id: Option<String>,
     pub since: Option<chrono::DateTime<chrono::Utc>>,
     pub until: Option<chrono::DateTime<chrono::Utc>>,
@@ -83,9 +87,43 @@ fn push_use_filters(
     if let Some(tool_name) = &filter.tool_name {
         qb.push(" AND tu.tool_name = ").push_bind(tool_name.clone());
     }
+    if let Some(prefix) = &filter.tool_name_prefix {
+        qb.push(" AND tu.tool_name LIKE ")
+            .push_bind(format!("{}%", like_escape(prefix)));
+    }
+    if let Some(needle) = &filter.input_contains {
+        let column = if filter.tool_name.as_deref() == Some("Bash") {
+            " AND (tu.input ->> 'command') ILIKE "
+        } else {
+            " AND tu.input::text ILIKE "
+        };
+        qb.push(column)
+            .push_bind(format!("%{}%", like_escape(needle)));
+    }
     if let Some(session) = session {
         qb.push(" AND tu.session_id = ").push_bind(session);
     }
+}
+
+fn push_scope_filters(qb: &mut QueryBuilder<Postgres>, filter: &ToolUsesFilter) {
+    if let Some(project) = &filter.project {
+        qb.push(
+            " AND EXISTS (SELECT 1 FROM requests.requests rq
+               JOIN projects.projects p ON p.id = rq.project_id
+              WHERE rq.id = tu.request_id AND p.project_path = ",
+        )
+        .push_bind(project.clone())
+        .push(")");
+    }
+    if filter.errors_only {
+        qb.push(" AND tu.id IN (SELECT r.tool_use_id FROM tools.results r WHERE r.is_error)");
+    }
+}
+
+fn like_escape(raw: &str) -> String {
+    raw.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
@@ -131,18 +169,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             "SELECT count(*) FROM (SELECT 1 FROM tools.uses tu WHERE TRUE",
         );
         push_use_filters(&mut qb, filter, session);
-        if let Some(project) = &filter.project {
-            qb.push(
-                " AND EXISTS (SELECT 1 FROM requests.requests rq
-                   JOIN projects.projects p ON p.id = rq.project_id
-                  WHERE rq.id = tu.request_id AND p.project_path = ",
-            )
-            .push_bind(project.clone())
-            .push(")");
-        }
-        if filter.errors_only {
-            qb.push(" AND tu.id IN (SELECT r.tool_use_id FROM tools.results r WHERE r.is_error)");
-        }
+        push_scope_filters(&mut qb, filter);
         qb.push(" LIMIT ")
             .push_bind(probe_limit(super::keyset::COUNT_CAP))
             .push(") capped");

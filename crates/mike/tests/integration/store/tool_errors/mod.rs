@@ -1,4 +1,5 @@
 use mike::store::persistence::launch_repo::LaunchPersist as _;
+mod counts;
 mod fixtures;
 mod paging;
 mod session_filter;
@@ -421,6 +422,8 @@ async fn list_tool_uses_joins_error_columns_and_scopes_errors_only() -> anyhow::
     let filter = ToolUsesFilter {
         project: None,
         tool_name: None,
+        tool_name_prefix: None,
+        input_contains: None,
         session_id: None,
         since: None,
         until: None,
