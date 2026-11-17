@@ -179,6 +179,50 @@ fn rate(row: &ShellRow) -> String {
     format!("{:.1}%", row.needed_later as f64 / row.cuts as f64 * 100.0)
 }
 
+const COMMAND_ROWS: usize = 20;
+
+fn command_lines(table: &ShellTable) -> Vec<String> {
+    if table.by_command.is_empty() {
+        return Vec::new();
+    }
+    let mut rows: Vec<(&String, &ShellRow)> = table.by_command.iter().collect();
+    rows.sort_by(|(a_name, a), (b_name, b)| {
+        b.needed_later
+            .cmp(&a.needed_later)
+            .then(b.cuts.cmp(&a.cuts))
+            .then(a_name.cmp(b_name))
+    });
+    let mut lines = vec![
+        String::new(),
+        "Where cuts miss, by command (both arms):".to_string(),
+        String::new(),
+        "| Command | Shell outputs cut | Hidden part needed later | Rate |".to_string(),
+        "|---|---:|---:|---:|".to_string(),
+    ];
+    for (name, row) in rows.iter().take(COMMAND_ROWS) {
+        lines.push(format!(
+            "| `{name}` | {} | {} | {} |",
+            row.cuts,
+            row.needed_later,
+            rate(row)
+        ));
+    }
+    if rows.len() > COMMAND_ROWS {
+        let rest = &rows[COMMAND_ROWS..];
+        let cuts: u64 = rest.iter().map(|(_, row)| row.cuts).sum();
+        let needed: u64 = rest.iter().map(|(_, row)| row.needed_later).sum();
+        lines.push(format!(
+            "| {} other commands | {cuts} | {needed} | {} |",
+            rest.len(),
+            rate(&ShellRow {
+                cuts,
+                needed_later: needed
+            })
+        ));
+    }
+    lines
+}
+
 pub(super) fn shell_lines(
     window: &Window,
     costs: &CostView,
@@ -215,6 +259,7 @@ pub(super) fn shell_lines(
             signed_percent(excess)
         ));
     }
+    lines.extend(command_lines(table));
     lines.extend([
         String::new(),
         "Measure: a distinctive token (path, Rust path, snake_case name, hash of 8+ characters) in the hidden lines,".to_string(),

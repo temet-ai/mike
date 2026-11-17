@@ -6,11 +6,7 @@ use serde_json::Value;
 pub(super) const FILE_READ_STAGE: &str = "file_read_compression";
 pub(super) const SHELL_STAGE: &str = "shell_output_compression";
 pub(super) const FILE_SHARE: &str = "file_read_compression.forward_share";
-pub(super) const FILE_PROTECTED: &str = "file_read_compression.protected_paths";
-pub(super) const SHELL_SHARE: &str = "shell_output_compression.forward_share";
-pub(super) const MIN_READS_PER_ARM: u64 = 30;
 pub(super) const MIN_SESSIONS_PER_ARM: usize = 40;
-pub(super) const HARM_LIMIT: f64 = 0.03;
 pub(super) const P_LIMIT: f64 = 0.1;
 pub(super) const WIDE_SHARE: f64 = 90.0;
 pub(super) const FOLLOWUP_WINDOW: f64 = 1800.0;
@@ -154,6 +150,7 @@ pub(super) struct ShellRow {
 pub(super) struct ShellTable {
     pub(super) forward: ShellRow,
     pub(super) control: ShellRow,
+    pub(super) by_command: BTreeMap<String, ShellRow>,
 }
 
 impl ShellTable {

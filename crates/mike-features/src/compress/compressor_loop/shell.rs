@@ -161,6 +161,46 @@ pub(super) fn shell_harm_table(input: &ShellFollowups) -> (ShellTable, Gaps) {
                         && wanted.iter().any(|token| text.contains(token.as_str()))
                 });
         row.needed_later += u64::from(used_later);
+        let by_command = table.by_command.entry(command_kind(command)).or_default();
+        by_command.cuts += 1;
+        by_command.needed_later += u64::from(used_later);
     }
     (table, gaps)
+}
+
+const SUBCOMMAND_PROGRAMS: [&str; 10] = [
+    "cargo",
+    "cx",
+    "git",
+    "gh",
+    "make",
+    "npm",
+    "pnpm",
+    "docker",
+    "mike",
+    "systemctl",
+];
+
+pub(super) fn command_kind(command: &str) -> String {
+    let segment = command
+        .split("&&")
+        .flat_map(|part| part.split(';'))
+        .map(str::trim)
+        .find(|part| !part.is_empty() && !part.starts_with("cd "))
+        .unwrap_or("");
+    let first = segment.split('|').next().unwrap_or("");
+    let mut words = first
+        .split_whitespace()
+        .skip_while(|word| word.contains('=') || *word == "env");
+    let Some(program) = words.next() else {
+        return "(empty)".to_string();
+    };
+    let program = program.rsplit('/').next().unwrap_or(program);
+    if !SUBCOMMAND_PROGRAMS.contains(&program) {
+        return program.to_string();
+    }
+    match words.find(|word| !word.starts_with('-')) {
+        Some(sub) => format!("{program} {sub}"),
+        None => program.to_string(),
+    }
 }

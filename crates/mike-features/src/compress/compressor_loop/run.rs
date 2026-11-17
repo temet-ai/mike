@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgPool;
 
-use super::decide::{Costs, Settings, decide, decide_shell};
+use super::decide::{Costs, decide};
 use super::followups::{Followups, analyze, pick_sources};
 use super::qualification::qualifies;
 use super::queries;
@@ -151,14 +151,10 @@ async fn shell_evidence(
     Ok((sources, calls))
 }
 
-async fn shell_scorecard(
-    pool: &PgPool,
-    start: DateTime<Utc>,
-    settings: &Settings,
-) -> Result<(Vec<String>, Vec<Decision>)> {
+async fn shell_scorecard(pool: &PgPool, start: DateTime<Utc>) -> Result<Vec<String>> {
     let (arms, mixed) = queries::load_arms(pool, start, Utc::now(), SHELL_STAGE).await?;
     if arms.is_empty() {
-        return Ok((no_shell_arms(), Vec::new()));
+        return Ok(no_shell_arms());
     }
     let ids: Vec<i64> = arms.keys().copied().collect();
     let cuts =
@@ -185,8 +181,7 @@ async fn shell_scorecard(
         arms: &arms,
         exposed: exposed_sessions(&cuts, &arms),
     };
-    let lines = shell_lines(&window, &scores.view(), &table, &gaps);
-    Ok((lines, decide_shell(&scores.costs(), &table, settings)))
+    Ok(shell_lines(&window, &scores.view(), &table, &gaps))
 }
 
 fn format_instant(at: DateTime<Utc>) -> String {
@@ -253,9 +248,8 @@ pub async fn run(options: RunOptions) -> Result<String> {
     let settings = api.settings().await?;
     let policy = policy_from(&settings, api.running_build().await);
     let qualified = qualifies(evidence.as_ref(), &policy, Utc::now());
-    let mut decisions = decide(&card.table, &card.scores.costs(), &settings, qualified);
-    let (shell, shell_decisions) = shell_scorecard(pool, start, &settings).await?;
-    decisions.extend(shell_decisions);
+    let decisions = decide(&card.scores.costs(), &settings, qualified);
+    let shell = shell_scorecard(pool, start).await?;
     if options.apply {
         for decision in &decisions {
             api.put_setting(decision).await?;
