@@ -13,7 +13,7 @@ use crate::feature_toggles::FeatureToggles;
 use crate::state::AppState;
 use crate::store::models::ProxyEvent;
 use crate::store::persistence::PersistError;
-use crate::store::persistence::wright::RecordedRun;
+use crate::store::persistence::wright::{CheckRow, RecordedRun};
 use crate::wright::{Cadence, CheckOutcome};
 
 pub(crate) mod bounded;
@@ -225,9 +225,7 @@ fn log_record_failed(check: &str, e: &PersistError) {
 }
 
 pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
-    if kind == Pass::Regular {
-        logs_collect::collect(ctx, Utc::now()).await;
-    }
+    logs_collect::collect_on_regular(ctx, kind == Pass::Regular).await;
     if !ctx.persist.holds_worker_role(LEASE_ROLE, TICK).await {
         return;
     }
@@ -236,11 +234,14 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
         .into_iter()
         .map(|cadence| cadence.code().to_owned())
         .collect();
-    let checks = match ctx.persist.web().enabled_wright_checks(&cadences).await {
-        Ok(checks) => checks,
-        Err(e) => return tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
-    };
-    for check in &checks {
+    match ctx.persist.web().enabled_wright_checks(&cadences).await {
+        Ok(checks) => run_checks(ctx, &checks).await,
+        Err(e) => tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
+    }
+}
+
+async fn run_checks(ctx: &WatchContext, checks: &[CheckRow]) {
+    for check in checks {
         match run_check(check, ctx).await {
             Ok((outcome, recorded)) => log_ran(&check.name, &outcome, &recorded),
             Err(e) => log_record_failed(&check.name, &e),

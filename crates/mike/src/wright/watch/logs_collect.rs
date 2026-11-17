@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Utc};
@@ -6,6 +7,7 @@ use uuid::Uuid;
 use super::catalogue::WatchContext;
 use super::logs::{LogLine, newest_log, parse_line, read_tail};
 use super::logs_text::{Keep, parse_text};
+use crate::store::persistence::PersistError;
 use crate::store::persistence::web_repo::WebPersist as _;
 use crate::store::persistence::wright::NewLogLine;
 use crate::wright::repair::RepoLayout;
@@ -136,6 +138,12 @@ fn stored(source: &str, line: LogLine) -> NewLogLine {
     }
 }
 
+pub(crate) async fn collect_on_regular(ctx: &WatchContext, regular: bool) {
+    if regular {
+        collect(ctx, Utc::now()).await;
+    }
+}
+
 pub(crate) async fn collect(ctx: &WatchContext, now: DateTime<Utc>) {
     let Some(machine) = ctx.machine else { return };
     let fresh = gather(ctx.log_dir.as_deref(), ctx.repo_root.as_deref(), now).await;
@@ -155,25 +163,26 @@ pub(crate) async fn gather(
     fresh
 }
 
-async fn store_new(ctx: &WatchContext, machine: Uuid, fresh: Vec<NewLogLine>, now: DateTime<Utc>) {
-    let newest = match ctx.persist.web().wright_log_newest(machine).await {
-        Ok(newest) => newest,
-        Err(e) => {
-            return tracing::warn!(error = %e, "wright: cannot read the newest stored log lines");
-        }
-    };
-    let new: Vec<NewLogLine> = fresh
+fn log_failed(what: &str, e: &PersistError) {
+    tracing::warn!(error = %e, what, "wright: log collection failed");
+}
+
+fn unseen(fresh: Vec<NewLogLine>, newest: &BTreeMap<String, DateTime<Utc>>) -> Vec<NewLogLine> {
+    fresh
         .into_iter()
         .filter(|l| newest.get(&l.source).is_none_or(|at| l.at > *at))
-        .collect();
+        .collect()
+}
+
+async fn store_new(ctx: &WatchContext, machine: Uuid, fresh: Vec<NewLogLine>, now: DateTime<Utc>) {
+    let web = ctx.persist.web();
+    let newest = match web.wright_log_newest(machine).await {
+        Ok(newest) => newest,
+        Err(e) => return log_failed("read the newest stored lines", &e),
+    };
+    let new = unseen(fresh, &newest);
     let keep_since = now - Duration::hours(KEEP_HOURS);
-    match ctx
-        .persist
-        .web()
-        .store_wright_log_lines(machine, &new, keep_since)
-        .await
-    {
-        Ok(stored) => tracing::debug!(stored, "wright: collected log lines"),
-        Err(e) => tracing::warn!(error = %e, "wright: cannot store log lines"),
+    if let Err(e) = web.store_wright_log_lines(machine, &new, keep_since).await {
+        log_failed("store lines", &e);
     }
 }
