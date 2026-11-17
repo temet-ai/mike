@@ -7,6 +7,80 @@ use crate::llm::openrouter::test_support::{
     TestVerdict, client_for, client_with_limiter, test_schema, valid_response,
 };
 
+async fn answering_after(label: bool, delay: std::time::Duration) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(valid_response(label))
+                .set_delay(delay),
+        )
+        .mount(&server)
+        .await;
+    server
+}
+
+fn first_link_local(mut chain: SideCallChain) -> SideCallChain {
+    if let Some(first) = chain.links.first_mut() {
+        first.provider = Provider::Local;
+        first.local_gate = Some(Semaphore::new(1));
+    }
+    chain
+}
+
+#[tokio::test]
+async fn verdict_slow_local_escalates_to_the_next_link_and_cools_the_local_one()
+-> anyhow::Result<()> {
+    let slow = answering_after(false, std::time::Duration::from_secs(5)).await;
+    let healthy = answering(true).await;
+    let chain = first_link_local(
+        SideCallChain::new(vec![
+            link(&slow, "google/slow-local")?,
+            link(&healthy, "google/second")?,
+        ])
+        .with_escalate_after(std::time::Duration::from_millis(50)),
+    );
+
+    let started = std::time::Instant::now();
+    let outcome = chain
+        .verdict::<TestVerdict>("sys", "user", test_schema())
+        .await?;
+
+    assert_eq!(outcome.model, "google/second");
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    assert!(chain.links.first().is_some_and(Link::skipped));
+    Ok(())
+}
+
+#[tokio::test]
+async fn verdict_local_answering_before_escalation_never_asks_the_next_link() -> anyhow::Result<()>
+{
+    let local = answering(true).await;
+    let second = answering(false).await;
+    let chain = first_link_local(
+        SideCallChain::new(vec![
+            link(&local, "google/fast-local")?,
+            link(&second, "google/second")?,
+        ])
+        .with_escalate_after(std::time::Duration::from_secs(5)),
+    );
+
+    let outcome = chain
+        .verdict::<TestVerdict>("sys", "user", test_schema())
+        .await?;
+
+    assert_eq!(outcome.model, "google/fast-local");
+    assert!(
+        second
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty()
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn verdict_first_link_over_its_call_ceiling_falls_through_to_second() -> anyhow::Result<()> {
     let refused = answering(false).await;
