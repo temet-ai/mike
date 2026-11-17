@@ -37,6 +37,13 @@ pub fn session_rule(args: &[String]) -> Result<SessionRule, LaunchError> {
     })
 }
 
+pub fn session_of(args: &[String]) -> Option<Uuid> {
+    match session_rule(args).ok()? {
+        SessionRule::Explicit(id) | SessionRule::Resumed(id) => Some(id),
+        SessionRule::Resume | SessionRule::Preassign => None,
+    }
+}
+
 pub fn read_value(args: &[String], flag: &str) -> Option<String> {
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
