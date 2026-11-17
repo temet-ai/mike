@@ -34,6 +34,12 @@ impl CircuitBreaker {
         self.open_until = Some(now + self.max_cooldown);
     }
 
+    pub fn trip(&mut self, now: Instant) {
+        self.consecutive_failures = self.consecutive_failures.max(self.threshold);
+        self.open_until = Some(now + self.cooldown);
+        self.cooldown = (self.cooldown * 2).min(self.max_cooldown);
+    }
+
     pub fn record(&mut self, succeeded: bool, now: Instant) {
         if succeeded {
             self.consecutive_failures = 0;
