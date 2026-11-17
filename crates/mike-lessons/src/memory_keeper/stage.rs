@@ -6,6 +6,7 @@ use super::block::{Block, KEEPER_MARKER_OPEN};
 use super::record::spawn_record;
 use super::served::served_by_client;
 use super::supply::{Carrier, SupplyRequest, supply_decided};
+use crate::conversation::EarlierTurns;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::appender::append_block_to_last_user_message;
 use crate::reminders::session_lessons_query::recent_user_prompts;
@@ -29,14 +30,14 @@ impl RequestStage for MemoryKeeperStage {
     }
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
-        if served_by_client(ctx.session_id) || carries_marker(body.body()) {
+        if served_by_client(ctx.session_id) || carries_marker_with(body.body(), body.earlier()) {
             body.record_unchanged(STAGE, STAGE, "memory_keeper_served_by_client");
             return;
         }
         let Ok(session) = Uuid::parse_str(ctx.session_id) else {
             return;
         };
-        let Some(block) = card(ctx, session, body.body()).await else {
+        let Some(block) = card(ctx, session, body.body(), body.earlier()).await else {
             body.record_unchanged(STAGE, STAGE, "memory_keeper_nothing_to_supply");
             return;
         };
@@ -66,13 +67,22 @@ impl RequestStage for MemoryKeeperStage {
     }
 }
 
+fn carries_marker_with(body: &[u8], earlier: &EarlierTurns) -> bool {
+    carries_marker(body) || earlier.contains_text(KEEPER_MARKER_OPEN)
+}
+
 fn carries_marker(body: &[u8]) -> bool {
     let marker = KEEPER_MARKER_OPEN.as_bytes();
     body.windows(marker.len()).any(|window| window == marker)
 }
 
-async fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
-    let (prompts, _) = recent_user_prompts(body, RECENT_PROMPTS);
+async fn card(
+    ctx: &StageContext<'_>,
+    session: Uuid,
+    body: &[u8],
+    earlier: &EarlierTurns,
+) -> Option<Block> {
+    let (prompts, _) = recent_user_prompts(body, earlier, RECENT_PROMPTS);
     let (prompt, recent) = prompts.split_first()?;
     let snapshot = ctx.state.keeper_snapshot.load();
     let env = ctx.state.decision_env();
@@ -100,3 +110,7 @@ async fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Bloc
 #[cfg(test)]
 #[path = "stage_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "earlier_tests.rs"]
+mod earlier_tests;

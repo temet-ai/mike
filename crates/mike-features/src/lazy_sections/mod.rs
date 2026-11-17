@@ -5,6 +5,7 @@ pub mod stage;
 use bytes::Bytes;
 use serde_json::Value;
 
+use crate::conversation::EarlierTurns;
 use crate::filter::{FilterConfig, FilterKind, FilterRule, project_scope_matches};
 
 #[derive(Debug)]
@@ -70,7 +71,12 @@ fn reminder_body_for_rule(
     }
 }
 
-fn apply_rule(rule: &FilterRule, value: &mut Value, tally: &mut RewriteTally) {
+fn apply_rule(
+    rule: &FilterRule,
+    value: &mut Value,
+    earlier: &EarlierTurns,
+    tally: &mut RewriteTally,
+) {
     let (Some(text), Some(token)) = (rule.text.as_deref(), rule.trigger_token.as_deref()) else {
         return;
     };
@@ -81,7 +87,7 @@ fn apply_rule(rule: &FilterRule, value: &mut Value, tally: &mut RewriteTally) {
         return;
     };
     let reminder = wrap_reminder(token, &reminder_body);
-    if injector::inject_after_trigger(messages, token, &reminder) {
+    if injector::inject_after_trigger(messages, earlier, token, &reminder) {
         tally.injected = true;
         tally.record_firing(rule.id);
     }
@@ -91,6 +97,7 @@ pub fn apply_lazy_sections(
     raw: &[u8],
     cfg: &FilterConfig,
     project_path: &str,
+    earlier: &EarlierTurns,
 ) -> LazySectionsOutcome {
     let active = active_lazy_rules(cfg, project_path);
     if active.is_empty() {
@@ -105,7 +112,7 @@ pub fn apply_lazy_sections(
         return LazySectionsOutcome::Unchanged;
     }
 
-    if has_thinking_blocks(&value) {
+    if has_thinking_blocks(&value, earlier) {
         tracing::debug!(
             "lazy sections skipped: thinking blocks present in messages (R1 signature guard)"
         );
@@ -114,7 +121,7 @@ pub fn apply_lazy_sections(
 
     let mut tally = RewriteTally::default();
     for rule in active {
-        apply_rule(rule, &mut value, &mut tally);
+        apply_rule(rule, &mut value, earlier, &mut tally);
     }
 
     if tally.firing_rule_ids.is_empty() {
@@ -187,22 +194,31 @@ fn bare_tag_name(token: &str) -> Option<&str> {
     ok.then_some(inner)
 }
 
-pub fn has_thinking_blocks(body: &Value) -> bool {
-    body.get("messages")
+fn message_has_thinking(message: &Value) -> bool {
+    message
+        .get("content")
         .and_then(Value::as_array)
-        .is_some_and(|msgs| {
-            msgs.iter().any(|m| {
-                m.get("content")
-                    .and_then(Value::as_array)
-                    .is_some_and(|arr| {
-                        arr.iter().any(|b| {
-                            matches!(
-                                b.get("type").and_then(Value::as_str),
-                                Some("thinking") | Some("redacted_thinking")
-                            )
-                        })
-                    })
+        .is_some_and(|blocks| {
+            blocks.iter().any(|b| {
+                matches!(
+                    b.get("type").and_then(Value::as_str),
+                    Some("thinking") | Some("redacted_thinking")
+                )
             })
+        })
+}
+
+pub fn has_thinking_blocks(body: &Value, earlier: &EarlierTurns) -> bool {
+    let in_body = body
+        .get("messages")
+        .and_then(Value::as_array)
+        .is_some_and(|msgs| msgs.iter().any(message_has_thinking));
+    in_body
+        || earlier.raw().any(|m| {
+            m.get().contains("thinking")
+                && serde_json::from_str::<Value>(m.get())
+                    .ok()
+                    .is_some_and(|v| message_has_thinking(&v))
         })
 }
 
@@ -214,3 +230,6 @@ pub mod tests_lazy_section;
 
 #[cfg(test)]
 pub mod tests_inject_reminder;
+
+#[cfg(test)]
+pub mod tests_thread;

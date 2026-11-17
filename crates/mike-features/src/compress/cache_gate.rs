@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
+use crate::conversation::EarlierTurns;
 use crate::wire::manifest::sha256_hex;
 
 const DEFAULT_TTL: Duration = Duration::from_secs(300);
@@ -29,12 +30,22 @@ pub struct CacheGate {
 }
 
 impl CacheGate {
-    pub fn open(reducer: &'static str, raw: &[u8], body: &Value) -> Self {
-        Self::open_at(reducer, raw, body, Instant::now())
+    pub fn open(reducer: &'static str, raw: &[u8], body: &Value, earlier: &EarlierTurns) -> Self {
+        Self::open_at_with(reducer, (raw, body), earlier, Instant::now())
     }
 
+    #[cfg(test)]
     fn open_at(reducer: &'static str, raw: &[u8], body: &Value, now: Instant) -> Self {
-        let lane = lane_key(reducer, body);
+        Self::open_at_with(reducer, (raw, body), &crate::conversation::WHOLE_BODY, now)
+    }
+
+    fn open_at_with(
+        reducer: &'static str,
+        (raw, body): (&[u8], &Value),
+        earlier: &EarlierTurns,
+        now: Instant,
+    ) -> Self {
+        let lane = lane_key(reducer, body, earlier);
         let ttl = request_ttl(raw);
         let started = *STARTED;
         let lanes = LANES.lock().unwrap_or_else(PoisonError::into_inner);
@@ -84,7 +95,7 @@ impl CacheGate {
 pub fn seed_cold_lane(reducer: &'static str, raw: &[u8]) {
     let body: Value = serde_json::from_slice(raw).unwrap_or(Value::Null);
     LANES.lock().unwrap_or_else(PoisonError::into_inner).insert(
-        lane_key(reducer, &body),
+        lane_key(reducer, &body, &crate::conversation::WHOLE_BODY),
         LaneCache {
             last_seen: Instant::now(),
             ttl: Duration::ZERO,
@@ -101,11 +112,18 @@ fn is_warm(cache: &LaneCache, now: Instant) -> bool {
     now.saturating_duration_since(cache.last_seen) + COLD_MARGIN < cache.ttl
 }
 
-fn lane_key(reducer: &str, body: &Value) -> String {
-    let first = body
-        .get("messages")
+fn first_message(body: &Value, earlier: &EarlierTurns) -> Option<Value> {
+    if let Some(first) = earlier.raw().next() {
+        return serde_json::from_str(first.get()).ok();
+    }
+    body.get("messages")
         .and_then(Value::as_array)
-        .and_then(|messages| messages.first());
+        .and_then(|messages| messages.first())
+        .cloned()
+}
+
+fn lane_key(reducer: &str, body: &Value, earlier: &EarlierTurns) -> String {
+    let first = first_message(body, earlier);
     let identity = serde_json::json!([reducer, body.get("model"), body.get("system"), first]);
     sha256_hex(identity.to_string().as_bytes())
 }

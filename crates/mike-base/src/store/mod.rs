@@ -13,6 +13,7 @@ pub mod request_summary;
 pub mod retention;
 pub mod session_index;
 pub mod terminal_snapshot;
+pub mod thread_links;
 pub mod tool_result_attach;
 pub mod updater;
 pub mod views;
@@ -39,7 +40,7 @@ use persistence::PersistHandle;
 use retention::RetentionPolicy;
 
 pub struct RequestStore {
-    entries: HashMap<RequestId, InterceptedRequest>,
+    pub(crate) entries: HashMap<RequestId, InterceptedRequest>,
     order: VecDeque<RequestId>,
     retention: RetentionPolicy,
     session_index: HashMap<String, VecDeque<RequestId>>,
@@ -50,6 +51,7 @@ pub struct RequestStore {
     session_meta: HashMap<String, models::SessionMeta>,
     pub session_dedup_index: HashMap<String, crate::wire::read_dedup::SessionDedupIndex>,
     pub session_dedup_stats: HashMap<String, crate::wire::read_dedup::SessionDedupStats>,
+    pub(crate) held_conversations: crate::conversation::chain::HeldConversations,
     analyzer_registry: Option<Arc<ArcSwap<AnalyzerRegistry>>>,
     analysis_event_tx: Option<broadcast::Sender<ProxyEvent>>,
     persist: Option<PersistHandle>,

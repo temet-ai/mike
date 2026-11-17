@@ -138,6 +138,7 @@ impl RequestStore {
     pub fn shed_to_target(&mut self, target_bytes: u64) -> (u64, u64) {
         let mut bytes_freed: u64 = 0;
         let mut entries_evicted: u64 = 0;
+        self.held_conversations = Default::default();
         while bytes_freed < target_bytes {
             match self.evict_oldest_with_reason("cap_manager_shed") {
                 Some(freed) => {

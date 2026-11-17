@@ -12,7 +12,7 @@ fn reduce_file_reads_no_candidate_body_is_byte_identical() {
     let raw: &[u8] =
         br#"{"model":"m","messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(raw, &tp.policy());
+    let result = reduce_file_reads(raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw);
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert_eq!(result.stage.reason_code, reason::STAGE_NO_CANDIDATES);
@@ -23,7 +23,7 @@ fn reduce_file_reads_no_candidate_body_is_byte_identical() {
 fn reduce_file_reads_malformed_json_passes_through_unchanged() {
     let raw: &[u8] = b"not { valid json";
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(raw, &tp.policy());
+    let result = reduce_file_reads(raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw);
     assert_eq!(result.stage.outcome, StageOutcome::Skipped);
     assert_eq!(result.stage.reason_code, reason::STAGE_MALFORMED_BODY);
@@ -33,7 +33,7 @@ fn reduce_file_reads_malformed_json_passes_through_unchanged() {
 fn reduce_file_reads_top_level_array_is_malformed() {
     let raw: &[u8] = b"[1,2,3]";
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(raw, &tp.policy());
+    let result = reduce_file_reads(raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw);
     assert_eq!(result.stage.reason_code, reason::STAGE_MALFORMED_BODY);
 }
@@ -58,7 +58,7 @@ fn reduce_file_reads_applies_and_preserves_surrounding_bytes() -> anyhow::Result
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
 
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
     assert_eq!(result.stage.targets.len(), 1);
@@ -101,7 +101,7 @@ fn reduce_file_reads_preserves_signed_thinking_block_byte_identical() -> anyhow:
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
 
     let raw_str = String::from_utf8(raw.clone())?;
@@ -131,12 +131,16 @@ fn reduce_file_reads_is_deterministic_and_idempotent() -> anyhow::Result<()> {
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
 
-    let first = reduce_file_reads(&raw, &tp.policy());
-    let second = reduce_file_reads(&raw, &tp.policy());
+    let first = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
+    let second = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(first.candidate, second.candidate);
     assert_eq!(first.stage, second.stage);
 
-    let third = reduce_file_reads(&first.candidate, &tp.policy());
+    let third = reduce_file_reads(
+        &first.candidate,
+        &tp.policy(),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(third.candidate.as_ref(), first.candidate.as_ref());
     assert_eq!(third.stage.outcome, StageOutcome::Unchanged);
     assert_eq!(third.stage.targets.len(), 1);
@@ -159,7 +163,7 @@ fn reduce_file_reads_no_shrink_fallback_leaves_bytes_unchanged() -> anyhow::Resu
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::FailedClosed);
     assert_eq!(result.stage.reason_code, reason::STAGE_ALL_FAILED_CLOSED);
@@ -180,7 +184,7 @@ fn reduce_file_reads_unpaired_result_passes_through_unchanged() -> anyhow::Resul
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.targets.len(), 1);
     assert_eq!(result.stage.targets[0].reason_code, reason::UNPAIRED_RESULT);
@@ -203,7 +207,7 @@ fn reduce_file_reads_small_read_passes_through_unchanged() -> anyhow::Result<()>
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.targets[0].reason_code, reason::SMALL_READ);
     Ok(())
@@ -224,7 +228,7 @@ fn reduce_file_reads_error_result_passes_through_unchanged() -> anyhow::Result<(
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.targets[0].reason_code, reason::ERROR_RESULT);
     Ok(())
@@ -247,7 +251,7 @@ fn reduce_file_reads_non_string_content_shape_passes_through_unchanged() -> anyh
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(
         result.stage.targets[0].reason_code,
@@ -277,7 +281,7 @@ fn reduce_file_reads_ambiguous_needle_fails_closed_for_both_occurrences() -> any
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::FailedClosed);
     assert_eq!(result.stage.targets.len(), 2);
@@ -309,7 +313,7 @@ fn reduce_file_reads_pairs_multiple_reads_by_tool_use_id_not_position() -> anyho
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
     assert_eq!(result.stage.targets.len(), 2);
     assert!(
@@ -350,7 +354,7 @@ fn reduce_file_reads_pairs_multiple_reads_by_tool_use_id_not_position() -> anyho
 fn reduce_file_reads_resolved_parameters_carries_policy_values() {
     let tp = TestPolicy::default().with_protected(&["**/CLAUDE.md"]);
     let raw: &[u8] = br#"{"messages":[]}"#;
-    let result = reduce_file_reads(raw, &tp.policy());
+    let result = reduce_file_reads(raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let params = result.stage.resolved_parameters;
     assert_eq!(params["min_result_bytes"], DEFAULT_MIN_RESULT_BYTES);
     assert_eq!(params["head_lines"], DEFAULT_HEAD_LINES);
@@ -375,7 +379,7 @@ fn reduce_file_reads_manifest_chain_closes_on_applied_and_no_op() -> anyhow::Res
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let applied = reduce_file_reads(&raw, &tp.policy());
+    let applied = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let manifest_applied = TransformationManifest {
         schema_version: MANIFEST_SCHEMA_VERSION,
         original_sha256: sha256_hex(&raw),
@@ -386,7 +390,7 @@ fn reduce_file_reads_manifest_chain_closes_on_applied_and_no_op() -> anyhow::Res
 
     let no_op_raw: &[u8] =
         br#"{"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#;
-    let no_op = reduce_file_reads(no_op_raw, &tp.policy());
+    let no_op = reduce_file_reads(no_op_raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let manifest_no_op = TransformationManifest {
         schema_version: MANIFEST_SCHEMA_VERSION,
         original_sha256: sha256_hex(no_op_raw),

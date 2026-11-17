@@ -44,6 +44,7 @@ impl RequestStage for AgentLessonsStage {
                 request_id: ctx.request_id,
                 push_deps: &push_deps,
             },
+            body.earlier(),
             floor.as_ref(),
         )
         .await;

@@ -40,7 +40,7 @@ fn freshest_result_in_the_newest_message_is_forwarded_whole() -> anyhow::Result<
     let [call, result] = read_pair("t1", "/tmp/big.rs", json!({}), &big_file_content(200));
     let raw = serde_json::to_vec(&json!({"messages": [call, result]}))?;
     let tp = TestPolicy::default();
-    let reduced = reduce_file_reads(&raw, &tp.policy());
+    let reduced = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(reduced.candidate.as_ref(), raw.as_slice());
     assert_eq!(reduced.stage.targets.len(), 1);
     assert_eq!(reduced.stage.targets[0].outcome, StageOutcome::Skipped);
@@ -56,7 +56,7 @@ fn the_same_result_is_reduced_once_a_later_turn_follows() -> anyhow::Result<()> 
     let [call, result] = read_pair("t1", "/tmp/big.rs", json!({}), &big_file_content(200));
     let raw = raw_in_history(json!({"messages": [call, result]}))?;
     let tp = TestPolicy::default();
-    let reduced = reduce_file_reads(&raw, &tp.policy());
+    let reduced = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(reduced.stage.outcome, StageOutcome::Applied);
     assert_eq!(
         reduced.stage.targets[0].reason_code,
@@ -70,7 +70,7 @@ fn recovery_reread_of_a_marked_range_is_forwarded_whole_even_in_history() -> any
     let [call, result] = read_pair("t1", "/tmp/big.rs", json!({}), &big_file_content(200));
     let first_raw = raw_in_history(json!({"messages": [call, result]}))?;
     let tp = TestPolicy::default();
-    let first = reduce_file_reads(&first_raw, &tp.policy());
+    let first = reduce_file_reads(&first_raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(first.stage.outcome, StageOutcome::Applied);
 
     let mut body: Value = serde_json::from_slice(&first.candidate)?;
@@ -88,7 +88,7 @@ fn recovery_reread_of_a_marked_range_is_forwarded_whole_even_in_history() -> any
         messages.push(reresult);
     }
     let raw = raw_in_history(body)?;
-    let second = reduce_file_reads(&raw, &tp.policy());
+    let second = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
 
     assert_eq!(second.candidate.as_ref(), raw.as_slice());
     let recovery = second
@@ -107,7 +107,7 @@ fn an_explicit_range_stays_whole_without_a_matching_marker() -> anyhow::Result<(
     let [call, result] = read_pair("t1", "/tmp/big.rs", json!({}), &big_file_content(200));
     let first_raw = raw_in_history(json!({"messages": [call, result]}))?;
     let tp = TestPolicy::default();
-    let first = reduce_file_reads(&first_raw, &tp.policy());
+    let first = reduce_file_reads(&first_raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
 
     let mut body: Value = serde_json::from_slice(&first.candidate)?;
     let [recall, reresult] = read_pair(
@@ -121,7 +121,7 @@ fn an_explicit_range_stays_whole_without_a_matching_marker() -> anyhow::Result<(
         messages.push(reresult);
     }
     let raw = raw_in_history(body)?;
-    let second = reduce_file_reads(&raw, &tp.policy());
+    let second = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let other = second
         .stage
         .targets
@@ -144,7 +144,8 @@ fn ranged_reads_stay_whole_without_markers_after_compaction_or_replay() -> anyho
         let raw = raw_in_history(json!({"messages": [call, result]}))?;
         let policy = TestPolicy::default();
         for _ in 0..2 {
-            let reduced = reduce_file_reads(&raw, &policy.policy());
+            let reduced =
+                reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
             assert_eq!(reduced.candidate.as_ref(), raw.as_slice());
             assert_eq!(reduced.stage.targets[0].reason_code, reason::RECOVERY_READ);
         }
@@ -164,7 +165,9 @@ fn original_client_history_preserves_recovery_after_forwarded_only_reduction() -
     let first = raw_in_history(json!({"messages": [call, result]}))?;
     let policy = TestPolicy::default();
     assert_eq!(
-        reduce_file_reads(&first, &policy.policy()).stage.outcome,
+        reduce_file_reads(&first, &policy.policy(), &crate::conversation::WHOLE_BODY)
+            .stage
+            .outcome,
         StageOutcome::Applied
     );
     let mut original: Value = serde_json::from_slice(&first)?;
@@ -180,11 +183,11 @@ fn original_client_history_preserves_recovery_after_forwarded_only_reduction() -
         .ok_or_else(|| anyhow::anyhow!("messages"))?
         .extend(pair);
     let raw = raw_in_history(original)?;
-    let reduced = reduce_file_reads(&raw, &policy.policy());
+    let reduced = reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY);
     let sent: Value = serde_json::from_slice(&reduced.candidate)?;
     assert_eq!(sent["messages"][5]["content"][0]["content"], recovered);
     assert_eq!(
-        reduce_file_reads(&raw, &policy.policy()).candidate,
+        reduce_file_reads(&raw, &policy.policy(), &crate::conversation::WHOLE_BODY).candidate,
         reduced.candidate
     );
     Ok(())
@@ -195,7 +198,7 @@ fn a_full_file_read_keeps_marker_offsets_from_line_one() -> anyhow::Result<()> {
     let [call, result] = read_pair("t1", "/tmp/big.rs", json!({}), &numbered_lines(1, 200));
     let raw = raw_in_history(json!({"messages": [call, result]}))?;
     let tp = TestPolicy::default();
-    let reduced = reduce_file_reads(&raw, &tp.policy());
+    let reduced = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let marker = marker_line(&reduced.candidate)?;
     assert!(marker.contains("omitted=41-180 (140 lines)"), "{marker}");
     assert!(marker.contains("offset=41, limit=140"), "{marker}");
@@ -214,7 +217,7 @@ fn a_malformed_marker_is_not_needed_to_protect_a_ranged_read() -> anyhow::Result
     );
     let raw = raw_in_history(json!({"messages": [call, result, recall, reresult]}))?;
     let tp = TestPolicy::default();
-    let reduced = reduce_file_reads(&raw, &tp.policy());
+    let reduced = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     let later = reduced
         .stage
         .targets

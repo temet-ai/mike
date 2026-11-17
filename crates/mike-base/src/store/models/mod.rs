@@ -9,6 +9,7 @@ pub mod session_id;
 pub mod stream_block;
 pub mod system_prompt_observation;
 pub mod system_prompt_source;
+pub mod thread_link;
 pub mod tool_result;
 
 pub use diagnostics::{Diagnostic, DiagnosticCategory};
@@ -29,4 +30,5 @@ pub use stream_block::{
 };
 pub use system_prompt_observation::SystemPromptObservation;
 pub use system_prompt_source::SystemPromptSource;
+pub use thread_link::{ThreadKind, ThreadLink};
 pub use tool_result::ToolResult;

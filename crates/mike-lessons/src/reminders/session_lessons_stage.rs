@@ -30,6 +30,7 @@ fn record_already_present(ctx: &StageContext<'_>, body: &mut StageBody) {
         ctx.session_id,
         ctx.project_path,
         body.body(),
+        body.earlier(),
     );
     if present.is_empty() {
         return;
@@ -93,6 +94,7 @@ impl RequestStage for SessionLessonsStage {
                 request_id: ctx.request_id,
                 push_deps: &push_deps,
             },
+            body.earlier(),
             floor.as_ref(),
         )
         .await;

@@ -47,8 +47,12 @@ fn strip_replaces_section_preserving_cache_control_and_siblings() -> anyhow::Res
         ],
         "messages": [{"role": "user", "content": [{"type": "text", "text": "hi"}]}],
     }))?;
-    let (v, stripped, injected, firing) =
-        rewrote(apply_lazy_sections(&body, &cfg(vec![lazy_rule(7)]), ""))?;
+    let (v, stripped, injected, firing) = rewrote(apply_lazy_sections(
+        &body,
+        &cfg(vec![lazy_rule(7)]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     let arr = v["system"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("system must be array"))?;
@@ -86,7 +90,12 @@ fn strip_skips_a_globally_scoped_block() -> anyhow::Result<()> {
         "system": [{"type": "text", "text": "billing header"}, chrome],
         "messages": [{"role": "user", "content": [{"type": "text", "text": "hi"}]}],
     }))?;
-    match apply_lazy_sections(&body, &cfg(vec![lazy_rule(7)]), "") {
+    match apply_lazy_sections(
+        &body,
+        &cfg(vec![lazy_rule(7)]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ) {
         LazySectionsOutcome::Unchanged => Ok(()),
         LazySectionsOutcome::Rewrote { .. } => Err(anyhow::anyhow!(
             "expected Unchanged — a globally-scoped block must never be stripped"
@@ -104,7 +113,12 @@ fn trigger_in_history_strips_and_injects() -> anyhow::Result<()> {
             {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "tabs"}]},
         ],
     }))?;
-    let (v, _, injected, _) = rewrote(apply_lazy_sections(&body, &cfg(vec![lazy_rule(1)]), ""))?;
+    let (v, _, injected, _) = rewrote(apply_lazy_sections(
+        &body,
+        &cfg(vec![lazy_rule(1)]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     assert!(injected);
     let content = v["messages"][2]["content"]
         .as_array()
@@ -134,7 +148,12 @@ fn tag_marker_wraps_reminder_in_matching_tag() -> anyhow::Result<()> {
             {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "tabs"}]},
         ],
     }))?;
-    let (v, _, injected, _) = rewrote(apply_lazy_sections(&body, &cfg(vec![rule]), ""))?;
+    let (v, _, injected, _) = rewrote(apply_lazy_sections(
+        &body,
+        &cfg(vec![rule]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     assert!(injected);
     let reminder = v["messages"][2]["content"][1]["text"]
         .as_str()
@@ -173,7 +192,12 @@ fn block_that_is_only_the_section_with_whitespace_stub_is_dropped() -> anyhow::R
         ],
         "messages": [],
     }))?;
-    let (v, _, _, _) = rewrote(apply_lazy_sections(&body, &cfg(vec![rule]), ""))?;
+    let (v, _, _, _) = rewrote(apply_lazy_sections(
+        &body,
+        &cfg(vec![rule]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     let arr = v["system"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("system must be array"))?;
@@ -189,7 +213,12 @@ fn heading_absent_is_unchanged() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![lazy_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![lazy_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -204,7 +233,12 @@ fn disabled_rule_is_unchanged() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![rule]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![rule]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -234,7 +268,12 @@ fn non_lazy_rules_are_ignored() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![other]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![other]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -247,7 +286,12 @@ fn string_shaped_system_is_never_touched() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![lazy_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![lazy_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -256,7 +300,12 @@ fn string_shaped_system_is_never_touched() -> anyhow::Result<()> {
 #[test]
 fn malformed_json_is_unchanged() {
     assert!(matches!(
-        apply_lazy_sections(b"not json {{{", &cfg(vec![lazy_rule(1)]), ""),
+        apply_lazy_sections(
+            b"not json {{{",
+            &cfg(vec![lazy_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
 }
@@ -275,7 +324,12 @@ fn thinking_blocks_present_skips_rewrite_r1_guard() -> anyhow::Result<()> {
         ],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![lazy_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![lazy_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -290,7 +344,12 @@ fn project_scoped_rule_for_other_project_is_unchanged() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![rule]), "projects/temet/temet-proxy"),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![rule]),
+            "projects/temet/temet-proxy",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -303,9 +362,19 @@ fn strip_is_idempotent_over_the_stub() -> anyhow::Result<()> {
         "messages": [],
     }))?;
     let c = cfg(vec![lazy_rule(1)]);
-    let (first, _, _, _) = rewrote(apply_lazy_sections(&body, &c, ""))?;
+    let (first, _, _, _) = rewrote(apply_lazy_sections(
+        &body,
+        &c,
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     let first_bytes = serde_json::to_vec(&first)?;
-    let (second, _, _, _) = rewrote(apply_lazy_sections(&first_bytes, &c, ""))?;
+    let (second, _, _, _) = rewrote(apply_lazy_sections(
+        &first_bytes,
+        &c,
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     assert_eq!(first, second, "second pass must be a fixpoint");
     Ok(())
 }

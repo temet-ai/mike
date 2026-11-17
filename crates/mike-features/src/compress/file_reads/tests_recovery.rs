@@ -11,7 +11,7 @@ fn reduction_carries_verified_capture_references() -> anyhow::Result<()> {
     ]}))?;
     let tp = TestPolicy::default();
     let policy = tp.policy().with_capture(&raw);
-    let result = reduce_file_reads(&raw, &policy);
+    let result = reduce_file_reads(&raw, &policy, &crate::conversation::WHOLE_BODY);
     let target = result
         .stage
         .targets
@@ -29,7 +29,11 @@ fn reduction_carries_verified_capture_references() -> anyhow::Result<()> {
     assert_eq!(reference["sha256"], sha256_hex(text.as_bytes()));
     assert!(std::str::from_utf8(&result.candidate)?.contains("get_request_body"));
     let changed = String::from_utf8(raw.clone())?.replace("line 90 of", "edited 90 of");
-    let declined = reduce_file_reads(changed.as_bytes(), &policy);
+    let declined = reduce_file_reads(
+        changed.as_bytes(),
+        &policy,
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(declined.candidate.as_ref(), changed.as_bytes());
     assert!(
         declined
@@ -55,8 +59,16 @@ fn reapplied_cut_is_byte_identical_on_a_later_request() -> anyhow::Result<()> {
     }
     let later = serde_json::to_vec(&longer)?;
     let tp = TestPolicy::default();
-    let first = reduce_file_reads(&earlier, &tp.policy().with_capture(&earlier));
-    let second = reduce_file_reads(&later, &tp.policy().with_capture(&later));
+    let first = reduce_file_reads(
+        &earlier,
+        &tp.policy().with_capture(&earlier),
+        &crate::conversation::WHOLE_BODY,
+    );
+    let second = reduce_file_reads(
+        &later,
+        &tp.policy().with_capture(&later),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(first.stage.outcome, StageOutcome::Applied);
     assert_eq!(second.stage.outcome, StageOutcome::Applied);
     let first: Value = serde_json::from_slice(&first.candidate)?;

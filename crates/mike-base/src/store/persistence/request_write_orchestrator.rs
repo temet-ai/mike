@@ -6,6 +6,11 @@ use super::request_write_tool_io::InsertedToolResult;
 use super::{PersistError, PersistHandle};
 use crate::store::models::InterceptedRequest;
 
+struct DependentRows {
+    tool_results: Vec<InsertedToolResult>,
+    agent_instance_id: Option<i64>,
+}
+
 impl PersistHandle {
     pub async fn insert_request_initial(
         &self,
@@ -31,7 +36,10 @@ impl PersistHandle {
             let row_inserted = returned_id.is_some();
             let request_db_id = returned_id.unwrap_or(prep.request_id);
 
-            let inserted_results = self
+            let DependentRows {
+                tool_results: inserted_results,
+                agent_instance_id,
+            } = self
                 .write_dependent_rows_or_keep_request(&mut tx, req, session_db_id, request_db_id)
                 .await?;
 
@@ -81,17 +89,17 @@ impl PersistHandle {
                     project_id,
                     "persisted initial request stub (status=Pending)"
                 );
-                return Ok(RequestInsertOutcome {
-                    id: request_db_id,
-                    row: RowInsert::Inserted,
-                    session_id: Some(session_db_id),
-                });
             }
 
             Ok(RequestInsertOutcome {
                 id: request_db_id,
-                row: RowInsert::AlreadyExisted,
+                row: if row_inserted {
+                    RowInsert::Inserted
+                } else {
+                    RowInsert::AlreadyExisted
+                },
                 session_id: Some(session_db_id),
+                agent_instance_id,
             })
         })
         .await
@@ -103,7 +111,7 @@ impl PersistHandle {
         req: &InterceptedRequest,
         session_db_id: i64,
         request_db_id: i64,
-    ) -> Result<Vec<InsertedToolResult>, PersistError> {
+    ) -> Result<DependentRows, PersistError> {
         let mut savepoint = sqlx::Acquire::begin(&mut *tx).await?;
         let written = self
             .write_request_dependent_rows(&mut savepoint, req, session_db_id, request_db_id)
@@ -128,7 +136,10 @@ impl PersistHandle {
             "insert_request_initial: rows derived from the body were refused; \
              the request row and its raw body are kept"
         );
-        Ok(Vec::new())
+        Ok(DependentRows {
+            tool_results: Vec::new(),
+            agent_instance_id: req.agent_instance_id,
+        })
     }
 
     async fn write_request_dependent_rows(
@@ -137,7 +148,7 @@ impl PersistHandle {
         req: &InterceptedRequest,
         session_db_id: i64,
         request_db_id: i64,
-    ) -> Result<Vec<InsertedToolResult>, PersistError> {
+    ) -> Result<DependentRows, PersistError> {
         super::request_write_aux::write_system_prompt_and_firing_rules(
             &mut *tx,
             req,
@@ -151,7 +162,7 @@ impl PersistHandle {
             request_db_id,
         )
         .await?;
-        super::request_write_aux::attribute_inline_agent_instance(
+        let agent_instance_id = super::agent_instance_capture::attribute_inline_agent_instance(
             &mut *tx,
             req,
             session_db_id,
@@ -161,6 +172,7 @@ impl PersistHandle {
         super::request_write_message_bridge::write_message_dedup_bridge(
             &mut *tx,
             req,
+            agent_instance_id,
             session_db_id,
             request_db_id,
         )
@@ -191,7 +203,10 @@ impl PersistHandle {
         super::request_write_worker_producer::write_worker_producer_ids(&mut *tx, req).await?;
         self.capture_session_prompt_lane(&mut *tx, req, request_db_id, session_db_id)
             .await?;
-        Ok(inserted_results)
+        Ok(DependentRows {
+            tool_results: inserted_results,
+            agent_instance_id,
+        })
     }
 
     async fn reconcile_after_commit(&self, request_db_id: i64, wire_ids: &[String]) {

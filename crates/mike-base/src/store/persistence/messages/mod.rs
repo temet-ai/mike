@@ -1,6 +1,7 @@
 pub mod canonicalize;
 pub mod delta;
 pub mod envelope_patch;
+pub mod predecessor;
 pub mod reads;
 pub mod sent_capture;
 pub mod sent_patch;
@@ -25,7 +26,8 @@ pub use delta::{compute_delta, write_request_deltas};
 #[cfg(any(test, feature = "test-seams"))]
 pub use envelope_patch::compute_envelope_patch;
 pub use envelope_patch::whole_body_envelope_patch;
+pub use predecessor::{PredecessorDelta, PredecessorRule, resolve_predecessor_and_delta};
+pub use reads::fetch_canonical_bridge;
 pub use reads::{PersistedDeltaRow, fetch_request_deltas_by_id};
-pub use reads::{PredecessorDelta, fetch_canonical_bridge, resolve_predecessor_and_delta};
 pub use sent_capture::{envelope_patch_for_capture, patches_reconstruct_sent};
 pub use sent_patch::{SentPatchRow, apply_sent_patches, compute_sent_patches};

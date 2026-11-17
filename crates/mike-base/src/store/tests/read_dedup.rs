@@ -1,3 +1,5 @@
+use crate::wire::read_dedup::DedupInput;
+
 use super::*;
 
 #[test]
@@ -24,7 +26,11 @@ fn observe_read_dedup_records_hit_on_duplicate_read() {
             ]}
         ]
     });
-    assert!(store.observe_read_dedup("sess-dd", &first, now).is_empty());
+    assert!(
+        store
+            .observe_read_dedup("sess-dd", DedupInput::whole_body(&first), now)
+            .is_empty()
+    );
 
     let second = serde_json::json!({
         "messages": [
@@ -42,7 +48,12 @@ fn observe_read_dedup_records_hit_on_duplicate_read() {
             ]}
         ]
     });
-    assert_eq!(store.observe_read_dedup("sess-dd", &second, now).len(), 1);
+    assert_eq!(
+        store
+            .observe_read_dedup("sess-dd", DedupInput::whole_body(&second), now)
+            .len(),
+        1
+    );
 
     let stats = store.dedup_stats("sess-dd");
     assert_eq!(stats.hit_count, 1);
@@ -70,7 +81,7 @@ fn dedup_index_survives_request_eviction() {
             ]}
         ]
     });
-    store.observe_read_dedup("sess-dd-evict", &first, now);
+    store.observe_read_dedup("sess-dd-evict", DedupInput::whole_body(&first), now);
 
     store.remove_entry(&id);
 
@@ -92,7 +103,7 @@ fn dedup_index_survives_request_eviction() {
     });
     assert_eq!(
         store
-            .observe_read_dedup("sess-dd-evict", &second, now)
+            .observe_read_dedup("sess-dd-evict", DedupInput::whole_body(&second), now)
             .len(),
         1,
         "dedup index must survive per-request eviction"
@@ -114,7 +125,8 @@ fn rewrite_read_dedup_records_hit_and_returns_rewritten_body() {
             ]}
         ]
     });
-    let (hits, rewritten) = store.rewrite_read_dedup("sess-dd-rw", &first, now);
+    let (hits, rewritten) =
+        store.rewrite_read_dedup("sess-dd-rw", DedupInput::whole_body(&first), now);
     assert!(hits.is_empty());
     assert!(
         rewritten.is_none(),
@@ -137,7 +149,8 @@ fn rewrite_read_dedup_records_hit_and_returns_rewritten_body() {
             ]}
         ]
     });
-    let (hits, rewritten) = store.rewrite_read_dedup("sess-dd-rw", &second, now);
+    let (hits, rewritten) =
+        store.rewrite_read_dedup("sess-dd-rw", DedupInput::whole_body(&second), now);
     assert_eq!(hits.len(), 1);
     assert!(
         rewritten.is_some(),

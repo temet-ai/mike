@@ -28,17 +28,22 @@ impl RequestStage for ReadDedupStage {
             .features
             .get::<crate::features_settings::ContextShapingOverlay>()
             .compression_dedup_enabled;
+        let earlier_assistant = body.earlier().last_with_role("assistant");
+        let input = crate::wire::read_dedup::DedupInput {
+            body: &dedup_body,
+            earlier_assistant: earlier_assistant.as_ref(),
+        };
         let (hits, rewritten) = if armed {
             ctx.state.store.write().await.rewrite_read_dedup(
                 ctx.session_id,
-                &dedup_body,
+                input,
                 chrono::Utc::now(),
             )
         } else {
             (
                 ctx.state.store.write().await.observe_read_dedup(
                     ctx.session_id,
-                    &dedup_body,
+                    input,
                     chrono::Utc::now(),
                 ),
                 None,

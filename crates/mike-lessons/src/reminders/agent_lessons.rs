@@ -1,3 +1,4 @@
+use crate::conversation::{EarlierTurns, WHOLE_BODY};
 use crate::extract::request::TurnOrigin;
 use crate::lesson_worker::{InjectableLesson, LessonSnapshot};
 use crate::llm::decisions::point::Decider;
@@ -20,7 +21,7 @@ pub struct AgentLessonsRequest<'a> {
 }
 
 pub async fn apply_agent_lessons(req: AgentLessonsRequest<'_>) -> RemindersOutcome {
-    apply_agent_lessons_with_floor(req, None).await
+    apply_agent_lessons_with_floor(req, &WHOLE_BODY, None).await
 }
 
 fn lesson_candidate<'a>(lesson: &'a &InjectableLesson) -> Candidate<'a> {
@@ -33,6 +34,7 @@ fn lesson_candidate<'a>(lesson: &'a &InjectableLesson) -> Candidate<'a> {
 
 pub async fn apply_agent_lessons_with_floor(
     req: AgentLessonsRequest<'_>,
+    earlier: &EarlierTurns,
     floor: Option<&Decider>,
 ) -> RemindersOutcome {
     let AgentLessonsRequest {
@@ -70,7 +72,7 @@ pub async fn apply_agent_lessons_with_floor(
         return RemindersOutcome::Unchanged;
     }
 
-    let context_text = super::session_lessons_query::conversation_query(body_bytes).0;
+    let context_text = super::session_lessons_query::conversation_query(body_bytes, earlier).0;
     let context = Context::for_request(session_id, request_id, &context_text);
     let lessons = keep_rows(floor, &context, lessons.iter().collect(), lesson_candidate).await;
     if lessons.is_empty() {

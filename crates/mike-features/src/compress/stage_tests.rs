@@ -116,8 +116,11 @@ async fn apply_computes_a_reduction_but_never_mutates_the_forwarded_body() -> an
             {"role": "user", "content": [{"type": "text", "text": "continue"}]}
         ]
     }))?;
-    let sanity_check =
-        file_reads::reduce_file_reads(&raw, &super::session_policy(&file_read(&session_toggles)));
+    let sanity_check = file_reads::reduce_file_reads(
+        &raw,
+        &super::session_policy(&file_read(&session_toggles)),
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(
         sanity_check.stage.outcome,
         StageOutcome::Applied,
@@ -336,11 +339,19 @@ async fn the_default_grace_window_keeps_a_read_answered_twice_whole() -> anyhow:
     assert!(!settings.forward(), "shadow is the default");
     let policy = super::session_policy(&settings);
 
-    let two = file_reads::reduce_file_reads(&read_then_answers(2)?, &policy);
+    let two = file_reads::reduce_file_reads(
+        &read_then_answers(2)?,
+        &policy,
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(two.stage.outcome, StageOutcome::Unchanged);
     assert_eq!(two.stage.targets[0].reason_code, "grace_window");
 
-    let three = file_reads::reduce_file_reads(&read_then_answers(3)?, &policy);
+    let three = file_reads::reduce_file_reads(
+        &read_then_answers(3)?,
+        &policy,
+        &crate::conversation::WHOLE_BODY,
+    );
     assert_eq!(three.stage.outcome, StageOutcome::Applied);
     Ok(())
 }
@@ -457,11 +468,13 @@ async fn default_settings_policy_matches_pre_wiring_hardcoded_defaults() -> anyh
         &hardcoded_producers,
         &hardcoded_protected,
     );
-    let from_hardcoded = file_reads::reduce_file_reads(&raw, &hardcoded_policy);
+    let from_hardcoded =
+        file_reads::reduce_file_reads(&raw, &hardcoded_policy, &crate::conversation::WHOLE_BODY);
 
     let settings = file_read(&session_toggles);
     let settings_policy = super::session_policy(&settings);
-    let from_settings = file_reads::reduce_file_reads(&raw, &settings_policy);
+    let from_settings =
+        file_reads::reduce_file_reads(&raw, &settings_policy, &crate::conversation::WHOLE_BODY);
 
     assert_eq!(from_hardcoded.candidate, from_settings.candidate);
     assert_eq!(from_hardcoded.stage.outcome, from_settings.stage.outcome);

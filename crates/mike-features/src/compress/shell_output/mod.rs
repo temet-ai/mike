@@ -8,6 +8,8 @@ pub mod reduction;
 mod tests;
 #[cfg(test)]
 pub mod tests_detect;
+#[cfg(test)]
+mod tests_thread;
 
 use std::collections::HashMap;
 
@@ -18,6 +20,8 @@ use crate::compress::file_reads::detect::extract_content;
 use crate::compress::file_reads::splice::{
     PendingSplice, build_candidate, enforce_read_tool_result_boundary, resolve_overlaps,
 };
+use crate::compress::history::conversation;
+use crate::conversation::EarlierTurns;
 use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
 
 use detect::{ShellContext, inspect_tool_result};
@@ -157,14 +161,19 @@ fn unchanged(raw: &[u8], policy: &ShellOutputPolicy, reason_code: &str) -> Shell
     }
 }
 
-pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy) -> ShellOutputReduction {
+pub fn reduce_shell_output(
+    raw: &[u8],
+    policy: &ShellOutputPolicy,
+    earlier: &EarlierTurns,
+) -> ShellOutputReduction {
     let Ok(body) = serde_json::from_slice::<Value>(raw) else {
         return unchanged(raw, policy, reason::STAGE_MALFORMED_BODY);
     };
     let Some(messages) = body.get("messages").and_then(Value::as_array) else {
         return unchanged(raw, policy, reason::STAGE_NO_CANDIDATES);
     };
-    let bash_ids = bash_tool_use_ids(messages);
+    let history = conversation(messages, earlier);
+    let bash_ids = bash_tool_use_ids(&history);
     if bash_ids.is_empty() {
         return unchanged(raw, policy, reason::STAGE_NO_CANDIDATES);
     }
@@ -181,6 +190,7 @@ pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy) -> ShellOutpu
         raw,
         &body,
         &[PRODUCER.to_string()],
+        earlier,
         &mut targets,
         &mut pending,
     );

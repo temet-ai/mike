@@ -1,5 +1,6 @@
 use bytes::Bytes;
 
+use crate::conversation::EarlierTurns;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
@@ -28,6 +29,7 @@ pub struct StageBody {
     firing_rule_ids: Vec<i64>,
     injected_lesson_ids: Vec<i64>,
     manifest: ManifestBuilder,
+    earlier: EarlierTurns,
 }
 
 impl StageBody {
@@ -40,7 +42,17 @@ impl StageBody {
             firing_rule_ids: Vec::new(),
             injected_lesson_ids: Vec::new(),
             manifest: ManifestBuilder::new(original_sha256),
+            earlier: EarlierTurns::whole_body(),
         }
+    }
+
+    pub fn with_earlier(mut self, earlier: EarlierTurns) -> Self {
+        self.earlier = earlier;
+        self
+    }
+
+    pub fn earlier(&self) -> &EarlierTurns {
+        &self.earlier
     }
 
     pub fn body(&self) -> &Bytes {
@@ -142,6 +154,7 @@ impl StageBody {
             firing_rule_ids: self.firing_rule_ids,
             injected_lesson_ids: self.injected_lesson_ids,
             manifest: self.manifest,
+            earlier: self.earlier,
         }
     }
 
@@ -154,6 +167,7 @@ impl StageBody {
             firing_rule_ids: parts.firing_rule_ids,
             injected_lesson_ids: parts.injected_lesson_ids,
             manifest: parts.manifest,
+            earlier: parts.earlier,
         }
     }
 }
@@ -166,6 +180,7 @@ pub struct StageBodyParts {
     pub firing_rule_ids: Vec<i64>,
     pub injected_lesson_ids: Vec<i64>,
     pub manifest: ManifestBuilder,
+    pub earlier: EarlierTurns,
 }
 
 pub struct StageContext<'a> {

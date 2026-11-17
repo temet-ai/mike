@@ -24,6 +24,7 @@ impl RequestStore {
             session_meta: HashMap::new(),
             session_dedup_index: HashMap::new(),
             session_dedup_stats: HashMap::new(),
+            held_conversations: crate::conversation::chain::HeldConversations::default(),
             analyzer_registry: None,
             analysis_event_tx: None,
             persist: None,

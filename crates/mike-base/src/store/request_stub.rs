@@ -6,7 +6,31 @@ use super::RequestStore;
 use super::models::{InterceptedRequest, RequestId};
 use super::persistence::{self, IdMode, PersistHandle, capture_retry};
 
+struct StubOutcome {
+    id: RequestId,
+    agent_instance_id: Option<i64>,
+}
+
 impl RequestStore {
+    pub async fn capture_request_stub(
+        store: &Arc<RwLock<RequestStore>>,
+        req: &mut InterceptedRequest,
+        is_new_session: bool,
+    ) -> RequestId {
+        let persist = {
+            let s = store.read().await;
+            req.thread = s.link_thread(req);
+            match s.persist().cloned() {
+                Some(handle) => handle,
+                None => return req.id,
+            }
+        };
+        let outcome = Self::insert_stub_with_retry(store, &persist, req, is_new_session).await;
+        req.id = outcome.id;
+        req.agent_instance_id = req.agent_instance_id.or(outcome.agent_instance_id);
+        outcome.id
+    }
+
     pub async fn insert_request_stub_to_db(
         store: &Arc<RwLock<RequestStore>>,
         req: &InterceptedRequest,
@@ -19,7 +43,9 @@ impl RequestStore {
                 None => return req.id,
             }
         };
-        Self::insert_stub_with_retry(store, &persist, req, is_new_session).await
+        Self::insert_stub_with_retry(store, &persist, req, is_new_session)
+            .await
+            .id
     }
 
     async fn insert_stub_with_retry(
@@ -27,7 +53,7 @@ impl RequestStore {
         persist: &PersistHandle,
         req: &InterceptedRequest,
         is_new_session: bool,
-    ) -> RequestId {
+    ) -> StubOutcome {
         const MAX_ATTEMPTS: u8 = 3;
         let mut attempt = 0u8;
         loop {
@@ -37,7 +63,10 @@ impl RequestStore {
             {
                 Ok(outcome) => {
                     Self::stamp_session_db_id(store, &req.session_id, outcome.session_id).await;
-                    return RequestId::from_raw(outcome.id as u64);
+                    return StubOutcome {
+                        id: RequestId::from_raw(outcome.id as u64),
+                        agent_instance_id: outcome.agent_instance_id,
+                    };
                 }
                 Err(persistence::PersistError::Database(sqlx::Error::RowNotFound))
                     if attempt + 1 < MAX_ATTEMPTS =>
@@ -50,7 +79,10 @@ impl RequestStore {
                     );
                 }
                 Err(e) => {
-                    return Self::stub_insert_failed(req, &e);
+                    return StubOutcome {
+                        id: Self::stub_insert_failed(req, &e),
+                        agent_instance_id: None,
+                    };
                 }
             }
         }

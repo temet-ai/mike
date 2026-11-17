@@ -3,10 +3,10 @@ use super::*;
 use crate::filter::{FilterAction, RuleSource};
 use serde_json::json;
 
-const REMINDER_BODY: &str = "Use tabs_context_mcp before guessing tab ids.";
-const REMINDER_TOKEN: &str = "<chrome>";
+pub(super) const REMINDER_BODY: &str = "Use tabs_context_mcp before guessing tab ids.";
+pub(super) const REMINDER_TOKEN: &str = "<chrome>";
 
-fn inject_reminder_rule(id: i64) -> FilterRule {
+pub(super) fn inject_reminder_rule(id: i64) -> FilterRule {
     FilterRule {
         id,
         uuid: uuid::Uuid::new_v4(),
@@ -41,7 +41,12 @@ fn inject_reminder_injects_body_wrapped_per_marker_once_per_window() -> anyhow::
             {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "tabs"}]},
         ],
     }))?;
-    let out = apply_lazy_sections(&body, &cfg(vec![inject_reminder_rule(42)]), "");
+    let out = apply_lazy_sections(
+        &body,
+        &cfg(vec![inject_reminder_rule(42)]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    );
     let (v, stripped, injected, firing) = rewrote(out)?;
     assert!(injected, "marker in latest assistant turn must inject");
     assert_eq!(firing, vec![42]);
@@ -83,7 +88,12 @@ fn inject_reminder_in_older_turn_is_noop() -> anyhow::Result<()> {
         ],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![inject_reminder_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![inject_reminder_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -100,7 +110,12 @@ fn inject_reminder_marker_absent_is_unchanged() -> anyhow::Result<()> {
         ],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![inject_reminder_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![inject_reminder_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -118,7 +133,12 @@ fn inject_reminder_disabled_is_unchanged() -> anyhow::Result<()> {
         ],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![rule]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![rule]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -138,7 +158,12 @@ fn inject_reminder_thinking_blocks_present_skips_r1_guard() -> anyhow::Result<()
         ],
     }))?;
     assert!(matches!(
-        apply_lazy_sections(&body, &cfg(vec![inject_reminder_rule(1)]), ""),
+        apply_lazy_sections(
+            &body,
+            &cfg(vec![inject_reminder_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
     Ok(())
@@ -147,7 +172,12 @@ fn inject_reminder_thinking_blocks_present_skips_r1_guard() -> anyhow::Result<()
 #[test]
 fn inject_reminder_malformed_json_is_unchanged() {
     assert!(matches!(
-        apply_lazy_sections(b"not json {{{", &cfg(vec![inject_reminder_rule(1)]), ""),
+        apply_lazy_sections(
+            b"not json {{{",
+            &cfg(vec![inject_reminder_rule(1)]),
+            "",
+            &crate::conversation::WHOLE_BODY
+        ),
         LazySectionsOutcome::Unchanged
     ));
 }
@@ -163,7 +193,12 @@ fn inject_reminder_non_tag_marker_uses_default_wrapper() -> anyhow::Result<()> {
             {"role": "user", "content": [{"type": "text", "text": "next"}]},
         ],
     }))?;
-    let (v, _, injected, _) = rewrote(apply_lazy_sections(&body, &cfg(vec![rule]), ""))?;
+    let (v, _, injected, _) = rewrote(apply_lazy_sections(
+        &body,
+        &cfg(vec![rule]),
+        "",
+        &crate::conversation::WHOLE_BODY,
+    ))?;
     assert!(injected);
     let reminder = v["messages"][1]["content"][1]["text"]
         .as_str()

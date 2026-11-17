@@ -68,6 +68,7 @@ fn make_store_with_request() -> (Arc<RwLock<RequestStore>>, RequestId) {
         correction_request_id: None,
         agent_instance_id: None,
         claude_code_agent_id: None,
+        thread: None,
     };
     store.insert(req);
     (Arc::new(RwLock::new(store)), id)

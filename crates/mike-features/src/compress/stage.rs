@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::compress::cache_gate::CacheGate;
 use crate::compress::file_reads;
+use crate::conversation::EarlierTurns;
 use crate::feature_toggles::ResolvedToggles;
 use crate::features_settings::FileReadCompressionOverlay;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
@@ -123,9 +124,9 @@ fn with_arm(mut record: ShadowRecord, arm: &str) -> ShadowRecord {
 
 pub const GATE_REDUCER: &str = "file_read";
 
-fn open_gate(raw: &[u8]) -> CacheGate {
+fn open_gate(raw: &[u8], earlier: &EarlierTurns) -> CacheGate {
     let parsed = serde_json::from_slice(raw).unwrap_or(Value::Null);
-    CacheGate::open(GATE_REDUCER, raw, &parsed)
+    CacheGate::open(GATE_REDUCER, raw, &parsed, earlier)
 }
 
 fn applied_ids(targets: &[TargetEntry]) -> HashSet<String> {
@@ -174,12 +175,13 @@ impl RequestStage for FileReadCompressionStage {
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
         let toggles = ctx.session_toggles;
         let arm = session_arm(toggles, ctx.session_id);
-        let gate = (arm == ARM_FORWARD).then(|| open_gate(body.body()));
+        let gate = (arm == ARM_FORWARD).then(|| open_gate(body.body(), body.earlier()));
         let settings = toggles.features.get::<FileReadCompressionOverlay>();
         let policy = session_policy(&settings)
             .with_capture(body.original())
             .with_warm_cuts(gate.as_ref().and_then(CacheGate::warm_cuts));
-        let reduction = file_reads::reduce_file_reads(body.body().as_ref(), &policy);
+        let reduction =
+            file_reads::reduce_file_reads(body.body().as_ref(), &policy, body.earlier());
         if let Some(gate) = gate {
             gate.close(applied_ids(&reduction.stage.targets));
         }

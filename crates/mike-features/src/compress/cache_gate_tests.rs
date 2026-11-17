@@ -99,3 +99,34 @@ fn cache_gate_lanes_with_different_first_messages_are_separate() {
     let other_gate = CacheGate::open_at(FILE_READ, &other_raw, &other, start);
     assert_eq!(other_gate.warm_cuts(), Some(&HashSet::new()));
 }
+
+#[test]
+fn cache_gate_continue_body_with_earlier_first_message_shares_the_full_body_lane()
+-> anyhow::Result<()> {
+    let (full_raw, full) = body("cache_gate_thread_lane", None);
+    let start = Instant::now();
+    CacheGate::open_at(FILE_READ, &full_raw, &full, start).close_at(ids(&["toolu_a"]), start);
+    let first = full["messages"][0].clone();
+    let earlier = crate::compress::history::earlier_from_messages(&[first])?;
+    let thread = json!({
+        "model": "claude-opus-5-5",
+        "thread": {"type": "continue", "previous_message_id": "msg_1"},
+        "messages": [{"role": "user", "content": [{"type": "text", "text": "continue"}]}]
+    });
+    let thread_raw = serde_json::to_vec(&thread)?;
+    let gate = CacheGate::open_at_with(
+        FILE_READ,
+        (&thread_raw, &thread),
+        &earlier,
+        start + Duration::from_secs(60),
+    );
+    assert_eq!(gate.warm_cuts(), Some(&ids(&["toolu_a"])));
+    let alone = CacheGate::open_at(
+        FILE_READ,
+        &thread_raw,
+        &thread,
+        start + Duration::from_secs(60),
+    );
+    assert_ne!(alone.warm_cuts(), Some(&ids(&["toolu_a"])));
+    Ok(())
+}

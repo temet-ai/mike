@@ -59,31 +59,60 @@ fn git_commands_that_change_state_are_not_reads() {
 
 #[test]
 fn last_turn_read_git_reports_message_count_for_a_git_read() {
-    assert_eq!(last_turn_read_git(&body_after_bash("git status")), Some(3));
     assert_eq!(
-        last_turn_read_git(&body_after_bash("git commit -m x")),
+        last_turn_read_git(
+            &body_after_bash("git status"),
+            &crate::conversation::WHOLE_BODY
+        ),
+        Some(3)
+    );
+    assert_eq!(
+        last_turn_read_git(
+            &body_after_bash("git commit -m x"),
+            &crate::conversation::WHOLE_BODY
+        ),
         None
     );
-    assert_eq!(last_turn_read_git(b"not json"), None);
+    assert_eq!(
+        last_turn_read_git(b"not json", &crate::conversation::WHOLE_BODY),
+        None
+    );
 }
 
 #[test]
 fn hint_is_appended_after_a_git_read_then_withheld_inside_the_window() {
     let body = body_after_bash("git status");
-    let first = hint_reminder("hint-window-a", &body, RequestId::next());
+    let first = hint_reminder(
+        "hint-window-a",
+        &body,
+        &crate::conversation::WHOLE_BODY,
+        RequestId::next(),
+    );
     let RemindersOutcome::Appended { reminder_text, .. } = first else {
         panic!("expected the hint to be appended");
     };
     assert!(reminder_text.contains("what_changed"));
     assert!(reminder_text.contains("view=changes"));
-    let second = hint_reminder("hint-window-a", &body, RequestId::next());
+    let second = hint_reminder(
+        "hint-window-a",
+        &body,
+        &crate::conversation::WHOLE_BODY,
+        RequestId::next(),
+    );
     assert!(matches!(second, RemindersOutcome::Unchanged));
 }
 
 #[test]
 fn hint_returns_only_after_a_compaction() {
     let body = body_after_bash("git status");
-    let hint = || hint_reminder("hint-window-b", &body, RequestId::next());
+    let hint = || {
+        hint_reminder(
+            "hint-window-b",
+            &body,
+            &crate::conversation::WHOLE_BODY,
+            RequestId::next(),
+        )
+    };
     crate::explained::observe("hint-window-b", 500);
     assert!(matches!(hint(), RemindersOutcome::Appended { .. }));
     crate::explained::observe("hint-window-b", 900);
@@ -95,7 +124,12 @@ fn hint_returns_only_after_a_compaction() {
 #[test]
 fn no_hint_after_a_state_changing_git_command() {
     let body = body_after_bash("git commit -m x");
-    let outcome = hint_reminder("hint-window-c", &body, RequestId::next());
+    let outcome = hint_reminder(
+        "hint-window-c",
+        &body,
+        &crate::conversation::WHOLE_BODY,
+        RequestId::next(),
+    );
     assert!(matches!(outcome, RemindersOutcome::Unchanged));
 }
 
@@ -205,5 +239,61 @@ async fn nothing_is_handed_over_while_either_toggle_is_off() -> anyhow::Result<(
         reason_after_git_read(&state_with(true, false).await?, "hint-client-c").await,
         "git_read_hint_served_by_client"
     );
+    Ok(())
+}
+
+fn bash_call(command: &str) -> serde_json::Value {
+    serde_json::json!({"role": "assistant", "content": [
+        {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": command}}
+    ]})
+}
+
+fn continue_body_after_bash_result() -> anyhow::Result<Vec<u8>> {
+    Ok(serde_json::to_vec(&serde_json::json!({
+        "thread": {"type": "continue", "previous_message_id": "msg_1"},
+        "messages": [
+            {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "t1", "content": "ok"}
+            ]}
+        ]
+    }))?)
+}
+
+#[test]
+fn last_turn_read_git_continue_body_with_earlier_assistant_matches_full_body() -> anyhow::Result<()>
+{
+    let first = serde_json::json!({"role": "user", "content": [{"type": "text", "text": "go"}]});
+    let earlier =
+        crate::compress::history::earlier_from_messages(&[first, bash_call("git status")])?;
+    let body = continue_body_after_bash_result()?;
+    let full = body_after_bash("git status");
+    assert_eq!(
+        super::git_read_hint::last_turn_read_git(&body, &earlier),
+        last_turn_read_git(&full, &crate::conversation::WHOLE_BODY)
+    );
+    assert_eq!(
+        last_turn_read_git(&body, &crate::conversation::WHOLE_BODY),
+        None
+    );
+
+    let writing = crate::compress::history::earlier_from_messages(&[bash_call("git commit -m x")])?;
+    assert_eq!(
+        super::git_read_hint::last_turn_read_git(&body, &writing),
+        None
+    );
+    Ok(())
+}
+
+#[test]
+fn hint_continue_body_with_earlier_git_read_is_appended_like_full_body() -> anyhow::Result<()> {
+    let earlier = crate::compress::history::earlier_from_messages(&[bash_call("git diff")])?;
+    let body = continue_body_after_bash_result()?;
+    let outcome = super::git_read_hint::hint_reminder(
+        "hint-window-thread",
+        &body,
+        &earlier,
+        RequestId::next(),
+    );
+    assert!(matches!(outcome, RemindersOutcome::Appended { .. }));
     Ok(())
 }

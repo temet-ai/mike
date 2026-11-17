@@ -21,12 +21,16 @@ pub mod tests_policy_v2;
 pub mod tests_recovery;
 #[cfg(test)]
 pub mod tests_support;
+#[cfg(test)]
+pub mod tests_thread;
 
 use std::collections::HashMap;
 
 use bytes::Bytes;
 use serde_json::Value;
 
+use crate::compress::history::conversation;
+use crate::conversation::EarlierTurns;
 use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
 
 use detect::{ReadContext, inspect_tool_result};
@@ -97,7 +101,11 @@ fn detect_targets(
     (targets, pending)
 }
 
-pub fn reduce_file_reads(raw: &[u8], policy: &FileReadPolicy<'_>) -> FileReadReduction {
+pub fn reduce_file_reads(
+    raw: &[u8],
+    policy: &FileReadPolicy<'_>,
+    earlier: &EarlierTurns,
+) -> FileReadReduction {
     let original_sha256 = sha256_hex(raw);
 
     let body: Value = match serde_json::from_slice(raw) {
@@ -135,11 +143,12 @@ pub fn reduce_file_reads(raw: &[u8], policy: &FileReadPolicy<'_>) -> FileReadRed
         );
     };
 
-    let use_by_id = build_tool_use_index(messages);
-    let omitted = collect_omitted_ranges(messages);
+    let history = conversation(messages, earlier);
+    let use_by_id = build_tool_use_index(&history);
+    let omitted = collect_omitted_ranges(&history);
     let assistant_after = supersede::assistant_turns_after(messages);
-    let superseded = supersede::superseded_reads(messages, policy.enabled_producers);
-    let stale = supersede::stale_reads(messages, policy.enabled_producers);
+    let superseded = supersede::superseded_reads(&history, policy.enabled_producers);
+    let stale = supersede::stale_reads(&history, policy.enabled_producers);
     let read_ctx = ReadContext {
         raw,
         use_by_id: &use_by_id,
@@ -157,6 +166,7 @@ pub fn reduce_file_reads(raw: &[u8], policy: &FileReadPolicy<'_>) -> FileReadRed
         raw,
         &body,
         policy.enabled_producers,
+        earlier,
         &mut targets,
         &mut pending,
     );

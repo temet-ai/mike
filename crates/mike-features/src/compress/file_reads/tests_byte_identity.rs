@@ -13,7 +13,7 @@ fn reduce_file_reads_large_system_prompt_block_is_byte_identical() -> anyhow::Re
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert!(result.stage.targets.is_empty());
@@ -28,7 +28,7 @@ fn reduce_file_reads_large_operator_text_block_is_byte_identical() -> anyhow::Re
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert!(result.stage.targets.is_empty());
@@ -43,7 +43,7 @@ fn reduce_file_reads_large_assistant_response_is_byte_identical() -> anyhow::Res
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert!(result.stage.targets.is_empty());
@@ -65,7 +65,7 @@ fn reduce_file_reads_large_non_read_tool_result_is_byte_identical() -> anyhow::R
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert!(result.stage.targets.is_empty());
@@ -87,7 +87,7 @@ fn reduce_file_reads_protected_path_is_never_reduced_regardless_of_size() -> any
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default().with_protected(&["**/CLAUDE.md"]);
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.targets.len(), 1);
     assert_eq!(result.stage.targets[0].outcome, StageOutcome::Skipped);
@@ -110,7 +110,7 @@ fn reduce_file_reads_non_protected_path_reduces_normally() -> anyhow::Result<()>
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default().with_protected(&["**/CLAUDE.md"]);
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
     Ok(())
 }
@@ -131,7 +131,7 @@ fn reduce_file_reads_empty_protected_paths_protects_nothing() -> anyhow::Result<
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default();
     assert!(tp.protected_paths.is_empty());
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
     Ok(())
 }
@@ -151,7 +151,7 @@ fn reduce_file_reads_enabled_producer_generalizes_beyond_read() -> anyhow::Resul
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default().with_producers(&["Grep"]);
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.stage.outcome, StageOutcome::Applied);
     assert_eq!(result.stage.targets.len(), 1);
     assert_eq!(result.stage.targets[0].producer.as_deref(), Some("Grep"));
@@ -176,7 +176,7 @@ fn reduce_file_reads_empty_enabled_producers_disables_even_read() -> anyhow::Res
     });
     let raw = raw_in_history(body)?;
     let tp = TestPolicy::default().with_producers(&[]);
-    let result = reduce_file_reads(&raw, &tp.policy());
+    let result = reduce_file_reads(&raw, &tp.policy(), &crate::conversation::WHOLE_BODY);
     assert_eq!(result.candidate.as_ref(), raw.as_slice());
     assert_eq!(result.stage.outcome, StageOutcome::Unchanged);
     assert!(result.stage.targets.is_empty());

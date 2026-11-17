@@ -8,6 +8,7 @@ pub(super) async fn scan_message_window(
     acc: &mut ScanAcc,
 ) -> Result<(), FindTextFailure> {
     let params = ctx.params;
+    seed_own_search_calls(ctx, window, acc).await?;
     let messages = ctx
         .handle
         .find_first_appearance_messages(
@@ -24,6 +25,29 @@ pub(super) async fn scan_message_window(
     for message in messages {
         absorb_message(ctx, &message, acc);
     }
+    Ok(())
+}
+
+async fn seed_own_search_calls(
+    ctx: &ScanCtx<'_>,
+    window: &[i64],
+    acc: &mut ScanAcc,
+) -> Result<(), FindTextFailure> {
+    let params = ctx.params;
+    let ids = ctx
+        .handle
+        .find_own_search_tool_use_ids(
+            window,
+            params.needle,
+            params.case_sensitive,
+            &search_tool_suffixes(),
+        )
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, session_id = %ctx.session_id, "find_text: own-search tool use lookup failed");
+            find_text_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
+        })?;
+    acc.own_calls.seed(ids);
     Ok(())
 }
 

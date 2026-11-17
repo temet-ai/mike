@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agents.instances (session_id, subagent_persona, first_request_id, started_at)\n         SELECT $1, $2, r.id, r.created_at\n           FROM requests.requests r\n          WHERE r.id = $3\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "70bdfe8120fe0d472f8e1c9aa3084e5dee06d6c7df6e8ff609eaa3263c8f8871"
+}

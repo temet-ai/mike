@@ -33,6 +33,14 @@ fn claims_message_search_call_with_needle_is_claimed_and_its_result_follows() {
 }
 
 #[test]
+fn claims_message_result_of_seeded_call_from_a_response_is_claimed() {
+    let mut own = OwnSearchCalls::default();
+    own.seed(["toolu_9".to_owned()]);
+    assert!(own.claims_message(&result_message("toolu_9", "needle-x"), "needle-x", true));
+    assert!(!own.claims_message(&result_message("toolu_8", "needle-x"), "needle-x", true));
+}
+
+#[test]
 fn claims_message_search_call_without_needle_is_not_claimed() {
     let mut own = OwnSearchCalls::default();
     let call = call_message("mcp__mike__find_text", "toolu_2", "something else");

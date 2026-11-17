@@ -1,0 +1,1 @@
+SELECT ai.id FROM agents.instances ai JOIN requests.requests first_req ON first_req.id = ai.first_request_id JOIN requests.turn_origins tor ON tor.id = first_req.turn_origin_id WHERE ai.session_id = 2275075 AND first_req.claude_code_agent_id = 'a04e662048e4cffa3' AND tor.code = 'subagent' ORDER BY ai.id LIMIT 1;

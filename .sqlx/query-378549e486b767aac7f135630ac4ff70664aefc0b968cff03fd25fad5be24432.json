@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ai.id\n           FROM agents.instances ai\n           JOIN requests.requests first_req ON first_req.id = ai.first_request_id\n           JOIN requests.turn_origins tor ON tor.id = first_req.turn_origin_id\n          WHERE ai.session_id = $1\n            AND first_req.claude_code_agent_id = $2\n            AND tor.code = $3\n          ORDER BY ai.id\n          LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "378549e486b767aac7f135630ac4ff70664aefc0b968cff03fd25fad5be24432"
+}

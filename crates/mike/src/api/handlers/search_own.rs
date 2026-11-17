@@ -31,6 +31,10 @@ pub(super) struct OwnSearchCalls {
 }
 
 impl OwnSearchCalls {
+    pub(super) fn seed(&mut self, tool_use_ids: impl IntoIterator<Item = String>) {
+        self.tool_use_ids.extend(tool_use_ids);
+    }
+
     pub(super) fn claims_message(
         &mut self,
         message: &Value,
