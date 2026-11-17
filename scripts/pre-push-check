@@ -18,6 +18,14 @@ pr_only='^(crates/|frontend/|\.sqlx/|Cargo\.(toml|lock)$)'
 changed=""
 ranges=""
 status=0
+failed=""
+fail() {
+  status=1
+  failed="$failed $1"
+}
+summary() {
+  [ "$status" -eq 0 ] || echo "pre-push: FAILED:$failed" >&2
+}
 while read -r _local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$none" ] && continue
   if [ "$remote_sha" = "$none" ]; then
@@ -39,7 +47,7 @@ for range in $ranges; do
   if command -v gitleaks >/dev/null 2>&1; then
     gitleaks git --no-banner --redact --log-opts="$range" . >/dev/null 2>&1 || {
       echo "pre-push: gitleaks found a secret in $range; run: gitleaks git --redact --log-opts=$range ." >&2
-      status=1
+      fail gitleaks
     }
   fi
 done
@@ -52,7 +60,7 @@ hook_dir=$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sy
 for range in $ranges; do
   python3 "$hook_dir/semgrep-new" "$range" || {
     echo "pre-push: semgrep failed for $range (see above); rerun: scripts/semgrep-new $range" >&2
-    status=1
+    fail semgrep
   }
 done
 
@@ -63,12 +71,12 @@ done
 # here has `structural wiring`.
 if [ -x "$hook_dir/wiring-new" ] && grep -qE '^(crates/|frontend/src/|scripts/|mods/|services/|\.mike/)' <<<"$changed"; then
   for range in $ranges; do
-    WIRING_BLOCK=pub_fn_no_caller "$hook_dir/wiring-new" "$range" >&2 || status=1
+    WIRING_BLOCK=pub_fn_no_caller "$hook_dir/wiring-new" "$range" >&2 || fail wiring
   done
 fi
 
 if grep -qE '^scripts/(pre-push-check|test-area|lib/rust_change_scope.py|tests/test_rust_change_scope.py)$' <<<"$changed"; then
-  python3 -m unittest discover -s "$root/scripts/tests" -p test_rust_change_scope.py || status=1
+  python3 -m unittest discover -s "$root/scripts/tests" -p test_rust_change_scope.py || fail rust_change_scope-tests
 fi
 
 if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rust-toolchain(\.toml)?$' <<<"$changed"; then
@@ -109,16 +117,17 @@ if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rus
   [ -d "$root/target" ] || echo "pre-push: no target/ in this checkout; building it to lint and test this push"
   "$root/scripts/cx" fmt --check >/dev/null 2>&1 || {
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
-    status=1
+    fail fmt
   }
   # The crate split (ADR 0002, 0003) only moves forward: no push adds references
   # from a lower target crate to a higher one, or writes to a table another crate
   # owns. A second each; they read the source, not the build.
-  "$root/scripts/crate-plan" --check || status=1
-  "$root/scripts/schema-plan" --check || status=1
+  "$root/scripts/crate-plan" --check || fail crate-plan
+  "$root/scripts/schema-plan" --check || fail schema-plan
   # The push already fails; skip the long lint and tests so the fix is pushed sooner.
   if [ "$status" -ne 0 ]; then
     echo "pre-push: fix the failures above; lint-rust and the tests did not run" >&2
+    summary
     exit 1
   fi
   # Clippy runs on the crates whose files changed. The crates that depend on them get
@@ -127,22 +136,28 @@ if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rus
   packages=$(python3 "$root/scripts/lib/rust_change_scope.py" packages <<<"$changed") || exit 1
   dependents=$(python3 "$root/scripts/lib/rust_change_scope.py" dependents <<<"$changed") || exit 1
   # shellcheck disable=SC2086
-  [ -z "$packages" ] || "$root/scripts/lint-rust" $packages || status=1
+  [ -z "$packages" ] || "$root/scripts/lint-rust" $packages || fail lint-rust
   # shellcheck disable=SC2086
-  [ -z "$dependents" ] || "$root/scripts/cx" check $dependents || status=1
+  [ -z "$dependents" ] || "$root/scripts/cx" check $dependents || fail dependents-check
   # The tests of the areas the push changed, in every tier. A change no area owns
   # (the workspace manifest or lockfile, a crate manifest, .sqlx, a file outside
   # every crate) runs the affected crates' whole fast tier instead; the rest of the
-  # fast tier runs nightly (scripts/nightly-tests).
-  "$root/scripts/test-area" || status=1
+  # fast tier runs nightly (scripts/nightly-tests). A lint or build failure already
+  # fails the push, so the tests are skipped and the fix goes up sooner.
+  if [ "$status" -ne 0 ]; then
+    echo "pre-push: lint or build failed; the tests did not run" >&2
+  else
+    "$root/scripts/test-area" || fail test-area
+  fi
 fi
 
 if grep -qE '^frontend/' <<<"$changed" && [ -d "$root/frontend/node_modules" ]; then
-  (cd "$root/frontend" && ../scripts/sb-test --unit) || status=1
+  (cd "$root/frontend" && ../scripts/sb-test --unit) || fail sb-test
 fi
 
 if grep -qE '^Cargo\.lock$|^deny\.toml$' <<<"$changed" && command -v cargo-deny >/dev/null 2>&1; then
-  cargo deny check || status=1
+  cargo deny check || fail cargo-deny
 fi
 
+summary
 exit "$status"
