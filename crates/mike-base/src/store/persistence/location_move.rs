@@ -73,7 +73,6 @@ impl PersistHandle {
         adopt_children(&mut tx, &collisions).await?;
         let counts = merge_collisions(&mut tx, &pairs).await?;
         let moved = rewrite_roots(&mut tx, head.machine_uuid, &head.root, &to).await?;
-        let sources_rewritten = rewrite_source_roots(&mut tx, &moved).await?;
         tx.commit().await?;
         Ok(LocationMove {
             location_uuid: location,
@@ -83,7 +82,7 @@ impl PersistHandle {
             moved,
             merged,
             sessions_repointed: counts.sessions,
-            sources_rewritten,
+            sources_rewritten: 0,
             sources_merged: counts.sources,
             documents_merged: counts.documents,
         })
@@ -214,42 +213,6 @@ async fn rewrite_roots(
     )
     .fetch_all(&mut **tx)
     .await?)
-}
-
-async fn rewrite_source_roots(
-    tx: &mut Tx<'_>,
-    moved: &[MovedLocation],
-) -> Result<u64, PersistError> {
-    let locations: Vec<Uuid> = moved.iter().map(|m| m.location_uuid).collect();
-    let from: Vec<String> = moved.iter().map(|m| m.from.clone()).collect();
-    let to: Vec<String> = moved.iter().map(|m| m.to.clone()).collect();
-    Ok(sqlx::query!(
-        r#"UPDATE memory.knowledge_sources s
-              SET root_path = CASE
-                    WHEN rtrim(s.root_path, '/') = m.old_root
-                         OR starts_with(s.root_path, m.old_root || '/')
-                    THEN m.new_root || substr(rtrim(s.root_path, '/'), length(m.old_root) + 1)
-                    ELSE left(s.root_path, length(s.root_path) - length(m.old_memory))
-                         || m.new_memory
-                  END
-             FROM (SELECT x.location_uuid, rtrim(x.old_root, '/') AS old_root, x.new_root,
-                          '/projects/' || regexp_replace(x.old_root, '[^A-Za-z0-9]', '-', 'g')
-                              || '/memory' AS old_memory,
-                          '/projects/' || regexp_replace(x.new_root, '[^A-Za-z0-9]', '-', 'g')
-                              || '/memory' AS new_memory
-                     FROM unnest($1::uuid[], $2::text[], $3::text[])
-                          AS x(location_uuid, old_root, new_root)) m
-            WHERE s.location_uuid = m.location_uuid
-              AND (rtrim(s.root_path, '/') = m.old_root
-                   OR starts_with(s.root_path, m.old_root || '/')
-                   OR right(s.root_path, length(m.old_memory)) = m.old_memory)"#,
-        &locations[..],
-        &from[..],
-        &to[..],
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected())
 }
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ use uuid::Uuid;
 use super::knowledge_error;
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::location_move::LocationMove;
 use crate::web_base::persist_unavailable_response;
 
@@ -70,9 +71,21 @@ pub async fn move_location(
     let persist = state.persist().ok_or_else(persist_unavailable_response)?;
     let machine = machine_of(&request).await?;
     let location = location_named(persist, machine, &request.from).await?;
+    let mut moves = vec![
+        persist
+            .move_location(location, &request.to)
+            .await
+            .map_err(knowledge_error)?,
+    ];
     persist
-        .move_location(location, &request.to)
+        .knowledge()
+        .finish_location_moves(&mut moves)
         .await
-        .map(Json)
-        .map_err(knowledge_error)
+        .map_err(knowledge_error)?;
+    moves.pop().map(Json).ok_or_else(|| {
+        refusal(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "the move returned no report".into(),
+        )
+    })
 }

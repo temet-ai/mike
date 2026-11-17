@@ -115,28 +115,12 @@ impl Fixture {
 }
 
 #[tokio::test]
-async fn move_location_explicit_move_keeps_uuid_sessions_and_sources() -> anyhow::Result<()> {
+async fn move_location_explicit_move_keeps_uuid_and_sessions() -> anyhow::Result<()> {
     let f = Fixture::new().await?;
     let main = f.location("/work/old").await?;
     let worktree = f.location("/work/old/.claude/worktrees/wt").await?;
     f.link(worktree, main).await?;
     let session = f.session(main).await?;
-    let skills = f.source(main, "skills", "/work/old/.claude/skills").await?;
-    let memory = f
-        .source(
-            main,
-            "claude-memory",
-            "/home/u/.claude/projects/-work-old/memory",
-        )
-        .await?;
-    let tree_memory = f
-        .source(
-            worktree,
-            "claude-memory",
-            "/home/u/.claude/projects/-work-old--claude-worktrees-wt/memory",
-        )
-        .await?;
-    let outside = f.source(main, "notes", "/elsewhere/notes").await?;
 
     let report = f.handle.move_location(main, "/work/new/").await?;
 
@@ -153,19 +137,6 @@ async fn move_location_explicit_move_keeps_uuid_sessions_and_sources() -> anyhow
         Some("/work/new/.claude/worktrees/wt")
     );
     assert_eq!(f.session_location(session).await?, Some(main));
-    let expected = [
-        (skills, "/work/new/.claude/skills"),
-        (memory, "/home/u/.claude/projects/-work-new/memory"),
-        (
-            tree_memory,
-            "/home/u/.claude/projects/-work-new--claude-worktrees-wt/memory",
-        ),
-        (outside, "/elsewhere/notes"),
-    ];
-    for (source, root) in expected {
-        let found = f.source_of(source).await?.map(|(_, root)| root);
-        assert_eq!(found.as_deref(), Some(root));
-    }
     Ok(())
 }
 
@@ -193,7 +164,7 @@ async fn move_location_onto_existing_row_merges_it_into_the_moving_location() ->
     assert_eq!(f.session_location(moved_session).await?, Some(old));
     assert_eq!(
         f.source_of(old_skills).await?,
-        Some((old, "/work/new/.claude/skills".to_owned()))
+        Some((old, "/work/old/.claude/skills".to_owned()))
     );
     assert_eq!(f.source_of(new_skills).await?, None);
     assert_eq!(
