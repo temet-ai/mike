@@ -1,5 +1,6 @@
 pub use mike_launch::store::persistence::*;
 pub mod change_record;
+pub mod conditions;
 pub mod fleet;
 pub mod fleet_correlation;
 pub mod fleet_repo;

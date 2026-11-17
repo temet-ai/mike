@@ -5764,6 +5764,43 @@ Added by `20261114190000_fleet_decisions.sql`. One row per request a fleet seat 
 
 ---
 
+### `launch.conditions`
+
+Added by `20261117060000_conditions.sql` (tether#40). One row per registered wait: a session says
+what it waits for (`kind`, `spec`) and what mike does when it holds (`action`, `brief`), then ends
+its turn. Owned by the fleet crate (`store/persistence/conditions/`); the `conditions` worker of
+`machine_uuid` is the only writer after registration.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | PK |
+| `condition_uuid` | `UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` | the id MCP tools and the API use |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `machine_uuid` | `UUID NOT NULL` | the machine whose worker evaluates and fires it; no FK |
+| `created_by_session` | `UUID NULL` | the registering session (soft reference) |
+| `project_id` | `BIGINT NULL` | FK to `projects.projects(id)` ON DELETE CASCADE; set from the session or `project` |
+| `thread_slug` | `TEXT NULL` | work thread whose state is added to the delivered text |
+| `kind` | `TEXT NOT NULL` | CHECK in `time`, `session_turn_ended`, `session_ended`, `fleet_event`, `sql` |
+| `spec` | `JSONB NOT NULL DEFAULT '{}'` | the kind's parameters, decoded whole in Rust |
+| `not_before` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | evaluated from here; earlier events do not count |
+| `deadline` | `TIMESTAMPTZ NULL` | a passed deadline fires the action as missed |
+| `check_every_secs` | `INTEGER NOT NULL DEFAULT 300` | CHECK `>= 60`; the interval between `sql` evaluations |
+| `last_checked_at` | `TIMESTAMPTZ NULL` | stamped before each `sql` evaluation |
+| `action` | `TEXT NOT NULL` | CHECK in `return`, `start`, `message` |
+| `target_session` | `UUID NULL` | the session to return to or mail; defaults to `created_by_session` |
+| `folder` | `TEXT NULL` | where a started session opens |
+| `brief` | `TEXT NOT NULL` | CHECK `btrim(brief) <> ''` |
+| `state` | `TEXT NOT NULL DEFAULT 'armed'` | CHECK in `armed`, `fired`, `missed`, `failed`, `cancelled` |
+| `fired_at` | `TIMESTAMPTZ NULL` | |
+| `outcome` | `JSONB NULL` | `via`, `launch_id`, `session`, `missed` |
+| `attempts` | `INTEGER NOT NULL DEFAULT 0` | failed attempts; `failed` at four |
+| `next_attempt_at` | `TIMESTAMPTZ NULL` | earliest retry after a failure (1, 5, 30 minutes) |
+| `last_error` | `TEXT NULL` | |
+
+Indexes: a partial `(machine_uuid, not_before) WHERE state = 'armed'` (`idx_conditions_machine_armed`,
+the worker's read), a partial `(thread_slug) WHERE thread_slug IS NOT NULL`
+(`idx_conditions_thread`) and `(created_by_session)` (`idx_conditions_created_by_session`).
+
 ### `launch.introductions`
 
 Added by `20261001020000_launch_introductions.sql`. One row per slow command a fleet seat ran after

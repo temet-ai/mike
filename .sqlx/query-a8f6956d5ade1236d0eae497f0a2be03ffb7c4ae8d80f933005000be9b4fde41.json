@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.conditions\n   SET state = 'cancelled'\n WHERE condition_uuid = $1 AND state = 'armed'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a8f6956d5ade1236d0eae497f0a2be03ffb7c4ae8d80f933005000be9b4fde41"
+}

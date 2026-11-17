@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.conditions\n   SET outcome = $2\n WHERE id = $1 AND state IN ('fired', 'missed')\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b40e7a9808ed97c43222e79dc55086b8498f4e70d42f705358edcf92d06bc1b2"
+}

@@ -53,6 +53,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			"Fills each interactive session's roster row (name, goal, next steps) from its last few turns with a small call on a cheap model, so sessions don't do it themselves. Models are tried in the order under Side calls: a local server first (no cost, nothing leaves your machines), then OpenRouter or Claude only within an hourly cap. A goal a session wrote itself is never replaced. Applies on the next pass.",
 		find: 'side call bookkeeping roster goal next steps gemma local haiku'
 	},
+	conditions: {
+		label: 'Conditions',
+		description:
+			'Lets a session register what it is waiting for (a time, another session finishing a turn, a fleet event, a read-only query) and what mike does when it holds: push a message, resume the session or start a new one. Nothing is sent off this machine. Applies on the next pass.',
+		find: 'conditions wait for wake resume schedule later deadline return session when'
+	},
 	change_record: {
 		label: 'Record of what changed',
 		description:

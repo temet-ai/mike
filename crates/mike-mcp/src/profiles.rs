@@ -167,6 +167,8 @@ pub const INVESTIGATION: &[&str] = &[
 ];
 
 pub const ONLY_IN_FULL: &[&str] = &[
+    "list_conditions",
+    "cancel_condition",
     "define_project",
     "register_project_location",
     "session_tool_use_stats",

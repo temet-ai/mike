@@ -3,10 +3,11 @@ use serde_json::{Map, Value};
 
 use super::envelope::{apply_projection, extract_select};
 use super::{
-    config_history, cross_session, diagnostics, dossier, eval_bundles, eval_labels, eval_metrics,
-    eval_runs, filters, fleets, improvement, launches, mail, memory, prompts, requests, semantic,
-    session_activity, session_notes, session_verdicts, sessions, steer_questions,
-    steering_evaluations, text_search, time_spent, turn_verdicts, turns, turns_summary, workspace,
+    conditions, config_history, cross_session, diagnostics, dossier, eval_bundles, eval_labels,
+    eval_metrics, eval_runs, filters, fleets, improvement, launches, mail, memory, prompts,
+    requests, semantic, session_activity, session_notes, session_verdicts, sessions,
+    steer_questions, steering_evaluations, text_search, time_spent, turn_verdicts, turns,
+    turns_summary, workspace,
 };
 use crate::client::InspectClient;
 
@@ -81,6 +82,23 @@ async fn dispatch_project_tools(
     if launches::owns(name) {
         return launches::call_tool(client, name, arguments).await;
     }
+    if conditions::owns(name) {
+        return conditions::call_tool(client, name, arguments).await;
+    }
+    if super::changes::owns(name) {
+        return super::changes::call_tool(client, name, arguments).await;
+    }
+    if super::work_threads::owns(name) {
+        return super::work_threads::call_tool(client, name, arguments).await;
+    }
+    dispatch_fleet_tools(client, name, arguments).await
+}
+
+async fn dispatch_fleet_tools(
+    client: &InspectClient,
+    name: &str,
+    arguments: Option<Map<String, Value>>,
+) -> Result<CallToolResult, RmcpError> {
     if fleets::owns(name) {
         return fleets::call_tool(client, name, arguments).await;
     }
@@ -101,12 +119,6 @@ async fn dispatch_project_tools(
     }
     if super::fleet_decide::owns(name) {
         return super::fleet_decide::call_tool(client, arguments).await;
-    }
-    if super::changes::owns(name) {
-        return super::changes::call_tool(client, name, arguments).await;
-    }
-    if super::work_threads::owns(name) {
-        return super::work_threads::call_tool(client, name, arguments).await;
     }
     dispatch_judgement_tools(client, name, arguments).await
 }

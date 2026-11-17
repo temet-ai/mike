@@ -3,10 +3,11 @@ use rmcp::model::Tool;
 pub use crate::profiles::Profile;
 
 use super::{
-    config_history, cross_session, diagnostics, dossier, eval_bundles, eval_labels, eval_metrics,
-    eval_runs, filters, fleets, improvement, launches, mail, memory, prompts, requests, semantic,
-    session_activity, session_notes, session_verdicts, sessions, steer_questions,
-    steering_evaluations, text_search, time_spent, turn_verdicts, turns, turns_summary, workspace,
+    conditions, config_history, cross_session, diagnostics, dossier, eval_bundles, eval_labels,
+    eval_metrics, eval_runs, filters, fleets, improvement, launches, mail, memory, prompts,
+    requests, semantic, session_activity, session_notes, session_verdicts, sessions,
+    steer_questions, steering_evaluations, text_search, time_spent, turn_verdicts, turns,
+    turns_summary, workspace,
 };
 
 pub const CORE_TOOL_NAMES: &[&str] = &[
@@ -77,6 +78,7 @@ pub const CORE_TOOL_NAMES: &[&str] = &[
     super::TOOL_SPAWN_SESSION,
     super::TOOL_LIST_LAUNCHES,
     super::TOOL_KILL_SESSION,
+    super::TOOL_WAIT_FOR,
     super::TOOL_RELAY_LABEL,
     super::TOOL_GET_IMPROVEMENT_EFFECTS,
 ];
@@ -101,6 +103,7 @@ pub fn all_tools() -> Vec<Tool> {
     tools.extend(memory::memory_tools());
     tools.extend(workspace::workspace_tools());
     tools.extend(launches::launch_tools());
+    tools.extend(conditions::condition_tools());
     tools.extend(fleets::fleet_tools());
     tools.extend(super::fleet_tree::fleet_tree_tools());
     tools.extend(super::fleet_check::fleet_check_tools());
@@ -209,6 +212,9 @@ mod tests {
         super::super::TOOL_SPAWN_SESSION,
         super::super::TOOL_LIST_LAUNCHES,
         super::super::TOOL_KILL_SESSION,
+        super::super::TOOL_WAIT_FOR,
+        super::super::TOOL_LIST_CONDITIONS,
+        super::super::TOOL_CANCEL_CONDITION,
         super::super::TOOL_DEFINE_FLEET,
         super::super::TOOL_GET_FLEET,
         "list_fleet_changes",
