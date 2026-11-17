@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::followups::{Sources, result_text};
 use super::types::{Arms, Call, Cut, Gaps, Lane, ShellTable, bump, stamp};
+use crate::compress::shell_output::command::{CommandShape, command_shape};
 
 const MIN_TOKEN: usize = 8;
 
@@ -161,7 +162,11 @@ pub(super) fn shell_harm_table(input: &ShellFollowups) -> (ShellTable, Gaps) {
                         && wanted.iter().any(|token| text.contains(token.as_str()))
                 });
         row.needed_later += u64::from(used_later);
-        let by_command = table.by_command.entry(command_kind(command)).or_default();
+        let by_command = if command_shape(command) == CommandShape::Other {
+            table.by_command.entry(command_kind(command)).or_default()
+        } else {
+            &mut table.left_whole_now
+        };
         by_command.cuts += 1;
         by_command.needed_later += u64::from(used_later);
     }

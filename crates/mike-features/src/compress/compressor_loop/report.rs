@@ -194,7 +194,7 @@ fn command_lines(table: &ShellTable) -> Vec<String> {
     });
     let mut lines = vec![
         String::new(),
-        "Where cuts miss, by command (both arms):".to_string(),
+        "Where cuts miss, by command the current policy still cuts (both arms):".to_string(),
         String::new(),
         "| Command | Shell outputs cut | Hidden part needed later | Rate |".to_string(),
         "|---|---:|---:|---:|".to_string(),
@@ -220,7 +220,24 @@ fn command_lines(table: &ShellTable) -> Vec<String> {
             })
         ));
     }
+    lines.extend(left_whole_lines(&table.left_whole_now));
     lines
+}
+
+fn left_whole_lines(row: &ShellRow) -> Vec<String> {
+    if row.cuts == 0 {
+        return Vec::new();
+    }
+    vec![
+        String::new(),
+        format!(
+            "Not listed: {} cuts of commands the current policy leaves whole (file reads, listings, \
+             searches, inline scripts); {} needed later ({}).",
+            row.cuts,
+            row.needed_later,
+            rate(row)
+        ),
+    ]
 }
 
 pub(super) fn shell_lines(

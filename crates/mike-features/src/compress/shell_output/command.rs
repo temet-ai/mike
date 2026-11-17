@@ -5,14 +5,28 @@ pub enum CommandShape {
     Other,
 }
 
-const READ_PROGRAMS: [&str; 9] = [
-    "sed", "cat", "head", "tail", "bat", "nl", "less", "jq", "awk",
+const READ_PROGRAMS: [&str; 10] = [
+    "sed", "cat", "head", "tail", "bat", "nl", "less", "jq", "awk", "curl",
 ];
-const LISTING_PROGRAMS: [&str; 10] = [
-    "rg", "grep", "ls", "fd", "find", "wc", "tree", "du", "eza", "stat",
+const LISTING_PROGRAMS: [&str; 11] = [
+    "rg", "grep", "ls", "fd", "find", "wc", "tree", "du", "eza", "stat", "psql",
 ];
 const GIT_READS: [&str; 3] = ["show", "diff", "blame"];
-const GIT_LISTINGS: [&str; 6] = ["status", "worktree", "log", "branch", "ls-files", "grep"];
+const GIT_LISTINGS: [&str; 10] = [
+    "status",
+    "worktree",
+    "log",
+    "branch",
+    "ls-files",
+    "grep",
+    "fetch",
+    "ls-remote",
+    "remote",
+    "tag",
+];
+const GH_LISTINGS: [&str; 5] = ["issue", "pr", "api", "search", "repo"];
+const PYTHONS: [&str; 2] = ["python", "python3"];
+const RUNNER_PREFIXES: [&str; 6] = ["env", "command", "time", "nice", "ionice", "timeout"];
 
 const SUBCOMMAND_PROGRAMS: [&str; 10] = [
     "cargo",
@@ -37,13 +51,23 @@ fn is_assignment(word: &str) -> bool {
     })
 }
 
+fn is_runner_word(word: &str) -> bool {
+    RUNNER_PREFIXES.contains(&word)
+        || word.starts_with('-')
+        || word.trim_end_matches(['s', 'm']).parse::<u32>().is_ok()
+}
+
+fn is_inline_python(command: &str) -> bool {
+    command.contains(" -c ") || command.contains("<<") || command.contains(" - ")
+}
+
 fn program_words(segment: &str) -> Option<(&str, Option<&str>)> {
     let first = segment.split('|').next()?;
     let mut words = first
         .split_whitespace()
         .map(|word| word.trim_start_matches('('))
         .skip_while(|word| CONTROL_PREFIXES.contains(word))
-        .skip_while(|word| is_assignment(word) || *word == "env");
+        .skip_while(|word| is_assignment(word) || is_runner_word(word));
     let program = words.next()?;
     if SKIPPED_STARTS.contains(&program) || program.ends_with("(){") || program.is_empty() {
         return None;
@@ -80,16 +104,17 @@ pub fn command_shape(command: &str) -> CommandShape {
     if LISTING_PROGRAMS.contains(&program) {
         return CommandShape::Listing;
     }
-    if program == "git" {
-        let sub = sub.unwrap_or("");
-        if GIT_READS.contains(&sub) {
-            return CommandShape::Read;
-        }
-        if GIT_LISTINGS.contains(&sub) {
-            return CommandShape::Listing;
-        }
+    if PYTHONS.contains(&program) && is_inline_python(command) {
+        return CommandShape::Read;
     }
-    CommandShape::Other
+    let sub = sub.unwrap_or("");
+    match program {
+        "git" if GIT_READS.contains(&sub) => CommandShape::Read,
+        "git" if GIT_LISTINGS.contains(&sub) => CommandShape::Listing,
+        "gh" if GH_LISTINGS.contains(&sub) => CommandShape::Listing,
+        "docker" if sub == "exec" => CommandShape::Listing,
+        _ => CommandShape::Other,
+    }
 }
 
 #[cfg(test)]
@@ -107,7 +132,20 @@ mod tests {
             ("git status --short", CommandShape::Listing),
             ("cargo test -p mike 2>&1 | grep FAIL", CommandShape::Other),
             ("FOO=1 scripts/cx nextest run", CommandShape::Other),
-            ("git fetch origin", CommandShape::Other),
+            ("git fetch origin", CommandShape::Listing),
+            ("gh issue view 12", CommandShape::Listing),
+            ("gh run view 9 --log", CommandShape::Other),
+            (
+                "docker exec armitage-pg psql -c 'select 1'",
+                CommandShape::Listing,
+            ),
+            ("curl -s localhost:9989/api/requests", CommandShape::Read),
+            ("python3 -c 'print(1)'", CommandShape::Read),
+            ("python3 - <<'EOF'\nprint(1)\nEOF", CommandShape::Read),
+            ("python3 scripts/check.py", CommandShape::Other),
+            ("timeout 300 rg foo", CommandShape::Listing),
+            ("command ls -la", CommandShape::Listing),
+            ("nice -n 19 cargo build", CommandShape::Other),
             ("", CommandShape::Other),
             ("S=/tmp/x; cat $S/out.txt", CommandShape::Read),
             (
@@ -139,6 +177,11 @@ mod tests {
             ("for f in a b; do cat $f; done", "cat"),
             ("echo ===ON; tail -5 log; echo ===OFF", "tail"),
             ("export X=1; }; git status", "git status"),
+            (
+                "timeout 300 mike compressor-loop --days 7",
+                "mike compressor-loop",
+            ),
+            ("command -v mbx", "mbx"),
             ("cd x", "(empty)"),
             ("", "(empty)"),
         ] {
