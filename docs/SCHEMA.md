@@ -2367,8 +2367,8 @@ the set of client sessions. New rows are always `mod`; `control` rows are from t
 | `session_uuid` | `UUID PRIMARY KEY` | |
 | `arm` | `TEXT NOT NULL` | CHECK `IN ('mod', 'control')` |
 | `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
-| `last_call_at` | `TIMESTAMPTZ NULL` | The client's last call; added in `20261117070000_lesson_holdings.sql` |
-| `declared_at` | `TIMESTAMPTZ NULL` | When tether declared it serves the session's lessons (`serves` holds `lessons` on `POST /api/sessions/{id}/context`); a declared session that never called is `session_lessons_client_unreachable`. Added in `20261117110000_lesson_client_declared.sql` |
+| `last_call_at` | `TIMESTAMPTZ NULL` | The client's last call; added in `20261117160000_lesson_holdings.sql` |
+| `declared_at` | `TIMESTAMPTZ NULL` | When tether declared it serves the session's lessons (`serves` holds `lessons` on `POST /api/sessions/{id}/context`); a declared session that never called is `session_lessons_client_unreachable`. Added in `20261117170000_lesson_client_declared.sql` |
 | `last_delivery_at` | `TIMESTAMPTZ NULL` | Set only by a delivery that carried at least one lesson |
 | `deliveries` | `INTEGER NOT NULL DEFAULT 0` | Count of deliveries that carried at least one lesson |
 | `lessons_delivered` | `INTEGER NOT NULL DEFAULT 0` | Running total of lessons delivered |
@@ -2381,7 +2381,7 @@ the set of client sessions. New rows are always `mod`; `control` rows are from t
 
 ### `memory.lesson_holdings`
 
-Added in `20261117070000_lesson_holdings.sql`. Which lesson, at which revision, each session was given, so
+Added in `20261117160000_lesson_holdings.sql`. Which lesson, at which revision, each session was given, so
 the `session_lessons` stage never injects a lesson the session holds, across restarts. Written by
 `record_lesson_holdings` (`store/persistence/lesson_injections/holdings.rs`) from `POST
 /api/lessons/for-prompt` (route `mod`) and from the stage (`proxy` when it injects, `body` for a lesson tag
