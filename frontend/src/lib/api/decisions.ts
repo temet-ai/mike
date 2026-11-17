@@ -32,7 +32,7 @@ export interface PointScore {
 	sent_labelled: number;
 	sent_right: number;
 	labels_per_day: number;
-	days_to_min_labels: number | null;
+	labels_short: number;
 	applied_labelled: number;
 	applied_right: number;
 	applied_precision_lower: number | null;

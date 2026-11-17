@@ -99,6 +99,18 @@ checkout only.
 Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
 push.
 
+**Hand finished branches to the lander.** On omit, don't wait on your own push: once
+the branch is committed, mail `role:lander` the worktree path, branch, and PR title and
+body, then go on working or end. The lander pushes, fixes what the hook refuses (or
+mails you the failing step), merges, removes the worktree and deploys each batch. If
+no lander is on the roster, start one with `mike spawn open` (name and role `lander`).
+
+**Done-checks run now.** A done-check runs within minutes of the deploy: drive a live
+session through the case, restart and check again, or backfill over data already
+captured. Decision points get labels now from `mike decisions replay`. Never "after a day
+of traffic", "check in a week", "once N labels collect" or "ship in shadow first", in a
+brief, a thread's next steps or an issue: finish the work in the session.
+
 **Rust structural limits** (graded by `scripts/lint-rust`): files ≤ 500 lines,
 functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6 arguments;
 `allow`/`expect` attributes that weaken these are rejected, so split by
@@ -236,7 +248,7 @@ All resolve the repo root themselves.
 | `scripts/module-graph [deps\|users <module>]`          | Crate mike's module dependency graph and its largest cycle |
 | `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades the split crates against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
 | `scripts/schema-plan [--writes N\|--reads N\|--table T]` | Grades the SQL against schema ownership: foreign writes, foreign reads, migrations per schema ([ADR 0003](docs/adr/0003-schema-per-crate.md)) |
-| `scripts/wiring-new <A>..<B>` · `--whole`                | Code a range adds that nothing calls, registers, spawns, reads or consumes (`mike structural wiring`, rules in `.mike/structural/wiring.yml`); report only; the push hook runs it, nightly records the whole-tree counts |
+| `scripts/wiring-new <A>..<B>` · `--whole`                | Code a range adds that nothing calls, registers, spawns, reads or consumes (`mike structural wiring`, rules in `.mike/structural/wiring.yml`); the push hook runs it and fails on a pub fn with no caller (other kinds report only), nightly records the whole-tree counts |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |

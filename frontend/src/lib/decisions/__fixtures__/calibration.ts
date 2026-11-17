@@ -33,7 +33,7 @@ export function scoreFixture(
 		sent_labelled: 0,
 		sent_right: 0,
 		labels_per_day: 2.7,
-		days_to_min_labels: null,
+		labels_short: 0,
 		applied_labelled: 40,
 		applied_right: 33,
 		applied_precision_lower: 0.68,

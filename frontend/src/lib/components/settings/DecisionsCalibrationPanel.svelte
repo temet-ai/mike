@@ -393,8 +393,8 @@
 															<dd>{score.counts.labelled_last_7d}</dd>
 															<dt>Labels per day</dt>
 															<dd>{score.labels_per_day.toFixed(1)}</dd>
-															<dt>Days to the minimum label count</dt>
-															<dd>{fixed(score.days_to_min_labels, 1)}</dd>
+															<dt>Labels short of the minimum</dt>
+															<dd>{score.labels_short}{#if score.labels_short > 0}: collect them now with <code>mike decisions replay --point {score.counts.point}</code>{/if}</dd>
 															<dt>Schema errors</dt>
 															<dd>{score.counts.schema_errors}</dd>
 															<dt>Refused</dt>

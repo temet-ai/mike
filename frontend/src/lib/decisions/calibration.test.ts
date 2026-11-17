@@ -32,7 +32,7 @@ function score(over: Partial<PointScore> = {}, calls = 10): PointScore {
 		sent_labelled: 0,
 		sent_right: 0,
 		labels_per_day: 1,
-		days_to_min_labels: null,
+		labels_short: 0,
 		applied_labelled: 8,
 		applied_right: 6,
 		applied_precision_lower: 0.4,
