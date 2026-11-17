@@ -41,6 +41,7 @@ pub struct ReportRequest {
     pub criteria: Vec<String>,
     pub summary: String,
     pub look_at: String,
+    #[serde(deserialize_with = "list_input")]
     pub evidence: Vec<String>,
     #[serde(alias = "commit")]
     pub sha: Option<String>,
@@ -66,6 +67,10 @@ fn list_or_none<'de, D: serde::Deserializer<'de>>(
             Input::Text(text) => vec![text],
         }),
     )
+}
+
+fn list_input<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
+    list_or_none(deserializer).map(Option::unwrap_or_default)
 }
 
 fn incomplete(field: &str, hint: &str) -> String {

@@ -40,6 +40,22 @@ fn criteria_accept_arrays_or_comma_separated_text() -> anyhow::Result<()> {
 }
 
 #[test]
+fn evidence_given_as_one_path_text_is_read_as_a_one_item_list() -> anyhow::Result<()> {
+    let report: ReportRequest = serde_json::from_value(json!({
+        "criteria": ["C4", "C1", "C3"], "evidence": "test/test_diff.ml"
+    }))?;
+    assert_eq!(report.evidence, vec!["test/test_diff.ml"]);
+    for input in [json!({}), json!({"evidence": null})] {
+        let report: ReportRequest = serde_json::from_value(input)?;
+        assert!(report.evidence.is_empty());
+    }
+    let report: ReportRequest = serde_json::from_value(json!({"evidence": ["a", "b"]}))?;
+    assert_eq!(report.evidence, vec!["a", "b"]);
+    assert!(serde_json::from_value::<ReportRequest>(json!({"evidence": 3})).is_err());
+    Ok(())
+}
+
+#[test]
 fn criteria_default_only_when_omitted_or_an_empty_array() -> anyhow::Result<()> {
     for input in [json!({}), json!({"criteria": []})] {
         let report: ReportRequest = serde_json::from_value(input)?;
