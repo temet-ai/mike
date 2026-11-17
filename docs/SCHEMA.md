@@ -6668,7 +6668,7 @@ read_at IS NULL` serves the read.
 
 ### `wright.causes`
 
-Wright's triage groups (migration `20261117200000_wright_triage.sql`). Columns: `id`, `check_name`
+Wright's triage groups (migration `20261117210000_wright_triage.sql`). Columns: `id`, `check_name`
 (`REFERENCES wright.checks(name) ON DELETE CASCADE`), `key` (`resource:<resource with numbers and
 hashes as N, 60 characters>` or `run:<check run id>` for a check whose `params.group_by` is `run`),
 `opened_at`, `merged_into` (`REFERENCES wright.causes(id) ON DELETE SET NULL`, set when an engineer
