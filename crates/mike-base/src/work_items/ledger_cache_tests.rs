@@ -42,23 +42,19 @@ fn activity(session: i64, agent: Option<&str>, last: i64) -> ActivityRow {
 }
 
 #[test]
-fn reads_after_first_read_everything_then_overlaps_the_last_read() {
+fn reads_after_first_read_from_first_launch_then_overlaps_the_last_read() {
     let mut cache = LedgerCache::default();
-    cache.apply_scope(vec![agent_item(1, "s1", "a1")], None);
-    assert_eq!(
-        cache.reads_after(&[1]),
-        vec![(1, DateTime::<Utc>::UNIX_EPOCH)]
-    );
+    let mut later = agent_item(1, "s1", "a2");
+    later.item.launched_at = at(15);
+    cache.apply_scope(vec![later, agent_item(1, "s1", "a1")], None);
+    assert_eq!(cache.reads_after(&[1]), vec![(1, at(-10))]);
     cache.apply_reads(&SessionReads {
         activity: vec![activity(1, Some("a1"), 30)],
         git: Vec::new(),
     });
     assert_eq!(cache.reads_after(&[1]), vec![(1, at(20))]);
     cache.forget_reads(1);
-    assert_eq!(
-        cache.reads_after(&[1]),
-        vec![(1, DateTime::<Utc>::UNIX_EPOCH)]
-    );
+    assert_eq!(cache.reads_after(&[1]), vec![(1, at(-10))]);
 }
 
 #[test]

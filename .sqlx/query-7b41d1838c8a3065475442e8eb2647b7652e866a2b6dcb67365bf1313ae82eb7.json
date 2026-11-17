@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.work_items w\n   SET state = 'unknown',\n       finished_at = GREATEST(s.last_seen, w.launched_at),\n       summary = COALESCE(w.summary, 'its session went quiet and nothing reported how it ended')\n  FROM sessions.sessions s\n WHERE s.id = w.session_id\n   AND w.state = 'running'\n   AND s.last_seen < now() - make_interval(hours => $1::int)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b41d1838c8a3065475442e8eb2647b7652e866a2b6dcb67365bf1313ae82eb7"
+}

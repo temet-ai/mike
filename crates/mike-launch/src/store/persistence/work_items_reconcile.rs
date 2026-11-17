@@ -57,6 +57,34 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         })
         .await
     }
+
+    pub async fn sessions_with_abandoned_items(
+        self,
+        quiet_hours: i32,
+    ) -> Result<Vec<i64>, PersistError> {
+        crate::metrics::time_db("work_items_abandoned_sessions", async move {
+            let ids = sqlx::query_scalar!(
+                r#"SELECT DISTINCT w.session_id AS "session_id!"
+                     FROM agents.work_items w
+                     JOIN sessions.sessions s ON s.id = w.session_id
+                    WHERE w.state = 'running'
+                      AND s.last_seen < now() - make_interval(hours => $1::int)"#,
+                quiet_hours,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            Ok(ids)
+        })
+        .await
+    }
+
+    pub async fn close_abandoned_items(self, quiet_hours: i32) -> Result<u64, PersistError> {
+        crate::metrics::time_db(
+            "work_items_close_abandoned",
+            crate::store::persistence::work_items::close_abandoned_items(&self.pool, quiet_hours),
+        )
+        .await
+    }
 }
 
 #[cfg(test)]

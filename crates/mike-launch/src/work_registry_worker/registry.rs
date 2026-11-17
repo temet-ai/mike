@@ -54,6 +54,7 @@ impl Registry {
     }
 
     async fn load_all(&mut self, persist: &PersistHandle, reset: bool) -> Result<(), PersistError> {
+        delivery::close_abandoned(persist, ACTIVE_WINDOW_HOURS).await?;
         let rows = persist
             .launch()
             .work_item_scope(ACTIVE_WINDOW_HOURS, None)

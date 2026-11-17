@@ -1,8 +1,10 @@
 WITH active AS (
     SELECT DISTINCT w.session_id
       FROM agents.work_items w
+      JOIN sessions.sessions s ON s.id = w.session_id
      WHERE w.launched_at > now() - make_interval(hours => $1::int)
-        OR w.state = 'running'
+        OR (w.state = 'running'
+            AND s.last_seen > now() - make_interval(hours => $1::int))
 )
 SELECT w.session_id AS "session_id!",
        s.session_uuid::text AS "session_uuid!",
