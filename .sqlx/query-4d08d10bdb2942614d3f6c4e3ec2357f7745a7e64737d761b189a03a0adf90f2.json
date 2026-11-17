@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.conditions SET judged_through = $2 WHERE id = $1 AND state = 'armed'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4d08d10bdb2942614d3f6c4e3ec2357f7745a7e64737d761b189a03a0adf90f2"
+}

@@ -5,10 +5,11 @@ use tokio_util::sync::CancellationToken;
 
 use super::decide::{Decision, decide};
 use super::fire::{Outcome, run_action};
+use super::words;
 use crate::base_state::BaseState;
 use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::conditions::{ConditionRow, Fired};
+use crate::store::persistence::conditions::{ConditionRow, Fired, Spec};
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 const PASS_GAP: Duration = Duration::from_secs(10);
@@ -67,13 +68,21 @@ async fn pass(state: &BaseState, persist: &PersistHandle) {
 
 async fn settle(state: &BaseState, persist: &PersistHandle, row: &ConditionRow) {
     let now = Utc::now();
-    match persist.fleet().condition_holds(row, now).await {
+    let held = match Spec::parse(&row.kind, &row.spec) {
+        Ok(Spec::Words(spec)) => words::judge(state, persist, row, &spec, now).await,
+        _ => persist
+            .fleet()
+            .condition_holds(row, now)
+            .await
+            .map_err(|e| e.to_string()),
+    };
+    match held {
         Ok(held) => {
             if let Decision::Fire(fired) = decide(held, row.deadline, now) {
                 fire(state, persist, row, fired).await;
             }
         }
-        Err(error) => record_failure(persist, row, &error.to_string()).await,
+        Err(error) => record_failure(persist, row, &error).await,
     }
 }
 
