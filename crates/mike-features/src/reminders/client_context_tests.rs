@@ -179,6 +179,20 @@ async fn self_identity_stage_stands_aside_after_context_served() -> anyhow::Resu
 }
 
 #[tokio::test]
+async fn self_identity_stage_stands_aside_on_a_continuation_after_context_served()
+-> anyhow::Result<()> {
+    let state = state_with_identity_toggle(true).await?;
+    let session = Uuid::new_v4();
+    let id = session.to_string();
+    prompt_context(&state, session, &id, "/tmp/proj").await;
+    let raw = br#"{"thread":{"type":"continue","previous_message_id":"msg_1"},"messages":[{"role":"user","content":[{"type":"text","text":"next"}]}]}"#.to_vec();
+    let body = apply_with_body(&state, &id, &SelfIdentityStage, raw).await?;
+    assert!(!body.filter_applied());
+    assert_eq!(reason_code(body), "self_identity_served_by_client");
+    Ok(())
+}
+
+#[tokio::test]
 async fn self_identity_stage_injects_when_the_client_answer_never_reached_the_request()
 -> anyhow::Result<()> {
     let state = state_with_identity_toggle(true).await?;
