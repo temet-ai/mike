@@ -104,15 +104,18 @@ async fn record_machine(
 }
 
 async fn record_origins(persist: &PersistHandle, machine: uuid::Uuid) {
+    match crate::workspace::checkouts::record_origins(persist, machine).await {
+        Ok(mut moves) => finish_moves(persist, &mut moves).await,
+        Err(error) => tracing::warn!(%error, "knowledge_scan: recording checkout remotes failed"),
+    }
+}
+
+async fn finish_moves(
+    persist: &PersistHandle,
+    moves: &mut [crate::store::persistence::location_move::LocationMove],
+) {
     use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
-    let mut moves = match crate::workspace::checkouts::record_origins(persist, machine).await {
-        Ok(moves) => moves,
-        Err(error) => {
-            tracing::warn!(%error, "knowledge_scan: recording checkout remotes failed");
-            return;
-        }
-    };
-    if let Err(error) = persist.knowledge().finish_location_moves(&mut moves).await {
+    if let Err(error) = persist.knowledge().finish_location_moves(moves).await {
         tracing::warn!(%error, "knowledge_scan: rewriting moved knowledge source roots failed");
     }
 }
