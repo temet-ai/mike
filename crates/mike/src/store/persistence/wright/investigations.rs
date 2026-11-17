@@ -221,10 +221,15 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         Ok(marked.is_some())
     }
 
-    pub(crate) async fn record_wright_usage(self, id: i64) -> Result<Option<Usage>, PersistError> {
+    pub(crate) async fn record_wright_usage(
+        self,
+        id: i64,
+        paused_secs: f64,
+    ) -> Result<Option<Usage>, PersistError> {
         Ok(
             sqlx::query_as(USAGE) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .bind(id)
+                .bind(paused_secs)
                 .fetch_optional(self.pool())
                 .await?,
         )

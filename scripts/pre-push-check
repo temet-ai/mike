@@ -11,7 +11,7 @@ if [ -n "${MIKE_SEAT:-}" ]; then
 fi
 root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 1
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
 
 none=0000000000000000000000000000000000000000
 pr_only='^(crates/|frontend/|\.sqlx/|Cargo\.(toml|lock)$)'
@@ -76,15 +76,32 @@ if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rus
   # push and stopped again when the hook started it.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
     export MIKE_BUILD_JOBS="${MIKE_BUILD_JOBS:-2}" NEXTEST_TEST_THREADS="${NEXTEST_TEST_THREADS:-2}"
-    running=$(command -v docker >/dev/null 2>&1 && docker inspect -f '{{.State.Running}}' mike-test-pg 2>/dev/null)
-    if [ "$running" = false ]; then
-      docker start mike-test-pg >/dev/null && trap 'docker stop mike-test-pg >/dev/null 2>&1' EXIT
+    if command -v docker >/dev/null 2>&1; then
+      # Pushes can overlap (a session's and Wright's repair gate): each registers here, and the
+      # last one out stops the database, and only when a hook started it.
+      users="${XDG_CACHE_HOME:-$HOME/.cache}/mike-test-pg-users"
+      mkdir -p "$users" && : >"$users/$$"
+      release_test_db() {
+        rm -f "$users/$$"
+        for pidfile in "$users"/*; do
+          [ -e "$pidfile" ] || continue
+          kill -0 "${pidfile##*/}" 2>/dev/null && return 0
+          rm -f "$pidfile"
+        done
+        [ -e "$users/.hook-started" ] && rm -f "$users/.hook-started" && docker stop mike-test-pg >/dev/null 2>&1
+        return 0
+      }
+      trap release_test_db EXIT
+      running=$(docker inspect -f '{{.State.Running}}' mike-test-pg 2>/dev/null)
+      if [ "$running" = false ]; then
+        docker start mike-test-pg >/dev/null && : >"$users/.hook-started"
+      elif [ -z "$running" ]; then
+        "$root/scripts/test-db/up.sh" >/dev/null && : >"$users/.hook-started"
+      fi
       for _ in $(seq 1 60); do
         docker exec mike-test-pg pg_isready -U postgres -d postgres >/dev/null 2>&1 && break
         sleep 1
       done
-    elif [ -z "$running" ] && command -v docker >/dev/null 2>&1; then
-      "$root/scripts/test-db/up.sh" >/dev/null && trap 'docker stop mike-test-pg >/dev/null 2>&1' EXIT
     fi
   fi
   [ -d "$root/target" ] || echo "pre-push: no target/ in this checkout; building it to lint and test this push"
