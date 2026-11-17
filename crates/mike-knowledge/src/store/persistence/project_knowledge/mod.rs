@@ -59,6 +59,8 @@ fn invalid(message: &str) -> PersistError {
 #[cfg(test)]
 pub mod health_tests;
 #[cfg(test)]
+pub mod location_lookup_tests;
+#[cfg(test)]
 pub mod search_filters_tests;
 #[cfg(test)]
 pub mod session_binding_tests;
