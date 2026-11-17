@@ -165,7 +165,8 @@ impl SideCallChain {
         self
     }
 
-    pub fn with_escalate_after(mut self, after: Duration) -> Self {
+    #[cfg(test)]
+    pub(crate) fn with_escalate_after(mut self, after: Duration) -> Self {
         self.escalate_after = after;
         self
     }
