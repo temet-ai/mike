@@ -270,13 +270,14 @@ async fn open_agent_start_failure_enriches_error_with_pane_tail_and_closes_the_n
         "{err}"
     );
     let calls = fake.calls();
+    assert_eq!(calls[3], vec!["agent", "get", "w1:p2"]);
     assert_eq!(
-        calls[3],
+        calls[4],
         vec![
             "pane", "read", "w1:p2", "--source", "recent", "--lines", "20", "--format", "text"
         ]
     );
-    assert_eq!(calls[4], vec!["pane", "close", "w1:p2"]);
+    assert_eq!(calls[5], vec!["pane", "close", "w1:p2"]);
 }
 
 #[tokio::test]
