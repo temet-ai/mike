@@ -312,6 +312,7 @@ pub(crate) fn session_summary_serializes_with_expected_keys() -> anyhow::Result<
         "busy",
         "pending_inbox_count",
         "projects_touched",
+        "machine",
     ]
     .into_iter()
     .map(str::to_string)
