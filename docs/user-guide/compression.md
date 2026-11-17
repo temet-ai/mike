@@ -90,8 +90,11 @@ cache, and every later request carries the same short version, so the cache stay
 keeps the first and last lines, the lines that look like errors or summaries with a few lines
 around each, and replaces the rest with a marker such as
 `output lines 41-380 omitted (340 lines)`. The shortened result says how to fetch the exact
-original from mike if Claude needs the rest. A result that Claude reported as an error is never
-shortened, and a cut must save at least a quarter of the result to be worth making.
+original from mike if Claude needs the rest. Only output from commands such as builds, tests
+and installs is shortened. Output from a command that prints part of a file (`sed -n`, `cat`,
+`head`, `git show`) or lists and searches (`rg`, `ls`, `git status`) stays whole, because Claude
+asked for exactly those lines or will pick from anywhere in the list. A result that Claude
+reported as an error is never shortened, and a cut must save at least a quarter of the result to be worth making.
 
 | Setting under **Shell-output compression** | Default |
 |---|---|

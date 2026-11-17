@@ -14,7 +14,7 @@ fn bash_then_answers(answers: usize) -> anyhow::Result<Vec<u8>> {
         .collect();
     let mut messages = vec![
         json!({"role": "assistant", "content": [
-            {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "rg -l x"}}
+            {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "cargo build"}}
         ]}),
         json!({"role": "user", "content": [{"type": "tool_result", "tool_use_id": "b1", "content": output}]}),
     ];

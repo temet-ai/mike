@@ -1,5 +1,7 @@
 pub const SHELL_OUTPUT_REDUCED: &str = "shell_output_reduced";
 pub const ERROR_RESULT: &str = "error_result";
+pub const COMMAND_READS_FILE: &str = "command_reads_file";
+pub const COMMAND_LISTS: &str = "command_lists";
 pub const SMALL_RESULT: &str = "small_result";
 pub const ALREADY_REDUCED: &str = "already_reduced";
 pub const INJECTED_CONTENT: &str = "injected_content";
