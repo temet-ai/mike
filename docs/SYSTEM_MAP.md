@@ -132,7 +132,7 @@ replayed first so the prompt cache prefix stays stable (`injected_replay/`).
 | 12 | Repeated notices | `repeated_notices` (off) | Sends each Claude Code boilerplate notice once per session | [`FEATURES.md`](FEATURES.md) |
 | 13 | Read dedup | setting `compression_dedup.enabled` (off) | Replaces duplicate Read results | user guide [compression](user-guide/compression.md) |
 | 14 | File-read compression | `file_read_compression` (off); mode `shadow` / `forward`, `forward_share` | Head and tail of older large reads, pointer to the captured original | user guide [compression](user-guide/compression.md) |
-| 15 | Shell-output compression | `shell_output_compression` (off) | Older Bash output to head, tail and signal lines | user guide [compression](user-guide/compression.md) |
+| 15 | Shell-output compression | `shell_output_compression` (off) | Bash output cut to head, tail and signal lines on the request that first carries it | user guide [compression](user-guide/compression.md) |
 | 16 | Proxy-declared tools | `proxy_tools` (off) | Adds mike's own tools (`mike_session_roster`) to `tools[]` and answers them in-process | [`ARCHITECTURE.md` §4.5](ARCHITECTURE.md#45-weasel-intercept) |
 | 17 | Context-focus question | `context_focus_question` (off) | Asks for one line per tool call; stripped from the response | [`FEATURES.md`](FEATURES.md) |
 

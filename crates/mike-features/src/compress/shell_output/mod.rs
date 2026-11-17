@@ -8,11 +8,12 @@ mod tests;
 #[cfg(test)]
 pub mod tests_detect;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use bytes::Bytes;
 use serde_json::Value;
 
+use crate::compress::file_reads::detect::extract_content;
 use crate::compress::file_reads::splice::{
     PendingSplice, build_candidate, enforce_read_tool_result_boundary, resolve_overlaps,
 };
@@ -43,16 +44,40 @@ fn bash_tool_use_ids(messages: &[Value]) -> HashSet<&str> {
         .collect()
 }
 
-fn assistant_turns_after(messages: &[Value]) -> Vec<usize> {
-    let mut after = vec![0; messages.len()];
-    let mut seen = 0;
-    for (index, message) in messages.iter().enumerate().rev() {
-        after[index] = seen;
-        if message.get("role").and_then(Value::as_str) == Some("assistant") {
-            seen += 1;
+fn bash_results<'a>(
+    messages: &'a [Value],
+    bash_ids: &HashSet<&str>,
+) -> impl Iterator<Item = (usize, usize, &'a Value)> {
+    messages
+        .iter()
+        .enumerate()
+        .filter_map(|(m, message)| Some((m, message.get("content")?.as_array()?)))
+        .flat_map(|(m, blocks)| {
+            blocks
+                .iter()
+                .enumerate()
+                .map(move |(b, block)| (m, b, block))
+        })
+        .filter(|(_, _, block)| block.get("type").and_then(Value::as_str) == Some("tool_result"))
+        .filter(|(_, _, block)| {
+            block
+                .get("tool_use_id")
+                .and_then(Value::as_str)
+                .is_some_and(|id| bash_ids.contains(id))
+        })
+}
+
+fn repeated_contents<'a>(
+    messages: &'a [Value],
+    bash_ids: &HashSet<&str>,
+) -> HashMap<&'a str, usize> {
+    let mut repeats = HashMap::new();
+    for (_, _, block) in bash_results(messages, bash_ids) {
+        if let Some((content, _)) = extract_content(block, "") {
+            *repeats.entry(content).or_default() += 1;
         }
     }
-    after
+    repeats
 }
 
 fn detect_targets(
@@ -61,15 +86,16 @@ fn detect_targets(
 ) -> (Vec<TargetEntry>, Vec<PendingSplice>) {
     let mut targets = Vec::new();
     let mut pending = Vec::new();
-    for (msg_idx, message) in messages.iter().enumerate() {
-        let Some(blocks) = message.get("content").and_then(Value::as_array) else {
-            continue;
-        };
-        for (block_idx, block) in blocks.iter().enumerate() {
-            if block.get("type").and_then(Value::as_str) == Some("tool_result") {
-                inspect_tool_result(block, (msg_idx, block_idx), ctx, &mut targets, &mut pending);
-            }
-        }
+    let mut seen = HashMap::new();
+    for (msg_idx, block_idx, block) in bash_results(messages, ctx.bash_ids) {
+        inspect_tool_result(
+            block,
+            (msg_idx, block_idx),
+            ctx,
+            &mut seen,
+            &mut targets,
+            &mut pending,
+        );
     }
     (targets, pending)
 }
@@ -89,7 +115,7 @@ fn summarize(targets: &[TargetEntry]) -> (StageOutcome, &'static str) {
 }
 
 fn stage_entry(
-    policy: &ShellOutputPolicy<'_>,
+    policy: &ShellOutputPolicy,
     (input_sha256, output_sha256): (String, String),
     outcome: StageOutcome,
     reason_code: &str,
@@ -110,11 +136,7 @@ fn stage_entry(
     }
 }
 
-fn unchanged(
-    raw: &[u8],
-    policy: &ShellOutputPolicy<'_>,
-    reason_code: &str,
-) -> ShellOutputReduction {
+fn unchanged(raw: &[u8], policy: &ShellOutputPolicy, reason_code: &str) -> ShellOutputReduction {
     let sha = sha256_hex(raw);
     let outcome = if reason_code == reason::STAGE_MALFORMED_BODY {
         StageOutcome::Skipped
@@ -127,7 +149,7 @@ fn unchanged(
     }
 }
 
-pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy<'_>) -> ShellOutputReduction {
+pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy) -> ShellOutputReduction {
     let Ok(body) = serde_json::from_slice::<Value>(raw) else {
         return unchanged(raw, policy, reason::STAGE_MALFORMED_BODY);
     };
@@ -138,13 +160,12 @@ pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy<'_>) -> ShellO
     if bash_ids.is_empty() {
         return unchanged(raw, policy, reason::STAGE_NO_CANDIDATES);
     }
-    let assistant_after = assistant_turns_after(messages);
+    let repeats = repeated_contents(messages, &bash_ids);
     let ctx = ShellContext {
         raw,
         bash_ids: &bash_ids,
         policy,
-        newest_message: messages.len().saturating_sub(1),
-        assistant_after: &assistant_after,
+        repeats: &repeats,
     };
     let (mut targets, mut pending) = detect_targets(messages, &ctx);
     resolve_overlaps(&mut targets, &mut pending);

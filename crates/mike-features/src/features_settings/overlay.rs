@@ -1,8 +1,8 @@
 use serde_json::Value;
 
 use super::meta_shell_output::{
-    DEFAULT_GRACE_TURNS, DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES,
-    DEFAULT_SIGNAL_CONTEXT_LINES, DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES,
+    DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES, DEFAULT_SIGNAL_CONTEXT_LINES,
+    DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES,
 };
 use super::sections::weasel_intercept::DEFAULT_CORRECTION_PROMPT;
 use crate::settings::overlay_apply::{
@@ -98,7 +98,6 @@ pub struct ShellOutputCompressionOverlay {
     pub tail_lines: usize,
     pub signal_context_lines: usize,
     pub signal_line_cap: usize,
-    pub grace_turns: usize,
     pub mode: String,
     pub forward_share: usize,
 }
@@ -111,7 +110,6 @@ impl Default for ShellOutputCompressionOverlay {
             tail_lines: DEFAULT_TAIL_LINES,
             signal_context_lines: DEFAULT_SIGNAL_CONTEXT_LINES,
             signal_line_cap: DEFAULT_SIGNAL_LINE_CAP,
-            grace_turns: DEFAULT_GRACE_TURNS,
             mode: "shadow".to_owned(),
             forward_share: 0,
         }
@@ -208,7 +206,6 @@ fn apply_shell_output_row(
         "tail_lines" => set_usize(&mut o.tail_lines, key, value),
         "signal_context_lines" => set_usize(&mut o.signal_context_lines, key, value),
         "signal_line_cap" => set_usize(&mut o.signal_line_cap, key, value),
-        "grace_turns" => set_usize(&mut o.grace_turns, key, value),
         "forward_share" => set_usize(&mut o.forward_share, key, value),
         "mode" => set_string(&mut o.mode, key, value),
         _ => handled = false,

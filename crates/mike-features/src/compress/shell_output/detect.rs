@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
@@ -16,15 +16,15 @@ const INJECTED_CONTENT_MARKERS: [&str; 2] = ["<system-reminder", "[[mike:"];
 pub struct ShellContext<'a> {
     pub raw: &'a [u8],
     pub bash_ids: &'a HashSet<&'a str>,
-    pub policy: &'a ShellOutputPolicy<'a>,
-    pub newest_message: usize,
-    pub assistant_after: &'a [usize],
+    pub policy: &'a ShellOutputPolicy,
+    pub repeats: &'a HashMap<&'a str, usize>,
 }
 
 struct Candidate<'a> {
     json_path: String,
     tool_use_id: &'a str,
     content: &'a str,
+    ordinal: usize,
 }
 
 fn skipped(candidate: &Candidate<'_>, reason_code: &str, detail: String) -> TargetEntry {
@@ -91,40 +91,40 @@ fn content_exemption(
     None
 }
 
-fn history_exemption(msg_idx: usize, ctx: &ShellContext<'_>) -> Option<(&'static str, String)> {
-    if msg_idx >= ctx.newest_message {
-        return Some((
-            reason::FRESHEST_RESULT,
-            "the result is in the newest message; the model has not seen it yet".to_string(),
-        ));
+fn locate(
+    raw: &[u8],
+    needle: &[u8],
+    candidate: &Candidate<'_>,
+    ctx: &ShellContext<'_>,
+) -> Result<usize, (&'static str, String)> {
+    let mut starts = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = find_subsequence(&raw[from..], needle) {
+        starts.push(from + offset);
+        from += offset + needle.len();
     }
-    let turns = ctx.assistant_after.get(msg_idx).copied().unwrap_or(0);
-    let grace = ctx.policy.limits.grace_turns;
-    if turns < grace {
-        return Some((
-            reason::GRACE_WINDOW,
-            format!(
-                "the model has answered {turns} time(s) since this output; it stays whole for {grace} answers"
-            ),
-        ));
-    }
-    None
-}
-
-fn locate(raw: &[u8], needle: &[u8]) -> Result<usize, (&'static str, String)> {
-    let Some(first) = find_subsequence(raw, needle) else {
+    if starts.is_empty() {
         return Err((
             reason::RANGE_NOT_FOUND,
             "the output's JSON-encoded bytes were not found verbatim in the body".to_string(),
         ));
-    };
-    if find_subsequence(&raw[first + needle.len()..], needle).is_some() {
+    }
+    let carriers = ctx.repeats.get(candidate.content).copied().unwrap_or(1);
+    if starts.len() != carriers {
         return Err((
             reason::RANGE_AMBIGUOUS,
-            "the output's JSON-encoded bytes appear more than once in the body".to_string(),
+            format!(
+                "the output's JSON-encoded bytes appear {} times in the body but {carriers} Bash result(s) carry them",
+                starts.len()
+            ),
         ));
     }
-    Ok(first)
+    starts.get(candidate.ordinal).copied().ok_or_else(|| {
+        (
+            reason::RANGE_AMBIGUOUS,
+            "the output's place among identical Bash results was not found".to_string(),
+        )
+    })
 }
 
 fn reduced_text(
@@ -181,7 +181,7 @@ fn attempt(
     };
     let original_encoded = serde_json::to_vec(candidate.content).map_err(encode_failed)?;
     let new_bytes = serde_json::to_vec(&text).map_err(encode_failed)?;
-    let start = locate(ctx.raw, &original_encoded)?;
+    let start = locate(ctx.raw, &original_encoded, candidate, ctx)?;
     let input_range = ByteRange {
         start,
         end: start + original_encoded.len(),
@@ -213,28 +213,11 @@ fn attempt(
     Ok((target, splice))
 }
 
-fn exemption(
-    block: &Value,
-    msg_idx: usize,
-    candidate: &Candidate<'_>,
-    ctx: &ShellContext<'_>,
-) -> Option<(&'static str, String)> {
-    content_exemption(block, candidate.content, ctx)
-        .or_else(|| history_exemption(msg_idx, ctx))
-        .or_else(|| {
-            ctx.policy.holds_for_warm_cache(candidate.tool_use_id).then(|| {
-                (
-                    reason::CACHE_WARM,
-                    "the conversation's prompt cache is warm and this output was not shortened before; shortening it now would re-bill every later block as a cache write".to_string(),
-                )
-            })
-        })
-}
-
-pub fn inspect_tool_result(
-    block: &Value,
+pub fn inspect_tool_result<'a>(
+    block: &'a Value,
     (msg_idx, block_idx): (usize, usize),
     ctx: &ShellContext<'_>,
+    seen: &mut HashMap<&'a str, usize>,
     targets: &mut Vec<TargetEntry>,
     pending: &mut Vec<PendingSplice>,
 ) {
@@ -248,12 +231,15 @@ pub fn inspect_tool_result(
     let Some((content, json_path)) = extract_content(block, &base_path) else {
         return;
     };
+    let ordinal = seen.entry(content).or_default();
     let candidate = Candidate {
         json_path,
         tool_use_id,
         content,
+        ordinal: *ordinal,
     };
-    if let Some((code, detail)) = exemption(block, msg_idx, &candidate, ctx) {
+    *ordinal += 1;
+    if let Some((code, detail)) = content_exemption(block, content, ctx) {
         targets.push(skipped(&candidate, code, detail));
         return;
     }

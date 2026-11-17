@@ -1,8 +1,7 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::compress::cache_gate::CacheGate;
 use crate::compress::shell_output::{
     self, ShellOutputLimits, ShellOutputPolicy, ShellOutputReduction,
 };
@@ -27,7 +26,6 @@ pub fn session_limits(toggles: &ResolvedToggles) -> ShellOutputLimits {
         tail_lines: settings.tail_lines,
         signal_context_lines: settings.signal_context_lines,
         signal_line_cap: settings.signal_line_cap,
-        grace_turns: settings.grace_turns,
         ..ShellOutputLimits::default()
     }
 }
@@ -86,19 +84,6 @@ fn record(reduction: ShellOutputReduction, arm: &str, original_bytes: usize) -> 
         targets,
         would_reduce,
     }
-}
-
-fn applied_ids(targets: &[TargetEntry]) -> HashSet<String> {
-    targets
-        .iter()
-        .filter(|t| t.outcome == StageOutcome::Applied)
-        .filter_map(|t| t.tool_use_id.clone())
-        .collect()
-}
-
-fn open_gate(raw: &[u8]) -> CacheGate {
-    let parsed = serde_json::from_slice(raw).unwrap_or(Value::Null);
-    CacheGate::open(REDUCER, raw, &parsed)
 }
 
 fn forward(body: &mut StageBody, reduction: ShellOutputReduction, original_bytes: usize) {
@@ -164,14 +149,8 @@ impl RequestStage for ShellOutputCompressionStage {
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
         let toggles = ctx.session_toggles;
         let arm = session_arm(toggles, ctx.session_id);
-        let gate = (arm == ARM_FORWARD).then(|| open_gate(body.body()));
-        let policy = ShellOutputPolicy::new(session_limits(toggles))
-            .with_capture(body.original())
-            .with_warm_cuts(gate.as_ref().and_then(CacheGate::warm_cuts));
+        let policy = ShellOutputPolicy::new(session_limits(toggles)).with_capture(body.original());
         let reduction = shell_output::reduce_shell_output(body.body().as_ref(), &policy);
-        if let Some(gate) = gate {
-            gate.close(applied_ids(&reduction.stage.targets));
-        }
         let original_bytes = body.body().len();
         if reduction.stage.outcome == StageOutcome::Applied && arm == ARM_FORWARD {
             forward(body, reduction, original_bytes);

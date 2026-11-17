@@ -79,7 +79,7 @@ async fn shadow_arm_records_the_cut_and_forwards_the_body_unchanged() -> anyhow:
 }
 
 #[tokio::test]
-async fn forward_arm_on_a_cold_cache_sends_the_shortened_body() -> anyhow::Result<()> {
+async fn forward_arm_sends_the_newest_output_shortened() -> anyhow::Result<()> {
     let state =
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-forward")).clone();
@@ -88,8 +88,7 @@ async fn forward_arm_on_a_cold_cache_sends_the_shortened_body() -> anyhow::Resul
         .update::<crate::features_settings::ShellOutputCompressionOverlay>(|o| {
             o.mode = "forward".to_owned();
         });
-    let raw = bash_then_answers(3)?;
-    crate::compress::cache_gate::seed_cold_lane(REDUCER, &raw);
+    let raw = bash_then_answers(0)?;
     let body = run(&toggles, &state, &raw).await;
     assert!(body.body().len() < raw.len());
     let forwarded = String::from_utf8(body.body().to_vec())?;

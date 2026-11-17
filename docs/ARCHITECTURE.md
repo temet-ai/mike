@@ -123,7 +123,7 @@ run_mutation_stages — phase 3, pipeline::stages_after_steerer()
 14. repeated_notices        (keep the first copy of each notice Claude Code adds to a delivered message, drop later copies)
 15. read_dedup              (collapse repeated file-read results)
 16. file_read_compression   (SHADOW MODE — computes a reduction, forwards the body unchanged)
-17. shell_output_compression (SHADOW MODE at a forward share of 0 — records each would-be cut of an older Bash result)
+17. shell_output_compression (SHADOW MODE at a forward share of 0 — records each would-be cut of a Bash result, made on the request that first carries it)
 18. proxy_tools             (declare the proxy's own tools into body.tools[])
 19. context_focus_question  (add a focus field to the session's tool definitions)
 
