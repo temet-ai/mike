@@ -390,7 +390,9 @@ impl Bench {
         let project = seed_project(pool, "/wright/repair").await?;
         let session = Uuid::new_v4();
         sqlx::query(
-            "WITH s AS (INSERT INTO sessions.sessions (session_uuid, project_id) VALUES ($1, $2) RETURNING id)
+            "WITH s AS (INSERT INTO sessions.sessions (session_uuid, project_id) VALUES ($1, $2) RETURNING id),
+                  g AS (INSERT INTO sessions.session_goals (session_id, goal, role)
+                        SELECT id, 'wright', 'wright' FROM s)
              INSERT INTO workspace.session_registrations (session_id, project_id, cwd, lease_expires_at)
              SELECT id, $2, '/wright/repair', now() + interval '10 minutes' FROM s",
         )
