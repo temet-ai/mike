@@ -14,7 +14,15 @@ use crate::web_base::{persist_error_response, persist_unavailable_response};
 const DEFAULT_LIMIT: i64 = 50;
 const MAX_LIMIT: i64 = 200;
 
-pub(crate) const STATES: [&str; 6] = ["open", "filed", "handed_off", "fixed", "dropped", "stuck"];
+pub(crate) const STATES: [&str; 7] = [
+    "open",
+    "filed",
+    "handed_off",
+    "batched",
+    "fixed",
+    "dropped",
+    "stuck",
+];
 pub(crate) const DAILY_FILED: (i32, i32) = (0, 20);
 pub(crate) const DAILY_HANDOFFS: (i32, i32) = (0, 10);
 pub(crate) const MAX_ATTEMPTS: (i32, i32) = (1, 5);
@@ -112,6 +120,16 @@ pub(crate) struct FollowupLimitsBody {
     pub(crate) recurrence_actions: Option<i32>,
     pub(crate) recurrence_days: Option<i32>,
     pub(crate) fixers: Option<Vec<Fixer>>,
+    pub(crate) fix_host: Option<String>,
+}
+
+fn check_fix_host(host: Option<&str>) -> Result<(), String> {
+    match host {
+        Some(host) if host.trim().is_empty() || host.trim() != host => Err(format!(
+            "fix_host is {host:?}; it must be a machine name with no surrounding spaces, such as omit"
+        )),
+        _ => Ok(()),
+    }
 }
 
 fn within(field: &str, value: Option<i32>, (low, high): (i32, i32)) -> Result<Option<i32>, String> {
@@ -157,6 +175,7 @@ pub(crate) fn validate_followup_limits(
 ) -> Result<FollowupLimitsPatch, String> {
     check_repo(body.repo.as_deref())?;
     check_fixers(body.fixers.as_deref())?;
+    check_fix_host(body.fix_host.as_deref())?;
     let patch = FollowupLimitsPatch {
         repo: body.repo,
         daily_filed: within("daily_filed", body.daily_filed, DAILY_FILED)?,
@@ -169,10 +188,11 @@ pub(crate) fn validate_followup_limits(
         )?,
         recurrence_days: within("recurrence_days", body.recurrence_days, RECURRENCE_DAYS)?,
         fixers: body.fixers,
+        fix_host: body.fix_host,
     };
     if patch == FollowupLimitsPatch::default() {
         return Err(
-            "the body names no limit; send one or more of repo, daily_filed, daily_handoffs, max_attempts, recurrence_actions, recurrence_days, fixers"
+            "the body names no limit; send one or more of repo, daily_filed, daily_handoffs, max_attempts, recurrence_actions, recurrence_days, fixers, fix_host"
                 .to_owned(),
         );
     }

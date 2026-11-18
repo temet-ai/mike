@@ -3,10 +3,11 @@ use crate::store::persistence::web_repo::WebPersist as _;
 use serde::Deserialize;
 
 use super::FollowupError;
-use super::context::FollowupContext;
+use super::context::{FollowupContext, Place};
 use super::runner::{Cmd, CommandRunner, Program, checked};
 use super::sessions::FixerSessions;
-use crate::store::persistence::wright::{FollowupLimits, FollowupRow};
+use crate::store::persistence::wright::{FixBatchRow, FollowupLimits, FollowupRow};
+use crate::wright::repair::batch_git::{LOG_FORMAT, parse_log, trailer_id};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Verdict {
@@ -20,6 +21,7 @@ pub(crate) enum Followed {
     Fixed(String),
     Dropped(String),
     Working,
+    Batched(String),
     Returned { state: String, why: String },
 }
 
@@ -194,9 +196,69 @@ where
     let Some(why) = ctx.sessions.ended(session, since).await? else {
         return Ok(Followed::Working);
     };
+    if let Some(sha) = batch_fixer_commit(ctx, limits, row).await? {
+        return Ok(Followed::Batched(sha));
+    }
     let state = web
         .return_wright_followup(row.id, limits.max_attempts)
         .await?
         .ok_or_else(|| missing("hand-off to return"))?;
     Ok(Followed::Returned { state, why })
+}
+
+pub(crate) fn find_trailer_commit(stdout: &str, followup: i64) -> Option<String> {
+    parse_log(stdout)
+        .into_iter()
+        .find(|commit| trailer_id(&commit.body, "Wright-Followup") == Some(followup))
+        .map(|commit| commit.sha)
+}
+
+async fn batch_log<R, S>(
+    ctx: &FollowupContext<R, S>,
+    limits: &FollowupLimits,
+    row: &FollowupRow,
+    batch: &FixBatchRow,
+) -> Result<String, FollowupError>
+where
+    R: CommandRunner,
+{
+    let machine = row.fixer_machine.as_deref().unwrap_or_default();
+    let target = ctx
+        .here
+        .targets(&limits.fixers)
+        .into_iter()
+        .find(|target| target.machine.eq_ignore_ascii_case(machine))
+        .ok_or_else(|| {
+            FollowupError::Output(format!(
+                "fixer machine {machine} cannot be reached from here to read its commits"
+            ))
+        })?;
+    let args = ["-C", &batch.worktree, "log", LOG_FORMAT, &batch.branch];
+    let cmd = match &target.place {
+        Place::Local => Cmd::new(Program::Git, &args),
+        Place::Remote(host) => Cmd::remote(host, Program::Git, &args),
+    };
+    Ok(checked(&ctx.runner, &cmd).await?)
+}
+
+async fn batch_fixer_commit<R, S>(
+    ctx: &FollowupContext<R, S>,
+    limits: &FollowupLimits,
+    row: &FollowupRow,
+) -> Result<Option<String>, FollowupError>
+where
+    R: CommandRunner,
+{
+    let web = ctx.persist.web();
+    let Some(batch) = web.open_wright_fix_batch(None).await? else {
+        return Ok(None);
+    };
+    let stdout = batch_log(ctx, limits, row, &batch).await?;
+    let Some(sha) = find_trailer_commit(&stdout, row.id) else {
+        return Ok(None);
+    };
+    let marked = web
+        .mark_wright_followup_batched(row.id, batch.id, &sha)
+        .await?;
+    Ok(marked.then_some(sha))
 }

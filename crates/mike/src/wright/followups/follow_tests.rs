@@ -1,7 +1,7 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
-use super::fakes_tests::{Env, FakeRunner, FakeSessions, ok};
+use super::fakes_tests::{Env, FakeRunner, FakeSessions, ok, remote_fixer};
 use super::follow::{Followed, follow};
 use super::runner::Program;
 use crate::store::persistence::wright::FollowupLimitsPatch;
@@ -164,5 +164,93 @@ async fn follow_ended_fixer_returns_followup_then_stuck_after_max_attempts() -> 
     assert_eq!(state, "stuck");
     assert_eq!(why, "its launch closed");
     assert_eq!(env.state_of(id).await?, ("stuck".to_owned(), 2, Some(63)));
+    env.db.cleanup().await
+}
+
+fn log_with(followup: i64, sha: &str) -> String {
+    format!(
+        "\u{1e}{sha}\u{1f}Fix the ledger\n\nFixes #70\nWright-Followup: {followup}\n\u{1e}{other}\u{1f}Wright repair 1\n\nWright-Repair: 1",
+        other = "b".repeat(40)
+    )
+}
+
+fn remote_limits() -> FollowupLimitsPatch {
+    FollowupLimitsPatch {
+        fixers: Some(vec![remote_fixer()]),
+        ..FollowupLimitsPatch::default()
+    }
+}
+
+#[tokio::test]
+async fn follow_ended_fixer_with_a_trailer_commit_marks_it_batched_and_does_not_return_it()
+-> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let limits = env.limits(remote_limits()).await?;
+    let batch = env.open_batch().await?;
+    let id = env.handed("launch", 70).await?;
+    let sha = "a".repeat(40);
+    let runner = FakeRunner::new()
+        .on(Program::Gh, "issue view 70", ok(OPEN))
+        .on(Program::Ssh, "'log'", ok(&log_with(id, &sha)));
+    let ended = Some("its launch closed".to_owned());
+    let ctx = env.ctx(runner, FakeSessions { ended });
+
+    let report = follow(&ctx, &limits).await?;
+    assert_eq!(report.followed, vec![(id, Followed::Batched(sha.clone()))]);
+    assert_eq!(
+        env.state_of(id).await?,
+        ("batched".to_owned(), 0, Some(70)),
+        "no failed attempt is counted"
+    );
+    let row: (Option<i64>, Option<String>) =
+        sqlx::query_as("SELECT batch_id, batch_commit_sha FROM wright.followups WHERE id = $1")
+            .bind(id)
+            .fetch_one(env.persist.pool())
+            .await?;
+    assert_eq!(row, (Some(batch.id), Some(sha)));
+    let logs = ctx.runner.called(Program::Ssh, "'log'");
+    assert!(
+        logs[0].line().contains(&batch.worktree),
+        "{:?}",
+        logs[0].line()
+    );
+    assert!(logs[0].line().contains(&batch.branch));
+
+    let again = follow(&ctx, &limits).await?;
+    assert_eq!(again.followed, vec![(id, Followed::Working)]);
+    assert_eq!(ctx.runner.called(Program::Ssh, "'log'").len(), 1);
+
+    let closed = FakeRunner::new().on(Program::Gh, "issue view 70", ok(&closed_by_pr()));
+    let ctx = env.ctx(closed, FakeSessions { ended: None });
+    follow(&ctx, &limits).await?;
+    assert_eq!(
+        env.state_of(id).await?.0,
+        "fixed",
+        "the merge closes the issue"
+    );
+    env.db.cleanup().await
+}
+
+#[tokio::test]
+async fn follow_ended_fixer_without_a_trailer_commit_is_returned() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let limits = env.limits(remote_limits()).await?;
+    env.open_batch().await?;
+    let id = env.handed("launch", 71).await?;
+    let runner = FakeRunner::new()
+        .on(Program::Gh, "issue view 71", ok(OPEN))
+        .on(
+            Program::Ssh,
+            "'log'",
+            ok(&log_with(id + 1000, &"c".repeat(40))),
+        );
+    let ended = Some("its launch closed".to_owned());
+    let ctx = env.ctx(runner, FakeSessions { ended });
+    let report = follow(&ctx, &limits).await?;
+    assert!(matches!(
+        report.followed.as_slice(),
+        [(_, Followed::Returned { .. })]
+    ));
+    assert_eq!(env.state_of(id).await?.0, "filed");
     env.db.cleanup().await
 }

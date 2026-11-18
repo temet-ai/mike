@@ -127,8 +127,9 @@ own verdict. Once a background gate has exited, read that verdict with
 
 **Which machine builds.** Build, test and push on the machine that holds your
 checkout: omit, the Mac or infra. On infra (aarch64) the pre-push hook builds and
-tests on two processors and starts the test database for the push, so Wright's repair
-there lands its own fixes; infra runs the aarch64 binary omit builds. Heavy builds on a machine queue one at a
+tests on two processors and starts the test database for the push; infra runs the aarch64
+binary omit builds. Wright commits every fix, from repair runs and issue fixers, on omit
+(the fix host, `wright.followup_limits.fix_host`): infra investigates but does not repair. Heavy builds on a machine queue one at a
 time on the build lock that scripts/cx and deploy-proxy.sh take; never wrap a command
 in any other flock or shared lock. Deploy omit, the Mac and infra once a batch of PRs
 has merged, not after each PR.

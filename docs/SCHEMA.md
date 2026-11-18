@@ -6655,6 +6655,37 @@ serves the list; `idx_wright_followups_check` serves the per-check read.
 `wright.investigations.followup_id` (`BIGINT NULL REFERENCES wright.followups(id) ON DELETE SET
 NULL`) names the follow-up an engineer run was started for.
 
+Migration `20261118100000_wright_fix_batches.sql` adds the state `batched` (the fixer committed on the
+day's branch; `batch_id` and `batch_commit_sha` are then required by CHECK `followups_batched_has_commit`)
+and widens `uq_wright_followups_one_live` and `followups_issued_has_number` to include it, and adds
+`wright.followup_limits.fix_host` (`TEXT NOT NULL DEFAULT 'omit'`, non-blank), the machine that commits
+every Wright fix.
+
+### `wright.fix_batches`
+
+One row per UTC day of Wright fixes (migration `20261118100000_wright_fix_batches.sql`). Repair runs and
+issue fixers commit to `branch` (`wright/fixes-YYYY-MM-DD`) in `worktree` on the fix host
+(`machine_uuid`); after the day ends the branch is rebased, gated once by the push hook, opened as one
+pull request and squash-merged. Read at `GET /api/wright/fix-batches`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | |
+| `day` | `DATE NOT NULL UNIQUE` | The UTC day the batch collects |
+| `branch` / `branches` / `worktree` | `TEXT NOT NULL` / `TEXT[] NOT NULL` / `TEXT NOT NULL` | `branch` is the branch the current gate pushes; `branches` lists every one used (a rebase after main moved starts `-<n>`, so no push is forced) |
+| `machine_uuid` / `base_sha` | `UUID NULL` / `TEXT NULL` | The fix host and the main commit the current gate is based on |
+| `state` | `TEXT NOT NULL DEFAULT 'open'` | `open`, `closed`, `gating`, `refused` (held for the operator), `landed`, `failed` (CHECK) |
+| `rounds` | `INTEGER NOT NULL DEFAULT 0` | Engineer rounds spent on a refused gate |
+| `gate_exit` / `gate_output` / `gate_output_bytes` | `INTEGER NULL` / `TEXT NULL` / `INTEGER NULL` | The last gate; an output over 512 KB is not kept |
+| `pr_url` / `merge_sha` / `reason` | `TEXT NULL` | `reason` is required for `refused` and `failed`, `merge_sha` and `landed_at` for `landed` (CHECKs) |
+| `created_at` / `closed_at` / `landed_at` / `updated_at` | `TIMESTAMPTZ` | `closed_at` is set in every state but `open` (CHECK) |
+
+`wright.repairs.batch_id` (`BIGINT NULL REFERENCES wright.fix_batches(id)`) names a repair's batch.
+The repair states `batched` and `dropped` were added; `wright_repairs_one_live_per_problem` is now
+unique per problem over `editing`, `prepared`, `batched`, `landed` and `deployed`, and
+`repairs_ended_has_reason` also requires a reason for `dropped`. `wright.cause_queue` counts a
+`batched` follow-up as known.
+
 ### `wright.followup_findings`
 
 The engineer findings that evidence a follow-up: `(followup_id, finding_id)` primary key, both

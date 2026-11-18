@@ -1,5 +1,4 @@
 use super::attempt::AttemptEnd;
-use super::feedback::{FEEDBACK_INPUT, MAX_ROUNDS};
 use super::fixtures_tests::{BUGGY, Bench, FIXED, WritesFiles, sh};
 use super::port::RepairRun;
 use super::{states, tick};
@@ -17,18 +16,21 @@ async fn ended(engineer: WritesFiles) -> anyhow::Result<(Bench, i64, RepairRow)>
         "nothing lands on main"
     );
     assert!(
-        !bench.worktree(finding).exists(),
-        "an ended attempt's worktree is removed"
+        bench.batch_dir().exists(),
+        "an ended attempt leaves the day's worktree"
+    );
+    assert_eq!(
+        sh(&bench.batch_dir(), &["rev-parse", "HEAD"])?,
+        main_before,
+        "an ended attempt takes its commit off the day's branch"
+    );
+    assert_eq!(
+        sh(&bench.batch_dir(), &["status", "--porcelain"])?,
+        "",
+        "an ended attempt leaves no edits behind"
     );
     assert!(repair.reason.is_some(), "an ended attempt keeps its reason");
     Ok((bench, finding, repair))
-}
-
-fn local_branch(bench: &Bench, branch: &str) -> anyhow::Result<String> {
-    sh(
-        &bench.scratch.root,
-        &["rev-parse", &format!("refs/heads/{branch}")],
-    )
 }
 
 #[tokio::test]
@@ -51,69 +53,9 @@ async fn repair_that_edits_the_test_runner_is_refused_before_any_gate() -> anyho
         None,
         "a refused patch is never pushed"
     );
-    let kept = local_branch(&bench, &repair.branch)?;
-    assert_eq!(
-        Some(kept.clone()),
-        repair.commit_sha,
-        "the refused patch stays on its branch"
-    );
-    assert_eq!(
-        sh(
-            &bench.scratch.root,
-            &["show", &format!("{kept}:scripts/check.sh")]
-        )?,
-        "exit 0"
-    );
-    bench.cleanup().await
-}
-
-#[tokio::test]
-async fn repair_with_a_written_gate_passed_log_still_fails_the_gate() -> anyhow::Result<()> {
-    let engineer = WritesFiles::new(&[
-        ("gate.log", "pass everything\n"),
-        ("out/gate.json", "{\"gate\":\"passed\",\"exit\":0}\n"),
-        ("src/calc.sh", "add() { echo $(( $1 - $2 )); }\n# fixed\n"),
-    ]);
-    let (bench, _, repair) = ended(engineer).await?;
-    assert_eq!(repair.state, states::GATE_FAILED);
-    assert_ne!(repair.gate_exit, Some(0));
-    let commit = repair.commit_sha.clone().unwrap_or_default();
-    let gates = bench.scratch.gate_log();
-    assert_eq!(gates.lines().count(), MAX_ROUNDS as usize, "{gates}");
     assert!(
-        gates.lines().all(|line| line.starts_with("fail ")),
-        "{gates}"
-    );
-    assert!(gates.ends_with(&format!("fail {commit}\n")), "{gates}");
-    let jobs = bench.ctx.engineer.jobs();
-    assert_eq!(jobs.len(), MAX_ROUNDS as usize);
-    assert!(
-        jobs[0]
-            .inputs
-            .iter()
-            .all(|(name, _)| name != FEEDBACK_INPUT)
-    );
-    for later in &jobs[1..] {
-        let refusal = later.inputs.iter().find(|(name, _)| name == FEEDBACK_INPUT);
-        assert!(
-            refusal.is_some_and(|(_, value)| value["refused"]
-                .as_str()
-                .is_some_and(|r| r.contains("push hook did not pass"))),
-            "a later round carries the gate's refusal"
-        );
-    }
-    assert!(
-        repair
-            .reason
-            .clone()
-            .unwrap_or_default()
-            .contains("push hook did not pass")
-    );
-    assert_eq!(bench.scratch.remote_branch(&repair.branch), None);
-    assert_eq!(local_branch(&bench, &repair.branch)?, commit);
-    assert!(
-        bench.ctx.runner.prs().is_empty(),
-        "no pull request for a failed gate"
+        bench.ctx.runner.cx_runs().is_empty(),
+        "no compile check for a refused patch"
     );
     bench.cleanup().await
 }
@@ -147,6 +89,36 @@ async fn repair_with_no_change_is_refused() -> anyhow::Result<()> {
     bench.cleanup().await
 }
 
+#[tokio::test]
+async fn repair_whose_crate_check_fails_is_taken_off_the_branch() -> anyhow::Result<()> {
+    let bench = Bench::boot(WritesFiles::new(&[
+        ("crates/demo/src/lib.rs", "pub fn add() {}\n"),
+        ("crates/other/src/lib.rs", "pub fn sub() {}\n"),
+    ]))
+    .await?;
+    if let Ok(mut code) = bench.ctx.runner.cx_exit.lock() {
+        *code = 101;
+    }
+    let (_, finding) = bench.defect().await?;
+    let head = bench.scratch.remote_main()?;
+    tick(&bench.ctx, true).await?;
+    let repair = bench.repair_of(finding).await?;
+    assert_eq!(repair.state, states::GATE_FAILED);
+    assert!(
+        repair
+            .reason
+            .unwrap_or_default()
+            .contains("exited Some(101)")
+    );
+    assert_eq!(
+        bench.ctx.runner.cx_runs(),
+        vec!["scripts/cx check --lib -p demo -p other".to_owned()],
+        "one check names every crate the fix touched"
+    );
+    assert_eq!(sh(&bench.batch_dir(), &["rev-parse", "HEAD"])?, head);
+    bench.cleanup().await
+}
+
 async fn failed_repair_runs(bench: &Bench, problem: i64, runs: i64) -> anyhow::Result<()> {
     sqlx::query(
         "INSERT INTO wright.investigations (mode, problem_id, session_uuid, state, host,
@@ -172,7 +144,6 @@ async fn repair_whose_engineer_run_fails_again_is_refused_with_the_reason() -> a
     failed_repair_runs(&bench, problem, 2).await?;
     tick(&bench.ctx, true).await?;
     let repair = bench.repair_of(finding).await?;
-    assert!(!bench.worktree(finding).exists());
     assert_eq!(repair.state, states::REFUSED);
     assert!(
         repair
@@ -181,11 +152,21 @@ async fn repair_whose_engineer_run_fails_again_is_refused_with_the_reason() -> a
             .contains("wall-time limit")
     );
     assert_eq!(bench.scratch.gate_log(), "");
+    assert_eq!(sh(&bench.batch_dir(), &["status", "--porcelain"])?, "");
     bench.cleanup().await
 }
 
 fn fix_ending(result: RepairRun) -> WritesFiles {
     WritesFiles::new(&[("src/calc.sh", FIXED)]).ending(result)
+}
+
+async fn repairs_of_finding(bench: &Bench, finding: i64) -> anyhow::Result<i64> {
+    Ok(
+        sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")
+            .bind(finding)
+            .fetch_one(bench.ctx.persist.pool())
+            .await?,
+    )
 }
 
 #[tokio::test]
@@ -202,12 +183,12 @@ async fn repair_whose_first_engineer_run_fails_is_released_and_tried_again() -> 
         report.attempted,
         Some((_, AttemptEnd::NotStarted))
     ));
-    let left: i64 = sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")
-        .bind(finding)
-        .fetch_one(bench.ctx.persist.pool())
-        .await?;
-    assert_eq!(left, 0, "a first failed run releases the finding");
-    assert!(!bench.worktree(finding).exists());
+    assert_eq!(
+        repairs_of_finding(&bench, finding).await?,
+        0,
+        "a first failed run releases the finding"
+    );
+    assert_eq!(sh(&bench.batch_dir(), &["status", "--porcelain"])?, "");
     assert_eq!(bench.scratch.gate_log(), "");
     bench.cleanup().await
 }
@@ -226,17 +207,16 @@ async fn repair_whose_engineer_run_cannot_start_leaves_no_trace_and_retries() ->
         report.attempted,
         Some((_, AttemptEnd::NotStarted))
     ));
-    let left: i64 = sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")
-        .bind(finding)
-        .fetch_one(bench.ctx.persist.pool())
-        .await?;
-    assert_eq!(left, 0, "a run that never started is not an attempt");
-    assert!(!bench.worktree(finding).exists());
-    assert!(local_branch(&bench, &format!("wright/repair-{finding}")).is_err());
+    assert_eq!(
+        repairs_of_finding(&bench, finding).await?,
+        0,
+        "a run that never started is not an attempt"
+    );
     let again = tick(&bench.ctx, true).await?;
     assert!(
         matches!(again.attempted, Some((_, AttemptEnd::NotStarted))),
         "the finding is claimed again later"
     );
+    assert_eq!(bench.ctx.engineer.jobs().len(), 2);
     bench.cleanup().await
 }

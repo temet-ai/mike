@@ -16,5 +16,5 @@ SELECT EXISTS (
        AND NOT EXISTS (
            SELECT 1 FROM wright.repairs r
             WHERE r.problem_id = f.problem_id
-              AND r.state IN ('editing', 'prepared', 'gating', 'landed', 'deployed'))
+              AND r.state IN ('editing', 'prepared', 'batched', 'landed', 'deployed'))
 )

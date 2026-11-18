@@ -12,6 +12,7 @@ const SSH_OPTIONS: [&str; 4] = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Program {
     Gh,
+    Git,
     Ssh,
     Mike,
 }
@@ -20,6 +21,7 @@ impl Program {
     pub(crate) fn name(self) -> &'static str {
         match self {
             Program::Gh => "gh",
+            Program::Git => "git",
             Program::Ssh => "ssh",
             Program::Mike => "mike",
         }

@@ -9,7 +9,15 @@ use super::runner::{Cmd, CmdOutput, CommandRunner, ProcessRunner, Program};
 
 pub(super) const BUGGY: &str = "add() { echo $(( $1 - $2 )); }\n";
 pub(super) const FIXED: &str = "add() { echo $(( $1 + $2 )); }\n";
-const CHECK: &str = ". ./src/calc.sh\n[ \"$(add 2 3)\" = 5 ]\n";
+const CHECK: &str = ". ./src/calc.sh
+[ \"$(add 2 3)\" = 5 ] || { echo 'FAIL src/calc.sh'; exit 1; }
+for f in src/?.txt; do
+  [ -e \"$f\" ] || continue
+  grep -q BROKEN \"$f\" && { echo \"FAIL $f\"; exit 1; }
+  grep -q SILENT \"$f\" && { echo 'the gate refused the branch'; exit 1; }
+done
+exit 0
+";
 const HOOK: &str = r#"#!/usr/bin/env bash
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -214,6 +222,7 @@ pub(super) struct ScratchGh {
     pub(super) prs: Mutex<Vec<Pr>>,
     pub(super) commands: Mutex<Vec<Cmd>>,
     pub(super) move_main_on_create: Mutex<u32>,
+    pub(super) cx_exit: Mutex<i32>,
 }
 
 fn arg_after<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
@@ -242,7 +251,20 @@ impl ScratchGh {
             prs: Mutex::new(Vec::new()),
             commands: Mutex::new(Vec::new()),
             move_main_on_create: Mutex::new(0),
+            cx_exit: Mutex::new(0),
         }
+    }
+
+    fn cx(&self) -> io::Result<CmdOutput> {
+        let code = self.cx_exit.lock().map(|code| *code).unwrap_or(1);
+        reply(code, String::new())
+    }
+
+    pub(super) fn cx_runs(&self) -> Vec<String> {
+        self.programs()
+            .into_iter()
+            .filter(|line| line.starts_with("scripts/cx"))
+            .collect()
     }
 
     fn lock_prs(&self) -> io::Result<std::sync::MutexGuard<'_, Vec<Pr>>> {
@@ -345,6 +367,7 @@ impl CommandRunner for ScratchGh {
         match cmd.program {
             Program::Git => ProcessRunner.run(cmd).await,
             Program::Gh => self.gh(cmd),
+            Program::Cx => self.cx(),
         }
     }
 }

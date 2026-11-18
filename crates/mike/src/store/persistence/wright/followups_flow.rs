@@ -17,6 +17,8 @@ const CHILDREN_CLOSED: &str = include_str!("sql/followups/children_closed.sql");
 const MARK_HANDED_OFF: &str = include_str!("sql/followups/mark_handed_off.sql");
 const MARK_CLOSED: &str = include_str!("sql/followups/mark_closed.sql");
 const RETURN_FOLLOWUP: &str = include_str!("sql/followups/return_followup.sql");
+const MARK_BATCHED: &str = include_str!("sql/followups/mark_batched.sql");
+const UNBATCH: &str = include_str!("sql/followups/unbatch.sql");
 const LIMITS: &str = include_str!("sql/followups/limits.sql");
 const PATCH_LIMITS: &str = include_str!("sql/followups/patch_limits.sql");
 
@@ -36,6 +38,7 @@ pub(crate) struct FollowupLimits {
     pub(crate) recurrence_actions: i32,
     pub(crate) recurrence_days: i32,
     pub(crate) fixers: Json<Vec<Fixer>>,
+    pub(crate) fix_host: String,
     pub(crate) updated_at: DateTime<Utc>,
 }
 
@@ -48,6 +51,7 @@ pub(crate) struct FollowupLimitsPatch {
     pub(crate) recurrence_actions: Option<i32>,
     pub(crate) recurrence_days: Option<i32>,
     pub(crate) fixers: Option<Vec<Fixer>>,
+    pub(crate) fix_host: Option<String>,
 }
 
 fn check_fixers(fixers: &[Fixer]) -> Result<(), PersistError> {
@@ -169,6 +173,33 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         Ok(marked.is_some())
     }
 
+    pub(crate) async fn mark_wright_followup_batched(
+        self,
+        id: i64,
+        batch: i64,
+        commit: &str,
+    ) -> Result<bool, PersistError> {
+        let marked: Option<i64> = sqlx::query_scalar(MARK_BATCHED)
+            .bind(id)
+            .bind(batch)
+            .bind(commit)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(marked.is_some())
+    }
+
+    pub(crate) async fn unbatch_wright_followups(
+        self,
+        batch: i64,
+        ids: &[i64],
+    ) -> Result<Vec<i64>, PersistError> {
+        Ok(sqlx::query_scalar(UNBATCH)
+            .bind(batch)
+            .bind(ids)
+            .fetch_all(self.pool())
+            .await?)
+    }
+
     pub(crate) async fn return_wright_followup(
         self,
         id: i64,
@@ -205,6 +236,7 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                 .bind(patch.recurrence_actions)
                 .bind(patch.recurrence_days)
                 .bind(patch.fixers.as_deref().map(Json))
+                .bind(patch.fix_host.as_deref())
                 .fetch_one(self.pool())
                 .await?,
         )

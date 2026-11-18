@@ -5,9 +5,9 @@ use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub(crate) struct RepairJob {
-    pub(crate) repair_id: i64,
-    pub(crate) problem_id: i64,
-    pub(crate) finding_id: i64,
+    pub(crate) repair_id: Option<i64>,
+    pub(crate) problem_id: Option<i64>,
+    pub(crate) finding_id: Option<i64>,
     pub(crate) worktree: PathBuf,
     pub(crate) agent: &'static str,
     pub(crate) brief: String,

@@ -1,9 +1,9 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 
 use super::attempt::AttemptEnd;
+use super::batch_land::BatchEnd;
 use super::fixtures_tests::{Bench, FIXED, WritesFiles};
-use super::follow::recover;
-use super::{states, tick};
+use super::{batch_states, states, tick};
 use crate::store::persistence::wright::RepairUpdate;
 
 fn fix() -> WritesFiles {
@@ -14,6 +14,14 @@ async fn state_of(bench: &Bench, finding: i64) -> anyhow::Result<String> {
     Ok(bench.repair_of(finding).await?.state)
 }
 
+async fn land_the_day(bench: &Bench) -> anyhow::Result<()> {
+    let batch = bench.only_batch().await?;
+    bench.backdate(batch.id).await?;
+    let report = tick(&bench.ctx, true).await?;
+    assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
+    Ok(())
+}
+
 #[tokio::test]
 async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_check()
 -> anyhow::Result<()> {
@@ -22,7 +30,13 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
     let resource = bench.problem_state(problem).await?.resource;
     let base = bench.scratch.remote_main()?;
 
-    tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true).await?;
+    assert_eq!(
+        report.attempted.map(|(_, end)| end),
+        Some(AttemptEnd::Batched)
+    );
+    assert_eq!(state_of(&bench, finding).await?, states::BATCHED);
+    land_the_day(&bench).await?;
     let landed = bench.repair_of(finding).await?;
     assert_eq!(landed.state, states::LANDED, "reason: {:?}", landed.reason);
     assert_eq!(
@@ -75,7 +89,6 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
     let stamps = [
         Some(healthy.created_at),
         healthy.prepared_at,
-        healthy.gated_at,
         healthy.landed_at,
         healthy.deployed_at,
         healthy.healthy_at,
@@ -100,10 +113,11 @@ async fn two_machines_claiming_at_once_get_one_repair_per_problem() -> anyhow::R
             .finding(problem, "code_defect", true, Some("crates/mike/src/x.rs"))
             .await?;
     }
+    let batch = bench.open_batch().await?;
     let web = bench.ctx.persist.web();
     let (one, two) = tokio::join!(
-        web.claim_wright_repairs("/scratch/worktrees", Some(uuid::Uuid::new_v4()), 10),
-        web.claim_wright_repairs("/scratch/worktrees", Some(uuid::Uuid::new_v4()), 10),
+        web.claim_wright_repairs(batch.id, Some(uuid::Uuid::new_v4()), 10),
+        web.claim_wright_repairs(batch.id, Some(uuid::Uuid::new_v4()), 10),
     );
     let mut problems: Vec<i64> = one?
         .iter()
@@ -138,20 +152,17 @@ async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> any
     bench
         .finding(*c, "config", true, Some("crates/mike/src/z.rs"))
         .await?;
+    let batch = bench.open_batch().await?;
     let web = bench.ctx.persist.web();
 
-    let claimed = web
-        .claim_wright_repairs("/scratch/worktrees", None, 10)
-        .await?;
+    let claimed = web.claim_wright_repairs(batch.id, None, 10).await?;
     let found: Vec<i64> = claimed.iter().map(|c| c.finding_id).collect();
     assert_eq!(found, vec![first]);
-    assert_eq!(
-        claimed[0].worktree,
-        format!("/scratch/worktrees/wright-repair-{first}")
-    );
-    assert_eq!(claimed[0].branch, format!("wright/repair-{first}"));
+    assert_eq!(claimed[0].worktree, batch.worktree);
+    assert_eq!(claimed[0].branch, batch.branch);
+    assert_eq!(claimed[0].batch_id, batch.id);
     assert!(
-        web.claim_wright_repairs("/scratch/worktrees", None, 10)
+        web.claim_wright_repairs(batch.id, None, 10)
             .await?
             .is_empty()
     );
@@ -164,15 +175,13 @@ async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> any
         ..RepairUpdate::default()
     })
     .await?;
-    let next = web
-        .claim_wright_repairs("/scratch/worktrees", None, 10)
-        .await?;
+    let next = web.claim_wright_repairs(batch.id, None, 10).await?;
     assert_eq!(
         next.iter().map(|c| c.finding_id).collect::<Vec<_>>(),
         vec![later]
     );
     assert!(
-        web.claim_wright_repairs("/scratch/worktrees", None, 10)
+        web.claim_wright_repairs(batch.id, None, 10)
             .await?
             .is_empty()
     );
@@ -180,22 +189,51 @@ async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> any
 }
 
 #[tokio::test]
-async fn repair_interrupted_after_its_merge_is_recorded_landed_without_a_new_gate()
+async fn a_closed_batch_takes_no_claim() -> anyhow::Result<()> {
+    let bench = Bench::boot(fix()).await?;
+    bench.defect().await?;
+    let batch = bench.open_batch().await?;
+    sqlx::query("UPDATE wright.fix_batches SET state = 'closed', closed_at = now() WHERE id = $1")
+        .bind(batch.id)
+        .execute(bench.ctx.persist.pool())
+        .await?;
+    assert!(
+        bench
+            .ctx
+            .persist
+            .web()
+            .claim_wright_repairs(batch.id, None, 10)
+            .await?
+            .is_empty()
+    );
+    bench.cleanup().await
+}
+
+#[tokio::test]
+async fn batch_interrupted_after_its_merge_is_recorded_landed_without_a_new_gate()
 -> anyhow::Result<()> {
     let bench = Bench::boot(fix()).await?;
     let (_, finding) = bench.defect().await?;
-    let report = tick(&bench.ctx, true).await?;
-    assert!(matches!(report.attempted, Some((_, AttemptEnd::Landed))));
+    tick(&bench.ctx, true).await?;
+    land_the_day(&bench).await?;
     let landed = bench.repair_of(finding).await?;
-    sqlx::query("UPDATE wright.repairs SET state = 'gating', merge_sha = NULL, landed_at = NULL WHERE id = $1")
+    let batch = bench.batches().await?.remove(0);
+    sqlx::query("UPDATE wright.fix_batches SET state = 'gating', merge_sha = NULL, landed_at = NULL WHERE id = $1")
+        .bind(batch.id)
+        .execute(bench.ctx.persist.pool())
+        .await?;
+    sqlx::query("UPDATE wright.repairs SET state = 'batched', merge_sha = NULL, landed_at = NULL WHERE id = $1")
         .bind(landed.id)
         .execute(bench.ctx.persist.pool())
         .await?;
 
-    assert_eq!(recover(&bench.ctx).await?, 1);
+    let report = tick(&bench.ctx, true).await?;
+    assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
     let settled = bench.repair_of(finding).await?;
     assert_eq!(settled.state, states::LANDED);
     assert_eq!(settled.merge_sha, landed.merge_sha);
+    let row = bench.batches().await?.remove(0);
+    assert_eq!(row.state, batch_states::LANDED);
     assert_eq!(
         bench.scratch.gate_log().lines().count(),
         1,
@@ -214,6 +252,7 @@ async fn repair_that_lands_posts_a_landed_event_to_its_checks_inbox() -> anyhow:
     let bench = Bench::boot(fix()).await?;
     let (_, finding) = bench.defect().await?;
     tick(&bench.ctx, true).await?;
+    land_the_day(&bench).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);
     let inbox = bench

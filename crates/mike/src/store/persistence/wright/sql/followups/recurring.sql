@@ -31,5 +31,5 @@ SELECT c.check_name, c.remedy, c.actions,
  WHERE NOT EXISTS (
        SELECT 1 FROM wright.followups f
         WHERE f.kind = 'root_cause' AND f.check_name = c.check_name
-          AND f.state IN ('open', 'filed', 'handed_off', 'stuck'))
+          AND f.state IN ('open', 'filed', 'handed_off', 'batched', 'stuck'))
  ORDER BY c.actions DESC, c.remedy

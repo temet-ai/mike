@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use super::FollowupError;
 use super::context::{FollowupContext, Place, Target};
-use super::prompt::fixer_prompt;
+use super::prompt::{FixerPlace, fixer_prompt};
 use super::quiet::quiet;
 use super::runner::{Cmd, CommandRunner, Program, output};
 use crate::store::persistence::wright::{FollowupLimits, FollowupRow};
@@ -16,6 +16,8 @@ const SPAWN_TIMEOUT: Duration = Duration::from_secs(3 * 60);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Handoff {
     FixerLive(usize),
+    RepairLive,
+    NoBatch,
     Capped,
     NothingFiled,
     NoQuietMachine(Vec<String>),
@@ -49,14 +51,26 @@ where
     if web.wright_handoffs_today().await? >= i64::from(limits.daily_handoffs) {
         return Ok(Handoff::Capped);
     }
+    if web.wright_repair_editing().await? {
+        return Ok(Handoff::RepairLive);
+    }
+    let today = chrono::Utc::now().date_naive();
+    let Some(batch) = web.open_wright_fix_batch(Some(today)).await? else {
+        return Ok(Handoff::NoBatch);
+    };
     let Some(row) = web.next_wright_handoff().await? else {
         return Ok(Handoff::NothingFiled);
     };
-    let target = match quiet_target(ctx, &limits.fixers).await {
+    let target = match quiet_target(ctx, &limits.fixers, &limits.fix_host).await {
         Ok(target) => target,
         Err(reasons) => return Ok(Handoff::NoQuietMachine(reasons)),
     };
-    let session = spawn(&ctx.runner, &limits.repo, &row, &target).await?;
+    let place = FixerPlace {
+        worktree: &batch.worktree,
+        branch: &batch.branch,
+        followup_id: row.id,
+    };
+    let session = spawn(&ctx.runner, &limits.repo, &row, &target, &place).await?;
     if !web
         .mark_wright_followup_handed_off(row.id, session, &target.machine)
         .await?
@@ -76,30 +90,44 @@ where
 async fn quiet_target<R, S>(
     ctx: &FollowupContext<R, S>,
     fixers: &[crate::store::persistence::wright::Fixer],
+    fix_host: &str,
 ) -> Result<Target, Vec<String>>
 where
     R: CommandRunner,
 {
     let mut reasons = Vec::new();
-    for target in ctx.here.targets(fixers) {
+    let held = ctx
+        .here
+        .targets(fixers)
+        .into_iter()
+        .filter(|target| target.machine.eq_ignore_ascii_case(fix_host.trim()));
+    for target in held {
         match quiet(&ctx.runner, &ctx.here, &target).await {
             Ok(()) => return Ok(target),
             Err(reason) => reasons.push(format!("{}: {reason}", target.machine)),
         }
     }
     if reasons.is_empty() {
-        reasons.push("no fixer machine can be reached from here".to_owned());
+        reasons.push(format!(
+            "the fix host {fix_host} has no fixer entry that can be reached from here"
+        ));
     }
     Err(reasons)
 }
 
-pub(crate) fn spawn_cmd(repo: &str, row: &FollowupRow, number: i32, target: &Target) -> Cmd {
+pub(crate) fn spawn_cmd(
+    repo: &str,
+    row: &FollowupRow,
+    number: i32,
+    target: &Target,
+    place: &FixerPlace<'_>,
+) -> Cmd {
     let name = format!("wright-fix-{}", row.id);
     let goal = format!("Fix {repo}#{number}");
     let args = [
         "spawn",
         "open",
-        &target.folder,
+        place.worktree,
         "--json",
         "--role",
         "wright-fixer",
@@ -114,7 +142,7 @@ pub(crate) fn spawn_cmd(repo: &str, row: &FollowupRow, number: i32, target: &Tar
         Place::Local => Cmd::new(Program::Mike, &args),
         Place::Remote(host) => Cmd::remote(host, Program::Mike, &args),
     };
-    cmd.with_stdin(fixer_prompt(repo, number))
+    cmd.with_stdin(fixer_prompt(repo, number, place))
         .with_timeout(SPAWN_TIMEOUT)
 }
 
@@ -141,6 +169,7 @@ async fn spawn<R: CommandRunner>(
     repo: &str,
     row: &FollowupRow,
     target: &Target,
+    place: &FixerPlace<'_>,
 ) -> Result<Uuid, FollowupError> {
     let number = row.issue_number.ok_or_else(|| {
         FollowupError::Output(format!(
@@ -148,7 +177,7 @@ async fn spawn<R: CommandRunner>(
             row.id
         ))
     })?;
-    let cmd = spawn_cmd(repo, row, number, target);
+    let cmd = spawn_cmd(repo, row, number, target, place);
     let out = output(runner, &cmd).await?;
     parse_spawned(&out.stdout).map_err(|reason| {
         FollowupError::Output(format!(

@@ -10,7 +10,9 @@ use super::context::{FollowupContext, Here};
 use super::runner::{Cmd, CmdOutput, CommandRunner, Program};
 use super::sessions::FixerSessions;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
-use crate::store::persistence::wright::{Fixer, FollowupLimits, FollowupLimitsPatch, NewFollowup};
+use crate::store::persistence::wright::{
+    FixBatchRow, Fixer, FollowupLimits, FollowupLimitsPatch, NewFollowup,
+};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) const CHECK: &str = "orphan_launches";
@@ -226,6 +228,37 @@ impl Env {
                 .await?
         );
         Ok(id)
+    }
+
+    pub(super) async fn open_batch(&self) -> anyhow::Result<FixBatchRow> {
+        let today = chrono::Utc::now().date_naive();
+        Ok(self
+            .persist
+            .web()
+            .ensure_wright_fix_batch(
+                today,
+                &format!("wright/fixes-{today}"),
+                &format!("/srv/mike/.claude/worktrees/wright-fixes-{today}"),
+                None,
+            )
+            .await?)
+    }
+
+    pub(super) async fn editing_repair(&self, batch: &FixBatchRow) -> anyhow::Result<i64> {
+        let (_, problem) = self.followup("hardening", "repair-part").await?;
+        Ok(sqlx::query_scalar(
+            "INSERT INTO wright.repairs (finding_id, problem_id, owning_part, state, worktree,
+                                         branch, branches, batch_id)
+             SELECT f.id, f.problem_id, 'repair-part', 'editing', $2, $3, ARRAY[$3], $4
+               FROM wright.findings f WHERE f.problem_id = $1
+             RETURNING id",
+        )
+        .bind(problem)
+        .bind(&batch.worktree)
+        .bind(&batch.branch)
+        .bind(batch.id)
+        .fetch_one(self.persist.pool())
+        .await?)
     }
 
     pub(super) async fn state_of(&self, id: i64) -> anyhow::Result<(String, i32, Option<i32>)> {

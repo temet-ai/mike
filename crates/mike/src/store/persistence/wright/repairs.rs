@@ -38,6 +38,7 @@ pub(crate) struct RepairRow {
     pub(crate) merge_sha: Option<String>,
     pub(crate) reason: Option<String>,
     pub(crate) machine_uuid: Option<Uuid>,
+    pub(crate) batch_id: Option<i64>,
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) prepared_at: Option<DateTime<Utc>>,
     pub(crate) gated_at: Option<DateTime<Utc>>,
@@ -55,6 +56,7 @@ pub(crate) struct ClaimedRepair {
     pub(crate) owning_part: String,
     pub(crate) worktree: String,
     pub(crate) branch: String,
+    pub(crate) batch_id: i64,
     pub(crate) check_name: String,
     pub(crate) symptom: Option<String>,
     pub(crate) confirmed_cause: Option<String>,
@@ -88,13 +90,13 @@ pub(crate) struct RepairFilter {
 impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn claim_wright_repairs(
         self,
-        worktrees: &str,
+        batch: i64,
         machine: Option<Uuid>,
         limit: i64,
     ) -> Result<Vec<ClaimedRepair>, PersistError> {
         Ok(
             sqlx::query_as(CLAIM) // grader-allow: reads wright.findings, which the engineer-run migration (#73) creates on its own branch, so query_as! cannot check it here; Wright's store runs include_str! SQL at runtime
-                .bind(worktrees)
+                .bind(batch)
                 .bind(machine)
                 .bind(limit)
                 .fetch_all(self.pool())

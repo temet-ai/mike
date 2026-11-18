@@ -5,6 +5,7 @@ use serde_json::json;
 
 pub(crate) mod checks;
 pub(crate) mod conversation;
+pub(crate) mod fix_batches;
 pub(crate) mod followups;
 pub(crate) mod investigations;
 pub(crate) mod problems;
