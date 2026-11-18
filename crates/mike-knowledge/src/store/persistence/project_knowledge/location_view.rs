@@ -46,6 +46,33 @@ pub fn full_view(projects: Vec<Value>) -> Value {
     json!({"projects": projects})
 }
 
+pub fn nest_worktrees(mut projects: Vec<Value>) -> Vec<Value> {
+    for project in &mut projects {
+        let Some(locations) = project.get_mut("locations").and_then(Value::as_array_mut) else {
+            continue;
+        };
+        let links: Vec<(Value, Value)> = locations
+            .iter()
+            .filter_map(|location| {
+                let parent = location.get("worktree_of").filter(|v| !v.is_null())?;
+                Some((parent.clone(), location.get("location_uuid")?.clone()))
+            })
+            .collect();
+        for location in locations.iter_mut() {
+            let own = location.get("location_uuid").cloned();
+            let worktrees: Vec<Value> = links
+                .iter()
+                .filter(|(parent, _)| Some(parent) == own.as_ref())
+                .map(|(_, child)| child.clone())
+                .collect();
+            if let Some(fields) = location.as_object_mut() {
+                fields.insert("worktrees".to_owned(), Value::Array(worktrees));
+            }
+        }
+    }
+    projects
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,6 +109,17 @@ mod tests {
         let locations = view["projects"][0]["locations"].as_array().map(Vec::len);
         assert_eq!(locations, Some(1));
         assert_eq!(view["hidden_index_locations"], 1);
+    }
+
+    #[test]
+    fn nest_worktrees_lists_each_worktree_under_its_main_checkout() {
+        let rows = vec![json!({"project_path": "/p", "locations": [
+            {"location_uuid": "main", "worktree_of": null},
+            {"location_uuid": "wt", "worktree_of": "main"},
+        ]})];
+        let nested = nest_worktrees(rows);
+        assert_eq!(nested[0]["locations"][0]["worktrees"], json!(["wt"]));
+        assert_eq!(nested[0]["locations"][1]["worktrees"], json!([]));
     }
 
     #[test]

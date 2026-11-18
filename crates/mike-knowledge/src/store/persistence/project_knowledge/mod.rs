@@ -35,6 +35,9 @@ pub mod resolve;
 pub mod resolve_tests;
 pub mod search;
 pub mod session_scope;
+pub mod source_roots;
+#[cfg(test)]
+pub mod source_roots_db_tests;
 pub mod twins;
 pub mod window;
 

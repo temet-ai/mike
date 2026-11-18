@@ -42,6 +42,8 @@ pub enum Command {
 
     Thread(crate::work_threads::ThreadArgs),
 
+    Project(crate::launch::cli::project_move::ProjectArgs),
+
     Fleet(crate::launch::fleet::FleetArgs),
 
     Discover(crate::launch::fleet::discovery::DiscoveryArgs),

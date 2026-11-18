@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources s\n                  SET root_path = CASE\n                        WHEN rtrim(s.root_path, '/') = m.old_root\n                             OR starts_with(s.root_path, m.old_root || '/')\n                        THEN m.new_root || substr(rtrim(s.root_path, '/'), length(m.old_root) + 1)\n                        ELSE left(s.root_path, length(s.root_path) - length(m.old_memory))\n                             || m.new_memory\n                      END\n                 FROM (SELECT x.location_uuid, rtrim(x.old_root, '/') AS old_root, x.new_root,\n                              '/projects/' || regexp_replace(x.old_root, '[^A-Za-z0-9]', '-', 'g')\n                                  || '/memory' AS old_memory,\n                              '/projects/' || regexp_replace(x.new_root, '[^A-Za-z0-9]', '-', 'g')\n                                  || '/memory' AS new_memory\n                         FROM unnest($1::uuid[], $2::text[], $3::text[])\n                              AS x(location_uuid, old_root, new_root)) m\n                WHERE s.location_uuid = m.location_uuid\n                  AND (rtrim(s.root_path, '/') = m.old_root\n                       OR starts_with(s.root_path, m.old_root || '/')\n                       OR right(s.root_path, length(m.old_memory)) = m.old_memory)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eab6beef95d9b6a155bfbbd0deed9638f8e529da80965bfc27101520d1ce368e"
+}

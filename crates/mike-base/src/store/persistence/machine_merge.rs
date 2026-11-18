@@ -17,13 +17,13 @@ pub struct MachineMergeReport {
 }
 
 #[derive(Debug, Default)]
-struct Pairs {
+pub(super) struct Pairs {
     losers: Vec<Uuid>,
     winners: Vec<Uuid>,
 }
 
 impl Pairs {
-    fn from_rows(rows: Vec<(Uuid, Uuid)>) -> Self {
+    pub(super) fn from_rows(rows: Vec<(Uuid, Uuid)>) -> Self {
         let (losers, winners) = rows.into_iter().unzip();
         Self { losers, winners }
     }
@@ -38,10 +38,10 @@ impl Pairs {
 }
 
 #[derive(Debug, Default)]
-struct CollisionCounts {
-    sessions: u64,
-    sources: u64,
-    documents: u64,
+pub(super) struct CollisionCounts {
+    pub(super) sessions: u64,
+    pub(super) sources: u64,
+    pub(super) documents: u64,
 }
 
 impl PersistHandle {
@@ -114,7 +114,10 @@ async fn colliding_locations(
     ))
 }
 
-async fn merge_collisions(tx: &mut Tx<'_>, pairs: &Pairs) -> Result<CollisionCounts, sqlx::Error> {
+pub(super) async fn merge_collisions(
+    tx: &mut Tx<'_>,
+    pairs: &Pairs,
+) -> Result<CollisionCounts, sqlx::Error> {
     if pairs.is_empty() {
         return Ok(CollisionCounts::default());
     }

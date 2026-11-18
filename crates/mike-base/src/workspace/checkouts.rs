@@ -73,7 +73,10 @@ pub async fn place_folder(
     Ok(Some(project))
 }
 
-pub async fn record_origins(persist: &PersistHandle, machine: Uuid) -> Result<(), PersistError> {
+pub async fn record_origins(
+    persist: &PersistHandle,
+    machine: Uuid,
+) -> Result<Vec<crate::store::persistence::location_move::LocationMove>, PersistError> {
     for location in persist.locations_on_machine(machine).await? {
         let root = Path::new(location.root_path.trim_end_matches('/'));
         let Some(identity) = repo_identity(root) else {
@@ -88,7 +91,12 @@ pub async fn record_origins(persist: &PersistHandle, machine: Uuid) -> Result<()
                 .await?;
         }
     }
-    Ok(())
+    let moves = super::checkout_watch::watch_checkouts(persist, machine).await?;
+    for moved in &moves {
+        tracing::info!(location = %moved.location_uuid, from = %moved.from, to = %moved.to,
+            "checkouts: a missing checkout reappeared at a new folder; its location moved there");
+    }
+    Ok(moves)
 }
 
 const SCRATCH_PREFIXES: [&str; 5] = [

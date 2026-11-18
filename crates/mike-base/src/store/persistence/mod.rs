@@ -25,6 +25,8 @@ pub mod id_resolvers;
 pub mod judge_ownership;
 pub mod keyset;
 pub mod llm_calls;
+pub mod location_lifecycle;
+pub mod location_move;
 pub mod machine_merge;
 pub mod memo_slot;
 pub mod messages;
