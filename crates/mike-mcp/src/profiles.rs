@@ -167,6 +167,14 @@ pub const INVESTIGATION: &[&str] = &[
 ];
 
 pub const ONLY_IN_FULL: &[&str] = &[
+    "list_project_locations",
+    "get_time_spent",
+    "create_filter_rule",
+    "update_filter_rule",
+    "delete_filter_rule",
+    "dry_run_filter_rules",
+    "delete_lesson",
+    "relay_label",
     "list_conditions",
     "cancel_condition",
     "define_project",
