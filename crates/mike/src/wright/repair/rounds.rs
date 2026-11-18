@@ -2,6 +2,7 @@ use crate::store::persistence::web_repo::WebPersist as _;
 
 use super::attempt::{AttemptEnd, Fix, Next, abandon, job};
 use super::feedback::{self, Refused};
+use super::perf::Perf;
 use super::port::{RepairEngineer, RepairRun};
 use super::runner::CommandRunner;
 use super::{RepairContext, states};
@@ -12,13 +13,13 @@ pub(super) fn halted<R, E, B, T>(ctx: &RepairContext<R, E, B>) -> Option<Next<T>
     ctx.stopping().then_some(Next::Stop(AttemptEnd::Ended))
 }
 
-async fn round_failed<R, E, B>(
+async fn round_failed<R, E, B, T>(
     ctx: &RepairContext<R, E, B>,
     fix: &Fix<'_>,
     refused: &Refused,
     round: u32,
     why: &str,
-) -> Result<Next<()>, PersistError>
+) -> Result<Next<T>, PersistError>
 where
     R: CommandRunner,
 {
@@ -39,7 +40,7 @@ pub(super) async fn again<R, E, B>(
     fix: &Fix<'_>,
     round: u32,
     refused: &Refused,
-) -> Result<Next<()>, PersistError>
+) -> Result<Next<Perf>, PersistError>
 where
     R: CommandRunner,
     E: RepairEngineer,
@@ -64,7 +65,8 @@ where
         RepairRun {
             not_started: None,
             failure: None,
-        } => Ok(Next::Go(())),
+            perf,
+        } => Ok(Next::Go(perf)),
         RepairRun {
             failure: Some(why), ..
         }

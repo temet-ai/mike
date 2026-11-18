@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use super::prepare::as_wright;
+use super::perf::{Evidence, Perf, clear, evidence, step_error, with_block};
+use super::prepare::{as_wright, stage_all};
 use super::runner::{Cmd, CommandRunner, Program, StepError, checked, git, output};
 use super::worktree::{REMOTE, RepoLayout};
 use crate::store::persistence::wright::BatchFix;
@@ -146,15 +147,20 @@ pub(super) async fn commit_round<R: CommandRunner>(
     repo: &RepoLayout,
     worktree: &Path,
     message: &str,
+    perf: &Perf,
 ) -> Result<Option<String>, StepError> {
-    git(runner, worktree, &["add", "--all"]).await?;
-    let staged = git(runner, worktree, &["diff", "--cached", "--name-only"]).await?;
-    if staged.is_empty() {
+    if !stage_all(runner, worktree).await? {
         return Ok(None);
     }
+    let block = match evidence(runner, worktree, perf).await? {
+        Evidence::Block(block) => block,
+        Evidence::Refused(refused) => return Err(step_error(refused)),
+    };
+    let message = with_block(message, &block);
     let hooks = repo.hooks_config();
-    let args = as_wright(&hooks, &["commit", "--quiet", "-m", message]);
+    let args = as_wright(&hooks, &["commit", "--quiet", "-m", &message]);
     checked(runner, &Cmd::new(Program::Git, worktree, &args)).await?;
+    clear(worktree).await;
     git(runner, worktree, &["rev-parse", "HEAD"])
         .await
         .map(Some)

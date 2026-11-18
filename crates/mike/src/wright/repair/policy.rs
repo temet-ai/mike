@@ -159,7 +159,18 @@ fn listed(paths: &[&str]) -> String {
         .join(", ")
 }
 
-pub(crate) fn check(files: &[ChangedFile], migration_diff: &str) -> Result<(), String> {
+pub(crate) fn is_perf_snapshot(path: &str) -> bool {
+    path.strip_prefix("scripts/db-code-graders/perf-evidence/")
+        .is_some_and(|rest| rest.ends_with(".sql") && !rest.contains(".."))
+}
+
+pub(crate) fn check(changed: &[ChangedFile], migration_diff: &str) -> Result<(), String> {
+    let files: Vec<ChangedFile> = changed
+        .iter()
+        .filter(|file| !is_perf_snapshot(&file.path))
+        .cloned()
+        .collect();
+    let files = files.as_slice();
     for file in files {
         if let Some(category) = category(&file.path) {
             return Err(format!(
