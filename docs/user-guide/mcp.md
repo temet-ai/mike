@@ -188,8 +188,14 @@ Reading tools change nothing. These do:
 | `record_lesson`, `delete_lesson` | Adds or removes a stored lesson; see [Memory](memory.md) |
 | `send_session_message` | Delivers a message to another session |
 | `set_session_goal`, `write_session_note`, `work_thread_checkpoint` | Writes to the session list or notebook, or to a work thread |
-| `spawn_session`, `kill_session` | Opens or closes a terminal and a Claude Code process on the machine mike runs on |
+| `spawn_session` | Requests a new session through the configured launch backend |
+| `kill_session` | Requests closure of the session's terminal surface and waits briefly for process exit; inspect `closed` and `process_exited`, not just `deleted` |
 | `define_fleet` | Creates or edits a fleet definition, and starts it when marked ready |
+
+`kill_session` can return a successful tool response without confirming that Claude stopped.
+In current source, `deleted: true` can be added by the generic HTTP DELETE wrapper even
+when `closed: false` and `process_exited: null`. It is not proof of process termination.
+Keep the full response and follow [session-close verification](sessions.md#verify-that-the-session-stopped).
 
 What a tool returns becomes part of the conversation, and Claude Code sends the conversation
 to Anthropic as usual. A tool that reads old prompts or request bodies therefore sends that
