@@ -352,7 +352,7 @@ pub(crate) fn feed_filter(
     })
 }
 
-fn parse_instant(
+pub(crate) fn parse_instant(
     name: &str,
     raw: Option<&str>,
 ) -> Result<Option<chrono::DateTime<chrono::Utc>>, BadQuery> {
