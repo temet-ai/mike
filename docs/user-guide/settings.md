@@ -313,6 +313,27 @@ issues or a reliable cancellation of work already handed to an ordinary fixer. B
 changes also govern future steps, not already-started fixers. To stop ongoing work, inspect
 the listed fixer session and its current state separately before taking action.
 
+### Choose a session for Wright notices
+
+In source containing PR #415, decision-needed messages, held-batch notices and overdue-cause
+notices target a live **non-fleet** session whose role is `wright`, not whichever ordinary
+session you used most recently. Use the session role field or `set_session_goal` to assign
+that role to your intended operator session. Its workspace registration must be unreleased
+and its lease unexpired. If several qualify, the most recently seen session wins.
+
+This routing role is not the browser's operator credential. Pairing a browser does not set
+a session's role, and setting the role does not authorize protected operator API calls.
+If no eligible session is live, inspect <http://localhost:9990/wright> directly for pending
+decisions, held batches and the cause queue. Do not assume another session receives them.
+
+Mailbox delivery is not guaranteed. Decision notices are marked claimed before enqueue;
+causes waiting over six hours are eligible for a reminder, limited to once per 24 hours
+while still eligible, with their timestamp also recorded before enqueue. A send failure
+can therefore leave a decision notice without an automatic retry or delay a cause reminder.
+Held-batch mail is attempted when the batch is held, not kept in a separate retry queue.
+Check Wright's records even when no toast appears; a queued message is not proof it was read.
+These are source-verified controls, not proof your running build contains the change.
+
 ### Pair only your own browser
 
 If you want to post in Wright's conversation or use an eligible undo, run

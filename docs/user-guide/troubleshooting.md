@@ -242,6 +242,7 @@ before enabling workers or raising limits.
 | What you see | Check before retrying |
 |---|---|
 | **Not in the running mike yet** | A page may be newer than the running backend. Verify the running version, not only the CLI on PATH. |
+| No Wright notice reaches a session | In builds containing #415, check for a live, leased, non-fleet session with role `wright`. Browser pairing does not select it. Read pending decisions, held batches and the cause queue on `/wright`; claims happen before enqueue and not every failed delivery is retried. See [notice routing](settings.md#choose-a-session-for-wright-notices). |
 | Browser remains unpaired | Private browsing or blocked local storage can prevent saving the token. Pair your own browser again; never send the pairing URL in a report. |
 | No investigation started | Check the toggle, recorded limits, existing run, machine load, deploy activity and admission reason. An open problem is not a promise of an immediate run. |
 | Investigation ended without establishing a cause | Read its evidence and exit reason. No finding is not proof the fault is absent. Investigation attempts are bounded, not an unlimited retry loop. |
