@@ -20,6 +20,7 @@ UPDATE wright.repairs
                      WHEN $2 = 'gating' AND state <> 'gating' THEN NULL ELSE pr_url END,
        merge_sha = COALESCE($11::text, merge_sha),
        reason = COALESCE($12::text, reason),
+       interrupted = interrupted OR $14::boolean,
        prepared_at = CASE WHEN $2 = 'prepared' THEN now() ELSE prepared_at END,
        landed_at = CASE WHEN $2 = 'landed' THEN now() ELSE landed_at END,
        updated_at = now()

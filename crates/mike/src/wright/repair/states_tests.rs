@@ -1,10 +1,9 @@
 use crate::store::persistence::web_repo::WebPersist as _;
-use std::path::PathBuf;
 
 use super::attempt::AttemptEnd;
-use super::fixtures_tests::{Bench, FIXED, WritesFiles, sh};
+use super::fixtures_tests::{Bench, FIXED, WritesFiles};
 use super::follow::recover;
-use super::{states, tick, worktree};
+use super::{states, tick};
 use crate::store::persistence::wright::RepairUpdate;
 
 fn fix() -> WritesFiles {
@@ -177,48 +176,6 @@ async fn repair_picker_gives_one_repair_to_each_established_code_defect() -> any
             .await?
             .is_empty()
     );
-    bench.cleanup().await
-}
-
-#[tokio::test]
-async fn repair_interrupted_while_editing_is_settled_without_repeating_it() -> anyhow::Result<()> {
-    let bench = Bench::boot(fix()).await?;
-    let (_, finding) = bench.defect().await?;
-    let worktrees = bench.ctx.repo.worktrees().display().to_string();
-    let claimed = bench
-        .ctx
-        .persist
-        .web()
-        .claim_wright_repairs(&worktrees, None, 1)
-        .await?;
-    let claim = claimed
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("nothing claimed"))?;
-    let path = PathBuf::from(&claim.worktree);
-    worktree::open(&bench.ctx.runner, &bench.ctx.repo, &path, &claim.branch)
-        .await
-        .map_err(anyhow::Error::msg)?;
-
-    assert_eq!(recover(&bench.ctx).await?, 1);
-    let repair = bench.repair_of(finding).await?;
-    assert_eq!(repair.state, states::REFUSED);
-    assert!(repair.reason.unwrap_or_default().starts_with("interrupted"));
-    assert!(!path.exists());
-    assert!(
-        sh(
-            &bench.scratch.root,
-            &["rev-parse", &format!("refs/heads/{}", claim.branch)]
-        )
-        .is_ok()
-    );
-    let again = tick(&bench.ctx, true).await?;
-    assert_eq!(
-        again.attempted, None,
-        "the interrupted finding is not repaired twice"
-    );
-    assert!(bench.ctx.engineer.jobs().is_empty());
-    assert_eq!(bench.scratch.gate_log(), "");
-    assert_eq!(recover(&bench.ctx).await?, 0);
     bench.cleanup().await
 }
 

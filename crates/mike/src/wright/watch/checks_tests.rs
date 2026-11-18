@@ -275,6 +275,54 @@ async fn checks_read_through_a_read_only_transaction() -> anyhow::Result<()> {
     db.cleanup().await
 }
 
+async fn refused_repair(db: &Db, problem_state: &str, interrupted: bool) -> anyhow::Result<i64> {
+    Ok(sqlx::query_scalar(
+        r#"WITH p AS (
+               INSERT INTO wright.problems (check_name, source, scope, resource, state, healthy_at)
+               VALUES ('wright_repairs', 'capture_db', 'capture', gen_random_uuid()::text, $1,
+                       CASE WHEN $1 = 'healthy' THEN now() END)
+               RETURNING id
+           ), inv AS (
+               INSERT INTO wright.investigations (mode, problem_id, session_uuid, state, host,
+                                                  deadline_at, ended_at)
+               SELECT 'investigate', p.id, gen_random_uuid(), 'finished', 'test', now(), now()
+                 FROM p
+               RETURNING id, problem_id
+           ), f AS (
+               INSERT INTO wright.findings (investigation_id, problem_id, symptom, suspected_cause,
+                                            confirmed_cause, cause_established, owning_part, kind,
+                                            remedy, evidence)
+               SELECT inv.id, inv.problem_id, 's', 'c', 'c', true, 'src/x.rs', 'code_defect', 'r',
+                      '[{"kind": "problem", "ref": "fixture"}]'::jsonb
+                 FROM inv
+               RETURNING id, problem_id
+           )
+           INSERT INTO wright.repairs (finding_id, problem_id, owning_part, state, worktree,
+                                       branch, reason, interrupted)
+           SELECT f.id, f.problem_id, 'src/x.rs', 'refused', '/w/' || f.id, 'b' || f.id, 'why', $2
+             FROM f
+           RETURNING id"#,
+    )
+    .bind(problem_state)
+    .bind(interrupted)
+    .fetch_one(db.handle.pool())
+    .await?)
+}
+
+#[tokio::test]
+async fn wright_repairs_names_only_ended_repairs_of_open_problems_that_were_not_interruptions()
+-> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let named = refused_repair(&db, "open", false).await?;
+    refused_repair(&db, "healthy", false).await?;
+    refused_repair(&db, "open", true).await?;
+
+    let findings = db.findings("wright_repairs").await?;
+    let resources: Vec<&str> = findings.iter().map(|f| f.resource.as_str()).collect();
+    assert_eq!(resources, vec![named.to_string()]);
+    db.cleanup().await
+}
+
 #[tokio::test]
 async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::Result<()> {
     let db = Db::boot().await?;

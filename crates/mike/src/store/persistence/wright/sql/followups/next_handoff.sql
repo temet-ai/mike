@@ -6,7 +6,7 @@ WITH repair_owned AS (
       LEFT JOIN wright.problems p ON p.id = fd.problem_id
       LEFT JOIN wright.repairs r ON r.finding_id = fd.id
      WHERE (r.id IS NOT NULL
-            AND r.state NOT IN ('gate_failed', 'refused')
+            AND (r.state NOT IN ('gate_failed', 'refused') OR r.interrupted)
             AND btrim(COALESCE(fu.owning_part, r.owning_part)) = btrim(r.owning_part))
         OR (r.id IS NULL
             AND p.state = 'open'

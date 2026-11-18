@@ -102,6 +102,7 @@ impl Bench {
             live: FixedLive(Mutex::new(None)),
             repo,
             machine: None,
+            shutdown: tokio_util::sync::CancellationToken::new(),
         };
         Ok(Self { db, ctx, scratch })
     }

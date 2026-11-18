@@ -98,6 +98,7 @@ where
                 "interrupted: mike stopped while the repair was {}; nothing was repeated",
                 row.state
             )),
+            interrupted: true,
             ..RepairUpdate::default()
         },
     };
