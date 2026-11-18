@@ -23,6 +23,12 @@ pub async fn earlier_turns(
     if earlier.is_unavailable()
         && let (Some(link), Some(persist)) = (link, persist)
     {
+        tracing::info!(
+            session_id,
+            reason_code = "earlier_turns_unavailable",
+            previous_message_id = link.previous_message_id.as_deref().unwrap_or(""),
+            "earlier turns: the predecessor is not held in memory; restoring it from the database"
+        );
         tokio::spawn(restore(Arc::clone(store), persist, link));
     }
     earlier
