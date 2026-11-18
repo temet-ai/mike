@@ -9,6 +9,7 @@ use std::time::Duration;
 pub(crate) enum Program {
     Git,
     Gh,
+    Cx,
 }
 
 impl Program {
@@ -16,6 +17,7 @@ impl Program {
         match self {
             Program::Git => "git",
             Program::Gh => "gh",
+            Program::Cx => "scripts/cx",
         }
     }
 }
@@ -122,7 +124,11 @@ pub(crate) struct ProcessRunner;
 
 impl CommandRunner for ProcessRunner {
     async fn run(&self, cmd: &Cmd) -> io::Result<CmdOutput> {
-        let child = tokio::process::Command::new(cmd.program.name())
+        let program = match cmd.program {
+            Program::Cx => cmd.cwd.join(cmd.program.name()).into_os_string(),
+            other => other.name().into(),
+        };
+        let child = tokio::process::Command::new(program)
             .args(&cmd.args)
             .current_dir(&cmd.cwd)
             .env("GIT_TERMINAL_PROMPT", "0")

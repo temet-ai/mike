@@ -12,6 +12,13 @@ use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) mod attempt;
+pub(crate) mod batch;
+pub(crate) mod batch_blame;
+pub(crate) mod batch_git;
+pub(crate) mod batch_land;
+pub(crate) mod batch_mail;
+pub(crate) mod batch_rounds;
+pub(crate) mod check;
 pub(crate) mod engineer;
 pub(crate) mod feedback;
 pub(crate) mod follow;
@@ -23,6 +30,10 @@ pub(crate) mod rounds;
 pub(crate) mod runner;
 pub(crate) mod worktree;
 
+#[cfg(test)]
+mod batch_refusal_tests;
+#[cfg(test)]
+mod batch_tests;
 #[cfg(test)]
 mod fixtures_tests;
 #[cfg(test)]
@@ -39,6 +50,7 @@ mod scratch_tests;
 mod states_tests;
 
 use attempt::AttemptEnd;
+use batch_land::BatchEnd;
 use engineer::InvestigateEngineer;
 use port::{LiveBuild, RepairEngineer, RunningBinary};
 use runner::{CommandRunner, ProcessRunner};
@@ -48,21 +60,35 @@ pub(crate) mod states {
     pub(crate) const EDITING: &str = "editing";
     pub(crate) const PREPARED: &str = "prepared";
     pub(crate) const GATING: &str = "gating";
+    pub(crate) const BATCHED: &str = "batched";
+    pub(crate) const DROPPED: &str = "dropped";
     pub(crate) const GATE_FAILED: &str = "gate_failed";
     pub(crate) const REFUSED: &str = "refused";
     pub(crate) const LANDED: &str = "landed";
     pub(crate) const DEPLOYED: &str = "deployed";
     pub(crate) const HEALTHY: &str = "healthy";
-    pub(crate) const ALL: [&str; 8] = [
+    pub(crate) const ALL: [&str; 10] = [
         EDITING,
         PREPARED,
         GATING,
+        BATCHED,
+        DROPPED,
         GATE_FAILED,
         REFUSED,
         LANDED,
         DEPLOYED,
         HEALTHY,
     ];
+}
+
+pub(crate) mod batch_states {
+    pub(crate) const OPEN: &str = "open";
+    pub(crate) const CLOSED: &str = "closed";
+    pub(crate) const GATING: &str = "gating";
+    pub(crate) const REFUSED: &str = "refused";
+    pub(crate) const LANDED: &str = "landed";
+    pub(crate) const FAILED: &str = "failed";
+    pub(crate) const ALL: [&str; 6] = [OPEN, CLOSED, GATING, REFUSED, LANDED, FAILED];
 }
 
 const TICK: Duration = Duration::from_secs(2 * 60);
@@ -77,6 +103,7 @@ pub(crate) struct RepairContext<R, E, B> {
     pub(crate) live: B,
     pub(crate) repo: RepoLayout,
     pub(crate) machine: Option<Uuid>,
+    pub(crate) machine_name: Option<String>,
     pub(crate) shutdown: CancellationToken,
 }
 
@@ -89,8 +116,43 @@ impl<R, E, B> RepairContext<R, E, B> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct TickReport {
     pub(crate) attempted: Option<(i64, AttemptEnd)>,
+    pub(crate) batches: Vec<(i64, BatchEnd)>,
     pub(crate) deployed: Vec<i64>,
     pub(crate) healthy: Vec<i64>,
+}
+
+async fn is_fix_host<R, E, B>(ctx: &RepairContext<R, E, B>) -> Result<bool, PersistError> {
+    let limits = ctx.persist.web().wright_followup_limits().await?;
+    Ok(ctx
+        .machine_name
+        .as_deref()
+        .is_some_and(|name| name.eq_ignore_ascii_case(limits.fix_host.trim())))
+}
+
+async fn host_work<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    claims_open: bool,
+    report: &mut TickReport,
+) -> Result<(), PersistError>
+where
+    R: CommandRunner,
+    E: RepairEngineer,
+{
+    let today = chrono::Utc::now().date_naive();
+    batch::close_due(ctx, today).await?;
+    report.batches = batch::land_due(ctx).await?;
+    let Some(open) = batch::open_today(ctx, today).await? else {
+        return Ok(());
+    };
+    let web = ctx.persist.web();
+    if !claims_open || !web.live_wright_handoffs().await?.is_empty() {
+        return Ok(());
+    }
+    let claimed = web.claim_wright_repairs(open.id, ctx.machine, 1).await?;
+    if let Some(claim) = claimed.first() {
+        report.attempted = Some((claim.id, attempt::attempt(ctx, claim).await?));
+    }
+    Ok(())
 }
 
 pub(crate) async fn tick<R, E, B>(
@@ -103,16 +165,8 @@ where
     B: LiveBuild,
 {
     let mut report = TickReport::default();
-    if claims_open {
-        let worktrees = ctx.repo.worktrees().display().to_string();
-        let claimed = ctx
-            .persist
-            .web()
-            .claim_wright_repairs(&worktrees, ctx.machine, 1)
-            .await?;
-        if let Some(claim) = claimed.first() {
-            report.attempted = Some((claim.id, attempt::attempt(ctx, claim).await?));
-        }
+    if is_fix_host(ctx).await? {
+        host_work(ctx, claims_open, &mut report).await?;
     }
     let followed = follow::follow(ctx).await?;
     report.deployed = followed.deployed;
@@ -183,10 +237,9 @@ async fn live_context(
             return None;
         }
     };
-    let machine = crate::machine_identity::load_default()
-        .await
-        .ok()
-        .map(|m| m.machine_uuid);
+    let identity = crate::machine_identity::load_default().await.ok();
+    let machine = identity.as_ref().map(|m| m.machine_uuid);
+    let machine_name = identity.map(|m| m.machine_name);
     Some(RepairContext {
         persist: persist.clone(),
         runner: ProcessRunner,
@@ -194,6 +247,7 @@ async fn live_context(
         live: RunningBinary,
         repo,
         machine,
+        machine_name,
         shutdown: shutdown.clone(),
     })
 }
@@ -264,9 +318,14 @@ fn log_tick_failed(error: &PersistError) {
 }
 
 fn log_tick(report: &TickReport) {
-    if report.attempted.is_some() || !report.deployed.is_empty() || !report.healthy.is_empty() {
+    if report.attempted.is_some()
+        || !report.batches.is_empty()
+        || !report.deployed.is_empty()
+        || !report.healthy.is_empty()
+    {
         tracing::info!(
             attempted = ?report.attempted,
+            batches = ?report.batches,
             deployed = ?report.deployed,
             healthy = ?report.healthy,
             "wright repair: tick"

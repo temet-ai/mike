@@ -1,7 +1,6 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::PathBuf;
 
-use super::land::merged_commit;
 use super::port::LiveBuild;
 use super::runner::{Cmd, CommandRunner, Program, output};
 use super::worktree::{self, fetch_main};
@@ -69,52 +68,47 @@ where
     Ok(Followed { deployed, healthy })
 }
 
+async fn reset_edits<R, E, B>(ctx: &RepairContext<R, E, B>, row: &RepairRow)
+where
+    R: CommandRunner,
+{
+    let path = PathBuf::from(&row.worktree);
+    let first = row.branches.first().unwrap_or(&row.branch);
+    let to = row.base_sha.as_deref().unwrap_or("HEAD");
+    let restored = worktree::restore_if_ours(&ctx.runner, &ctx.repo, &path, first, to).await;
+    if let Err(e) = restored {
+        log_reset_failed(row.id, &e.to_string());
+    }
+}
+
+fn log_reset_failed(repair: i64, error: &str) {
+    tracing::warn!(%error, repair, "wright repair: resetting an interrupted repair's edits failed");
+}
+
 async fn settle<R, E, B>(ctx: &RepairContext<R, E, B>, row: &RepairRow) -> Result<(), PersistError>
 where
     R: CommandRunner,
 {
-    let merged = match (row.state.as_str(), row.pr_url.as_deref()) {
-        (states::GATING, Some(url)) => merged_commit(&ctx.runner, &ctx.repo.root, url)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(error = %e, repair = row.id, "wright repair: the pull request could not be read");
-                None
-            }),
-        _ => None,
-    };
-    let update = match merged {
-        Some(merge_sha) => RepairUpdate {
-            to: states::LANDED,
-            merge_sha: Some(merge_sha),
-            ..RepairUpdate::default()
-        },
-        None => RepairUpdate {
-            to: if row.state == states::EDITING {
-                states::REFUSED
-            } else {
-                states::GATE_FAILED
-            },
-            reason: Some(format!(
-                "interrupted: mike stopped while the repair was {}; nothing was repeated",
-                row.state
-            )),
-            interrupted: true,
-            ..RepairUpdate::default()
-        },
+    let to = if row.state == states::EDITING {
+        states::REFUSED
+    } else {
+        states::GATE_FAILED
     };
     ctx.persist
         .web()
         .advance_wright_repair(&RepairUpdate {
             id: row.id,
-            from: &[states::EDITING, states::PREPARED, states::GATING],
-            ..update
+            to,
+            from: &[states::EDITING, states::PREPARED],
+            reason: Some(format!(
+                "interrupted: mike stopped while the repair was {}; its edits were taken off the day's worktree and nothing was repeated",
+                row.state
+            )),
+            interrupted: true,
+            ..RepairUpdate::default()
         })
         .await?;
-    let path = PathBuf::from(&row.worktree);
-    let first = row.branches.first().unwrap_or(&row.branch);
-    if let Err(e) = worktree::close(&ctx.runner, &ctx.repo, &path, first).await {
-        tracing::warn!(error = %e, repair = row.id, "wright repair: removing an interrupted worktree failed");
-    }
+    reset_edits(ctx, row).await;
     Ok(())
 }
 

@@ -1,13 +1,8 @@
-use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::Path;
 use std::time::Duration;
 
-use super::prepare::{as_wright, changed_files, refusal};
 use super::runner::{Cmd, CommandRunner, Program, StepError, checked, git, output};
-use super::states;
 use super::worktree::{MAIN, REMOTE, RepoLayout, fetch_main};
-use crate::store::persistence::wright::RepairUpdate;
-use crate::store::persistence::{PersistError, PersistHandle};
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(90 * 60);
 pub(crate) const MAX_GATES: i32 = 3;
@@ -29,18 +24,11 @@ pub(crate) struct Landed {
 
 #[derive(Debug)]
 pub(crate) enum LandError {
-    Persist(PersistError),
     Failed(String),
     Unsettled(String),
 }
 
-impl From<PersistError> for LandError {
-    fn from(e: PersistError) -> Self {
-        LandError::Persist(e)
-    }
-}
-
-enum Merge {
+pub(crate) enum Merge {
     Landed(Landed),
     MainMoved(String),
 }
@@ -130,243 +118,104 @@ pub(crate) async fn merged_commit<R: CommandRunner>(
     Ok(Some(oid).filter(|oid| !oid.is_empty() && oid != "null"))
 }
 
-pub(crate) struct Landing<'a, R> {
-    pub(crate) persist: &'a PersistHandle,
-    pub(crate) runner: &'a R,
-    pub(crate) repo: &'a RepoLayout,
-    pub(crate) worktree: &'a Path,
-    pub(crate) repair_id: i64,
-    pub(crate) first_branch: &'a str,
-    pub(crate) title: String,
-    pub(crate) body: String,
+pub(crate) async fn open_pr<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    branch: &str,
+    title: &str,
+    body: &str,
+) -> Result<String, LandError> {
+    let args: [&str; 10] = [
+        "pr", "create", "--base", MAIN, "--head", branch, "--title", title, "--body", body,
+    ];
+    let out = checked(runner, &Cmd::new(Program::Gh, worktree, &args))
+        .await
+        .map_err(failed("the pull request could not be opened"))?;
+    Ok(out.lines().last().unwrap_or_default().trim().to_owned())
 }
 
-impl<R: CommandRunner> Landing<'_, R> {
-    pub(crate) async fn land(&self, first: Candidate) -> Result<Landed, LandError> {
-        let mut cand = first;
-        for attempt in 1..=MAX_GATES {
-            self.record(RepairUpdate {
-                to: states::GATING,
-                from: &[states::PREPARED],
-                branch: Some(cand.branch.clone()),
-                ..self.update()
-            })
-            .await?;
-            self.run_gate(&cand).await?;
-            let pr = self.open_pr(&cand).await?;
-            let main_now = match self.merge_unless_moved(&cand, &pr).await? {
-                Merge::Landed(landed) => return Ok(landed),
-                Merge::MainMoved(main_now) => main_now,
-            };
-            self.close_pr(&pr, &main_now).await;
-            if attempt == MAX_GATES {
-                break;
-            }
-            cand = self.rebase(&cand, &main_now, attempt + 1).await?;
-        }
-        Err(LandError::Failed(format!(
-            "main moved during each of {MAX_GATES} gates; the patch was not landed"
-        )))
-    }
+pub(crate) async fn main_now<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+) -> Result<String, LandError> {
+    fetch_main(runner, worktree)
+        .await
+        .map_err(failed("origin/main could not be read"))
+}
 
-    fn update(&self) -> RepairUpdate {
-        RepairUpdate {
-            id: self.repair_id,
-            to: states::GATING,
-            from: &[states::GATING],
-            ..RepairUpdate::default()
-        }
+pub(crate) async fn merge_unless_moved<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    cand: &Candidate,
+    pr: &str,
+) -> Result<Merge, LandError> {
+    let now = main_now(runner, worktree).await?;
+    if now != cand.base {
+        return Ok(Merge::MainMoved(now));
     }
-
-    async fn record(&self, update: RepairUpdate) -> Result<(), LandError> {
-        if self.persist.web().advance_wright_repair(&update).await? {
-            return Ok(());
+    let args: [&str; 6] = [
+        "pr",
+        "merge",
+        pr,
+        "--squash",
+        "--match-head-commit",
+        &cand.sha,
+    ];
+    if let Err(refused) = checked(runner, &Cmd::new(Program::Gh, worktree, &args)).await {
+        let now = main_now(runner, worktree).await?;
+        if now != cand.base {
+            return Ok(Merge::MainMoved(now));
         }
-        Err(LandError::Failed(format!(
-            "repair {} left the state the executor expected before it could become {}",
-            self.repair_id, update.to
-        )))
+        return Err(LandError::Failed(format!(
+            "the merge was refused: {refused}"
+        )));
     }
+    let merge_sha = merged_commit(runner, worktree, pr)
+        .await
+        .map_err(|e| {
+            LandError::Unsettled(format!(
+                "merged, but the merge commit could not be read: {e}"
+            ))
+        })?
+        .ok_or_else(|| {
+            LandError::Unsettled("merged, but GitHub reports no merge commit yet".to_owned())
+        })?;
+    let note = landed_note(runner, worktree, cand, &merge_sha).await;
+    Ok(Merge::Landed(Landed { merge_sha, note }))
+}
 
-    async fn run_gate(&self, cand: &Candidate) -> Result<(), LandError> {
-        let result = gate(self.runner, self.repo, self.worktree, cand)
-            .await
-            .map_err(failed("the gate could not run"))?;
-        let exit = result.exit.unwrap_or(-1);
-        let (gate_output, bytes) = kept_output(result.output);
-        self.record(RepairUpdate {
-            gate_exit: Some(exit),
-            gate_output,
-            gate_output_bytes: Some(bytes),
-            ..self.update()
-        })
-        .await?;
-        if result.passed {
-            return Ok(());
-        }
-        Err(LandError::Failed(format!(
-            "the push hook did not pass commit {} (exit {exit})",
+async fn landed_note<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    cand: &Candidate,
+    merge_sha: &str,
+) -> Option<String> {
+    let _ = main_now(runner, worktree).await;
+    let rev = |spec: String| async move { git(runner, worktree, &["rev-parse", &spec]).await };
+    let landed_tree = rev(format!("{merge_sha}^{{tree}}")).await;
+    let gated_tree = rev(format!("{}^{{tree}}", cand.sha)).await;
+    let parent = rev(format!("{merge_sha}^1")).await;
+    match (landed_tree, gated_tree, parent) {
+        (Ok(landed), Ok(gated), Ok(parent)) if landed == gated && parent == cand.base => None,
+        (Ok(_), Ok(_), Ok(parent)) => Some(format!(
+            "main moved during the merge: {merge_sha} on {parent} is not the gated tree of {} on {}",
+            cand.sha, cand.base
+        )),
+        _ => Some(format!(
+            "the landed commit {merge_sha} could not be compared with the gated commit {}",
             cand.sha
-        )))
+        )),
     }
+}
 
-    async fn open_pr(&self, cand: &Candidate) -> Result<String, LandError> {
-        let args: [&str; 10] = [
-            "pr",
-            "create",
-            "--base",
-            MAIN,
-            "--head",
-            &cand.branch,
-            "--title",
-            &self.title,
-            "--body",
-            &self.body,
-        ];
-        let out = checked(self.runner, &Cmd::new(Program::Gh, self.worktree, &args))
-            .await
-            .map_err(failed("the pull request could not be opened"))?;
-        let url = out.lines().last().unwrap_or_default().trim().to_owned();
-        self.record(RepairUpdate {
-            pr_url: Some(url.clone()),
-            ..self.update()
-        })
-        .await?;
-        Ok(url)
-    }
-
-    async fn main_now(&self) -> Result<String, LandError> {
-        fetch_main(self.runner, self.worktree)
-            .await
-            .map_err(failed("origin/main could not be read"))
-    }
-
-    async fn merge_unless_moved(&self, cand: &Candidate, pr: &str) -> Result<Merge, LandError> {
-        let main_now = self.main_now().await?;
-        if main_now != cand.base {
-            return Ok(Merge::MainMoved(main_now));
-        }
-        let args: [&str; 6] = [
-            "pr",
-            "merge",
-            pr,
-            "--squash",
-            "--match-head-commit",
-            &cand.sha,
-        ];
-        if let Err(refused) =
-            checked(self.runner, &Cmd::new(Program::Gh, self.worktree, &args)).await
-        {
-            let main_now = self.main_now().await?;
-            if main_now != cand.base {
-                return Ok(Merge::MainMoved(main_now));
-            }
-            return Err(LandError::Failed(format!(
-                "the merge was refused: {refused}"
-            )));
-        }
-        let merge_sha = merged_commit(self.runner, self.worktree, pr)
-            .await
-            .map_err(|e| {
-                LandError::Unsettled(format!(
-                    "merged, but the merge commit could not be read: {e}"
-                ))
-            })?
-            .ok_or_else(|| {
-                LandError::Unsettled("merged, but GitHub reports no merge commit yet".to_owned())
-            })?;
-        let note = self.landed_note(cand, &merge_sha).await;
-        Ok(Merge::Landed(Landed { merge_sha, note }))
-    }
-
-    async fn rev(&self, spec: &str) -> Result<String, StepError> {
-        git(self.runner, self.worktree, &["rev-parse", spec]).await
-    }
-
-    async fn landed_note(&self, cand: &Candidate, merge_sha: &str) -> Option<String> {
-        let _ = self.main_now().await;
-        let landed_tree = self.rev(&format!("{merge_sha}^{{tree}}")).await;
-        let gated_tree = self.rev(&format!("{}^{{tree}}", cand.sha)).await;
-        let parent = self.rev(&format!("{merge_sha}^1")).await;
-        match (landed_tree, gated_tree, parent) {
-            (Ok(landed), Ok(gated), Ok(parent)) if landed == gated && parent == cand.base => None,
-            (Ok(_), Ok(_), Ok(parent)) => Some(format!(
-                "main moved during the merge: {merge_sha} on {parent} is not the gated tree of {} on {}",
-                cand.sha, cand.base
-            )),
-            _ => Some(format!(
-                "the landed commit {merge_sha} could not be compared with the gated commit {}",
-                cand.sha
-            )),
-        }
-    }
-
-    async fn close_pr(&self, pr: &str, main_now: &str) {
-        let comment = format!(
-            "Main moved to {main_now} after this gate; Wright gates the patch again on a new branch."
-        );
-        let args: [&str; 5] = ["pr", "close", pr, "--comment", &comment];
-        if let Err(e) = checked(self.runner, &Cmd::new(Program::Gh, self.worktree, &args)).await {
-            tracing::warn!(error = %e, pr, "wright repair: closing a superseded pull request failed");
-        }
-    }
-
-    async fn rebase(
-        &self,
-        cand: &Candidate,
-        main_now: &str,
-        n: i32,
-    ) -> Result<Candidate, LandError> {
-        let branch = format!("{}-{n}", self.first_branch);
-        git(
-            self.runner,
-            self.worktree,
-            &["switch", "--quiet", "-c", &branch, main_now],
-        )
-        .await
-        .map_err(failed("the new branch could not be made"))?;
-        let hooks = self.repo.hooks_config();
-        let args = as_wright(&hooks, &["cherry-pick", &cand.sha]);
-        if let Err(e) = checked(self.runner, &Cmd::new(Program::Git, self.worktree, &args)).await {
-            let _ = output(
-                self.runner,
-                &Cmd::new(Program::Git, self.worktree, &["cherry-pick", "--abort"]),
-            )
-            .await;
-            return Err(LandError::Failed(format!(
-                "the patch does not apply on main {main_now}: {e}"
-            )));
-        }
-        let sha = git(self.runner, self.worktree, &["rev-parse", "HEAD"])
-            .await
-            .map_err(failed("the rebased commit could not be read"))?;
-        self.prepared(Candidate {
-            branch,
-            base: main_now.to_owned(),
-            sha,
-        })
-        .await
-    }
-
-    async fn prepared(&self, cand: Candidate) -> Result<Candidate, LandError> {
-        let files = changed_files(self.runner, self.worktree, &cand.base, &cand.sha)
-            .await
-            .map_err(failed("the rebased patch could not be read"))?;
-        if let Some(reason) = refusal(self.runner, self.worktree, &cand.base, &cand.sha, &files)
-            .await
-            .map_err(failed("the rebased patch could not be checked"))?
-        {
-            return Err(LandError::Failed(reason));
-        }
-        self.record(RepairUpdate {
-            to: states::PREPARED,
-            branch: Some(cand.branch.clone()),
-            base_sha: Some(cand.base.clone()),
-            commit_sha: Some(cand.sha.clone()),
-            patch: Some(super::policy::patch_summary(&files)),
-            ..self.update()
-        })
-        .await?;
-        Ok(cand)
+pub(crate) async fn close_pr<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    pr: &str,
+    comment: &str,
+) {
+    let args: [&str; 5] = ["pr", "close", pr, "--comment", comment];
+    if let Err(e) = checked(runner, &Cmd::new(Program::Gh, worktree, &args)).await {
+        tracing::warn!(error = %e, pr, "wright repair: closing a superseded pull request failed");
     }
 }

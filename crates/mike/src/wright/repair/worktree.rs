@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use chrono::NaiveDate;
+
 use super::runner::{Cmd, CommandRunner, Program, StepError, git, output};
 
 pub(crate) const REMOTE: &str = "origin";
@@ -52,6 +54,14 @@ impl RepoLayout {
         };
         Ok(Self { root, hooks })
     }
+
+    pub(crate) fn batch_dir(&self, day: NaiveDate) -> PathBuf {
+        self.worktrees().join(format!("wright-fixes-{day}"))
+    }
+}
+
+pub(crate) fn batch_branch(day: NaiveDate) -> String {
+    format!("wright/fixes-{day}")
 }
 
 pub(crate) async fn fetch_main<R: CommandRunner>(
@@ -78,40 +88,6 @@ async fn branch_exists<R: CommandRunner>(
     )
     .await?;
     Ok(out.ok())
-}
-
-pub(crate) async fn open<R: CommandRunner>(
-    runner: &R,
-    repo: &RepoLayout,
-    path: &Path,
-    branch: &str,
-) -> Result<String, String> {
-    if path.exists() {
-        return Err(format!(
-            "{} already exists and is not this repair's; it was left alone",
-            path.display()
-        ));
-    }
-    let base = fetch_main(runner, &repo.root)
-        .await
-        .map_err(|e| format!("could not read origin/main: {e}"))?;
-    if branch_exists(runner, &repo.root, branch)
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        return Err(format!(
-            "branch {branch} already exists and is not this repair's; it was left alone"
-        ));
-    }
-    let shown = path.display().to_string();
-    git(
-        runner,
-        &repo.root,
-        &["worktree", "add", "--quiet", "-b", branch, &shown, &base],
-    )
-    .await
-    .map_err(|e| format!("could not create the worktree: {e}"))?;
-    Ok(base)
 }
 
 pub(crate) fn is_repair_branch(first: &str, branch: &str) -> bool {
@@ -147,6 +123,83 @@ pub(crate) fn listed_as_ours(porcelain: &str, path: &Path, first_branch: &str) -
     })
 }
 
+pub(crate) async fn open_batch<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+    first_branch: &str,
+    branch: &str,
+) -> Result<String, String> {
+    let step = |what: &'static str| move |e: StepError| format!("{what}: {e}");
+    git(runner, &repo.root, &["worktree", "prune"])
+        .await
+        .map_err(step("could not prune worktrees"))?;
+    let list = git(runner, &repo.root, &["worktree", "list", "--porcelain"])
+        .await
+        .map_err(step("could not list worktrees"))?;
+    if !listed_as_ours(&list, path, first_branch) {
+        create_batch(runner, repo, path, branch).await?;
+    }
+    git(runner, path, &["rev-parse", "HEAD"])
+        .await
+        .map_err(step("could not read the batch head"))
+}
+
+async fn create_batch<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+    branch: &str,
+) -> Result<(), String> {
+    if path.exists() {
+        return Err(format!(
+            "{} already exists and is not this batch's; it was left alone",
+            path.display()
+        ));
+    }
+    let base = fetch_main(runner, &repo.root)
+        .await
+        .map_err(|e| format!("could not read origin/main: {e}"))?;
+    let exists = branch_exists(runner, &repo.root, branch)
+        .await
+        .map_err(|e| e.to_string())?;
+    let shown = path.display().to_string();
+    let args: Vec<&str> = if exists {
+        vec!["worktree", "add", "--quiet", &shown, branch]
+    } else {
+        vec!["worktree", "add", "--quiet", "-b", branch, &shown, &base]
+    };
+    git(runner, &repo.root, &args)
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("could not create the worktree: {e}"))
+}
+
+pub(crate) async fn restore<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    to: &str,
+) -> Result<(), StepError> {
+    git(runner, worktree, &["reset", "--quiet", "--hard", to]).await?;
+    git(runner, worktree, &["clean", "--quiet", "-fd"])
+        .await
+        .map(|_| ())
+}
+
+pub(crate) async fn restore_if_ours<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+    first_branch: &str,
+    to: &str,
+) -> Result<bool, StepError> {
+    let list = git(runner, &repo.root, &["worktree", "list", "--porcelain"]).await?;
+    if !listed_as_ours(&list, path, first_branch) {
+        return Ok(false);
+    }
+    restore(runner, path, to).await.map(|()| true)
+}
+
 pub(crate) async fn close<R: CommandRunner>(
     runner: &R,
     repo: &RepoLayout,
@@ -167,14 +220,26 @@ pub(crate) async fn close<R: CommandRunner>(
     Ok(true)
 }
 
-pub(crate) async fn abandon<R: CommandRunner>(
+pub(crate) async fn remove_batch<R: CommandRunner>(
     runner: &R,
     repo: &RepoLayout,
     path: &Path,
-    branch: &str,
+    branches: &[String],
 ) -> Result<(), StepError> {
-    if close(runner, repo, path, branch).await? {
-        git(runner, &repo.root, &["branch", "--quiet", "-D", branch]).await?;
+    let Some(first) = branches.first() else {
+        return Ok(());
+    };
+    close(runner, repo, path, first).await?;
+    for branch in branches {
+        output(
+            runner,
+            &Cmd::new(
+                Program::Git,
+                &repo.root,
+                &["branch", "--quiet", "-D", branch],
+            ),
+        )
+        .await?;
     }
     Ok(())
 }

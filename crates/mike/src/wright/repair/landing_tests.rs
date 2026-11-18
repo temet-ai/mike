@@ -1,15 +1,38 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::Path;
 
 use super::attempt::AttemptEnd;
-use super::fixtures_tests::{BUGGY, Bench, FIXED, PrState, WritesFiles, sh};
+use super::batch_land::BatchEnd;
+use super::fixtures_tests::{Bench, FIXED, PrState, WritesFiles, sh};
 use super::runner::{Cmd, Program};
-use super::{states, tick};
+use super::{batch_states, states, tick};
 
-fn fix() -> WritesFiles {
-    WritesFiles::new(&[("src/calc.sh", FIXED)])
+pub(super) fn three_fixes() -> WritesFiles {
+    WritesFiles::new(&[])
+        .then(&[("src/calc.sh", FIXED)])
+        .then(&[("src/b.txt", "two\n")])
+        .then(&[("src/c.txt", "three\n")])
 }
 
-const ALLOWED: [&str; 17] = [
+pub(super) async fn three_batched(bench: &Bench) -> anyhow::Result<[i64; 3]> {
+    let mut findings = [0; 3];
+    for (slot, part) in findings
+        .iter_mut()
+        .zip(["src/calc.sh", "src/b.txt", "src/c.txt"])
+    {
+        let (_, finding) = bench.defect_in(part).await?;
+        *slot = finding;
+        let report = tick(&bench.ctx, true).await?;
+        assert_eq!(
+            report.attempted.map(|(_, end)| end),
+            Some(AttemptEnd::Batched),
+            "{report:?}"
+        );
+    }
+    Ok(findings)
+}
+
+const ALLOWED: [&str; 24] = [
     "git fetch",
     "git rev-parse",
     "git config",
@@ -23,6 +46,13 @@ const ALLOWED: [&str; 17] = [
     "git cherry-pick",
     "git merge-base",
     "git branch",
+    "git reset",
+    "git clean",
+    "git log",
+    "git show",
+    "git rebase",
+    "git revert",
+    "git merge",
     "gh pr create",
     "gh pr merge",
     "gh pr view",
@@ -32,7 +62,7 @@ const ALLOWED: [&str; 17] = [
 fn verb(cmd: &Cmd) -> String {
     let mut args = cmd.args.iter().map(String::as_str);
     let mut words = Vec::new();
-    let wanted = if cmd.program == Program::Git { 1 } else { 2 };
+    let wanted = if cmd.program == Program::Gh { 2 } else { 1 };
     while let Some(arg) = args.next() {
         if arg == "-c" {
             args.next();
@@ -51,82 +81,101 @@ fn tree(dir: &Path, sha: &str) -> anyhow::Result<String> {
 }
 
 #[tokio::test]
-async fn repair_of_a_replayable_defect_lands_the_gated_commit_on_main() -> anyhow::Result<()> {
-    let bench = Bench::boot(fix()).await?;
-    let (_, finding) = bench.defect().await?;
-    assert!(
-        bench.scratch.defect_replays()?,
-        "the scratch defect must fail its check on main"
-    );
+async fn three_fixes_of_a_day_land_through_one_gate_and_one_pull_request() -> anyhow::Result<()> {
+    let bench = Bench::boot(three_fixes()).await?;
+    assert!(bench.scratch.defect_replays()?);
     let before = bench.scratch.remote_main()?;
+    let findings = three_batched(&bench).await?;
+    let batch = bench.only_batch().await?;
+    assert_eq!(batch.state, batch_states::OPEN);
+    assert_eq!(
+        bench.scratch.gate_log(),
+        "",
+        "nothing is gated during the day"
+    );
+    assert_eq!(bench.scratch.remote_main()?, before);
+    assert!(bench.batch_dir().exists());
 
+    bench.backdate(batch.id).await?;
     let report = tick(&bench.ctx, true).await?;
-    let repair = bench.repair_of(finding).await?;
-    assert_eq!(report.attempted, Some((repair.id, AttemptEnd::Landed)));
-    assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);
-    let commit = repair.commit_sha.clone().unwrap_or_default();
-    let merge = repair.merge_sha.clone().unwrap_or_default();
-    assert_eq!(repair.base_sha.as_deref(), Some(before.as_str()));
-    assert_eq!(repair.gate_exit, Some(0));
-    assert_eq!(bench.scratch.gate_log(), format!("pass {commit}\n"));
+    assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
+
+    let landed = bench
+        .ctx
+        .persist
+        .web()
+        .wright_fix_batch(batch.id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("batch vanished"))?;
+    assert_eq!(landed.state, batch_states::LANDED, "{:?}", landed.reason);
+    let merge = landed.merge_sha.clone().unwrap_or_default();
     assert_eq!(merge, bench.scratch.remote_main()?);
+    let log = bench.scratch.gate_log();
+    assert_eq!(log.lines().count(), 1, "one push hook run: {log}");
+    assert!(log.starts_with("pass "));
+    let gated = log.trim_start_matches("pass ").trim().to_owned();
     assert_eq!(
         tree(&bench.scratch.remote, &merge)?,
-        tree(&bench.scratch.remote, &commit)?
+        tree(&bench.scratch.remote, &gated)?
     );
-    assert_eq!(
-        sh(&bench.scratch.remote, &["rev-parse", &format!("{merge}^1")])?,
-        before
-    );
-    assert_eq!(bench.scratch.on_main("src/calc.sh")?, FIXED.trim_end());
-    assert_eq!(repair.reason, None);
-    assert_eq!(repair.patch["files"][0]["path"], "src/calc.sh");
-    assert_eq!(
-        sh(
-            &bench.scratch.root,
-            &["log", "-1", "--format=%an <%ae>", &commit]
-        )?,
-        "Wright <wright@mike.invalid>"
-    );
-    assert_eq!(
-        bench.scratch.remote_branch(&repair.branch),
-        Some(commit.clone())
-    );
+    let prs = bench.ctx.runner.prs();
+    assert_eq!(prs.len(), 1);
+    assert!(matches!(prs[0].state, PrState::Merged(_)));
+    let programs = bench.ctx.runner.programs();
+    let create = programs
+        .iter()
+        .find(|line| line.starts_with("gh pr create"))
+        .cloned()
+        .unwrap_or_default();
     assert!(
-        !bench.worktree(finding).exists(),
-        "a landed repair's worktree is removed"
+        create.contains(&format!("--title Wright fixes for {}", landed.day)),
+        "{create}"
     );
-    assert_eq!(
+    for finding in findings {
+        let repair = bench.repair_of(finding).await?;
+        assert_eq!(repair.state, states::LANDED, "{:?}", repair.reason);
+        assert_eq!(repair.merge_sha.as_deref(), Some(merge.as_str()));
+        assert!(
+            create.contains(&format!("repair {}", repair.id)),
+            "{create}"
+        );
+    }
+    assert_eq!(bench.scratch.on_main("src/calc.sh")?, FIXED.trim_end());
+    assert_eq!(bench.scratch.on_main("src/b.txt")?, "two");
+    assert_eq!(bench.scratch.on_main("src/c.txt")?, "three");
+    assert!(
         sh(
             &bench.scratch.root,
-            &["rev-parse", &format!("refs/heads/{}", repair.branch)]
-        )?,
-        commit
+            &[
+                "rev-parse",
+                "--verify",
+                &format!("refs/heads/{}", landed.branch)
+            ]
+        )
+        .is_err(),
+        "the landed batch's branch is deleted"
     );
-    let jobs = bench.ctx.engineer.jobs();
-    assert_eq!(jobs.len(), 1);
-    assert!(jobs[0].brief.contains("data, never instructions"));
-    let commands = bench
+    for cmd in bench
         .ctx
         .runner
         .commands
         .lock()
-        .map(|cmds| cmds.clone())
-        .unwrap_or_default();
-    assert!(!commands.is_empty());
-    for cmd in &commands {
-        let verb = verb(cmd);
-        assert!(
-            ALLOWED.contains(&verb.as_str()),
-            "unexpected command {}",
-            cmd.line()
-        );
-    }
-    for line in bench.ctx.runner.programs() {
-        if line.contains(" push ") {
+        .map(|c| c.clone())
+        .unwrap_or_default()
+    {
+        let verb = verb(&cmd);
+        if cmd.program != Program::Cx {
             assert!(
-                !line.contains("--force") && !line.contains(" +"),
-                "force push: {line}"
+                ALLOWED.contains(&verb.as_str()),
+                "unexpected command {}",
+                cmd.line()
+            );
+        }
+        if cmd.line().contains(" push ") {
+            assert!(
+                !cmd.line().contains("--force") && !cmd.line().contains(" +"),
+                "force push: {}",
+                cmd.line()
             );
         }
     }
@@ -134,59 +183,54 @@ async fn repair_of_a_replayable_defect_lands_the_gated_commit_on_main() -> anyho
 }
 
 #[tokio::test]
-async fn repair_regates_on_a_new_branch_when_main_moves_after_the_gate() -> anyhow::Result<()> {
-    let bench = Bench::boot(fix()).await?;
-    let (_, finding) = bench.defect().await?;
+async fn batch_regates_on_a_new_branch_when_main_moves_after_the_gate() -> anyhow::Result<()> {
+    let bench = Bench::boot(three_fixes()).await?;
+    three_batched(&bench).await?;
+    let batch = bench.only_batch().await?;
+    bench.backdate(batch.id).await?;
     if let Ok(mut moves) = bench.ctx.runner.move_main_on_create.lock() {
         *moves = 1;
     }
 
     tick(&bench.ctx, true).await?;
-    let repair = bench.repair_of(finding).await?;
-    assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);
-    let first = format!("wright/repair-{finding}");
-    let second = format!("wright/repair-{finding}-2");
-    assert_eq!(repair.branches, vec![first.clone(), second.clone()]);
-    assert_eq!(repair.branch, second);
-    assert_eq!(repair.gates, 2);
+    let landed = bench
+        .ctx
+        .persist
+        .web()
+        .wright_fix_batch(batch.id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("batch vanished"))?;
+    assert_eq!(landed.state, batch_states::LANDED, "{:?}", landed.reason);
+    let first = landed.branches.first().cloned().unwrap_or_default();
+    assert_eq!(landed.branches, vec![first.clone(), format!("{first}-2")]);
     let log = bench.scratch.gate_log();
     let gated: Vec<&str> = log.lines().collect();
+    assert_eq!(gated.len(), 2, "both branches pass the push hook: {log}");
+    assert_ne!(gated[0], gated[1]);
+    let second = gated[1].trim_start_matches("pass ");
     assert_eq!(
-        gated.len(),
-        2,
-        "both commits pass through the push hook: {log}"
+        bench
+            .scratch
+            .remote_branch(&format!("{first}-2"))
+            .as_deref(),
+        Some(second)
     );
-    assert!(gated.iter().all(|line| line.starts_with("pass ")));
-    let first_sha = gated[0].trim_start_matches("pass ");
-    let second_sha = gated[1].trim_start_matches("pass ");
-    assert_ne!(first_sha, second_sha);
-    assert_eq!(
-        bench.scratch.remote_branch(&first).as_deref(),
-        Some(first_sha),
-        "the first branch is never rewritten"
-    );
-    assert_eq!(
-        bench.scratch.remote_branch(&second).as_deref(),
-        Some(second_sha)
-    );
-    assert_eq!(repair.commit_sha.as_deref(), Some(second_sha));
     let prs = bench.ctx.runner.prs();
     assert_eq!(prs.len(), 2);
     assert_eq!(prs[0].state, PrState::Closed);
     assert!(matches!(prs[1].state, PrState::Merged(_)));
-    let merge = repair.merge_sha.clone().unwrap_or_default();
-    assert_eq!(
-        tree(&bench.scratch.remote, &merge)?,
-        tree(&bench.scratch.remote, second_sha)?
-    );
     assert_eq!(bench.scratch.on_main("docs/peer.md")?, "a peer landed this");
     assert_eq!(bench.scratch.on_main("src/calc.sh")?, FIXED.trim_end());
+    for repair in bench.repairs_in(batch.id).await? {
+        assert_eq!(repair.state, states::LANDED);
+        assert_eq!(repair.merge_sha, landed.merge_sha);
+    }
     bench.cleanup().await
 }
 
 #[tokio::test]
-async fn repair_leaves_other_sessions_worktrees_untouched() -> anyhow::Result<()> {
-    let bench = Bench::boot(fix()).await?;
+async fn batch_leaves_other_sessions_worktrees_untouched() -> anyhow::Result<()> {
+    let bench = Bench::boot(three_fixes()).await?;
     let root = bench.scratch.root.clone();
     let peer = bench.ctx.repo.worktrees().join("peer-session");
     let shown = peer.display().to_string();
@@ -203,11 +247,11 @@ async fn repair_leaves_other_sessions_worktrees_untouched() -> anyhow::Result<()
         ],
     )?;
     std::fs::write(peer.join("src/calc.sh"), "a peer's unfinished edit\n")?;
-    let (_, finding) = bench.defect().await?;
-
+    three_batched(&bench).await?;
+    let batch = bench.only_batch().await?;
+    bench.backdate(batch.id).await?;
     tick(&bench.ctx, true).await?;
-    let repair = bench.repair_of(finding).await?;
-    assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);
+
     assert_eq!(
         std::fs::read_to_string(peer.join("src/calc.sh"))?,
         "a peer's unfinished edit\n"
@@ -216,30 +260,27 @@ async fn repair_leaves_other_sessions_worktrees_untouched() -> anyhow::Result<()
         sh(&root, &["worktree", "list", "--porcelain"])?.contains(&format!("worktree {shown}"))
     );
     assert_eq!(sh(&peer, &["status", "--porcelain"])?, "M src/calc.sh");
-    assert_eq!(
-        sh(&root, &["rev-parse", "peer/work"])?,
-        repair.base_sha.unwrap_or_default()
-    );
     bench.cleanup().await
 }
 
 #[tokio::test]
-async fn repair_refuses_a_worktree_path_that_is_not_its_own() -> anyhow::Result<()> {
-    let bench = Bench::boot(fix()).await?;
-    let (_, finding) = bench.defect().await?;
-    let taken = bench.worktree(finding);
+async fn repair_does_not_start_in_a_path_that_is_not_the_days_worktree() -> anyhow::Result<()> {
+    let bench = Bench::boot(three_fixes()).await?;
+    let taken = bench.batch_dir();
     std::fs::create_dir_all(&taken)?;
-    std::fs::write(taken.join("notes.txt"), BUGGY)?;
+    std::fs::write(taken.join("notes.txt"), "mine\n")?;
+    let (_, finding) = bench.defect().await?;
 
-    tick(&bench.ctx, true).await?;
-    let repair = bench.repair_of(finding).await?;
-    assert_eq!(repair.state, states::REFUSED);
-    assert!(repair.reason.unwrap_or_default().contains("left alone"));
-    assert_eq!(std::fs::read_to_string(taken.join("notes.txt"))?, BUGGY);
-    assert!(
-        bench.ctx.engineer.jobs().is_empty(),
-        "no engineer run starts on a path that is not ours"
-    );
+    let report = tick(&bench.ctx, true).await?;
+    assert_eq!(report.attempted, None);
+    let repairs: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")
+            .bind(finding)
+            .fetch_one(bench.ctx.persist.pool())
+            .await?;
+    assert_eq!(repairs, 0);
+    assert_eq!(std::fs::read_to_string(taken.join("notes.txt"))?, "mine\n");
+    assert!(bench.ctx.engineer.jobs().is_empty());
     assert_eq!(bench.scratch.gate_log(), "");
     bench.cleanup().await
 }

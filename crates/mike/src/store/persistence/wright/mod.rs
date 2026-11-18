@@ -5,6 +5,7 @@ use serde_json::Value;
 mod checks;
 pub(crate) mod conversation;
 pub(crate) mod conversation_steers;
+mod fix_batches;
 mod followups;
 mod followups_flow;
 mod inbox;
@@ -21,6 +22,7 @@ mod followups_tests;
 #[cfg(test)]
 mod triage_tests;
 
+pub(crate) use fix_batches::{BatchFix, BatchUpdate, FixBatchRow};
 pub(crate) use followups::{FollowupRow, NewFollowup, RootCausePick};
 pub(crate) use followups_flow::{Fixer, FollowupLimits, FollowupLimitsPatch};
 pub(crate) use inbox::InboxRow;

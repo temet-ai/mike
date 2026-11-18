@@ -11,7 +11,7 @@ by_check AS (
     SELECT f.id
       FROM wright.followups f
       JOIN problem p ON p.check_name = f.check_name
-     WHERE f.state IN ('open', 'filed', 'handed_off', 'stuck')
+     WHERE f.state IN ('open', 'filed', 'handed_off', 'batched', 'stuck')
 ),
 ids AS (
     SELECT id FROM linked

@@ -2,7 +2,8 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::wright::{
-    checks, conversation, followups, investigations, problems as api, remedies, repairs,
+    checks, conversation, fix_batches, followups, investigations, problems as api, remedies,
+    repairs,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
@@ -138,6 +139,20 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/wright/fix-batches",
+        Coverage::Exempt {
+            reason: "Wright's daily batches of fixes (branch, state, gate output, pull request) for the Wright page and the operator; no session workflow reads them",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/fix-batches/{id}/land",
+        Coverage::Exempt {
+            reason: "Operator-only: closes one day's batch of fixes so the fix host gates and lands it now; a session must never trigger a merge, so no tool reaches it",
+        },
+    ),
+    route(
+        "GET",
         "/api/wright/repairs",
         Coverage::Exempt {
             reason: "Wright's code repairs and their states for the Wright page; no session workflow reads them yet",
@@ -214,6 +229,14 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/wright/followup-limits",
             get(followups::get_followup_limits).patch(followups::patch_followup_limits_as_operator),
+        )
+        .route(
+            "/api/wright/fix-batches",
+            get(fix_batches::list_fix_batches),
+        )
+        .route(
+            "/api/wright/fix-batches/{id}/land",
+            post(fix_batches::land_fix_batch_as_operator),
         )
         .route("/api/wright/repairs", get(repairs::list_repairs))
         .route("/api/wright/repairs/{id}", get(repairs::get_repair))

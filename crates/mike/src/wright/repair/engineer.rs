@@ -39,9 +39,9 @@ fn ended(end: &RunEnd, output: &Result<serde_json::Value, String>) -> RepairRun 
 impl RepairEngineer for InvestigateEngineer {
     async fn run_in_worktree(&self, job: &RepairJob) -> RepairRun {
         tracing::info!(
-            repair = job.repair_id,
-            problem = job.problem_id,
-            finding = job.finding_id,
+            repair = ?job.repair_id,
+            problem = ?job.problem_id,
+            finding = ?job.finding_id,
             worktree = %job.worktree.display(),
             "wright repair: starting the engineer run"
         );
@@ -54,7 +54,7 @@ impl RepairEngineer for InvestigateEngineer {
                 worktree: job.worktree.clone(),
                 agent: job.agent,
             },
-            problem_id: Some(job.problem_id),
+            problem_id: job.problem_id,
             followup_id: None,
             brief: job.brief.clone(),
             inputs: job.inputs.clone(),
