@@ -97,3 +97,53 @@ fn earlier_turns_predecessor_without_response_is_unavailable() {
         EarlierState::Unavailable
     );
 }
+
+fn by_message(kind: ThreadKind, previous: Option<&str>) -> ThreadLink {
+    ThreadLink {
+        kind,
+        previous_message_id: previous.map(str::to_owned),
+        predecessor: None,
+        predecessor_instance: None,
+    }
+}
+
+fn streamed_then_snapshotted(
+    store: &mut RequestStore,
+    user: &str,
+    reply_id: &str,
+    link: ThreadLink,
+) {
+    let mut req = make_test_request(None, "chain");
+    req.request_body = Some(Bytes::from(
+        json!({"messages":[{"role":"user","content":user}]}).to_string(),
+    ));
+    req.sent_body = None;
+    req.response_body = None;
+    req.thread = Some(link);
+    let id = store.insert(req);
+    store.remember_reply(
+        id,
+        &json!({"id":reply_id,"role":"assistant","content":format!("a-{user}")}),
+    );
+    store.remove_entry(&id);
+}
+
+#[test]
+fn earlier_turns_predecessors_removed_after_snapshot_still_chain_by_message_id() {
+    let mut store = RequestStore::new(small_policy(10));
+    streamed_then_snapshotted(
+        &mut store,
+        "u1",
+        "msg_1",
+        by_message(ThreadKind::Create, None),
+    );
+    streamed_then_snapshotted(
+        &mut store,
+        "u2",
+        "msg_2",
+        by_message(ThreadKind::Continue, Some("msg_1")),
+    );
+    let earlier = store.earlier_turns(Some(&by_message(ThreadKind::Continue, Some("msg_2"))));
+    assert_eq!(earlier.state(), EarlierState::Chain);
+    assert_eq!(texts(&earlier.values()), vec!["u1", "a-u1", "u2", "a-u2"]);
+}

@@ -14,6 +14,7 @@ impl RequestStore {
         }
 
         self.record_new_request_membership(id, &req);
+        self.remember_sent(&req);
         self.entries.insert(id, req);
 
         let outcome = self.evict_to_byte_budget();
