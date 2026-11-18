@@ -138,10 +138,7 @@ pub(crate) fn mcp_config() -> Value {
                 "type": "stdio",
                 "command": format!("{INSIDE_BIN}/mike-mcp"),
                 "args": [],
-                "env": {
-                    "MIKE_INSPECT_URL": format!("http://{INSPECT_LISTEN}"),
-                    "MIKE_MCP_PROFILE": "full",
-                },
+                "env": { "MIKE_INSPECT_URL": format!("http://{INSPECT_LISTEN}") },
             }
         }
     })
