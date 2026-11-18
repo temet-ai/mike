@@ -2,6 +2,7 @@ use mike::store::persistence::PersistHandle;
 use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
+use mike::store::persistence::seat_memory::SeatMemoryRefresh;
 use mike::store::test_support::{TestDb, TestDbHandle};
 use serde_json::Value;
 
@@ -13,6 +14,7 @@ struct Indexed {
     handle: PersistHandle,
     project: String,
     scenario: Scenario,
+    swept: SeatMemoryRefresh,
 }
 
 async fn indexed() -> anyhow::Result<Option<Indexed>> {
@@ -22,7 +24,7 @@ async fn indexed() -> anyhow::Result<Option<Indexed>> {
     let db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let scenario = build(handle.pool()).await?;
-    handle.launch().refresh_seat_memory_items().await?;
+    let swept = handle.launch().refresh_seat_memory_items(None).await?;
     let project: String =
         sqlx::query_scalar("SELECT project_uuid::text FROM projects.projects WHERE id = $1")
             .bind(scenario.project_id)
@@ -33,6 +35,7 @@ async fn indexed() -> anyhow::Result<Option<Indexed>> {
         handle,
         project,
         scenario,
+        swept,
     }))
 }
 
@@ -157,9 +160,52 @@ async fn seat_memory_refresh_with_nothing_changed_writes_nothing() -> anyhow::Re
     let Some(fx) = indexed().await? else {
         return Ok(());
     };
-    let again = fx.handle.launch().refresh_seat_memory_items().await?;
+    let again = fx.handle.launch().refresh_seat_memory_items(None).await?;
     assert!(again.items > 0);
     assert_eq!((again.written, again.removed), (0, 0));
+    finish(fx).await
+}
+
+async fn stored_items(fx: &Indexed, project_id: i64) -> anyhow::Result<i64> {
+    Ok(
+        sqlx::query_scalar("SELECT count(*) FROM memory.seat_memory_items WHERE project_id = $1")
+            .bind(project_id)
+            .fetch_one(fx.handle.pool())
+            .await?,
+    )
+}
+
+#[tokio::test]
+async fn seat_memory_refresh_since_marks_recomputes_only_changed_projects() -> anyhow::Result<()> {
+    let Some(fx) = indexed().await? else {
+        return Ok(());
+    };
+    let launch = fx.handle.launch();
+    let quiet = launch
+        .refresh_seat_memory_items(Some(fx.swept.marks))
+        .await?;
+    assert_eq!((quiet.items, quiet.written, quiet.removed), (0, 0, 0));
+    assert_eq!(quiet.marks, fx.swept.marks);
+    let own = stored_items(&fx, fx.scenario.project_id).await?;
+    let other = stored_items(&fx, fx.scenario.other_project_id).await?;
+    assert!(own > 0 && other > 0);
+    super::fixture::event(
+        fx.handle.pool(),
+        &fx.scenario.run,
+        None,
+        Some("T9"),
+        "report_filed",
+        &serde_json::json!({}),
+    )
+    .await?;
+    let scoped = launch.refresh_seat_memory_items(Some(quiet.marks)).await?;
+    assert_eq!(scoped.items, own);
+    assert_eq!(scoped.removed, 0);
+    assert!(scoped.marks.fleet_event > quiet.marks.fleet_event);
+    assert_eq!(
+        stored_items(&fx, fx.scenario.other_project_id).await?,
+        other
+    );
     finish(fx).await
 }
 
