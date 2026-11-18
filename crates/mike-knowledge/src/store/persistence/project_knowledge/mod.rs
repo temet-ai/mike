@@ -63,6 +63,8 @@ pub mod location_lookup_tests;
 #[cfg(test)]
 pub mod search_filters_tests;
 #[cfg(test)]
+pub mod search_sql_tests;
+#[cfg(test)]
 pub mod session_binding_tests;
 #[cfg(test)]
 mod tests;

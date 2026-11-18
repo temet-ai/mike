@@ -238,10 +238,10 @@ WITH own_turn AS (
        AND s.name IN ('claude-memory', 'skills')
        AND ($4 OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
     UNION ALL
-    SELECT COALESCE(to_tsvector('english', l.text) @@ q.ident_tsq, false),
+    SELECT COALESCE(lt.tsv @@ q.ident_tsq, false),
            'lesson:' || l.uuid, 'lesson', btrim(split_part(btrim(l.text), E'\n', 1)), st.code,
            NULL, l.created_at,
-           ts_rank_cd(to_tsvector('english', l.text), q.tsq), COALESCE(sem.score, 0),
+           ts_rank_cd(lt.tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('lesson_id', l.id, 'lesson_kind', k.code, 'topic', l.topic,
              'source_turn_id', l.source_turn_id, 'session_uuid', lss.session_uuid)
              || COALESCE(lm.marks, '{}'::jsonb)
@@ -265,9 +265,10 @@ WITH own_turn AS (
       LEFT JOIN memory.lessons rby ON rby.id = l.retired_by_lesson_id
       LEFT JOIN memory.operator_turns lst ON lst.id = l.source_turn_id
       LEFT JOIN sessions.sessions lss ON lss.id = COALESCE(l.session_id, lst.session_id)
+     CROSS JOIN LATERAL (SELECT to_tsvector('english', l.text) AS tsv OFFSET 0) lt
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
      WHERE l.project_id = $1 AND ($3::text IS NULL OR $3::text = 'lesson')
-       AND ($2 = '' OR to_tsvector('english', l.text) @@ q.match_tsq OR sem.score IS NOT NULL)
+       AND ($2 = '' OR lt.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($4 OR (l.archived_at IS NULL AND (l.expires_at IS NULL OR l.expires_at > now())
          AND NOT COALESCE(lm.superseded, false)))
     UNION ALL
@@ -439,13 +440,13 @@ WITH own_turn AS (
        AND ($2 = '' OR vt.tsv @@ q.match_tsq
             OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT COALESCE(to_tsvector('english', memory.session_learnings_text(k.learnings)) @@ q.ident_tsq, false),
+    SELECT COALESCE(kt.tsv @@ q.ident_tsq, false),
            'learning:' || k.session_id, 'learning', btrim(split_part(btrim(k.learnings[1]), E'\n', 1)),
            'historical', NULL, k.generated_at,
-           ts_rank_cd(to_tsvector('english', memory.session_learnings_text(k.learnings)), q.tsq),
+           ts_rank_cd(kt.tsv, q.tsq),
            COALESCE(sem.score, 0),
            jsonb_build_object('session_uuid', k.session_id, 'topics', k.topics),
-           memory.session_learnings_text(k.learnings),
+           kt.txt,
            jsonb_build_object('role', 'judge', 'session_uuid', k.session_id, 'session_title', ls.title),
            'learning:' || k.session_id, NULL, NULL, false
       FROM (SELECT h.session_id FROM memory.session_knowledge h
@@ -462,16 +463,18 @@ WITH own_turn AS (
              ORDER BY h.generated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.session_knowledge k ON k.session_id = hit.session_id
       JOIN sessions.sessions ls ON ls.session_uuid = k.session_id
+     CROSS JOIN LATERAL (SELECT kx.txt, to_tsvector('english', kx.txt) AS tsv
+                           FROM (SELECT memory.session_learnings_text(k.learnings) AS txt OFFSET 0) kx
+                         OFFSET 0) kt
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'learning:' || k.session_id
      WHERE ls.project_id = $1 AND cardinality(k.learnings) > 0 AND ($3::text IS NULL OR $3::text = 'learning')
-       AND ($2 = '' OR to_tsvector('english', memory.session_learnings_text(k.learnings)) @@ q.match_tsq
-            OR sem.score IS NOT NULL)
+       AND ($2 = '' OR kt.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT COALESCE(to_tsvector('english', ss.overview) @@ q.ident_tsq, false),
+    SELECT COALESCE(st.tsv @@ q.ident_tsq, false),
            'session:' || ss.session_uuid, 'session',
            COALESCE(NULLIF(btrim(ss.title), ''), left(regexp_replace(btrim(ss.overview), '\s+', ' ', 'g'), 80)),
            'historical', NULL, COALESCE(ss.overview_generated_at, ss.last_seen),
-           ts_rank_cd(to_tsvector('english', ss.overview), q.tsq), COALESCE(sem.score, 0),
+           ts_rank_cd(st.tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('session_uuid', ss.session_uuid, 'topics', COALESCE(k.topics, '{}'::text[])),
            ss.overview || CASE WHEN cardinality(k.topics) > 0
                                THEN E'\n\nTopics: ' || array_to_string(k.topics, ', ') ELSE '' END,
@@ -488,9 +491,10 @@ WITH own_turn AS (
              ORDER BY COALESCE(h.overview_generated_at, h.last_seen) DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN sessions.sessions ss ON ss.id = hit.id
       LEFT JOIN memory.session_knowledge k ON k.session_id = ss.session_uuid
+     CROSS JOIN LATERAL (SELECT to_tsvector('english', ss.overview) AS tsv OFFSET 0) st
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'session:' || ss.session_uuid
      WHERE ss.project_id = $1 AND btrim(coalesce(ss.overview, '')) <> '' AND ($3::text IS NULL OR $3::text = 'session')
-       AND ($2 = '' OR to_tsvector('english', ss.overview) @@ q.match_tsq OR sem.score IS NOT NULL)
+       AND ($2 = '' OR st.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(m.search_tsv @@ q.ident_tsq, false),
            'mail:' || m.message_uuid, 'mail', btrim(split_part(btrim(m.body), E'\n', 1)),
