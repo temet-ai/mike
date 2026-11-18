@@ -223,6 +223,7 @@ pub(super) struct ScratchGh {
     pub(super) commands: Mutex<Vec<Cmd>>,
     pub(super) move_main_on_create: Mutex<u32>,
     pub(super) cx_exit: Mutex<i32>,
+    pub(super) perf_exits: Mutex<std::collections::VecDeque<i32>>,
 }
 
 fn arg_after<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
@@ -252,6 +253,50 @@ impl ScratchGh {
             commands: Mutex::new(Vec::new()),
             move_main_on_create: Mutex::new(0),
             cx_exit: Mutex::new(0),
+            perf_exits: Mutex::new(std::collections::VecDeque::new()),
+        }
+    }
+
+    pub(super) fn perf_runs(&self) -> Vec<String> {
+        self.programs()
+            .into_iter()
+            .filter(|line| line.starts_with("scripts/db-perf-check"))
+            .collect()
+    }
+
+    fn perf(&self, cmd: &Cmd) -> io::Result<CmdOutput> {
+        let code = self
+            .perf_exits
+            .lock()
+            .ok()
+            .and_then(|mut exits| exits.pop_front())
+            .unwrap_or(0);
+        let label = arg_after(&cmd.args, "--label").unwrap_or_default();
+        let tier = arg_after(&cmd.args, "--tier").unwrap_or_default();
+        let dir = cmd
+            .cwd
+            .join("scripts/db-code-graders/perf-evidence/2026-11-18");
+        for (flag, kind) in [("--before", "before"), ("--after", "after")] {
+            if let Some(source) = arg_after(&cmd.args, flag) {
+                let text = std::fs::read_to_string(cmd.cwd.join(source))?;
+                write(&dir.join(format!("{label}_{kind}.sql")), &text).map_err(other)?;
+            }
+        }
+        let verdict = if code == 0 { "improved" } else { "regression" };
+        let block = format!(
+            "Perf-Tier: {tier}\nPerf-Label: {label}\nPerf-After-ms: 1.0\nPerf-Budget-ms: 50\nPerf-Verdict: {verdict}\nPerf-Query-SHA: abc123\n"
+        );
+        match code {
+            0 => reply(
+                0,
+                format!("ok\n\n-- paste into the commit message --\n{block}\n  git add x\n"),
+            ),
+            1 => reply(1, format!("REGRESSION: new bad plan node\n{block}")),
+            other => Ok(CmdOutput {
+                code: Some(other),
+                stdout: String::new(),
+                stderr: "psql: connection refused".to_owned(),
+            }),
         }
     }
 
@@ -368,6 +413,7 @@ impl CommandRunner for ScratchGh {
             Program::Git => ProcessRunner.run(cmd).await,
             Program::Gh => self.gh(cmd),
             Program::Cx => self.cx(),
+            Program::PerfCheck => self.perf(cmd),
         }
     }
 }

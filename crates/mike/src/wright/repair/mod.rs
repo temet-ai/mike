@@ -23,6 +23,7 @@ pub(crate) mod engineer;
 pub(crate) mod feedback;
 pub(crate) mod follow;
 pub(crate) mod land;
+pub(crate) mod perf;
 pub(crate) mod policy;
 pub(crate) mod port;
 pub(crate) mod prepare;
@@ -40,6 +41,8 @@ mod fixtures_tests;
 mod interrupted_tests;
 #[cfg(test)]
 mod landing_tests;
+#[cfg(test)]
+mod perf_tests;
 #[cfg(test)]
 mod policy_tests;
 #[cfg(test)]

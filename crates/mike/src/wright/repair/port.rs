@@ -3,6 +3,8 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+use super::perf::Perf;
+
 #[derive(Debug, Clone)]
 pub(crate) struct RepairJob {
     pub(crate) repair_id: Option<i64>,
@@ -18,6 +20,7 @@ pub(crate) struct RepairJob {
 pub(crate) struct RepairRun {
     pub(crate) not_started: Option<String>,
     pub(crate) failure: Option<String>,
+    pub(crate) perf: Perf,
 }
 
 pub(crate) trait RepairEngineer: Send + Sync {

@@ -10,6 +10,7 @@ pub(crate) enum Program {
     Git,
     Gh,
     Cx,
+    PerfCheck,
 }
 
 impl Program {
@@ -18,6 +19,7 @@ impl Program {
             Program::Git => "git",
             Program::Gh => "gh",
             Program::Cx => "scripts/cx",
+            Program::PerfCheck => "scripts/db-perf-check",
         }
     }
 }
@@ -125,7 +127,7 @@ pub(crate) struct ProcessRunner;
 impl CommandRunner for ProcessRunner {
     async fn run(&self, cmd: &Cmd) -> io::Result<CmdOutput> {
         let program = match cmd.program {
-            Program::Cx => cmd.cwd.join(cmd.program.name()).into_os_string(),
+            Program::Cx | Program::PerfCheck => cmd.cwd.join(cmd.program.name()).into_os_string(),
             other => other.name().into(),
         };
         let child = tokio::process::Command::new(program)

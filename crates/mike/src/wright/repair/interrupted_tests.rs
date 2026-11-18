@@ -40,6 +40,7 @@ fn stopped() -> RepairRun {
     RepairRun {
         not_started: None,
         failure: Some("the repair run was stopped: mike is shutting down".to_owned()),
+        ..RepairRun::default()
     }
 }
 

@@ -1,3 +1,4 @@
+use super::perf::Perf;
 use super::port::{RepairEngineer, RepairJob, RepairRun};
 use crate::state::AppState;
 use crate::wright::investigate::{self, EngineerContext, RunEnd, RunMode, RunRequest};
@@ -18,6 +19,7 @@ fn not_started(reason: String) -> RepairRun {
     RepairRun {
         not_started: Some(reason),
         failure: None,
+        perf: Perf::default(),
     }
 }
 
@@ -30,9 +32,11 @@ fn ended(end: &RunEnd, output: &Result<serde_json::Value, String>) -> RepairRun 
         (_, Err(reason)) => Some(format!("the repair run left no valid output: {reason}")),
         _ => None,
     };
+    let perf = output.as_ref().map(Perf::from_output).unwrap_or_default();
     RepairRun {
         not_started: None,
         failure,
+        perf,
     }
 }
 
