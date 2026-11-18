@@ -76,6 +76,7 @@ impl InspectClient {
         &self,
         project: Option<&str>,
         since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<Value, McpError> {
         let mut q: Vec<(&'static str, String)> = Vec::new();
         if let Some(p) = project {
@@ -83,6 +84,9 @@ impl InspectClient {
         }
         if let Some(s) = since {
             q.push(("since", s.to_string()));
+        }
+        if let Some(u) = until {
+            q.push(("until", u.to_string()));
         }
         self.get_json("/api/operator-turns/outcome-summary", &q)
             .await

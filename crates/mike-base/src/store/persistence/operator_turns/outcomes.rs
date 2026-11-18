@@ -10,6 +10,7 @@ impl PersistHandle {
         &self,
         project: Option<&str>,
         since: Option<DateTime<Utc>>,
+        until: Option<DateTime<Utc>>,
     ) -> Result<Vec<(String, bool, i64)>, PersistError> {
         crate::metrics::time_db("operator_turn_outcome_summary", async move {
             let mut query: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -26,6 +27,9 @@ impl PersistHandle {
             }
             if let Some(since) = since {
                 query.push(" AND t.created_at >= ").push_bind(since);
+            }
+            if let Some(until) = until {
+                query.push(" AND t.created_at < ").push_bind(until);
             }
             query.push(" GROUP BY 1, 2 ORDER BY 1 ASC, 2 ASC");
             let rows = query
