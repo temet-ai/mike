@@ -141,6 +141,17 @@ impl Backoff {
 
 type LiveContext = RepairContext<ProcessRunner, InvestigateEngineer, RunningBinary>;
 
+static NO_REPOSITORY_TOLD: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn log_no_repository(error: &str, cwd: &std::path::Path) {
+    if NO_REPOSITORY_TOLD.swap(true, std::sync::atomic::Ordering::AcqRel) {
+        tracing::debug!(%error, cwd = %cwd.display(), "wright repair: no repository to repair from");
+    } else {
+        tracing::info!(%error, cwd = %cwd.display(), "wright repair: mike does not run from a checkout here, so this machine does not repair; said once per process");
+    }
+}
+
 async fn live_context(
     persist: &PersistHandle,
     engineer: &mut Option<InvestigateEngineer>,
@@ -149,7 +160,7 @@ async fn live_context(
     let repo = match RepoLayout::discover(&ProcessRunner, &cwd).await {
         Ok(repo) => repo,
         Err(e) => {
-            tracing::warn!(error = %e, cwd = %cwd.display(), "wright repair: no repository to repair from");
+            log_no_repository(&e.to_string(), &cwd);
             return None;
         }
     };
