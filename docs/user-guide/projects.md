@@ -141,6 +141,50 @@ the returned source and check the session, date and checkout before using it as 
 If the registered location is wrong or absent, review the project assignment first. Do not
 merge projects or register a replacement location just to make a search error disappear.
 
+## Check a repository nested inside a registered folder
+
+[Issue #381](https://github.com/temet-ai/mike/issues/381) reports a separate Git repository
+inside a registered parent folder being assigned to the parent's project. In source checked
+at `dfb064e2` on 18 November 2026, initial host binding still tries the longest containing
+registered root on that machine before Git-repository discovery. A containing registration
+can therefore win even when the session is inside a different repository. This is a
+source-verified limitation, not an independent reproduction of the reported sessions or
+confirmation that a proposed fix is installed.
+
+Diagnose without changing registrations:
+
+1. On the machine actually running the affected session, record the session UUID, working
+   directory and running Mike version. From that working directory, run these read-only
+   commands:
+
+   ```sh
+   pwd -P
+   git rev-parse --show-toplevel
+   git rev-parse --git-common-dir
+   git remote get-url origin
+   ```
+
+   No `origin` is a valid result for some repositories. In a Git worktree, the checkout root
+   and common Git directory describe different things; preserve both rather than deciding
+   that every different path is a new project. Remote URLs can contain credentials: redact
+   them before sharing the output.
+2. Use `list_project_locations` (with `include_all: true` if necessary) and compare the
+   **machine UUID/name**, registered root and project UUID with that checkout. Look for a
+   registered ancestor, not only an exact root match. A path on your investigator's machine
+   is not evidence about the same-looking path on the session's machine.
+3. Compare the session's recorded project and location with those candidates. A parent-root
+   match explains a possible binding path; it does not establish that the parent is the
+   intended project or that every result attributed to it belongs to the nested repository.
+
+Do not register another location, merge projects or edit database rows just to force a
+match. Registration and reassignment are separate operations: current source can reject
+moving a session already bound to another project's location, leaving its binding unchanged.
+Do not assume restarting or registering the child retroactively repairs earlier sessions.
+If a location is deliberately registered later, supply the verified owning `machine_uuid`
+rather than relying on a caller's host default. This is not a repair procedure for existing
+misbindings. Preserve the redacted identities and report the mismatch before relying on
+project-scoped search or memory.
+
 ## If project search is ambiguous or unrelated
 
 [Issue 191](https://github.com/temet-ai/mike/issues/191) reports a merged checkout resolving
