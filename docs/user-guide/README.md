@@ -22,6 +22,21 @@ Captured sessions hold your code, tool output and anything you typed. Treat the 
 
 mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon Macs. mike is an alpha, so expect rough edges. [Install mike](install.md) has the commands.
 
+## Match the guide to your version
+
+This guide follows the source checkout and can describe work newer than a published binary.
+As checked on 13 November 2026, the newest published release is
+[0.1.0-alpha.5](https://github.com/temet-ai/mike/releases/tag/v0.1.0-alpha.5), released on
+8 November. It includes Linux ARM64 archives as well as Linux x86_64 and Apple Silicon macOS.
+
+Check `mike --version` and `mike-mcp --version` before following a feature-specific path.
+The installation examples select alpha.5. The basic setup and MCP commands also exist in
+that tag, but reranking and the `unrecorded_captures` health ledger were added afterwards;
+the relevant pages mark those differences. Do not expect those controls in alpha.5 or
+add newer configuration keys to it. For the original release documentation, use the
+[guide at the alpha.5 tag](https://github.com/temet-ai/mike/tree/v0.1.0-alpha.5/docs/user-guide).
+This is a source comparison, not a claim that every journey has been exercised on a release binary.
+
 ## Where to start
 
 1. [Install mike](install.md) with Homebrew, mise or an archive.
@@ -29,11 +44,25 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 3. [Capture your first session](quickstart.md) and open it in the browser.
 4. [Find a page](pages.md) when you want the guide for a screen or a command.
 
+## Choose your next path
+
+Start with the result you want. You do not need to turn on every feature or read the guide
+from beginning to end.
+
+| I want to… | Follow this path | Check that it worked |
+|---|---|---|
+| Understand a surprising answer | [Read the turn and request](reading-sessions.md#look-at-one-request), then inspect [the prompts and tools](prompts-and-agents.md) | You can point to what Claude received and what it did next. A flagged response is a clue, not proof. |
+| Stop repeating a correction | [Record a lesson](memory.md#keep-a-correction-as-a-lesson), then [enable delivery](memory.md#get-a-lesson-into-the-next-session) | Verify it was stored, then inspect whether a relevant later request actually received it. |
+| Ask Claude about earlier work | [Register MCP](mcp.md#register-it), then [search the example session](mcp.md#ask-about-the-example-session) | The answer leads back to a captured session and request, rather than an unsupported recollection. |
+| Split work across sessions | [Preview a fleet](fleets/first-fleet.md), review [its definition](fleets/definition.md), then [watch the run](fleets/watch-and-recover.md) | Each task has evidence and an acceptance result; opening several sessions is only the start. |
+| Keep history through an upgrade | Read [backup and recovery](backup-and-recovery.md) before upgrading | A verified backup is one checkpoint; an isolated restore and a new captured session establish more. Check the page's tested/not-rehearsed limits. |
+| Find missing history | [Check capture health](troubleshooting.md#check-that-history-is-being-saved) | A new prompt appears in history. Claude answering on its own does not prove mike saved it. |
+
 ## The pages of this guide
 
 **Start**
 
-- [Capture your first session](quickstart.md): from nothing installed to one request open in your browser.
+- [Capture your first session](quickstart.md): from an installed mike to a sample session you can inspect in your browser.
 - [Install mike](install.md): Homebrew, mise or an archive, and what each gives you.
 - [Set mike up](setup.md): the first-run steps, the database, the background service and Claude Code.
 - [Find a page](pages.md): every screen and command, with the page that explains it.

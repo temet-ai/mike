@@ -119,6 +119,59 @@ If there is nothing to show, the page says why:
 | **No sessions in this project's fleet** | Nothing happened in the chosen window. Widen it. |
 | **No active fleet activity in this window** | The sessions have no declared role, no mail between them and have been quiet. They count as history. Open them from [Sessions](reading-sessions.md). |
 
+## Check project identity across machines
+
+One logical project can have several registered checkout locations. For example, the same
+fictional `site` project might live in different home directories on Linux and a Mac. A matching folder name alone does not establish that
+these are the same project. Use the registered project UUID and inspect its locations.
+
+From a session with [MCP](mcp.md), ask:
+
+> Call list_project_locations without changing anything. Find the project whose registered
+> locations match this checkout. Show its project UUID, machine names and root paths. If
+> more than one project could fit, stop rather than choosing the first.
+
+The response counts hidden scratch projects and index locations; use `include_all: true`
+when the relevant location is hidden. This option also exists in alpha.5. The list does not
+prove that every expected capture was indexed.
+
+Then search using the verified UUID rather than a guessed folder name. Use a phrase you
+know occurs in that project's captured history, such as `Homebrew` from the guide. Read
+the returned source and check the session, date and checkout before using it as evidence.
+If the registered location is wrong or absent, review the project assignment first. Do not
+merge projects or register a replacement location just to make a search error disappear.
+
+## If project search is ambiguous or unrelated
+
+[Issue 191](https://github.com/temet-ai/mike/issues/191) reports a merged checkout resolving
+to its old project row. Source inspection on 13 November 2026 confirms that the resolver
+in current `main` still accepts exact UUID and path matches without following the merge
+target. Alpha.5's older resolver also lacks that redirect, although its ambiguity message
+does not list named candidates. The reported searches have not been independently
+reproduced for this guide; this is a known limitation to check, not a diagnosis of every
+empty result.
+
+1. If a path returns `409` or an ambiguous-project error, do not automatically take the first
+   suggested UUID. Compare the candidates with `list_project_locations`, which lists live,
+   unmerged projects, and identify the intended project's registered checkout.
+2. Repeat the search with that verified live UUID. Check a known session or document from
+   the project, not just that the request returned successfully.
+3. On builds after alpha.5, inspect each result's provenance. `provenance.outside_project:
+   true` means the item came from the pool outside any project. Reranked searches can include
+   that pool when configured to do so; it does not mean the item belongs to the requested
+   project or that mike searched every other named project. If all results are outside the
+   project, treat project coverage as unverified and recheck its identity.
+4. Read the cited source with `read_project_knowledge`. On newer builds, `provenance.written_by:
+   "machine"` identifies tool- or session-written material, not the machine that ran the
+   checkout. It is not an operator decision merely because search found it. Later results
+   may be pointers rather than full text; follow their `reference` before quoting them.
+
+Alpha.5 does not expose the newer outside-project provenance and compact result shapes.
+Use its returned source and session details instead; a missing field is not a clean bill
+of health. If identity remains unclear, stop relying on the result and
+[report the problem](troubleshooting.md#report-a-problem) with your version and a redacted
+selector/error. Do not post captured text or change database merge rows by hand.
+
 ## When something looks wrong
 
 | What you see | What to do |

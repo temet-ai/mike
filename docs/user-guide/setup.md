@@ -80,11 +80,11 @@ The Features step offers three presets, and `mike features <preset>` applies one
 
 | Preset | What it turns on |
 |---|---|
-| `watch-only` | Nothing that rewrites a request or sends captured text to another service. Every other switch keeps its default. |
-| `recommended` | Watch only, plus recall, lessons and reminders. They add notes to what Claude Code sends to Anthropic; nothing leaves your machine for them. See [Memory](memory.md). |
-| `everything` | Every switch on the settings page, including those that send captured text to OpenRouter and those that rewrite requests and responses. The ones that call a model do nothing until a provider is set. |
+| `watch-only` | Restores feature toggles to their defaults and turns session-lessons delivery off. On a fresh configuration this captures without optional rewrites or background model calls; it is not a reset of all existing settings. |
+| `recommended` | Watch only, plus recall, lessons and reminders. Post-alpha.5 builds with code-findings delivery also enable recording edits, scanning them and sending findings, including proactive Remote Control delivery. This sends context to Anthropic and can prompt further work. See [Memory](memory.md) and [code findings](settings.md#choose-how-code-findings-reach-a-session). |
+| `everything` | Every feature toggle, including those that send captured text to the configured model provider and those that rewrite requests and responses. The ones that call a model do nothing until their provider is available. |
 
-Choose `watch-only` to keep everything optional off. The step shows which switches a preset would turn off. If mike is not running, the choice is saved and applied the next time it starts. [Settings](settings.md) lists every switch with its default, and [Privacy](privacy.md) says what each one sends and where.
+The presets change feature toggles and the session-lessons switch; they do not reset every setting or remove your filter rules. On an existing installation, review the preview before applying one. In particular, `watch-only` is not a reset of separately configured embedding settings or, on builds after alpha.5, reranking settings. If mike is not running, the choice is saved and applied the next time it starts. [Settings](settings.md) lists the switches and defaults, and [Privacy](privacy.md) says what each sends and where.
 
 ## Models and search by meaning
 

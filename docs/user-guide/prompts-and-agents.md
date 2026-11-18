@@ -99,7 +99,9 @@ a session dispatches a Task tool call.**
 
 ## Search tool calls and find failures
 
-**Tools** is a feed of every tool call across all sessions.
+**Tools** is a feed of captured tool calls across sessions, not every action those sessions
+performed. Nested Code Mode or REPL calls can be absent even when the outer call is shown;
+see [capture limits](web-ui.md#what-capture-does-not-prove).
 
 1. Open **Tools**. Choose a **Project**, a **Tool name** and a **Time range** (any time, last
    hour, 24 hours, 7 days or 30 days), then **Apply**.

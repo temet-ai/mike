@@ -59,6 +59,36 @@ With `MIKE_BUILD_CACHE=mbx`:
   "compiler environment input changed: MIKE_BUILD_SHA". A build without the
   opt-in reports the real commit as before.
 
+## Diagnose disk pressure before cleaning
+
+Distinguish the shared **mbx store** (`MBX_CACHE_DIR`, normally
+`~/.cache/mike-mbx`) from a checkout's **build directory** (`CARGO_TARGET_DIR`,
+such as `target/mbx-<session>`). They have different owners and cleanup paths.
+The `scripts/cargo-sweep-all` target sweep is not a substitute for mbx store
+collection. Its default discovery scope spans other projects too; inspect its
+`--dry-run` output before considering a sweep. Do not run plain Cargo in an
+mbx build directory or use `cargo clean` as a cache-repair shortcut.
+
+Start with read-only checks on the affected machine: identify the full filesystem,
+the configured store and target paths, their sizes, and any active builds. Check
+the actual checkout's `prepare_mbx_build_cache` implementation and installed mbx
+version/configuration rather than assuming a setting described in a PR is live.
+Do not delete a shared cache or an active build directory based only on its size.
+
+[PR #332](https://github.com/temet-ai/mike/pull/332) merged as `4bf85f78`.
+Source at `dd8e8e8c` unsets `MBX_GC_AUTO`, replacing the earlier forced-off
+override so mbx's own collection configuration can apply,
+while keeping target views and seeding disabled. Its reported disk-full incident
+is not proof of recovery, and neither the merge nor this guide demonstrates
+that collection ran or reclaimed enough space. Check the installed source,
+installed mbx settings and post-collection free space separately. Store collection
+does not by itself reclaim checkout target directories.
+
+The same PR adds a Linux user-systemd background scope for heavy builds.
+That is resource scheduling, not disk cleanup, and its effect depends on the
+machine's actual slice configuration. It is not a shipped guarantee that builds
+cannot interfere with desktop work.
+
 ## Deploy builds
 
 `scripts/deploy-proxy.sh` builds mike through mbx into `target/mbx-deploy`, under

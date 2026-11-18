@@ -89,7 +89,9 @@ For T3 in the example:
 }
 ```
 
-A task without `done_when` goes straight to the judge. See [How work is accepted](acceptance.md).
+A task without `done_when` skips the floor. Its report goes to an acceptance seat when
+one exists; otherwise the built-in judge needs a commit. A report without either remains
+a note, not an automatic pass. See [How work is accepted](acceptance.md).
 
 ## The check, the commit check and the gate
 
@@ -122,14 +124,16 @@ one.
 
 ## A whole definition
 
-The example, as `/fleet` would write it:
+The example, as `/fleet` might write it. Replace the repository path, branch and commands
+with your project's own values. Use a development branch you intend the workers to push;
+the name below is only an example.
 
 ```json
 {
   "goal": "The install page puts Homebrew first, the quickstart matches it, and a link check guards the docs.",
   "ask": "Rewrite the install page and the quickstart, Homebrew first, and add a link check",
   "repo": "/home/me/projects/site",
-  "branch": "main",
+  "branch": "docs/install-guide",
   "check": { "command": "npm run build", "paths": ["install.md", "quickstart.md", "src/", "package.json"] },
   "criteria": {
     "C1": { "text": "Homebrew first on the install page", "check": "The Homebrew section is the first install method on the built /install page.", "paths": ["install.md"] },

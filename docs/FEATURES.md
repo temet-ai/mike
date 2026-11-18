@@ -54,7 +54,8 @@ categories (`JustifyingShortcuts`, `DeflectingBlame`, `AvoidingWork`, `FakingUnd
 shown in the request detail view and the `/analysis` dashboard. The analyser itself only
 records findings. If the `reminders` toggle is enabled,
 `RemindersStage` can turn available prior-request findings into a `<system-reminder>` on a
-later primary request, or deliver it over Remote Control.
+later primary request. Diagnostic reminders do not wake an idle Remote Control session
+(`crates/mike-features/src/injection/policy.rs`).
 
 This is governed by its own `analysis.*` settings rather than a feature toggle. It is purely
 local — no text leaves the machine for it.
@@ -80,12 +81,14 @@ wizard's features step, and the wizard starts on **recommended**.
 | Choice | What it sets |
 |---|---|
 | `watch-only` | Every switch at its default. The switches that rewrite requests or send captured text to another service are off. |
-| `recommended` | Watch only, plus `recall_injector`, `agent_lessons` and `reminders`, and the `reminders.inject_lessons` setting (lessons from earlier sessions on the first turn). All four add a `<system-reminder>` to what Claude Code sends to Anthropic; none sends text anywhere else. |
+| `recommended` | Default toggles plus `recall_injector`, `agent_lessons`, `reminders` and `reminders.inject_lessons`. In builds after alpha.5 containing code-findings delivery, also enables `code_findings`, `change_record` and `code_scan`, retaining default-on `code_findings_push`. Lesson, diagnostic and code-finding context goes to Anthropic; code findings can prompt further work over Remote Control. |
 | `everything` | Every switch in the table of switches, including the ones that call a model and the ones that rewrite requests, plus `reminders.inject_lessons`. The ones that call a model do nothing until a provider is set up (`mike setup models`). |
 
 The proxy keeps switch settings in its database, so the command needs persistence on. When the
 proxy is not running, the choice is saved as `setup_features` in the per-user config file and the
-proxy applies it once, then removes the key, at its next start.
+proxy applies it once, then removes the key, at its next start. Presets cover feature toggles
+and `reminders.inject_lessons`, not every setting: they leave filter rules and separately
+configured embedding and reranking settings alone (`crates/mike/src/feature_presets/plan.rs`).
 
 ### Rewrites what mike forwards to Anthropic
 
@@ -93,11 +96,12 @@ proxy applies it once, then removes the key, at its next start.
 |---|---|---|---|
 | Diagnostic reminders | `reminders` | off | Appends a `<system-reminder>` built from the diagnostic findings on the previous request. |
 | Recall injection | `recall_injector` | off | Appends a `<system-reminder>` of topic-matched lessons read from Postgres. Reads the database only; no network call unless embeddings are also on. |
-| Session lessons | `reminders_inject_lessons` (setting) | off | Appends a `<system-reminder>` of session-start lessons on the first primary turn. |
+| Code findings | `code_findings` | off | After alpha.5: sends recent findings from recorded edits to the originating session. New scans need `change_record` and `code_scan`; `code_findings_push` (default on) also permits proactive Remote Control delivery and can prompt further work. See [`CHANGE_RECORD.md`](CHANGE_RECORD.md#mike-code-scans). |
+| Session lessons | `reminders.inject_lessons` (setting) | off | Selects relevant project and shared lessons for primary conversation turns, up to `reminders.max_lessons_to_inject` (default 5); appends eligible content and suppresses repeats. It is not a guarantee that every stored lesson appears on the first turn. |
 | Agent lessons | `agent_lessons` | off | Appends persona-scoped lessons on subagent turns. |
 | Self-identity reminder | `self_identity_reminder` | off | Appends a self-identity `<system-reminder>` on primary turns. |
 | Mailbox redelivery | `mailbox_redelivery` | off | Re-injects cross-session mailbox messages that were delivered but not consumed. |
-| Steerer injection | `steerer` | off | Runs the steerer fleet, which watches sessions for goal and anchor drift and queues `<system-reminder>` blocks for the next turn. **Also sends text to OpenRouter** — see below. |
+| Steerer injection | `steerer` | off | Runs the steerer fleet, which watches sessions for goal and anchor drift and queues `<system-reminder>` blocks for the next turn. **Also sends text to its configured model provider** — see below. |
 | Proxy-declared tools | `proxy_tools` | off | Gives a session mike's own tools (currently `mike_session_roster`) when it does not already have them, by appending the definitions to the request's `tools[]` and answering the calls inside the proxy — see the response section. Three kinds of request are left alone: one from a session that brought the tools itself (its requests name the MCP tool `mcp__<server>__get_workspace_roster`, loaded or listed as loadable; once seen, the session is remembered); a sidecar call that shares nothing with the session (session title, web-page summary, monitor, quota probe, advisor); and a request whose own `tools[]` is empty. The next-prompt-suggestion and count-tokens calls re-send the session's tool list to reuse its prompt cache, so they follow the session. |
 | Repeated notices | `repeated_notices` | off | Claude Code adds a notice to every message another session pushes to a session ("This came from another Claude session …") and to every mike channel message that arrives mid-turn ("IMPORTANT: This is NOT from your user …"), and it closes every message the operator sends while the session is working with one sentence ("This is how Claude Code surfaces messages the user sends mid-turn …"). With this on, a session is sent each of the three once: the first copy stays and later copies are removed from the **forwarded** body, wherever Claude Code put them (system text, user text, or the reminder blocks after a tool's output). The captured copy keeps the original bytes. A session picks the switch up when it starts; a session that is already running picks it up when the proxy next restarts. |
 | Read deduplication | `compression_dedup.enabled` (setting) | off | Replaces duplicate Read/`cat` tool-result content in the **forwarded** body. The captured copy keeps the original bytes, so what mike stores and what Anthropic received differ. |
@@ -105,6 +109,12 @@ proxy applies it once, then removes the key, at its next start.
 | Reminder-on-token | `reminder_on_token` | off | **Read the caveat below** — this stage changes the body whether the toggle is on or off, when a hook sentinel token is present. |
 | File-read compression | `file_read_compression` | off | Shortens large file reads in a conversation's history: an older read is replaced by a pointer when a newer whole read of the same file follows, and other reads keep their head and tail once the model has answered `file_read_compression.grace_turns` times (default 3) since the read, or sooner when the file was edited since. The newest result, protected paths and all explicitly ranged reads stay whole, including after compaction or when reduction markers exist only in forwarded history. Rereading a path returns its current version. Policy v4 markers also carry `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured original result. Recovery rejects a missing, ambiguous or mismatched result; it does not depend on the current file. `file_read_compression.mode` is `shadow` by default, with `file_read_compression.forward_share` at 0: each request's manifest records what would be shortened and the request is sent unchanged. In `shadow`, the percent of new sessions set by `forward_share` are sent shortened requests and the rest are the control; `forward` sends every new session shortened requests. Judge it with `scripts/compressor-trial-report` on paired runs, not on bytes. |
 | Shell-output compression | `shell_output_compression` | off | Shortens Bash output on the request that first carries it, so the full output is never written to the prompt cache, and repeats the identical cut on every later request so the cached prefix stays byte-stable. The output is kept to its first `head_lines` and last `tail_lines` (default 20 each) plus every error, failure, warning or summary line with `signal_context_lines` after it (default 3, at most `signal_line_cap` = 40). Each omitted range is marked `[[mike:shell_output_reduced]]`, and the result ends with `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured output. Output of commands that print chosen lines of a file (`sed`, `cat`, `head`, `tail`, `git show`, `git diff` and the like) or list and search (`rg`, `grep`, `ls`, `fd`, `wc`, `git status`, `git log` and the like) stays whole, since the model asked for those lines or picks entries from anywhere in them. Error results, output under `min_bytes` (1,500), and output a hook, mod, tether or mike added (`<system-reminder`, `[[mike:`) stay whole. A cut must save 25%. Identical outputs in one conversation are each cut the same way, in place. `shell_output_compression.mode` (default `shadow`) and `shell_output_compression.forward_share` (default 0) work as for file reads, with arms assigned independently. `mike compressor-loop` (run by the `scripts/compressor-loop` wrapper) scores the arms per turn and per lane and counts cuts whose hidden lines were used later. |
+
+Session lesson selection is implemented in `crates/mike-lessons/src/reminders/session_lessons.rs`
+and `crates/mike-lessons/src/lesson_worker/relevance.rs`. With recall enabled, some lessons are
+represented by a topic catalogue rather than their full content. When the mod serves lessons,
+`crates/mike-features/src/reminders/stage.rs` can leave the request alone to avoid duplicate delivery.
+Verify actual content and its delivery record using the [memory walkthrough](user-guide/memory.md).
 
 **Compression widening evidence.** The compressor scorecard isolates follow-ups by session and agent, deduplicates tool ids,
 uses a thirty-minute observation window, and reports missing identity/result coverage and
@@ -127,12 +137,15 @@ not carry the explicit-range guarantee.
 
 ### Sends captured text off the machine
 
-All of these are inert without an OpenRouter API key
-(`MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY`), except the embedding row.
+Model jobs use their configured provider. The OpenRouter route requires
+`MIKE_STEERER_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY`; jobs routed to `claude/` or
+`codex/` instead use that tool's sign-in (`crates/mike-base/src/llm/model_ref.rs`). The key column
+below describes the OpenRouter route. Embedding and reranking use their own configured
+endpoints, which are local by default.
 
-| Feature | Toggle / setting | Default | Needs OpenRouter key | What is sent, and where |
+| Feature | Toggle / setting | Default | OpenRouter route needs key | What is sent, and where |
 |---|---|---|---|---|
-| Steerer fleet | `steerer` | off | yes | Prompts, assistant text, tool-call summaries and trajectory digests, to `openrouter.ai`. |
+| Steerer fleet | `steerer` | off | yes | Prompts, assistant text, tool-call summaries and trajectory digests, to its configured provider (`openrouter.ai` for the OpenRouter route). |
 | Turn judge | `judge_worker` | off | yes | Each turn's user prompt plus the final assistant text. |
 | Session judge | `session_judge` | off | yes | A multi-turn digest: each turn's prompt and final response. |
 | Turn guard | `turn_guard` | off | yes | At each turn end and after quiescence, the turn's closing text, its dossier facts and (with `guard.calibration.input_mode = live`) a calibration block, to four guard questions. Every question starts in `shadow`: rows are recorded, nothing is delivered. A question the operator promotes to `append` or `wake` delivers a nudge, which changes traffic. |
@@ -142,6 +155,7 @@ All of these are inert without an OpenRouter API key
 | Refocus steerer | `steerer.refocus.enabled` (setting) | off | yes | Part of the steerer fleet; injects grounding messages on anchor drift. |
 | Lesson-relation detection | `lesson_relations.enabled` (setting) + the `mike detect-lesson-relations` subcommand | off | yes | Stored lesson text, to a proposer model and an adjudicator model. |
 | Embeddings | `embedding.enabled` | off | no | Lesson bodies, operator-turn chunks, session overviews and recall queries, to `embedding.url`. The default URL is `http://127.0.0.1:7997`, which is local — but the URL is operator-settable at runtime, and a remote or hosted one means the text leaves the machine. |
+| Reranking | `rerank.enabled` | off | no | Search queries and candidate passages, to `rerank.url` (`http://127.0.0.1:11435` by default). A server on another machine receives that text; see `crates/mike-base/src/analysis/rerank/service/attempt.rs`. |
 | Trace export | `otel_endpoint` (boot config) | unset | no | Tracing spans to your OTel collector. mike's spans carry ids, sizes and counts; no prompt or response body was found on a span attribute. |
 
 Every OpenRouter call's full outbound body is recorded in the `llm.calls` table, so the
@@ -157,6 +171,7 @@ the configured embedding and database endpoints, which can be remote.
 | Lesson worker | `lesson_worker` | Consolidates and garbage-collects stored lessons. Calls the embedding service when embeddings are enabled; otherwise entirely local. |
 | Memory harvester | `harvester` | Parses `<mem:update>` tags out of completed turns and writes the lessons to Postgres. No LLM call. |
 | Database resync | `db_resync` | Drains rows written to the local fallback database back into the primary. See [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md). |
+| Code scans | `code_scan` | After alpha.5: local ast-grep scans of recorded edits; inert without default-off `change_record`. Findings delivery is separately gated. |
 | Retention sweep | `retention_sweep` | Periodically deletes sessions older than `default_ttl` (365 days). |
 | Channel-link sweep | `channel_link_sweep` | Maintains the Remote Control channel↔session links. |
 | Workspace capture registration | `workspace_capture_registration` | Registers observed sessions in the workspace roster used for cross-session messaging. |
@@ -211,10 +226,12 @@ can run when an OpenRouter key is
 present *and* a steerer is enrolled for the session, independent of the toggle. With no key and
 no enrolments — the default — neither happens.
 
-**Out-of-band delivery bypasses the request body.** When a session has a live Remote Control
-channel, a queued reminder can be pushed into that stream as a synthetic user turn instead of
-being spliced into the next `/v1/messages` body. The model sees the same text; the captured
-request bytes are unchanged. This is the `DeliveredOutOfBand` outcome in the reminder stages.
+**Out-of-band delivery is source-specific.** When a session has a live Remote Control
+channel, an eligible steerer, mailbox or code-findings message can be pushed into that stream instead of
+being spliced into the next `/v1/messages` body. That delivery leaves the captured request
+bytes unchanged (`DeliveredOutOfBand`). Lessons, recall, diagnostic reminders, self-identity
+and workspace briefings cannot wake a session; they remain request context. The source policy
+is `crates/mike-features/src/injection/policy.rs`, enforced by `crates/mike-features/src/reminders/mod.rs`.
 
 ## See also
 

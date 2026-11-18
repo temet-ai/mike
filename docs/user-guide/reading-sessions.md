@@ -21,8 +21,9 @@ told Claude: "Put Homebrew first on the install page."
 2. Open the `~/projects/site` group if it is collapsed. Each row shows the session's title,
    its number of requests (**Req**), when it **Started**, when it was **Last active**, and its
    **Session id**.
-3. Select the `docs` row. The session page opens, headed by the session's title and a short
-   id you can copy with the copy button.
+3. Select the session row. The guide calls it `docs`; your session may have a different
+   title, so use its project folder and **Last active** time to identify it. The session
+   page opens, headed by its title and a short id you can copy with the copy button.
 
 The pin beside a row pins the session. Pinned sessions are exempt from mike's time-based
 clearing of old data. A session that is running now shows live. If a project has more
@@ -39,7 +40,7 @@ The search box on the Sessions page finds text across everything mike captured, 
    four characters.
 2. The list switches to the sessions that match, still grouped by project. The label beside the
    box says what was searched: titles, conversation and bodies.
-3. Open the `docs` row. Each match shows where the words appeared.
+3. Open the matching session row. Each match shows where the words appeared.
 
 The search covers the session's title and id, what you and Claude said, and the raw responses
 (tool results, thinking and everything else captured). Raw responses are searched for the last
@@ -128,6 +129,29 @@ which shows the session's timeline with that request selected. If it says **Coul
 request**, the request has been removed by retention or mike is not reachable. Sessions you
 have pinned keep their requests.
 
+## A continued request is not the whole conversation
+
+Claude Code can send `thread: {"type": "continue", ...}` with only the new messages
+since the preceding response. A request body containing one prompt or tool result can
+therefore be correct even though you remember many earlier turns. **Original** is that
+request, not a transcript of everything Claude already had. A tool result's matching
+`tool_use` may be in an earlier request. Do not infer that earlier instructions or tool
+calls never existed because they are absent from this body.
+
+To investigate the fictional `docs` session, start with its timeline and inspect the
+surrounding requests and responses. Preserve the session identity, request id and time;
+where present, the `thread.previous_message_id` is a response-message link, not a session
+id or request number. Missing retained history can leave the chain incomplete. Compare
+what was actually captured rather than treating a reconstructed conversation as the raw
+bytes sent on one request.
+
+Post-alpha.5 source includes [earlier-turn handling for streamed requests](https://github.com/temet-ai/mike/pull/387)
+for internal readers. That does not replace the raw-body view with a full conversation,
+prove that every reader has recovered its history, or establish behavior on your running
+service. [The earlier-turns issue](https://github.com/temet-ai/mike/issues/352) remains open,
+including the requested conversation-at-this-request view. Do not look for a promised
+extra tab based solely on that proposal.
+
 ## Replay the session flow
 
 The **Session flow** board shows the session as lanes over time, one per agent, with the
@@ -146,8 +170,24 @@ requests, tool calls and messages drawn where they happened.
 The address updates as you select and seek, so a link to the page keeps your place.
 
 If the board says **Flow is unavailable for this session**, the session was captured in a form
-the board cannot draw. The Requests list still has everything. A **STALE** badge means newer
+the board cannot draw. Use the Requests list to inspect the retained captures. A **STALE** badge means newer
 requests arrived after the board loaded.
+
+### Treat historical changes as evidence to check
+
+A message marked removed in older per-request change history is not, by itself, proof
+that Claude deleted it from the conversation. Earlier capture could compare a continuation's
+short new-message body against the wrong predecessor or a previous full body. This can
+mislead request-change, session-flow and text-search readers even after newer capture
+code is installed.
+
+[Historical delta correction](https://github.com/temet-ai/mike/issues/354) is still open.
+A fix for newly arriving requests does not prove older stored deltas were repaired.
+Cross-check the raw request's thread link, surrounding responses and session identity
+before interpreting old removed/unknown rows. Do not rewrite history or run space
+reclamation to make the display look right: freeing storage is not evidence repair.
+These cautions describe source and issue status, not a reproduced incident or a verified
+repair of your database.
 
 ## See related sessions
 

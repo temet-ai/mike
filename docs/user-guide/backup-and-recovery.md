@@ -53,21 +53,39 @@ Before you start:
 
 1. Stop mike, and every other program that writes to the same database. Leave PostgreSQL running. The flag `--confirm-stopped-writers` states you have done so; it does not stop anything.
 2. Move any overrides that you pass as environment variables or flags into the configuration file, and remove them for the backup.
-3. Find your folders: `mike --config "$CONFIG" print-config --paths`. Use the exact `data_dir` and `state_dir` it prints for `DATA` and `STATE`.
-4. Pick a new folder for the backup, outside those folders, with room for the database dump and a copy of the files.
+3. Set `CONFIG` to the absolute path of the configuration used by the installation you are backing up. `mike config path` prints the default selection; if you normally pass `--config`, use that file instead. Run `mike --config "$CONFIG" print-config --paths` and check its `config_file` is the one you intended.
+4. Set `DATA` and `STATE` to the exact `data_dir` and `state_dir` from that output. For a managed Docker database, also set `INSTALLATION_ID` to its `installation_id`, not a container name or a value from another install.
+5. Pick a new folder for the backup, outside those folders, with room for the database dump and a copy of the files. The example uses `~/mike-backups/before-update`; change it if that destination already exists.
 
-For a managed Docker database, pass the `installation_id`:
+The capitalised names below are shell variables you set, not values the kit discovers.
+For a managed Docker backup, check them before continuing:
+
+```sh
+: "${CONFIG:?Set CONFIG to the selected configuration file}"
+: "${DATA:?Set DATA from print-config --paths}"
+: "${STATE:?Set STATE from print-config --paths}"
+: "${INSTALLATION_ID:?Set INSTALLATION_ID from print-config --paths}"
+```
+
+These checks reject missing or empty values; they do not prove you selected the right
+installation. Compare the paths with the selected installation before continuing.
+For a managed Docker database, pass that `installation_id`:
 
 ```sh
 "$MAINTENANCE" backup \
   --prefix "$HOME/.local" --config "$CONFIG" \
   --data-root "$DATA" --state-root "$STATE" \
   --docker-identity "$INSTALLATION_ID" \
-  --destination "$HOME/mike-backups/before-update" --confirm-stopped-writers
+  --destination "$HOME/mike-backups/before-update" --confirm-stopped-writers &&
 "$MAINTENANCE" verify --backup "$HOME/mike-backups/before-update"
 ```
 
 For a database you run yourself, replace `--docker-identity` with `--pg-service-file FILE --pg-service NAME`, where the file is a private PostgreSQL service file (host, port, database, user, authentication) that matches the database in your configuration. The kit never accepts a password on the command line.
+
+A successful backup prints a JSON receipt with `status: "backup-complete"`; the follow-up
+verification prints `status: "verified-checksums"`. Both commands must exit successfully.
+The `&&` above runs verification only if this backup succeeded, so a failed attempt cannot
+be mistaken for verification of an older backup at that path.
 
 The destination appears only when every step succeeded. A failed backup exits non-zero and removes its partial work. A power cut can leave a folder named `.mike-recovery-incomplete-*`; that is not a backup. The kit does not overwrite an earlier backup and does not rotate old ones. `verify` checks the backup's files against their recorded checksums without needing a database; it does not prove a restore works.
 
@@ -88,7 +106,10 @@ A restore never writes over the instance you are recovering from. It builds a co
 1. Leave the original installation and its database stopped and untouched.
 2. Install the same release the backup came from into a new prefix. The kit compares the release itself, not just the version number.
 3. Create a fresh, empty PostgreSQL 19 database (for the managed Docker database, a new installation with its own `installation_id`). Do not reuse the original volume.
-4. Restore to a path that does not exist yet:
+4. Set `RECOVERY_PREFIX` to the new archive installation's prefix, and `FRESH_SERVICE_FILE`
+   to the private service file for the fresh database. The example service name
+   `mike_restore` must be an entry in that file. Confirm it does not point at the original
+   database. Restore to a destination folder that does not exist yet:
 
 ```sh
 "$MAINTENANCE" restore \
@@ -110,21 +131,125 @@ If the import commits but a later check fails, leave that target alone and look 
 
 ## Upgrade
 
-Take a backup first, and keep the previous release until the new one has started and captured a session.
+An upgrade has three separate checkpoints: the new programs are installed, the new server
+is running against the intended database, and old and new history are readable. A package
+manager reporting success proves only the first one. The tested/not-rehearsed limits at the
+top of this page still apply.
 
-Upgrade through the channel you installed from, then restart mike:
+### Before changing versions
+
+1. Choose a release from the [releases page](https://github.com/temet-ai/mike/releases) and
+   read its notes. Keep `mike` and `mike-mcp` on the same release.
+2. Record `mike --version`, `mike-mcp --version` and the configuration path you use. Keep
+   the previous release files as well as the backup.
+3. While the UI is available, note one older session you can find again after the upgrade.
+   You will use it to check continuity; an empty but healthy new database is not a successful
+   history migration.
+4. Let active sessions finish, stop capture writers and [take a backup](#back-up). Keep
+   writers stopped while checking and upgrading. Trial captures cannot survive this step.
+
+### Install the selected pair
+
+Use the channel that owns the current installation. Do not install a second copy with
+another package manager to repair the first one; it can hide which binary the shell or
+background service uses.
+
+For Homebrew:
 
 ```sh
-brew upgrade mike mike-mcp
+brew upgrade temet-ai/mike/mike temet-ai/mike/mike-mcp
 ```
+
+For mise, choose the same explicit version for both entries. The example below selects
+`0.1.0-alpha.5`; change `VERSION` to the release you chose if it is different:
 
 ```sh
-mise upgrade github:temet-ai/mike ubi:temet-ai/mike
+VERSION=0.1.0-alpha.5
+mise use -g "github:temet-ai/mike@${VERSION}" \
+  "ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]@${VERSION}"
 ```
 
-Restart with `mike serve`, or `mike service restart` if mike runs as a background service. Restart Claude Code after `mike-mcp` changes. `mike serve` applies the new version's database changes on startup; no other command does. To look first without changing anything, run `mike migrate-check` and `mike database check`. A newer mike changes the database in ways an older one cannot read, so putting the old program back is not a way to undo an upgrade. To go back, restore the backup into a fresh copy with the release that wrote it.
+The installation guide pins a version. A bare `mise upgrade` preserves the configured
+version range, so do not assume it selected a newer alpha. See
+[mise's upgrade reference](https://mise.jdx.dev/cli/upgrade.html). Project-local mise
+configuration can also override your global choice; check the commands from the project
+folder where you use mike.
 
-For an archive install, `"$MAINTENANCE" upgrade-check --backup ... --candidate <folder>` confirms the backup still matches your install and that the candidate is newer, and `"$MAINTENANCE" install --candidate <folder> --prefix "$HOME/.local"` switches both programs together. Run the new `mike --config "$CONFIG" database check` between the two. The kit refuses downgrades and refuses a changed file with the same version. It does not restart anything or change data. `upgrade-check` takes the same location flags as `backup`.
+For an archive installation, stage the new release as described in
+[Install from an archive](install.md#install-from-an-archive). That example selects alpha.5:
+for your upgrade, download the selected newer release's manifest, checksums and both archives,
+and set the staging block's `version` to that same release (without the leading `v`). Keep
+the target consistent across all files. Use a new staging folder rather than an old candidate.
+The installed kit's
+`upgrade-check` takes the same location and database flags as `backup`, plus `--backup`
+and `--candidate`. It checks that the backup still matches the stopped installation and
+that the candidate is newer. Its receipt says `schema_compatibility: "NOT_RUN"`: it has not
+proved the new program can use the database. After staging as shown in the install guide,
+run `./mike-unpacked/mike --config "$CONFIG" database check` before installing it. The install command is
+`mike-maintenance install --candidate <folder> --prefix <prefix>`.
+Use the existing archive-owned prefix. The kit switches both programs together; it refuses
+downgrades and changed files with the same version, and starts no service.
+
+Then check what this shell will actually run:
+
+```sh
+command -v mike
+command -v mike-mcp
+mike --version
+mike-mcp --version
+```
+
+Both versions must match the selected release. A different version usually means another
+installation is earlier on `PATH`, or mise selected a project-local version. Fix that before
+restarting anything.
+
+### Check the database and restart
+
+For durable storage, use the new binary and the same configuration file as the installation
+you are upgrading. `mike migrate-check` and `mike database check` read the database without
+applying migrations. With a custom configuration, use `mike --config "$CONFIG" migrate-check`
+and `mike --config "$CONFIG" database check`.
+
+Pending migrations alone are expected when a release adds them. A checksum mismatch,
+missing-from-binary migration or out-of-order migration is a blocker: stop and read
+[The program and the database disagree](troubleshooting.md#the-program-and-the-database-disagree).
+Do not edit the migration ledger to make the check pass.
+
+**Inspect a managed service's saved command before restarting it.** `mike service restart`
+restarts that command; it does not regenerate it. This matters with version-specific
+archive or mise paths. `mike service status` prints the service-file locations.
+
+For a mike-managed service using the default configuration, run
+`mike service install --dry-run` to see the command the new binary would write. If the saved
+command points at the old binary, or you removed the service while stopping writers, review
+the plan and use `mike service install` while the old service is stopped. It refreshes the
+service files and starts the new server. Do not replace a custom service configuration
+blindly.
+
+Otherwise, start the foreground server with `mike serve` (or
+`mike --config "$CONFIG" serve` for your custom file), or use `mike service restart` for an
+existing managed service whose saved command already selects the new binary. Only
+`mike serve` applies the new version's migrations on startup. After `mike-mcp` changes,
+[check Claude's saved MCP registration](mcp.md#after-an-upgrade) before starting a new
+Claude Code session. Restarting alone does not update an old executable path.
+
+### Verify before calling it done
+
+1. Open <http://localhost:9989/api/health>, or your configured API address. Compare
+   `build.sha_short` with the commit printed by the new `mike --version`; the health response is
+   from the running server, while `--version` describes the binary in your shell.
+2. With durable storage, check `persistence.enabled` and `persistence.reachable` are both
+   true, then open the older session you noted and read a request and reply.
+3. Send a new prompt and find that exact turn in [Sessions](reading-sessions.md). Check
+   [capture health](troubleshooting.md#check-that-history-is-being-saved) if the answer
+   arrives but the turn does not.
+4. If you use MCP, run `mike mcp probe` and read the same session from a newly started
+   Claude Code session.
+
+Keep the backup until you have verified those steps. A newer release can change the database
+in ways an older program cannot read. Putting the old executable back does not undo those
+changes. To go back, [restore the backup into a fresh copy](#restore-into-a-fresh-copy) with
+the matching old release, leaving the changed database untouched.
 
 ## Remove mike
 

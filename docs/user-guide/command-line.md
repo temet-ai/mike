@@ -138,11 +138,11 @@ The sidecar lets Claude Code's Remote Control traffic be captured, and keeps Cla
 
 | Command | What it does |
 |---|---|
-| `mike wright pair [--open]` | Prints the address of the [Wright page](pages.md#system) with the operator token that pairs a browser, so that browser can post in the conversation with Wright and undo its actions. `--open` also opens the address in your browser. The token is created on first use. |
+| `mike wright pair [--open]` | Prints the address of the [Wright page](pages.md#system) with the operator token that pairs a browser, so that browser can post in the conversation with Wright and undo its actions. `--open` also opens the address in your browser. The token is created on first use. The printed URL is a credential, not a shareable page link; see [pairing precautions](settings.md#pair-only-your-own-browser). |
 | `mike decisions export [--since <TIME>] [--point <POINT>] [--with-outcomes] [--out <FILE>]` | Writes the recorded answers of the small decision model, one per line, to a file or to the terminal. See [Decisions](decisions.md). |
 | `mike decisions loop [--force]` | Runs the daily review of those answers and prints its report. It does nothing when a run finished in the last 24 hours, unless you pass `--force`. |
 | `mike decisions ask <STATE> <QUESTIONS>` | Puts a set of questions, read from two JSON files, to the decision model and prints its answers. Needs the provider key described on the Decisions page. |
-| `mike decisions replay --point <POINT> --out <FILE> [--limit <N>] [--since <TIME>]` | Asks the model again the questions a decision point was asked earlier, and writes the new answers to a file. |
+| `mike decisions replay --point <POINT> --out <FILE> [--limit <N>] [--since <TIME>]` | Re-runs a supported decision point on historical evidence using the current question set, and writes new answers to a file. Calls the model again; this is not an offline log read or proof of live accuracy. See [replay limits](decisions.md#replay-without-overclaiming). |
 | `mike decisions import-replay --kind <precheck\|seat\|replay> <FILE>` | Loads answers from a replay file into the database. |
 | `mike structural wiring [--range <A..B>] [--json] [--rules <FILE>]` | Run inside a git checkout. Lists code that nothing calls, registers or reads. With `--range`, lists only what the second commit adds. `--rules` names a different rules file; by default it uses `.mike/structural/wiring.yml` in the repository. |
 
@@ -173,12 +173,16 @@ Install `mike` and `mike-mcp` from the same release, and restart Claude Code aft
 
 You will rarely run these. Most print what they would do with `--dry-run` or change nothing until you pass `--execute`; read `mike <command> --help` and use `--dry-run` first. Run them when a release note, [troubleshooting](troubleshooting.md) or `mike doctor` tells you to.
 
+The `learning promote`, `learning-audit` and `compressor-loop` commands below require
+post-alpha.5 builds with the Rust learning jobs. Their presence in current source does not
+prove your service runs that build.
+
 | Commands | When you would need one |
 |---|---|
 | `backfill-session-prompts`, `backfill-predecessors`, `backfill-flow-admission`, `backfill-tool-definitions`, `backfill-request-envelopes`, `backfill-request-system-prompts`, `backfill-lesson-injections`, `origin-backfill` | After an upgrade adds something mike shows about older captures, to fill it in for sessions captured earlier. Several take `--from`, `--to` and `--batch-size` to work in pieces. |
 | `reclassify-system-prompts`, `repair-session-prompts`, `restamp-sidecar-origins`, `demote-duplicate-first-turns` | To correct how older captures were labelled. |
 | `compact-request-bodies`, `reclaim-space --table <TABLE>`, `sweep-orphaned-messages`, `forget-retracted-migrations` | To free disk space or tidy the database. `compact-request-bodies` leaves sessions idle for under 14 days alone by default (`--min-idle-days`) and needs `--execute`. |
-| `learning promote [--dry-run]` | To decide now how each accepted lesson reaches its project and write the standing ones to `.claude/rules/mike-lessons.md` in the checkout. The scheduled `learning_promote` job runs it hourly overnight; `--dry-run` reports without writing. It exits 1 when a generated file was edited by hand and was left alone. |
+| `learning promote [--dry-run]` | To decide now how each accepted lesson reaches its project and write the standing ones to `.claude/rules/mike-lessons.md` in the checkout. The scheduled `learning_promote` job runs it hourly overnight; `--dry-run` reports without persistent promotion writes, but can still call the configured embedding service for coverage. It exits 1 when a generated file was edited by hand and was left alone. |
 | `learning-audit [--weekly] [--end <TIME>] [--output <FOLDER>]` | To write the learning audit report now. It reads the database and makes no model call; `--weekly` audits the last complete Monday-to-Monday week UTC, and the default folder is `artifacts/learning-audit` in a checkout. |
 | `compressor-loop [--days <N>] [--apply] [--evidence <FILE>]` | To score the [compressor](compression.md)'s shortened and full file reads now. Without `--apply` it changes nothing. |
 | `detect-lesson-relations [--project <PROJECT>]` | To compare stored lessons on demand. It sends lesson text to a model; see [Privacy](privacy.md). |

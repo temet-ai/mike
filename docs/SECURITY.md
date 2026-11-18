@@ -2,7 +2,7 @@
 title: Security and trust boundary
 status: active
 created: 2026-09-17
-updated: 2026-11-06
+updated: 2026-11-12
 summary: What each mike bind exposes, what the Host/Origin guard does and does not stop, where captured data lives, what leaves the machine when a feature is enabled, and how to run with nothing enabled.
 ---
 
@@ -12,8 +12,8 @@ mike captures the full text of everything you say to Claude Code and everything 
 model says back, including system prompts, file contents read by tools, and tool results. That
 data is as sensitive as the repositories you work in.
 
-**The short version: mike is designed for one person on one machine, bound to loopback, with no
-authentication anywhere. Any process on the machine can read all of it.** There is no
+**The short version: mike is designed for one person on one machine, bound to loopback, without a
+general login or multi-user permission boundary. Local processes can read captures.** There is no
 supported way to expose it to a LAN or the internet.
 
 To report a vulnerability, follow [`../SECURITY.md`](../SECURITY.md): use GitHub's private
@@ -22,9 +22,12 @@ content in an ordinary issue.
 
 ## The trust boundary
 
-mike trusts every process running on the machine it runs on. It does not authenticate anything.
-The only boundary it enforces is against a *browser* being tricked into talking to it from
-another site, and against DNS rebinding. Both are the Host/Origin guard described below.
+mike broadly trusts local processes. The Host/Origin guard described below protects against
+a *browser* being tricked into talking to it from another site and against DNS rebinding.
+Some sensitive routes additionally require a token: the service credential route described
+below, and Wright operator mutations such as conversation posts, undo and limit changes.
+Wright pairing stores its Bearer token in the browser; see the [operator guide](user-guide/settings.md#pair-only-your-own-browser).
+These exceptions do not authenticate ordinary capture reads or create a general user-permission boundary.
 
 ## What each bind exposes
 
@@ -39,9 +42,11 @@ The `mike` binary opens up to three listeners, all on `127.0.0.1` by default.
 The optional `proxy-forward` sidecar is a separate binary on `127.0.0.1:9987`. It is an HTTPS
 MITM: it terminates `CONNECT` tunnels, mints per-host certificates from a CA it generates on
 first run, and forwards the decrypted traffic. Clients trust it by loading that CA
-(`NODE_EXTRA_CA_CERTS`). A CA on disk that a client trusts can sign a certificate for any host,
-so treat the sidecar's CA file as a credential and do not install it into a system trust store.
-The CA key is written with mode `0600`.
+(`NODE_EXTRA_CA_CERTS`). A client that trusts this CA accepts certificates it signs for any
+host. The signing credential is `ca-key.pem`, not the public `ca-cert.pem` that the client
+loads. Protect the private key and keep trust scoped to the intended client; do not add the
+CA certificate to a system trust store. The key is written with mode `0600`
+(`crates/proxy-forward/src/ca.rs`).
 
 **Keep the sidecar on loopback.** For every host other than the one it intercepts, the sidecar
 opens a plain tunnel to whatever address the client names, and it does not check who the client
@@ -63,7 +68,8 @@ Not just reads. Among other things, any local process can:
 - `POST /api/launches` to start a Claude Code session on the machine, in a directory of its
   choosing, with the arguments it chooses.
 
-There is no per-route permission model and no read-only mode.
+There is no general multi-user permission model or read-only role. Token-protected exceptions
+do not make the remaining API safe to expose remotely.
 
 ## Where keys live
 

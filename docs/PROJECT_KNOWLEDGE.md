@@ -136,24 +136,24 @@ beside the source.
 
 ## Claude Code memory files and project skills
 
-The proxy indexes two further sources itself, with no collector run and no
+Current source after alpha.5 indexes built-in sources itself, with no collector run and no
 `.mike/knowledge.json` entry. A background worker (`knowledge_scan/`)
 wakes every two minutes, reads this machine's identity from
 `$XDG_STATE_HOME/mike/machine.json`, and takes every `projects.locations` row
-carrying that `machine_uuid`. For each location it looks for two directories on
+carrying that `machine_uuid`. For each location it scans these paths on
 the local disk:
 
 | Source name | Directory | Files indexed |
 |---|---|---|
 | `claude-memory` | `<claude home>/projects/<root path with every non-alphanumeric character replaced by "-">/memory/` (`<claude home>` is `$CLAUDE_CONFIG_DIR`, else `~/.claude`) | every `.md` file below it except `MEMORY.md`, the index that repeats the others' descriptions |
 | `skills` | `<location root>/.claude/skills/` | `<skill>/SKILL.md`, one level down |
+| `instructions` | `<location root>/` | `CLAUDE.md`, `AGENTS.md`, `.claude/rules/` and `.claude/agents/`; excludes instruction bodies beginning with `<!-- mike-learning-generated:v1 -->` |
 
-A directory that does not exist is skipped, so a location without memory or
-skills costs two directory lookups per cycle. A directory that exists is
+A missing source root keeps the earlier index and records the missing-root condition. A directory that exists is
 registered as a knowledge source for that location and scanned completely each
 cycle: full UTF-8 text, a content hash, and the frontmatter kept in the revision
 metadata (`name`, `description`, nested `metadata.type`). The revision `kind` is
-the frontmatter `kind`, `type` or `metadata.type`, else `memory` or `skill`; the
+the frontmatter `kind`, `type` or `metadata.type`, else `memory`, `skill` or `instruction`; the
 title is the frontmatter `name`. The frontmatter reader handles flat keys, one
 nested level, lists and folded or literal block scalars; a file whose frontmatter
 it cannot read is still indexed by its body, with `frontmatter_error` in the
@@ -164,11 +164,33 @@ cycle: the failure is recorded in the source's health row and the earlier index
 stays. Each machine therefore indexes its own files; a second machine with the
 same project registers separate sources under its own locations.
 
-Search results carry `source_kind` `memory` or `skill` for these documents, and
+Memory and skill search results carry `source_kind` `memory` or `skill`, and
 `search_project_knowledge` accepts `kind: "memory"` or `"skill"` as a filter
-(`kind: "artifact"` now means the other collected Markdown). The reference stays
+(`kind: "artifact"` means other collected Markdown, including instructions and machine agent memory). The reference stays
 `artifact:<revision>` and is read with `read_project_knowledge`. The existing
 embedding worker embeds the new documents with the other artifacts.
+
+### Machine-level Claude home sources
+
+Post-alpha.5 builds containing #309 and #311 also scan `<claude home>/agents`,
+`rules`, `skills` and `agent-memory` once per machine, without requiring a project
+checkout or a declaration. The rules source includes `<claude home>/CLAUDE.md`
+when the rules directory exists. `knowledge_scan/machine.rs` defines these roots;
+`knowledge_scan/mod.rs` records the machine before scanning. Checkout sources
+remain location-owned; home sources use `memory.knowledge_sources.machine_uuid`.
+
+**A project filter is not a privacy boundary for these home sources.** The search
+and read queries admit any source with a non-null machine UUID, not only the
+requesting machine's sources. Projects sharing the database can retrieve this
+content. Examine returned machine, source and path provenance before relying on
+it. A missing root preserves earlier indexed text; removing a folder does not
+purge its previous revisions.
+
+File scanning does not depend on `embedding.enabled`. Turning embeddings off
+stops that embedding work, not collection or text search. Review the
+[user-guide privacy controls](user-guide/privacy.md#knowledge-sources-and-standing-lessons)
+before putting sensitive instructions or agent memory under these roots.
+These are source behaviors, not confirmation of a live machine's deployment.
 
 ### What the lesson proposer sees
 
