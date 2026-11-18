@@ -76,7 +76,7 @@ fn list_sessions_tool() -> Tool {
                 "machine",
                 json!({
                     "type": "string",
-                    "description": "Only sessions captured on this machine: a machine name (case-insensitive, e.g. `omit`) or a machine uuid. Every row carries `machine` as {uuid, name}, or null for a session captured before machines were recorded."
+                    "description": "Only sessions captured on this machine: a machine name or part of one (case-insensitive, e.g. `omit` or `deus` for `pi5-deus`) or a machine uuid. Every row carries `machine` as {uuid, name}, or null for a session captured before machines were recorded."
                 }),
             ),
             (
