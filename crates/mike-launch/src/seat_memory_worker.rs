@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::base_state::BaseState;
 use crate::feature_toggles::FeatureToggles;
 use crate::feature_toggles::live_gate::wait_until_on;
-use crate::store::persistence::seat_memory::SeatMemoryRefresh;
+use crate::store::persistence::seat_memory::{SeatMemoryMarks, SeatMemoryRefresh};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[cfg(test)]
@@ -32,21 +32,43 @@ pub fn spawn_seat_memory_worker(state: &BaseState) {
 #[derive(Debug, Default)]
 pub struct RefreshMark {
     generation: Option<i64>,
-    refreshed_at: Option<Instant>,
+    marks: Option<SeatMemoryMarks>,
+    swept_at: Option<Instant>,
 }
 
 impl RefreshMark {
     pub fn due(&self, generation: i64, now: Instant) -> bool {
-        self.generation != Some(generation)
-            || self
-                .refreshed_at
-                .is_none_or(|at| now.duration_since(at) >= BACKSTOP)
+        self.generation != Some(generation) || self.sweep_due(now)
     }
 
-    pub fn record(&mut self, generation: i64, now: Instant) {
-        self.generation = Some(generation);
-        self.refreshed_at = Some(now);
+    pub fn since(&self, now: Instant) -> Option<SeatMemoryMarks> {
+        if self.sweep_due(now) {
+            None
+        } else {
+            self.marks
+        }
     }
+
+    pub fn record(&mut self, generation: i64, now: Instant, refresh: Refreshed) {
+        self.generation = Some(generation);
+        self.marks = Some(refresh.marks);
+        if refresh.swept {
+            self.swept_at = Some(now);
+        }
+    }
+
+    fn sweep_due(&self, now: Instant) -> bool {
+        self.marks.is_none()
+            || self
+                .swept_at
+                .is_none_or(|at| now.duration_since(at) >= BACKSTOP)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Refreshed {
+    pub marks: SeatMemoryMarks,
+    pub swept: bool,
 }
 
 async fn run(
@@ -97,9 +119,14 @@ async fn step(persist: &PersistHandle, mark: &mut RefreshMark) {
 }
 
 async fn refresh(persist: &PersistHandle, mark: &mut RefreshMark, generation: i64, now: Instant) {
-    match persist.launch().refresh_seat_memory_items().await {
+    let since = mark.since(now);
+    match persist.launch().refresh_seat_memory_items(since).await {
         Ok(outcome) => {
-            mark.record(generation, now);
+            let refreshed = Refreshed {
+                marks: outcome.marks,
+                swept: since.is_none(),
+            };
+            mark.record(generation, now, refreshed);
             log_refreshed(outcome);
         }
         Err(e) => log_failed("refresh", &e),

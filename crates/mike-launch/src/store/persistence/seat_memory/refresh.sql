@@ -1,8 +1,23 @@
-WITH seat_projects AS (
+-- Refreshes memory.seat_memory_items from memory.seat_memory(project).
+-- $1, $2, $3: the highest launch, fleet event and mail ids the previous refresh saw. Only the
+-- projects with a launch, fleet event or received mail above them are recomputed and pruned;
+-- all three NULL recomputes every project with launches (the worker's backstop sweep). The
+-- marks to pass next time come back in the last three columns.
+WITH bounds AS (
+    SELECT $1::bigint AS launch_after, $2::bigint AS event_after, $3::bigint AS message_after
+), seat_projects AS (
     SELECT DISTINCT s.project_id
       FROM launch.launches l
       JOIN sessions.sessions s ON s.session_uuid = l.session_uuid
+     CROSS JOIN bounds sc
      WHERE s.project_id IS NOT NULL
+       AND (sc.launch_after IS NULL
+            OR l.id > sc.launch_after
+            OR l.run_id IN (SELECT e.run_id FROM launch.fleet_events e WHERE e.id > sc.event_after)
+            OR l.session_uuid IN (SELECT e.session_uuid FROM launch.fleet_events e
+                                   WHERE e.id > sc.event_after AND e.session_uuid IS NOT NULL)
+            OR s.id IN (SELECT m.to_session_id FROM mailbox.messages m
+                         WHERE m.id > sc.message_after AND m.to_session_id IS NOT NULL))
 ), fresh AS MATERIALIZED (
     SELECT DISTINCT ON (sm.project_id, sm.item_kind, sm.source_ref, sm.session_uuid) sm.*
       FROM seat_projects p
@@ -38,11 +53,16 @@ WITH seat_projects AS (
     RETURNING 1
 ), removed AS (
     DELETE FROM memory.seat_memory_items i
-     WHERE NOT EXISTS (SELECT 1 FROM fresh f
+     WHERE ((SELECT sc.launch_after FROM bounds sc) IS NULL
+            OR i.project_id IN (SELECT p.project_id FROM seat_projects p))
+       AND NOT EXISTS (SELECT 1 FROM fresh f
                         WHERE f.project_id = i.project_id AND f.item_kind = i.item_kind
                           AND f.source_ref = i.source_ref AND f.session_uuid = i.session_uuid)
     RETURNING 1
 )
 SELECT (SELECT count(*) FROM fresh) AS "items!",
        (SELECT count(*) FROM written) AS "written!",
-       (SELECT count(*) FROM removed) AS "removed!"
+       (SELECT count(*) FROM removed) AS "removed!",
+       (SELECT COALESCE(max(l.id), 0) FROM launch.launches l) AS "launch_mark!",
+       (SELECT COALESCE(max(e.id), 0) FROM launch.fleet_events e) AS "event_mark!",
+       (SELECT COALESCE(max(m.id), 0) FROM mailbox.messages m) AS "message_mark!"

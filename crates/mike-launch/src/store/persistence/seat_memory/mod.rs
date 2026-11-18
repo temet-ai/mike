@@ -1,10 +1,18 @@
 use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeatMemoryMarks {
+    pub launch: i64,
+    pub fleet_event: i64,
+    pub message: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SeatMemoryRefresh {
     pub items: i64,
     pub written: i64,
     pub removed: i64,
+    pub marks: SeatMemoryMarks,
 }
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
@@ -22,15 +30,28 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
-    pub async fn refresh_seat_memory_items(self) -> Result<SeatMemoryRefresh, PersistError> {
+    pub async fn refresh_seat_memory_items(
+        self,
+        since: Option<SeatMemoryMarks>,
+    ) -> Result<SeatMemoryRefresh, PersistError> {
         crate::metrics::time_db("refresh_seat_memory_items", async move {
-            let row = sqlx::query_file!("src/store/persistence/seat_memory/refresh.sql")
-                .fetch_one(self.pool())
-                .await?;
+            let row = sqlx::query_file!(
+                "src/store/persistence/seat_memory/refresh.sql",
+                since.map(|m| m.launch),
+                since.map(|m| m.fleet_event),
+                since.map(|m| m.message),
+            )
+            .fetch_one(self.pool())
+            .await?;
             Ok(SeatMemoryRefresh {
                 items: row.items,
                 written: row.written,
                 removed: row.removed,
+                marks: SeatMemoryMarks {
+                    launch: row.launch_mark,
+                    fleet_event: row.event_mark,
+                    message: row.message_mark,
+                },
             })
         })
         .await
