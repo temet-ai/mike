@@ -1,8 +1,10 @@
 SELECT s.session_uuid
   FROM workspace.session_registrations r
   JOIN sessions.sessions s ON s.id = r.session_id
+  JOIN sessions.session_goals sg ON sg.session_id = s.id
  WHERE r.released_at IS NULL
    AND r.lease_expires_at > now()
+   AND lower(sg.role) = 'wright'
    AND NOT EXISTS (
        SELECT 1 FROM launch.launches l WHERE l.session_uuid = s.session_uuid AND l.run_id IS NOT NULL)
  ORDER BY s.last_seen DESC, s.id DESC

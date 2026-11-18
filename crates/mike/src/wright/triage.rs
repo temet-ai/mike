@@ -38,20 +38,20 @@ pub(crate) fn notice(waiting: &[WaitingCause]) -> String {
     out
 }
 
-async fn tell_operator(
-    persist: &PersistHandle,
-    waiting: &[WaitingCause],
-) -> Result<(), PersistError> {
+async fn tell_operator(persist: &PersistHandle) -> Result<(), PersistError> {
     let Some(recipient) = persist.web().wright_operator_session().await? else {
-        tracing::warn!(
-            causes = waiting.len(),
-            "wright triage: causes are waiting and no operator session is live to tell"
-        );
         return Ok(());
     };
+    let waiting = persist
+        .web()
+        .claim_overdue_wright_causes(WAITED_HOURS)
+        .await?;
+    if waiting.is_empty() {
+        return Ok(());
+    }
     persist
         .launch()
-        .insert_message(Uuid::new_v4(), recipient, None, &notice(waiting))
+        .insert_message(Uuid::new_v4(), recipient, None, &notice(&waiting))
         .await?;
     Ok(())
 }
@@ -65,14 +65,7 @@ async fn step(persist: &PersistHandle) -> Result<(), PersistError> {
             "wright triage: problems assigned to causes"
         );
     }
-    let waiting = persist
-        .web()
-        .claim_overdue_wright_causes(WAITED_HOURS)
-        .await?;
-    if !waiting.is_empty() {
-        tell_operator(persist, &waiting).await?;
-    }
-    Ok(())
+    tell_operator(persist).await
 }
 
 pub(crate) async fn run(persist: &PersistHandle) {
