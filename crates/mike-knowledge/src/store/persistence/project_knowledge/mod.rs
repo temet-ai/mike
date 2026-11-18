@@ -34,6 +34,7 @@ pub mod resolve;
 #[cfg(test)]
 pub mod resolve_tests;
 pub mod search;
+pub mod semantic_hits;
 pub mod session_scope;
 pub mod window;
 

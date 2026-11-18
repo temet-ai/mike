@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::semantic_hits::{SemanticAsk, SemanticHits, plan_mode, semantic_hits};
 use super::window::SearchWindow;
 use super::{QueryEmbedding, invalid};
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
@@ -73,6 +74,24 @@ impl<'a> QueryVector<'a> {
         [self.cut.floor, self.cut.window]
     }
 
+    fn ask<'s>(
+        &'s self,
+        project_id: i64,
+        scope: &CallScope,
+        kind: Option<&'s str>,
+    ) -> Option<SemanticAsk<'s>> {
+        Some(SemanticAsk {
+            project_id,
+            literal: self.literal?,
+            model_keys: self.model_keys.as_deref()?,
+            model_name: self.model_name?,
+            cut: self.cut_bounds(),
+            nearest_first: self.nearest_first,
+            caller: scope.caller,
+            kind,
+        })
+    }
+
     fn from(vector: Option<&'a QueryEmbedding>, cut: SemanticCut, nearest_first: bool) -> Self {
         match vector {
             Some((literal, keys, name)) => Self {
@@ -119,21 +138,18 @@ fn fetch_hits<'a>(
     tx: &'a mut sqlx::Transaction<'_, sqlx::Postgres>,
     (project_id, input): (i64, &'a KnowledgeQuery),
     (limit, offset): (i64, i64),
-    (bound, scope): (&'a QueryVector<'_>, &'a CallScope),
+    (semantic, scope): (&'a SemanticHits, &'a CallScope),
 ) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
     sqlx::query_scalar::<_, Value>(include_str!("search.sql"))
-        .persistent(false)
         .bind(project_id)
         .bind(&input.query)
         .bind(&input.kind)
         .bind(input.include_historical)
         .bind(limit)
         .bind(offset)
-        .bind(bound.literal)
-        .bind(bound.model_keys.as_deref())
-        .bind(bound.model_name)
-        .bind(bound.cut_bounds().to_vec())
-        .bind(vec![input.any_term, bound.nearest_first])
+        .bind(&semantic.references)
+        .bind(&semantic.scores)
+        .bind(input.any_term)
         .bind(scope.caller)
         .bind(&scope.identifiers)
         .bind(scope.thread.as_deref())
@@ -230,18 +246,24 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
             None => false,
         };
         let mut tx = self.pool().begin().await?;
-        if vector.is_some() {
-            set_vector_scan_limits(&mut tx).await?;
-        }
         let bound = QueryVector::from(vector, input.semantic_cut, nearest_first);
         let scope = CallScope::of(input, window);
+        let semantic = match bound.ask(project_id, &scope, input.kind.as_deref()) {
+            Some(ask) => {
+                set_vector_scan_limits(&mut tx).await?;
+                crate::metrics::time_db("knowledge_search_semantic", semantic_hits(&mut tx, ask))
+                    .await?
+            }
+            None => SemanticHits::default(),
+        };
+        plan_mode(&mut tx, !input.query.is_empty() && !input.any_term).await?;
         let rows = crate::metrics::time_db(
             "knowledge_search",
             fetch_hits(
                 &mut tx,
                 (project_id, input),
                 (limit + 1, offset),
-                (&bound, &scope),
+                (&semantic, &scope),
             ),
         )
         .await?;
