@@ -65,9 +65,9 @@ fn push_page_where<'a>(qb: &mut QueryBuilder<Postgres>, filter: &SessionPageFilt
         qb.push(sep)
             .push("(s.machine_uuid = sessions.try_uuid(")
             .push_bind(machine)
-            .push(") OR s.machine_uuid IN (SELECT m.machine_uuid FROM projects.machines m WHERE lower(m.name) = lower(")
+            .push(") OR s.machine_uuid IN (SELECT m.machine_uuid FROM projects.machines m WHERE m.name ILIKE '%' || ")
             .push_bind(machine)
-            .push(")))");
+            .push(" || '%'))");
         sep = " AND ";
     }
     if let Some(min) = filter.min_request_count.filter(|m| *m > 0) {

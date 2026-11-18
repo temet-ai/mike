@@ -57,6 +57,8 @@ async fn stamped_session_lists_its_machine_and_the_machine_filter_selects_it() -
 
     let by_name = listed_ids(&pool, &name.to_uppercase()).await?;
     assert_eq!(by_name, vec![stamped_uuid.to_string()]);
+    let by_part_of_name = listed_ids(&pool, &name[2..]).await?;
+    assert_eq!(by_part_of_name, vec![stamped_uuid.to_string()]);
     let by_uuid = listed_ids(&pool, &machine.to_string()).await?;
     assert_eq!(by_uuid, vec![stamped_uuid.to_string()]);
     assert!(
