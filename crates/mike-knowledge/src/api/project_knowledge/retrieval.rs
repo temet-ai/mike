@@ -128,6 +128,9 @@ async fn retrieve_with(
     let (searched, coverage) = tokio::join!(searching, counting);
     let (mut answer, report, passages) = searched.map_err(knowledge_error)?;
     let coverage = coverage.map_err(knowledge_error)?;
+    super::twins::attach_twins(handle, project.id, input, &mut answer)
+        .await
+        .map_err(knowledge_error)?;
     answer["embedding"] = json!({"coverage":coverage, "model":service.model_name(), "fallback":fallback,
         "scope":"artifact_lesson_note", "turns":"existing model-matched turn embeddings"});
     if let Some(report) = report {

@@ -80,6 +80,7 @@ pub mod session_latest;
 #[cfg(test)]
 pub mod session_latest_tests;
 pub mod session_locks;
+pub mod session_machine;
 pub mod session_overview;
 pub mod session_projects;
 pub mod session_prompt_lane_backfill;

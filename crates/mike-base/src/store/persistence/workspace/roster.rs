@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::{HEARTBEAT_LEASE_MINUTES, WorkspaceRosterRow};
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::session_machine::MachineRef;
 use crate::workspace::{Liveness, RosterScope};
 
 const MIN_HEARTBEAT_INTERVAL_SECONDS: i32 = 20;
@@ -53,6 +54,8 @@ struct RosterQueryRow {
     liveness: String,
     last_request_at: Option<DateTime<Utc>>,
     newest_request_number: Option<i64>,
+    machine_uuid: Option<Uuid>,
+    machine_name: Option<String>,
 }
 
 impl From<RosterQueryRow> for WorkspaceRosterRow {
@@ -75,6 +78,7 @@ impl From<RosterQueryRow> for WorkspaceRosterRow {
             liveness,
             last_request_at: r.last_request_at,
             newest_request_number: r.newest_request_number,
+            machine: MachineRef::from_parts(r.machine_uuid, r.machine_name),
             channel_present: false,
             channel_cse_id: None,
             heartbeat_age_seconds: None,
@@ -129,9 +133,12 @@ impl PersistHandle {
                            ELSE 'stale'
                        END                AS "liveness!",
                        act.last_request_at       AS "last_request_at?",
-                       act.newest_request_number AS "newest_request_number?"
+                       act.newest_request_number AS "newest_request_number?",
+                       s.machine_uuid     AS "machine_uuid?",
+                       sm.name            AS "machine_name?"
                    FROM workspace.session_registrations r
                    JOIN sessions.sessions s ON s.id = r.session_id
+                   LEFT JOIN projects.machines sm ON sm.machine_uuid = s.machine_uuid
                    LEFT JOIN sessions.session_goals sg ON sg.session_id = r.session_id
                    LEFT JOIN runtime.session_facts f ON f.session_id = r.session_id
                    LEFT JOIN LATERAL (

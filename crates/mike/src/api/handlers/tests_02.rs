@@ -312,6 +312,7 @@ pub(crate) fn session_summary_serializes_with_expected_keys() -> anyhow::Result<
         "busy",
         "pending_inbox_count",
         "projects_touched",
+        "machine",
     ]
     .into_iter()
     .map(str::to_string)
@@ -383,6 +384,8 @@ pub(crate) fn sample_session_summary_row_matching_view() -> SessionSummaryRow {
         session_judged_at: None,
         overview: None,
         overview_generated_at: None,
+        machine_uuid: None,
+        machine_name: None,
         pending_inbox_count: 0,
         projects_touched: Vec::new(),
     }

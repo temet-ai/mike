@@ -1,4 +1,4 @@
-WITH hits(level, project_id) AS (
+WITH raw_hits(level, project_id) AS (
     SELECT 1, p.id FROM projects.projects p WHERE p.project_uuid = $2
     UNION ALL
     SELECT 2, p.id FROM projects.projects p WHERE p.id = $3
@@ -16,6 +16,11 @@ WITH hits(level, project_id) AS (
       FROM projects.projects p
      WHERE p.merged_into_id IS NULL
        AND lower(regexp_replace(p.project_path, '^.*/', '')) = lower($1)
+),
+hits AS (
+    SELECT h.level, COALESCE(p.merged_into_id, p.id) AS project_id
+      FROM raw_hits h
+      JOIN projects.projects p ON p.id = h.project_id
 ),
 best AS (
     SELECT min(level) AS level FROM hits

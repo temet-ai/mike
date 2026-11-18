@@ -11,6 +11,12 @@ pub struct RepoLocationAdoption<'a> {
     pub project_id: i64,
 }
 
+pub struct UnplacedProject {
+    pub id: i64,
+    pub project_path: String,
+    pub has_sessions: bool,
+}
+
 pub struct MachineLocationRoot {
     pub root_path: String,
     pub project_id: i64,
@@ -127,6 +133,29 @@ impl PersistHandle {
             origin,
         )
         .fetch_all(self.pool())
+        .await?)
+    }
+
+    pub async fn unplaced_projects(&self) -> Result<Vec<UnplacedProject>, PersistError> {
+        Ok(sqlx::query_as!(
+            UnplacedProject,
+            r#"SELECT p.id, p.project_path,
+                    EXISTS (SELECT 1 FROM sessions.sessions s WHERE s.project_id = p.id) AS "has_sessions!"
+               FROM projects.projects p
+             WHERE p.merged_into_id IS NULL AND left(p.project_path, 1) = '/'
+               AND NOT EXISTS (SELECT 1 FROM projects.locations l WHERE l.project_id = p.id)
+             ORDER BY p.id"#,
+        )
+        .fetch_all(self.pool())
+        .await?)
+    }
+
+    pub async fn project_uuid_of(&self, project_id: i64) -> Result<Option<Uuid>, PersistError> {
+        Ok(sqlx::query_scalar!(
+            "SELECT project_uuid FROM projects.projects WHERE id = $1",
+            project_id,
+        )
+        .fetch_optional(self.pool())
         .await?)
     }
 

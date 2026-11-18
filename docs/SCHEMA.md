@@ -204,6 +204,7 @@ Columns added by the judgement-context migrations (definition as migrated):
 | Column | Definition |
 |---|---|
 | `location_uuid` | uuid REFERENCES projects.locations(location_uuid) |
+| `machine_uuid` | uuid, no foreign key. Machine (`projects.machines`) whose mike first captured the session: stamped once when the session row is first written (`insert_request_initial`, only while NULL), backfilled from `location_uuid`'s machine by migration `20261118020000_session_machine.sql`, retagged by `merge_machine_identity`. Read by `GET /api/sessions` (`machine` field and filter), `GET /api/sessions/{id}` and the workspace roster. A machine may stamp before it registers, so there is no foreign key; the name comes from a LEFT JOIN. Unindexed: the filter runs over a table of thousands of rows. |
 
 ### `sessions.session_goals`
 

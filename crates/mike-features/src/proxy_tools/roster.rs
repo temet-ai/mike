@@ -141,6 +141,7 @@ mod tests {
             liveness: Liveness::Live,
             last_request_at: None,
             newest_request_number: None,
+            machine: None,
             channel_present: false,
             channel_cse_id: None,
             heartbeat_age_seconds: None,

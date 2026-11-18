@@ -238,6 +238,7 @@ pub use rerank_pass::rerank_pass;
 pub mod recent;
 pub mod rescue;
 pub mod retrieval;
+pub mod twins;
 pub mod wide;
 #[cfg(test)]
 pub mod wide_tests;

@@ -169,8 +169,8 @@ async fn llm_calls(db: &Db, role: &str, outcome: &str, n: i64) -> anyhow::Result
 #[tokio::test]
 async fn llm_role_errors_flags_a_role_failing_half_its_calls() -> anyhow::Result<()> {
     let db = Db::boot().await?;
-    llm_calls(&db, "session_judge", "timeout", 6).await?;
     llm_calls(&db, "session_judge", "ok", 4).await?;
+    llm_calls(&db, "session_judge", "timeout", 6).await?;
     llm_calls(&db, "steerer", "transport_error", 2).await?;
     llm_calls(&db, "steerer", "ok", 10).await?;
     llm_calls(&db, "eval", "refused_spend", 12).await?;

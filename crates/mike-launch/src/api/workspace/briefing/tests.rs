@@ -42,6 +42,7 @@ fn peer(session_id: Uuid, is_self: bool, goal: Option<&str>, cwd: &str) -> Roste
         busy: false,
         last_request_at: None,
         newest_request_number: None,
+        machine: None,
         channel_present: false,
         channel_cse_id: None,
         heartbeat_age_seconds: None,

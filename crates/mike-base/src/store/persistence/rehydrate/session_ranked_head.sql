@@ -12,6 +12,9 @@ WITH ranked AS (
            s.pinned,
            p.pinned AS project_pinned,
            s.overview,
-           s.overview_generated_at
+           s.overview_generated_at,
+           s.machine_uuid,
+           sm.name AS machine_name
     FROM sessions.sessions s
     JOIN projects.projects p ON p.id = s.project_id
+    LEFT JOIN projects.machines sm ON sm.machine_uuid = s.machine_uuid

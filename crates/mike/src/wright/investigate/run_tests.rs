@@ -198,6 +198,7 @@ async fn open_problem(persist: &PersistHandle, resource: &str) -> anyhow::Result
             machine: None,
         })
         .await?;
+    persist.web().assign_wright_causes().await?;
     Ok(())
 }
 

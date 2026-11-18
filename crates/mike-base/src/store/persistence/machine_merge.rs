@@ -64,6 +64,7 @@ impl PersistHandle {
         .await?;
         let llm_calls_updated = retag_llm_calls(&mut tx, legacy, current).await?;
         let worker_leases_updated = retag_worker_leases(&mut tx, legacy, current).await?;
+        retag_sessions(&mut tx, legacy, current).await?;
         tx.commit().await?;
         Ok(MachineMergeReport {
             locations_moved,
@@ -284,6 +285,17 @@ async fn move_locations(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<
 async fn retag_llm_calls(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<u64, sqlx::Error> {
     Ok(sqlx::query!(
         "UPDATE llm.calls SET machine_uuid = $2 WHERE machine_uuid = $1",
+        legacy,
+        current
+    )
+    .execute(&mut **tx)
+    .await?
+    .rows_affected())
+}
+
+async fn retag_sessions(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<u64, sqlx::Error> {
+    Ok(sqlx::query!(
+        "UPDATE sessions.sessions SET machine_uuid = $2 WHERE machine_uuid = $1",
         legacy,
         current
     )

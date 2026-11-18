@@ -25,6 +25,8 @@ pub struct SessionSummaryRow {
     pub session_judged_at: Option<chrono::DateTime<chrono::Utc>>,
     pub overview: Option<String>,
     pub overview_generated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub machine_uuid: Option<uuid::Uuid>,
+    pub machine_name: Option<String>,
     pub pending_inbox_count: i32,
     pub projects_touched: Vec<String>,
 }

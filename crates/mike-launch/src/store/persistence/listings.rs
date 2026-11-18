@@ -25,6 +25,7 @@ pub struct SessionListFilters<'a> {
     pub search: Option<&'a str>,
     pub min_request_count: Option<i64>,
     pub project: Option<&'a str>,
+    pub machine: Option<&'a str>,
 }
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
@@ -119,6 +120,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     search: filters.search,
                     min_request_count: filters.min_request_count,
                     project: filters.project,
+                    machine: filters.machine,
                 },
             ),
         )
