@@ -36,6 +36,10 @@ pub mod resolve_tests;
 pub mod search;
 pub mod semantic_hits;
 pub mod session_scope;
+pub mod source_roots;
+#[cfg(test)]
+pub mod source_roots_db_tests;
+pub mod twins;
 pub mod window;
 
 pub use crate::store::persistence::project_placement::{MachineLocationRoot, RepoLocationAdoption};
@@ -50,6 +54,7 @@ pub use search::REFERENCE_NOT_IN_PROJECT;
 pub use search::SemanticCut;
 pub use search::cut_for;
 pub use search::search_page;
+pub use twins::ProjectTwin;
 
 use super::PersistError;
 

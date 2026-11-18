@@ -91,6 +91,8 @@ pub(crate) struct ListParams {
     #[serde(default)]
     pub(crate) project: Option<String>,
     #[serde(default)]
+    pub(crate) machine: Option<String>,
+    #[serde(default)]
     pub(crate) fields: Option<String>,
     #[serde(default)]
     pub(crate) ids: Option<String>,

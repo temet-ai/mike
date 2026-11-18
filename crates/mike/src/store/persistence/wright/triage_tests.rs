@@ -164,7 +164,7 @@ async fn the_pick_takes_a_shared_cause_before_an_older_lone_problem_and_skips_a_
         .web()
         .pick_wright_problem(2)
         .await?
-        .expect("a pick");
+        .ok_or_else(|| anyhow::anyhow!("no problem was picked"))?;
     assert!(shared.iter().any(|(p, _)| *p == pick.problem_id));
     env.finding(shared[3].0, shared[3].1).await?;
     let pick = env
@@ -172,7 +172,7 @@ async fn the_pick_takes_a_shared_cause_before_an_older_lone_problem_and_skips_a_
         .web()
         .pick_wright_problem(2)
         .await?
-        .expect("a pick");
+        .ok_or_else(|| anyhow::anyhow!("no problem was picked"))?;
     assert_eq!((pick.problem_id, pick.episode_id), (lone, lone_episode));
     env.done().await
 }
@@ -188,7 +188,10 @@ async fn merging_moves_the_named_causes_problems_into_the_finding_problems_cause
     let (other, _) = env.problem(CHECK, "query 2: SELECT b", run, 1).await?;
     let (third, _) = env.problem(CHECK, "query 3: SELECT c", run, 1).await?;
     env.persist.web().assign_wright_causes().await?;
-    let other_cause = env.cause_of(other).await?.expect("assigned");
+    let other_cause = env
+        .cause_of(other)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("problem {other} has no cause"))?;
     let merged = env
         .persist
         .web()

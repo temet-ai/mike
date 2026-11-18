@@ -219,8 +219,10 @@ fn warn_retired_correction(config: &ProxyConfig) {
 }
 
 async fn finish(state: AppState) -> AppState {
-    if state.persist.is_some() {
-        state.resolve_host_machine_uuid().await;
+    if let Some(persist) = state.persist.as_ref()
+        && let Some(machine) = state.resolve_host_machine_uuid().await
+    {
+        persist.set_host_machine(machine);
     }
     log_constructed(&state);
     state

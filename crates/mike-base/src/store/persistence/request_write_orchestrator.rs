@@ -30,6 +30,14 @@ impl PersistHandle {
 
             let (session_db_id, project_id) =
                 resolve_capture_session_and_project(&mut tx, req, is_new_session).await?;
+            if is_new_session && let Some(machine) = self.host_machine() {
+                super::session_machine::stamp_session_machine_by_id(
+                    &mut tx,
+                    session_db_id,
+                    machine,
+                )
+                .await?;
+            }
             let returned_id =
                 insert_requests_row(&mut tx, req, id_mode, session_db_id, project_id, &prep)
                     .await?;

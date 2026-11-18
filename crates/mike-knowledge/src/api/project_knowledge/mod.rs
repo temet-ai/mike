@@ -229,6 +229,7 @@ pub mod health_kinds;
 pub mod item_header;
 pub mod kinds;
 pub use kinds::{define_kind, delete_kind, list_kind_tables, list_kinds, patch_kind, preview_kind};
+pub mod location_move;
 pub mod passage_excerpt;
 pub mod query_vector_cache;
 pub mod read_outside;
@@ -238,6 +239,7 @@ pub use rerank_pass::rerank_pass;
 pub mod recent;
 pub mod rescue;
 pub mod retrieval;
+pub mod twins;
 pub mod wide;
 #[cfg(test)]
 pub mod wide_tests;

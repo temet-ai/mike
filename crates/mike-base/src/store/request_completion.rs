@@ -36,6 +36,7 @@ impl RequestStore {
 
         {
             let mut s = store.write().await;
+            s.remember_reply_body(request_id, &response_body);
             s.update(&request_id, |req| {
                 req.status = RequestStatus::Complete;
                 if usage.is_some() {

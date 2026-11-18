@@ -1,0 +1,1 @@
+SELECT s.session_uuid::text AS key, count(*) AS count FROM tools.uses tu JOIN sessions.sessions s ON s.id = tu.session_id WHERE TRUE AND tu.created_at >= '2026-11-10T00:00:00Z' AND tu.tool_name = 'Bash' AND (tu.input ->> 'command') ILIKE '%gh pr%' GROUP BY 1 ORDER BY 2 DESC, 1

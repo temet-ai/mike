@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH hit AS (\n                     SELECT COALESCE(p.merged_into_id, p.id) AS id,\n                            array_position($2::text[], p.project_path) AS rank\n                       FROM projects.projects p\n                      WHERE p.project_path = ANY($2::text[])\n                 ), suffixed AS (\n                     SELECT DISTINCT COALESCE(p.merged_into_id, p.id) AS id\n                       FROM projects.projects p\n                      WHERE ($3::boolean OR ($4::boolean AND NOT EXISTS (SELECT 1 FROM hit)))\n                        AND p.project_path LIKE '%' || $1::text\n                 )\n                 SELECT live.id AS \"id!\", live.project_path AS \"project_path!\", h.rank AS \"rank?\",\n                        NULL::timestamptz AS \"last_seen?\"\n                   FROM hit h JOIN projects.projects live ON live.id = h.id\n                 UNION ALL\n                 SELECT live.id, live.project_path, NULL::int, live.last_seen\n                   FROM suffixed s JOIN projects.projects live ON live.id = s.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "rank?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "434a5eee506b9d4686625f09c3f53c36b2ff68acdd59e2d4d0d251a62cf89798"
+}

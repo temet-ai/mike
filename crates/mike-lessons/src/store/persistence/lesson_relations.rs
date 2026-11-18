@@ -351,7 +351,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         let project_path = project_path.to_owned();
         crate::metrics::time_db("lesson_relations_lookup_project_id_by_path", async move {
             let id = sqlx::query_scalar!(
-                "SELECT id FROM projects.projects WHERE project_path = $1",
+                r#"SELECT COALESCE(merged_into_id, id) AS "id!" FROM projects.projects WHERE project_path = $1"#,
                 project_path,
             )
             .fetch_optional(&self.pool)

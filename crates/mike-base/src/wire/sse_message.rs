@@ -13,6 +13,21 @@ pub fn assistant_message_from_sse(sse: &[u8]) -> Option<Value> {
     assembler.finish()
 }
 
+#[derive(Default)]
+pub struct SseReplyAssembler(Assembler);
+
+impl SseReplyAssembler {
+    pub fn apply_data(&mut self, data: &str) {
+        if let Ok(event) = serde_json::from_str::<Value>(data) {
+            self.0.apply(&event);
+        }
+    }
+
+    pub fn finish(self) -> Option<Value> {
+        self.0.finish()
+    }
+}
+
 fn parse_data_line(line: &str) -> Option<Value> {
     let payload = line.strip_prefix("data:")?;
     let payload = payload.strip_prefix(' ').unwrap_or(payload);

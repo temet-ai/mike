@@ -10,6 +10,7 @@ pub struct SessionListFilterParams<'a> {
     pub search: Option<&'a str>,
     pub min_request_count: Option<i64>,
     pub project: Option<&'a str>,
+    pub machine: Option<&'a str>,
 }
 
 pub async fn list_sessions_paginated_filtered(
@@ -22,6 +23,7 @@ pub async fn list_sessions_paginated_filtered(
         date_to: window.date_to,
         search: params.search.map(str::trim).filter(|s| !s.is_empty()),
         project: params.project.map(str::trim).filter(|s| !s.is_empty()),
+        machine: params.machine.map(str::trim).filter(|s| !s.is_empty()),
         min_request_count: params.min_request_count,
     };
     list_sessions_page(pool, filter, window.offset, window.limit, window.order).await

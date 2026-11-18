@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub mod boot_id;
+pub mod checkout_watch;
 pub mod checkouts;
 pub mod git_repo;
 

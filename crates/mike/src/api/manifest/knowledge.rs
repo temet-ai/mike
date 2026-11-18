@@ -25,6 +25,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "POST",
+        "/api/projects/locations/move",
+        Coverage::Exempt {
+            reason: "`mike project move` and the operator repoint a renamed checkout; investigating sessions read locations through list_project_locations",
+        },
+    ),
+    route(
+        "POST",
         "/api/knowledge/sources",
         Coverage::Exempt {
             reason: "local collector registers explicitly configured roots",
@@ -129,6 +136,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/knowledge/locations",
             get(api::locations).post(api::register_location),
+        )
+        .route(
+            "/api/projects/locations/move",
+            post(api::location_move::move_location),
         )
         .route("/api/knowledge/sources", post(api::register_source))
         .route(

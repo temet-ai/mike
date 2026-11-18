@@ -20,6 +20,8 @@ pub(crate) struct OperatorTurnsSummaryParams {
     pub(crate) project: Option<String>,
     #[serde(default)]
     pub(crate) since: Option<String>,
+    #[serde(default)]
+    pub(crate) until: Option<String>,
 }
 
 pub(crate) async fn get_operator_turns_outcome_summary(
@@ -29,13 +31,10 @@ pub(crate) async fn get_operator_turns_outcome_summary(
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
-    let since = params.since.as_deref().and_then(|s| {
-        chrono::DateTime::parse_from_rfc3339(s)
-            .ok()
-            .map(|dt| dt.with_timezone(&chrono::Utc))
-    });
+    let since = parse_instant("since", params.since.as_deref())?;
+    let until = parse_instant("until", params.until.as_deref())?;
     let rows = handle
-        .operator_turn_outcome_summary(params.project.as_deref(), since)
+        .operator_turn_outcome_summary(params.project.as_deref(), since, until)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "operator_turns_outcome_summary: query failed");

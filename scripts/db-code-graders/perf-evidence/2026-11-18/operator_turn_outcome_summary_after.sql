@@ -1,0 +1,1 @@
+SELECT o.code, COALESCE(t.outcome_source = 'frustration_close', false) AS frustration_close, COUNT(*)::bigint AS c FROM memory.operator_turns t JOIN projects.projects p ON p.id = t.project_id JOIN memory.turn_outcomes o ON o.id = t.outcome_id WHERE true AND t.created_at >= '2026-11-10T00:00:00Z' AND t.created_at < '2026-11-17T00:00:00Z' GROUP BY 1, 2 ORDER BY 1 ASC, 2 ASC

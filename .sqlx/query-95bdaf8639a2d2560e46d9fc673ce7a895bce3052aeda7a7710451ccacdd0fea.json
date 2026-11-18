@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT location_uuid FROM projects.locations\n              WHERE machine_uuid = $1 AND rtrim(root_path, '/') = rtrim($2, '/')\n              ORDER BY last_seen DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "95bdaf8639a2d2560e46d9fc673ce7a895bce3052aeda7a7710451ccacdd0fea"
+}

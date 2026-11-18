@@ -67,6 +67,68 @@ async fn run_parser_all_events(chunks: Vec<Bytes>) -> anyhow::Result<Vec<ProxyEv
 }
 
 #[tokio::test]
+async fn run_parser_returning_reply_streamed_tool_use_reaches_next_request_chain()
+-> anyhow::Result<()> {
+    use crate::store::RequestStore;
+    use crate::store::models::{ThreadKind, ThreadLink};
+    let mut store = RequestStore::new(crate::store::tests::small_policy(10));
+    let mut req = crate::store::tests::make_test_request(None, "stream");
+    req.request_body = Some(Bytes::from_static(
+        br#"{"messages":[{"role":"user","content":"build it"}]}"#,
+    ));
+    req.sent_body = None;
+    req.response_body = None;
+    let id = store.insert(req);
+
+    let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
+    let (event_tx, _event_rx) = broadcast::channel::<ProxyEvent>(64);
+    let (store_tx, _store_rx) = mpsc::channel::<ProxyEvent>(128);
+    for (kind, data) in [
+        (
+            "message_start",
+            r#"{"type":"message_start","message":{"id":"msg_9","type":"message","role":"assistant","content":[],"model":"m","usage":{"input_tokens":1,"output_tokens":0}}}"#,
+        ),
+        (
+            "content_block_start",
+            r#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Bash","input":{}}}"#,
+        ),
+        (
+            "content_block_delta",
+            r#"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"command\":\"cargo build\"}"}}"#,
+        ),
+        (
+            "content_block_stop",
+            r#"{"type":"content_block_stop","index":0}"#,
+        ),
+        (
+            "message_delta",
+            r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":5}}"#,
+        ),
+        ("message_stop", r#"{"type":"message_stop"}"#),
+    ] {
+        parser_tx.send(sse_bytes(kind, data)).await?;
+    }
+    drop(parser_tx);
+    let reply = run_parser_returning_reply(parser_rx, id, event_tx, store_tx)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("no reply assembled"))?;
+    store.remember_reply(id, &reply);
+
+    let link = ThreadLink {
+        kind: ThreadKind::Continue,
+        previous_message_id: Some("msg_9".to_string()),
+        predecessor: Some(id),
+        predecessor_instance: None,
+    };
+    let earlier = store.earlier_turns(Some(&link));
+    let values = earlier.values();
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[1]["content"][0]["id"], "toolu_1");
+    assert_eq!(values[1]["content"][0]["input"]["command"], "cargo build");
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_message_start_extracts_model_and_usage() -> anyhow::Result<()> {
     let data = r#"{"type":"message_start","message":{"id":"msg_01","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":25,"output_tokens":0}}}"#;
     let events = run_parser_with_events(vec![sse_bytes("message_start", data)]).await?;

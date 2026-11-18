@@ -102,7 +102,14 @@ fn report_tool() -> Tool {
             ),
             (
                 "evidence",
-                strings("Paths of your evidence: tests, result notes, files a check wrote."),
+                json!({
+                    "anyOf": [
+                        {"type": "array", "items": {"type": "string"}},
+                        {"type": "string"}
+                    ],
+                    "description": "Paths of your evidence: tests, result notes, files a check wrote. One path may be given as a string.",
+                    "examples": [["test/test_diff.ml", "notes/result.md"], "test/test_diff.ml"]
+                }),
             ),
             (
                 "sha",

@@ -199,6 +199,13 @@ fn list_outcome_summary_tool() -> Tool {
                     "description": "Optional RFC 3339 lower bound on created_at."
                 }),
             ),
+            (
+                "until",
+                json!({
+                    "type": "string",
+                    "description": "Optional RFC 3339 upper bound on created_at (exclusive)."
+                }),
+            ),
         ],
         &[],
     );
@@ -260,6 +267,8 @@ pub(crate) struct ListOutcomeSummaryArgs {
     pub(crate) project: Option<String>,
     #[serde(default)]
     pub(crate) since: Option<String>,
+    #[serde(default)]
+    pub(crate) until: Option<String>,
 }
 
 pub(crate) async fn call_tool(
@@ -328,7 +337,11 @@ pub(crate) async fn call_tool(
         TOOL_LIST_OUTCOME_SUMMARY => {
             let args = parse_args_default::<ListOutcomeSummaryArgs>(arguments)?;
             let value = client
-                .list_outcome_summary(args.project.as_deref(), args.since.as_deref())
+                .list_outcome_summary(
+                    args.project.as_deref(),
+                    args.since.as_deref(),
+                    args.until.as_deref(),
+                )
                 .await
                 .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("outcome_summary", value))

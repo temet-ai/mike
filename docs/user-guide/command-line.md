@@ -109,6 +109,7 @@ Setup runs these for you.
 | `mike fleet record <FLEET> [--against <FLEET>] [--recompute] [--json]` | Prints a finished run's record: time to done, minutes lost to faults, tokens per accepted task and manual interventions. |
 | `mike fleet focus <FLEET> [SEAT]` | Brings a seat's pane to the front. |
 | `mike thread import [--repo <PATH>] [--registry <FILE>] [--dry-run]` | Imports work threads kept as files. See [Threads](threads.md). |
+| `mike project move <FROM> <TO> [--machine <UUID>]` | Tells mike that a checkout moved from one folder to another. `<FROM>` is the old folder or the location's id. The location keeps its id, so its sessions, worktrees and project knowledge follow it to the new folder. `--machine` names another machine's location; the default is this machine. See [Projects](projects.md). |
 
 `mike fleet commit`, `check`, `gate` and `where` are for the sessions inside a fleet: they commit a seat's files, share one project check, run the full gate and find where a name is defined. You do not need them to run a fleet.
 

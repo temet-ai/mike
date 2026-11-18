@@ -17,13 +17,13 @@ pub struct MachineMergeReport {
 }
 
 #[derive(Debug, Default)]
-struct Pairs {
+pub(super) struct Pairs {
     losers: Vec<Uuid>,
     winners: Vec<Uuid>,
 }
 
 impl Pairs {
-    fn from_rows(rows: Vec<(Uuid, Uuid)>) -> Self {
+    pub(super) fn from_rows(rows: Vec<(Uuid, Uuid)>) -> Self {
         let (losers, winners) = rows.into_iter().unzip();
         Self { losers, winners }
     }
@@ -38,10 +38,10 @@ impl Pairs {
 }
 
 #[derive(Debug, Default)]
-struct CollisionCounts {
-    sessions: u64,
-    sources: u64,
-    documents: u64,
+pub(super) struct CollisionCounts {
+    pub(super) sessions: u64,
+    pub(super) sources: u64,
+    pub(super) documents: u64,
 }
 
 impl PersistHandle {
@@ -64,6 +64,7 @@ impl PersistHandle {
         .await?;
         let llm_calls_updated = retag_llm_calls(&mut tx, legacy, current).await?;
         let worker_leases_updated = retag_worker_leases(&mut tx, legacy, current).await?;
+        retag_sessions(&mut tx, legacy, current).await?;
         tx.commit().await?;
         Ok(MachineMergeReport {
             locations_moved,
@@ -113,7 +114,10 @@ async fn colliding_locations(
     ))
 }
 
-async fn merge_collisions(tx: &mut Tx<'_>, pairs: &Pairs) -> Result<CollisionCounts, sqlx::Error> {
+pub(super) async fn merge_collisions(
+    tx: &mut Tx<'_>,
+    pairs: &Pairs,
+) -> Result<CollisionCounts, sqlx::Error> {
     if pairs.is_empty() {
         return Ok(CollisionCounts::default());
     }
@@ -284,6 +288,17 @@ async fn move_locations(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<
 async fn retag_llm_calls(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<u64, sqlx::Error> {
     Ok(sqlx::query!(
         "UPDATE llm.calls SET machine_uuid = $2 WHERE machine_uuid = $1",
+        legacy,
+        current
+    )
+    .execute(&mut **tx)
+    .await?
+    .rows_affected())
+}
+
+async fn retag_sessions(tx: &mut Tx<'_>, legacy: Uuid, current: Uuid) -> Result<u64, sqlx::Error> {
+    Ok(sqlx::query!(
+        "UPDATE sessions.sessions SET machine_uuid = $2 WHERE machine_uuid = $1",
         legacy,
         current
     )

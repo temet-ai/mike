@@ -97,7 +97,12 @@ async fn run_list_sessions_query(
         date_from: window.effective_from,
         date_to: window_upper_bound(window),
     };
-    if params.min_request_count.is_some() || project_filter.is_some() {
+    let machine_filter = params
+        .machine
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if params.min_request_count.is_some() || project_filter.is_some() || machine_filter.is_some() {
         handle
             .launch()
             .list_sessions_paginated_filtered(
@@ -107,6 +112,7 @@ async fn run_list_sessions_query(
                     search,
                     min_request_count: params.min_request_count,
                     project: project_filter,
+                    machine: machine_filter,
                 },
                 &listing_window,
             )
