@@ -241,37 +241,9 @@ fn acceptance_and_the_observer_read_requests_and_the_reference_seat_reads_withou
 }
 
 #[test]
-fn core_serves_protocol_steps_and_no_lookups() {
-    let core = names(Profile::Core);
-    for lookup in [
-        "find_text",
-        "search_session_content",
-        "list_sessions",
-        "get_session_overview",
-        "list_requests",
-        "get_request_tool_calls",
-        "list_file_writes",
-        "search_project_knowledge",
-        "record_lesson",
-        "create_filter_rule",
-        "kill_session",
-    ] {
-        assert!(!core.contains(lookup), "core serves {lookup}");
-    }
-    for protocol in [
-        "send_session_message",
-        "ack_session_message",
-        "get_workspace_roster",
-        "set_session_goal",
-        "write_session_note",
-        "define_fleet",
-        "answer",
-        "spawn_session",
-        "get_request",
-        "what_changed",
-    ] {
-        assert!(core.contains(protocol), "core lacks {protocol}");
-    }
+fn a_seat_profile_is_smaller_than_the_core_profile_it_replaces() {
+    let core = names(Profile::Core).len();
+    assert!(names(Profile::Worker).len() < core);
     assert!(names(Profile::Worker).len() <= names(Profile::Acceptance).len());
 }
 

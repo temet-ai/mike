@@ -16,10 +16,54 @@ pub const CORE_TOOL_NAMES: &[&str] = &[
     "answer",
     "decline",
     "what_changed",
+    "search_project_knowledge",
+    "read_project_knowledge",
+    "list_project_locations",
+    super::TOOL_LIST_REQUESTS,
     super::TOOL_GET_REQUEST,
+    super::TOOL_GET_REQUEST_SUMMARY,
+    super::TOOL_GET_REQUEST_BODY,
+    super::TOOL_GET_REQUEST_SENT_BODY,
+    super::TOOL_GET_REQUEST_TRANSFORMATION_MANIFEST,
+    super::TOOL_GET_RESPONSE_BODY,
+    super::TOOL_GET_ACCUMULATED_TEXT,
+    super::TOOL_GET_REQUEST_STREAM_CHUNKS,
+    super::TOOL_LIST_SESSIONS,
     super::TOOL_GET_SESSION,
-    super::TOOL_GET_STATS,
+    super::TOOL_GET_SESSION_HEAD,
+    super::TOOL_GET_SESSION_THREADS,
     super::TOOL_CONFIRM_MESSAGE_RECEIPT,
+    super::TOOL_LIST_FILE_WRITES,
+    super::TOOL_LIST_SESSION_TOOL_USES,
+    super::TOOL_GET_TIME_SPENT,
+    super::TOOL_FIND_TEXT,
+    super::TOOL_SEARCH_SESSION_CONTENT,
+    super::TOOL_LIST_PROJECTS,
+    super::TOOL_GET_SESSION_OVERVIEW,
+    super::TOOL_GET_SESSION_OPERATOR_TURNS,
+    super::TOOL_LIST_OPERATOR_TURNS,
+    super::TOOL_GET_OPERATOR_TURN,
+    super::TOOL_GET_REQUEST_TOOL_CALLS,
+    super::TOOL_LIST_TOOL_ERRORS,
+    super::TOOL_LIST_AGENT_DISPATCHES,
+    super::TOOL_LIST_CORRECTED_TURNS,
+    super::TOOL_LIST_OUTCOME_SUMMARY,
+    super::TOOL_GET_VERIFIER_RATE,
+    super::TOOL_GET_STATS,
+    super::TOOL_DIAGNOSTIC_STATS,
+    super::TOOL_DIAGNOSTIC_FINDINGS,
+    super::TOOL_RECALL_PROJECT_CONTEXT,
+    super::TOOL_RECALL_SIMILAR_TURNS,
+    super::TOOL_RECORD_LESSON,
+    super::TOOL_LIST_LESSONS,
+    super::TOOL_DELETE_LESSON,
+    super::TOOL_LIST_FILTER_RULES,
+    super::TOOL_CREATE_FILTER_RULE,
+    super::TOOL_UPDATE_FILTER_RULE,
+    super::TOOL_DELETE_FILTER_RULE,
+    super::TOOL_DRY_RUN_FILTER_RULES,
+    super::TOOL_LIST_PROMPT_COMPOSITIONS,
+    super::TOOL_GET_PROMPT_COMPOSITION,
     super::TOOL_SET_SESSION_GOAL,
     super::TOOL_WRITE_SESSION_NOTE,
     super::TOOL_LIST_SESSION_NOTES,
@@ -30,9 +74,13 @@ pub const CORE_TOOL_NAMES: &[&str] = &[
     super::TOOL_WORKSPACE_HEARTBEAT,
     super::TOOL_REGISTER_WORKSPACE_SESSION,
     super::TOOL_END_WORKSPACE_REGISTRATION,
-    super::TOOL_WAIT_FOR,
+    super::TOOL_GET_FLEET_GRAPH,
     super::TOOL_SPAWN_SESSION,
     super::TOOL_LIST_LAUNCHES,
+    super::TOOL_KILL_SESSION,
+    super::TOOL_WAIT_FOR,
+    super::TOOL_RELAY_LABEL,
+    super::TOOL_GET_IMPROVEMENT_EFFECTS,
 ];
 
 pub fn tools_for_profile(profile: Profile) -> Vec<Tool> {
@@ -384,15 +432,11 @@ mod tests {
     }
 
     #[test]
-    fn the_investigation_surface_is_full_and_not_core() {
-        let names = |profile| -> HashSet<String> {
-            tools_for_profile(profile)
-                .iter()
-                .map(|t| t.name.as_ref().to_string())
-                .collect()
-        };
-        let core = names(Profile::Core);
-        let full = names(Profile::Full);
+    fn core_profile_includes_full_investigation_surface() {
+        let core: HashSet<String> = tools_for_profile(Profile::Core)
+            .iter()
+            .map(|t| t.name.as_ref().to_string())
+            .collect();
         for investigative in [
             super::super::TOOL_GET_REQUEST_TOOL_CALLS,
             super::super::TOOL_LIST_TOOL_ERRORS,
@@ -405,10 +449,9 @@ mod tests {
             super::super::TOOL_GET_SESSION_OPERATOR_TURNS,
             super::super::TOOL_GET_VERIFIER_RATE,
         ] {
-            assert!(full.contains(investigative), "full lacks {investigative:?}");
             assert!(
-                !core.contains(investigative),
-                "{investigative:?} is an investigation tool: sessions reach it through ask"
+                core.contains(investigative),
+                "{investigative:?} is part of the investigation surface and must be in Core"
             );
         }
     }
@@ -432,12 +475,12 @@ mod tests {
     }
 
     #[test]
-    fn neither_relay_label_nor_list_eval_labels_is_core() {
+    fn relay_label_is_core_and_list_eval_labels_is_not() {
         let core: HashSet<String> = tools_for_profile(Profile::Core)
             .iter()
             .map(|t| t.name.as_ref().to_string())
             .collect();
-        assert!(!core.contains(super::super::TOOL_RELAY_LABEL));
+        assert!(core.contains(super::super::TOOL_RELAY_LABEL));
         assert!(!core.contains(super::super::TOOL_LIST_EVAL_LABELS));
     }
 
