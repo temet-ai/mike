@@ -75,6 +75,7 @@ pub(crate) struct RepairUpdate {
     pub(crate) pr_url: Option<String>,
     pub(crate) merge_sha: Option<String>,
     pub(crate) reason: Option<String>,
+    pub(crate) interrupted: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -120,6 +121,7 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
             .bind(update.merge_sha.as_deref())
             .bind(update.reason.as_deref())
             .bind(&from)
+            .bind(update.interrupted)
             .fetch_optional(self.pool())
             .await?;
         Ok(moved.is_some())

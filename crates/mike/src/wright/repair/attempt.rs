@@ -8,6 +8,7 @@ use super::land::{Candidate, LandError, Landing};
 use super::policy::patch_summary;
 use super::port::{LiveBuild, RepairEngineer, RepairJob, RepairRun};
 use super::prepare::{Prepared, commit_patch, refusal};
+use super::rounds::{again, halted};
 use super::runner::CommandRunner;
 use super::{RepairContext, states, worktree};
 use crate::store::persistence::PersistError;
@@ -20,7 +21,7 @@ pub(crate) enum AttemptEnd {
     NotStarted,
 }
 
-enum Next<T> {
+pub(super) enum Next<T> {
     Go(T),
     Stop(AttemptEnd),
     Again(Refused),
@@ -103,7 +104,7 @@ async fn cleanup<R: CommandRunner>(runner: &R, repo: &worktree::RepoLayout, clai
     }
 }
 
-async fn end<R, E, B>(
+pub(super) async fn end<R, E, B>(
     ctx: &RepairContext<R, E, B>,
     claim: &ClaimedRepair,
     to: &'static str,
@@ -189,6 +190,9 @@ async fn run_failed<R, E, B>(
 where
     R: CommandRunner,
 {
+    if let Some(stop) = halted(ctx) {
+        return Ok(stop);
+    }
     let failed = ctx
         .persist
         .web()
@@ -272,6 +276,9 @@ where
             ));
         }
         Err(e) => {
+            if let Some(stop) = halted(ctx) {
+                return Ok(stop);
+            }
             let reason = format!("the patch could not be committed: {e}");
             if feedback::another_round(round) {
                 return Ok(Next::Again(Refused {
@@ -349,6 +356,7 @@ where
             cleanup(&ctx.runner, &ctx.repo, claim).await;
             Ok(Next::Go(AttemptEnd::Landed))
         }
+        Err(LandError::Failed(_)) if ctx.stopping() => Ok(Next::Stop(AttemptEnd::Ended)),
         Err(LandError::Failed(reason)) if feedback::another_round(round) => {
             let output = ctx
                 .persist
@@ -391,71 +399,6 @@ where
     R: CommandRunner,
 {
     end(ctx, claim, states::GATE_FAILED, refused.reason, true).await
-}
-
-async fn again<R, E, B>(
-    ctx: &RepairContext<R, E, B>,
-    claim: &ClaimedRepair,
-    path: &Path,
-    base: String,
-    round: u32,
-    refused: &Refused,
-) -> Result<Next<String>, PersistError>
-where
-    R: CommandRunner,
-    E: RepairEngineer,
-{
-    let base = match feedback::reopen(&ctx.runner, path, refused).await {
-        Ok(reopened) => reopened.unwrap_or(base),
-        Err(e) => {
-            let reason = format!(
-                "{}; the change could not be reopened for round {round}: {e}",
-                refused.reason
-            );
-            return Ok(Next::Stop(
-                end(ctx, claim, states::GATE_FAILED, reason, true).await?,
-            ));
-        }
-    };
-    ctx.persist
-        .web()
-        .advance_wright_repair(&RepairUpdate {
-            id: claim.id,
-            to: states::EDITING,
-            from: &[states::EDITING, states::PREPARED, states::GATING],
-            base_sha: Some(base.clone()),
-            reason: Some(format!("round {round}: {}", refused.reason)),
-            ..RepairUpdate::default()
-        })
-        .await?;
-    log_round(claim, round, &refused.reason);
-    let job = feedback::feedback_job(&job(claim, path), round, refused);
-    match ctx.engineer.run_in_worktree(&job).await {
-        RepairRun {
-            not_started: None,
-            failure: None,
-        } => Ok(Next::Go(base)),
-        RepairRun {
-            failure: Some(reason),
-            ..
-        }
-        | RepairRun {
-            not_started: Some(reason),
-            ..
-        } => {
-            let reason = format!(
-                "{}; round {round}'s engineer run did not finish: {reason}",
-                refused.reason
-            );
-            Ok(Next::Stop(
-                end(ctx, claim, states::GATE_FAILED, reason, true).await?,
-            ))
-        }
-    }
-}
-
-fn log_round(claim: &ClaimedRepair, round: u32, reason: &str) {
-    tracing::info!(repair = claim.id, finding = claim.finding_id, round, %reason, "wright repair: the change was refused; the engineer edits it again");
 }
 
 pub(crate) async fn attempt<R, E, B>(

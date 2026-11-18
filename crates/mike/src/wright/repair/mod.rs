@@ -19,11 +19,14 @@ pub(crate) mod land;
 pub(crate) mod policy;
 pub(crate) mod port;
 pub(crate) mod prepare;
+pub(crate) mod rounds;
 pub(crate) mod runner;
 pub(crate) mod worktree;
 
 #[cfg(test)]
 mod fixtures_tests;
+#[cfg(test)]
+mod interrupted_tests;
 #[cfg(test)]
 mod landing_tests;
 #[cfg(test)]
@@ -74,6 +77,13 @@ pub(crate) struct RepairContext<R, E, B> {
     pub(crate) live: B,
     pub(crate) repo: RepoLayout,
     pub(crate) machine: Option<Uuid>,
+    pub(crate) shutdown: CancellationToken,
+}
+
+impl<R, E, B> RepairContext<R, E, B> {
+    pub(crate) fn stopping(&self) -> bool {
+        self.shutdown.is_cancelled()
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -163,6 +173,7 @@ fn log_no_repository_again(error: &str, cwd: &std::path::Path) {
 async fn live_context(
     persist: &PersistHandle,
     engineer: &mut Option<InvestigateEngineer>,
+    shutdown: &CancellationToken,
 ) -> Option<LiveContext> {
     let cwd = std::env::current_dir().ok()?;
     let repo = match RepoLayout::discover(&ProcessRunner, &cwd).await {
@@ -183,11 +194,13 @@ async fn live_context(
         live: RunningBinary,
         repo,
         machine,
+        shutdown: shutdown.clone(),
     })
 }
 
 struct Worker {
     persist: PersistHandle,
+    shutdown: CancellationToken,
     engineer: Option<InvestigateEngineer>,
     ctx: Option<LiveContext>,
     recovered: bool,
@@ -197,7 +210,7 @@ struct Worker {
 impl Worker {
     async fn iteration(&mut self) {
         if self.ctx.is_none() {
-            self.ctx = live_context(&self.persist, &mut self.engineer).await;
+            self.ctx = live_context(&self.persist, &mut self.engineer, &self.shutdown).await;
         }
         let Some(ctx) = self.ctx.as_ref() else {
             return;
@@ -287,6 +300,7 @@ pub fn spawn_wright_repair_worker(state: &AppState) {
     };
     let worker = Worker {
         persist,
+        shutdown: state.shutdown(),
         engineer: Some(InvestigateEngineer::for_state(state)),
         ctx: None,
         recovered: false,
