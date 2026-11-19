@@ -265,7 +265,7 @@ an undo of external publications or cancellation of an already-started ordinary 
 ## Unexpected disk activity while recording changes
 
 First distinguish the session folder from the Git repository Mike resolves for it.
-In source `0ad4acd5`, the change-record watcher resolves session folders with
+In older source `0ad4acd5`, the change-record watcher resolves session folders with
 `git rev-parse --show-toplevel`; a folder without its own repository can therefore
 resolve to an enclosing repository. Recording file snapshots uses `git hash-object -w`,
 which writes objects to that repository. This is separate from database size and from
@@ -302,13 +302,39 @@ feedback. `code_scan` controls scanning, `code_findings` controls findings deliv
 and `code_findings_push` controls proactive delivery; turning off a feedback switch
 is not the same as stopping the file watcher.
 
-[Issue #428](https://github.com/temet-ai/mike/issues/428) reports an enclosing-repository
-watch causing heavy hashing and object growth. Its described scope/exclusion/cache
-changes were not present in main `0ad4acd5` when checked; do not assume they shipped
-or that every installation has the reported problem. Do not delete `.git`, prune
-objects, clear change records or remove worktrees as a generic remedy: recorded
-snapshots may depend on those objects. Preserve evidence and establish the actual
-scope and retention requirements before choosing any cleanup.
+### Newer watcher behavior
+
+[Issue #428](https://github.com/temet-ai/mike/issues/428) is now closed and
+[PR #430](https://github.com/temet-ai/mike/pull/430) merged. Source `e81b613c` includes:
+
+- An enclosing repository is watched only when the session folder is its top-level
+  directory or contains files it tracks. This is not a declared-checkouts-only policy:
+  the resolved parent repository can still be watched when that condition holds.
+- Build directories such as `target`, `node_modules`, `dist`, `.target*`, `dist-out`,
+  `__pycache__` and `.venv` are excluded from watcher discovery/events and Git scans,
+  even if they are not gitignored.
+- During full scans, size/mtime caching avoids rehashing unchanged files; notification
+  paths still hash directly. Recently modified files are
+  not newly cached until their timestamp is at least two seconds old. Ignored-path
+  caching is cleared by a `.gitignore` event, a full check or exceeding its 10,000-entry
+  bound. These are performance mechanisms, not an assurance that no files are read.
+- For ordinary files, the watcher chooses whether to write Git snapshot objects using
+  a **1 MiB metadata-size threshold** checked before hashing. Larger files are still
+  hashed without writing new objects. Their content
+  may therefore be unavailable to later blob-based authorship or code-scan work.
+  This is not a strict content-size/security boundary, a total disk quota or a
+  hashing-size limit.
+- With notifications working, the default full-check interval is ten minutes; without
+  them, fallback polling is thirty seconds. Startup still establishes a baseline, and
+  overflow-triggered rescans are throttled to at most once per minute. Periodic scans
+  remain; this is not a notifications-only watcher.
+
+Compare the installed build with that source before expecting these protections.
+Merged source is not evidence of deployment, a released binary or measured improvement
+on your machine. Older objects and database records are not removed by these changes.
+Do not delete `.git`, prune objects, clear change records or remove worktrees as a
+generic remedy: recorded snapshots may depend on those objects. Preserve evidence and
+establish the actual scope and retention requirements before choosing any cleanup.
 
 ## Report a problem
 
