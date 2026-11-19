@@ -35,6 +35,8 @@ pub mod knowledge_session_tests;
 #[cfg(test)]
 pub mod knowledge_tests;
 #[cfg(test)]
+mod knowledge_upkeep_tests;
+#[cfg(test)]
 pub mod knowledge_version_tests;
 #[cfg(test)]
 pub mod model_change_tests;
