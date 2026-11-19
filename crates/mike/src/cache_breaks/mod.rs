@@ -5,6 +5,7 @@ pub(crate) mod load;
 pub(crate) mod normalize;
 pub(crate) mod reads;
 pub(crate) mod store;
+pub(crate) mod thread_protocol;
 
 use std::time::Duration;
 

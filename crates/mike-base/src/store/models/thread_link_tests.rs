@@ -29,11 +29,19 @@ fn from_body_without_thread_is_none() {
 }
 
 #[test]
-fn from_body_unknown_kind_is_none() {
-    assert_eq!(
-        ThreadLink::from_body(br#"{"thread":{"type":"fork","previous_message_id":"msg_1"}}"#),
-        None
-    );
+fn from_body_unknown_kind_is_other_and_keeps_previous_id() -> anyhow::Result<()> {
+    let link = link(br#"{"thread":{"type":"fork","previous_message_id":"msg_1"}}"#)?;
+    assert_eq!(link.kind, ThreadKind::Other);
+    assert!(!link.is_known());
+    assert!(!link.continues());
+    assert_eq!(link.previous_message_id.as_deref(), Some("msg_1"));
+    Ok(())
+}
+
+#[test]
+fn from_body_thread_without_type_is_other() -> anyhow::Result<()> {
+    assert_eq!(link(br#"{"thread":{}}"#)?.kind, ThreadKind::Other);
+    Ok(())
 }
 
 #[test]

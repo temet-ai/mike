@@ -78,6 +78,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
+        "/api/requests/{id}/body/conversation",
+        Coverage::Exempt {
+            reason: "Investigations reach it through ask-kit's mike kit; no MCP tool until a workflow needs one.",
+        },
+    ),
+    route(
+        "GET",
         "/api/requests/{id}/body/response",
         Coverage::Tool("get_response_body"),
     ),
@@ -262,6 +269,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/requests/{id}/body/request_sent",
             get(handlers::get_request_sent_body),
+        )
+        .route(
+            "/api/requests/{id}/body/conversation",
+            get(handlers::get_request_conversation),
         )
         .route(
             "/api/requests/{id}/body/response",

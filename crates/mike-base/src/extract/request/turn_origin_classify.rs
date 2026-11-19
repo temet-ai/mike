@@ -3,7 +3,10 @@ use serde_json::Value;
 use super::message_shape::fingerprint_message_count;
 use super::turn_origin::TurnOrigin;
 use super::turn_type::TurnType;
-use crate::wire::genuine::markers::{WORKFLOW_HARNESS_USER_PREFIX, WORKFLOW_SUBAGENT_MARKERS};
+use crate::wire::genuine::markers::{
+    AGENT_LABEL_INSTRUCTION, AGENT_LABEL_TASK_PREFIX, WORKFLOW_HARNESS_USER_PREFIX,
+    WORKFLOW_SUBAGENT_MARKERS,
+};
 
 fn first_user_message_text(body: &Value) -> Option<&str> {
     let msg = body
@@ -81,6 +84,16 @@ fn first_user_message_starts_with_harness_prefix(body: &Value) -> bool {
     }
 }
 
+pub fn is_agent_label_call(body: &Value) -> bool {
+    if fingerprint_message_count(body) != 1 || body.get("thread").is_some() {
+        return false;
+    }
+    first_user_single_text(body).is_some_and(|text| {
+        text.trim_start().starts_with(AGENT_LABEL_TASK_PREFIX)
+            && text.contains(AGENT_LABEL_INSTRUCTION)
+    })
+}
+
 pub fn is_workflow_agent(system_prompt: Option<&str>, body: &Value) -> bool {
     system_prompt.is_some_and(has_workflow_system_marker)
         || first_user_message_starts_with_harness_prefix(body)
@@ -106,6 +119,10 @@ pub fn extract_turn_origin(
         && sp.contains("You are a security monitor for autonomous AI coding agents")
     {
         return TurnOrigin::AdvisorSidecar;
+    }
+
+    if is_agent_label_call(body) {
+        return TurnOrigin::AgentLabelSidecar;
     }
 
     if let Some(origin) =
@@ -217,6 +234,9 @@ pub fn extract_subagent_persona(system_prompt: &str) -> Option<String> {
     None
 }
 
+#[cfg(test)]
+#[path = "turn_origin_classify_label_tests.rs"]
+pub mod label_tests;
 #[cfg(test)]
 #[path = "turn_origin_classify_probe_tests.rs"]
 pub mod probe_tests;

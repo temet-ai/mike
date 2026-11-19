@@ -8,6 +8,7 @@ use super::request_id::RequestId;
 pub enum ThreadKind {
     Create,
     Continue,
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,13 +24,17 @@ impl ThreadLink {
         self.kind == ThreadKind::Continue
     }
 
+    pub fn is_known(&self) -> bool {
+        self.kind != ThreadKind::Other
+    }
+
     pub fn from_body(body: &[u8]) -> Option<Self> {
         let wire: Body<'_> = serde_json::from_slice(body).ok()?;
         let thread = wire.thread?;
-        let kind = match thread.kind?.as_ref() {
-            "create" => ThreadKind::Create,
-            "continue" => ThreadKind::Continue,
-            _ => return None,
+        let kind = match thread.kind.as_deref() {
+            Some("create") => ThreadKind::Create,
+            Some("continue") => ThreadKind::Continue,
+            _ => ThreadKind::Other,
         };
         Some(Self {
             kind,

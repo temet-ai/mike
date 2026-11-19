@@ -83,6 +83,10 @@ impl RequestStage for SessionLessonsStage {
         "lessons"
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.session_toggles
             .features

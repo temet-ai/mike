@@ -139,6 +139,7 @@ impl PersistHandle {
                         | TurnOrigin::CountTokensSidecar
                         | TurnOrigin::WebFetchSidecar
                         | TurnOrigin::NextInputSuggestionSidecar
+                        | TurnOrigin::AgentLabelSidecar
                 );
                 if is_sidecar {
                     restamp.push((row.id, origin.to_string()));

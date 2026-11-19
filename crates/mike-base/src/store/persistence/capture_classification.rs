@@ -32,7 +32,8 @@ pub fn classify_author_kind(
         | "monitor_sidecar"
         | "count_tokens_sidecar"
         | "web_fetch_sidecar"
-        | "next_input_suggestion_sidecar" => "harness",
+        | "next_input_suggestion_sidecar"
+        | "agent_label_sidecar" => "harness",
         "primary" | "primary_first" if has_agent_id => "agent",
         "primary" | "primary_first" => {
             classify_primary_turn_author(human_prompt, last_user_message, is_tool_loop)

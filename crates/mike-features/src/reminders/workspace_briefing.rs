@@ -186,6 +186,10 @@ impl RequestStage for WorkspaceBriefingStage {
         "workspace_briefing"
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.session_toggles.workspace_briefing && is_session_own_lane(ctx) && !ctx.is_tool_loop
     }

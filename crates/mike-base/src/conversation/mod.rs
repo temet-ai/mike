@@ -15,6 +15,7 @@ pub enum EarlierState {
     #[default]
     WholeBody,
     Chain,
+    Partial,
     Unavailable,
 }
 
@@ -48,12 +49,23 @@ impl EarlierTurns {
         }
     }
 
+    pub fn partial(messages: Messages) -> Self {
+        Self {
+            messages: Some(messages),
+            state: EarlierState::Partial,
+        }
+    }
+
     pub fn state(&self) -> EarlierState {
         self.state
     }
 
     pub fn is_unavailable(&self) -> bool {
         self.state == EarlierState::Unavailable
+    }
+
+    pub fn is_complete(&self) -> bool {
+        matches!(self.state, EarlierState::WholeBody | EarlierState::Chain)
     }
 
     pub fn len(&self) -> usize {

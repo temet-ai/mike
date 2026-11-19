@@ -9,7 +9,8 @@ export const TURN_ORIGINS = [
 	'count_tokens_sidecar',
 	'web_fetch_sidecar',
 	'workflow_subagent',
-	'next_input_suggestion_sidecar'
+	'next_input_suggestion_sidecar',
+	'agent_label_sidecar'
 ] as const;
 
 export type TurnOrigin = (typeof TURN_ORIGINS)[number];
@@ -21,7 +22,8 @@ export const SIDECAR_ORIGINS = [
 	'monitor_sidecar',
 	'count_tokens_sidecar',
 	'web_fetch_sidecar',
-	'next_input_suggestion_sidecar'
+	'next_input_suggestion_sidecar',
+	'agent_label_sidecar'
 ] as const satisfies readonly TurnOrigin[];
 
 export type SidecarOrigin = (typeof SIDECAR_ORIGINS)[number];
@@ -38,7 +40,8 @@ export const HOUSEKEEPING_ORIGINS = [
 	'monitor_sidecar',
 	'count_tokens_sidecar',
 	'web_fetch_sidecar',
-	'next_input_suggestion_sidecar'
+	'next_input_suggestion_sidecar',
+	'agent_label_sidecar'
 ] as const satisfies readonly SidecarOrigin[];
 
 const HOUSEKEEPING_SET: ReadonlySet<string> = new Set(HOUSEKEEPING_ORIGINS);
@@ -54,7 +57,8 @@ export const SIDECAR_BAND_LABELS: Record<SidecarOrigin, string> = {
 	monitor_sidecar: 'monitor',
 	count_tokens_sidecar: 'count tokens',
 	web_fetch_sidecar: 'web fetch',
-	next_input_suggestion_sidecar: 'suggestion probe'
+	next_input_suggestion_sidecar: 'suggestion probe',
+	agent_label_sidecar: 'agent label'
 };
 
 export const ORIGIN_CHIP_LABELS: Record<TurnOrigin, string> = {
@@ -68,5 +72,6 @@ export const ORIGIN_CHIP_LABELS: Record<TurnOrigin, string> = {
 	count_tokens_sidecar: 'count-tokens',
 	web_fetch_sidecar: 'web-fetch',
 	workflow_subagent: 'workflow',
-	next_input_suggestion_sidecar: 'suggestion-probe'
+	next_input_suggestion_sidecar: 'suggestion-probe',
+	agent_label_sidecar: 'agent-label'
 };

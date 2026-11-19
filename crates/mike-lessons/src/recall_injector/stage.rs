@@ -10,6 +10,10 @@ impl RequestStage for RecallInjectorStage {
         "recall_injector"
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.session_toggles.recall_injector
     }

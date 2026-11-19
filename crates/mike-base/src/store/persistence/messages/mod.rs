@@ -1,5 +1,7 @@
 pub mod canonicalize;
+pub mod chain_bridge;
 pub mod delta;
+pub mod delta_correction;
 pub mod delta_same;
 pub mod envelope_patch;
 pub mod predecessor;
@@ -18,6 +20,7 @@ pub const RELIABLE_SIDECAR_ORIGINS: &[&str] = &[
     "count_tokens_sidecar",
     "web_fetch_sidecar",
     "next_input_suggestion_sidecar",
+    "agent_label_sidecar",
 ];
 
 pub use canonicalize::{CanonicalMessage, canonicalise_body_messages, write_request_messages};

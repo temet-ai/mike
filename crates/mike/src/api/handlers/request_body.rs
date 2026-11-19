@@ -100,6 +100,7 @@ pub(crate) struct RequestBodyIndexPayload {
     pub(crate) request_id: u64,
     pub(crate) request: BodyRouteDescriptor,
     pub(crate) request_sent: BodyRouteDescriptor,
+    pub(crate) conversation: BodyRouteDescriptor,
     pub(crate) response: BodyRouteDescriptor,
     pub(crate) transformation_manifest: BodyRouteDescriptor,
     pub(crate) find: BodyRouteDescriptor,
@@ -147,6 +148,12 @@ pub(crate) async fn get_request_body_index(
         request_sent: BodyRouteDescriptor {
             href: format!("{base}/request_sent"),
             description: "Body forwarded upstream after request filtering.",
+            supports_pointer: true,
+            query_hint: Some("?pointer=/messages/0/content/0/text"),
+        },
+        conversation: BodyRouteDescriptor {
+            href: format!("{base}/conversation"),
+            description: "The body as sent upstream with the earlier turns of its server-side thread spliced in: the conversation the model saw at this request. Same as request_sent for a request that carries no thread continuation.",
             supports_pointer: true,
             query_hint: Some("?pointer=/messages/0/content/0/text"),
         },
@@ -329,6 +336,30 @@ pub(crate) async fn get_request_sent_body(
     let body = resolve_request_sent_body(&state, id)
         .await?
         .ok_or(StatusCode::NOT_FOUND)?;
+    let payload = match params.effective_pointer() {
+        Some(p) => BodyPayload::from_bytes_with_pointer(body.as_ref(), p),
+        None => BodyPayload::from_bytes(body.as_ref()),
+    };
+    Ok(Json(payload))
+}
+
+pub(crate) async fn get_request_conversation(
+    State(state): State<AppState>,
+    Path(id): Path<u64>,
+    Query(params): Query<BodyPointerParams>,
+) -> Result<Json<BodyPayload>, StatusCode> {
+    let sent = resolve_request_sent_body(&state, id)
+        .await?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    let whole = match (sent.as_deref(), state.persist()) {
+        (Some(sent), Some(persist)) => {
+            crate::conversation::restore::whole_body_from_db(persist, sent)
+                .await
+                .map(Bytes::from)
+        }
+        _ => None,
+    };
+    let body = whole.or(sent);
     let payload = match params.effective_pointer() {
         Some(p) => BodyPayload::from_bytes_with_pointer(body.as_ref(), p),
         None => BodyPayload::from_bytes(body.as_ref()),
