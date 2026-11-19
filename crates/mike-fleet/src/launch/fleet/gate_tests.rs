@@ -171,7 +171,9 @@ async fn a_seat_commit_is_blamed_when_its_trailer_session_is_not_the_tasks_curre
         matches!(&found, Some(Blame::Suspects(s)) if s[0].seat == "seat-b" && s[0].commit == breaker),
         "{found:?}"
     );
-    def.tasks.get_mut("seat-b").map(|t| t.session = None);
+    if let Some(task) = def.tasks.get_mut("seat-b") {
+        task.session = None;
+    }
     assert!(
         blame(&def, None, &breaker, "bad.txt: broken")
             .await
