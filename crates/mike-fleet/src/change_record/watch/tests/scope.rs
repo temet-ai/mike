@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 use super::repo;
+use crate::change_record::watch::checkout::torn_down;
 use crate::change_record::watch::git::STORE_LIMIT;
 use crate::change_record::watch::notifications::{Places, Signal, classify};
 use crate::change_record::watch::skip::is_build_output;
-use crate::change_record::watch::supervisor::repository_root;
-use crate::change_record::watch::tree::{DeltaKind, KnownTree};
+use crate::change_record::watch::supervisor::{is_temporary, repository_root};
+use crate::change_record::watch::tree::{DeltaKind, FileDelta, KnownTree};
 
 #[tokio::test]
 async fn a_folder_with_nothing_tracked_does_not_put_its_enclosing_repo_under_watch()
@@ -104,6 +105,40 @@ async fn a_changed_gitignore_lets_a_path_it_ignored_be_recorded() -> anyhow::Res
     let deltas = tree.observe_paths(&repo.git, &both).await?.deltas;
     assert!(deltas.iter().any(|d| d.path == "run.log"), "{deltas:?}");
     Ok(())
+}
+
+#[tokio::test]
+async fn deletions_from_a_checkout_being_removed_are_a_teardown() -> anyhow::Result<()> {
+    let repo = repo().await?;
+    let gone = vec![FileDelta {
+        path: "src/a.txt".into(),
+        change: DeltaKind::Deleted,
+        before_sha: Some("abc".into()),
+        after_sha: None,
+    }];
+    let wait = Duration::from_millis(10);
+    assert!(
+        !torn_down(&repo.root, &gone, wait).await,
+        "the checkout is still there"
+    );
+    std::fs::remove_dir_all(repo.git.absolute(".git"))?;
+    assert!(torn_down(&repo.root, &gone, wait).await);
+    assert!(
+        !torn_down(&repo.root, &[], wait).await,
+        "no deletion, no teardown"
+    );
+    Ok(())
+}
+
+#[test]
+fn session_folders_in_temporary_places_are_not_watched() {
+    assert!(is_temporary(
+        "/home/u/.claude/.cache/tmp/claude-1000/p/abc/scratchpad/evals/instr-with"
+    ));
+    assert!(is_temporary("/tmp/x/repo"));
+    assert!(!is_temporary(
+        "/mnt/data/projects/temet/temet-proxy/.claude/worktrees/fix"
+    ));
 }
 
 #[test]

@@ -40,6 +40,7 @@ pub struct WatchConfig {
     pub author_delay: Duration,
     pub edit_window: Duration,
     pub hold_retries: bool,
+    pub skip_temporary: bool,
 }
 
 impl Default for WatchConfig {
@@ -52,6 +53,7 @@ impl Default for WatchConfig {
             author_delay: Duration::from_secs(5),
             edit_window: Duration::from_secs(30),
             hold_retries: false,
+            skip_temporary: true,
         }
     }
 }

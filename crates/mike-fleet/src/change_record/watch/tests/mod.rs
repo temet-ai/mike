@@ -93,6 +93,7 @@ pub fn quick(notifications: bool) -> WatchConfig {
         author_delay: Duration::from_millis(200),
         edit_window: Duration::from_secs(30),
         hold_retries: false,
+        skip_temporary: false,
     }
 }
 
