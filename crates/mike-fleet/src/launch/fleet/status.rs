@@ -290,13 +290,9 @@ pub async fn assemble(
     if let Some(run) = &row.run_id {
         super::ruling_proof::hydrate(persist, &def, run, &mut evidence.obligations).await;
     }
-    Ok(build_with_evidence(
-        header,
-        &def,
-        (&seats, &notes),
-        evidence,
-        &recorded,
-    ))
+    let mut status = build_with_evidence(header, &def, (&seats, &notes), evidence, &recorded);
+    super::staff_claims::annotate(&mut status);
+    Ok(status)
 }
 
 pub fn note_facts(n: crate::store::persistence::fleet::FleetNoteRow) -> NoteFacts {

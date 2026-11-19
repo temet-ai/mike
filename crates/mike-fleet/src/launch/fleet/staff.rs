@@ -125,9 +125,9 @@ async fn order_siblings(
     def: &FleetDefinition,
     run_id: &str,
     ready: Vec<String>,
-) -> Vec<String> {
+) -> (Vec<String>, Vec<Hold>) {
     if !def.staffing.warm_siblings {
-        return ready;
+        return (ready, Vec::new());
     }
     let seats = persist
         .fleet()
@@ -138,7 +138,62 @@ async fn order_siblings(
     for hold in &held {
         tracing::debug!(task = %hold.task, waiting_for = %hold.waiting_for, "fleet: a fork waits for its warm sibling");
     }
-    start
+    (start, held)
+}
+
+pub const QUEUED: &str = "queued";
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Waiting(pub BTreeMap<String, String>);
+
+impl Waiting {
+    pub fn note<'a>(&mut self, tasks: impl IntoIterator<Item = &'a String>, why: &str) {
+        for task in tasks {
+            self.0
+                .entry(task.clone())
+                .or_insert_with(|| why.to_string());
+        }
+    }
+
+    pub fn unreleased(
+        &mut self,
+        def: &FleetDefinition,
+        unstarted: &BTreeSet<String>,
+        released: &BTreeSet<String>,
+    ) {
+        for id in unstarted {
+            let Some(task) = def.tasks.get(id) else {
+                continue;
+            };
+            let missing: Vec<&str> = task
+                .after
+                .iter()
+                .filter(|before| !released.contains(*before))
+                .map(String::as_str)
+                .collect();
+            if !missing.is_empty() {
+                self.0.insert(id.clone(), not_released(&missing));
+            }
+        }
+    }
+}
+
+pub fn not_released(missing: &[&str]) -> String {
+    format!(
+        "not released: waits for {} to be accepted with the fleet's check not failed at its commit",
+        missing.join(", ")
+    )
+}
+
+pub const CLAIMED: &str = "held by a claim: a seat is being started for it";
+pub const BASELINE: &str = "held: the start baseline gate has not passed at HEAD";
+
+pub fn sibling_wait(seat: &str) -> String {
+    format!("held: waits for its warm sibling seat {seat} to answer")
+}
+
+pub fn no_room(why: &str) -> String {
+    format!("no room: {why}")
 }
 
 pub fn passed_tasks(status: &FleetStatus) -> BTreeSet<String> {
@@ -154,8 +209,26 @@ pub fn unstarted_tasks(status: &FleetStatus) -> BTreeSet<String> {
     status
         .tasks
         .iter()
-        .filter(|task| task.state == "queued")
+        .filter(|task| task.state == QUEUED || task.state.starts_with("queued: "))
         .map(|task| task.id.clone())
+        .collect()
+}
+
+pub fn startable(
+    def: &FleetDefinition,
+    released: &BTreeSet<String>,
+    (unstarted, held): (&BTreeSet<String>, &BTreeSet<String>),
+    waiting: &mut Waiting,
+) -> Vec<String> {
+    waiting.unreleased(def, unstarted, released);
+    let after_met: Vec<String> = ready_tasks(def, released)
+        .into_iter()
+        .filter(|id| unstarted.contains(id))
+        .collect();
+    waiting.note(after_met.iter().filter(|id| held.contains(*id)), CLAIMED);
+    after_met
+        .into_iter()
+        .filter(|id| !held.contains(id))
         .collect()
 }
 
@@ -169,24 +242,44 @@ pub async fn staff(
     else {
         return;
     };
-    super::propose_tick::tick(persist, row, &def).await;
-    super::issue_close::tick(persist, &def, status).await;
-    let seats = ControlSeats::recorded(&def);
-    let released = super::release::released(persist, &def, status).await;
+    let mut waiting = Waiting::default();
+    staff_run(state, persist, (row, status), (&def, run_id), &mut waiting).await;
+    staff_claims::set_waiting(run_id, waiting.0);
+}
+
+async fn staff_run(
+    state: &BaseState,
+    persist: &PersistHandle,
+    (row, status): (&FleetRow, &FleetStatus),
+    (def, run_id): (&FleetDefinition, &String),
+    waiting: &mut Waiting,
+) {
+    super::propose_tick::tick(persist, row, def).await;
+    super::issue_close::tick(persist, def, status).await;
+    let seats = ControlSeats::recorded(def);
+    let released = super::release::released(persist, def, status).await;
     let unstarted = unstarted_tasks(status);
     staff_claims::settle(run_id, &unstarted, std::time::Instant::now());
     let adopted = adopt_live_launches(persist, run_id).await;
     let held = staff_claims::held_by(run_id);
-    let ready: Vec<String> = ready_tasks(&def, &released)
+    let ready: Vec<String> = startable(def, &released, (&unstarted, &held), waiting)
         .into_iter()
-        .filter(|id| unstarted.contains(id) && !held.contains(id))
-        .filter(|id| !is_adopted(&def, id, &adopted))
+        .filter(|id| !is_adopted(def, id, &adopted))
         .collect();
-    let ready = super::start_baseline::staffable(persist, row, &def, ready).await;
-    if ready.is_empty() || memory_holds(row, &def, ready.len()).await {
+    let admitted = super::start_baseline::staffable(persist, row, def, ready.clone()).await;
+    waiting.note(ready.iter().filter(|id| !admitted.contains(id)), BASELINE);
+    let ready = admitted;
+    if ready.is_empty() {
         return;
     }
-    let ready = order_siblings(persist, &def, run_id, ready).await;
+    if let Some(hold) = memory_holds(row, def, ready.len()).await {
+        waiting.note(&ready, &hold);
+        return;
+    }
+    let (ready, siblings) = order_siblings(persist, def, run_id, ready).await;
+    for hold in &siblings {
+        waiting.note([&hold.task], &sibling_wait(&hold.waiting_for));
+    }
     let facts = FleetFacts {
         fleet: row.fleet_uuid.to_string(),
         slug: row.slug.clone(),
@@ -194,22 +287,42 @@ pub async fn staff(
         seats,
         paths: super::bundle::paths_for(&def.repo),
     };
-    super::run_text_notes::record(persist, (&def, &facts)).await;
+    let starting = held.len();
+    launch_ready(
+        state,
+        persist,
+        (row, status, def),
+        (&facts, starting),
+        (ready, waiting),
+    )
+    .await;
+}
+
+async fn launch_ready(
+    state: &BaseState,
+    persist: &PersistHandle,
+    (row, status, def): (&FleetRow, &FleetStatus, &FleetDefinition),
+    (facts, starting): (&FleetFacts, usize),
+    (ready, waiting): (Vec<String>, &mut Waiting),
+) {
+    let facts = facts.clone();
+    super::run_text_notes::record(persist, (def, &facts)).await;
     let (room, surfaces) = room(state).await;
     let live = super::staff_limits::live_worker_seats(status);
-    let (room, why) = super::staff_limits::binding_room(&def, (live, held.len()), (room, surfaces));
+    let (room, why) = super::staff_limits::binding_room(def, (live, starting), (room, surfaces));
     if ready.len() > room {
         tell_no_room(row.fleet_uuid, &ready[room..], &why);
+        waiting.note(&ready[room..], &no_room(&why));
     }
-    let claimed = claim_all((&def, &facts), ready.into_iter().take(room));
-    let run_note = if super::brief_notes::as_notes(&def) {
+    let claimed = claim_all((def, &facts), ready.into_iter().take(room));
+    let run_note = if super::brief_notes::as_notes(def) {
         super::brief_notes_sync::run_note_id(persist, &facts).await
     } else {
         None
     };
     for (task, session) in claimed {
-        if let Some(plan) = worker_with(&def, &facts, &task, session, run_note) {
-            start(state, persist, &def, &facts, plan);
+        if let Some(plan) = worker_with(def, &facts, &task, session, run_note) {
+            start(state, persist, def, &facts, plan);
         }
     }
 }
@@ -230,12 +343,10 @@ pub(super) fn claim_all(
     claimed
 }
 
-async fn memory_holds(row: &FleetRow, def: &FleetDefinition, tasks: usize) -> bool {
-    let Some(hold) = super::staff_limits::memory_hold(def).await else {
-        return false;
-    };
+async fn memory_holds(row: &FleetRow, def: &FleetDefinition, tasks: usize) -> Option<String> {
+    let hold = super::staff_limits::memory_hold(def).await?;
     tracing::warn!(fleet = %row.fleet_uuid, tasks, %hold, "fleet: ready tasks wait for host memory");
-    true
+    Some(hold)
 }
 
 async fn adopt_live_launches(persist: &PersistHandle, run_id: &str) -> BTreeSet<String> {

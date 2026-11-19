@@ -70,6 +70,22 @@ fn producers(def: &FleetDefinition) -> BTreeSet<String> {
         .collect()
 }
 
+pub fn of_the_check(
+    events: Vec<crate::change_record::ChangeEvent>,
+    command: &str,
+) -> Vec<crate::change_record::ChangeEvent> {
+    events
+        .into_iter()
+        .filter(|event| {
+            event
+                .detail
+                .get("command")
+                .and_then(serde_json::Value::as_str)
+                .is_none_or(|ran| ran.trim() == command.trim())
+        })
+        .collect()
+}
+
 struct Gate(Option<Vec<crate::change_record::ChangeEvent>>);
 
 impl Gate {
@@ -84,7 +100,8 @@ impl Gate {
                 .fleet()
                 .latest_change_events(&def.repo, &[], &[ChangeKind::Check], CHECKS_READ)
                 .await
-                .ok(),
+                .ok()
+                .map(|events| of_the_check(events, &def.check.command)),
         )
     }
 

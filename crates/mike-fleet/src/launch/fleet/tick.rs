@@ -167,35 +167,61 @@ struct LiveCloser<'a> {
     run: &'a str,
 }
 
-impl SeatCloser for LiveCloser<'_> {
-    async fn close(&self, task: &str, session: Uuid) -> bool {
-        let launches = match self
+impl LiveCloser<'_> {
+    async fn stop(&self, session: Uuid) -> Result<(), String> {
+        let launches = self
             .persist
             .fleet()
             .unsettled_fleet_launches(self.run)
             .await
-        {
-            Ok(launches) => launches,
-            Err(error) => {
-                tracing::warn!(%error, run = self.run, task, "fleet: an accepted seat could not be looked up");
-                return false;
-            }
+            .map_err(|error| error.to_string())?;
+        let Some(launch) = launches.iter().find(|l| l.session_uuid == Some(session)) else {
+            return Ok(());
         };
-        if let Some(launch) = launches.iter().find(|l| l.session_uuid == Some(session)) {
-            let stop = super::shutdown::stop_seat(self.state, self.persist, self.run, launch).await;
-            if !stop.closed && stop.process_exited != Some(true) {
-                tracing::warn!(run = self.run, task, session_id = %session, note = ?stop.note, "fleet: an accepted task's seat did not close; the next tick tries again");
-                return false;
-            }
+        let stop = super::shutdown::stop_seat(self.state, self.persist, self.run, launch).await;
+        if stop.closed || stop.process_exited == Some(true) {
+            return Ok(());
         }
-        let event = accepted_close_event(self.run, task, session);
-        if let Err(error) = self.persist.fleet().append_fleet_event(&event).await {
-            tracing::warn!(%error, run = self.run, task, "fleet: an accepted seat's close could not be recorded");
-            return false;
-        }
-        tracing::info!(run = self.run, task, session_id = %session, "fleet: the task is accepted, mike closed its seat");
-        true
+        Err(stop
+            .note
+            .unwrap_or_else(|| "the seat did not close".to_string()))
     }
+
+    async fn record(&self, task: &str, session: Uuid) -> Result<(), String> {
+        let event = accepted_close_event(self.run, task, session);
+        self.persist
+            .fleet()
+            .append_fleet_event(&event)
+            .await
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+}
+
+impl SeatCloser for LiveCloser<'_> {
+    async fn close(&self, task: &str, session: Uuid) -> bool {
+        let closed = match self.stop(session).await {
+            Ok(()) => self.record(task, session).await,
+            Err(why) => Err(why),
+        };
+        log_accepted_close(self.run, task, session, closed.as_ref().err());
+        closed.is_ok()
+    }
+}
+
+fn log_accepted_close(run: &str, task: &str, session: Uuid, failed: Option<&String>) {
+    match failed {
+        None => log_closed_seat(run, task, session),
+        Some(why) => log_unclosed_seat(run, task, session, why),
+    }
+}
+
+fn log_closed_seat(run: &str, task: &str, session: Uuid) {
+    tracing::info!(run, task, session_id = %session, "fleet: the task is accepted, mike closed its seat");
+}
+
+fn log_unclosed_seat(run: &str, task: &str, session: Uuid, why: &str) {
+    tracing::warn!(run, task, session_id = %session, why, "fleet: an accepted task's seat did not close; the next tick tries again");
 }
 
 fn close_accepted_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {

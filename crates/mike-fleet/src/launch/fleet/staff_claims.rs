@@ -70,6 +70,40 @@ pub fn settle(run: &str, queued: &BTreeSet<String>, now: Instant) {
     });
 }
 
+static WAITING: LazyLock<Mutex<BTreeMap<String, BTreeMap<String, String>>>> =
+    LazyLock::new(|| Mutex::new(BTreeMap::new()));
+
+pub fn set_waiting(run: &str, reasons: BTreeMap<String, String>) {
+    WAITING
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .insert(run.to_string(), reasons);
+}
+
+pub fn waiting(run: &str) -> BTreeMap<String, String> {
+    WAITING
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(run)
+        .cloned()
+        .unwrap_or_default()
+}
+
+pub fn annotate(status: &mut super::status::FleetStatus) {
+    let Some(run) = status.run_id.as_deref() else {
+        return;
+    };
+    let reasons = waiting(run);
+    for task in &mut status.tasks {
+        if task.state != super::staff::QUEUED {
+            continue;
+        }
+        if let Some(why) = reasons.get(&task.id) {
+            task.state = format!("{}: {why}", super::staff::QUEUED);
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "staff_claims_tests.rs"]
 mod tests;
