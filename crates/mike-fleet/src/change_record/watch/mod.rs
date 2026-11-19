@@ -47,7 +47,7 @@ impl Default for WatchConfig {
         Self {
             notifications: true,
             debounce: Duration::from_millis(300),
-            backstop: Duration::from_secs(30),
+            backstop: Duration::from_secs(600),
             fallback_poll: Duration::from_secs(30),
             author_delay: Duration::from_secs(5),
             edit_window: Duration::from_secs(30),

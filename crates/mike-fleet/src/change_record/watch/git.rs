@@ -4,6 +4,7 @@ use std::process::Stdio;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub const HASH_BATCH: usize = 500;
+pub const STORE_LIMIT: u64 = 1024 * 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GitError {
@@ -105,25 +106,36 @@ impl Git {
     }
 
     pub async fn hash_paths(&self, paths: &[String]) -> Result<Vec<(String, String)>, GitError> {
+        let (stored, large): (Vec<String>, Vec<String>) =
+            paths.iter().cloned().partition(|p| self.storable(p));
         let mut out = Vec::with_capacity(paths.len());
-        for chunk in paths.chunks(HASH_BATCH) {
-            match self.hash_chunk(chunk).await {
-                Ok(hashed) => out.extend(hashed),
-                Err(_) => out.extend(self.hash_one_by_one(chunk).await),
+        for (list, write) in [(&stored, true), (&large, false)] {
+            for chunk in list.chunks(HASH_BATCH) {
+                match self.hash_chunk(chunk, write).await {
+                    Ok(hashed) => out.extend(hashed),
+                    Err(_) => out.extend(self.hash_one_by_one(chunk, write).await),
+                }
             }
         }
         Ok(out)
     }
 
-    async fn hash_chunk(&self, chunk: &[String]) -> Result<Vec<(String, String)>, GitError> {
+    fn storable(&self, path: &str) -> bool {
+        std::fs::symlink_metadata(self.absolute(path)).is_ok_and(|m| m.len() <= STORE_LIMIT)
+    }
+
+    async fn hash_chunk(
+        &self,
+        chunk: &[String],
+        write: bool,
+    ) -> Result<Vec<(String, String)>, GitError> {
         let input = chunk.join("\n") + "\n";
-        let raw = self
-            .run_with(
-                &["hash-object", "-w", "--stdin-paths"],
-                Some(input.as_bytes()),
-                &[0],
-            )
-            .await?;
+        let args: &[&str] = if write {
+            &["hash-object", "-w", "--stdin-paths"]
+        } else {
+            &["hash-object", "--stdin-paths"]
+        };
+        let raw = self.run_with(args, Some(input.as_bytes()), &[0]).await?;
         let text = String::from_utf8_lossy(&raw);
         let shas: Vec<&str> = text.lines().collect();
         if shas.len() != chunk.len() {
@@ -139,10 +151,10 @@ impl Git {
             .collect())
     }
 
-    async fn hash_one_by_one(&self, chunk: &[String]) -> Vec<(String, String)> {
+    async fn hash_one_by_one(&self, chunk: &[String], write: bool) -> Vec<(String, String)> {
         let mut out = Vec::new();
         for path in chunk {
-            if let Ok(mut one) = self.hash_chunk(std::slice::from_ref(path)).await {
+            if let Ok(mut one) = self.hash_chunk(std::slice::from_ref(path), write).await {
                 out.append(&mut one);
             }
         }

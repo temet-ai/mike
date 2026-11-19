@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::time::{Duration, SystemTime};
 
 use super::git::{Git, GitError};
@@ -14,6 +14,37 @@ const BUILD_DIRS: [&str; 7] = [
 ];
 
 const RACY: Duration = Duration::from_secs(2);
+const IGNORE_CACHE: usize = 10_000;
+
+#[derive(Debug, Default)]
+pub struct IgnoreCache {
+    ignored: HashSet<String>,
+}
+
+impl IgnoreCache {
+    pub fn clear(&mut self) {
+        self.ignored.clear();
+    }
+
+    pub async fn drop_ignored(
+        &mut self,
+        git: &Git,
+        burst: &BTreeSet<String>,
+        wanted: &mut Vec<String>,
+    ) -> Result<(), GitError> {
+        if self.ignored.len() > IGNORE_CACHE || burst.iter().any(|p| names_ignores(p)) {
+            self.ignored.clear();
+        }
+        wanted.retain(|p| !self.ignored.contains(p));
+        self.ignored.extend(git.ignored(wanted).await?);
+        wanted.retain(|p| !self.ignored.contains(p));
+        Ok(())
+    }
+}
+
+fn names_ignores(path: &str) -> bool {
+    path == ".gitignore" || path.ends_with("/.gitignore")
+}
 
 pub fn build_excludes() -> Vec<String> {
     BUILD_DIRS

@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 use super::repo;
+use crate::change_record::watch::git::STORE_LIMIT;
 use crate::change_record::watch::notifications::{Places, Signal, classify};
 use crate::change_record::watch::skip::is_build_output;
 use crate::change_record::watch::supervisor::repository_root;
@@ -67,6 +69,40 @@ async fn an_untracked_file_left_alone_is_not_hashed_again() -> anyhow::Result<()
     let deltas = tree.backstop(&repo.git).await?;
     assert_eq!(deltas.len(), 1);
     assert_eq!(deltas[0].change, DeltaKind::Modified);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_file_over_the_store_limit_is_hashed_but_not_written_to_the_repo() -> anyhow::Result<()> {
+    let repo = repo().await?;
+    let big = "x".repeat(usize::try_from(STORE_LIMIT)? + 1);
+    repo.write("big.bin", &big)?;
+    repo.write("small.txt", "small")?;
+    let hashed = repo
+        .git
+        .hash_paths(&["big.bin".to_string(), "small.txt".to_string()])
+        .await?;
+    assert_eq!(hashed.len(), 2);
+    for (path, sha) in hashed {
+        let stored = repo.git.run(&["cat-file", "-e", &sha]).await.is_ok();
+        assert_eq!(stored, path == "small.txt", "{path} stored={stored}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_changed_gitignore_lets_a_path_it_ignored_be_recorded() -> anyhow::Result<()> {
+    let repo = repo().await?;
+    repo.write(".gitignore", "target/\nnode_modules/\n*.log\n")?;
+    repo.git(&["commit", "-qam", "ignore logs"]).await?;
+    let mut tree = KnownTree::baseline(&repo.git).await?;
+    repo.write("run.log", "one")?;
+    let log: BTreeSet<String> = ["run.log".to_string()].into();
+    assert!(tree.observe_paths(&repo.git, &log).await?.deltas.is_empty());
+    repo.write(".gitignore", "target/\n")?;
+    let both: BTreeSet<String> = [".gitignore".to_string(), "run.log".to_string()].into();
+    let deltas = tree.observe_paths(&repo.git, &both).await?.deltas;
+    assert!(deltas.iter().any(|d| d.path == "run.log"), "{deltas:?}");
     Ok(())
 }
 

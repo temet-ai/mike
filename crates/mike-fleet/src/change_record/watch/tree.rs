@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::git::{Git, GitError};
-use super::skip::{StatCache, build_excludes, is_build_output};
+use super::skip::{IgnoreCache, StatCache, build_excludes, is_build_output};
 use crate::launch::fleet::watch::{Seen, parse_index, parse_status};
 
 const STATUS: [&str; 6] = [
@@ -48,6 +48,7 @@ pub struct Observed {
 pub struct KnownTree {
     known: BTreeMap<String, String>,
     stamps: StatCache,
+    ignores: IgnoreCache,
 }
 
 enum OnDisk {
@@ -61,7 +62,11 @@ impl KnownTree {
     pub async fn baseline(git: &Git) -> Result<Self, GitError> {
         let mut stamps = StatCache::default();
         let known = current(git, &mut stamps).await?;
-        Ok(Self { known, stamps })
+        Ok(Self {
+            known,
+            stamps,
+            ignores: IgnoreCache::default(),
+        })
     }
 
     pub fn directories(&self) -> BTreeSet<String> {
@@ -93,8 +98,7 @@ impl KnownTree {
             observed.deltas.extend(self.forget(path));
         }
         let mut wanted: Vec<String> = files.iter().chain(dirs.iter()).cloned().collect();
-        let ignored: BTreeSet<String> = git.ignored(&wanted).await?.into_iter().collect();
-        wanted.retain(|p| !ignored.contains(p));
+        self.ignores.drop_ignored(git, paths, &mut wanted).await?;
         let mut to_hash: BTreeSet<String> = BTreeSet::new();
         for path in wanted {
             if dirs.contains(&path) {
@@ -118,6 +122,7 @@ impl KnownTree {
     }
 
     pub async fn backstop(&mut self, git: &Git) -> Result<Vec<FileDelta>, GitError> {
+        self.ignores.clear();
         let now = current(git, &mut self.stamps).await?;
         let deltas = differences(&self.known, &now);
         self.known = now;
