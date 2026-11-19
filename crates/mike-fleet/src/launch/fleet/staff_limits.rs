@@ -17,6 +17,22 @@ pub fn live_worker_seats(status: &FleetStatus) -> usize {
         .count()
 }
 
+pub fn accepted_open_seats(status: &FleetStatus) -> Vec<(String, uuid::Uuid)> {
+    status
+        .tasks
+        .iter()
+        .filter(|task| task.ready && task.state != "rework")
+        .filter_map(|task| {
+            let name = task.seat.as_deref()?;
+            let seat = status
+                .seats
+                .iter()
+                .find(|seat| seat.seat == name && !seat.closed)?;
+            Some((task.id.clone(), seat.session?))
+        })
+        .collect()
+}
+
 pub fn binding_room(
     def: &FleetDefinition,
     (live, starting): (usize, usize),

@@ -312,7 +312,7 @@ async fn current(persist: &PersistHandle, row: &FleetRow) -> Result<FleetRow, Pe
     Ok(fresh)
 }
 
-async fn stop_seat(
+pub(super) async fn stop_seat(
     state: &BaseState,
     persist: &PersistHandle,
     run: &str,

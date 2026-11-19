@@ -1,7 +1,11 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::future::Future;
 use std::pin::Pin;
 
+use uuid::Uuid;
+
 use super::definition::FleetDefinition;
+use super::events::{EventPayload, NewFleetEvent, SeatClosed};
 use super::status::FleetStatus;
 use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
@@ -43,6 +47,10 @@ pub const STEPS: &[Step] = &[
     Step {
         name: "judge",
         run: judge_step,
+    },
+    Step {
+        name: "close_accepted",
+        run: close_accepted_step,
     },
     Step {
         name: "problems",
@@ -124,6 +132,81 @@ fn judge_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
 async fn judge(ctx: &TickCtx<'_>) {
     let fleet = ctx.row.fleet_uuid.to_string();
     super::leaves::judge_reports(ctx.state, ctx.persist, &fleet, ctx.def, ctx.run_id).await;
+}
+
+pub const ACCEPTED_CLOSE: &str = "task accepted";
+
+pub trait SeatCloser {
+    fn close(&self, task: &str, session: Uuid) -> impl Future<Output = bool> + Send;
+}
+
+pub async fn close_accepted_seats(closer: &impl SeatCloser, status: &FleetStatus) -> Vec<String> {
+    let mut closed = Vec::new();
+    for (task, session) in super::staff_limits::accepted_open_seats(status) {
+        if closer.close(&task, session).await {
+            closed.push(task);
+        }
+    }
+    closed
+}
+
+pub fn accepted_close_event(run: &str, task: &str, session: Uuid) -> NewFleetEvent {
+    NewFleetEvent {
+        run_id: run.to_string(),
+        task: Some(task.to_string()),
+        session_uuid: Some(session),
+        payload: EventPayload::SeatClosed(SeatClosed {
+            reason: ACCEPTED_CLOSE.to_string(),
+        }),
+    }
+}
+
+struct LiveCloser<'a> {
+    state: &'a BaseState,
+    persist: &'a PersistHandle,
+    run: &'a str,
+}
+
+impl SeatCloser for LiveCloser<'_> {
+    async fn close(&self, task: &str, session: Uuid) -> bool {
+        let launches = match self
+            .persist
+            .fleet()
+            .unsettled_fleet_launches(self.run)
+            .await
+        {
+            Ok(launches) => launches,
+            Err(error) => {
+                tracing::warn!(%error, run = self.run, task, "fleet: an accepted seat could not be looked up");
+                return false;
+            }
+        };
+        if let Some(launch) = launches.iter().find(|l| l.session_uuid == Some(session)) {
+            let stop = super::shutdown::stop_seat(self.state, self.persist, self.run, launch).await;
+            if !stop.closed && stop.process_exited != Some(true) {
+                tracing::warn!(run = self.run, task, session_id = %session, note = ?stop.note, "fleet: an accepted task's seat did not close; the next tick tries again");
+                return false;
+            }
+        }
+        let event = accepted_close_event(self.run, task, session);
+        if let Err(error) = self.persist.fleet().append_fleet_event(&event).await {
+            tracing::warn!(%error, run = self.run, task, "fleet: an accepted seat's close could not be recorded");
+            return false;
+        }
+        tracing::info!(run = self.run, task, session_id = %session, "fleet: the task is accepted, mike closed its seat");
+        true
+    }
+}
+
+fn close_accepted_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
+    Box::pin(async move {
+        let closer = LiveCloser {
+            state: ctx.state,
+            persist: ctx.persist,
+            run: ctx.run_id,
+        };
+        close_accepted_seats(&closer, ctx.status).await;
+    })
 }
 
 fn problems_step<'a>(ctx: &'a TickCtx<'a>) -> StepFuture<'a> {
