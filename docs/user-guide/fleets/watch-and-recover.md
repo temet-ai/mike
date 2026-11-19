@@ -108,6 +108,67 @@ A problem gets at most three decisions, and the third goes to you whatever it sa
 at most 20 problems to the problem-solver. When the problem-solver asks you, the question says
 what is needed, why only you can answer it, and what each answer would set in motion.
 
+## Check a surprising gate verdict
+
+A `PRE-EXISTING` mail is not proof that the failure predates this run. In the source
+checked at `dfb064e2`, the gate searches a bounded commit history (up to 200 commits)
+and keeps only commits whose `Fleet-Seat` trailer exactly matches a task's current
+`seat (session)` pair in the definition. No matching commits can produce that mail;
+matching commits for which no suspect is identified produce a separate no-match verdict.
+A missing trailer or a changed seat/session mapping can therefore prevent attribution.
+
+Before adding a repair task:
+
+1. Save the gate command, failing SHA, output/log reference, run id and last recorded
+   passing SHA, if there is one. Do not substitute the checkout's current HEAD for
+   the SHA that failed.
+2. Read the full definition with `get_fleet` and compare its task seat/session pairs
+   with the failing commit's trailer. In that fleet's repository, replace the example
+   SHA below with the one from the gate:
+
+   ```sh
+   git show -s --format=fuller <failing-sha>
+   git show -s --format='%(trailers:key=Fleet-Seat,valueonly)' <failing-sha>
+   ```
+
+3. Check whether the owning seat is already repairing it, and whether a later commit
+   has a passing gate result. A suspect is evidence to investigate, not proof of cause.
+   Coordinate with that owner before creating duplicate work; do not waive the failure
+   merely because the mail labels it pre-existing.
+
+[Issue #421](https://github.com/temet-ai/mike/issues/421) reports a run's own commits
+being classified as pre-existing. It was open when this guidance was checked; the
+reported incident was not independently reproduced. This is diagnostic guidance for
+that source version, not a claim that your installed release is fixed.
+
+## A task stays queued with no listed blocker
+
+A task's digest `ready` flag is not a launch-permission flag. In source `dfb064e2`, it
+comes from acceptance/readiness evidence or passed exports. Dependency eligibility is
+computed separately from `after`. Fleet-level `ready` is different again: it says the
+definition has no missing items. Do not infer a scheduler cause from `ready: false`
+alone, or assume an empty blockers list proves there is capacity to launch.
+
+1. Save `mike fleet status <fleet> --json`, the full `get_fleet` definition and its
+   `view: "digest"` response, with timestamps, run id, machine and installed version.
+   Keep these locally; redact private briefs, paths and output before sharing.
+2. Compare each queued task's `after` list with the predecessors' current acceptance
+   evidence and obligations, not just a worker's completion message or a pass count.
+3. Compare assigned and open seats, queued launches and available capacity. Check pane
+   limits such as `launch_max_surfaces` as well as any reported seat limit and memory
+   admission reason. An accepted task and a closed process are different facts.
+4. Read status again after a legitimate acceptance or seat-close event. Preserve both
+   snapshots if the task remains queued without an explanation, including any
+   `not started` reason and relevant logs. Ask the coordinator to investigate the
+   recorded state rather than launching a second worker blindly.
+
+[Issue #422](https://github.com/temet-ai/mike/issues/422), open when checked, reports
+satisfied dependencies but no launch. Its suggested missed-retry cause is a hypothesis,
+not a verified diagnosis here. Removing `after` reportedly started the tasks, but it
+also changes the dependency contract: **do not remove dependencies, clear seat/session
+fields or restart the fleet as a generic repair**. Preserve the original definition
+and evidence first; change the plan only when that change is actually intended.
+
 ## Stop a fleet
 
 - `mike fleet stop <fleet>` asks the fleet to shut down. It closes each open session's pane and
