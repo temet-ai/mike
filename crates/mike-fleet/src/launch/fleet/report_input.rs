@@ -1,6 +1,3 @@
-//! Lenient input for `fleet_report`: the task and slice a seat leaves out,
-//! and `unestablished` entries sent as objects.
-
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -38,8 +35,6 @@ fn entry_text(value: Value) -> String {
     }
 }
 
-/// `unestablished` as a list whose entries may be strings or objects, or one
-/// string or object.
 pub(super) fn entries_or_none<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<Vec<String>>, D::Error> {
@@ -72,9 +67,6 @@ fn tasks_of(def: &FleetDefinition, seated: &Seated, session: Uuid) -> Vec<String
     held
 }
 
-/// Fills `task` from the seat's assignment and `slice` from the task when the
-/// seat left them out. Refuses, listing the seat's tasks, when `task` is
-/// missing and the seat does not hold exactly one.
 pub fn fill_seat_defaults(
     req: &mut ReportRequest,
     def: &FleetDefinition,
