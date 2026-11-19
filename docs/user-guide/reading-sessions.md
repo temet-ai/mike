@@ -1,7 +1,7 @@
 # Read what a session did
 
-A session is one Claude Code conversation. mike keeps every request it sent and every answer
-it got, and the Sessions page turns them back into something you can read: the turns you
+A session is one Claude Code conversation. The Sessions page presents the session-linked
+requests and responses mike retained as something you can read: the turns you
 typed, what Claude replied, which tools it ran, and which request carried each of them. Use
 it to check what Claude was actually told, to find the moment you corrected it, and to see
 what a long run did while you were away. It only reads; nothing on these pages changes a
@@ -29,12 +29,23 @@ The pin beside a row pins the session. Pinned sessions are exempt from mike's ti
 clearing of old data. A session that is running now shows live. If a project has more
 sessions than it lists, choose **Show N more sessions** at the foot of the group.
 
-If the page shows **No sessions yet**, Claude Code has not sent a request through mike. Follow
-the [quickstart](quickstart.md), then check [Troubleshooting](troubleshooting.md).
+If the page shows **No sessions yet**, no session history is visible here. This does not
+prove that Claude Code sent no traffic through mike or that nothing was stored. Check
+routing, the session header, installed build and storage mode using the
+[quickstart](quickstart.md) and [Troubleshooting](troubleshooting.md).
+
+In alpha.5, ordinary proxy requests without a usable session header are forwarded without
+capture. Newer source containing PR #185 can store them separately in
+`requests.sessionless_requests` when persistence is available; they do not become session
+timelines. Trial session history is in memory, while durable history uses the configured
+PostgreSQL server, which may be remote. Retained bodies can be limited, incomplete or
+missing; this page is not a complete traffic audit. See
+[Privacy](privacy.md#traffic-without-a-session-id) before interpreting an empty screen.
 
 ## Find something a session said
 
-The search box on the Sessions page finds text across everything mike captured, not only titles.
+The search box on the Sessions page searches retained session content, not only titles.
+It is not a search of every capture store, including the separate sessionless store.
 
 1. Click **Search sessions or content** and type `Homebrew`. mike searches once you have typed
    four characters.
@@ -92,9 +103,10 @@ To find your correction:
 
 ![The docs session timeline with the correction turn open](images/session-timeline.png)
 
-If a turn says **No reply captured yet**, the answer is still arriving or the request failed.
-If the list says **No requests in this session yet** the session exists but nothing has been
-captured for it. **No turns match the current filter** means your search or filter hid
+If a turn says **No reply captured yet**, a reply is not available in this view. It may
+still be arriving, the request may have failed, or the response may not have been retained.
+If the list says **No requests in this session yet**, no requests are available in this
+view; it is not proof that none were ever captured. **No turns match the current filter** means your search or filter hid
 everything: clear it.
 
 ## Look at one request
