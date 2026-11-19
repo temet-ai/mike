@@ -252,11 +252,10 @@ pub async fn blame_with(
 
 async fn fleet_seat(def: &FleetDefinition, commit: &str) -> Option<String> {
     let trailer = said(git(&def.repo, &["log", "-1", SEAT_TRAILER, commit], None).await)?;
-    def.tasks.values().find_map(|task| {
-        let seat = task.seat.as_deref()?;
-        let session = task.session.as_deref()?;
-        (trailer.trim() == format!("{seat} ({session})")).then(|| seat.to_string())
-    })
+    let named = trailer.trim().split(" (").next()?.trim();
+    def.tasks
+        .values()
+        .find_map(|task| (task.seat.as_deref() == Some(named)).then(|| named.to_string()))
 }
 
 #[cfg(test)]

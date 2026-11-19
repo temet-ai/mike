@@ -224,7 +224,7 @@ pub fn pre_existing_mail(
     log: &Path,
 ) -> String {
     let mut lines = vec![format!(
-        "[mike gate] PRE-EXISTING failure: `{command}` failed at commit {}, and no seat of this run has committed since the last passing commit, so the failure was already there when the run began. Add a task for it now instead of finding it at the end; fail-fast may hide more past the first failure.",
+        "[mike gate] PRE-EXISTING failure: `{command}` failed at commit {}, and none of the commits since the last recorded pass carries the Fleet-Seat trailer of a seat of this run, so the gate cannot tie it to a seat. If a seat of this run made that commit, tell the seat; otherwise add a task for it now. Fail-fast may hide more past the first failure.",
         short(failed),
     )];
     lines.extend(rerun_lines(reruns));

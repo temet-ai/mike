@@ -155,6 +155,44 @@ async fn a_failure_at_a_head_with_no_seat_commit_has_no_blame_so_it_is_pre_exist
     Ok(())
 }
 
+#[tokio::test]
+async fn a_seat_commit_is_blamed_when_its_trailer_session_is_not_the_tasks_current_one()
+-> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
+    let repo = root.path().join("project");
+    init(&repo).await?;
+    let breaker = commit(&repo, "bad.txt", "seat-b").await?;
+    let mut def = definition(&repo);
+    for task in def.tasks.values_mut() {
+        task.session = Some("11111111-0000-4000-8000-000000000002".to_string());
+    }
+    let found = blame(&def, None, &breaker, "bad.txt: broken").await;
+    assert!(
+        matches!(&found, Some(Blame::Suspects(s)) if s[0].seat == "seat-b" && s[0].commit == breaker),
+        "{found:?}"
+    );
+    def.tasks.get_mut("seat-b").map(|t| t.session = None);
+    assert!(
+        blame(&def, None, &breaker, "bad.txt: broken")
+            .await
+            .is_some()
+    );
+    Ok(())
+}
+
+#[test]
+fn the_unattributed_mail_says_only_what_the_gate_knows() {
+    let body = pre_existing_mail(
+        "make check",
+        "46d7b05f1234567",
+        &[],
+        "",
+        Path::new("/g.log"),
+    );
+    assert!(!body.contains("when the run began"), "{body}");
+    assert!(body.contains("Fleet-Seat trailer"), "{body}");
+}
+
 #[test]
 fn a_branch_ahead_of_the_last_passing_commit_is_unchecked() {
     assert_eq!(unchecked_from("c3", None), Some("c3".to_string()));
