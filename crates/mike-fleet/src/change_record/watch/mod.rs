@@ -6,6 +6,7 @@ pub mod git;
 pub mod notifications;
 pub mod record;
 pub mod refs;
+pub mod skip;
 pub mod supervisor;
 pub mod tree;
 
@@ -47,7 +48,7 @@ impl Default for WatchConfig {
             notifications: true,
             debounce: Duration::from_millis(300),
             backstop: Duration::from_secs(30),
-            fallback_poll: Duration::from_secs(2),
+            fallback_poll: Duration::from_secs(30),
             author_delay: Duration::from_secs(5),
             edit_window: Duration::from_secs(30),
             hold_retries: false,

@@ -164,18 +164,25 @@ impl Git {
     }
 
     pub async fn files_under(&self, dir: &str) -> Result<Vec<String>, GitError> {
-        let raw = self
-            .run(&[
-                "ls-files",
-                "-z",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-                "--",
-                dir,
-            ])
-            .await?;
+        let excludes = super::skip::build_excludes();
+        let mut args = vec![
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "--",
+            dir,
+        ];
+        args.extend(excludes.iter().map(String::as_str));
+        let raw = self.run(&args).await?;
         Ok(split_nul(&raw))
+    }
+
+    pub async fn tracks_anything(&self) -> bool {
+        self.run(&["ls-files", "-z", "--cached", "--", "."])
+            .await
+            .is_ok_and(|raw| !raw.is_empty())
     }
 
     pub async fn show_toplevel(&self) -> Result<String, GitError> {

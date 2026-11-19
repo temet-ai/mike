@@ -149,11 +149,22 @@ impl Supervisor {
     }
 }
 
-async fn repository_root(folder: &str) -> Option<String> {
+pub async fn repository_root(folder: &str) -> Option<String> {
     if !Path::new(folder).is_dir() {
         return None;
     }
-    Git::new(folder).show_toplevel().await.ok().map(|r| key(&r))
+    let git = Git::new(folder);
+    let root = key(&git.show_toplevel().await.ok()?);
+    if same_folder(&root, folder) || git.tracks_anything().await {
+        return Some(root);
+    }
+    tracing::info!(%folder, %root, "change record: the folder holds nothing the enclosing repository tracks, so that repository is not watched");
+    None
+}
+
+fn same_folder(root: &str, folder: &str) -> bool {
+    let canonical = |p: &str| std::fs::canonicalize(p).ok();
+    key(root) == key(folder) || canonical(root).is_some_and(|r| Some(r) == canonical(folder))
 }
 
 pub fn plan(

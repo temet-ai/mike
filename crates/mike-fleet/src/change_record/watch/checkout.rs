@@ -29,7 +29,10 @@ pub struct Watch {
     rx: mpsc::Receiver<Signal>,
     overflow: Arc<AtomicBool>,
     pending: VecDeque<(Instant, Vec<Unnamed>)>,
+    last_full: Instant,
 }
+
+const MIN_RESCAN: std::time::Duration = std::time::Duration::from_secs(60);
 
 struct Burst {
     at: DateTime<Utc>,
@@ -78,6 +81,7 @@ impl Watch {
             rx,
             overflow,
             pending: VecDeque::new(),
+            last_full: Instant::now(),
         })
     }
 
@@ -122,8 +126,10 @@ impl Watch {
         let burst = self.collect(first).await;
         let looked_back = self.config.debounce + std::time::Duration::from_secs(2);
         if burst.rescan || self.overflow.swap(false, Ordering::AcqRel) {
-            self.stats.rescans.fetch_add(1, Ordering::AcqRel);
-            self.full_pass(looked_back).await;
+            if self.last_full.elapsed() >= MIN_RESCAN {
+                self.stats.rescans.fetch_add(1, Ordering::AcqRel);
+                self.full_pass(looked_back).await;
+            }
             return;
         }
         if !burst.paths.is_empty() {
@@ -169,6 +175,7 @@ impl Watch {
     }
 
     async fn full_pass(&mut self, looked_back: std::time::Duration) {
+        self.last_full = Instant::now();
         let at = Utc::now();
         match self.tree.backstop(&self.git).await {
             Ok(deltas) => {
