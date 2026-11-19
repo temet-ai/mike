@@ -150,7 +150,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/tool-uses/counts",
         Coverage::Exempt {
-            reason: "grouped tool-use counts read by mike-ask's inspect client; sessions reach it through ask, not an MCP tool",
+            reason: "grouped tool-use counts read by the ask-kit mike kit's inspect client; sessions reach it through ask, not an MCP tool",
         },
     ),
     route(

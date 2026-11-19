@@ -50,8 +50,9 @@ it (`crates/mike-mcp/tests/manifest_coverage.rs` rejects orphan tools). Core
 profile membership (`CORE_TOOL_NAMES`, `crates/mike-mcp/src/tools/catalogue.rs`):
 "would I reach for this while investigating a session?". Every tool takes a
 `select` projection. `mike-mcp list-tools` is the authoritative catalogue.
-Sessions reach mike through mike-ask's `ask` tool (`~/projects/temet/mike-ask`): a
-new way to look at mike is a script there, not a new MCP tool or route.
+Sessions reach mike through ask-kit's `ask` tool (the `ask-kit@temet-ai` plugin) and its
+mike kit (`temet-ai/ask-kit-mike`): a new way to look at mike is a script in that kit, not a
+new MCP tool or route.
 
 ## Commands
 
