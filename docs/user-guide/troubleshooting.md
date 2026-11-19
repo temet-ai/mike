@@ -262,6 +262,54 @@ Preserve problem, action, repair or follow-up ids and relevant timestamps. Redac
 before reporting it, and never include the pairing credential. Switching off Wright is not
 an undo of external publications or cancellation of an already-started ordinary fixer.
 
+## Unexpected disk activity while recording changes
+
+First distinguish the session folder from the Git repository Mike resolves for it.
+In source `0ad4acd5`, the change-record watcher resolves session folders with
+`git rev-parse --show-toplevel`; a folder without its own repository can therefore
+resolve to an enclosing repository. Recording file snapshots uses `git hash-object -w`,
+which writes objects to that repository. This is separate from database size and from
+build-cache size.
+
+On the machine owning the session, record its working folder, installed build identity,
+effective settings and the time of the activity. These commands read metadata and disk
+usage without changing the repository; substitute the actual session folder:
+
+```sh
+git -C /path/to/session-folder rev-parse --show-toplevel
+git -C /path/to/session-folder rev-parse --path-format=absolute --git-common-dir
+git -C /path/to/session-folder count-objects -vH
+df -h /path/to/session-folder
+```
+
+Compare the resolved root with the project you intended to watch. If necessary, run
+`du -sh /actual/git-common-directory/objects` on the directory returned above, not an
+assumed `.git` directory (a worktree's `.git` may be a file). Disk-usage enumeration
+can itself be expensive on a large object store: take a bounded diagnostic snapshot,
+not a tight polling loop. These readings alone do not establish which process caused
+the growth. Keep paths and logs private or redact them before sharing.
+
+Check the **effective** `change_record` value in Settings, not just its compiled
+default. In the post-alpha.5 source described in [Settings](settings.md#choose-how-code-findings-reach-a-session),
+the `recommended` preset enables recording even though the compiled default is off.
+An installed build and its stored overrides can differ from the current source.
+
+If the operator chooses to pause `change_record`, it requests the watcher to stop at
+the supervisor's next settings check; an in-progress scan may finish first. The tradeoff is a gap in
+new change history and dependent fleet evidence and code scans. It is not a disk
+cleanup: existing objects and database records remain. Nor does it cancel queued
+feedback. `code_scan` controls scanning, `code_findings` controls findings delivery,
+and `code_findings_push` controls proactive delivery; turning off a feedback switch
+is not the same as stopping the file watcher.
+
+[Issue #428](https://github.com/temet-ai/mike/issues/428) reports an enclosing-repository
+watch causing heavy hashing and object growth. Its described scope/exclusion/cache
+changes were not present in main `0ad4acd5` when checked; do not assume they shipped
+or that every installation has the reported problem. Do not delete `.git`, prune
+objects, clear change records or remove worktrees as a generic remedy: recorded
+snapshots may depend on those objects. Preserve evidence and establish the actual
+scope and retention requirements before choosing any cleanup.
+
 ## Report a problem
 
 Open an issue at <https://github.com/temet-ai/mike/issues> and include:
