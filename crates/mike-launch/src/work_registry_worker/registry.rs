@@ -17,6 +17,7 @@ use crate::work_items::ledger_cache::LedgerCache;
 pub struct Registry {
     pub cache: LedgerCache,
     pub known: HashMap<AttentionKey, AttentionRecord>,
+    scanned_to: HashMap<i64, i64>,
     held: bool,
     last_sweep: Option<Instant>,
     wake_mode: Option<(Instant, bool)>,
@@ -63,6 +64,7 @@ impl Registry {
         let ids = self.cache.ids();
         if reset {
             self.known.clear();
+            self.scanned_to.clear();
             for id in &ids {
                 self.cache.forget_reads(*id);
             }
@@ -117,6 +119,8 @@ impl Registry {
         let live = self.cache.ids();
         self.known
             .retain(|key, _| live.binary_search(&key.session_db_id).is_ok());
+        self.scanned_to
+            .retain(|id, _| live.binary_search(id).is_ok());
         Ok(())
     }
 
@@ -230,7 +234,9 @@ impl Registry {
                 }
                 Decision::Mail => {
                     if still_true.is_none() {
-                        delivery::rescan(persist, session_db_id).await?;
+                        let after = self.scanned_to.get(&session_db_id).copied().unwrap_or(0);
+                        let scanned_to = delivery::rescan(persist, session_db_id, after).await?;
+                        self.scanned_to.insert(session_db_id, scanned_to);
                         still_true = Some(self.reload_session(persist, session_db_id, now).await?);
                     }
                     self.mail_if_still_true(persist, &key, item, &recorded, still_true.as_deref())

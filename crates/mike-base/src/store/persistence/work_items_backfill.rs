@@ -40,14 +40,32 @@ pub async fn backfill_session(
     pool: &PgPool,
     session_db_id: i64,
 ) -> Result<BackfillCounts, PersistError> {
+    Ok(backfill_session_after(pool, session_db_id, 0).await?.0)
+}
+
+pub async fn backfill_session_after(
+    pool: &PgPool,
+    session_db_id: i64,
+    after: i64,
+) -> Result<(BackfillCounts, i64), PersistError> {
+    let ceiling = sqlx::query_scalar!(
+        "SELECT max(id) FROM requests.requests
+          WHERE session_id = $1 AND created_at < now() - interval '2 minutes'",
+        session_db_id,
+    )
+    .fetch_one(pool)
+    .await?
+    .unwrap_or(after)
+    .max(after);
     let launches = sqlx::query_file_as!(
         LaunchRow,
         "src/store/persistence/work_items_backfill_launches.sql",
         session_db_id,
+        after,
     )
     .fetch_all(pool)
     .await?;
-    let events = ordered_events(pool, session_db_id).await?;
+    let events = ordered_events(pool, session_db_id, after).await?;
     let mut tx = pool.begin().await?;
     let mut counts = BackfillCounts {
         launches: insert_launches(&mut tx, session_db_id, &launches).await?,
@@ -72,7 +90,7 @@ pub async fn backfill_session(
         }
     }
     tx.commit().await?;
-    Ok(counts)
+    Ok((counts, ceiling))
 }
 
 async fn insert_launches(
@@ -103,11 +121,13 @@ async fn insert_launches(
 async fn ordered_events(
     pool: &PgPool,
     session_db_id: i64,
+    after: i64,
 ) -> Result<Vec<(i64, Event)>, PersistError> {
     let resumes = sqlx::query_file_as!(
         ResumeRow,
         "src/store/persistence/work_items_backfill_resumes.sql",
         session_db_id,
+        after,
     )
     .fetch_all(pool)
     .await?;
@@ -115,6 +135,7 @@ async fn ordered_events(
         NoteRow,
         "src/store/persistence/work_items_backfill_notes.sql",
         session_db_id,
+        after,
     )
     .fetch_all(pool)
     .await?;
