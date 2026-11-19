@@ -59,11 +59,19 @@ impl Notifier {
     }
 
     pub fn add_dirs(&mut self, dirs: impl IntoIterator<Item = String>) {
-        for dir in dirs.into_iter().filter(|d| !is_build_output(d)) {
-            let path = self.root.join(&dir);
-            if let Err(err) = self.watcher.watch(&path, RecursiveMode::NonRecursive) {
+        let wanted: Vec<String> = dirs.into_iter().filter(|d| !is_build_output(d)).collect();
+        if wanted.is_empty() {
+            return;
+        }
+        let mut paths = self.watcher.paths_mut();
+        for dir in &wanted {
+            let path = self.root.join(dir);
+            if let Err(err) = paths.add(&path, RecursiveMode::NonRecursive) {
                 tracing::debug!(dir = %dir, error = %err, "change record: a folder could not be watched");
             }
+        }
+        if let Err(err) = paths.commit() {
+            tracing::warn!(root = %self.root.display(), folders = wanted.len(), error = %err, "change record: watched folders could not be updated");
         }
     }
 }
