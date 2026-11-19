@@ -106,6 +106,9 @@ impl Supervisor {
         }
         let mut wanted = BTreeMap::new();
         for row in rows {
+            if self.config.skip_temporary && is_temporary(&row.checkout) {
+                continue;
+            }
             let gone = matches!(self.roots.get(&row.checkout), Some(Some(root)) if !Path::new(root).is_dir());
             if gone || !self.roots.contains_key(&row.checkout) {
                 let root = repository_root(&row.checkout).await;
@@ -147,6 +150,15 @@ impl Supervisor {
             run.token.cancel();
         }
     }
+}
+
+pub fn is_temporary(folder: &str) -> bool {
+    let in_tmpdir = std::env::var_os("TMPDIR").is_some_and(|t| Path::new(folder).starts_with(t));
+    in_tmpdir
+        || folder.starts_with("/tmp/")
+        || folder.contains("/.claude/.cache/tmp/")
+        || folder.contains("/scratchpad/")
+        || folder.ends_with("/scratchpad")
 }
 
 pub async fn repository_root(folder: &str) -> Option<String> {

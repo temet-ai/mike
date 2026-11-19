@@ -33,6 +33,22 @@ pub struct Watch {
 }
 
 const MIN_RESCAN: std::time::Duration = std::time::Duration::from_secs(60);
+const TEARDOWN_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
+pub async fn torn_down(root: &str, deltas: &[FileDelta], wait: std::time::Duration) -> bool {
+    if !deltas
+        .iter()
+        .any(|d| d.change == super::tree::DeltaKind::Deleted)
+    {
+        return false;
+    }
+    let present = || std::path::Path::new(root).join(".git").exists();
+    if !present() {
+        return true;
+    }
+    tokio::time::sleep(wait).await;
+    !present()
+}
 
 struct Burst {
     at: DateTime<Utc>,
@@ -99,7 +115,11 @@ impl Watch {
             tokio::select! {
                 () = token.cancelled() => break,
                 signal = self.rx.recv(), if self.notifier.is_some() => match signal {
-                    Some(first) => self.on_burst(first).await,
+                    Some(first) => {
+                        if !self.on_burst(first).await {
+                            break;
+                        }
+                    }
                     None => self.notifier = None,
                 },
                 _ = backstop.tick() => {
@@ -122,7 +142,7 @@ impl Watch {
         gone
     }
 
-    async fn on_burst(&mut self, first: Signal) {
+    async fn on_burst(&mut self, first: Signal) -> bool {
         let burst = self.collect(first).await;
         let looked_back = self.config.debounce + std::time::Duration::from_secs(2);
         if burst.rescan || self.overflow.swap(false, Ordering::AcqRel) {
@@ -130,23 +150,35 @@ impl Watch {
                 self.stats.rescans.fetch_add(1, Ordering::AcqRel);
                 self.full_pass(looked_back).await;
             }
-            return;
+            return true;
         }
-        if !burst.paths.is_empty() {
-            match self.tree.observe_paths(&self.git, &burst.paths).await {
-                Ok(observed) => {
-                    if let Some(notifier) = self.notifier.as_mut() {
-                        notifier.add_dirs(observed.new_dirs);
-                    }
-                    self.record_files(observed.deltas, burst.at, Source::Notification, looked_back)
-                        .await;
-                }
-                Err(err) => self.warn("changed paths could not be read", &err),
-            }
+        if !burst.paths.is_empty() && !self.on_paths(&burst, looked_back).await {
+            return false;
         }
         if burst.refs {
             self.observe_refs(burst.at, looked_back).await;
         }
+        true
+    }
+
+    async fn on_paths(&mut self, burst: &Burst, looked_back: std::time::Duration) -> bool {
+        let observed = match self.tree.observe_paths(&self.git, &burst.paths).await {
+            Ok(observed) => observed,
+            Err(err) => {
+                self.warn("changed paths could not be read", &err);
+                return true;
+            }
+        };
+        if torn_down(&self.checkout.root, &observed.deltas, TEARDOWN_WAIT).await {
+            tracing::info!(root = %self.checkout.root, "change record: the checkout is being removed; its deletions are not recorded and its watcher stops");
+            return false;
+        }
+        if let Some(notifier) = self.notifier.as_mut() {
+            notifier.add_dirs(observed.new_dirs);
+        }
+        self.record_files(observed.deltas, burst.at, Source::Notification, looked_back)
+            .await;
+        true
     }
 
     async fn collect(&mut self, first: Signal) -> Burst {
