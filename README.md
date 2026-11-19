@@ -14,7 +14,7 @@
   <a href="https://github.com/temet-ai/mike/releases">Releases</a>
 </p>
 
-mike is an inspector for Claude Code, written in Rust. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
+mike is an inspector for Claude Code, written in Rust. It captures traffic routed through it so you can inspect retained turns in a browser, search session history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
 
 **Status:** alpha, for Linux x86_64, Linux ARM64 and Apple Silicon macOS. The current release is [0.1.0-alpha.5](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
 
@@ -22,18 +22,26 @@ mike is an inspector for Claude Code, written in Rust. It records every request 
 
 ## What you can do with it
 
-- **Read any turn as it was sent.** The system prompt, the messages, the tool results and the streamed answer, grouped by session and live as they happen.
+- **Read captured turns.** The system prompt, the messages, the tool results and the streamed answer, grouped by session and live as they happen.
 - **See what changed before it left.** If a feature you turned on rewrites a request, the original and what was sent are shown side by side.
 - **Ask Claude Code about its own history.** `mike-mcp`, the companion program, gives a session [tools](docs/user-guide/mcp.md) to search earlier turns and notes.
 - **Keep a correction.** Tell Claude to record it as a [lesson](docs/user-guide/memory.md) and later sessions in that project can be handed it.
 - **Spot weak answers.** Local pattern checks [flag](docs/user-guide/flagged-responses.md) unbacked claims, blame-shifting and avoided work beside the response.
 - **Watch and steer.** Optional [steerers](docs/user-guide/steering.md) notice a session drifting from its goal, [filter rules](docs/user-guide/filters.md) rewrite the system prompt, and [fleets](docs/user-guide/fleets/README.md) run several sessions towards one goal.
 
-A fresh install only captures: it forwards your requests unchanged and sends nothing to anyone but Anthropic. Features that rewrite a request or send text to another service stay off until you turn them on. [Privacy](docs/user-guide/privacy.md) lists what each one stores and sends.
+A fresh configuration forwards model requests to Anthropic without optional rewrites or background model calls. Durable captures go to the configured PostgreSQL server, which may be local or remote; trial session history stays in memory. Optional features can send additional context to configured services. [Privacy](docs/user-guide/privacy.md) lists what each one stores and sends.
 
 ## Try it
 
 Homebrew works on macOS and on Linux, where mike needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise and archives.
+
+Before running setup, review [the local access boundary](#before-you-run-it) and
+[Privacy](docs/user-guide/privacy.md): captures can contain code, prompts, tool output and
+secrets, and are not a guaranteed complete traffic archive. Capture depends on routing,
+size limits, stream completion and storage availability. Newer source can store ordinary
+proxy traffic without a usable session id separately from session history; alpha.5
+forwards that traffic without capturing it. An empty Sessions page does not prove that
+nothing was stored. See [sessionless capture limits](docs/user-guide/privacy.md#traffic-without-a-session-id).
 
 ```bash
 brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
@@ -42,9 +50,9 @@ mike setup    # where to keep history, and which features to turn on
 mike claude   # starts mike if needed, then Claude Code routed through it
 ```
 
-At setup, keep captures in memory for a first look, or choose a PostgreSQL database to keep your history; mike can run one for you in Docker. The **Watch only** choice leaves every optional feature off.
+At setup, keep captures in memory for a first look, or choose a PostgreSQL database to keep your history; mike can run one for you in Docker. The **Watch only** preset restores feature-toggle defaults and turns session-lessons delivery off; it does not reset every existing setting or remove filter rules. Review [preset scope](docs/user-guide/setup.md#choose-features) and effective settings on an existing installation.
 
-Then open <http://localhost:9990>. Your session is under **Sessions**, updating as you work. Only sessions started through mike are captured. [Get started](docs/user-guide/quickstart.md) walks through it.
+Then open <http://localhost:9990>. Find your session under **Sessions** and verify its request and answer. `mike claude` configures routing, but other launch methods can also send traffic through mike; the launcher name alone does not determine capture. [Get started](docs/user-guide/quickstart.md) walks through it.
 
 ## A look around
 
@@ -62,7 +70,7 @@ Then open <http://localhost:9990>. Your session is under **Sessions**, updating 
   <tr>
     <td width="50%" valign="top">
       <a href="docs/user-guide/images/sessions.png"><img src="docs/user-guide/images/sessions.png" alt="The Sessions page: search, sessions grouped by project, and the time each one was active"></a>
-      <br><strong>Every session, searchable by project</strong>
+      <br><strong>Captured sessions, searchable by project</strong>
     </td>
     <td width="50%" valign="top">
       <a href="docs/user-guide/images/fleet.png"><img src="docs/user-guide/images/fleet.png" alt="A fleet graph: a writer and a reviewer session working, with the messages between them"></a>
@@ -73,13 +81,13 @@ Then open <http://localhost:9990>. Your session is under **Sessions**, updating 
 
 ## Before you run it
 
-**mike has no login, so use it only on a computer nobody else uses.** Its local API has no authentication: any program on the machine can read every captured prompt and answer, change mike's settings and start Claude Code sessions. Keep it on the loopback address it starts with. Remote access is not supported. [SECURITY](docs/SECURITY.md) has the full trust boundary.
+**mike has no general login or multi-user isolation, so use it only on a computer nobody else uses.** Local access remains broadly trusted: programs on the machine can read captures, change ordinary settings and start Claude Code sessions. Specific token-protected operations do not make this a multi-user security boundary. Keep it on the loopback address it starts with. Remote access is not supported. [SECURITY](docs/SECURITY.md) has the full trust boundary.
 
-**Your Claude login stays yours.** Each person runs mike with their own Claude Code login. mike forwards the credential Claude Code sends and never stores it. Background jobs set to a `claude/` model run your own `claude` command, so they use your subscription.
+**Your Claude login stays yours.** Each person runs mike with their own Claude Code login. mike forwards the credential Claude Code sends and masks recognized sensitive headers in captures. This is not general secret removal from bodies, URLs or arbitrary headers; see [Privacy](docs/user-guide/privacy.md#traffic-without-a-session-id). Background jobs set to a `claude/` model run your own `claude` command, so they use your subscription.
 
 ## How it works
 
-mike sits between Claude Code and `api.anthropic.com`. Claude Code talks to it on `localhost:9988`, mike forwards to Anthropic over HTTPS and keeps a copy, and the web UI on `:9990` and the `mike-mcp` companion read that copy through a local API on `:9989`.
+mike sits between Claude Code and `api.anthropic.com`. Claude Code talks to it on `localhost:9988`, mike forwards to Anthropic over HTTPS and retains eligible captures, and the web UI on `:9990` and the `mike-mcp` companion read that copy through a local API on `:9989`.
 
 ![A request goes through mike to Anthropic, the original and the response are stored, and the web UI and mike-mcp read them](docs/animations/mike-overview.svg)
 
@@ -117,7 +125,3 @@ If mike saved you debugging time and you'd like to say thanks: [buy me a coffee]
 ## License
 
 [MIT](./LICENSE) © Dawid du Toit
-
-Capture scope depends on the running version: newer source also stores ordinary proxy
-traffic without a usable session id separately from session history. See
-[sessionless capture and privacy](docs/user-guide/privacy.md#traffic-without-a-session-id).
