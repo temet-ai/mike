@@ -116,7 +116,11 @@ async fn build_thread(
         .launch()
         .replace_thread_card_candidates(thread.thread_id, &best)
         .await?;
-    Ok(if written > 0 { Built::Written } else { Built::Skipped })
+    Ok(if written > 0 {
+        Built::Written
+    } else {
+        Built::Skipped
+    })
 }
 
 fn query_text(text: &str) -> String {

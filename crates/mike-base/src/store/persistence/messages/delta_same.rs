@@ -3,7 +3,14 @@ use sqlx::PgConnection;
 use super::DeltaRow;
 use crate::store::persistence::PersistError;
 
-type Key = (String, i32, Option<String>, Option<i32>, Option<i32>, Option<Vec<u8>>);
+type Key = (
+    String,
+    i32,
+    Option<String>,
+    Option<i32>,
+    Option<i32>,
+    Option<Vec<u8>>,
+);
 
 fn keys(rows: &[DeltaRow]) -> Vec<Key> {
     let mut keys: Vec<Key> = rows
@@ -45,9 +52,9 @@ pub async fn deltas_unchanged(
     if stored.len() != rows.len() {
         return Ok(false);
     }
-    let same_links = stored
-        .iter()
-        .all(|s| s.predecessor_request_id == predecessor_request_id && s.session_id == session_db_id);
+    let same_links = stored.iter().all(|s| {
+        s.predecessor_request_id == predecessor_request_id && s.session_id == session_db_id
+    });
     if !same_links {
         return Ok(false);
     }

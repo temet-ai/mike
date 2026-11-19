@@ -241,16 +241,17 @@ fn check_arguments_fleet_commit_files_is_renamed_to_paths() -> anyhow::Result<()
         checked,
         arguments(json!({"fleet": "f", "session_id": "s", "message": "m", "paths": ["a.rs"]}))
     );
-    assert_eq!(corrections, vec![("files".to_string(), "paths".to_string())]);
+    assert_eq!(
+        corrections,
+        vec![("files".to_string(), "paths".to_string())]
+    );
     Ok(())
 }
 
 #[test]
 fn check_arguments_ask_message_is_renamed_to_question() -> anyhow::Result<()> {
-    let (checked, corrections) = check_arguments(
-        "ask",
-        arguments(json!({"to": "t", "message": "why?"})),
-    )?;
+    let (checked, corrections) =
+        check_arguments("ask", arguments(json!({"to": "t", "message": "why?"})))?;
     assert_eq!(checked, arguments(json!({"to": "t", "question": "why?"})));
     assert_eq!(
         corrections,

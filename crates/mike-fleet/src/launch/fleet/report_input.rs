@@ -40,7 +40,7 @@ fn entry_text(value: Value) -> String {
 
 /// `unestablished` as a list whose entries may be strings or objects, or one
 /// string or object.
-pub fn entries_or_none<'de, D: serde::Deserializer<'de>>(
+pub(super) fn entries_or_none<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<Vec<String>>, D::Error> {
     #[derive(Deserialize)]

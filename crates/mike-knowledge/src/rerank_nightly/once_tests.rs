@@ -10,6 +10,12 @@ fn the_per_thread_work_runs_once_per_quiet_window() {
     let window = window_start(tonight, 22);
     assert!(!finished(window));
     mark_finished(window);
-    assert!(finished(window_start(later, 22)), "a later tick in the same window skips it");
-    assert!(!finished(window_start(next_night, 22)), "the next window runs it again");
+    assert!(
+        finished(window_start(later, 22)),
+        "a later tick in the same window skips it"
+    );
+    assert!(
+        !finished(window_start(next_night, 22)),
+        "the next window runs it again"
+    );
 }

@@ -177,9 +177,9 @@ pub mod push_tests;
 #[cfg(test)]
 pub mod questions_tests;
 #[cfg(test)]
-pub mod report_tests;
-#[cfg(test)]
 pub mod report_input_tests;
+#[cfg(test)]
+pub mod report_tests;
 #[cfg(test)]
 pub mod run_record_tests;
 #[cfg(test)]

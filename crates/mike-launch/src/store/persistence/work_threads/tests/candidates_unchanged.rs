@@ -34,22 +34,35 @@ async fn the_same_candidates_again_write_nothing_and_bump_nothing() -> anyhow::R
     let pool = f.handle.pool();
     let first = vec![candidate("lesson:a", 0.9), candidate("lesson:b", 0.5)];
     assert_eq!(
-        f.handle.launch().replace_thread_card_candidates(thread_id, &first).await?,
+        f.handle
+            .launch()
+            .replace_thread_card_candidates(thread_id, &first)
+            .await?,
         2
     );
     let bumped = generation(pool).await?;
 
     let rescored = vec![candidate("lesson:a", 0.8), candidate("lesson:b", 0.4)];
     assert_eq!(
-        f.handle.launch().replace_thread_card_candidates(thread_id, &rescored).await?,
+        f.handle
+            .launch()
+            .replace_thread_card_candidates(thread_id, &rescored)
+            .await?,
         0,
         "the same references in the same order are left as they are"
     );
-    assert_eq!(generation(pool).await?, bumped, "nothing tells the card worker to look again");
+    assert_eq!(
+        generation(pool).await?,
+        bumped,
+        "nothing tells the card worker to look again"
+    );
 
     let reordered = vec![candidate("lesson:b", 0.9), candidate("lesson:a", 0.5)];
     assert_eq!(
-        f.handle.launch().replace_thread_card_candidates(thread_id, &reordered).await?,
+        f.handle
+            .launch()
+            .replace_thread_card_candidates(thread_id, &reordered)
+            .await?,
         2
     );
     assert!(generation(pool).await? > bumped);

@@ -55,6 +55,10 @@ async fn write_request_deltas_leaves_identical_rows_alone() -> anyhow::Result<()
     write_request_deltas(&mut tx, req_id, None, session_fk, &rows[..1]).await?;
     tx.commit().await?;
     let changed = row_versions(&pool, req_id).await?;
-    assert_eq!(changed.len(), 1, "a different set of rows still replaces the old one");
+    assert_eq!(
+        changed.len(),
+        1,
+        "a different set of rows still replaces the old one"
+    );
     Ok(())
 }

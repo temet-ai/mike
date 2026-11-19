@@ -44,7 +44,10 @@ fn fill_seat_defaults_keeps_a_named_task_and_slice() {
     let mut req = request(14);
     req.task = "P2".into();
     req.slice = "reads".into();
-    assert_eq!(fill_seat_defaults(&mut req, &def(), &Seated::default()), Ok(()));
+    assert_eq!(
+        fill_seat_defaults(&mut req, &def(), &Seated::default()),
+        Ok(())
+    );
     assert_eq!((req.task.as_str(), req.slice.as_str()), ("P2", "reads"));
 }
 

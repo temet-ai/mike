@@ -16,7 +16,9 @@ async fn embedder() -> MockServer {
     vector[0] = 1.0;
     Mock::given(method("POST"))
         .and(path("/embeddings"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": [{"embedding": vector}]})))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({"data": [{"embedding": vector}]})),
+        )
         .mount(&server)
         .await;
     server
@@ -27,11 +29,11 @@ async fn calls(server: &MockServer) -> usize {
 }
 
 async fn chunk_versions(handle: &PersistHandle) -> anyhow::Result<Vec<String>> {
-    Ok(
-        sqlx::query_scalar("SELECT xmin::text FROM memory.knowledge_embedding_chunks ORDER BY state_id, ordinal")
-            .fetch_all(handle.pool())
-            .await?,
+    Ok(sqlx::query_scalar(
+        "SELECT xmin::text FROM memory.knowledge_embedding_chunks ORDER BY state_id, ordinal",
     )
+    .fetch_all(handle.pool())
+    .await?)
 }
 
 async fn requeue_everything(handle: &PersistHandle) -> anyhow::Result<()> {
@@ -71,8 +73,16 @@ async fn a_requeued_item_whose_body_is_unchanged_is_not_embedded_again() -> anyh
 
     requeue_everything(&handle).await?;
     sweep(&handle, &service, &mut breaker()).await?;
-    assert_eq!(calls(&server).await, first_calls, "an unchanged body is not sent to the embedder");
-    assert_eq!(chunk_versions(&handle).await?, first_chunks, "its chunks are not rewritten");
+    assert_eq!(
+        calls(&server).await,
+        first_calls,
+        "an unchanged body is not sent to the embedder"
+    );
+    assert_eq!(
+        chunk_versions(&handle).await?,
+        first_chunks,
+        "its chunks are not rewritten"
+    );
     let waiting: i64 =
         sqlx::query_scalar("SELECT count(*) FROM memory.knowledge_items WHERE needs_embedding")
             .fetch_one(handle.pool())
@@ -81,7 +91,10 @@ async fn a_requeued_item_whose_body_is_unchanged_is_not_embedded_again() -> anyh
 
     scan(&handle, location, 1, "Evidence that has changed").await?;
     sweep(&handle, &service, &mut breaker()).await?;
-    assert!(calls(&server).await > first_calls, "a changed body is embedded again");
+    assert!(
+        calls(&server).await > first_calls,
+        "a changed body is embedded again"
+    );
     db.cleanup().await?;
     Ok(())
 }

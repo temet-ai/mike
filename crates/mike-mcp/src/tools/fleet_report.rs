@@ -430,7 +430,10 @@ mod tests {
     fn report_schema_leaves_task_and_slice_to_the_seat() {
         let required = &fleet_report_tools()[0].input_schema["required"];
         for field in ["task", "slice"] {
-            assert!(!required.to_string().contains(&format!("\"{field}\"")), "{field}");
+            assert!(
+                !required.to_string().contains(&format!("\"{field}\"")),
+                "{field}"
+            );
         }
         assert!(required.to_string().contains("session_id"));
     }

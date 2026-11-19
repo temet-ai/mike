@@ -409,7 +409,8 @@ async fn seat_memory_generation(env: &Env) -> anyhow::Result<i64> {
 }
 
 #[tokio::test]
-async fn checking_for_brief_mail_that_is_already_queued_bumps_no_generation() -> anyhow::Result<()> {
+async fn checking_for_brief_mail_that_is_already_queued_bumps_no_generation() -> anyhow::Result<()>
+{
     let Some(env) = Env::boot().await? else {
         return Ok(());
     };
