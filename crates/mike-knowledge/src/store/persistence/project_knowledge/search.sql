@@ -53,76 +53,102 @@ WITH own_turn AS (
     UNION ALL
     SELECT 'lesson', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT l0.id FROM memory.lessons l0
-                          WHERE l0.project_id = $1 AND to_tsvector('english', l0.text) @@ t.tq) h
+     CROSS JOIN LATERAL (SELECT l0.id
+                           FROM (SELECT l1.id, l1.project_id FROM memory.lessons l1
+                                  WHERE to_tsvector('english', l1.text) @@ t.tq OFFSET 0) l0
+                          WHERE l0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'note', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT n0.id FROM workspace.session_notes n0 JOIN sessions.sessions s0 ON s0.id = n0.session_id
-                          WHERE n0.search_tsv @@ t.tq AND s0.project_id = $1) h
+     CROSS JOIN LATERAL (SELECT n0.id
+                           FROM (SELECT n1.id, n1.session_id FROM workspace.session_notes n1
+                                  WHERE n1.search_tsv @@ t.tq OFFSET 0) n0
+                           JOIN sessions.sessions s0 ON s0.id = n0.session_id
+                          WHERE s0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'turn', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT t0.id FROM memory.operator_turns t0
-                          WHERE t0.project_id = $1 AND t0.search_tsv @@ t.tq
-                            AND (t0.opened_by IS NULL OR t0.opened_by = 'operator')) h
+     CROSS JOIN LATERAL (SELECT t0.id
+                           FROM (SELECT t1.id, t1.project_id, t1.opened_by FROM memory.operator_turns t1
+                                  WHERE t1.search_tsv @@ t.tq OFFSET 0) t0
+                          WHERE t0.project_id = $1 AND (t0.opened_by IS NULL OR t0.opened_by = 'operator')) h
      GROUP BY h.id
     UNION ALL
     SELECT 'thread_msg', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT m0.id FROM mailbox.messages m0 JOIN mailbox.threads p0 ON p0.id = m0.thread_id
-                          WHERE m0.search_tsv @@ t.tq AND p0.project_id = $1) h
+     CROSS JOIN LATERAL (SELECT m0.id
+                           FROM (SELECT m1.id, m1.thread_id FROM mailbox.messages m1
+                                  WHERE m1.thread_id IS NOT NULL AND m1.search_tsv @@ t.tq OFFSET 0) m0
+                           JOIN mailbox.threads p0 ON p0.id = m0.thread_id
+                          WHERE p0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'thread_entry', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT e0.id FROM work.thread_log e0 JOIN work.threads w0 ON w0.id = e0.thread_id
-                          WHERE e0.search_tsv @@ t.tq AND w0.project_id = $1) h
+     CROSS JOIN LATERAL (SELECT e0.id
+                           FROM (SELECT e1.id, e1.thread_id FROM work.thread_log e1
+                                  WHERE e1.search_tsv @@ t.tq OFFSET 0) e0
+                           JOIN work.threads w0 ON w0.id = e0.thread_id
+                          WHERE w0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'question_answer', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT a0.id FROM workspace.questions a0
-                          WHERE a0.project_id = $1
-                            AND to_tsvector('english', a0.question || ' ' || COALESCE(a0.answer, '')) @@ t.tq) h
+     CROSS JOIN LATERAL (SELECT a0.id
+                           FROM (SELECT a1.id, a1.project_id FROM workspace.questions a1
+                                  WHERE to_tsvector('english', a1.question || ' ' || COALESCE(a1.answer, '')) @@ t.tq
+                                 OFFSET 0) a0
+                          WHERE a0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'verdict', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT v0.id FROM memory.turn_verdicts v0 JOIN memory.operator_turns vt0 ON vt0.id = v0.operator_turn_id
-                          WHERE v0.mode = 'live' AND vt0.project_id = $1
-                            AND to_tsvector('english', v0.unmet_ask || ' ' || v0.rationale) @@ t.tq) h
+     CROSS JOIN LATERAL (SELECT v0.id
+                           FROM (SELECT v1.id, v1.operator_turn_id FROM memory.turn_verdicts v1
+                                  WHERE v1.mode = 'live'
+                                    AND to_tsvector('english', v1.unmet_ask || ' ' || v1.rationale) @@ t.tq
+                                 OFFSET 0) v0
+                           JOIN memory.operator_turns vt0 ON vt0.id = v0.operator_turn_id
+                          WHERE vt0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'learning', NULL, h.session_id::text, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT k0.session_id FROM memory.session_knowledge k0
+     CROSS JOIN LATERAL (SELECT k0.session_id
+                           FROM (SELECT k1.session_id FROM memory.session_knowledge k1
+                                  WHERE to_tsvector('english', memory.session_learnings_text(k1.learnings)) @@ t.tq
+                                 OFFSET 0) k0
                            JOIN sessions.sessions s0 ON s0.session_uuid = k0.session_id
-                          WHERE s0.project_id = $1
-                            AND to_tsvector('english', memory.session_learnings_text(k0.learnings)) @@ t.tq) h
+                          WHERE s0.project_id = $1) h
      GROUP BY h.session_id
     UNION ALL
     SELECT 'session', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT s0.id FROM sessions.sessions s0
-                          WHERE s0.project_id = $1 AND to_tsvector('english', s0.overview) @@ t.tq) h
+     CROSS JOIN LATERAL (SELECT s0.id
+                           FROM (SELECT s1.id, s1.project_id FROM sessions.sessions s1
+                                  WHERE to_tsvector('english', s1.overview) @@ t.tq OFFSET 0) s0
+                          WHERE s0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'mail', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT m0.id FROM mailbox.messages m0
+     CROSS JOIN LATERAL (SELECT m0.id
+                           FROM (SELECT m1.id, m1.from_session_id, m1.thread_id FROM mailbox.messages m1
+                                  WHERE m1.from_session_id IS NOT NULL AND m1.search_tsv @@ t.tq OFFSET 0) m0
                            JOIN sessions.sessions f0 ON f0.id = m0.from_session_id
                            LEFT JOIN mailbox.threads p0 ON p0.id = m0.thread_id
-                          WHERE m0.from_session_id IS NOT NULL AND m0.search_tsv @@ t.tq
-                            AND COALESCE(p0.project_id, f0.project_id) = $1) h
+                          WHERE COALESCE(p0.project_id, f0.project_id) = $1) h
      GROUP BY h.id
     UNION ALL
     SELECT 'seat', NULL, h.item_kind, h.source_ref, h.session_uuid::text, count(*), bool_or(t.ident)
       FROM terms t
-     CROSS JOIN LATERAL (SELECT i0.item_kind, i0.source_ref, i0.session_uuid FROM memory.seat_memory_items i0
-                          WHERE i0.project_id = $1 AND i0.search_tsv @@ t.tq) h
+     CROSS JOIN LATERAL (SELECT i0.item_kind, i0.source_ref, i0.session_uuid
+                           FROM (SELECT i1.item_kind, i1.source_ref, i1.session_uuid, i1.project_id
+                                   FROM memory.seat_memory_items i1
+                                  WHERE i1.search_tsv @@ t.tq OFFSET 0) i0
+                          WHERE i0.project_id = $1) h
      GROUP BY h.item_kind, h.source_ref, h.session_uuid
 ), later_lessons AS (
     SELECT DISTINCT ON (rel.to_lesson_id, rk.code) rel.to_lesson_id, rk.code AS relation, rs.code AS status,
@@ -132,7 +158,7 @@ WITH own_turn AS (
     JOIN memory.lesson_relation_statuses rs ON rs.id = rel.status_id AND rs.code IN ('confirmed', 'proposed')
     JOIN memory.lessons newer ON newer.id = rel.from_lesson_id
     ORDER BY rel.to_lesson_id, rk.code, rs.code = 'confirmed' DESC, rel.id DESC
-), lesson_marks AS (
+), lesson_marks AS MATERIALIZED (
     SELECT ll.to_lesson_id,
            bool_or(ll.relation = 'supersedes' AND ll.status = 'confirmed') AS superseded,
            jsonb_object_agg(CASE ll.relation WHEN 'supersedes' THEN 'superseded_by' ELSE 'contradicted_by' END,
@@ -329,7 +355,8 @@ WITH own_turn AS (
       LEFT JOIN memory.lessons rby ON rby.id = l.retired_by_lesson_id
       LEFT JOIN memory.operator_turns lst ON lst.id = l.source_turn_id
       LEFT JOIN sessions.sessions lss ON lss.id = COALESCE(l.session_id, lst.session_id)
-     CROSS JOIN LATERAL (SELECT to_tsvector('english', l.text) AS tsv OFFSET 0) lt
+     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', l.text) END AS tsv
+                         OFFSET 0) lt
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
      WHERE l.project_id = $1 AND ($3::text IS NULL OR $3::text = 'lesson')
        AND ($2 = '' OR lt.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
@@ -474,7 +501,8 @@ WITH own_turn AS (
       LEFT JOIN sessions.sessions asker ON asker.id = qa.asker_session_id
       LEFT JOIN sessions.sessions settler ON settler.id = qa.settled_by_session_id CROSS JOIN q
      CROSS JOIN LATERAL (SELECT 'Question: ' || qa.question || E'\n\nAnswer: ' || qa.answer AS txt,
-              to_tsvector('english', qa.question || ' ' || COALESCE(qa.answer, '')) AS tsv OFFSET 0) doc
+              CASE WHEN $2 = '' THEN ''::tsvector
+                   ELSE to_tsvector('english', qa.question || ' ' || COALESCE(qa.answer, '')) END AS tsv OFFSET 0) doc
       LEFT JOIN semantic sem ON sem.reference = 'question_answer:' || qa.question_uuid
      WHERE qa.project_id = $1 AND qa.answer IS NOT NULL AND ($3::text IS NULL OR $3::text = 'question_answer')
        AND ($2 = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
@@ -506,7 +534,9 @@ WITH own_turn AS (
       JOIN memory.live_turn_verdicts_v v ON v.id = hit.id
       JOIN memory.operator_turns t ON t.id = v.operator_turn_id
       LEFT JOIN sessions.sessions vs ON vs.id = v.session_id
-     CROSS JOIN LATERAL (SELECT to_tsvector('english', v.unmet_ask || ' ' || v.rationale) AS tsv OFFSET 0) vt
+     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector
+                                     ELSE to_tsvector('english', v.unmet_ask || ' ' || v.rationale) END AS tsv
+                         OFFSET 0) vt
      CROSS JOIN LATERAL (VALUES ('unmet_ask'), ('correction')) vk(kind) CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = vk.kind || ':' || v.id
      WHERE v.project_id = $1 AND ($3::text IS NULL OR $3::text IN ('unmet_ask', 'correction'))
@@ -540,7 +570,7 @@ WITH own_turn AS (
              ORDER BY h.generated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.session_knowledge k ON k.session_id = hit.session_id
       JOIN sessions.sessions ls ON ls.session_uuid = k.session_id
-     CROSS JOIN LATERAL (SELECT lkt.txt, to_tsvector('english', lkt.txt) AS tsv
+     CROSS JOIN LATERAL (SELECT lkt.txt, CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', lkt.txt) END AS tsv
                            FROM (SELECT memory.session_learnings_text(k.learnings) AS txt OFFSET 0) lkt
                          OFFSET 0) lk
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'learning:' || k.session_id
@@ -572,7 +602,8 @@ WITH own_turn AS (
              ORDER BY COALESCE(h.overview_generated_at, h.last_seen) DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN sessions.sessions ss ON ss.id = hit.id
       LEFT JOIN memory.session_knowledge k ON k.session_id = ss.session_uuid
-     CROSS JOIN LATERAL (SELECT to_tsvector('english', ss.overview) AS tsv OFFSET 0) sv
+     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', ss.overview) END AS tsv
+                         OFFSET 0) sv
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'session:' || ss.session_uuid
      WHERE ss.project_id = $1 AND btrim(coalesce(ss.overview, '')) <> '' AND ($3::text IS NULL OR $3::text = 'session')
        AND ($2 = '' OR sv.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
