@@ -153,10 +153,15 @@ current body, including captured streamed replies. A tag missing from **Original
 therefore does not prove the lesson was absent from the conversation. This is recognition
 of earlier context, not a rewrite of an old request or proof that the lesson was followed.
 
-If the predecessor chain cannot be recovered, the reader marks earlier turns unavailable.
-The current request proceeds without that history while a database restore may run in the
-background. An unseen earlier tag can no longer suppress another copy by itself; other
-selection and resend rules still apply. Do not diagnose every repeated lesson as a new
+In the earlier PR #387 behavior, an unrecovered predecessor chain meant unavailable
+earlier turns; an unseen earlier tag could not suppress another copy by itself.
+Post-alpha.5 source containing [PR #440](https://github.com/temet-ai/mike/pull/440)
+also retains partial history. When history is not whole, enabled stages that require
+whole history, including session lessons, agent lessons, recall and memory keeper,
+record `history_unknown` and skip that request. This is not evidence that a lesson is
+already present or was injected. The request can continue while a database restore
+runs in the background; that does not guarantee recovery on the same request.
+Do not diagnose every repeated lesson as a new
 learning event, or treat a merged reader fix as proof that your live chain is complete.
 [Continued-thread limits](compression.md#continued-threads-recognizing-history-is-not-rewriting-it)
 also explain why this does not repair older per-turn change records.

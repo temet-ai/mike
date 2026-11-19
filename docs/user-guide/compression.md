@@ -97,17 +97,21 @@ They do not rewrite old captures or tool results held only in Anthropic's earlie
 Seeing an old Read in the chain therefore does not prove that its old result was shortened.
 
 The reader is bounded and needs the predecessor requests and replies. If it cannot build
-the chain, earlier turns are marked unavailable; a database restore may run in the
-background, without delaying this request for the restored history. Stages can then see
-only the current messages and miss candidates whose tool calls were earlier. Check the
+the chain, earlier turns may be unavailable; newer source containing
+[PR #440](https://github.com/temet-ai/mike/pull/440) can retain a partial chain instead.
+A database restore may run in the background, without delaying this request for the
+restored history. Stages can miss candidates whose tool calls are outside the available
+history. Check the
 request's transformation manifest and **Original** versus **Sent**, not just whether the
 compression switch is on. `no_candidates` is not proof that the session has no compressible
 output.
 
-[Issue #352](https://github.com/temet-ai/mike/issues/352) tracks the wider continued-thread
-work. This source change is not proof that all readers are fixed or that a live session
-benefited. It also does not repair older stored per-turn change records; historical delta
-correction is tracked separately in [issue #354](https://github.com/temet-ai/mike/issues/354).
+PR #440 closed [issue #352](https://github.com/temet-ai/mike/issues/352) and
+[issue #354](https://github.com/temet-ai/mike/issues/354), adding a conversation API and
+a separate historical-delta correction worker. Neither a merged change nor a successful
+conversation response proves complete history or a repaired live database. See
+[Reading sessions](reading-sessions.md#conversation-reconstruction-in-newer-builds)
+for version boundaries, reconstruction limits and correction progress.
 
 ## File reads
 

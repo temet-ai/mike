@@ -157,12 +157,33 @@ id or request number. Missing retained history can leave the chain incomplete. C
 what was actually captured rather than treating a reconstructed conversation as the raw
 bytes sent on one request.
 
-Post-alpha.5 source includes [earlier-turn handling for streamed requests](https://github.com/temet-ai/mike/pull/387)
-for internal readers. That does not replace the raw-body view with a full conversation,
-prove that every reader has recovered its history, or establish behavior on your running
-service. [The earlier-turns issue](https://github.com/temet-ai/mike/issues/352) remains open,
-including the requested conversation-at-this-request view. Do not look for a promised
-extra tab based solely on that proposal.
+### Conversation reconstruction in newer builds
+
+Post-alpha.5 source containing [PR #440](https://github.com/temet-ai/mike/pull/440)
+adds `GET /api/requests/{id}/body/conversation` on the inspect API (normally port
+9989). Use the captured request's id, not its position in the session. This route is
+not in alpha.5. It adds no conversation tab to the browser's request panel; **Original**
+and **Sent** remain individual request views.
+
+The route first resolves the sent body, then attempts database-backed reconstruction
+for a continued thread. It prepends retained earlier messages and replies, appends the
+current messages and removes the `thread` field. This is an investigation view, not
+the bytes sent on that request. If reconstruction is unavailable, it returns the
+resolved sent body instead. In-memory sent-body resolution can itself fall back to
+the filtered or original request body.
+
+Do not treat a successful response as proof of a complete conversation. The database
+walk can stop at an unlinked or unknown thread boundary, or its 256-step limit, and
+still return the available suffix. Other missing data can prevent reconstruction.
+The response has no completeness or fallback indicator: even its `reconstructed`
+field remains `false` on this route after a successful splice. Inspect the surrounding
+retained requests and thread links before drawing conclusions. A missing request can
+return 404; a retained request with no body can return `has_body: false`.
+
+[The earlier-turns issue](https://github.com/temet-ai/mike/issues/352) was closed by
+that change. This describes source behavior, not proof that your installed service
+has it or that its retained history is complete. Keep captured conversation content
+private when investigating ([Privacy](privacy.md)).
 
 ## Replay the session flow
 
@@ -193,8 +214,12 @@ short new-message body against the wrong predecessor or a previous full body. Th
 mislead request-change, session-flow and text-search readers even after newer capture
 code is installed.
 
-[Historical delta correction](https://github.com/temet-ai/mike/issues/354) is still open.
-A fix for newly arriving requests does not prove older stored deltas were repaired.
+[Historical delta correction](https://github.com/temet-ai/mike/issues/354) was closed
+by PR #440, which adds a background correction worker for older stored deltas. Builds
+also need the migration-name correction in [PR #442](https://github.com/temet-ai/mike/pull/442).
+Check the running build and its `thread_delta_correction` capability/progress rather
+than inferring completion from a merged PR. A fix for newly arriving requests does
+not prove older stored deltas were repaired.
 Cross-check the raw request's thread link, surrounding responses and session identity
 before interpreting old removed/unknown rows. Do not rewrite history or run space
 reclamation to make the display look right: freeing storage is not evidence repair.
