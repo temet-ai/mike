@@ -28,7 +28,7 @@ async fn calls(server: &MockServer) -> usize {
 
 async fn chunk_versions(handle: &PersistHandle) -> anyhow::Result<Vec<String>> {
     Ok(
-        sqlx::query_scalar("SELECT xmin::text FROM memory.knowledge_embedding_chunks ORDER BY id")
+        sqlx::query_scalar("SELECT xmin::text FROM memory.knowledge_embedding_chunks ORDER BY state_id, ordinal")
             .fetch_all(handle.pool())
             .await?,
     )
