@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH firsts AS (\n    SELECT rm.message_id, min(rm.request_id) AS request_id\n      FROM requests.requests r\n      JOIN requests.messages rm ON rm.request_id = r.id\n     WHERE r.session_id = $1\n     GROUP BY rm.message_id\n)\nSELECT m.body, r.id AS request_id, r.created_at, r.claude_code_agent_id AS agent_id\n  FROM firsts f\n  JOIN messages.messages m ON m.id = f.message_id\n  JOIN requests.requests r ON r.id = f.request_id\n WHERE m.body::text LIKE '%task-notification>%'\n ORDER BY m.id, r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "body",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1141f6bf2aa7c2d0c40fda501511b1d95bc8df3dc08f54fe3e858a015dc6e1b0"
+}

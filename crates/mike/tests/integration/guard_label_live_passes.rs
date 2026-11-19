@@ -27,6 +27,7 @@ struct EvalSeed<'a> {
     status: &'a str,
     arm: Option<&'a str>,
     question: &'a str,
+    gate_open: bool,
 }
 
 async fn evaluation(
@@ -37,7 +38,7 @@ async fn evaluation(
 ) -> anyhow::Result<uuid::Uuid> {
     let holdback_draw = seed.arm.map(|_| 0.5_f64);
     let mut gates = serde_json::Map::new();
-    gates.insert(seed.question.to_owned(), json!({"open": true}));
+    gates.insert(seed.question.to_owned(), json!({"open": seed.gate_open}));
     let verdict = json!({"gates": gates, "actor": {"agent_instance_id": null}});
     Ok(sqlx::query_scalar(
         "INSERT INTO steering.evaluations
@@ -75,6 +76,7 @@ async fn label_candidates_admit_live_pass_rows_only_when_setting_is_on() -> anyh
             status: "resolved_pass",
             arm: None,
             question: "relapse",
+            gate_open: true,
         },
     )
     .await?;
@@ -87,6 +89,7 @@ async fn label_candidates_admit_live_pass_rows_only_when_setting_is_on() -> anyh
             status: "resolved_correction",
             arm: None,
             question: "unbacked_wait",
+            gate_open: true,
         },
     )
     .await?;
@@ -99,6 +102,7 @@ async fn label_candidates_admit_live_pass_rows_only_when_setting_is_on() -> anyh
             status: "resolved_pass",
             arm: Some("treated"),
             question: "unobserved_done",
+            gate_open: true,
         },
     )
     .await?;
@@ -128,6 +132,46 @@ async fn label_candidates_admit_live_pass_rows_only_when_setting_is_on() -> anyh
     assert!(
         !on_ids.contains(&treated),
         "a treated fire stays excluded: its next message is confounded by the nudge"
+    );
+    Ok(())
+}
+
+fn closed_shadow_pass() -> EvalSeed<'static> {
+    EvalSeed {
+        mode: "shadow",
+        status: "resolved_pass",
+        arm: None,
+        question: "relapse",
+        gate_open: false,
+    }
+}
+
+#[tokio::test]
+async fn label_candidates_last_closed_gate_row_excluded_superseded_row_admitted()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let id = guard_id(&f).await?;
+    let turn = resolved_turn(&f, 60_101).await?;
+    let older = evaluation(&f, id, turn, closed_shadow_pass()).await?;
+    let last = evaluation(&f, id, turn, closed_shadow_pass()).await?;
+
+    let rows = f
+        .handle
+        .steerer()
+        .guard_label_candidates(id, 200, false)
+        .await?;
+    let admitted = rows
+        .iter()
+        .find(|c| c.uuid == older)
+        .ok_or_else(|| anyhow::anyhow!("a superseded shadow row is admitted"))?;
+    assert!(!admitted.is_last, "the older row has a newer sibling");
+    assert_eq!(admitted.operator_turn_id, turn);
+    assert_eq!(admitted.next_state.as_deref(), Some("resolved"));
+    assert!(
+        rows.iter().all(|c| c.uuid != last),
+        "the last row with a closed gate, no exemption and no recall sample is never a candidate"
     );
     Ok(())
 }

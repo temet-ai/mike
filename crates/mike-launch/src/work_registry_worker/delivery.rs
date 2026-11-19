@@ -132,9 +132,17 @@ pub async fn settle(
         .await
 }
 
-pub async fn rescan(persist: &PersistHandle, session_db_id: i64) -> Result<(), PersistError> {
-    persist.launch().backfill_work_items(session_db_id).await?;
-    close_jobs_from_output(persist, session_db_id).await
+pub async fn rescan(
+    persist: &PersistHandle,
+    session_db_id: i64,
+    scanned_to: i64,
+) -> Result<i64, PersistError> {
+    let scanned_to = persist
+        .launch()
+        .rescan_work_items_after(session_db_id, scanned_to)
+        .await?;
+    close_jobs_from_output(persist, session_db_id).await?;
+    Ok(scanned_to)
 }
 
 pub async fn close_abandoned(

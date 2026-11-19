@@ -9,6 +9,7 @@ SELECT u.wire_tool_use_id AS "wire_tool_use_id!",
   JOIN tools.uses u ON u.id = res.tool_use_id
   JOIN requests.requests r ON r.id = res.request_id
  WHERE res.session_id = $1
+   AND res.request_id > $2
    AND u.tool_name IN ('Bash', 'Agent', 'Task')
    AND (res.content::text LIKE '%Command running in background with ID%'
         OR res.content::text LIKE '%Async agent launched successfully%')

@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH fresh AS (\n    SELECT DISTINCT rm.message_id\n      FROM requests.requests r\n      JOIN requests.messages rm ON rm.request_id = r.id\n     WHERE r.session_id = $1\n       AND r.id > $2\n), notes AS (\n    SELECT m.id, m.body\n      FROM fresh f\n      JOIN messages.messages m ON m.id = f.message_id\n     WHERE m.body::text LIKE '%task-notification>%'\n), firsts AS (\n    SELECT n.id AS message_id, min(rm.request_id) AS request_id\n      FROM notes n\n      JOIN requests.messages rm ON rm.message_id = n.id\n      JOIN requests.requests r ON r.id = rm.request_id\n     WHERE r.session_id = $1\n     GROUP BY n.id\n)\nSELECT n.body AS \"body!\", r.id AS request_id, r.created_at, r.claude_code_agent_id AS agent_id\n  FROM firsts f\n  JOIN notes n ON n.id = f.message_id\n  JOIN requests.requests r ON r.id = f.request_id\n WHERE f.request_id > $2\n ORDER BY n.id, r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "body!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4f4771251c1e69f31cf18789c6157f8a1c4cd840b45a036d588689dca1f7275e"
+}

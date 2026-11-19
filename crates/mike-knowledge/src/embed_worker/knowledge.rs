@@ -200,7 +200,18 @@ pub struct SweepUpkeep {
     marked_model: Option<String>,
 }
 
-async fn lead_sweep(
+impl SweepUpkeep {
+    #[cfg(test)]
+    pub(super) fn reconciled_at(&self) -> Option<Instant> {
+        self.reconciled
+    }
+
+    fn stand_down(&mut self) {
+        self.marked_model = None;
+    }
+}
+
+pub(super) async fn lead_sweep(
     persist: &PersistHandle,
     service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
@@ -211,7 +222,7 @@ async fn lead_sweep(
         || breaker.should_skip(Instant::now())
         || !persist.holds_worker_role(LEASE_ROLE, lease_interval).await
     {
-        *upkeep = SweepUpkeep::default();
+        upkeep.stand_down();
         return Ok(false);
     }
     keep_items_current(persist, service, upkeep).await?;

@@ -1,8 +1,14 @@
 -- Refreshes memory.seat_memory_items from memory.seat_memory(project).
 -- $1, $2, $3: the highest launch, fleet event and mail ids the previous refresh saw. Only the
--- projects with a launch, fleet event or received mail above them are recomputed and pruned;
--- all three NULL recomputes every project with launches (the worker's backstop sweep). The
--- marks to pass next time come back in the last three columns.
+-- projects with a launch or fleet event above them are recomputed and pruned; all three NULL
+-- recomputes every project with launches (the worker's backstop sweep). The marks to pass next
+-- time come back in the last three columns.
+-- A new fleet event counts only for a launch memory.seat_memory can include: one that did not
+-- fail, in a run with a report_filed event. New mail never scopes a refresh: a seat's mail
+-- enters memory.seat_memory only through the channel turn that delivers it, which is captured
+-- after the mail row, so the backstop sweep or the project's next launch or event picks it up.
+-- Mail arrives on nearly every tick, and recomputing the whole receiving project for it is what
+-- pushed this statement past a second.
 WITH bounds AS (
     SELECT $1::bigint AS launch_after, $2::bigint AS event_after, $3::bigint AS message_after
 ), seat_projects AS (
@@ -13,11 +19,12 @@ WITH bounds AS (
      WHERE s.project_id IS NOT NULL
        AND (sc.launch_after IS NULL
             OR l.id > sc.launch_after
-            OR l.run_id IN (SELECT e.run_id FROM launch.fleet_events e WHERE e.id > sc.event_after)
-            OR l.session_uuid IN (SELECT e.session_uuid FROM launch.fleet_events e
-                                   WHERE e.id > sc.event_after AND e.session_uuid IS NOT NULL)
-            OR s.id IN (SELECT m.to_session_id FROM mailbox.messages m
-                         WHERE m.id > sc.message_after AND m.to_session_id IS NOT NULL))
+            OR ((l.run_id IN (SELECT e.run_id FROM launch.fleet_events e WHERE e.id > sc.event_after)
+                 OR l.session_uuid IN (SELECT e.session_uuid FROM launch.fleet_events e
+                                        WHERE e.id > sc.event_after AND e.session_uuid IS NOT NULL))
+                AND l.result <> 'failed'
+                AND EXISTS (SELECT 1 FROM launch.fleet_events g
+                             WHERE g.run_id = l.run_id AND g.kind = 'report_filed')))
 ), fresh AS MATERIALIZED (
     SELECT DISTINCT ON (sm.project_id, sm.item_kind, sm.source_ref, sm.session_uuid) sm.*
       FROM seat_projects p
