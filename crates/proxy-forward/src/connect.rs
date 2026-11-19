@@ -83,7 +83,21 @@ async fn serve_tunnel_leg(
 }
 
 fn warn_uncaptured_model_tunnel(target: &ConnectTarget) {
-    tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route");
+    static WARNED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    if first_warning_for(&WARNED, &target.host) {
+        tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route (warned once per host per process)");
+    } else {
+        tracing::debug!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host (NOT captured)");
+    }
+}
+
+fn first_warning_for(seen: &std::sync::Mutex<Vec<String>>, host: &str) -> bool {
+    let mut seen = seen.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if seen.iter().any(|known| known.eq_ignore_ascii_case(host)) {
+        return false;
+    }
+    seen.push(host.to_ascii_lowercase());
+    true
 }
 
 fn log_blind_tunnel(target: &ConnectTarget, leftover_bytes: usize) {
@@ -231,6 +245,15 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for PrefixedStream<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn uncaptured_model_host_warns_once_per_host() {
+        let seen = std::sync::Mutex::new(Vec::new());
+        assert!(first_warning_for(&seen, "api.openai.com"));
+        assert!(!first_warning_for(&seen, "API.openai.com"));
+        assert!(first_warning_for(&seen, "chatgpt.com"));
+        assert!(!first_warning_for(&seen, "chatgpt.com"));
+    }
 
     #[test]
     fn parses_valid_connect_line() -> Result<(), ForwardError> {

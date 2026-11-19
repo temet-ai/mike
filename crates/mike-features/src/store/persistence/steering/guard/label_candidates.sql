@@ -1,5 +1,13 @@
+-- A busy steerer has ~10k unlabelled shadow rows, nearly all of them the last of their turn and
+-- never picked, so every pass reads all of them (steerer 18 on 2026-11-19: 330 ms, 205k
+-- buffers). Each candidate carries the evaluation columns it needs instead of being looked up
+-- by id twice more; settled is materialized so the planner hashes the newest live pass per
+-- (turn, question, trigger) instead of scanning live_top once per candidate under picked's
+-- LIMIT; and verdict_json (about 2 kB, stored compressed) is decompressed once per row in vj
+-- rather than once for each of the three keys picked reads.
 WITH live_top AS MATERIALIZED (
-    SELECT e.id, e.operator_turn_id, e.question, e.trigger_point, e.dispatched_at
+    SELECT e.id, e.uuid, e.operator_turn_id, e.session_id, e.question, e.trigger_point,
+           e.status, e.dispatched_at, e.verdict_json
       FROM steering.evaluations e
      WHERE $3
        AND e.steerer_id = $1
@@ -11,33 +19,40 @@ WITH live_top AS MATERIALIZED (
      LIMIT $2
 ),
 cand AS (
-    SELECT e.id
+    SELECT e.id, e.uuid, e.operator_turn_id, e.session_id, e.question, e.trigger_point,
+           e.status, e.dispatched_at, e.verdict_json
       FROM steering.evaluations e
      WHERE e.steerer_id = $1
        AND e.status <> 'dispatched'
        AND (e.mode = 'shadow' OR e.arm = 'holdback')
        AND e.outcome_label IS NULL
     UNION ALL
-    SELECT e.id
+    SELECT e.id, e.uuid, e.operator_turn_id, e.session_id, e.question, e.trigger_point,
+           e.status, e.dispatched_at, e.verdict_json
       FROM steering.evaluations e
      WHERE e.steerer_id = $1
        AND e.status <> 'dispatched'
        AND e.arm = 'precheck_held'
        AND e.outcome_label IS NULL
     UNION ALL
-    SELECT lt.id FROM live_top lt
+    SELECT lt.id, lt.uuid, lt.operator_turn_id, lt.session_id, lt.question, lt.trigger_point,
+           lt.status, lt.dispatched_at, lt.verdict_json
+      FROM live_top lt
 ),
-settled AS (
-    SELECT e.id, e.operator_turn_id, e.question, e.trigger_point, e.dispatched_at,
-           f.next_genuine_request_id, f.next_genuine_at
+live_newest AS (
+    SELECT DISTINCT ON (n.operator_turn_id, n.question, n.trigger_point)
+           n.id, n.operator_turn_id, n.question, n.trigger_point, n.dispatched_at
+      FROM live_top n
+     ORDER BY n.operator_turn_id, n.question, n.trigger_point, n.dispatched_at DESC, n.id DESC
+),
+settled AS MATERIALIZED (
+    SELECT c.*, f.next_genuine_request_id, f.next_genuine_at
       FROM cand c
-      JOIN steering.evaluations e ON e.id = c.id
-      JOIN memory.turn_facts f ON f.operator_turn_id = e.operator_turn_id
+      JOIN memory.turn_facts f ON f.operator_turn_id = c.operator_turn_id
      WHERE f.next_state IN ('resolved', 'none_session_settled')
 ),
 ranked AS (
-    SELECT s.id, s.next_genuine_request_id, s.next_genuine_at, s.dispatched_at,
-           (newer_admitted.id IS NULL AND newer_live.id IS NULL) AS is_last
+    SELECT s.*, (newer_admitted.id IS NULL AND newer_live.id IS NULL) AS is_last
       FROM settled s
       LEFT JOIN LATERAL (
           SELECT n.id
@@ -51,26 +66,22 @@ ranked AS (
              AND (n.dispatched_at, n.id) > (s.dispatched_at, s.id)
            LIMIT 1
       ) newer_admitted ON true
-      LEFT JOIN LATERAL (
-          SELECT n.id
-            FROM live_top n
-           WHERE n.operator_turn_id = s.operator_turn_id
-             AND n.question IS NOT DISTINCT FROM s.question
-             AND n.trigger_point IS NOT DISTINCT FROM s.trigger_point
-             AND (n.dispatched_at, n.id) > (s.dispatched_at, s.id)
-           LIMIT 1
-      ) newer_live ON true
+      LEFT JOIN live_newest newer_live
+        ON newer_live.operator_turn_id = s.operator_turn_id
+       AND newer_live.question IS NOT DISTINCT FROM s.question
+       AND newer_live.trigger_point IS NOT DISTINCT FROM s.trigger_point
+       AND (newer_live.dispatched_at, newer_live.id) > (s.dispatched_at, s.id)
 ),
 picked AS MATERIALIZED (
-    SELECT e.uuid, e.operator_turn_id, e.session_id, e.question, e.trigger_point, e.status,
-           e.dispatched_at, e.verdict_json, k.is_last,
+    SELECT k.uuid, k.operator_turn_id, k.session_id, k.question, k.trigger_point, k.status,
+           k.dispatched_at, k.verdict_json, k.is_last,
            k.next_genuine_request_id, k.next_genuine_at
       FROM ranked k
-      JOIN steering.evaluations e ON e.id = k.id
+     CROSS JOIN LATERAL (SELECT k.verdict_json || '{}'::jsonb AS v OFFSET 0) vj
      WHERE NOT k.is_last
-        OR e.verdict_json ->> 'exemption' IS NOT NULL
-        OR (e.verdict_json -> 'gates' -> e.question ->> 'open')::boolean
-        OR (e.verdict_json ->> 'recall_sample')::boolean
+        OR vj.v ->> 'exemption' IS NOT NULL
+        OR (vj.v -> 'gates' -> k.question ->> 'open')::boolean
+        OR (vj.v ->> 'recall_sample')::boolean
      ORDER BY k.dispatched_at DESC
      LIMIT $2
 )

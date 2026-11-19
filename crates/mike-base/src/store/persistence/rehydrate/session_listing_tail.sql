@@ -28,10 +28,27 @@
              -- Per-session request count + distinct project_id set (issue #32),
              -- one scan of requests.requests via idx_requests_session_id
              -- shared between both (see list_sessions_paginated's doc comment).
-             SELECT COUNT(r.id)::int4 AS request_count,
-                    ARRAY_AGG(DISTINCT r.project_id) AS distinct_project_ids
-             FROM runtime.model_call_facts r
-             WHERE r.session_id = ranked.id
+             -- The same rows runtime.model_call_facts counts, without its
+             -- per-call joins: counting through the view joined statuses,
+             -- errors and responses for every request of every session on
+             -- the page, 133,076 of a 200-row page's 142,615 buffers on
+             -- 2026-11-19. Wire sessions (no runtime.session_facts row) count
+             -- their requests; observed sessions count the view's
+             -- model-call branch, the rows whose request_id is NULL.
+             SELECT COUNT(*)::int4 AS request_count,
+                    ARRAY_AGG(DISTINCT calls.project_id) AS distinct_project_ids
+               FROM (
+                   SELECT r.project_id
+                     FROM requests.requests r
+                    WHERE r.session_id = ranked.id
+                      AND NOT EXISTS (SELECT 1 FROM runtime.session_facts f
+                                       WHERE f.session_id = ranked.id)
+                   UNION ALL
+                   SELECT mc.project_id
+                     FROM runtime.model_call_facts mc
+                    WHERE mc.session_id = ranked.id
+                      AND mc.request_id IS NULL
+               ) calls
          ) rc ON TRUE
          LEFT JOIN LATERAL (
              -- Newest request's live terminal status (issue #147) --
@@ -138,24 +155,20 @@
          ) sjq ON TRUE
          LEFT JOIN (
              -- Undelivered mailbox count, aggregated once for the whole
-             -- ≤50-row page rather than per-row LATERAL: mailbox.messages
-             -- is small today, so a per-row LATERAL degrades to a full
-             -- table scan repeated per session (the planner won't pick
-             -- idx_mailbox_messages_pending until the table is much
-             -- bigger than the page it's being probed against). Grouping
-             -- is scoped to `sent_request_id IS NULL` — the partial
-             -- index's predicate — so this scan stays bounded by the
-             -- (operationally small) undelivered-mail set regardless of
-             -- how large mailbox.messages grows overall; no separate
-             -- page-id filter is needed since the outer join already
-             -- discards groups outside this page. A session with zero
-             -- undelivered mail has no row here at all (GROUP BY only
-             -- emits rows that exist), so the outer SELECT must
-             -- COALESCE the join miss to 0 — `pending_inbox_count` is
-             -- NOT NULL on the wire.
+             -- page rather than per-row LATERAL. `sent_request_id IS NULL`
+             -- is not a small set: channel-delivered mail never gets a
+             -- sent_request_id, so on 2026-11-19 it held 30,284 of 32,345
+             -- messages, and grouping all of them was a 44 ms sequential
+             -- scan, half of every page. The page's own session ids bound
+             -- the scan to idx_mailbox_messages_to_session. A session with
+             -- zero undelivered mail has no row here at all (GROUP BY only
+             -- emits rows that exist), so the outer SELECT must COALESCE
+             -- the join miss to 0 — `pending_inbox_count` is NOT NULL on
+             -- the wire.
              SELECT m.to_session_id, COUNT(*)::int4 AS pending_inbox_count
                FROM mailbox.messages m
               WHERE m.sent_request_id IS NULL
+                AND m.to_session_id IN (SELECT page.id FROM ranked page)
               GROUP BY m.to_session_id
          ) mbx ON mbx.to_session_id = ranked.id
          LEFT JOIN LATERAL (

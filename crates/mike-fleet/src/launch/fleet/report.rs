@@ -49,6 +49,7 @@ pub struct ReportRequest {
     pub exercised: Option<Exercised>,
     #[serde(deserialize_with = "list_or_none")]
     pub tests_changed: Option<Vec<String>>,
+    #[serde(deserialize_with = "super::report_input::entries_or_none")]
     pub unestablished: Option<Vec<String>>,
 }
 

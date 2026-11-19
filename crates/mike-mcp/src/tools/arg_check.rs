@@ -63,6 +63,8 @@ const ALIASES: &[(&str, AliasRules)] = &[
         "recall_project_context",
         &[("q", "query"), ("project", "project_path")],
     ),
+    ("fleet_commit", &[("files", "paths")]),
+    ("ask", &[("message", "question")]),
 ];
 
 const SESSION_TAGGED: [&str; 3] = [
