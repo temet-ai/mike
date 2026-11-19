@@ -104,6 +104,7 @@ fn input(floor: Outcome) -> JudgeInput {
             exercised_output_ref: "receipt 7".into(),
             exercised_output: String::new(),
             check_tests: Vec::new(),
+            cited_receipts: Vec::new(),
             tests_changed: vec!["report_tests.rs".into()],
             unestablished: Vec::new(),
         },

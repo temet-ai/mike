@@ -39,8 +39,18 @@ pub struct ReportFacts {
     pub exercised_output: String,
     #[serde(default)]
     pub check_tests: Vec<String>,
+    #[serde(default)]
+    pub cited_receipts: Vec<CitedReceipt>,
     pub tests_changed: Vec<String>,
     pub unestablished: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CitedReceipt {
+    pub receipt: i64,
+    pub command: String,
+    pub exit_code: Option<i32>,
+    pub output_tail: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

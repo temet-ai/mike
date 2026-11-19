@@ -10,7 +10,7 @@ use crate::llm::decisions::record::DecisionSubject;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 
 pub const POINT: &str = "leaf_judge";
-pub const QUESTION_SET: &str = "leaf_judge_v4";
+pub const QUESTION_SET: &str = "leaf_judge_v5";
 pub const PASS_AT: f64 = 0.75;
 pub const FAIL_AT: f64 = 0.25;
 pub const LEANS_MET_AT: f64 = 0.5;
@@ -41,7 +41,7 @@ fn caveat_key(criterion: &CriterionText) -> String {
 fn met_question(criterion: &CriterionText) -> Question {
     noul(
         &format!(
-            "A fleet worker reported its task done. Does the evidence (the report, the exercised command with its exit code and the end of its output in `report.exercised_output`, the test cases in the files that check runs in `report.check_tests`, the changed tests and the diff) show that this task's part of criterion {} is met, judged by task_brief, while the parts given to the tasks in shared_with are theirs to show: {}",
+            "A fleet worker reported its task done. Does the evidence (the report, the exercised command with its exit code and the end of its output in `report.exercised_output`, the test cases in the files that check runs in `report.check_tests`, the changed tests and the diff; a fleet_check receipt the report cites is in `report.cited_receipts` with its command, exit code and output tail, and is evidence that the check ran and what it printed, so weigh it as you weigh the diff) show that this task's part of criterion {} is met, judged by task_brief, while the parts given to the tasks in shared_with are theirs to show: {}",
             criterion.id, criterion.text
         ),
         "The evidence shows the criterion is met.",

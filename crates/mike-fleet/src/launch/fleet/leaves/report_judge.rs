@@ -249,6 +249,16 @@ async fn input_for(
     let mut facts = facts(report);
     facts.exercised_output =
         super::check_output::exercised_output(persist, &report.run, &facts.exercised_command).await;
+    facts.cited_receipts = super::check_output::cited_receipts(
+        persist,
+        &report.run,
+        &format!(
+            "{} {}",
+            facts.exercised_output_ref,
+            report.unestablished.join(" ")
+        ),
+    )
+    .await;
     let files = super::check_tests::candidate_files(&facts.exercised_command, &facts.tests_changed);
     facts.check_tests = super::check_tests::test_names(&def.repo, &report.sha, &files).await;
     JudgeInput {
@@ -301,6 +311,7 @@ fn facts(report: &ReportToJudge) -> ReportFacts {
         exercised_output_ref: exercised.output_ref,
         exercised_output: String::new(),
         check_tests: Vec::new(),
+        cited_receipts: Vec::new(),
         tests_changed: report.tests_changed.clone(),
         unestablished: report.unestablished.clone(),
     }

@@ -31,6 +31,7 @@ fn input(exit: Option<i32>, unestablished: &[&str]) -> JudgeInput {
             exercised_output_ref: "receipt 3".to_owned(),
             exercised_output: String::new(),
             check_tests: Vec::new(),
+            cited_receipts: Vec::new(),
             tests_changed: vec!["a_test.rs".to_owned()],
             unestablished: unestablished.iter().map(|s| (*s).to_owned()).collect(),
         },
@@ -293,4 +294,54 @@ async fn jev_judge_below_the_floor_asks_nothing() -> anyhow::Result<()> {
             .is_empty()
     );
     fx.finish().await
+}
+
+fn receipt_row(
+    id: i64,
+    command: &str,
+    exit: i32,
+    output: &str,
+) -> crate::store::persistence::fleet::TreeCheckRow {
+    crate::store::persistence::fleet::TreeCheckRow {
+        id,
+        run_id: "run".to_owned(),
+        state: "s".to_owned(),
+        state_after: None,
+        command: command.to_owned(),
+        started_at: chrono::Utc::now(),
+        finished_at: Some(chrono::Utc::now()),
+        exit_code: Some(exit),
+        output: output.to_owned(),
+        askers: Vec::new(),
+        told: Vec::new(),
+    }
+}
+
+#[test]
+fn state_carries_the_cited_receipt_command_exit_and_output_tail() {
+    use crate::launch::fleet::leaves::check_output::{cited_receipt, cited_receipt_ids};
+    assert_eq!(
+        cited_receipt_ids("receipt 2556 and Receipt #2557, receipt 2556"),
+        vec![2556, 2557]
+    );
+    let mut judged = input(Some(0), &[]);
+    judged.report.cited_receipts = vec![cited_receipt(&receipt_row(
+        2556,
+        "kit test docker",
+        0,
+        "scores: docker 0.92\n",
+    ))];
+    let state = state(&judged);
+    let cited = &state["report"]["cited_receipts"][0];
+    assert_eq!(cited["receipt"], 2556);
+    assert_eq!(cited["command"], "kit test docker");
+    assert_eq!(cited["exit_code"], 0);
+    assert_eq!(cited["output_tail"], "scores: docker 0.92");
+}
+
+#[test]
+fn met_question_tells_the_judge_to_weigh_a_cited_receipt() {
+    let text = format!("{:?}", met_question(&criterion("C1")));
+    assert!(text.contains("report.cited_receipts"));
+    assert_eq!(QUESTION_SET, "leaf_judge_v5");
 }
