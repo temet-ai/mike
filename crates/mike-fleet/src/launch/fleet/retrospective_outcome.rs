@@ -10,16 +10,28 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 const FINDING: &str = "finding";
 
-pub fn problem(requests: i64, findings: usize, thread: &str) -> Option<String> {
+pub fn problem(
+    requests: i64,
+    findings: usize,
+    thread: &str,
+    thread_exists: bool,
+) -> Option<String> {
     if requests <= 0 {
         return Some(
             "the retrospective session produced no turns: capture holds no request for its session, so no seat was debriefed and nothing was recorded"
                 .to_string(),
         );
     }
-    (findings == 0).then(|| {
+    if findings > 0 {
+        return None;
+    }
+    Some(if thread_exists {
         format!(
-            "the retrospective session ran {requests} turns but wrote no `{FINDING}` entry on the `{thread}` work thread"
+            "the retrospective session ran {requests} turns, then stopped before writing a `{FINDING}` entry on the `{thread}` work thread"
+        )
+    } else {
+        format!(
+            "the retrospective session ran {requests} turns but the `{thread}` work thread does not exist in the project, so it had nowhere to write a `{FINDING}` entry"
         )
     })
 }
@@ -36,7 +48,41 @@ pub async fn verdict(
     } else {
         0
     };
-    Ok(problem(requests, findings, &def.retrospective.thread))
+    let exists = findings > 0 || thread_exists(persist, row, def).await?;
+    Ok(problem(
+        requests,
+        findings,
+        &def.retrospective.thread,
+        exists,
+    ))
+}
+
+pub(super) async fn thread_exists(
+    persist: &PersistHandle,
+    row: &FleetRow,
+    def: &FleetDefinition,
+) -> Result<bool, PersistError> {
+    let Some(project) = persist
+        .launch()
+        .resolve_work_thread_project(&row.project_path)
+        .await
+        .map_err(persist_error)?
+    else {
+        return Ok(false);
+    };
+    match persist
+        .launch()
+        .get_work_thread(
+            project.id,
+            &def.retrospective.thread,
+            HistoryPage::everything(),
+        )
+        .await
+    {
+        Ok(_) => Ok(true),
+        Err(WorkThreadError::NotFound(_)) => Ok(false),
+        Err(other) => Err(persist_error(other)),
+    }
 }
 
 async fn turns(persist: &PersistHandle, job: &Job) -> Result<i64, PersistError> {
