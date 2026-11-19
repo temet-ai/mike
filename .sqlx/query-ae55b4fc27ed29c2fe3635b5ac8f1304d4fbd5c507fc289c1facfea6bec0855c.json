@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.knowledge_embedding_state\n             (item_id, source_kind, source_id, reference, project_id, model_key, completed_at,\n              name, label, search_tsv, source_hash)\n         SELECT $1::bigint, k.kind, $3::bigint, $4::text, $5::bigint, $6::text, now(),\n                $7::text, $8::text,\n                CASE WHEN k.built_in THEN NULL ELSE to_tsvector('english', $9::text || ' ' || $10::text) END,\n                $11::text\n           FROM memory.knowledge_kinds k\n          WHERE k.kind = $2::text\n         ON CONFLICT (item_id) DO UPDATE SET\n             reference = EXCLUDED.reference, project_id = EXCLUDED.project_id,\n             model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL,\n             name = EXCLUDED.name, label = EXCLUDED.label, search_tsv = EXCLUDED.search_tsv,\n             source_hash = EXCLUDED.source_hash\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ae55b4fc27ed29c2fe3635b5ac8f1304d4fbd5c507fc289c1facfea6bec0855c"
+}

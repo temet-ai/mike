@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ref AS \"reference!\", kind AS \"kind!\"\n                 FROM work.thread_card_candidates WHERE thread_id = $1 ORDER BY rank",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_card_candidates",
+            "name": "ref"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_card_candidates",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "85aee005af6a99ef5794d6a673336ca8652b5e8b9dc699fd1e89e19fc08592cf"
+}

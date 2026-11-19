@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_embedding_state s\n                  SET reference = $4, project_id = $5\n                WHERE s.item_id = $1 AND s.model_key = $2 AND s.source_hash = $3\n                  AND s.completed_at IS NOT NULL\n                  AND EXISTS (SELECT 1 FROM memory.knowledge_embedding_chunks c WHERE c.state_id = s.id)\n               RETURNING s.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "14df9214fb9d817fd6e8b22715492e665c39fbf8c7f95eeb182870e2b245862c"
+}
