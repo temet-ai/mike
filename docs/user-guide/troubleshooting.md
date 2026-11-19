@@ -329,6 +329,28 @@ is not the same as stopping the file watcher.
   overflow-triggered rescans are throttled to at most once per minute. Periodic scans
   remain; this is not a notifications-only watcher.
 
+A later post-alpha.5 change, [PR #432](https://github.com/temet-ai/mike/pull/432),
+merged at `a89393e4`, adds two narrower guards:
+
+- The supervisor's default `skip_temporary` setting skips session folders under
+  `TMPDIR`, paths beginning `/tmp/`, paths containing `/.claude/.cache/tmp/`, and
+  a `scratchpad` path component. This is path-based filtering, not a guarantee that
+  every disposable repository is recognized, and not a user-facing Settings toggle.
+- On the notification-path observation route, a burst with an observed deletion checks
+  the checkout's `.git` entry. If it is absent, or disappears after a two-second wait,
+  the burst is not recorded and that watcher stops. A `.git` file counts as present,
+  as it should for a worktree. This guard does not cover every teardown timing or the
+  full-scan/overflow route, and does not prove that every deletion is a teardown.
+
+When expected history is missing, first verify the installed build, effective recording
+setting, session folder and resolved Git root. On the owning machine, use read-only
+`git -C /actual/checkout status --short`, `git -C /actual/checkout diff --stat` and
+`git -C /actual/checkout show --stat <commit>` to compare the current checkout and the
+specific commit with the record. Check `git worktree list --porcelain` from a surviving
+checkout if the original folder has gone. These are different evidence sources: neither
+an absent record nor a clean current diff proves that no earlier edit happened. Redact
+paths and commit details before sharing.
+
 Compare the installed build with that source before expecting these protections.
 Merged source is not evidence of deployment, a released binary or measured improvement
 on your machine. Older objects and database records are not removed by these changes.

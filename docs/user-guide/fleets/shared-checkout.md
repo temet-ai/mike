@@ -72,10 +72,15 @@ Keep the check narrow rather than compensating with an unnecessary full suite.
 
 ## Who changed what
 
-mike looks at the folder once a second and records every file that is added, changed or
-deleted, with the time and the session that most likely changed it. A change outside the
-session's own task is marked. If no task owns a change after 10 minutes, mike proposes a new
-task for it.
+With `change_record` enabled, mike observes eligible file additions, changes and
+deletions and records their time and likely author. It uses filesystem notifications
+with periodic backstop scans, not a guaranteed once-a-second record of every file.
+Ignored/build paths and, on newer builds, temporary session folders are excluded;
+[watcher scope and version limits](../troubleshooting.md#newer-watcher-behavior) explain
+the defaults and worktree-removal guard. If a record is absent, confirm the actual
+checkout, Git status/diff and committed paths before concluding that no edit happened.
+A change outside the session's own task is marked. If no task owns a change after
+10 minutes, mike proposes a new task for it.
 
 When an uncommitted edit breaks the project for everyone, mike works out which session's edit did
 it and tells that session. If it is still broken 10 minutes later, the reference session is told
