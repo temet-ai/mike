@@ -230,3 +230,32 @@ fn reject_missing_required_open_schema_passes_through() -> anyhow::Result<()> {
     reject_missing_required("no_such_tool", None)?;
     Ok(())
 }
+
+#[test]
+fn check_arguments_fleet_commit_files_is_renamed_to_paths() -> anyhow::Result<()> {
+    let (checked, corrections) = check_arguments(
+        "fleet_commit",
+        arguments(json!({"fleet": "f", "session_id": "s", "message": "m", "files": ["a.rs"]})),
+    )?;
+    assert_eq!(
+        checked,
+        arguments(json!({"fleet": "f", "session_id": "s", "message": "m", "paths": ["a.rs"]}))
+    );
+    assert_eq!(
+        corrections,
+        vec![("files".to_string(), "paths".to_string())]
+    );
+    Ok(())
+}
+
+#[test]
+fn check_arguments_ask_message_is_renamed_to_question() -> anyhow::Result<()> {
+    let (checked, corrections) =
+        check_arguments("ask", arguments(json!({"to": "t", "message": "why?"})))?;
+    assert_eq!(checked, arguments(json!({"to": "t", "question": "why?"})));
+    assert_eq!(
+        corrections,
+        vec![("message".to_string(), "question".to_string())]
+    );
+    Ok(())
+}

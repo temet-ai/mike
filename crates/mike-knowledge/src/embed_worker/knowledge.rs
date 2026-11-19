@@ -131,6 +131,15 @@ async fn embed_source(
     model: &str,
     chunks_per_call: usize,
 ) -> Result<(), String> {
+    let hash = source_hash(source, model, service.chunk_max_chars());
+    let kept = persist
+        .knowledge()
+        .keep_unchanged_knowledge_embedding(source, model, &hash)
+        .await
+        .map_err(|e| format!("[transient] {e}"))?;
+    if kept {
+        return Ok(());
+    }
     let texts = chunk_text(&source.body, service.chunk_max_chars());
     let mut records = Vec::new();
     for batch in texts.chunks(chunks_per_call) {
@@ -152,9 +161,19 @@ async fn embed_source(
     }
     persist
         .knowledge()
-        .save_knowledge_embeddings(source, model, json!(records))
+        .save_knowledge_embeddings(source, model, &hash, json!(records))
         .await
         .map_err(|e| format!("[transient] {e}"))
+}
+
+pub fn source_hash(source: &KnowledgeEmbeddingSource, model: &str, chunk_max: usize) -> String {
+    use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    for part in [model, &chunk_max.to_string(), &source.header, &source.body] {
+        digest.update(part.len().to_le_bytes());
+        digest.update(part.as_bytes());
+    }
+    format!("sha256:{}", hex::encode(digest.finalize()))
 }
 
 pub async fn sweep_if_leader(
@@ -181,7 +200,18 @@ pub struct SweepUpkeep {
     marked_model: Option<String>,
 }
 
-async fn lead_sweep(
+impl SweepUpkeep {
+    #[cfg(test)]
+    pub(super) fn reconciled_at(&self) -> Option<Instant> {
+        self.reconciled
+    }
+
+    fn stand_down(&mut self) {
+        self.marked_model = None;
+    }
+}
+
+pub(super) async fn lead_sweep(
     persist: &PersistHandle,
     service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
@@ -192,7 +222,7 @@ async fn lead_sweep(
         || breaker.should_skip(Instant::now())
         || !persist.holds_worker_role(LEASE_ROLE, lease_interval).await
     {
-        *upkeep = SweepUpkeep::default();
+        upkeep.stand_down();
         return Ok(false);
     }
     keep_items_current(persist, service, upkeep).await?;

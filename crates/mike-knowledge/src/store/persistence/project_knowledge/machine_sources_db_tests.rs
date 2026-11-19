@@ -176,7 +176,7 @@ impl Fixture {
         };
         self.handle
             .knowledge()
-            .save_knowledge_embeddings(&source, &self.model, json!(records))
+            .save_knowledge_embeddings(&source, &self.model, "sha256:test", json!(records))
             .await?;
         Ok(())
     }

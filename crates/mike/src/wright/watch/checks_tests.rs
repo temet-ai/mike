@@ -153,6 +153,22 @@ async fn session_tool_errors_needs_three_sessions_hitting_the_same_error() -> an
     db.cleanup().await
 }
 
+#[tokio::test]
+async fn session_tool_errors_ignores_bash_results_that_only_carry_an_exit_code()
+-> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    for _ in 0..3 {
+        let session = db.session(Uuid::new_v4(), "1 minute").await?;
+        let request = db.request(session, "10 minutes", "primary").await?;
+        for _ in 0..4 {
+            db.tool_error(request, session, "Bash", "Exit code 255")
+                .await?;
+        }
+    }
+    assert_eq!(db.findings("session_tool_errors").await?, Vec::new());
+    db.cleanup().await
+}
+
 async fn llm_calls(db: &Db, role: &str, outcome: &str, n: i64) -> anyhow::Result<()> {
     sqlx::query(
         "INSERT INTO llm.calls (role, model, outcome)

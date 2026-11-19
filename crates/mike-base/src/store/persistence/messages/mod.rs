@@ -1,5 +1,6 @@
 pub mod canonicalize;
 pub mod delta;
+pub mod delta_same;
 pub mod envelope_patch;
 pub mod predecessor;
 pub mod reads;

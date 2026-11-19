@@ -80,4 +80,21 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         )
         .await
     }
+
+    pub async fn rescan_work_items_after(
+        self,
+        session_db_id: i64,
+        after: i64,
+    ) -> Result<i64, PersistError> {
+        crate::metrics::time_db(
+            "rescan_work_items_after",
+            work_items_backfill::backfill_session_after(
+                self.background_pool(),
+                session_db_id,
+                after,
+            ),
+        )
+        .await
+        .map(|(_, scanned_to)| scanned_to)
+    }
 }

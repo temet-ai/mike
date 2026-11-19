@@ -210,6 +210,59 @@ async fn seat_memory_refresh_since_marks_recomputes_only_changed_projects() -> a
 }
 
 #[tokio::test]
+async fn seat_memory_refresh_since_marks_leaves_mail_to_the_sweep_and_skips_ungated_events()
+-> anyhow::Result<()> {
+    let Some(fx) = indexed().await? else {
+        return Ok(());
+    };
+    let pool = fx.handle.pool();
+    let launch = fx.handle.launch();
+    let ungated_run = super::fixture::run(pool).await?;
+    let ungated = session(pool, fx.scenario.project_id).await?;
+    let spec = super::fixture::LaunchSpec {
+        run: Some(&ungated_run),
+        seat: "ungated-mail",
+        brief: "SM-EXCL-UNGATED-MAIL",
+        result: "success",
+    };
+    super::fixture::launch(pool, &ungated, &spec).await?;
+    let quiet = launch
+        .refresh_seat_memory_items(Some(fx.swept.marks))
+        .await?;
+    super::fixture::mail_turn(
+        pool,
+        fx.scenario.project_id,
+        &fx.scenario.coordinator,
+        &ungated,
+        "SM-EXCL-UNGATED-MAIL body",
+    )
+    .await?;
+    let stale = serde_json::json!({});
+    let kind = "seat_heartbeat_stale";
+    super::fixture::event(pool, &ungated_run, None, Some("T9"), kind, &stale).await?;
+    let skipped = launch.refresh_seat_memory_items(Some(quiet.marks)).await?;
+    assert_eq!((skipped.items, skipped.written, skipped.removed), (0, 0, 0));
+    assert!(skipped.marks.message > quiet.marks.message);
+    assert!(skipped.marks.fleet_event > quiet.marks.fleet_event);
+    super::fixture::mail_turn(
+        pool,
+        fx.scenario.project_id,
+        &fx.scenario.coordinator,
+        &fx.scenario.worker,
+        "SM-MAIL-GATED fresh mail to a gated seat",
+    )
+    .await?;
+    let gated = launch
+        .refresh_seat_memory_items(Some(skipped.marks))
+        .await?;
+    assert_eq!((gated.items, gated.written, gated.removed), (0, 0, 0));
+    assert!(gated.marks.message > skipped.marks.message);
+    let swept = launch.refresh_seat_memory_items(None).await?;
+    assert!(swept.written >= 1);
+    finish(fx).await
+}
+
+#[tokio::test]
 async fn seat_memory_generation_moves_when_a_fleet_event_is_added() -> anyhow::Result<()> {
     let Some(fx) = indexed().await? else {
         return Ok(());

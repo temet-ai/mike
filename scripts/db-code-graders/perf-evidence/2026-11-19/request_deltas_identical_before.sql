@@ -1,0 +1,2 @@
+WITH d AS (DELETE FROM requests.deltas WHERE request_id = 855145 RETURNING *)
+INSERT INTO requests.deltas OVERRIDING SYSTEM VALUE SELECT * FROM d

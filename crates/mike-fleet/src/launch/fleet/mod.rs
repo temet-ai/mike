@@ -86,6 +86,7 @@ pub mod release;
 pub mod render;
 pub mod report;
 pub mod report_commit;
+pub mod report_input;
 pub mod report_proof;
 pub mod retrospective;
 pub mod retrospective_launch;
@@ -175,6 +176,8 @@ pub mod propose_tick_tests;
 pub mod push_tests;
 #[cfg(test)]
 pub mod questions_tests;
+#[cfg(test)]
+pub mod report_input_tests;
 #[cfg(test)]
 pub mod report_tests;
 #[cfg(test)]

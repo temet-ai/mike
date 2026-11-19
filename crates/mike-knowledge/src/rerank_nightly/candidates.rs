@@ -112,11 +112,15 @@ async fn build_thread(
         .nightly
         .related_per_thread;
     let best = best_of(contenders, &scores, kept);
-    persist
+    let written = persist
         .launch()
         .replace_thread_card_candidates(thread.thread_id, &best)
         .await?;
-    Ok(Built::Written)
+    Ok(if written > 0 {
+        Built::Written
+    } else {
+        Built::Skipped
+    })
 }
 
 fn query_text(text: &str) -> String {

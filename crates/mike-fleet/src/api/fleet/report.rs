@@ -24,6 +24,7 @@ use crate::launch::fleet::report::{
     report_body, report_data, report_title,
 };
 use crate::launch::fleet::report_commit;
+use crate::launch::fleet::report_input::fill_seat_defaults;
 use crate::launch::fleet::seated::Seated;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{
@@ -315,11 +316,12 @@ fn refused(session: Option<Uuid>, reason: String) -> DefinitionError {
 pub async fn report_slice(
     State(state): State<BaseState>,
     Path(key): Path<String>,
-    Json(req): Json<ReportRequest>,
+    Json(mut req): Json<ReportRequest>,
 ) -> Result<Json<ReportAnswer>, DefinitionError> {
     let (row, def, run) = running(&state, &key).await?;
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
     let seated = Seated::of_run(persist, &run, &def).await;
+    fill_seat_defaults(&mut req, &def, &seated).map_err(|reason| refused(req.session, reason))?;
     let (task, criteria) =
         check_report(&def, &seated, &req).map_err(|reason| refused(req.session, reason))?;
     let session = req.session.ok_or(DefinitionError::Unavailable)?;

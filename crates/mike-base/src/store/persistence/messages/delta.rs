@@ -150,6 +150,17 @@ pub async fn write_request_deltas(
     session_db_id: i64,
     rows: &[DeltaRow],
 ) -> Result<(), PersistError> {
+    if super::delta_same::deltas_unchanged(
+        &mut *conn,
+        request_id,
+        predecessor_request_id,
+        session_db_id,
+        rows,
+    )
+    .await?
+    {
+        return Ok(());
+    }
     sqlx::query!(
         "DELETE FROM requests.deltas WHERE request_id = $1",
         request_id

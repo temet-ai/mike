@@ -79,6 +79,7 @@ where
               AND l.brief_mode = 'note'
               AND l.brief_note_uuid IS NOT NULL
               AND l.brief_text IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM mailbox.messages m WHERE m.message_uuid = l.brief_note_uuid)
             ORDER BY l.id
            ON CONFLICT (message_uuid) DO NOTHING"#,
         session_uuid,

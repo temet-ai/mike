@@ -68,7 +68,7 @@ fn typed_report_fields() -> Vec<(&'static str, Value)> {
         (
             "unestablished",
             strings(
-                "What you could not establish, one entry each, linked to its acceptance obligation; [] when nothing.",
+                "What you could not establish, one entry each, linked to its acceptance obligation; [] when nothing. An entry may also be an object with a text, summary or criterion field.",
             ),
         ),
     ]
@@ -82,8 +82,8 @@ fn report_tool() -> Tool {
                 "session_id",
                 text("Your own session id: the seat that holds the task."),
             ),
-            ("task", text("The id of the task your seat holds.")),
-            ("slice", text("A short name for the slice you finished.")),
+            ("task", text("The id of the task your seat holds. Optional: mike takes it from your seat when you hold one task.")),
+            ("slice", text("A short name for the slice you finished. Defaults to the task.")),
             (
                 "criteria",
                 criteria("Task criterion ids: [\"C3\", \"C5\"] or \"C3, C5\". Default all."),
@@ -124,8 +124,6 @@ fn report_tool() -> Tool {
         &[
             "fleet",
             "session_id",
-            "task",
-            "slice",
             "criteria",
             "exercised",
             "tests_changed",
@@ -426,6 +424,18 @@ mod tests {
             assert!(required.to_string().contains(field), "{field}");
         }
         assert!(!required.to_string().contains("\"sha\""), "sha is optional");
+    }
+
+    #[test]
+    fn report_schema_leaves_task_and_slice_to_the_seat() {
+        let required = &fleet_report_tools()[0].input_schema["required"];
+        for field in ["task", "slice"] {
+            assert!(
+                !required.to_string().contains(&format!("\"{field}\"")),
+                "{field}"
+            );
+        }
+        assert!(required.to_string().contains("session_id"));
     }
 
     #[test]
