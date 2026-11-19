@@ -1,9 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::git::{Git, GitError};
+use super::skip::{StatCache, build_excludes, is_build_output};
 use crate::launch::fleet::watch::{Seen, parse_index, parse_status};
 
-const STATUS: [&str; 4] = ["status", "--porcelain=v2", "-z", "--untracked-files=all"];
+const STATUS: [&str; 6] = [
+    "status",
+    "--porcelain=v2",
+    "-z",
+    "--untracked-files=all",
+    "--",
+    ".",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeltaKind {
@@ -39,6 +47,7 @@ pub struct Observed {
 #[derive(Debug, Default)]
 pub struct KnownTree {
     known: BTreeMap<String, String>,
+    stamps: StatCache,
 }
 
 enum OnDisk {
@@ -50,9 +59,9 @@ enum OnDisk {
 
 impl KnownTree {
     pub async fn baseline(git: &Git) -> Result<Self, GitError> {
-        Ok(Self {
-            known: current(git).await?,
-        })
+        let mut stamps = StatCache::default();
+        let known = current(git, &mut stamps).await?;
+        Ok(Self { known, stamps })
     }
 
     pub fn directories(&self) -> BTreeSet<String> {
@@ -71,7 +80,7 @@ impl KnownTree {
         let mut files = Vec::new();
         let mut dirs = Vec::new();
         let mut gone = Vec::new();
-        for path in paths {
+        for path in paths.iter().filter(|p| !is_build_output(p)) {
             match on_disk(git, path) {
                 OnDisk::File => files.push(path.clone()),
                 OnDisk::Dir => dirs.push(path.clone()),
@@ -109,7 +118,7 @@ impl KnownTree {
     }
 
     pub async fn backstop(&mut self, git: &Git) -> Result<Vec<FileDelta>, GitError> {
-        let now = current(git).await?;
+        let now = current(git, &mut self.stamps).await?;
         let deltas = differences(&self.known, &now);
         self.known = now;
         Ok(deltas)
@@ -167,8 +176,11 @@ pub fn parents(path: &str) -> impl Iterator<Item = String> + '_ {
         .map(move |(i, _)| path[..i].to_string())
 }
 
-async fn current(git: &Git) -> Result<BTreeMap<String, String>, GitError> {
-    let status = git.run(&STATUS).await?;
+async fn current(git: &Git, stamps: &mut StatCache) -> Result<BTreeMap<String, String>, GitError> {
+    let excludes = build_excludes();
+    let mut args: Vec<&str> = STATUS.to_vec();
+    args.extend(excludes.iter().map(String::as_str));
+    let status = git.run(&args).await?;
     let index = git.run(&["ls-files", "-s", "-z"]).await?;
     let mut now = parse_index(&index);
     let seen = parse_status(&status);
@@ -182,7 +194,7 @@ async fn current(git: &Git) -> Result<BTreeMap<String, String>, GitError> {
         }
     }
     present.retain(|p| matches!(on_disk(git, p), OnDisk::File));
-    let hashed = git.hash_paths(&present).await?;
+    let hashed = stamps.hash(git, &present).await?;
     let hashed_paths: BTreeSet<&String> = hashed.iter().map(|(p, _)| p).collect();
     let missing: Vec<String> = present
         .iter()

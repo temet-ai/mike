@@ -7,6 +7,7 @@ pub mod proof;
 pub mod pure;
 pub mod pushes;
 pub mod refs_moves;
+pub mod scope;
 pub mod supervision;
 
 use std::sync::atomic::Ordering;

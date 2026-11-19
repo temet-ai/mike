@@ -6,6 +6,8 @@ use notify::event::{AccessKind, AccessMode};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
+use super::skip::is_build_output;
+
 pub const QUEUE: usize = 4096;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,7 +59,7 @@ impl Notifier {
     }
 
     pub fn add_dirs(&mut self, dirs: impl IntoIterator<Item = String>) {
-        for dir in dirs {
+        for dir in dirs.into_iter().filter(|d| !is_build_output(d)) {
             let path = self.root.join(&dir);
             if let Err(err) = self.watcher.watch(&path, RecursiveMode::NonRecursive) {
                 tracing::debug!(dir = %dir, error = %err, "change record: a folder could not be watched");
@@ -103,7 +105,7 @@ pub fn classify(places: &Places, path: &Path) -> Option<Signal> {
     }
     let relative = path.strip_prefix(&places.root).ok()?;
     let text = relative.to_str()?;
-    if text.is_empty() || text == ".git" || text.starts_with(".git/") {
+    if text.is_empty() || text == ".git" || text.starts_with(".git/") || is_build_output(text) {
         return None;
     }
     Some(Signal::Path(text.to_string()))
