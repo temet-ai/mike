@@ -48,8 +48,13 @@ live_newest AS (
 settled AS MATERIALIZED (
     SELECT c.*, f.next_genuine_request_id, f.next_genuine_at
       FROM cand c
-      JOIN memory.turn_facts f ON f.operator_turn_id = c.operator_turn_id
-     WHERE f.next_state IN ('resolved', 'none_session_settled')
+     CROSS JOIN LATERAL (
+         SELECT tf.next_genuine_request_id, tf.next_genuine_at
+           FROM memory.turn_facts tf
+          WHERE tf.operator_turn_id = c.operator_turn_id
+            AND tf.next_state IN ('resolved', 'none_session_settled')
+          LIMIT 1
+     ) f
 ),
 ranked AS (
     SELECT s.*, (newer_admitted.id IS NULL AND newer_live.id IS NULL) AS is_last
