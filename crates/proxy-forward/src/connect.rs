@@ -85,10 +85,18 @@ async fn serve_tunnel_leg(
 fn warn_uncaptured_model_tunnel(target: &ConnectTarget) {
     static WARNED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
     if first_warning_for(&WARNED, &target.host) {
-        tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route (warned once per host per process)");
+        warn_first_model_tunnel(target);
     } else {
-        tracing::debug!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host (NOT captured)");
+        note_repeat_model_tunnel(target);
     }
+}
+
+fn warn_first_model_tunnel(target: &ConnectTarget) {
+    tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route (warned once per host per process)");
+}
+
+fn note_repeat_model_tunnel(target: &ConnectTarget) {
+    tracing::debug!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host (NOT captured)");
 }
 
 fn first_warning_for(seen: &std::sync::Mutex<Vec<String>>, host: &str) -> bool {
