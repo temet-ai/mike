@@ -9,8 +9,8 @@ work is done. A recorded report is not a passing verdict.
 
 ## The report
 
-A worker reports with the `fleet_report` tool, identifying the fleet, session, task and
-nonempty slice. The following evidence fields are required; mike names any missing field:
+For portability, report with the `fleet_report` tool and explicitly identify the fleet,
+your own session, task and a nonempty descriptive slice. The following evidence fields are required; mike names any missing field:
 
 | Field | What it holds |
 |---|---|
@@ -37,6 +37,27 @@ nothing unestablished.
 A compile alone is not proof that something works, so `exercised` asks for the command that ran
 the changed behaviour.
 
+### Task and slice defaults on newer builds
+
+Post-alpha.5 source `02cc1b15`, including [PR #438](https://github.com/temet-ai/mike/pull/438),
+can fill an omitted or whitespace-only `task` from the reporting session's assignment,
+**only when that session holds exactly one task**. It considers both task-session bindings
+and the run's seated assignment. With zero or multiple tasks, the call is refused and asks
+for an explicit task; it does not choose one for you. A missing session id is also refused.
+
+A supplied nonblank task takes precedence over inference, but must still pass the ordinary
+ownership and task checks. Independently, an omitted or whitespace-only `slice` becomes
+`task <task-id>`, including when you supplied the task explicitly. A supplied nonblank
+slice is kept. These defaults run before report validation; they do not waive required
+evidence, ownership, criteria or acceptance checks. Prefer explicit task and slice labels
+for meaningful reports and compatibility with older services and companions.
+
+Keep `unestablished` as an array of strings, or `[]` when nothing remains unestablished.
+The newer server normalizes object entries to text, but the MCP schema at `02cc1b15` still
+advertises string-array items despite its description mentioning objects. Do not rely on
+a client accepting values outside its schema. Check both installed builds and the actual
+tool schema; merged source is not evidence of deployment.
+
 ### Use arrays for evidence paths
 
 Pass `evidence` as an array even when there is only one path, for example
@@ -50,7 +71,8 @@ remains open. An array matches both interfaces and avoids depending on whether a
 accepts a value outside its advertised schema. Do not infer an installed fix from an
 issue's status or a merged repair. On older servers, a single string can fail with
 `evidence: invalid type: string`; correct the field shape rather than resubmitting the
-same call. A parse error is not an acceptance verdict.
+same call. A parse error is not an acceptance verdict. At the later `02cc1b15` source, the MCP
+schema also allows a single evidence string; an array remains compatible with both forms.
 
 ## Research or comment-only work
 
