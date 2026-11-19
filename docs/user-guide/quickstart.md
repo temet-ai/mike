@@ -76,7 +76,11 @@ Wait for the answer, then send the correction:
 
 The wording of Claude's answers can vary. The important result is that it answered both prompts and the Homebrew section is now first. You do not need to commit or publish the sample.
 
-mike records a request only when Claude Code sends its session identifier with it, which it does for ordinary prompts. A version check or a health request is not recorded.
+Session history needs a usable `x-claude-code-session-id`, which Claude Code sends for
+ordinary prompts. In alpha.5, ordinary proxy traffic without it is forwarded without capture.
+Source containing PR #185 instead stores this traffic separately when persistence is available;
+it does not become a session timeline. A missing session is not proof that nothing was stored.
+See [sessionless capture and privacy](privacy.md#traffic-without-a-session-id).
 
 ## See it in your browser
 

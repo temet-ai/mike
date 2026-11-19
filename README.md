@@ -117,3 +117,7 @@ If mike saved you debugging time and you'd like to say thanks: [buy me a coffee]
 ## License
 
 [MIT](./LICENSE) © Dawid du Toit
+
+Capture scope depends on the running version: newer source also stores ordinary proxy
+traffic without a usable session id separately from session history. See
+[sessionless capture and privacy](docs/user-guide/privacy.md#traffic-without-a-session-id).

@@ -6,6 +6,32 @@ mike has no telemetry and does not check for updates. On a fresh install the onl
 
 You do not need to open anything to read this page. To see the facts for your own install, `mike print-config --paths` prints the folders mike uses without contacting any service, and the capability panel at the top of <http://localhost:9990/settings> names which features are on and what each is waiting for.
 
+## Traffic without a session id
+
+In alpha.5, the ordinary proxy path forwards requests without a usable canonical session
+header without capturing them. Source containing PR #185 changes that behavior: with
+persistence available, `requests.sessionless_requests` stores the request body, method,
+path, query, user agent and captured headers, plus response metadata and eligible response
+bytes. This separate store is not a session timeline. Missing history is not a privacy opt-out.
+The recognized Remote Control route has its own path; do not generalize this rule to every
+sidecar, WebSocket or runtime-observation route.
+
+The header is `x-claude-code-session-id`; missing, malformed and non-UTF-8 values take the
+sessionless path. Per-session mutation stages do not run there. Request bodies have already
+passed the configured request-size limit. Response bytes are retained as observed up to
+`max_response_body_bytes`: exceeding a positive cap discards the stored response body whole,
+not the forwarded response; zero means no cap. Error or aborted streams can retain only
+observed bytes and a status, not a complete response. Recording is asynchronous; disabled
+persistence, failed writes or interruption can leave no durable row.
+
+Captured request and response headers use name-based masking: recognized credential/cookie
+headers, names containing credential markers and names ending in `token` become `[redacted]`.
+Other valid header values remain; non-UTF-8 values become empty strings. This is not general
+secret removal from bodies, URLs, query strings or custom header names. In particular the
+session-id header is not masked by this rule, and malformed session-id values can also enter
+warning logs. Do not put secrets there. Protect database copies and logs even when no session
+appears in the UI. These statements describe checked source, not proof of your installed build.
+
 ## One correction, followed through
 
 The guide follows one fictional example: a session named `docs`, role `writer`, in `~/projects/site`, with the goal "Rewrite the install page". Halfway through you tell Claude: "Put Homebrew first on the install page."
