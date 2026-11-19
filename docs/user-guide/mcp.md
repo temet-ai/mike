@@ -2,8 +2,9 @@
 
 `mike-mcp` is a small program that gives a Claude Code session tools for reading what mike
 has captured: past sessions, the exact requests and responses, failed tool calls, lessons you
-recorded, and other sessions working in the same project. Once it is registered you can ask
-"which session changed the retry logic?" and Claude calls a tool instead of guessing.
+recorded, and other sessions working in the same project. How Claude routes a question
+such as "which session changed the retry logic?" depends on the installed build, profile
+and optional question-routing integration described below.
 
 It also lets Claude change a few things: record a lesson, write a filter rule, message another
 session, start a session. [Which tools change things](#which-tools-change-things) lists them. It
@@ -43,7 +44,8 @@ The examples on this page continue the fictional `docs` session in `~/projects/s
    Expect `handshake: true`, `backend_read: true` and `code: "MCP_READY"`. This checks
    the companion version, stdio handshake and a read-only `get_stats` call against the
    selected Mike configuration. It does not read Claude's saved server entry.
-4. Start a new Claude Code session so it loads the server. Ask: "Call the mike server's
+4. Start a new Claude Code session so it loads the server. For a deliberate direct-tool
+   connection diagnostic (not the normal question-routing workflow below), ask: "Call the mike server's
    `get_stats` tool and show whether it succeeded. Do not change any settings."
    A successful tool result proves this session can reach the API. Merely listing tool
    names does not. Then ask it to call `list_sessions`; an empty list can be valid when
@@ -141,9 +143,42 @@ Every tool accepts an optional `select`: a list of JSON pointers that trims the 
 parts you want. For example `["/sessions/*/id"]` on `list_sessions` returns just the ids.
 Roots differ per tool, and the answer says which selectors matched nothing.
 
+## Optional ask-kit routing on newer builds
+
+In builds containing [PR #431](https://github.com/temet-ai/mike/pull/431), checked at
+source `fe15f7b6`, the `core` server instructions direct ordinary history questions and
+changes through ask-kit's `ask` tool, `mcp__plugin_ask-kit_ask__ask`, with the Mike kit.
+Older instructions named `mcp__mike-ask__ask`; do not assume that old tool name exists
+in a new session.
+
+This is a routing instruction, **not an installer**. Registering or probing `mike-mcp`
+does not install the `ask-kit@temet-ai` plugin or its separately supplied private Mike
+kit. A successful companion/backend probe does not verify that either is available.
+Check the tools actually loaded in your Claude session and your authorized integration
+setup. If `ask` is missing, distinguish that missing optional integration from a broken
+Mike inspect API; keep using the direct probe and web UI to establish capture and
+backend health. Do not invent a public kit-install command or switch profiles merely
+to hide a missing integration.
+
+The newer core instructions retain direct calls for mail/heartbeat protocol steps a
+reminder requests, joining/leaving the roster, fleet seats and `/fleet`, the spawn
+skill, and verifying one id cited by an `ask` answer. The full and worker-style
+instructions still describe direct navigation. These are workflow distinctions, not
+proof that a tool is installed, permitted to mutate state or appropriate for every
+profile. Check cited session, turn and request ids rather than treating a natural-language
+answer as complete evidence.
+
+The [search telemetry caveat](memory.md#check-search-telemetry-coverage-before-judging-memory)
+still applies: one outer `ask` call is not one lookup event, and missing attributed
+samples do not prove that no search occurred. The routing rename alone does not establish
+that #420 is fixed or that your installed kit supplies complete telemetry.
+
 ## Ask about the example session
 
-Once registered, ask in plain sentences. Claude picks the tool.
+The examples below describe the underlying direct tools for inspection or a profile
+using direct navigation. With the newer core routing and the optional integration
+available, ask the same question through `ask` and verify its cited ids; do not expect
+the outer Claude session to make each listed lookup itself.
 
 1. Ask: "Find the session where I told you to put Homebrew first on the install page."
    Claude calls `search_session_content`, which searches what you and Claude said, and
