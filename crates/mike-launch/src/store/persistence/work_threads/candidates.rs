@@ -67,6 +67,22 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         let kinds: Vec<String> = candidates.iter().map(|c| c.kind.clone()).collect();
         let scores: Vec<f32> = candidates.iter().map(|c| c.score).collect();
         let mut tx = self.pool().begin().await?;
+        let stored = sqlx::query!(
+            r#"SELECT ref AS "reference!", kind AS "kind!"
+                 FROM work.thread_card_candidates WHERE thread_id = $1 ORDER BY rank"#,
+            thread_id
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        let same = stored.len() == candidates.len()
+            && stored
+                .iter()
+                .zip(candidates)
+                .all(|(s, c)| s.reference == c.reference && s.kind == c.kind);
+        if same {
+            tx.rollback().await?;
+            return Ok(0);
+        }
         sqlx::query!(
             "DELETE FROM work.thread_card_candidates WHERE thread_id = $1",
             thread_id

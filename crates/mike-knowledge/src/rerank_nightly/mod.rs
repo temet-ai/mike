@@ -5,6 +5,9 @@ pub mod grade;
 pub mod load;
 #[cfg(test)]
 pub mod load_tests;
+pub mod once;
+#[cfg(test)]
+pub mod once_tests;
 pub mod run_now;
 pub mod search_decide;
 pub mod tune;
@@ -135,7 +138,12 @@ async fn gated_tick(state: &KnowledgeState, persist: &PersistHandle, now: DateTi
         return Tick::NotLeader;
     }
     memory_workers::mark_running(RERANK_NIGHTLY, Utc::now());
-    let pass = night_pass(state, persist, &budget, now, &idle).await;
+    let window = window_start(now, budget.start_hour_utc);
+    let whole = !once::finished(window);
+    let pass = pass_with(state, persist, &budget, now, &idle, whole).await;
+    if whole && pass.stopped.is_none() {
+        once::mark_finished(window);
+    }
     report(&pass);
     Tick::Ran(pass)
 }
@@ -147,6 +155,17 @@ pub async fn night_pass(
     now: DateTime<Utc>,
     idle: &(impl Idle + Sync),
 ) -> Pass {
+    pass_with(state, persist, budget, now, idle, true).await
+}
+
+async fn pass_with(
+    state: &KnowledgeState,
+    persist: &PersistHandle,
+    budget: &QuietBudget,
+    now: DateTime<Utc>,
+    idle: &(impl Idle + Sync),
+    whole: bool,
+) -> Pass {
     let mut pass = Pass::default();
     let rows = persist.fetch_settings().await.unwrap_or_default();
     let template = first_ten::grading_template_from_rows(&rows);
@@ -155,10 +174,11 @@ pub async fn night_pass(
         let window_start = window_start(now, budget.start_hour_utc);
         pass.stopped = tune_phase(state, persist, window_start, now, &mut pass.tuned).await;
     }
-    if pass.stopped.is_none() {
+    if whole && pass.stopped.is_none() {
         pass.stopped = candidates_phase(state, persist, idle, &mut pass.thread_candidates).await;
     }
-    if pass.stopped.is_none()
+    if whole
+        && pass.stopped.is_none()
         && let Some(phase) = state.lesson_pairs.clone()
     {
         pass.stopped = phase

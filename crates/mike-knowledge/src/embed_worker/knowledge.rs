@@ -131,6 +131,15 @@ async fn embed_source(
     model: &str,
     chunks_per_call: usize,
 ) -> Result<(), String> {
+    let hash = source_hash(source, model, service.chunk_max_chars());
+    let kept = persist
+        .knowledge()
+        .keep_unchanged_knowledge_embedding(source, model, &hash)
+        .await
+        .map_err(|e| format!("[transient] {e}"))?;
+    if kept {
+        return Ok(());
+    }
     let texts = chunk_text(&source.body, service.chunk_max_chars());
     let mut records = Vec::new();
     for batch in texts.chunks(chunks_per_call) {
@@ -152,9 +161,19 @@ async fn embed_source(
     }
     persist
         .knowledge()
-        .save_knowledge_embeddings(source, model, json!(records))
+        .save_knowledge_embeddings(source, model, &hash, json!(records))
         .await
         .map_err(|e| format!("[transient] {e}"))
+}
+
+pub fn source_hash(source: &KnowledgeEmbeddingSource, model: &str, chunk_max: usize) -> String {
+    use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    for part in [model, &chunk_max.to_string(), &source.header, &source.body] {
+        digest.update(part.len().to_le_bytes());
+        digest.update(part.as_bytes());
+    }
+    format!("sha256:{}", hex::encode(digest.finalize()))
 }
 
 pub async fn sweep_if_leader(

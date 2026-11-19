@@ -1,3 +1,4 @@
+mod delta_rewrite;
 mod support;
 
 mod write_path;

@@ -127,14 +127,45 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(changed)
     }
 
+    pub async fn keep_unchanged_knowledge_embedding(
+        self,
+        source: &KnowledgeEmbeddingSource,
+        model: &str,
+        hash: &str,
+    ) -> Result<bool, PersistError> {
+        let mut tx = self.pool().begin().await?;
+        let kept = sqlx::query_scalar!(
+            r#"UPDATE memory.knowledge_embedding_state s
+                  SET reference = $4, project_id = $5
+                WHERE s.item_id = $1 AND s.model_key = $2 AND s.source_hash = $3
+                  AND s.completed_at IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM memory.knowledge_embedding_chunks c WHERE c.state_id = s.id)
+               RETURNING s.id"#,
+            source.item_id,
+            model,
+            hash,
+            &source.reference,
+            source.project_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .is_some();
+        if kept {
+            mark_item_embedded(&mut tx, source, model).await?;
+        }
+        tx.commit().await?;
+        Ok(kept)
+    }
+
     pub async fn save_knowledge_embeddings(
         self,
         source: &KnowledgeEmbeddingSource,
         model: &str,
+        hash: &str,
         chunks: Value,
     ) -> Result<(), PersistError> {
         let mut tx = self.pool().begin().await?;
-        let state_id = upsert_embedding_state(&mut tx, source, model).await?;
+        let state_id = upsert_embedding_state(&mut tx, source, model, hash).await?;
         replace_embedding_chunks(&mut tx, state_id, chunks).await?;
         mark_item_embedded(&mut tx, source, model).await?;
         tx.commit().await?;
@@ -194,20 +225,23 @@ async fn upsert_embedding_state(
     tx: &mut Tx<'_>,
     source: &KnowledgeEmbeddingSource,
     model: &str,
+    hash: &str,
 ) -> Result<i64, PersistError> {
     Ok(sqlx::query_scalar!(
         "INSERT INTO memory.knowledge_embedding_state
              (item_id, source_kind, source_id, reference, project_id, model_key, completed_at,
-              name, label, search_tsv)
+              name, label, search_tsv, source_hash)
          SELECT $1::bigint, k.kind, $3::bigint, $4::text, $5::bigint, $6::text, now(),
                 $7::text, $8::text,
-                CASE WHEN k.built_in THEN NULL ELSE to_tsvector('english', $9::text || ' ' || $10::text) END
+                CASE WHEN k.built_in THEN NULL ELSE to_tsvector('english', $9::text || ' ' || $10::text) END,
+                $11::text
            FROM memory.knowledge_kinds k
           WHERE k.kind = $2::text
          ON CONFLICT (item_id) DO UPDATE SET
              reference = EXCLUDED.reference, project_id = EXCLUDED.project_id,
              model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL,
-             name = EXCLUDED.name, label = EXCLUDED.label, search_tsv = EXCLUDED.search_tsv
+             name = EXCLUDED.name, label = EXCLUDED.label, search_tsv = EXCLUDED.search_tsv,
+             source_hash = EXCLUDED.source_hash
          RETURNING id",
         source.item_id,
         &source.source_kind,
@@ -218,7 +252,8 @@ async fn upsert_embedding_state(
         &source.name,
         &source.label,
         &source.header,
-        &source.body
+        &source.body,
+        hash
     )
     .fetch_one(&mut **tx)
     .await?)

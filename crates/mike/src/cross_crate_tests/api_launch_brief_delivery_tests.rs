@@ -399,3 +399,35 @@ async fn claimable_briefs_before_the_session_row_is_known_are_never_settled() ->
     );
     env.cleanup().await
 }
+
+async fn seat_memory_generation(env: &Env) -> anyhow::Result<i64> {
+    Ok(sqlx::query_scalar(
+        "SELECT generation FROM memory.change_generations WHERE name = 'seat_memory_sources'",
+    )
+    .fetch_one(env.persist.pool())
+    .await?)
+}
+
+#[tokio::test]
+async fn checking_for_brief_mail_that_is_already_queued_bumps_no_generation() -> anyhow::Result<()> {
+    let Some(env) = Env::boot().await? else {
+        return Ok(());
+    };
+    let session = Uuid::new_v4();
+    env.launch(session, "note", "Fix defects #315 to #322.")
+        .await?;
+    env.register(session).await?;
+    let before = seat_memory_generation(&env).await?;
+    env.persist.mail_launch_briefs(session).await?;
+    let queued = seat_memory_generation(&env).await?;
+    assert!(queued > before, "queuing the brief adds a mail row");
+    for _ in 0..3 {
+        env.persist.mail_launch_briefs(session).await?;
+    }
+    assert_eq!(
+        seat_memory_generation(&env).await?,
+        queued,
+        "a check that adds no mail leaves seat memory alone"
+    );
+    env.cleanup().await
+}
