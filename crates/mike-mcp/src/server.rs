@@ -136,7 +136,7 @@ fn server_config(profile: Profile) -> ServerConfig {
 
 const CORE_INSTRUCTIONS: &str = "mike: every Claude Code request and response, captured and \
      indexed by session.\n\n\
-     Questions and changes go to mike-ask's `ask` tool (mcp__mike-ask__ask), not to these \
+     Questions and changes go to ask-kit's `ask` tool (mcp__plugin_ask-kit_ask__ask), not to these \
      tools: one plain-language call, an agent does the lookups outside your context and \
      answers with session, turn and request ids. That covers what a session did, said, cost, \
      changed or failed at; what was discussed, decided or built and in which session; project \
@@ -394,7 +394,7 @@ mod tests {
         let instructions = server_config(Profile::Core)
             .instructions
             .ok_or_else(|| anyhow::anyhow!("core instructions missing"))?;
-        assert!(instructions.contains("mcp__mike-ask__ask"));
+        assert!(instructions.contains("mcp__plugin_ask-kit_ask__ask"));
         assert!(!instructions.contains("Navigate: list_sessions"));
         Ok(())
     }
@@ -405,7 +405,7 @@ mod tests {
             .instructions
             .ok_or_else(|| anyhow::anyhow!("worker instructions missing"))?;
         assert!(instructions.contains("Navigate: list_sessions"));
-        assert!(!instructions.contains("mcp__mike-ask__ask"));
+        assert!(!instructions.contains("mcp__plugin_ask-kit_ask__ask"));
         Ok(())
     }
 }
