@@ -108,6 +108,57 @@ A problem gets at most three decisions, and the third goes to you whatever it sa
 at most 20 problems to the problem-solver. When the problem-solver asks you, the question says
 what is needed, why only you can answer it, and what each answer would set in motion.
 
+## Startup cannot verify its checkout
+
+`startup gate could not establish a verified baseline` is not the same as a red
+baseline from a check that ran against verified source. In source `0ad4acd5`, startup
+refuses to proceed when source verification fails. In particular:
+
+```text
+isolated path is not a detached worktree of this repository; no checkout was changed
+```
+
+can mean either that the managed worktree belongs to a different Git common directory
+or that it has a branch checked out instead of detached HEAD. Do not infer a test
+failure or assign a code-repair task from that message alone.
+
+1. Save the fleet/run id, installed version, baseline commit, tree-check result id,
+   command and exact error. Read the status and full `get_fleet` response; save any
+   baseline fields and start report that are actually present. A missing start report
+   is not proof that no check attempt was recorded.
+2. On the machine that owns the fleet repository, inspect the real managed worktree
+   paths. These commands only read Git metadata; replace the example paths:
+
+   ```sh
+   git -C /path/to/repository worktree list --porcelain
+   git -C /path/to/repository rev-parse --path-format=absolute --git-common-dir
+   git -C /path/to/actual/managed-slot rev-parse --show-toplevel
+   git -C /path/to/actual/managed-slot rev-parse --path-format=absolute --git-common-dir
+   git -C /path/to/actual/managed-slot rev-parse --abbrev-ref HEAD
+   git -C /path/to/actual/managed-slot rev-parse HEAD
+   ```
+
+   Compare the resolved common directories and the slot's actual top-level path.
+   `--abbrev-ref HEAD` prints `HEAD` for a detached checkout; otherwise record the
+   branch name. Do not guess the execution slot from the output log's filename.
+3. Preserve any available completion log matching the result id, including files
+   named `mike-check-<result-id>-*-output.log` under the repository's
+   `.claude/worktrees/`. A log may be absent if publication failed; use the persisted
+   output or startup message when available. Record where you found it, and redact
+   private paths, credentials and command output before sharing.
+
+These slots belong to Mike, not a worker. **Do not detach, reset, clean, delete or
+recreate them as a generic recovery step**, even if a branch looks merged and clean.
+Have the operator investigate ownership and any active check before choosing a repair.
+The [isolated-checks reference](https://github.com/temet-ai/mike/blob/0ad4acd532e2d6d27e9dc9483280401b2368be61/docs/fleets/isolated-checks.md) explains the source
+verification and managed-slot boundaries.
+
+[Issue #426](https://github.com/temet-ai/mike/issues/426) reports this startup failure,
+a missing start report and inaccessible result output through the inspect API. It
+was open when source `0ad4acd5` was checked. The reported branch-detachment workaround
+was not independently reproduced here; this guide neither promises an API lookup for
+that result nor claims that a release or live installation has been repaired.
+
 ## Check a surprising gate verdict
 
 A `PRE-EXISTING` mail is not proof that the failure predates this run. In the older source
