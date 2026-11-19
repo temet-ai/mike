@@ -65,15 +65,22 @@ impl Notifier {
         }
         let mut paths = self.watcher.paths_mut();
         for dir in &wanted {
-            let path = self.root.join(dir);
-            if let Err(err) = paths.add(&path, RecursiveMode::NonRecursive) {
-                tracing::debug!(dir = %dir, error = %err, "change record: a folder could not be watched");
-            }
+            add_one(paths.as_mut(), &self.root, dir);
         }
         if let Err(err) = paths.commit() {
-            tracing::warn!(root = %self.root.display(), folders = wanted.len(), error = %err, "change record: watched folders could not be updated");
+            warn_commit(&self.root, wanted.len(), &err);
         }
     }
+}
+
+fn add_one(paths: &mut dyn notify::PathsMut, root: &Path, dir: &str) {
+    if let Err(err) = paths.add(&root.join(dir), RecursiveMode::NonRecursive) {
+        tracing::debug!(dir = %dir, error = %err, "change record: a folder could not be watched");
+    }
+}
+
+fn warn_commit(root: &Path, folders: usize, err: &notify::Error) {
+    tracing::warn!(root = %root.display(), folders, error = %err, "change record: watched folders could not be updated");
 }
 
 pub fn signals(places: &Places, event: notify::Result<Event>) -> Vec<Signal> {
