@@ -131,7 +131,7 @@ fn default_launch_has_no_edit_tools_hooks_or_inherited_settings() -> anyhow::Res
     );
     assert!(
         args.windows(2)
-            .any(|pair| pair == ["--setting-sources", ""])
+            .any(|pair| pair == ["--setting-sources", "user"])
     );
     assert!(
         args.windows(2)

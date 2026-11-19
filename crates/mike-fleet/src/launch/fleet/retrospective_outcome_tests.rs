@@ -15,17 +15,20 @@ use crate::store::persistence::launch::NewRun;
 
 #[test]
 fn no_turns_is_a_failure_with_the_reason_even_when_nothing_else_is_known() {
-    let reason = problem(0, 0, "fleet-runs").unwrap_or_default();
+    let reason = problem(0, 0, "fleet-runs", true).unwrap_or_default();
     assert!(reason.contains("no turns"), "{reason}");
-    assert!(problem(0, 3, "fleet-runs").is_some());
+    assert!(problem(0, 3, "fleet-runs", true).is_some());
 }
 
 #[test]
 fn turns_without_a_finding_name_the_thread_that_stayed_empty() {
-    let reason = problem(7, 0, "fleet-runs").unwrap_or_default();
+    let reason = problem(7, 0, "fleet-runs", true).unwrap_or_default();
     assert!(reason.contains("7 turns"), "{reason}");
     assert!(reason.contains("`fleet-runs`"), "{reason}");
-    assert_eq!(problem(7, 1, "fleet-runs"), None);
+    assert!(reason.contains("stopped before writing"), "{reason}");
+    let missing = problem(7, 0, "fleet-runs", false).unwrap_or_default();
+    assert!(missing.contains("does not exist"), "{missing}");
+    assert_eq!(problem(7, 1, "fleet-runs", true), None);
 }
 
 #[test]
@@ -74,7 +77,7 @@ fn a_launch_without_user_settings_still_skips_the_bypass_permissions_dialog() ->
     let args = super::retrospective_launch::args(&def, &job);
     assert!(
         args.windows(2)
-            .any(|pair| pair == ["--setting-sources", ""])
+            .any(|pair| pair == ["--setting-sources", "user"])
     );
     let settings: serde_json::Value =
         serde_json::from_str(args.last().ok_or_else(|| anyhow::anyhow!("no settings"))?)?;
@@ -303,4 +306,26 @@ async fn only_finding_entries_by_the_retrospective_session_count() -> anyhow::Re
     }
     assert_eq!(findings(&persist, &row, &def, retro).await?, 1);
     db.cleanup().await
+}
+
+#[tokio::test]
+async fn the_launch_creates_a_missing_thread_and_the_outcome_can_tell_it_was_missing()
+-> anyhow::Result<()> {
+    let Some(db) = test_support::acquire_ephemeral_db().await? else {
+        eprintln!("MIKE_TEST_ADMIN_URL unset; retrospective thread DB test NOT RUN");
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let path = format!("/tmp/thread-{}", Uuid::new_v4());
+    seed_project(persist.pool(), &path).await?;
+    let row = crate::store::persistence::fleet::FleetRow {
+        project_path: path,
+        ..fleet_row("thread", None)
+    };
+    let def = FleetDefinition::default();
+    assert!(!super::retrospective_outcome::thread_exists(&persist, &row, &def).await?);
+    super::retrospective_launch::ensure_thread(&persist, &row, &def).await?;
+    assert!(super::retrospective_outcome::thread_exists(&persist, &row, &def).await?);
+    super::retrospective_launch::ensure_thread(&persist, &row, &def).await?;
+    Ok(())
 }

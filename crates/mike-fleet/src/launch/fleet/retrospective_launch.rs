@@ -8,6 +8,7 @@ use crate::launch::{LaunchError, ServerOpenRequest};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::NewRun;
+use crate::store::persistence::work_threads::{CheckpointInput, MetaUpdate};
 
 const FINDINGS_TOOLS: &[&str] = &[
     "Read",
@@ -54,7 +55,7 @@ pub fn args(def: &FleetDefinition, job: &Job) -> Vec<String> {
         args.extend([
             "--strict-mcp-config".to_string(),
             "--setting-sources".to_string(),
-            String::new(),
+            "user".to_string(),
             "--tools".to_string(),
             "Read,Glob,Grep,Bash".to_string(),
             "--permission-mode".to_string(),
@@ -126,6 +127,51 @@ pub fn prompt(row: &FleetRow, def: &FleetDefinition, job: &Job) -> String {
     )
 }
 
+pub(super) async fn ensure_thread(
+    persist: &PersistHandle,
+    row: &FleetRow,
+    def: &FleetDefinition,
+) -> Result<(), LaunchError> {
+    let failed = |err: String| LaunchError::Failed(err);
+    if super::retrospective_outcome::thread_exists(persist, row, def)
+        .await
+        .map_err(|err| failed(err.to_string()))?
+    {
+        return Ok(());
+    }
+    let project = persist
+        .launch()
+        .resolve_work_thread_project(&row.project_path)
+        .await
+        .map_err(|err| failed(err.to_string()))?
+        .ok_or_else(|| {
+            failed(format!(
+                "no project is registered for {}, so the `{}` work thread cannot be created",
+                row.project_path, def.retrospective.thread
+            ))
+        })?;
+    persist
+        .launch()
+        .checkpoint_work_thread(
+            project.id,
+            &CheckpointInput {
+                slug: &def.retrospective.thread,
+                tldr: "Fleet runs: records, debriefs and what the next fleet changes",
+                state: Default::default(),
+                session_uuid: None,
+                commit_sha: None,
+                contribution: None,
+                meta: MetaUpdate {
+                    title: Some("Fleet runs"),
+                    ..Default::default()
+                },
+            },
+        )
+        .await
+        .map(|_| ())
+        .map_err(|err| failed(err.to_string()))
+}
+
 pub async fn launch(
     state: &BaseState,
     persist: &PersistHandle,
@@ -139,6 +185,7 @@ pub async fn launch(
             "retrospective authorization is incomplete: {missing:?}"
         )));
     }
+    ensure_thread(persist, row, &def).await?;
     persist
         .launch()
         .upsert_run(&NewRun {
