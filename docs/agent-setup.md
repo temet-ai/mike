@@ -82,7 +82,7 @@ If a command is not found, the install folder is not on `PATH` (for an archive i
 
 1. **A PostgreSQL that mike runs in Docker** (recommended, if `docker info` worked). History lasts, mike
    manages the container, and it is reachable only from this machine. The first run downloads and
-   builds a database image, which can take a few minutes.
+   builds a database image; tell the person it is working while that runs.
 2. **A PostgreSQL the person already runs.** It must be PostgreSQL 19 with the `vector` extension.
    Ask for the connection URL, write it to a file only they can read, and never put the URL or its
    password on a command line:
@@ -186,7 +186,7 @@ reranker do not stop capture; mention them in one line, do not fix them. `mike m
 nothing and needs mike to be running; with no mike running it says the backend is unavailable.
 
 If a port check fails because mike is not running, start it: `mike service restart` if you installed
-the service, otherwise `mike claude` in step 7 starts it.
+the service; otherwise the `mike claude` run below starts it.
 
 Then show that a session is captured. Ask the person to open a **new** terminal in a project folder and
 run `mike claude` (or `cc`), type one short prompt, and open <http://localhost:9990>. Under
