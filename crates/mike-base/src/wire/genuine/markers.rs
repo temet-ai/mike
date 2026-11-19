@@ -29,3 +29,7 @@ pub const WORKFLOW_SUBAGENT_MARKERS: [&str; 2] = [
 ];
 
 pub const WORKFLOW_HARNESS_USER_PREFIX: &str = "[Workflow harness —";
+
+pub const AGENT_LABEL_TASK_PREFIX: &str = "<task>";
+
+pub const AGENT_LABEL_INSTRUCTION: &str = "Describe the agent's most recent action";

@@ -31,6 +31,9 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
         &crate::memory_keeper::health::snapshot(),
     );
     let prompt_cache = crate::cache_breaks::health::capability(&state).await;
+    let thread_protocol = crate::cache_breaks::thread_protocol::capability(&state).await;
+    let thread_delta_correction =
+        crate::cache_breaks::thread_protocol::correction_capability(&state).await;
 
     Json(CapabilitiesResponse {
         capabilities: vec![
@@ -49,6 +52,8 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
             db_cost,
             memory_keeper,
             prompt_cache,
+            thread_protocol,
+            thread_delta_correction,
         ],
     })
 }

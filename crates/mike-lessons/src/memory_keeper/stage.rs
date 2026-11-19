@@ -23,6 +23,10 @@ impl RequestStage for MemoryKeeperStage {
         STAGE
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.state.feature_toggle_overlay.load().memory_keeper
             && is_session_own_lane(ctx)

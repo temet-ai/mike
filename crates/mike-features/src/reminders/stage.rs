@@ -73,6 +73,10 @@ impl RequestStage for SelfIdentityStage {
         "self_identity"
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.session_toggles.self_identity_reminder && is_session_own_lane(ctx) && !ctx.is_tool_loop
     }
@@ -151,6 +155,10 @@ pub struct RemindersStage;
 impl RequestStage for RemindersStage {
     fn name(&self) -> &'static str {
         "reminders"
+    }
+
+    fn needs_whole_history(&self) -> bool {
+        true
     }
 
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {

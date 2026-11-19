@@ -23,6 +23,10 @@ impl RequestStage for AgentLessonsStage {
         "agent_lessons"
     }
 
+    fn needs_whole_history(&self) -> bool {
+        true
+    }
+
     fn enabled(&self, ctx: &StageContext<'_>) -> bool {
         ctx.session_toggles.agent_lessons && matches!(ctx.turn_origin, TurnOrigin::Subagent)
     }

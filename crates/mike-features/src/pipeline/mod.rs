@@ -203,6 +203,10 @@ pub trait RequestStage: Send + Sync {
 
     fn enabled(&self, ctx: &StageContext<'_>) -> bool;
 
+    fn needs_whole_history(&self) -> bool {
+        false
+    }
+
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody);
 }
 
@@ -283,11 +287,18 @@ pub async fn run(stages: &[Box<dyn RequestStage>], ctx: &StageContext<'_>, body:
         crate::explained::observe_body(ctx.session_id, body.body());
     }
     for stage in stages {
-        if stage.enabled(ctx) {
-            stage.apply(ctx, body).await;
+        if !stage.enabled(ctx) {
+            continue;
         }
+        if stage.needs_whole_history() && !body.earlier().is_complete() {
+            body.record_unchanged(stage.name(), stage.name(), HISTORY_UNKNOWN);
+            continue;
+        }
+        stage.apply(ctx, body).await;
     }
 }
+
+pub const HISTORY_UNKNOWN: &str = "history_unknown";
 
 #[cfg(test)]
 pub mod stage_body_tests;

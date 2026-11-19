@@ -28,6 +28,7 @@ fn only_calls_that_resend_the_session_tool_list_say_so() {
         TurnOrigin::QuotaProbe,
         TurnOrigin::MonitorSidecar,
         TurnOrigin::WebFetchSidecar,
+        TurnOrigin::AgentLabelSidecar,
     ] {
         assert!(!origin.resends_the_session_tool_list(), "{origin}");
     }
@@ -46,6 +47,7 @@ fn all_turn_origins() -> Vec<TurnOrigin> {
         TurnOrigin::WebFetchSidecar,
         TurnOrigin::WorkflowSubagent,
         TurnOrigin::NextInputSuggestionSidecar,
+        TurnOrigin::AgentLabelSidecar,
     ];
     for v in &all {
         match v {
@@ -59,7 +61,8 @@ fn all_turn_origins() -> Vec<TurnOrigin> {
             | TurnOrigin::CountTokensSidecar
             | TurnOrigin::WebFetchSidecar
             | TurnOrigin::WorkflowSubagent
-            | TurnOrigin::NextInputSuggestionSidecar => {}
+            | TurnOrigin::NextInputSuggestionSidecar
+            | TurnOrigin::AgentLabelSidecar => {}
         }
     }
     all

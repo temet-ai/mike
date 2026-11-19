@@ -13,6 +13,7 @@ pub enum TurnOrigin {
     WebFetchSidecar,
     WorkflowSubagent,
     NextInputSuggestionSidecar,
+    AgentLabelSidecar,
 }
 
 impl fmt::Display for TurnOrigin {
@@ -29,6 +30,7 @@ impl fmt::Display for TurnOrigin {
             Self::WebFetchSidecar => write!(f, "web_fetch_sidecar"),
             Self::WorkflowSubagent => write!(f, "workflow_subagent"),
             Self::NextInputSuggestionSidecar => write!(f, "next_input_suggestion_sidecar"),
+            Self::AgentLabelSidecar => write!(f, "agent_label_sidecar"),
         }
     }
 }
@@ -43,7 +45,8 @@ impl TurnOrigin {
             | Self::MonitorSidecar
             | Self::CountTokensSidecar
             | Self::WebFetchSidecar
-            | Self::NextInputSuggestionSidecar => false,
+            | Self::NextInputSuggestionSidecar
+            | Self::AgentLabelSidecar => false,
         }
     }
 
@@ -59,7 +62,8 @@ impl TurnOrigin {
             | Self::AdvisorSidecar
             | Self::QuotaProbe
             | Self::MonitorSidecar
-            | Self::WebFetchSidecar => false,
+            | Self::WebFetchSidecar
+            | Self::AgentLabelSidecar => false,
         }
     }
 }

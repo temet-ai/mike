@@ -120,6 +120,7 @@ pub(super) fn request_actor(
             | "count_tokens_sidecar"
             | "web_fetch_sidecar"
             | "next_input_suggestion_sidecar"
+            | "agent_label_sidecar"
     ) {
         actor(
             session,
