@@ -323,6 +323,41 @@ To remove a lesson outright, ask Claude to call `delete_lesson` with its id from
 `list_lessons`. There is no delete button on the page; deleting is permanent, unlike an
 archive.
 
+### Check search telemetry coverage before judging memory
+
+Search-event use marks, search grades and ranking-tuner outcomes describe the events that
+were recorded and eligible for processing, not every lookup a session performed. They are
+separate from the supplied-lesson verdicts above. An outer `ask` tool call can perform zero,
+one or several inner lookups; its call count is not an expected search-event count.
+
+In source checked at `dfb064e2` on 19 November 2026:
+
+- Conversation search and raw-text search record an event only when a caller value is
+  supplied. Knowledge search and similar-turn recall can record without a caller, leaving
+  session attribution absent. Recording is asynchronous and needs persistence; a successful
+  search response does not itself prove its event was stored.
+- The event recorder tries to associate a supplied session with a matching captured tool
+  call from the last two minutes, otherwise its newest captured request. Later attribution
+  considers existing sessionless events from the last 24 hours, matching the query and
+  tool-name suffix to a captured call in the preceding 60 seconds. It cannot recreate an
+  event that was never recorded, and an outer tool named `ask` is not automatically a
+  matching inner search tool.
+- Use marking needs both session and request attribution. The current search-grading query
+  selects finalized `search_project_knowledge` events with a session/project, not every
+  search type. Tuning then uses grades in its configured lookback window. These eligibility
+  rules can make the measured population unrepresentative of everyday session use.
+
+[Issue #420](https://github.com/temet-ai/mike/issues/420) reports missing caller-attributed
+lookup telemetry behind `ask`. Its observed counts and proposed fix have not been
+independently reproduced or verified as deployed for this guide. Do not conclude that
+memory was unused, all searches were absent, or ranking is optimal from a low used share,
+missing grades or a `no_change` tuning result alone.
+
+For a specific investigation, compare the outer call with its actual lookup routes, query,
+time and verified caller session, then inspect whether corresponding events have session
+and request attribution before interpreting use or grade results. Do not invent a caller
+UUID to fill a gap. Keep queries and returned content private when sharing diagnostics.
+
 ## Turn lessons into skills and rules
 
 When a project has two or more accepted lessons on the same topic, mike can draft a Claude
