@@ -32,15 +32,6 @@ deploy_build_needed() {
     return 1
 }
 
-# deploy_tree_dirty <repo>: true when tracked files differ from HEAD, else false.
-deploy_tree_dirty() {
-    if [[ -n "$(git -C "$1" status --porcelain --untracked-files=no 2>/dev/null)" ]]; then
-        echo true
-    else
-        echo false
-    fi
-}
-
 # deploy_build_cache <mbx_path>: mbx when an mbx binary was found and MIKE_DEPLOY_BUILD_CACHE is
 # not cargo; else cargo.
 deploy_build_cache() {

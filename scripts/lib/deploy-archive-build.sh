@@ -6,7 +6,7 @@
 #
 # <cargo target> is <target>.<glibc> for a cargo-zigbuild cross build. It builds the infra
 # profile through the mbx cache into target/mbx-deploy-<target>, on half the processors at
-# the lowest priority and under the machine's build lock, so a commit restores every unit it
+# the lowest priority, so a commit restores every unit it
 # did not change. mike compiles with the fixed mbx identity and is then stamped with HEAD
 # (scripts/lib/stamp_build_identity.py, built_at from SOURCE_DATE_EPOCH). mike-mcp has no
 # stamp slot and depends on no workspace crate, so it compiles with the commit's identity:
@@ -41,11 +41,11 @@ else
 fi
 
 started=$SECONDS
-CARGO_BUILD_JOBS="$jobs" "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike 8>&-
+CARGO_BUILD_JOBS="$jobs" "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike
 (
   unset MIKE_BUILD_CACHE
   CARGO_BUILD_JOBS="$jobs" MIKE_BUILD_IDENTITY=git SOURCE_DATE_EPOCH="$epoch" \
-    "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike-mcp 8>&-
+    "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike-mcp
 )
 echo "==> Compiled mike and mike-mcp ($jobs jobs) in $((SECONDS - started))s"
 

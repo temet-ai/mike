@@ -27,8 +27,7 @@
 # .claude/worktrees/release-<target>, which keeps its build directory between
 # runs. The compile runs as scripts/cx's builds do (scripts/lib/heavy-build.sh): in its
 # own scope under background.slice, at nice 19 and ionice idle, on half the processors
-# (MIKE_BUILD_JOBS overrides), holding the machine's build lock, so it waits behind
-# another session's build instead of competing with it. Started over ssh it lands in
+# (MIKE_BUILD_JOBS overrides). Started over ssh it lands in
 # the same slice, because the ssh login reaches the user's systemd manager.
 set -euo pipefail
 
@@ -157,7 +156,7 @@ release_args=(--target "$target" ${glibc:+--glibc "$glibc"})
 {
   cargo fetch --locked
   (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
-  "${low_priority[@]}" env CI=true scripts/release.sh "${release_args[@]}" 8>&-
+  "${low_priority[@]}" env CI=true scripts/release.sh "${release_args[@]}"
 } >"$log" 2>&1 || die "the build failed; see $log"
 
 candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"

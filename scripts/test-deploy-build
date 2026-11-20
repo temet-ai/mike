@@ -90,21 +90,6 @@ for sub in fmt metadata tree run doc ""; do
     if heavy_build_is_heavy "$sub"; then bad "${sub:-<none>} is exempt"; else ok "${sub:-<none>} is exempt"; fi
 done
 
-# ── deploy_tree_dirty ────────────────────────────────────────────────────────
-if command -v git >/dev/null 2>&1; then
-    repo="$scratch/repo"
-    git init -q "$repo"
-    printf 'a\n' >"$repo/f"
-    git -C "$repo" add f
-    git -C "$repo" -c user.name=t -c user.email=t@example.invalid commit -q -m one
-    printf 'u\n' >"$repo/untracked"
-    eq "untracked file only: clean" false "$(deploy_tree_dirty "$repo")"
-    printf 'b\n' >"$repo/f"
-    eq "tracked change: dirty" true "$(deploy_tree_dirty "$repo")"
-else
-    skip "deploy_tree_dirty (git is missing)"
-fi
-
 # ── deploy-proxy.sh wiring ───────────────────────────────────────────────────
 deploy="$root/scripts/deploy-proxy.sh"
 if grep -q 'stamp_build_identity.py" "${STAGED_BIN}"' "$deploy"; then

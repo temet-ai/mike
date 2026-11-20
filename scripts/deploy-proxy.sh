@@ -78,10 +78,11 @@
 # THE BUILD — cached, at the lowest priority, and only when HEAD is not already live.
 # ----------------------------------------------------------------------------------
 # When the live binary was deployed from HEAD with the same profile (.deploy/mike.deployed.commit
-# and .deploy/mike.deployed.profile), reports HEAD on --build-info, and the tree has no tracked
-# change, there is nothing to build: the live binary is staged as it is, and the smart-skip
-# below leaves the proxy alone (--force still cuts over to it, which re-cuts a degraded proxy).
-# Otherwise mike is built through the mbx cache into <target>/mbx-deploy under
+# and .deploy/mike.deployed.profile) and reports HEAD on --build-info, there is nothing to
+# build: the live binary is staged as it is, and the smart-skip below leaves the proxy alone
+# (--force still cuts over to it, which re-cuts a degraded proxy). Otherwise the commit HEAD
+# named when the deploy started is checked out in .claude/worktrees/deploy (uncommitted edits
+# in this checkout are not deployed) and mike is built there through the mbx cache into <target>/mbx-deploy under
 # `nice -n 19 ionice -c 3`: every crate compiles with a fixed identity, so units that did not
 # change restore from the store, and scripts/lib/stamp_build_identity.py then writes the commit
 # into the staged copy. A staged binary whose --build-info does not report HEAD is refused before
@@ -468,9 +469,12 @@ if ${USE_SERVICE}; then
     LIVE_BIN="${SERVICE_BIN}"
 fi
 HEAD_SHA="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || true)"
+# The build compiles HEAD_SHA in a worktree of its own, so commits, pulls and edits in this
+# checkout while the build runs never change what is built.
+BUILD_TREE="${PROJECT_ROOT}"
 BUILD_NEEDED="true"
 if [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" ]] \
-    && ! deploy_build_needed "${HEAD_SHA}" "$(deploy_tree_dirty "${PROJECT_ROOT}")" "${BUILD_PROFILE}" \
+    && ! deploy_build_needed "${HEAD_SHA}" false "${BUILD_PROFILE}" \
         "$(cat "${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true)" \
         "$(cat "${DEPLOY_DIR}/mike.deployed.profile" 2>/dev/null || true)" \
         "$(deploy_build_info_sha "${LIVE_BIN}")"; then
@@ -486,6 +490,17 @@ if [[ "${BUILD_NEEDED}" == "false" ]]; then
     BUILT_BIN="${LIVE_BIN}"
 else
     BUILD_JOBS="$(heavy_build_jobs)"
+    if [[ -n "${HEAD_SHA}" ]]; then
+        BUILD_TREE="${PROJECT_ROOT}/.claude/worktrees/deploy"
+        if [[ -e "${BUILD_TREE}/.git" ]]; then
+            git -C "${BUILD_TREE}" checkout -q --detach --force "${HEAD_SHA}"
+            git -C "${BUILD_TREE}" clean -fdq
+        else
+            mkdir -p "$(dirname "${BUILD_TREE}")"
+            git -C "${PROJECT_ROOT}" worktree add -q --detach "${BUILD_TREE}" "${HEAD_SHA}"
+        fi
+        echo "==> Building ${HEAD_SHA:0:12} in ${BUILD_TREE}"
+    fi
     echo "==> Building mike ${RELEASE_FLAG:+(release) }through ${BUILD_CACHE} at the lowest priority (${LOW_PRIORITY[*]}), ${BUILD_JOBS} jobs"
     # Build against the committed .sqlx offline cache — this script runs with no
     # DATABASE_URL (only MIKE_DATABASE_URL, read at runtime), so without offline
@@ -499,16 +514,20 @@ else
         # which must not reach the smoke, cutover or rollback processes.
         BUILT_BIN="${TARGET_DIR}/mbx-deploy/${BUILD_PROFILE}/mike"
         (
-            prepare_mbx_build_cache "${PROJECT_ROOT}" "${TARGET_DIR}/mbx-deploy"
+            cd "${BUILD_TREE}"
+            prepare_mbx_build_cache "${BUILD_TREE}" "${TARGET_DIR}/mbx-deploy"
             CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
-                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike 8>&- 9>&- \
+                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike 9>&- \
                 2> >(grep -vE '^[[:space:]]*(Compiling|Fresh|Checking) |^mbx\[progress\]' >&2)
         )
     else
         ensure_build_toolchain
         # MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
-        MIKE_BUILD_IDENTITY=git CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
-            "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 8>&- 9>&-
+        (
+            cd "${BUILD_TREE}"
+            MIKE_BUILD_IDENTITY=git CARGO_TARGET_DIR="${TARGET_DIR}" CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+                "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 9>&-
+        )
     fi
     echo "==> Build OK in $(( SECONDS - BUILD_STARTED ))s"
 fi
@@ -521,7 +540,7 @@ cp "${BUILT_BIN}" "${STAGED_BIN}"
 chmod +x "${STAGED_BIN}"
 echo "==> Staged binary -> ${STAGED_BIN}"
 if [[ "${BUILD_NEEDED}" == "true" && "${BUILD_CACHE}" == "mbx" ]]; then
-    echo "==> Stamped build identity: $(python3 "${SCRIPT_DIR}/lib/stamp_build_identity.py" "${STAGED_BIN}" --repo "${PROJECT_ROOT}")"
+    echo "==> Stamped build identity: $(python3 "${SCRIPT_DIR}/lib/stamp_build_identity.py" "${STAGED_BIN}" --repo "${BUILD_TREE}")"
 fi
 STAGED_SHA="$("${STAGED_BIN}" --build-info | grep -oE '"source_sha"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' || true)"
 if [[ -n "${HEAD_SHA}" && "${STAGED_SHA}" != "${HEAD_SHA}" ]]; then
@@ -775,7 +794,7 @@ if wait_healthy "${INSPECT_ADDR}" "${NEW_PID}" "new proxy"; then
         ensure_stack_units_running
     fi
     refresh_mike_cli || true
-    git -C "${PROJECT_ROOT}" rev-parse HEAD >"${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true
+    printf '%s\n' "${HEAD_SHA}" >"${DEPLOY_DIR}/mike.deployed.commit"
     printf '%s\n' "${BUILD_PROFILE}" >"${DEPLOY_DIR}/mike.deployed.profile"
     echo
     echo "==> Cutover complete. New proxy is live and healthy (pid ${NEW_PID})."
