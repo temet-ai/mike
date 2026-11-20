@@ -3,7 +3,7 @@
 # (build, check, test, clippy, nextest, and the aliases b, c, t) or cargo-nextest directly.
 #
 # scripts/cx sends those through the shared mbx store at the lowest priority, on at most half
-# the processors and one heavy build at a time on the machine (scripts/lib/heavy-build.sh).
+# the processors (scripts/lib/heavy-build.sh).
 # A raw `cargo build` skips all of it: in a new worktree it compiles everything cold, and beside
 # another session's build it overloads the machine (2026-11-13: load 16 on 16 cores, 83°C,
 # 12 GB in swap). make, scripts/lint-rust, the push hook and scripts/deploy-proxy.sh call cargo

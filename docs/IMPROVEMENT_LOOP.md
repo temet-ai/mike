@@ -167,7 +167,7 @@ call limiter, the proposer logs it at info level at most once an hour per pass a
 `llm_role_health` row on the home page names the pass, the time and the setting to raise.
 
 The whole thing sits behind the feature toggle `judge_lessons` (default **off** — it sends turn
-text to a model, so the default-off-mutation-and-egress rule applies;
+text to a model, so the default-off rule for egress applies;
 `feature_toggles/mod.rs`). Turning it on is the operator's choice; the toggle's default stays off.
 
 ## 3. Approving a candidate, or a directive proposal

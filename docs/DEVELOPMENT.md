@@ -14,10 +14,8 @@ the inspect API, and the SPA already run locally and covers the loop you use whi
 
 ## Dev loop
 
-Make the change, run one narrow check of what you changed, commit. The pre-push hook runs
-fmt, clippy, `scripts/lint-rust` and `scripts/test-area` (the tests of every area the push
-changed, in every tier), and each crate's whole fast tier only for a change no area owns, so
-run `git push` in the background. Do not run them yourself per change. The full suite runs
+Make the change, check the crate you changed (`scripts/cx clippy -p <crate> --all-targets` and the module's tests), commit, push to `main`. The pre-push hook compiles nothing: it runs
+gitleaks, semgrep, `crate-plan`, `schema-plan` and the `lint-rust` suppression, architecture and log-field checks. Clippy and every test tier run
 nightly on one machine (`scripts/nightly-tests`, the `mike-dev-nightly-tests` systemd user
 timer, which `start-proxy.sh` enables where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`), and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
 what runs when.
@@ -31,7 +29,7 @@ what runs when.
 The integration-test sources compile through a handful of harnesses (`proxy`, `integration`,
 `e2e`, `cli`, `schema`, `reminder_on_token` and the `*_contracts` / `release_*` targets in
 `crates/mike/Cargo.toml`), so a filter picks one concern.
-`scripts/test-suite fast|all` exist for the landing gate, not the inner loop.
+`scripts/test-suite fast|all` are not part of the inner loop.
 
 Other useful entry points:
 
@@ -46,8 +44,7 @@ Other useful entry points:
 
 When mbx is installed, `scripts/cx` sends `check`, `clippy`, `test`, `nextest` and `build`
 through it into `target/mbx-<session>`, and identical compiled units from any earlier mbx build
-on the machine are restored instead of rebuilt. Heavy builds queue one at a time on the
-machine's build lock and run at the lowest priority on half the processors
+on the machine are restored instead of rebuilt. Heavy builds run side by side at the lowest priority on half the processors
 (`scripts/lib/heavy-build.sh`). `build` with `MIKE_BUILD_IDENTITY=git`, `scripts/sqlx-prepare`
 and any named `CARGO_TARGET_DIR` stay on plain cargo; `MIKE_BUILD_CACHE=cargo` or `=mbx` overrides the choice,
 and plain cargo is refused in an `mbx-*` directory. mbx is never combined with sccache. The
