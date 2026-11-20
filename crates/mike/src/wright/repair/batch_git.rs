@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use super::batch_land::Lost;
 use super::perf::{Evidence, Perf, clear, evidence, step_error, with_block};
 use super::prepare::{as_wright, stage_all};
 use super::runner::{Cmd, CommandRunner, Program, StepError, checked, git, output};
@@ -7,6 +8,38 @@ use super::worktree::{REMOTE, RepoLayout};
 use crate::store::persistence::wright::BatchFix;
 
 const MAX_DROPS: usize = 64;
+const MAIN_SCAN: &str = "--max-count=400";
+const FIX_TRAILER: &str = "--grep=^Wright-(Repair|Followup):";
+
+pub(super) async fn fixes_on_main<R: CommandRunner>(
+    runner: &R,
+    worktree: &Path,
+    main: &str,
+) -> Vec<Commit> {
+    let args = ["log", MAIN_SCAN, "-E", FIX_TRAILER, LOG_FORMAT, main];
+    match git(runner, worktree, &args).await {
+        Ok(raw) => parse_log(&raw),
+        Err(e) => {
+            tracing::warn!(error = %e, "wright repair: main's fix commits could not be read");
+            Vec::new()
+        }
+    }
+}
+
+pub(super) fn already_on_main(
+    lost: Vec<Lost>,
+    on_main: &[Commit],
+) -> (Vec<(BatchFix, String)>, Vec<Lost>) {
+    let mut merged = Vec::new();
+    let mut rest = Vec::new();
+    for item in lost {
+        match locate(on_main, &item.fix) {
+            Some(commit) => merged.push((item.fix, commit.sha.clone())),
+            None => rest.push(item),
+        }
+    }
+    (merged, rest)
+}
 pub(crate) const LOG_FORMAT: &str = "--format=%x1e%H%x1f%B";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

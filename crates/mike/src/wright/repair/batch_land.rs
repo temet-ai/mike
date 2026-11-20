@@ -321,14 +321,19 @@ where
             .wright_fix_batch_fixes(self.row.id)
             .await?;
         let (kept, lost) = split_fixes(fixes, &commits, &dropped, main);
+        let on_main = batch_git::fixes_on_main(runner, &self.path, main).await;
+        let (merged, lost) = batch_git::already_on_main(lost, &on_main);
         self.drop_fixes(&lost).await?;
+        if kept.is_empty() && !merged.is_empty() {
+            return Ok(Rebuilt::Stop(self.settle_merged(&merged, main).await?));
+        }
         if kept.is_empty() {
             let reason = "every fix of the day was dropped, so nothing is left to land".to_owned();
             return Ok(Rebuilt::Stop(
                 self.hold(batch_states::FAILED, reason).await?,
             ));
         }
-        self.remap(&kept).await?;
+        self.remap(&[kept, merged].concat()).await?;
         match batch_git::head(runner, &self.path).await {
             Ok(sha) => Ok(Rebuilt::Ready(Candidate {
                 branch: self.current_branch().to_owned(),
@@ -447,7 +452,7 @@ where
         }
     }
 
-    async fn finish(&self, landed: Landed) -> Result<BatchEnd, PersistError> {
+    pub(super) async fn finish(&self, landed: Landed) -> Result<BatchEnd, PersistError> {
         self.note_landing(&landed).await?;
         let moved = self
             .ctx
