@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use crate::store::RequestStore;
-use crate::store::models::{FailedStreamBlock, RequestId};
+use crate::store::models::{FailedStreamBlock, RequestId, is_fallback};
 use crate::store::persistence::{PersistHandle, StreamBlockRow};
 
 pub async fn write_tool_use_row(
@@ -183,12 +183,16 @@ async fn write_stream_block_row(
 }
 
 async fn persist_block(target: &BlockWriteTarget<'_>, block: &BlockToWrite<'_>) {
-    let Some(handle) = target.persist.as_ref() else {
-        return;
-    };
     let mut hasher = Sha256::new();
     hasher.update(block.content.as_bytes());
     let content_sha256 = hex::encode(hasher.finalize());
+    if is_fallback(target.request_id.as_u64()) {
+        buffer_for_terminal_retry(target, block, content_sha256).await;
+        return;
+    }
+    let Some(handle) = target.persist.as_ref() else {
+        return;
+    };
     if let Err(e) = handle
         .insert_stream_block_row(StreamBlockRow {
             request_id: block.request_id,
@@ -208,17 +212,29 @@ async fn persist_block(target: &BlockWriteTarget<'_>, block: &BlockToWrite<'_>) 
             error = %e,
             "stream block DB insert failed; buffered for terminal ENSURE retry",
         );
-        let failed = FailedStreamBlock {
-            seq_ord: block.seq_ord,
-            block_type: block.block_type.to_string(),
-            content: block.content.to_string(),
-            signature: block.signature.map(str::to_string),
-            wire_tool_use_id: block.wire_tool_use_id.map(str::to_string),
-            content_sha256,
-        };
-        let mut s = target.store.write().await;
-        s.update(&target.request_id, |req| {
-            req.failed_stream_blocks.push(failed);
-        });
+        buffer_for_terminal_retry(target, block, content_sha256).await;
     }
 }
+
+async fn buffer_for_terminal_retry(
+    target: &BlockWriteTarget<'_>,
+    block: &BlockToWrite<'_>,
+    content_sha256: String,
+) {
+    let failed = FailedStreamBlock {
+        seq_ord: block.seq_ord,
+        block_type: block.block_type.to_string(),
+        content: block.content.to_string(),
+        signature: block.signature.map(str::to_string),
+        wire_tool_use_id: block.wire_tool_use_id.map(str::to_string),
+        content_sha256,
+    };
+    let mut s = target.store.write().await;
+    s.update(&target.request_id, |req| {
+        req.failed_stream_blocks.push(failed);
+    });
+}
+
+#[cfg(test)]
+#[path = "block_writer_tests.rs"]
+mod block_writer_tests;
