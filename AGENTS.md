@@ -74,10 +74,7 @@ never with `nohup`. Deploys serialise on `.deploy/deploy.lock`. A deploy never
 starts Storybook: `systemctl --user start mike-stack-storybook` when you need it. Deploy the shared proxy from the main
 checkout only.
 
-**Shipping a change.** Check the crate you changed through `scripts/cx`
-(`scripts/cx clippy -p <crate> --all-targets`, `scripts/cx nextest run -p <crate> -E
-'test(/^<module>::/)'`; frontend `scripts/sb-test <filter>`), commit, push to `main`, then
-deploy every machine at once: `./scripts/start-proxy.sh` on omit,
+**Shipping a change.** Commit, push to `main`, then deploy every machine at once: `./scripts/start-proxy.sh` on omit,
 `ssh mac 'cd ~/projects/temet/mike && git pull -q --ff-only origin main && ./scripts/deploy-proxy.sh --release'`,
 and `scripts/deploy-infra` (deus builds and installs deus and infra). The push hook
 compiles nothing. Clippy and every test tier run nightly on main on omit
