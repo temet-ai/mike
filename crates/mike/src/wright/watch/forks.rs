@@ -62,9 +62,38 @@ impl ColdCause {
     }
 }
 
+const PER_LAUNCH_FLAGS: &[&str] = &["--fork-session", "--remote-control"];
+const PER_LAUNCH_VALUED: &[&str] = &[
+    "--name",
+    "--resume",
+    "--session-id",
+    "--dangerously-load-development-channels",
+];
+
+fn without_per_launch_flags(args: &[Value]) -> Vec<&Value> {
+    let mut kept = Vec::new();
+    let mut skip_value = false;
+    for arg in args {
+        let flag = arg.as_str().unwrap_or_default();
+        if std::mem::take(&mut skip_value) {
+            continue;
+        }
+        if PER_LAUNCH_VALUED.contains(&flag) {
+            skip_value = true;
+            continue;
+        }
+        if !PER_LAUNCH_FLAGS.contains(&flag) {
+            kept.push(arg);
+        }
+    }
+    kept
+}
+
 fn ends_with_template(fork: &Value, template: &Value) -> bool {
     match (fork.as_array(), template.as_array()) {
-        (Some(fork), Some(template)) => fork.ends_with(template),
+        (Some(fork), Some(template)) => {
+            without_per_launch_flags(fork).ends_with(&without_per_launch_flags(template))
+        }
         _ => false,
     }
 }

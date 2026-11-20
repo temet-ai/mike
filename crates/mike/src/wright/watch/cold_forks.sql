@@ -28,6 +28,7 @@ SELECT t.name AS template,
      SELECT r.created_at
        FROM requests.requests r
       WHERE r.session_id = ts.id
+        AND r.turn_origin_id IN (1, 6)
         AND r.created_at < first_req.created_at
       ORDER BY r.created_at DESC, r.id DESC
       LIMIT 1
