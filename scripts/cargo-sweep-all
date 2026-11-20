@@ -72,7 +72,9 @@ for base in "${roots[@]}"; do
     targets+=("${real}")
     for sub in "${real}"/*/; do
       sub="${sub%/}"
-      [[ -f "${sub}/CACHEDIR.TAG" ]] || continue
+      # A session's mbx folder carries no CACHEDIR.TAG, only cargo's .rustc_info.json.
+      [[ -f "${sub}/CACHEDIR.TAG" ]] ||
+        [[ "$(basename "${sub}")" == mbx-* && -f "${sub}/.rustc_info.json" ]] || continue
       case "${seen}" in *" ${sub} "*) continue ;; esac
       seen="${seen}${sub} "
       targets+=("${sub}")
