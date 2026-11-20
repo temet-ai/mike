@@ -22,10 +22,7 @@ the test binaries goes through the store and nextest only runs them. `build` wit
 `MIKE_BUILD_IDENTITY=git` (`make install`, the release scripts) stays on plain cargo,
 which embeds the commit through build.rs; the deploy build stamps it instead (below).
 Every uncached subcommand stays on plain cargo, because mbx runs what it does not cache
-as plain cargo inside its own directory. Agents check and test through `scripts/cx
-check` and `scripts/cx test` (a project hook refuses raw cargo builds), a deploy runs
-once per landed change, not after each step, and heavy builds run side by side
-at the lowest priority on half the processors
+as plain cargo inside its own directory. Heavy builds run at the lowest priority on half the processors
 (`scripts/lib/heavy-build.sh`). Plain cargo is refused
 in an `mbx-*` directory, and `MIKE_BUILD_CACHE=cargo` forces plain cargo. What
 follows describes the explicit form, `MIKE_BUILD_CACHE=mbx` with a named directory,

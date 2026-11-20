@@ -471,12 +471,6 @@ and free-form data. Repeating the same promotion is idempotent; a changed destin
 is never silently overwritten. Promotion preserves the note's status and does not
 convert a proposal into an accepted decision.
 
-## Verification
-
-Collector tests: `PYTHONPATH=scripts python -m unittest knowledge.test_collector`.
-Persistence tests: `scripts/cx test -p mike --lib project_knowledge` with a disposable
-`MIKE_TEST_ADMIN_URL`. MCP transport tests: `scripts/cx test -p mike-mcp --lib knowledge`.
-Run manifest coverage when adding or changing knowledge tools/routes.
 
 ## In the web UI
 

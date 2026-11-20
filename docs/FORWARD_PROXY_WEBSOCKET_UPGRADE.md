@@ -225,12 +225,6 @@ Existing tests exercise the distinct paths:
 | `dispatch_routed_event_stream_replayable_failure_marks_health_down_and_returns_502` | `src/route/mod.rs` | Pre-send event-stream failure marks Down and returns 502 without replay |
 | `is_upgrade_request_detects_websocket_shape` / `is_upgrade_request_rejects_plain_request` | `src/route/upgrade.rs` | Upgrade detector behavior |
 
-Run the forward-proxy suite without Postgres:
-
-```bash
-scripts/cx nextest run -p proxy-forward
-```
-
 When changing the bridge, retain upgrade detection before buffering, claim the
 client slot before consuming the request, preserve handshake headers, and
 spawn the tracked bridge before returning 101. Keep the event-stream

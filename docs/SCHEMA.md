@@ -6690,7 +6690,7 @@ every Wright fix.
 
 One row per UTC day of Wright fixes (migration `20261118100000_wright_fix_batches.sql`). Repair runs and
 issue fixers commit to `branch` (`wright/fixes-YYYY-MM-DD`) in `worktree` on the fix host
-(`machine_uuid`); after the day ends the branch is rebased, gated once by the push hook, opened as one
+(`machine_uuid`); after the day ends the branch is rebased, opened as one
 pull request and squash-merged. Read at `GET /api/wright/fix-batches`.
 
 | Column | Type | Purpose |

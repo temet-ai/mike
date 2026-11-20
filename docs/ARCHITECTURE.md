@@ -1581,10 +1581,6 @@ Line numbers are deliberately absent — an earlier version of this table cited 
 
 The RAW→DAILY→LONG_TERM consolidation pipeline (automatic lesson promotion and merging, Phase 15) is implemented in `lesson_worker/` — see the "Proxy-Native Agent Memory System" decision above for the staged design.
 
-## 17. Development Session Hooks
-
-Contributor-harness material rather than runtime architecture: the Claude Code hooks used while working *on* this repository belong in [`DEVELOPMENT.md`](DEVELOPMENT.md), not here.
-
 ## 18. Launch Domain
 
 `crates/mike-launch/src/launch/` is mike's own terminal launcher: it opens a terminal surface in a folder and starts a fresh Claude Code session in it, wired to the proxy, with a preassigned session id. Reached three ways — the `mike spawn` CLI verbs, the `POST/GET/DELETE /api/launches` inspect routes, and the `spawn_session`/`list_launches`/`kill_session` MCP tools, which are HTTP clients of those routes. They do not share an `AppState`: `mike spawn` runs the launch in its own process with its own `ProxyConfig` and `Runner` and never calls the inspect API, while the API path runs the same launch code inside the running server. What they share is the Postgres-backed `launch.*` ledger, which is why a launch made through any one of them is visible through the others. The CLI also carries verbs the API does not — `warm`, `fork`, `templates` and `reap` are CLI-only. Full reference: [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md).

@@ -78,7 +78,7 @@ sidecar listeners on loopback as well.
 
 ## Local regression checks
 
-Run `scripts/cx test -p mike --test integration local_access` for policy tables
+The `local_access` integration tests hold policy tables
 and real-socket tests of both inspect and embedded UI ports. The tests use an
 in-memory capture store and synthetic upstream data, without a live database.
 They cover rejected REST access and upgrade attempts, working native WebSockets,

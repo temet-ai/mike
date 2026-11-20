@@ -26,9 +26,6 @@ e2e tests require a reachable Postgres admin database at `MIKE_TEST_ADMIN_URL`; 
 
 | Step | Command | Why |
 |---|---|---|
-| 1. Warm the crate cache | `cargo build --all-targets` | Pulls every dependency **and dev-dependency** (wiremock, proptest, nextest deps) into `~/.cargo/registry`. |
-| 2. Confirm tooling | `cargo nextest --version && rust-analyzer --version` | Both are local binaries; just verify they exist. |
-| 3. Sanity-check offline | `CARGO_NET_OFFLINE=true cargo build --all-targets --offline` | If this succeeds, you are ready. It fails *fast* if a crate is missing. |
 | 4. Cache the database images | `docker pull` the images `mike database provision` and `scripts/test-db/up.sh` use | Provisioning and the test database need the images already local. |
 
 The `.sqlx/` query cache is committed. sqlx compile-time macros verify against
@@ -41,10 +38,6 @@ DB env var, and there is no `DATABASE_URL` in this repo to set.
 
 | Activity | Command | Needs |
 |---|---|---|
-| Compile workspace | `cargo build --all --offline` | nothing |
-| Lint | `make lint` | nothing |
-| Format | `cargo fmt` | nothing |
-| **No-database tests** | `make test` (`cargo nextest run --all`, add `--offline` to cargo) | nothing — wiremock + raw TCP on localhost |
 | Run the proxy offline | `mike database provision` (pinned image already cached), then `mike serve` | a local Postgres — see [below](#running-the-proxy-offline-local-db-fallback) |
 
 ---
@@ -102,21 +95,6 @@ under `crates/mike/tests/proxy/` show the request and response shapes to serve. 
 (`:9989`) works normally; capture needs the same reachable database as any other offline run (see
 [above](#running-the-proxy-offline-local-db-fallback)) unless you launch the binary directly with
 `MIKE_PERSIST_ENABLED=0` for ephemeral in-memory capture.
-
----
-
-## Debugging a single test under breakpoints
-
-nextest does not attach the debugger to individual tests. For step-through debugging of one
-test, use a plain-`cargo-test` config (RustRover offers a gutter ▷/🐞 icon beside every
-`#[test]` / `#[tokio::test]`), or from the CLI:
-
-```bash
-cargo test --offline -p mike <test_name> -- --nocapture
-```
-
-DB-backed tests will skip when `MIKE_TEST_ADMIN_URL` is unset — that is correct behaviour
-offline.
 
 ---
 

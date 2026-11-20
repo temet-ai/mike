@@ -36,9 +36,6 @@ register. If `~/.local/bin` is not on your `PATH`, the target says so and prints
 add. An installed release carries `mike-mcp` beside `mike`; see
 [`user-guide/install.md`](user-guide/install.md).
 
-Re-run `make install` and restart Claude Code after pulling changes to `crates/mike-mcp/` or
-`crates/mike/`.
-
 ## 2. Register with Claude Code
 
 `mike claude-code mcp` writes the `mike` entry into `~/.claude.json` for you (`--remove` takes it

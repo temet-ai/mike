@@ -41,8 +41,7 @@ Tracked, staged and untracked peer files in the shared checkout are left untouch
 Each slot retains its own ignored build cache. Mike does not copy the shared
 target tree, arbitrary untracked files or `node_modules`. Mike's internal Git
 preparation and verification disable Git hooks command-locally
-(`core.hooksPath=/dev/null`, `launch/fleet/owned_git.rs`); ordinary commit hooks
-are unchanged. Failure output names this boundary.
+(`core.hooksPath=/dev/null`, `launch/fleet/owned_git.rs`). Failure output names this boundary.
 
 Post-run source verification checks the captured SHA and tracked and untracked
 working-tree state (`launch/fleet/gate_source.rs`). Mutation or unavailable
