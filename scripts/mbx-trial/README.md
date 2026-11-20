@@ -80,9 +80,11 @@ and checks without a cutover; `MIKE_DEPLOY_BUILD_CACHE=cargo` returns to plain c
 
 ## Infra deploy builds
 
-infra (aarch64) never builds Rust. `scripts/deploy-infra [--sha <commit>]` builds one
-commit on omit, copies the archives to `infra:~/mike-deploy/<short>/` and runs
-`scripts/deploy-release-build --local` there (`--build-only` stops after the build). It
+infra (aarch64) never builds Rust; deus builds the ARM64 deploy. `scripts/deploy-infra
+[--sha <commit>]`, run on omit, queues the commit on deus and returns; deus runs
+`scripts/deploy-arm-local`, which builds natively (with its own mbx, cargo-zigbuild and
+zig, on all four processors), installs the build on deus, copies the archives to
+`infra:~/mike-deploy/<short>/` and runs `scripts/deploy-release-build --local` there. It
 builds with `scripts/build-local-release aarch64-unknown-linux-gnu --deploy`, which differs
 from a release build in three ways, and only for a deploy:
 
