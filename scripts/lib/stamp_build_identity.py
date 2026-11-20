@@ -71,7 +71,24 @@ def stamp_file(path: str, payload: bytes) -> None:
             os.unlink(tmp)
         raise
     if sys.platform == "darwin":
-        subprocess.run(codesign_command(path), check=True, stdout=subprocess.DEVNULL)
+        sign(path)
+
+
+# The certificate's key sits in the login keychain, which macOS refuses to a session it
+# did not start (ssh, a tmux server older than the login): codesign then fails with
+# errSecInternalComponent. Signing ad hoc instead keeps the deploy going; that build
+# asks for Local Network access again.
+def sign(path: str) -> None:
+    command = codesign_command(path)
+    signed = subprocess.run(command, stdout=subprocess.DEVNULL, check=False)
+    if signed.returncode == 0 or command[3] == "-":
+        signed.check_returncode()
+        return
+    print(f"stamp_build_identity: could not sign with {SIGNING_IDENTITY} (keychain not "
+          "reachable from this session); signing ad hoc, so macOS asks for Local Network "
+          "access again", file=sys.stderr)
+    subprocess.run(["codesign", "--force", "--sign", "-", path], check=True,
+                   stdout=subprocess.DEVNULL)
 
 
 # macOS keeps a privacy grant such as Local Network access only while the binary's
