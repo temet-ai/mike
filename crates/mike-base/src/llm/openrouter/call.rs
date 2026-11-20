@@ -247,6 +247,16 @@ impl OpenRouterClient {
         Some(err)
     }
 
+    fn admit_for(&self, provider: Provider) -> Result<(), LlmError> {
+        let limiter = &self.inner.limiter;
+        let reservation = self.inner.reservation.as_ref();
+        if provider.needs_openrouter_key() {
+            self.require_api_key()?;
+            return limiter.admit(self.inner.role, reservation);
+        }
+        limiter.admit_unbilled(self.inner.role, reservation)
+    }
+
     pub async fn attempt_verdict<T: DeserializeOwned>(
         &self,
         system: &str,
@@ -261,14 +271,7 @@ impl OpenRouterClient {
                 .attempt_local_verdict(&target.model, system, user, schema, live)
                 .await;
         }
-        let limiter = &self.inner.limiter;
-        let reservation = self.inner.reservation.as_ref();
-        if target.provider.needs_openrouter_key() {
-            self.require_api_key()?;
-            limiter.admit(self.inner.role, reservation)?;
-        } else {
-            limiter.admit_unbilled(self.inner.role, reservation)?;
-        }
+        self.admit_for(target.provider)?;
 
         match target.provider {
             Provider::Codex => {

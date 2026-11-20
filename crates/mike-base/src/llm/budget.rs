@@ -65,8 +65,8 @@ impl Default for RoleShares {
     fn default() -> Self {
         Self::from_pcts(RoleSharePcts {
             steerer: 25,
-            session_judge: 20,
-            judge_worker: 25,
+            session_judge: 15,
+            judge_worker: 20,
             lesson_relations: 5,
             lesson_proposer: 10,
             eval: 0,
@@ -190,13 +190,14 @@ mod tests {
     fn default_shares_include_lesson_proposer() {
         let shares = RoleShares::default();
         assert_eq!(shares.pct(LlmRole::Steerer), 25);
-        assert_eq!(shares.pct(LlmRole::SessionJudge), 20);
-        assert_eq!(shares.pct(LlmRole::JudgeWorker), 25);
+        assert_eq!(shares.pct(LlmRole::SessionJudge), 15);
+        assert_eq!(shares.pct(LlmRole::JudgeWorker), 20);
         assert_eq!(shares.pct(LlmRole::LessonRelations), 5);
         assert_eq!(shares.pct(LlmRole::LessonProposer), 10);
         assert_eq!(shares.pct(LlmRole::Eval), 0);
         assert_eq!(shares.pct(LlmRole::Unattributed), 5);
         assert_eq!(shares.pct(LlmRole::Decision), 5);
+        assert_eq!(shares.pct(LlmRole::SideCall), 5);
     }
 
     #[test]
@@ -211,10 +212,12 @@ mod tests {
     }
 
     #[test]
-    fn default_guarantees_leave_five_percent_shared() {
+    fn default_guarantees_leave_ten_percent_shared() {
         let shares = RoleShares::default();
-        for (ceiling, expected) in [(0.70, 0.21), (5.00, 1.50)] {
-            let reach = shares.guaranteed_usd(LlmRole::Steerer, ceiling) + ceiling * 0.05;
+        let guaranteed: u32 = LlmRole::ALL.iter().map(|r| shares.pct(*r)).sum();
+        assert_eq!(guaranteed, 90);
+        for (ceiling, expected) in [(0.70, 0.245), (5.00, 1.75)] {
+            let reach = shares.guaranteed_usd(LlmRole::Steerer, ceiling) + ceiling * 0.10;
             assert!((reach - expected).abs() < 1e-9, "{ceiling}: {reach}");
         }
         assert!((shares.guaranteed_usd(LlmRole::Eval, 5.0)).abs() < 1e-12);

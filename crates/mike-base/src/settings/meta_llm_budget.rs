@@ -11,13 +11,13 @@ pub fn entries() -> Vec<SettingMeta> {
         share_entry(
             "llm.budget.session_judge.share_pct",
             "Budget share: session judge (%)",
-            20,
+            15,
             "The share of every limit above that is guaranteed to the session judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the session judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.judge_worker.share_pct",
             "Budget share: turn judge (%)",
-            25,
+            20,
             "The share of every limit above that is guaranteed to the turn judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the turn judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
