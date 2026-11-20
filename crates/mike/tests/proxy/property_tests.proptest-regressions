@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc cda0166d397a0acf5313ade36cf42847aa2be25a26a23bffd60e01cb6b88e634 # shrinks to header_name = "x-custom-prop-0", header_value = "Aa"
-cc a2fafe0a78762bf2ce9007189d85619b819094661de1816408570214331bedc7 # shrinks to body_content = "F. .g,iJa?qa ..0?PGb..,,s8o?ad.,2njjX76.0! D3?,6HB9.R?.C.NM, ,MnW!,lo6 ,?,"
