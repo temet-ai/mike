@@ -36,11 +36,9 @@ fn names_every_mcp_tool(body: &[u8]) -> bool {
         .chain(head.messages.first().copied())
         .map(|raw| raw.get().as_bytes())
         .collect();
-    super::catalogue().iter().all(|tool| {
-        parts
-            .iter()
-            .any(|part| names_mcp_tool(part, tool.mcp_tool))
-    })
+    super::catalogue()
+        .iter()
+        .all(|tool| parts.iter().any(|part| names_mcp_tool(part, tool.mcp_tool)))
 }
 
 fn names_mcp_tool(body: &[u8], mcp_tool: &str) -> bool {

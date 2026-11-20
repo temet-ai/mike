@@ -67,7 +67,10 @@ fn investigate_finding_with_a_confirmed_cause_and_no_suspected_one_takes_the_con
     let finding = validate(&with("suspected_cause", json!("")), repo.path())
         .map_err(anyhow::Error::msg)?
         .finding;
-    assert_eq!(finding.suspected_cause, "logs.rs reads past the 8 MiB bound");
+    assert_eq!(
+        finding.suspected_cause,
+        "logs.rs reads past the 8 MiB bound"
+    );
     let mut doc = established();
     doc["suspected_cause"] = json!("");
     doc["cause_established"] = json!(false);
