@@ -83,6 +83,7 @@ impl LimiterLimits {
                 eval: share(overlay.llm_budget_eval_share_pct),
                 other: share(overlay.llm_budget_other_share_pct),
                 decision: share(overlay.llm_budget_decision_share_pct),
+                side_call: share(overlay.llm_budget_side_call_share_pct),
             }),
         }
     }

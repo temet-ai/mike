@@ -39,6 +39,7 @@ fn role_at_its_spend_slice_is_refused_while_a_role_with_unused_spend_still_calls
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -73,6 +74,7 @@ fn spend_slice_survives_another_role_borrowing_the_shared_pool() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -102,6 +104,7 @@ fn role_may_borrow_the_unreserved_spend_pool_until_it_is_gone() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -134,6 +137,7 @@ fn spend_check_precedes_the_call_ceiling() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -157,6 +161,7 @@ fn spend_blocked_role_has_no_budget_and_a_recheck_time() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -168,4 +173,55 @@ fn spend_blocked_role_has_no_budget_and_a_recheck_time() {
     let budget = limiter.available(LlmRole::Steerer);
     assert!(budget.is_exhausted());
     assert!(budget.next_slot_in > Duration::ZERO);
+}
+
+fn oversubscribed_shares(side_call: u32) -> RoleShares {
+    RoleShares::from_pcts(RoleSharePcts {
+        steerer: 25,
+        session_judge: 20,
+        judge_worker: 25,
+        lesson_relations: 5,
+        lesson_proposer: 40,
+        eval: 20,
+        other: 5,
+        decision: 5,
+        side_call,
+    })
+}
+
+#[test]
+fn side_call_with_a_share_is_admitted_when_the_other_shares_cover_the_ceiling() {
+    let now = Instant::now();
+    let spend = [(LlmRole::Decision, 0.07)];
+    let unshared = CallLimiter::with_limits(LimiterLimits {
+        daily_spend_ceiling_usd: 5.0,
+        ..limits(1000, 1000, oversubscribed_shares(0))
+    });
+    unshared.set_spend_source(Some(LedgerSink::with(&spend)));
+    assert!(matches!(
+        unshared.admit_at(LlmRole::SideCall, None, now),
+        Err(LlmError::SpendCeilingExceeded { .. })
+    ));
+
+    let shared = CallLimiter::with_limits(LimiterLimits {
+        daily_spend_ceiling_usd: 5.0,
+        ..limits(1000, 1000, oversubscribed_shares(5))
+    });
+    shared.set_spend_source(Some(LedgerSink::with(&spend)));
+    assert!(shared.admit_at(LlmRole::SideCall, None, now).is_ok());
+}
+
+#[test]
+fn unbilled_admission_ignores_the_spend_ceiling_but_keeps_the_call_limits() {
+    let limiter = CallLimiter::with_limits(LimiterLimits {
+        daily_spend_ceiling_usd: 1.0,
+        ..limits(1, 1000, oversubscribed_shares(5))
+    });
+    limiter.set_spend_source(Some(LedgerSink::with(&[(LlmRole::Steerer, 1.0)])));
+    assert!(limiter.admit(LlmRole::SideCall, None).is_err());
+    assert!(limiter.admit_unbilled(LlmRole::SideCall, None).is_ok());
+    assert!(matches!(
+        limiter.admit_unbilled(LlmRole::SideCall, None),
+        Err(LlmError::RateLimited { .. })
+    ));
 }

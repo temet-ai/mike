@@ -144,6 +144,7 @@ fn install_governor(stored: &SettingsOverlay, sink: &Arc<dyn LlmUsageSink>) {
     overlay.llm_budget_judge_worker_share_pct = 0;
     overlay.llm_budget_other_share_pct = 0;
     overlay.llm_budget_eval_share_pct = 0;
+    overlay.llm_budget_side_call_share_pct = 0;
     overlay.llm_budget_lesson_relations_share_pct = 100;
     let shared = Arc::new(ArcSwap::from_pointee(overlay));
     crate::llm::provider::install(shared.clone());

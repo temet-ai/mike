@@ -129,6 +129,9 @@ fn apply_global_llm_row(
         "llm.budget.other.share_pct" => {
             set_i64(&mut overlay.llm_budget_other_share_pct, key, value);
         }
+        "llm.budget.side_call.share_pct" => {
+            set_i64(&mut overlay.llm_budget_side_call_share_pct, key, value);
+        }
         "steerer.model" => set_optional_string(&mut overlay.steerer_model, key, value),
         "steerer.reasoning_effort" => set_string(&mut overlay.steerer_reasoning_effort, key, value),
         "steerer.max_output_tokens" => {

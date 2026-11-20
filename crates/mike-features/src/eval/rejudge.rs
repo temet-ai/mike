@@ -58,9 +58,11 @@ pub fn judge_budget(overlay: &SettingsOverlay) -> JudgeBudget {
         overlay.llm_budget_session_judge_share_pct,
         overlay.llm_budget_judge_worker_share_pct,
         overlay.llm_budget_lesson_relations_share_pct,
+        overlay.llm_budget_lesson_proposer_share_pct,
         overlay.llm_budget_eval_share_pct,
         overlay.llm_budget_other_share_pct,
         overlay.llm_budget_decision_share_pct,
+        overlay.llm_budget_side_call_share_pct,
     ];
     let pct = |v: i64| v.clamp(0, 100) as f64 / 100.0;
     let pool = (100 - shares.iter().sum::<i64>()).max(0);
@@ -247,8 +249,8 @@ mod tests {
             ..SettingsOverlay::default()
         };
         let budget = judge_budget(&overlay);
-        assert!((budget.slice_usd - 1.25).abs() < 1e-9);
-        assert!((budget.pool_usd - 0.75).abs() < 1e-9);
+        assert!((budget.slice_usd - 1.00).abs() < 1e-9);
+        assert!((budget.pool_usd - 0.50).abs() < 1e-9);
     }
 
     #[test]

@@ -48,6 +48,7 @@ pub(super) fn share_pcts(o: &SettingsOverlay) -> SharePcts {
             o.llm_budget_lesson_relations_share_pct,
             o.llm_budget_eval_share_pct,
             o.llm_budget_other_share_pct,
+            o.llm_budget_side_call_share_pct,
         ]
         .into_iter()
         .map(pct)
@@ -62,6 +63,7 @@ pub(super) fn install_governor(overlay: &SettingsOverlay, sink: &Arc<dyn LlmUsag
     o.llm_budget_judge_worker_share_pct = 0;
     o.llm_budget_lesson_relations_share_pct = 0;
     o.llm_budget_other_share_pct = 0;
+    o.llm_budget_side_call_share_pct = 0;
     o.llm_budget_eval_share_pct = 100;
     crate::llm::limiter::install_runtime(Arc::new(ArcSwap::from_pointee(o)), Some(sink.clone()));
 }

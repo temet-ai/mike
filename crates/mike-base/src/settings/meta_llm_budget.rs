@@ -6,25 +6,25 @@ pub fn entries() -> Vec<SettingMeta> {
             "llm.budget.steerer.share_pct",
             "Budget share: steerer (%)",
             25,
-            "The share of every limit above that is guaranteed to the steerer, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the steerer is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            "The share of every limit above that is guaranteed to the steerer, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the steerer is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.session_judge.share_pct",
             "Budget share: session judge (%)",
-            20,
-            "The share of every limit above that is guaranteed to the session judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the session judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            15,
+            "The share of every limit above that is guaranteed to the session judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the session judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.judge_worker.share_pct",
             "Budget share: turn judge (%)",
-            25,
-            "The share of every limit above that is guaranteed to the turn judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the turn judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            20,
+            "The share of every limit above that is guaranteed to the turn judge, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the turn judge is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.lesson_relations.share_pct",
             "Budget share: lesson relations (%)",
             5,
-            "The share of every limit above that is guaranteed to the lesson-relations detector, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the detector is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            "The share of every limit above that is guaranteed to the lesson-relations detector, as a percentage: the per-minute rate limit, the call ceiling and the daily spend ceiling are each split by these shares. Inside its share the detector is never refused because another worker used more than its own; past its share it may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.lesson_proposer.share_pct",
@@ -36,7 +36,7 @@ pub fn entries() -> Vec<SettingMeta> {
             "llm.budget.eval.share_pct",
             "Budget share: evaluation (%)",
             0,
-            "The share of every limit above that is guaranteed to evaluation calls: the offline mike eval runs and the turn guard's shadow labeller. At 0 the evaluation role draws only on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100, so it can never take a production worker's share. Raise it for a measurement window and put it back afterwards. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            "The share of every limit above that is guaranteed to evaluation calls: the offline mike eval runs and the turn guard's shadow labeller. At 0 the evaluation role draws only on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100, so it can never take a production worker's share. Raise it for a measurement window and put it back afterwards. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
         ),
         share_entry(
             "llm.budget.decision.share_pct",
@@ -48,7 +48,13 @@ pub fn entries() -> Vec<SettingMeta> {
             "llm.budget.other.share_pct",
             "Budget share: other callers (%)",
             5,
-            "The share of every limit above that is guaranteed to every other caller taken together: operator-invoked assists and dry-runs, the correction classifier, and anything not tagged with a worker role. Inside this share those callers are never refused because a worker used more than its own; past it they may only draw on the pool that no worker has been guaranteed, which is whatever the eight shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+            "The share of every limit above that is guaranteed to every other caller taken together: operator-invoked assists and dry-runs, the correction classifier, and anything not tagged with a worker role. Inside this share those callers are never refused because a worker used more than its own; past it they may only draw on the pool that no worker has been guaranteed, which is whatever the nine shares leave out of 100. Shares that add up to more than 100 are scaled down proportionally, so the limits as a whole are never exceeded.",
+        ),
+        share_entry(
+            "llm.budget.side_call.share_pct",
+            "Budget share: side calls (%)",
+            5,
+            "Guaranteed share of the rate, call and daily spend ceilings for side calls: the roster bookkeeping and plain-words conditions that fall back from the local model to OpenRouter or Claude. At 0, when the other shares add up to 100 or more, every fallback is refused and side calls run on the local model alone. The spend ceiling counts only OpenRouter dollars; Claude and Codex calls use the call limits alone.",
         ),
     ]
 }
