@@ -19,7 +19,11 @@
     "db_listener",
     "diagnostics",
     "doctor",
-    "dossier",
+    "dossier::build",
+    "dossier::entries",
+    "dossier::render",
+    "dossier::steering_facts",
+    "dossier::view",
     "error",
     "eval::fleet",
     "eval_metrics",
@@ -36,7 +40,21 @@
     "launch::fleet::run_record",
     "launch::fleet::tests",
     "lazy_sections",
-    "llm",
+    "llm::backoff",
+    "llm::budget",
+    "llm::child_stdin",
+    "llm::claude",
+    "llm::codex",
+    "llm::health",
+    "llm::key",
+    "llm::limiter",
+    "llm::model_ref",
+    "llm::openrouter",
+    "llm::outage",
+    "llm::provider",
+    "llm::side_call",
+    "llm::text_origin",
+    "llm::usage",
     "logged",
     "mailbox_reaper",
     "mcp_channel",
@@ -91,6 +109,14 @@
     "crates/mike/tests/cli/db_fixture_contract.rs": {
       "sha256": "c18950e8e598b90b35d2a44591fbef7b6f092ce07aa5ae5df405ea9bf4970763",
       "reason": "Subprocess clears all env; bootstrap must reject missing/blank admin before network. This explicitly tests the fail-closed contract."
+    },
+    "crates/mike/src/doctor/observe_features.rs": {
+      "sha256": "5df75552b63457b7131a071a4bba01d7b96bdc0e5283b33cf38324484f1eb1bb",
+      "reason": "production code: doctor opens the configured database read-only; it holds no test"
+    },
+    "crates/mike-code/src/wiring/classify.rs": {
+      "sha256": "6087cad42298bfa0716cd3d298ae8d8473da846917c8b6048c6fc54675e217ed",
+      "reason": "the marker is a path fragment in a string list, not a fixture"
     }
   }
 }

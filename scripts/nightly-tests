@@ -61,6 +61,12 @@ else
     echo "NIGHTLY-TESTS: FAIL worktree"; exit 1; }
 fi
 [[ -f "$root/.env" && ! -e "$wt/.env" ]] && ln -s "$root/.env" "$wt/.env"
+# The DB tier refuses to start without the test database URL, and the systemd unit
+# carries none of .env. Only that one variable is taken from it.
+if [[ -z "${MIKE_TEST_ADMIN_URL:-}" && -f "$root/.env" ]]; then
+  MIKE_TEST_ADMIN_URL="$(grep -E '^MIKE_TEST_ADMIN_URL=' "$root/.env" | tail -n 1 | cut -d= -f2-)"
+  export MIKE_TEST_ADMIN_URL
+fi
 
 sha="$(git -C "$wt" rev-parse --short HEAD)"
 "$root/scripts/wiring-new" --whole "$wt" "$sha" || true
