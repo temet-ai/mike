@@ -108,6 +108,157 @@ A problem gets at most three decisions, and the third goes to you whatever it sa
 at most 20 problems to the problem-solver. When the problem-solver asks you, the question says
 what is needed, why only you can answer it, and what each answer would set in motion.
 
+## Startup cannot verify its checkout
+
+`startup gate could not establish a verified baseline` is not the same as a red
+baseline from a check that ran against verified source. In source `0ad4acd5`, startup
+refuses to proceed when source verification fails. In particular:
+
+```text
+isolated path is not a detached worktree of this repository; no checkout was changed
+```
+
+can mean either that the managed worktree belongs to a different Git common directory
+or that it has a branch checked out instead of detached HEAD. Do not infer a test
+failure or assign a code-repair task from that message alone.
+
+1. Save the fleet/run id, installed version, baseline commit, tree-check result id,
+   command and exact error. Read the status and full `get_fleet` response; save any
+   baseline fields and start report that are actually present. A missing start report
+   is not proof that no check attempt was recorded.
+2. On the machine that owns the fleet repository, inspect the real managed worktree
+   paths. These commands only read Git metadata; replace the example paths:
+
+   ```sh
+   git -C /path/to/repository worktree list --porcelain
+   git -C /path/to/repository rev-parse --path-format=absolute --git-common-dir
+   git -C /path/to/actual/managed-slot rev-parse --show-toplevel
+   git -C /path/to/actual/managed-slot rev-parse --path-format=absolute --git-common-dir
+   git -C /path/to/actual/managed-slot rev-parse --abbrev-ref HEAD
+   git -C /path/to/actual/managed-slot rev-parse HEAD
+   ```
+
+   Compare the resolved common directories and the slot's actual top-level path.
+   `--abbrev-ref HEAD` prints `HEAD` for a detached checkout; otherwise record the
+   branch name. Do not guess the execution slot from the output log's filename.
+3. Preserve any available completion log matching the result id, including files
+   named `mike-check-<result-id>-*-output.log` under the repository's
+   `.claude/worktrees/`. A log may be absent if publication failed; use the persisted
+   output or startup message when available. Record where you found it, and redact
+   private paths, credentials and command output before sharing.
+
+These slots belong to Mike, not a worker. **Do not detach, reset, clean, delete or
+recreate them as a generic recovery step**, even if a branch looks merged and clean.
+Have the operator investigate ownership and any active check before choosing a repair.
+The [isolated-checks reference](https://github.com/temet-ai/mike/blob/0ad4acd532e2d6d27e9dc9483280401b2368be61/docs/fleets/isolated-checks.md) explains the source
+verification and managed-slot boundaries.
+
+[Issue #426](https://github.com/temet-ai/mike/issues/426) reports this startup failure,
+a missing start report and inaccessible result output through the inspect API. It
+was open when source `0ad4acd5` was checked. The reported branch-detachment workaround
+was not independently reproduced here; this guide neither promises an API lookup for
+that result nor claims that a release or live installation has been repaired.
+
+## Check a surprising gate verdict
+
+A `PRE-EXISTING` mail is not proof that the failure predates this run. In the older source
+checked at `dfb064e2`, the gate searches a bounded commit history (up to 200 commits)
+and keeps only commits whose `Fleet-Seat` trailer exactly matches a task's current
+`seat (session)` pair in the definition. No matching commits can produce that mail;
+matching commits for which no suspect is identified produce a separate no-match verdict.
+A missing trailer or a changed seat/session mapping could therefore prevent attribution.
+
+From source commit `3e98c7e0` (also present in `0ad4acd5`), matching uses the seat
+name before ` (` in the trailer, not the session UUID. A respawned session can now
+match the same task seat. The mail still says `PRE-EXISTING`, but its explanation
+now limits the claim to an inability to tie the inspected commits to a run seat;
+it does not establish that the failure existed before the run. The bounded history
+and need to verify the failing SHA still apply.
+
+Before adding a repair task:
+
+1. Save the gate command, failing SHA, output/log reference, run id and last recorded
+   passing SHA, if there is one. Do not substitute the checkout's current HEAD for
+   the SHA that failed.
+2. Read the full definition with `get_fleet` and compare its task seat/session pairs
+   with the failing commit's trailer (seat name on newer source, the full pair on the
+   older source above). In that fleet's repository, replace the example
+   SHA below with the one from the gate:
+
+   ```sh
+   git show -s --format=fuller <failing-sha>
+   git show -s --format='%(trailers:key=Fleet-Seat,valueonly)' <failing-sha>
+   ```
+
+3. Check whether the owning seat is already repairing it, and whether a later commit
+   has a passing gate result. A suspect is evidence to investigate, not proof of cause.
+   Coordinate with that owner before creating duplicate work; do not waive the failure
+   merely because the mail labels it pre-existing.
+
+[Issue #421](https://github.com/temet-ai/mike/issues/421) reports a run's own commits
+being classified as pre-existing. It is now closed; the
+reported incident was not independently reproduced. These source changes are not
+proof that your installed release contains them or that the reported run recovered.
+
+## A task stays queued with no listed blocker
+
+A task's digest `ready` flag is not a launch-permission flag. In source `dfb064e2`, it
+comes from acceptance/readiness evidence or passed exports. Dependency eligibility is
+computed separately from `after`. Fleet-level `ready` is different again: it says the
+definition has no missing items. Do not infer a scheduler cause from `ready: false`
+alone, or assume an empty blockers list proves there is capacity to launch.
+
+1. Save `mike fleet status <fleet> --json`, the full `get_fleet` definition and its
+   `view: "digest"` response, with timestamps, run id, machine and installed version.
+   Keep these locally; redact private briefs, paths and output before sharing.
+2. Compare each queued task's `after` list with the predecessors' current acceptance
+   evidence and obligations, not just a worker's completion message or a pass count.
+3. Compare assigned and open seats, queued launches and available capacity. Check pane
+   limits such as `launch_max_surfaces` as well as any reported seat limit and memory
+   admission reason. An accepted task and a closed process are different facts.
+4. Read status again after a legitimate acceptance or seat-close event. Preserve both
+   snapshots if the task remains queued without an explanation, including any
+   `not started` reason and relevant logs. Ask the coordinator to investigate the
+   recorded state rather than launching a second worker blindly.
+
+[Issue #422](https://github.com/temet-ai/mike/issues/422), now closed, reports
+satisfied dependencies but no launch. Its suggested missed-retry cause is a hypothesis,
+not a verified diagnosis here. Removing `after` reportedly started the tasks, but it
+also changes the dependency contract: **do not remove dependencies, clear seat/session
+fields or restart the fleet as a generic repair**. Preserve the original definition
+and evidence first; change the plan only when that change is actually intended.
+
+### Newer source: release evidence and queued reasons
+
+Source `0ad4acd5` adds `queued: <reason>` to status for recorded staffing holds:
+producers not released (named in the reason), an existing launch claim, the start
+baseline gate, host memory, a warm sibling, or no room. Read the specific reason
+before changing the definition. These reasons are in-memory observations from the
+staffing tick, not a durable history or a guarantee that every delay has a reason.
+An annotated queued task remains eligible for staffing on subsequent ticks.
+
+The producer-release check now filters evidence by the definition's **`check.command`**,
+not every gate result at that SHA. Command strings are compared after trimming;
+legacy events without a command remain eligible. Thus a different `gate.command`
+failing at the same SHA should not be read as the configured check failing. This
+separates dependency release from the final gate; it does not waive the gate failure.
+An accepted/ready producer is held by a recorded failed check, while a producer that
+has only committed needs a passed check. Accepted/ready producers may release without
+check evidence; that is not proof that a check passed.
+Check the producer SHA and any containing-commit evidence, not just the latest result
+from an unrelated command.
+
+From `4a2ef93e`, the fleet tick also attempts to close an open seat whose task is
+ready and not in rework, and records a close event on success. A failed stop or failed
+close-event write is logged for another tick to retry. Staffing and closure are
+separate steps: do not promise immediate launch, and verify pane/process and recorded
+seat state rather than equating acceptance with process exit. Re-read the queue after
+closure instead of deleting `after` dependencies.
+
+These are post-alpha.5 source changes checked through `0ad4acd5`, not an assertion
+that a release or running installation has them. The incident in #422 was not
+independently reproduced or verified as recovered here.
+
 ## Stop a fleet
 
 - `mike fleet stop <fleet>` asks the fleet to shut down. It closes each open session's pane and

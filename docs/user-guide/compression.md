@@ -1,8 +1,8 @@
 # Shorten what Claude re-reads
 
-A long session carries every earlier file read and command output in each new request, and
-you pay for them again on every turn. mike can shorten three kinds of that history before it
-reaches Anthropic: large file reads, large shell output, and a file read a second time with
+A long session can carry earlier file reads and command output in new requests.
+Claude Code can also continue a server-held thread with only the new messages. mike can
+shorten three kinds of content present in the request before it reaches Anthropic: large file reads, large shell output, and a file read a second time with
 nothing changed. It always keeps the full original in its capture, so you can read what Claude
 actually saw and what was sent.
 
@@ -26,10 +26,10 @@ one flagged build log.
 | Shell-output compression | The output of a `Bash` call, as soon as it comes back | Off | The same two things |
 | Rewrite duplicate reads | A `Read`, or `cat <file>`, of a file whose content Claude already has | Off | You turn it on |
 
-"Shadow" is the default mode for the first two. With a switch on and the mode left at
-`shadow`, the share of sessions that are sent shortened requests is 0, so nothing is
-shortened: mike works out what it would cut, records it on each request, and forwards the
-request unchanged. That lets you see the saving before you accept it. A fourth mechanism in
+"Shadow" is the default mode for the first two. With a switch on, the mode set to
+`shadow` **and** the share set to 0, mike works out what it would cut, records it on each
+request, and forwards the request unchanged. These are the defaults on a fresh configuration;
+`shadow` with a saved nonzero share can still send shortened requests. That lets you see the saving before you accept it. A fourth mechanism in
 the settings file, `[compress]`, only measures how much minifying JSON and squeezing blank
 space could save. It never changes a request.
 
@@ -38,27 +38,80 @@ and the most recent results, which stay whole for a few answers (see below).
 
 ## Try it on the example session
 
-Continue the `docs` session. It has run `npm run build` four times and read the install page
-twice, so each request carries long output. You want to see what a cut would save without
-risking the session.
+The quickstart's one-file project has no build command. Use harmless invented output instead
+of installing packages or repeatedly running a real build. These prompts still use your
+normal Claude access and count towards its usage limits.
 
-1. Open **Settings**, find **Shell-output compression** and turn on the switch. Leave **Mode**
-   on `shadow` and **Share of sessions forwarded** at 0.
-2. Start a new `docs` session. The change applies to sessions that start afterwards.
-3. Run the build in it until the output is long, then open a request and read its
-   transformation manifest. Under the **shell_output_compression** stage you should see
-   `computed only`, how many results would be shortened and the bytes saved, and the request
-   shown as forwarded unchanged.
-4. If the cuts look safe, set **Share of sessions forwarded** to a small number such as 20,
-   or set **Mode** to `forward` for every new session. Sessions started afterwards are sent the
-   shortened requests; sessions that started earlier keep the arm they began with.
+1. Open **Settings**, find **Shell-output compression** and note its current switch, **Mode**
+   and **Share of sessions forwarded** so you can restore them later. Turn on the switch,
+   explicitly set the mode to `shadow` and the share to 0. Do not assume an older saved
+   configuration still has the defaults.
+2. Start a new session in the sample folder. Ask Claude to run this exact command with its
+   Bash tool, without changing files or installing anything:
 
-To go back, set the switch off, or set the mode to `shadow` and the share to 0. A session
-already running keeps its policy until you start another.
+   ```sh
+   awk 'BEGIN { for (i = 1; i <= 200; i++) printf "Ankh-Morpork sample row %03d: paving stones inspected.\n", i }'
+   ```
 
-`mike features everything` turns on the two compression switches, still in shadow with a
-share of 0. `mike features recommended` and `watch-only` leave them off. See
-[Setup](setup.md) for the presets.
+   It prints 200 fictional lines, comfortably above the default 1,500-byte minimum. Running
+   it in an unrelated terminal will not create a captured Claude tool result.
+3. Continue with a few short prompts, such as asking Claude to describe the sample in one
+   sentence without tools. The default grace period keeps output whole for three assistant
+   answers, and a result in the newest message stays protected. Inspect a later request's
+   transformation manifest under `shell_output_compression`; check the target's reason if it was skipped.
+4. When an eligible result appears, look for `computed only`, the candidate bytes saved and
+   the statement that the request was forwarded unchanged. Compare **Original** and **Sent**
+   for that output. This checkpoint tests shadow observation, not a saving on your bill.
+
+Do not turn on forwarding just because the candidate is shorter. Review what was omitted,
+including whether later answers needed it. The full captured original remains available;
+compression markers in forwarded results include recovery arguments for `get_request_body`.
+A smaller request is not by itself evidence of better answers, lower cost or faster work.
+
+## Decide whether to forward shorter requests
+
+Keep the experiment in shadow until you have representative evidence. In `shadow`, a share
+above 0 forwards shortened output for that percentage of new sessions, selected by session
+id; it is not a per-project limit, and a single new session is not guaranteed to be selected.
+`forward` sends shortened output for every new session. Either choice can affect other work
+started against the same mike instance. Check the arm recorded in each request's manifest.
+
+To stop forwarding for future sessions, turn the switch off, or set the mode to `shadow` and
+the share to 0. A session already running keeps its policy; start a new session to verify the
+change. Restore the settings you noted before the experiment if that is your intended setup.
+
+`mike features everything` enables the two compression toggles but does not reset saved mode
+or share settings. On a fresh configuration those settings are `shadow` and 0; on an existing
+one, enabling the toggles can immediately select forwarding for new sessions. The preset also
+enables unrelated features, so it is not a shortcut for this experiment. `recommended` and
+`watch-only` leave these toggles off. See [Setup](setup.md) for the preset boundaries.
+
+## Continued threads: recognizing history is not rewriting it
+
+In post-alpha.5 source containing [PR #387](https://github.com/temet-ai/mike/pull/387),
+a shared earlier-turns reader follows the thread chain and makes captured streamed replies
+available to the stages. That lets a new tool result be matched to a tool call from an
+earlier request. File-read and shell-output compression can use that history to recognize
+the result, but their replacement targets are still in the **current request body**.
+They do not rewrite old captures or tool results held only in Anthropic's earlier thread.
+Seeing an old Read in the chain therefore does not prove that its old result was shortened.
+
+The reader is bounded and needs the predecessor requests and replies. If it cannot build
+the chain, earlier turns may be unavailable; newer source containing
+[PR #440](https://github.com/temet-ai/mike/pull/440) can retain a partial chain instead.
+A database restore may run in the background, without delaying this request for the
+restored history. Stages can miss candidates whose tool calls are outside the available
+history. Check the
+request's transformation manifest and **Original** versus **Sent**, not just whether the
+compression switch is on. `no_candidates` is not proof that the session has no compressible
+output.
+
+PR #440 closed [issue #352](https://github.com/temet-ai/mike/issues/352) and
+[issue #354](https://github.com/temet-ai/mike/issues/354), adding a conversation API and
+a separate historical-delta correction worker. Neither a merged change nor a successful
+conversation response proves complete history or a repaired live database. See
+[Reading sessions](reading-sessions.md#conversation-reconstruction-in-newer-builds)
+for version boundaries, reconstruction limits and correction progress.
 
 ## File reads
 
@@ -66,7 +119,7 @@ When Claude read a file earlier in the conversation and has since moved on, the 
 rarely needed whole. File-read compression keeps the start and the end of that result and
 replaces the middle with a note that says what was left out. When Claude later reads the
 whole of the same file again, the earlier whole-file read is replaced by a note saying a
-newer read superseded it.
+newer read superseded it, when that earlier result is present in the current request body.
 
 | Setting under **File read compression** | Default |
 |---|---|

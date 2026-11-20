@@ -96,9 +96,37 @@ The **help** button in the top bar opens the same material in a drawer beside th
 on, so you do not lose your place. Hovering a dotted label anywhere in the interface shows a
 short definition and, where there is one, a link to its glossary entry.
 
+## What capture does not prove
+
+Tool feeds and counts describe the events mike recorded, not every action on the machine.
+In the source reviewed for this guide, Claude API capture records the outer tool call.
+When Claude Code's Code Mode or a REPL tool runs Bash, Read, Edit or another tool inside
+code, those inner calls need not cross the API as separate tool-use blocks. One captured
+REPL call can therefore represent many actions, including file edits, without those actions
+appearing separately in the Tools feed, tool-use statistics or file-writes view.
+
+[Issue #375](https://github.com/temet-ai/mike/issues/375) tracks this capture gap. The current
+source has Codex-specific runtime observation paths, but not a general runtime ingest route
+or a Claude Code `isVirtual` transcript reader that fills this gap. A runtime event contract
+or a healthy proxy alone does not establish that nested calls have been imported. This is
+a source-verified limit, not a reproduction of the issue's reported session or a claim
+about which build is running on your machine.
+
+The file-writes query selects recorded calls classified as writes with a captured file
+path. Shell redirects and git operations can be missing too. Its `write_count` counts
+editing calls, not lasting changes: an edit followed by a revert can leave identical
+contents. No collision rows does not prove only one session touched a file.
+
+For the fictional `docs` session, an empty file-writes result does not prove the install
+page was untouched. Check the checkout's diff or file contents. If available, compare the
+session's own transcript or REPL journal, matching the session, machine and time range.
+Keep those runtime records distinct from captured API calls; do not treat their existence
+as proof that mike indexed them, or turn a reported count into a complete action history.
+
 ## When a page is empty
 
-An empty page almost always means nothing has been captured, or the feature behind it is off.
+An empty page can mean no matching records, filters that exclude them, a disabled feature,
+or work outside that page's capture coverage. Zero recorded calls is not proof of no work.
 
 | You see | Why | What to do |
 |---|---|---|

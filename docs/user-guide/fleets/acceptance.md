@@ -1,24 +1,34 @@
 # How work is accepted
 
-A task is accepted when every outcome it serves has passed. A worker finishes a piece of its task
-with a commit and a report, and mike decides on it in two steps: first it runs the checks the
-task declared, then a model call, the judge, reads the commit against the outcomes. The worker
-never decides that its own work is done.
+A task is accepted when every outcome it serves has passed. A worker reports its evidence;
+for code changes, that includes a commit. mike runs any checks the task declared before
+acceptance or the built-in judge considers the work. The worker never decides that its own
+work is done. A recorded report is not a passing verdict.
 
 ![A commit and its report go to the floor, where mike runs the task's own checks; a failure goes straight back to the worker; a pass goes to the judge, who may ask the checker one question, and answers pass or fail with the one thing needed](../images/fleet-acceptance.svg)
 
 ## The report
 
-A worker reports with the `fleet_report` tool. mike refuses a report with any of these missing,
-and names the field:
+For portability, report with the `fleet_report` tool and explicitly identify the fleet,
+your own session, task and a nonempty descriptive slice. The following evidence fields are required; mike names any missing field:
 
 | Field | What it holds |
 |---|---|
-| `sha` | The commit being reported |
 | `criteria` | The outcomes this piece serves, such as `C1` |
 | `exercised` | The command that showed the change working, its exit code, and where its output is |
 | `tests_changed` | Every test, fixture or baseline the worker changed, or `none` |
 | `unestablished` | What the worker could not show, or an empty list |
+
+On source builds including [the optional commit field](https://github.com/temet-ai/mike/pull/316)
+and [no-commit routing](https://github.com/temet-ai/mike/pull/317), `sha` is optional.
+Leaving it out uses this task's newest `fleet_commit`, if one exists; it does not force
+an existing commit to be ignored. `commit` is an alias for `sha`. An explicit commit must
+be in the fleet's repository, on its branch, and contain the task's latest commit when
+there is one. Never put a commit from another repository in this field.
+
+These are post-`v0.1.0-alpha.5` source behaviors, not confirmation that your running service
+and MCP companion include them. Check the installed tool schema and running build before
+relying on the no-commit path.
 
 For T1 in the example the report says: commit `3f9c2a71d0`, criterion C1, exercised
 `npm run build && grep -n "## " dist/install/index.html` with exit 0, tests changed `none`, and
@@ -26,6 +36,64 @@ nothing unestablished.
 
 A compile alone is not proof that something works, so `exercised` asks for the command that ran
 the changed behaviour.
+
+### Task and slice defaults on newer builds
+
+Post-alpha.5 source `02cc1b15`, including [PR #438](https://github.com/temet-ai/mike/pull/438),
+can fill an omitted or whitespace-only `task` from the reporting session's assignment,
+**only when that session holds exactly one task**. It considers both task-session bindings
+and the run's seated assignment. With zero or multiple tasks, the call is refused and asks
+for an explicit task; it does not choose one for you. A missing session id is also refused.
+
+A supplied nonblank task takes precedence over inference, but must still pass the ordinary
+ownership and task checks. Independently, an omitted or whitespace-only `slice` becomes
+`task <task-id>`, including when you supplied the task explicitly. A supplied nonblank
+slice is kept. These defaults run before report validation; they do not waive required
+evidence, ownership, criteria or acceptance checks. Prefer explicit task and slice labels
+for meaningful reports and compatibility with older services and companions.
+
+Keep `unestablished` as an array of strings, or `[]` when nothing remains unestablished.
+The newer server normalizes object entries to text, but the MCP schema at `02cc1b15` still
+advertises string-array items despite its description mentioning objects. Do not rely on
+a client accepting values outside its schema. Check both installed builds and the actual
+tool schema; merged source is not evidence of deployment.
+
+### Use arrays for evidence paths
+
+Pass `evidence` as an array even when there is only one path, for example
+`"evidence": ["artifacts/install-check.txt"]`. This is a field fragment, not a complete
+report; supply the required identity and evidence fields above too. `look_at` is a string
+explaining what acceptance should inspect, not another evidence array.
+
+At source `8b7fd0f2`, the server accepts a single evidence string after repair #338,
+but the MCP tool still advertises an array. [Issue #336](https://github.com/temet-ai/mike/issues/336)
+remains open. An array matches both interfaces and avoids depending on whether a client
+accepts a value outside its advertised schema. Do not infer an installed fix from an
+issue's status or a merged repair. On older servers, a single string can fail with
+`evidence: invalid type: string`; correct the field shape rather than resubmitting the
+same call. A parse error is not an acceptance verdict. At the later `02cc1b15` source, the MCP
+schema also allows a single evidence string; an array remains compatible with both forms.
+
+## Research or comment-only work
+
+When the task never commits, leave out `sha`. Put the actual evidence locations in
+`evidence` and tell acceptance what to inspect in `look_at`, including an artifact in
+another repository when that is the deliverable. The required fields above still apply:
+report the command you actually ran and its result, use `none` for unchanged tests, and
+name anything not established. Do not invent a successful command or a commit just to
+satisfy the form.
+
+What happens when no task commit is available depends on the definition:
+
+| Definition | What happens |
+|---|---|
+| The task declares `done_when` | mike records the report but asks the worker to commit with `fleet_commit` and report again. The floor needs a commit; it is not run at an empty SHA. |
+| No `done_when`, with an acceptance seat | The report goes to acceptance to judge the evidence and inspection pointers. Delivery to acceptance is not a pass. |
+| No `done_when`, without an acceptance seat | The report remains a note. It does not automatically pass the task or invoke the commit judge. |
+
+Plan research tasks with an acceptance path that can assess their real deliverable. If
+`done_when` mistakenly demands a code check for comment-only work, ask the coordinator
+to correct the definition rather than bypassing the check or borrowing another repo's SHA.
 
 ## The floor
 
@@ -44,11 +112,14 @@ The codes are `check_failed`, `files_not_changed`, `no_test_added`, `exercise_fa
 the task's `done_when` itself, such as a check naming an operation that does not exist, the
 worker is told that its work is not failed and that the definition needs correcting.
 
-A task without `done_when` goes straight to the judge.
+A task without `done_when` skips the floor. It goes to the acceptance seat when one is
+present; otherwise the built-in judge handles reports with a commit. The no-commit case
+is described above.
 
 ## The judge
 
-The judge is one model call. It reads:
+Without an acceptance seat, the built-in judge handles commit-backed reports with one
+model call. It reads:
 
 - the diff of the reported commit;
 - the report's facts: the commit, the outcomes, the command run and its exit, the tests changed,
@@ -91,7 +162,9 @@ what to do; see [Watch a fleet and step in](watch-and-recover.md#problems-mike-d
 ## When a task is accepted
 
 A task is accepted when every outcome it serves has a passing verdict and no report is waiting
-for one. Tasks that were waiting for it start on mike's next round, within 20 seconds. When every
+for one. Neither the `fleet_report` response nor `told_acceptance: true` is that verdict.
+Check the task state and outcome verdicts with `get_fleet` or the fleet status view.
+Tasks that were waiting for it start on mike's next round, within 20 seconds. When every
 task is accepted, the fleet closes.
 
 ## What the judge needs

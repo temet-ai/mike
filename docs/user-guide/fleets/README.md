@@ -35,9 +35,11 @@ outcomes T1 must deliver, written into the fleet's definition so that the judge 
    stops.
 2. mike opens one session per task, each told only its own task, and they work at the same
    time in your one checkout on one branch.
-3. Each session commits only its own files and reports what it did. mike runs the checks, and a
+3. A code-changing session commits only its own files and reports what it did. mike runs the checks, and a
    model call judges the work against the outcomes. A failed piece goes back to the same
    session with the one thing still needed.
+   Research or comment-only tasks use [evidence-only reports](acceptance.md#research-or-comment-only-work)
+   with an appropriate acceptance path instead of a fabricated commit.
 4. When every task has passed, mike closes the sessions, records how the run went, and marks
    the fleet `done`.
 

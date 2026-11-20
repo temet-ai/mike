@@ -16,7 +16,7 @@ Setup shows one screen per step. Each lists what it found, then the choices that
 
 | Step | What it settles |
 |---|---|
-| Welcome and machine | Whether setup should list the tools it can use on this machine. It also repeats the warning that mike stores every prompt and answer in full, on this machine. |
+| Welcome and machine | Whether setup should list the tools it can use on this machine. Review capture sensitivity and storage before continuing; see the limits below. |
 | Database | Where history is kept. |
 | Background service | Whether mike keeps running after you log out. |
 | Claude Code | How Claude Code reaches mike, and what is registered in it. |
@@ -27,18 +27,36 @@ Setup shows one screen per step. Each lists what it found, then the choices that
 | Terminal | Which terminal tool `mike spawn` and fleets use. |
 | Ready | A summary, and shortcuts to start Claude Code, open the web UI or take the tour. |
 
-You can skip most of these on the first run. The database and Claude Code steps are the ones that decide whether anything is captured.
+You can skip most of these on the first run. Check the database/storage choice and Claude
+Code routing, then verify a harmless request using the [quickstart](quickstart.md).
+Completing setup alone does not prove that traffic was captured or durably stored.
+
+Captured traffic can contain prompts, file contents, tool output and answers. Mike
+forwards model requests to Anthropic; optional features can send additional context to
+configured providers. A configured database can also be on another machine. Do not read
+older welcome-screen wording such as "every request and response in full" or "Nothing
+is sent off this machine" as a guarantee. Capture depends on the route, size limits,
+stream completion and storage availability; see [Privacy](privacy.md).
+
+Session history needs a usable session id. Alpha.5 forwards ordinary proxy traffic
+without one without capturing it; newer source containing PR #185 can persist it
+separately in `requests.sessionless_requests`, not the Sessions timeline. An empty
+Sessions page is not evidence that nothing was stored. See
+[traffic without a session id](privacy.md#traffic-without-a-session-id) for version,
+header-redaction and persistence limits.
 
 ## Choose where history is kept
 
-mike stores captured sessions in PostgreSQL 19 with the `vector` extension. The Database step offers what fits your machine:
+For durable session history, mike uses PostgreSQL 19 with the `vector` extension.
+Trial mode instead keeps session captures in memory. The Database step offers what fits
+your machine:
 
 | Choice | Pick it when | What happens |
 |---|---|---|
 | **Run PostgreSQL in Docker** | Docker is installed and you want history that lasts, with mike managing the database. | Starts a database in a container on your own machine only, keeps the data in a Docker volume and generates a password into mike's config file. |
 | **Install PostgreSQL 19 and pgvector with Homebrew** | You are on a Mac with Homebrew. | Runs the Homebrew commands it shows, then creates the database. |
 | **Install PostgreSQL with your package manager** | Neither of the above fits. | Prints the commands for this machine and runs none of them. Run them, then choose the next option with the URL they end with. |
-| **Use a PostgreSQL I already run** | You have a server. | Checks the URL you type and saves it only if the version, the extensions and the migrations pass. |
+| **Use a PostgreSQL I already run** | You have a server, local or remote. | Checks the URL you type and saves it only if the version, the extensions and the migrations pass. Capture data goes to that server; it is not necessarily kept on this machine. |
 | **Keep captures in memory only** | You want a first look. | Nothing is stored between runs, and the web UI shows only what happened since mike started. |
 
 If a database is already set, the first choice is **Keep the configured database**, which re-checks it.
@@ -80,11 +98,11 @@ The Features step offers three presets, and `mike features <preset>` applies one
 
 | Preset | What it turns on |
 |---|---|
-| `watch-only` | Nothing that rewrites a request or sends captured text to another service. Every other switch keeps its default. |
-| `recommended` | Watch only, plus recall, lessons and reminders. They add notes to what Claude Code sends to Anthropic; nothing leaves your machine for them. See [Memory](memory.md). |
-| `everything` | Every switch on the settings page, including those that send captured text to OpenRouter and those that rewrite requests and responses. The ones that call a model do nothing until a provider is set. |
+| `watch-only` | Restores feature toggles to their defaults and turns session-lessons delivery off. On a fresh configuration this captures without optional rewrites or background model calls; it is not a reset of all existing settings. |
+| `recommended` | Watch only, plus recall, lessons and reminders. Post-alpha.5 builds with code-findings delivery also enable recording edits, scanning them and sending findings, including proactive Remote Control delivery. This sends context to Anthropic and can prompt further work. See [Memory](memory.md) and [code findings](settings.md#choose-how-code-findings-reach-a-session). |
+| `everything` | Every feature toggle, including those that send captured text to the configured model provider and those that rewrite requests and responses. The ones that call a model do nothing until their provider is available. |
 
-Choose `watch-only` to keep everything optional off. The step shows which switches a preset would turn off. If mike is not running, the choice is saved and applied the next time it starts. [Settings](settings.md) lists every switch with its default, and [Privacy](privacy.md) says what each one sends and where.
+The presets change feature toggles and the session-lessons switch; they do not reset every setting or remove your filter rules. On an existing installation, review the preview before applying one. In particular, `watch-only` is not a reset of separately configured embedding settings or, on builds after alpha.5, reranking settings. If mike is not running, the choice is saved and applied the next time it starts. [Settings](settings.md) lists the switches and defaults, and [Privacy](privacy.md) says what each sends and where.
 
 ## Models and search by meaning
 

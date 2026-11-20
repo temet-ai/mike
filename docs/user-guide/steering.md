@@ -107,6 +107,54 @@ and you can mark each nudge right or wrong there. mike withholds a share of woul
 random (10% by default) so it can compare sessions with and without them. See
 [Judge](judge.md) for the pages that show what these labels led to.
 
+## Which criteria the verifier uses
+
+In post-alpha.5 builds with criteria-source selection, the session verifier starts with
+criteria extracted from the operator's request (intake). It does not automatically adopt
+criteria just because a [work thread](threads.md) is linked to the session. This is the
+session verifier, not the [fleet report's acceptance judge](fleets/acceptance.md).
+
+For example, the `docs` session asks only to put Homebrew first. It also links to an older
+thread whose criteria require a full site redesign. Do not assume the verifier uses those
+older criteria: first inspect the session's recorded ask and the linked thread's criteria.
+With [Decisions](decisions.md) enabled and `decisions.criteria_source.mode` applying results,
+Jev can select matching criteria from up to six recently linked threads with nonempty
+criteria. Each must score at least 0.8; more than one can qualify. Selected thread criteria
+replace, rather than supplement, intake criteria for this evaluation.
+
+If selection is off, shadow-only, unavailable, fails, or chooses no thread, the verifier
+uses intake criteria when they exist. Missing intake data or a failed lookup can leave no
+criteria; fallback does not invent them. Read the decision record and input evidence
+before changing settings or rewriting a thread. Selection is model-assisted evidence,
+not proof that a linked thread is the operator's current instruction.
+
+Verifier replay uses the intake fallback without live criteria-source selection, so a
+replay is not proof of which thread criteria a live evaluation selected. Selection sends
+the operator's asks and candidate thread criteria through the Decisions model provider;
+keep unrelated private material out of those criteria.
+
+## Check why a steering note was held
+
+Post-alpha.5 builds containing [PR #453](https://github.com/temet-ai/mike/pull/453)
+add **Steering note check** (`note_gate`). It checks a candidate project-rule note
+or a session-verifier nudge before delivery. It is separate from **Rule check per
+turn**, which first checks whether a project rule applies and whether the turn
+may have broken it. It is also separate from **Verifier pre-check**, which can
+hold a verifier nudge before it reaches this check.
+
+In **On** mode, the note check holds a note if the score for relevance to the
+available tool calls is below 0.70. It also holds a verifier note if the score that the ending already says
+the item is open reaches 0.75. That second score does not hold rule notes.
+For example, the verifier may flag that the docs change has not merged; if the
+turn already says it is waiting for review, this check can hold a redundant note.
+The scores are model judgments, not proof the work is complete.
+
+See the [point modes](decisions.md#set-a-mode-for-one-point) and
+[what this check sends](privacy.md#steering-note-check). The decision record's
+`sent` means this check admitted the note, not that the session received it.
+Use the intervention timeline to check delivery separately. Alpha.5 does not
+include this check; verify the running build before looking for its row.
+
 ## What leaves your machine
 
 - **Sent to Anthropic:** yes. A note from a steerer that corrects the session is first pushed

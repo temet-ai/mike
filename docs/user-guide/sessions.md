@@ -121,13 +121,40 @@ then one line for each pane the backend hosts. The state shows only when the bac
 reports one. Add `--run <id>` to see one fleet's seats, or `--json` for machine-readable
 output. For delivery results, ask Claude to call `list_launches`.
 
-`kill` closes the pane hosting that session and waits up to 20 seconds for the `claude`
+`kill` attempts to close the pane hosting that session and waits up to 20 seconds for the `claude`
 process to exit (`launch_kill_wait_secs`). Closing a pane that is already gone does
 nothing and exits 0. The process can take ten to twenty seconds to exit after the pane
 closes, so a pane missing from `list` does not prove the process has finished.
 
 Close sessions by this command, not by killing processes by name, which can hit other
 sessions.
+
+### Verify that the session stopped
+
+A zero CLI exit status or successful MCP call does not by itself confirm process exit.
+For the CLI, add `--json` to the kill command to inspect its report. For `kill_session`,
+retain the full response rather than selecting only `deleted`.
+
+| Field | What it establishes |
+|---|---|
+| `closed: true` | The backend reported closing the terminal surface, not necessarily the Claude process exiting. |
+| `closed: false` | No surface closure was confirmed. A missing surface or an identity mismatch can return this without an error. |
+| `process_exited: true` | The close path has evidence that the tracked process exited. |
+| `process_exited: false` | The close path did not observe process exit within its wait; do not treat the session as stopped. |
+| `process_exited: null` | Process exit is unknown. This is not equivalent to `true`. |
+| `deleted: true` in an MCP response | The generic DELETE wrapper can add this to a successful HTTP response. It is not independent evidence of deletion or process exit. |
+
+These fields describe current source behavior; check your installed version's response.
+[Issue #406](https://github.com/temet-ai/mike/issues/406) reports sessions continuing to run
+and one reappearing on the roster after `deleted: true`, `closed: false`,
+`process_exited: null`. The report has not been independently reproduced for this guide;
+there is no verified fix or deployment claimed here.
+
+If exit is false or unknown, inspect the exact session on its owning machine before
+claiming it stopped or starting a replacement. Match the session UUID, launch record,
+terminal and process identity. Do not infer exit from a missing pane or roster entry,
+and do not terminate every process named `claude`. Preserve the response and the running
+version when reporting a failed close.
 
 Three more verbs exist for reusing a warmed-up session as a template:
 

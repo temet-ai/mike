@@ -38,12 +38,49 @@ When mike has no credentials for your remote, the push comes back with git's own
 worker pushes from its own session. If the remote holds commits the folder does not, mike merges
 them in first, and stops if the merge would touch a file another session has not committed yet.
 
+### Verify what was committed and tested
+
+Inspect the `fleet_commit` response's paths, `paths_from` and warnings, then compare
+with the files your task actually changed. `paths_from: "record"` identifies the
+selection source, not proof that every required file was included. Read the resulting
+commit without changing the shared checkout:
+
+```sh
+git show --stat --oneline <commit-sha>
+git show <commit-sha>:<path>
+```
+
+If an owned file is missing, coordinate a follow-up through `fleet_commit`; do not
+stage everyone else's edits or treat the shared folder's successful build as proof
+that the commit compiles. [Issue #423](https://github.com/temet-ai/mike/issues/423)
+reports an omitted file; it remained open when source `0ad4acd5` was checked. This
+is a verification step, not a claim that automatic omission detection is fixed.
+
+Use `Refs #<issue>` in fleet commit messages. Mike rewrites closing keywords such as
+`Fixes` and `Closes` to `Refs`, leaving issue closure to the acceptance workflow. If a
+brief asks for a conflicting keyword, follow the fleet rule rather than relying on
+the brief to close the issue.
+
+For a focused nextest run, inspect the reported test names and selected/executed count.
+**Zero selected tests do not validate the change**, whatever the command's exit status.
+Rust modules loaded with `#[path]` can have test paths different from their filenames;
+verify the actual qualified name before selecting it, use the repository's supported
+test wrapper, and report the command, commit or working-tree scope, count and result.
+[Issue #424](https://github.com/temet-ai/mike/issues/424) reports mismatched brief
+keywords and filters; this guidance does not claim the generator or runner was fixed.
+Keep the check narrow rather than compensating with an unnecessary full suite.
+
 ## Who changed what
 
-mike looks at the folder once a second and records every file that is added, changed or
-deleted, with the time and the session that most likely changed it. A change outside the
-session's own task is marked. If no task owns a change after 10 minutes, mike proposes a new
-task for it.
+With `change_record` enabled, mike observes eligible file additions, changes and
+deletions and records their time and likely author. It uses filesystem notifications
+with periodic backstop scans, not a guaranteed once-a-second record of every file.
+Ignored/build paths and, on newer builds, temporary session folders are excluded;
+[watcher scope and version limits](../troubleshooting.md#newer-watcher-behavior) explain
+the defaults and worktree-removal guard. If a record is absent, confirm the actual
+checkout, Git status/diff and committed paths before concluding that no edit happened.
+A change outside the session's own task is marked. If no task owns a change after
+10 minutes, mike proposes a new task for it.
 
 When an uncommitted edit breaks the project for everyone, mike works out which session's edit did
 it and tells that session. If it is still broken 10 minutes later, the reference session is told

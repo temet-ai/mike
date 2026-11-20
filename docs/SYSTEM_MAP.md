@@ -40,8 +40,9 @@ Three invariants hold everywhere:
   captured text to another service is off by default; what is on by default is
   local maintenance (`crates/mike-base/src/feature_toggles/mod.rs`,
   [`FEATURES.md`](FEATURES.md)).
-- **No authentication, loopback only.** Any process on the machine can read
-  everything and change settings; remote binds are refused unless an
+- **No general login boundary, loopback only.** Local processes can read captures
+  and change ordinary settings. Some sensitive routes require tokens, including Wright's
+  operator actions, but this is not a multi-user permission model. Remote binds are refused unless an
   `unsupported_*` override is set ([`SECURITY.md`](SECURITY.md),
   [`LOCAL_ACCESS.md`](LOCAL_ACCESS.md)).
 
@@ -120,13 +121,13 @@ replayed first so the prompt cache prefix stays stable (`injected_replay/`).
 | 2 | Reminder on token | `reminder_on_token` (off); always strips the sentinel | Replaces a hook sentinel with a resolved reminder | [`FEATURES.md`](FEATURES.md) |
 | 3 | Lazy sections | lazy filter rules exist | Replaces prompt sections with stubs the model can expand | [`ARCHITECTURE.md` §4.2](ARCHITECTURE.md#42-lazy-prompt-sections) |
 | 4 | Recall injector | `recall_injector` (off) | Topic-matched lessons from the database | user guide [memory](user-guide/memory.md) |
-| 5 | Session lessons | setting `reminders.inject_lessons` (off), own lane | Session-start lessons on the first turn | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
+| 5 | Session lessons | setting `reminders.inject_lessons` (off), own lane | Relevant project and shared lessons on primary conversation turns, up to the configured limit; suppresses repeated content (`crates/mike-lessons/src/reminders/session_lessons.rs`, `crates/mike-lessons/src/lesson_worker/relevance.rs`). The mod can serve them instead. | user guide [memory](user-guide/memory.md), [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
 | 6 | Self identity | `self_identity_reminder` (off) | Who this session is | [`INJECTION_TRUST.md`](INJECTION_TRUST.md) |
 | 7 | Workspace briefing | `workspace_briefing` (off) | Peers, own name, role and goal | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md) |
 | 8 | Agent lessons | `agent_lessons` (off), subagent turns | Persona-scoped lessons | user guide [memory](user-guide/memory.md) |
 | 9 | Diagnostic reminders | `reminders` (off), own lane | Findings on the previous response as a `<system-reminder>` | [`FEATURES.md`](FEATURES.md) |
 | 10 | Change record tail | `change_record_tail` (off) | What others changed in files this session owns | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
-| 10b | Code findings | `code_findings` (off), needs `code_scan` and `change_record` | ast-grep findings the session's own edit added, with the fix, in 14 languages plus the checkout's own rules; pushed over Remote Control when the session is idle (`code_findings_push`); `GET /api/code-findings` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md#mike-code-scans) |
+| 10b | Code findings | `code_findings` (off), needs `code_scan` and `change_record` | ast-grep findings the session's own edit added, with the fix, in 14 languages plus the checkout's own rules; eligible for proactive Remote Control delivery (`code_findings_push`); `GET /api/code-findings` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md#mike-code-scans) |
 | 11 | Git read hint | `change_record` (off) | Nudge to use `what_changed` instead of git | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | — | Steerer drain | not gated here; producers are | Delivers queued steerer interventions and mailbox messages, up to `mailbox_max_deliveries_per_turn` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md) |
 | 12 | Repeated notices | `repeated_notices` (off) | Sends each Claude Code boilerplate notice once per session | [`FEATURES.md`](FEATURES.md) |
@@ -150,7 +151,7 @@ to stand aside for one stage when the Claude Code mod does it itself
 | Weasel intercept: cut a streamed answer before a forbidden word, re-ask with a correction, continue the same message | `weasel_intercept` (off) and a non-empty word list | `weasel_intercept/`, `proxy/response/streaming.rs` | [`ARCHITECTURE.md` §4.5](ARCHITECTURE.md#45-weasel-intercept) |
 | Proxy-tool loop: hold a call to a proxy-declared tool, answer it from the database, splice the result, continue | `proxy_tools` (off) | `proxy_tools/`, `weasel_intercept/proxy_tool.rs` | [`REQUEST_FLOW.md`](REQUEST_FLOW.md) |
 | Memory harvester: `<mem:update>` tags in a response become lessons | `harvester` (on) | `memory_harvester/`, `store/updater/harvester_hook.rs` | user guide [memory](user-guide/memory.md) |
-| Out-of-band delivery into a live Remote Control channel | a channel is linked | `proxy/remote_control/inject.rs` | [`INJECTION_TRUST.md`](INJECTION_TRUST.md) |
+| Out-of-band steerer, mailbox or code-findings delivery into a live Remote Control channel; lessons, recall and other proxy context do not wake a session | a channel is linked and the source policy allows waking | `crates/mike-features/src/proxy/remote_control/inject.rs`, `crates/mike-features/src/injection/policy.rs` | [`INJECTION_TRUST.md`](INJECTION_TRUST.md) |
 
 ### Judge, steer and learn (background workers)
 
@@ -172,7 +173,7 @@ recorded in `llm.calls`.
 | Lesson proposer | `judge_lessons` (off) | yes | Proposes lessons from judged turns; proposals wait on `/proposals` and `/memory` | UI `/proposals`, `/skills`; REST `/api/directive-proposals`, `/api/skills/*` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md), [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 | Dossier builder | `dossier_builder` (off) | no | `memory.turn_facts` per closed turn: next genuine message, how it ended, checks run | MCP `get_session_dossier`, `get_turn_facts`; `mike dossier-*` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#15-operator-turn-lifecycle) |
 | Semantic context | `semantic_context` (on, loopback embedder only) | embedder | Semantic items, pattern tagging and grouping, drift | REST `/api/semantic/*`; MCP `get_semantic_*`; `mike semantic …` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#semantic-context) |
-| Embed worker and knowledge scan | `embedding.enabled` (off) | embedder at `embedding.url` | Embeds turns, sessions and knowledge chunks; scans `~/.claude` memory and skills into knowledge sources every 120 s | UI `/settings/embedding`; MCP `recall_similar_turns`, `search_project_knowledge` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md) |
+| Embed worker and knowledge scan | Embedding: `embedding.enabled` (off); file scan runs independently with persistence and a Claude home | embedder at `embedding.url` for embedding, not file scanning | Embeds turns, sessions and knowledge chunks; scans checkout memory, skills and instructions plus machine-level Claude home sources every 120 s. Machine sources are eligible across projects sharing the database | UI `/settings/embedding`; MCP `recall_similar_turns`, `search_project_knowledge` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md) |
 | Reranker client | `rerank.enabled` (off) | reranker at `rerank.url` | `RerankService` scores search candidates against the query; `search_project_knowledge` and `recall_similar_turns` rerank their top `rerank.candidates` results and report the outcome in a `rerank` object; each call is recorded in `memory.search_events` | REST `/api/health` and `/api/capabilities` (`rerank`); settings `rerank.*` | [`ARCHITECTURE.md`](ARCHITECTURE.md#rerankservice) |
 | Overnight reranker tuner | `rerank.tuning.enabled` (off) | reranker; quiet window (`judge_lessons.quiet_*`) | `rerank_nightly` grades the day's recorded knowledge searches against 200 reranked candidates into `memory.search_grades`, then tunes the `search.ranking.*` settings, keeping a change only when the share of used references in the top 5 improves by 0.01 and no kind drops; each try is recorded in `memory.search_tuning_runs`; the same night pass writes the reranked top 10 candidates per open work thread to `work.thread_card_candidates` (the thread card's Related section) and queues reranked near-duplicate lesson pairs in `memory.lesson_pair_candidates`, which `mike detect-lesson-relations` judges first | settings `search.ranking.*`, `rerank.tuning.enabled` | [`ARCHITECTURE.md`](ARCHITECTURE.md#overnight-reranker-grading-and-ranking-tuner) |
 | Eval metrics | always | no | Daily rollups, rates and alarms over judge output | REST `/api/eval/*`; `mike eval …`; MCP `get_eval_rates`, `list_eval_alarms` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
@@ -242,8 +243,11 @@ wins over a code default, so an upgrade never changes what an install does.
   ten `client_serves_*` keys.
 
 Presets (`feature_presets/plan.rs`): **watch-only** is every default;
-**recommended** adds `recall_injector`, `agent_lessons`, `reminders` and
-`reminders.inject_lessons`; **everything** turns every switch on.
+**recommended** adds `recall_injector`, `agent_lessons`, `reminders`,
+`reminders.inject_lessons` and, after alpha.5, `code_findings` with its
+`change_record` and `code_scan` prerequisites. Default-on `code_findings_push` can
+then prompt further work through Remote Control; **everything** turns every feature toggle on. Presets do not
+reset filter rules or separate settings such as `embedding.enabled` and `rerank.enabled`.
 
 ## The `mike` command tree
 
@@ -371,8 +375,12 @@ and shown by `mike print-config` under `LIVE OVERLAY`. Every key:
 
 Nothing but the forwarded request to `upstream_url`, until an operator turns on
 a model-calling feature (OpenRouter or a configured provider), points
-`embedding.url` or the semantic embedder off loopback, sets `otel_endpoint`, or
-runs `detect-lesson-relations` or `verifier-replay --execute`. The ledger that
+an enabled `embedding.url` or `rerank.url` service off loopback, changes the semantic
+embedder, sets `otel_endpoint`, or runs a model-backed command such as
+`detect-lesson-relations` or `verifier-replay --execute`. MCP search results and injected
+lessons also become context in subsequent requests to Anthropic. Model jobs routed to
+`claude/` or `codex/` use those tools' sign-ins; local CLI execution does not mean local
+model inference (`crates/mike-base/src/llm/model_ref.rs`). The ledger that
 changes with the code is
 [`WHAT_MIKE_STORES_AND_SENDS.md`](WHAT_MIKE_STORES_AND_SENDS.md); the user
 narrative is [privacy](user-guide/privacy.md); the trust boundary is

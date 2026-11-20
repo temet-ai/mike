@@ -56,7 +56,9 @@ No more than 16 panes are open at once by default (`launch_max_surfaces` in
 
 ## What a worker does
 
-A worker's turn follows the same pattern for every task:
+A worker making code changes follows this pattern. For research or comment-only tasks,
+use the [evidence-only report path](acceptance.md#research-or-comment-only-work) instead
+of inventing a commit:
 
 1. Read its brief and the files it names.
 2. Change only the files its task owns.

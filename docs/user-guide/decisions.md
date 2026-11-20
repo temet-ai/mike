@@ -32,20 +32,29 @@ the work, and it would normally send Claude a nudge saying so. A nudge costs Cla
 here it would not help: the change is one reordered list in a text file, and the final message
 says exactly what changed.
 
-With decisions on, the guard first runs its pre-check. Jev answers four questions about the ask,
-the end of Claude's message, the files that changed and whether anything observed the change, and
-mike combines the answers into a score between 0 and 1. A score under 0.3 holds the nudge.
+On current post-alpha.5 source builds, inspect the pre-check rather than expecting this
+fictional example to produce a particular answer. The `verifier_precheck_v4` question set
+asks five questions about unfinished work, work still running, earlier completion, a gap
+already disclosed, and whether the nudge matches the operator's ask. Code rules can also
+hold a nudge without calling Jev, for example for an empty or machine-text ask or a mailbox
+nudge. These are not the same as model judgements.
 
-1. Open the `docs` session, then **Session controls**, then **Steering activity**, and open the
-   **Intervention timeline**.
-2. Find the pre-check row for that turn. It reads **HELD** with the score and the four answers.
-   A held nudge also gets its own **Held** row, so you can see what Claude was spared.
-3. Later, when the nudge has been labelled as one that would not have helped, the row adds
-   **hold correct**. If the same nudge would have been useful, it reads **hold wrong**.
+1. Open the `docs` session, then **Session controls**, then **Steering activity**, and open
+   the **Intervention timeline**.
+2. Find the pre-check for that turn. Read the recorded question set, answers or code rule,
+   and the actual held/sent result, not just the score.
+3. Check whether a later outcome exists before calling the decision right. No outcome
+   means unlabelled, not correct. A held nudge does not by itself demonstrate what a reply
+   to that nudge would have been.
 
-When the score is 0.3 or higher the row reads **SENT** and the nudge goes out as before, with
-**sent right** or **sent wrong** added once it has been labelled. **FAILED OPEN** means the
-pre-check could not run, and the nudge was sent as if decisions were off.
+In this source version, the model recommends sending only when the unfinished-work answer
+is at least 0.8 and the strongest veto is below 0.6. The displayed composed score is not a
+single 0.3 send threshold. A deterministic 10% holdback sample, where an evaluation UUID is present, lets an
+otherwise-held nudge continue through the existing delivery path to collect later evidence.
+This also applies to code-rule holds; it does not prove delivery succeeded. A hold
+recommendation therefore does not always mean no nudge was sent. **FAILED OPEN** means the pre-check could not settle the call and
+mike continued down its existing path. Check your running build and record: these details
+are not a promise about alpha.5 or an unverified deployment.
 
 ## Switch decisions on
 
@@ -87,6 +96,16 @@ the fleet's definition, under its `decisions` keys: `stop_check`, `wake_check`, 
 itself. See [Write a fleet definition](fleets/definition.md). The switch on the Steering page
 still turns all of them off at once.
 
+In post-alpha.5 builds containing PR #453, **Steering note check** uses
+`decisions.note_gate.mode`. The point defaults to **On**, but the global
+**Decisions** switch defaults off. The point also needs persistence and an
+available configured OpenRouter Decisions client. **Shadow** can still send
+the input to OpenRouter and record the hypothetical result, but it does not
+hold the note. **Off** makes no call for this point. If the call fails or does
+not return both usable scores, the note is allowed past this check; other
+checks and delivery rules still apply. See [Steering](steering.md#check-why-a-steering-note-was-held)
+and [Privacy](privacy.md#steering-note-check).
+
 ## See how well each point does
 
 mike records every call: the question, the answer, how long it took, what it cost and whether
@@ -103,6 +122,61 @@ it changed anything. There are three places to read the results.
 - The session's **Intervention timeline**, which shows the pre-check as in the example above.
 - For a fleet, open the fleet, click a session, and read the **Decisions** group in the
   inspector.
+
+### Do not mistake a score for proof
+
+Compare a decision point with simple baselines, such as sending every eligible nudge or
+holding every one, on the same labelled examples and question-set version. The
+[verifier investigation](https://github.com/temet-ai/mike/issues/305#issuecomment-6907425570)
+reported that its replay did not beat holding every fire; that is a reported result, not
+an independent test of your installation. The later reply supplies evidence the pre-check
+did not have when it acted. Better wording alone cannot supply a missing fact.
+
+Read the label's evidence, sample size and whether it came from a replay or a later live
+outcome. A high hold count is not measured accuracy. Do not turn a point off or change its
+threshold solely because one replay looks poor; first identify the fact or failure mode
+that would justify a change and compare like-for-like results.
+
+## Replay without overclaiming
+
+Current post-alpha.5 source builds provide `mike decisions replay` to ask today's questions
+about historical evidence and compare the answers with labels. It is not an offline dry
+run. It calls the configured decisions model through the configured OpenRouter endpoint,
+transmits the reconstructed context and can incur charges. It does not send the replayed
+nudge to a live session or establish how that session would respond. Switching off live
+decisions is not a promise that an explicitly requested CLI replay makes no model calls.
+
+[The replay report in PR #333](https://github.com/temet-ai/mike/pull/333) reports improvements
+on the same `claude_review` examples used to investigate the weak points, including 50/50
+for text origin and 45/45 for criteria source. Those are agreement results on that reviewed
+set, not independent accuracy estimates or proof of live prompt behavior. The report also
+notes turn-judge variation between 37/50 and 38/50 on the same code. Keep an untouched
+labelled set for a separate evaluation before generalizing an improvement.
+
+Before running a replay, check `mike decisions replay --help` for the installed point names
+and options. Choose a bounded `--limit` and, where useful, `--since`; without them the source
+implementation considers all available history. `--out` is required and overwrites an
+existing file, so choose a fresh private output path. The JSONL includes request context,
+labels and answers, not just aggregate scores. Review and redact it before sharing.
+
+The replay may reconstruct context rather than reproduce the original request exactly:
+
+- Text-origin replay reads the captured request body and recomputes its signals.
+- Criteria-source replay combines stored thread criteria with opening and recent operator
+  asks from the ledger, bounded by the original record's time.
+- Leaf-judge replay supplements the report with captured command output and test names at
+  its commit. `MIKE_REPLAY_REPOS` names a parent directory whose immediate children are
+  searched for a repository containing that SHA, not a list of paths or a repository by
+  itself. Missing repositories leave that reconstruction without freshly loaded test names.
+  The output lookup uses a case-insensitive substring match on the command text within
+  the previous 24 hours and is not scoped to the original session. Check that the selected output really belongs to the reported
+  work before treating it as proof; a matching command is not unique provenance.
+
+Read skipped-context counts, failures and any early-stop reason along with the score.
+`agrees with current judge` is agreement with an earlier decision, not an independent
+correctness label. Preserve the model, question-set version, source ids and reviewed
+sample size when comparing runs. These are source-verified limitations, not a replay
+performed for this guide or confirmation that an installed release includes the changes.
 
 ## What it costs and how it is limited
 

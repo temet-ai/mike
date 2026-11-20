@@ -1,7 +1,7 @@
 # Read what a session did
 
-A session is one Claude Code conversation. mike keeps every request it sent and every answer
-it got, and the Sessions page turns them back into something you can read: the turns you
+A session is one Claude Code conversation. The Sessions page presents the session-linked
+requests and responses mike retained as something you can read: the turns you
 typed, what Claude replied, which tools it ran, and which request carried each of them. Use
 it to check what Claude was actually told, to find the moment you corrected it, and to see
 what a long run did while you were away. It only reads; nothing on these pages changes a
@@ -21,25 +21,37 @@ told Claude: "Put Homebrew first on the install page."
 2. Open the `~/projects/site` group if it is collapsed. Each row shows the session's title,
    its number of requests (**Req**), when it **Started**, when it was **Last active**, and its
    **Session id**.
-3. Select the `docs` row. The session page opens, headed by the session's title and a short
-   id you can copy with the copy button.
+3. Select the session row. The guide calls it `docs`; your session may have a different
+   title, so use its project folder and **Last active** time to identify it. The session
+   page opens, headed by its title and a short id you can copy with the copy button.
 
 The pin beside a row pins the session. Pinned sessions are exempt from mike's time-based
 clearing of old data. A session that is running now shows live. If a project has more
 sessions than it lists, choose **Show N more sessions** at the foot of the group.
 
-If the page shows **No sessions yet**, Claude Code has not sent a request through mike. Follow
-the [quickstart](quickstart.md), then check [Troubleshooting](troubleshooting.md).
+If the page shows **No sessions yet**, no session history is visible here. This does not
+prove that Claude Code sent no traffic through mike or that nothing was stored. Check
+routing, the session header, installed build and storage mode using the
+[quickstart](quickstart.md) and [Troubleshooting](troubleshooting.md).
+
+In alpha.5, ordinary proxy requests without a usable session header are forwarded without
+capture. Newer source containing PR #185 can store them separately in
+`requests.sessionless_requests` when persistence is available; they do not become session
+timelines. Trial session history is in memory, while durable history uses the configured
+PostgreSQL server, which may be remote. Retained bodies can be limited, incomplete or
+missing; this page is not a complete traffic audit. See
+[Privacy](privacy.md#traffic-without-a-session-id) before interpreting an empty screen.
 
 ## Find something a session said
 
-The search box on the Sessions page finds text across everything mike captured, not only titles.
+The search box on the Sessions page searches retained session content, not only titles.
+It is not a search of every capture store, including the separate sessionless store.
 
 1. Click **Search sessions or content** and type `Homebrew`. mike searches once you have typed
    four characters.
 2. The list switches to the sessions that match, still grouped by project. The label beside the
    box says what was searched: titles, conversation and bodies.
-3. Open the `docs` row. Each match shows where the words appeared.
+3. Open the matching session row. Each match shows where the words appeared.
 
 The search covers the session's title and id, what you and Claude said, and the raw responses
 (tool results, thinking and everything else captured). Raw responses are searched for the last
@@ -91,9 +103,10 @@ To find your correction:
 
 ![The docs session timeline with the correction turn open](images/session-timeline.png)
 
-If a turn says **No reply captured yet**, the answer is still arriving or the request failed.
-If the list says **No requests in this session yet** the session exists but nothing has been
-captured for it. **No turns match the current filter** means your search or filter hid
+If a turn says **No reply captured yet**, a reply is not available in this view. It may
+still be arriving, the request may have failed, or the response may not have been retained.
+If the list says **No requests in this session yet**, no requests are available in this
+view; it is not proof that none were ever captured. **No turns match the current filter** means your search or filter hid
 everything: clear it.
 
 ## Look at one request
@@ -118,15 +131,70 @@ came back, open a request from its turn.
 
 3. Below it, the response, with the accumulated text and any thinking.
 
-On a fresh install **Sent** is the same as **Original** and **Transformations** is empty,
-because mike changes nothing until you turn on a feature that does. Once a
-[filter](filters.md), a [lesson reminder](memory.md) or a [steerer](steering.md) edits a
-request, this is where you see it.
+Compare **Original** and **Sent** rather than assuming they match when optional rewrites
+are off. A [filter](filters.md), a [lesson reminder](memory.md) or a [steerer](steering.md)
+can change the forwarded request. Post-alpha.5 builds containing
+[PR #452](https://github.com/temet-ai/mike/pull/452) also make a protocol correction:
+when a continued request points to an answer that mike followed up after handling a
+proxy tool call, the `proxy_tool_thread` stage can replace only
+`thread.previous_message_id` with the follow-up answer's id. This changes **Sent**,
+not the retained **Original**, and does not require enabling an optional rewrite.
+
+In **Transformations**, `thread_continues_followup` identifies the correction.
+`thread_followup_unanswered` means a follow-up was found without an answer id, so
+this stage did not rewrite the link. It is not a catch-all for unchanged requests:
+for example, a request that is not a continuation or has no known follow-up does
+not get this correction either. Check the running build before expecting these
+entries; alpha.5 does not have this stage.
 
 The same request also has its own page at `http://localhost:9990/sessions/<session id>/requests/<number>`,
 which shows the session's timeline with that request selected. If it says **Couldn't load this
 request**, the request has been removed by retention or mike is not reachable. Sessions you
 have pinned keep their requests.
+
+## A continued request is not the whole conversation
+
+Claude Code can send `thread: {"type": "continue", ...}` with only the new messages
+since the preceding response. A request body containing one prompt or tool result can
+therefore be correct even though you remember many earlier turns. **Original** is that
+request, not a transcript of everything Claude already had. A tool result's matching
+`tool_use` may be in an earlier request. Do not infer that earlier instructions or tool
+calls never existed because they are absent from this body.
+
+To investigate the fictional `docs` session, start with its timeline and inspect the
+surrounding requests and responses. Preserve the session identity, request id and time;
+where present, the `thread.previous_message_id` is a response-message link, not a session
+id or request number. Missing retained history can leave the chain incomplete. Compare
+what was actually captured rather than treating a reconstructed conversation as the raw
+bytes sent on one request.
+
+### Conversation reconstruction in newer builds
+
+Post-alpha.5 source containing [PR #440](https://github.com/temet-ai/mike/pull/440)
+adds `GET /api/requests/{id}/body/conversation` on the inspect API (normally port
+9989). Use the captured request's id, not its position in the session. This route is
+not in alpha.5. It adds no conversation tab to the browser's request panel; **Original**
+and **Sent** remain individual request views.
+
+The route first resolves the sent body, then attempts database-backed reconstruction
+for a continued thread. It prepends retained earlier messages and replies, appends the
+current messages and removes the `thread` field. This is an investigation view, not
+the bytes sent on that request. If reconstruction is unavailable, it returns the
+resolved sent body instead. In-memory sent-body resolution can itself fall back to
+the filtered or original request body.
+
+Do not treat a successful response as proof of a complete conversation. The database
+walk can stop at an unlinked or unknown thread boundary, or its 256-step limit, and
+still return the available suffix. Other missing data can prevent reconstruction.
+The response has no completeness or fallback indicator: even its `reconstructed`
+field remains `false` on this route after a successful splice. Inspect the surrounding
+retained requests and thread links before drawing conclusions. A missing request can
+return 404; a retained request with no body can return `has_body: false`.
+
+[The earlier-turns issue](https://github.com/temet-ai/mike/issues/352) was closed by
+that change. This describes source behavior, not proof that your installed service
+has it or that its retained history is complete. Keep captured conversation content
+private when investigating ([Privacy](privacy.md)).
 
 ## Replay the session flow
 
@@ -146,8 +214,28 @@ requests, tool calls and messages drawn where they happened.
 The address updates as you select and seek, so a link to the page keeps your place.
 
 If the board says **Flow is unavailable for this session**, the session was captured in a form
-the board cannot draw. The Requests list still has everything. A **STALE** badge means newer
+the board cannot draw. Use the Requests list to inspect the retained captures. A **STALE** badge means newer
 requests arrived after the board loaded.
+
+### Treat historical changes as evidence to check
+
+A message marked removed in older per-request change history is not, by itself, proof
+that Claude deleted it from the conversation. Earlier capture could compare a continuation's
+short new-message body against the wrong predecessor or a previous full body. This can
+mislead request-change, session-flow and text-search readers even after newer capture
+code is installed.
+
+[Historical delta correction](https://github.com/temet-ai/mike/issues/354) was closed
+by PR #440, which adds a background correction worker for older stored deltas. Builds
+also need the migration-name correction in [PR #442](https://github.com/temet-ai/mike/pull/442).
+Check the running build and its `thread_delta_correction` capability/progress rather
+than inferring completion from a merged PR. A fix for newly arriving requests does
+not prove older stored deltas were repaired.
+Cross-check the raw request's thread link, surrounding responses and session identity
+before interpreting old removed/unknown rows. Do not rewrite history or run space
+reclamation to make the display look right: freeing storage is not evidence repair.
+These cautions describe source and issue status, not a reproduced incident or a verified
+repair of your database.
 
 ## See related sessions
 
