@@ -131,10 +131,21 @@ came back, open a request from its turn.
 
 3. Below it, the response, with the accumulated text and any thinking.
 
-On a fresh install **Sent** is the same as **Original** and **Transformations** is empty,
-because mike changes nothing until you turn on a feature that does. Once a
-[filter](filters.md), a [lesson reminder](memory.md) or a [steerer](steering.md) edits a
-request, this is where you see it.
+Compare **Original** and **Sent** rather than assuming they match when optional rewrites
+are off. A [filter](filters.md), a [lesson reminder](memory.md) or a [steerer](steering.md)
+can change the forwarded request. Post-alpha.5 builds containing
+[PR #452](https://github.com/temet-ai/mike/pull/452) also make a protocol correction:
+when a continued request points to an answer that mike followed up after handling a
+proxy tool call, the `proxy_tool_thread` stage can replace only
+`thread.previous_message_id` with the follow-up answer's id. This changes **Sent**,
+not the retained **Original**, and does not require enabling an optional rewrite.
+
+In **Transformations**, `thread_continues_followup` identifies the correction.
+`thread_followup_unanswered` means a follow-up was found without an answer id, so
+this stage did not rewrite the link. It is not a catch-all for unchanged requests:
+for example, a request that is not a continuation or has no known follow-up does
+not get this correction either. Check the running build before expecting these
+entries; alpha.5 does not have this stage.
 
 The same request also has its own page at `http://localhost:9990/sessions/<session id>/requests/<number>`,
 which shows the session's timeline with that request selected. If it says **Couldn't load this

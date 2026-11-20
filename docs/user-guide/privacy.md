@@ -37,7 +37,7 @@ appears in the UI. These statements describe checked source, not proof of your i
 The guide follows one fictional example: a session named `docs`, role `writer`, in `~/projects/site`, with the goal "Rewrite the install page". Halfway through you tell Claude: "Put Homebrew first on the install page."
 
 - **Stored:** that sentence is in the request Claude Code sent, so it is in the database exactly as typed, with the answer that followed. It appears in the session's timeline and in search ([Reading sessions](reading-sessions.md)).
-- **Sent to Anthropic:** the same request, as Claude Code made it. mike adds nothing to it unless you turned on a feature that rewrites requests.
+- **Sent to Anthropic:** the request after any applicable rewrites. Optional features can add context, and some protocol corrections need no optional rewrite setting. See [Original and Sent](reading-sessions.md#look-at-one-request).
 - **Kept as a lesson:** you can explicitly record it with the MCP companion, or have Claude emit a lesson tag that the default harvester reads. Storing a lesson and automatically delivering it are separate actions. When delivery is enabled and the lesson is selected, its text becomes part of a later request to Anthropic. [Memory](memory.md) shows how to verify both steps and remove a lesson.
 - **Sent to another model service:** a feature you enabled can send captured text to its configured provider. That can be OpenRouter or a job run through your signed-in `claude` or `codex` tool; no OpenRouter key is needed for those two routes. Enabled embedding and reranking features send text to their configured servers. The table below lists these destinations.
 
@@ -58,7 +58,7 @@ What is stored and what is not:
 - **Credentials in headers are not stored.** The `authorization`, `proxy-authorization`, `x-api-key`, `cookie` and `set-cookie` headers, and any header whose name ends in `token` or contains `api-key`, `secret`, `password` or `credential`, are stored as `[redacted]`. The real value is still passed on to Anthropic, as it must be.
 - **The capture holds no Anthropic credential of its own.** It forwards the one Claude Code sends.
 - **Keys you give mike are never written to the database.** An OpenRouter key lives in your environment or in your configuration file. A setting whose name contains `key`, `secret`, `token`, `password` or `credential` is refused by the settings store.
-- **A copy of the original request is kept even when a feature rewrites what is forwarded.** What mike captured is what Claude Code sent, not what mike passed on.
+- **Rewriting the forwarded request does not change its original capture.** When the body is retained, **Original** shows what Claude Code sent to mike. **Sent** can show a different body, including a protocol correction.
 - **Old sessions are deleted.** A sweep runs every hour and removes sessions older than 365 days.
 
 ## Code scans and feedback
@@ -157,7 +157,7 @@ On a fresh install, only the first row happens.
 
 | To | What | When |
 |---|---|---|
-| Anthropic (`https://api.anthropic.com`) | The request Claude Code sent, with its own credential, after any rewrites you turned on. History read through MCP also enters Claude Code's subsequent requests as tool results. | Every request that goes through mike |
+| Anthropic (`https://api.anthropic.com`) | The request Claude Code sent, with its own credential, after any applicable rewrites or protocol corrections. History read through MCP also enters Claude Code's subsequent requests as tool results. | Every request that goes through mike |
 | The provider configured for a background model job: OpenRouter, Claude or Codex | Captured conversation text appropriate to the job, such as prompts, answers, tool-call summaries and stored lessons | When the feature is enabled and its provider is available. Examples include steering, judging, the turn guard and lesson proposals. OpenRouter needs its key; jobs routed to `claude/` or `codex/` use that tool's own sign-in and send the job's text through that provider instead. |
 | The address in `embedding.url` | Text to embed: turns, lessons, recall queries | When `embedding.enabled` is on; it is off in a fresh configuration. The default address is on your own machine. mike refuses a non-local address unless `semantic.allow_remote_embedding` is also on. |
 | The address in `rerank.url` (after alpha.5) | Search queries and candidate passages | When `rerank.enabled` is on and a search uses the reranker. It is off by default, and its default address is `http://127.0.0.1:11435`. A server on another machine receives that text. |
