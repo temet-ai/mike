@@ -1,4 +1,4 @@
-use super::{BACKSTOP, MIN_INTERVAL, RefreshMark, Refreshed};
+use super::{BACKSTOP, MIN_INTERVAL, RefreshMark, Refreshed, SWEEP};
 use crate::store::persistence::seat_memory::SeatMemoryMarks;
 use std::time::Duration;
 use tokio::time::Instant;
@@ -6,7 +6,7 @@ use tokio::time::Instant;
 const MARKS: SeatMemoryMarks = SeatMemoryMarks {
     launch: 3,
     fleet_event: 5,
-    message: 8,
+    turn_closed: chrono::DateTime::UNIX_EPOCH,
 };
 
 fn swept() -> Refreshed {
@@ -80,11 +80,24 @@ fn refresh_mark_scoped_refresh_advances_marks_but_not_the_sweep_clock() {
     let later = SeatMemoryMarks {
         launch: 4,
         fleet_event: 9,
-        message: 12,
+        turn_closed: chrono::DateTime::UNIX_EPOCH + chrono::TimeDelta::seconds(12),
     };
     let mut mark = RefreshMark::default();
     mark.record(7, now, swept());
     mark.record(8, now + Duration::from_secs(30), scoped(later));
     assert_eq!(mark.since(now + Duration::from_secs(60)), Some(later));
-    assert_eq!(mark.since(now + BACKSTOP), None);
+    assert_eq!(mark.since(now + BACKSTOP), Some(later));
+    assert_eq!(mark.since(now + SWEEP), None);
+}
+
+#[test]
+fn refresh_mark_backstop_refresh_is_scoped_until_the_daily_sweep() {
+    let now = Instant::now();
+    let mut mark = RefreshMark::default();
+    mark.record(7, now, swept());
+    assert!(mark.due(7, now + BACKSTOP));
+    assert_eq!(mark.since(now + BACKSTOP), Some(MARKS));
+    mark.record(7, now + BACKSTOP, scoped(MARKS));
+    assert!(!mark.due(7, now + BACKSTOP + Duration::from_secs(60)));
+    assert_eq!(mark.since(now + SWEEP), None);
 }

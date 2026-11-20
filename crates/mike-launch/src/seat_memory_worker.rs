@@ -49,7 +49,7 @@ impl RefreshMark {
     }
 
     pub fn since(&self, now: Instant) -> Option<SeatMemoryMarks> {
-        if self.sweep_due(now) {
+        if self.full_sweep_due(now) {
             None
         } else {
             self.marks
@@ -68,10 +68,19 @@ impl RefreshMark {
     fn sweep_due(&self, now: Instant) -> bool {
         self.marks.is_none()
             || self
-                .swept_at
+                .refreshed_at
                 .is_none_or(|at| now.duration_since(at) >= BACKSTOP)
     }
+
+    fn full_sweep_due(&self, now: Instant) -> bool {
+        self.marks.is_none()
+            || self
+                .swept_at
+                .is_none_or(|at| now.duration_since(at) >= SWEEP)
+    }
 }
+
+const SWEEP: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Refreshed {

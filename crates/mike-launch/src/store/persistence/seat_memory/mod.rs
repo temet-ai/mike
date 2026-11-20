@@ -4,7 +4,7 @@ use crate::store::persistence::PersistError;
 pub struct SeatMemoryMarks {
     pub launch: i64,
     pub fleet_event: i64,
-    pub message: i64,
+    pub turn_closed: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,7 +39,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                 "src/store/persistence/seat_memory/refresh.sql",
                 since.map(|m| m.launch),
                 since.map(|m| m.fleet_event),
-                since.map(|m| m.message),
+                since.map(|m| m.turn_closed),
             )
             .fetch_one(self.pool())
             .await?;
@@ -50,7 +50,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                 marks: SeatMemoryMarks {
                     launch: row.launch_mark,
                     fleet_event: row.event_mark,
-                    message: row.message_mark,
+                    turn_closed: row.turn_mark,
                 },
             })
         })
