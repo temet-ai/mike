@@ -232,8 +232,10 @@ Make small edits and subtle or cross-cutting changes yourself.
 - Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
   session in the checkout.
 - Read-only SQL:
-  `PGOPTIONS='-c statement_timeout=5000 -c lock_timeout=2000' docker exec armitage-pg psql -U devuser -d claude_proxy -X -At -c "<select>"`,
-  time-bounded on large tables. Prefer the `mike-mcp` read tools.
+  `PGOPTIONS='-c statement_timeout=5000 -c lock_timeout=2000' docker exec armitage-pg psql -U mike_adhoc -d claude_proxy -X -At -c "<select>"`,
+  time-bounded on large tables. Prefer the `mike-mcp` read tools. Ad-hoc queries and benchmarks
+  run as the read-only `mike_adhoc` role (or `SET ROLE mike_adhoc`) so Wright's `slow_queries`
+  check does not report them as mike's own.
 
 ## Repo tools
 
