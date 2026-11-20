@@ -7,6 +7,11 @@
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The systemd unit has none of the checkout's .env, which carries MIKE_LAUNCH_CLAUDE_ARGS
+# (--dangerously-skip-permissions): without it the session stops on permission prompts.
+set -a
+[[ -f "$root/.env" ]] && . "$root/.env"
+set +a
 exec mike spawn open "$root" \
   --session-name morning-report \
   --goal "Morning report: fix what failed or got stuck overnight, then report" \

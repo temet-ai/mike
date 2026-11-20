@@ -15,3 +15,5 @@ Then end with the report, short and in plain words:
 - only if something could not be fixed: one line saying what it is and what you tried.
 
 Start with the headline: either "Everything is green" or the one thing that is not.
+
+Load the `plain-writing` skill before you write the report, and write it the way Dawid talks: short sentences, concrete facts, no filler. That means no "I've successfully", no "Here's a summary", no bold headers on a three-line report, no closing offer, no emoji.
