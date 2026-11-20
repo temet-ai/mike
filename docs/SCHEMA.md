@@ -3092,7 +3092,7 @@ filter reaches `memory.operator_turns`. Read by `search.sql` (kinds `unmet_ask`,
 Columns: `id`, `operator_turn_id`, `session_id`, `reaction`, `unmet_ask`, `rationale`, `created_at`,
 `project_id`, `search_tsv` (the verdict's stored vector, appended by `20261120100000_knowledge_search_stored_tsv.sql`).
 
-Stored search vectors (`20261120100000_knowledge_search_stored_tsv.sql`): the knowledge search used to derive
+Stored search vectors (`20261120100000_knowledge_search_stored_tsv.sql` to `20261120100004_sessions_overview_tsv.sql`, one table per file so each transaction holds one table lock): the knowledge search used to derive
 `to_tsvector(...)` for every candidate of five kinds, about 140 ms of a 930 ms any-word pool call. Each kind now keeps
 the vector the old expression index held, indexed in its place, with the same expression, so matches and ranks are
 unchanged: `memory.lessons.search_tsv`, `workspace.questions.search_tsv` (`question || ' ' || coalesce(answer, '')`,
@@ -3101,7 +3101,7 @@ unchanged: `memory.lessons.search_tsv`, `workspace.questions.search_tsv` (`quest
 (`memory.session_learnings_text(learnings)`, `idx_session_knowledge_search_tsv`) are generated columns;
 `sessions.sessions.overview_tsv` (`idx_sessions_overview_tsv`) is kept by the trigger `sessions_overview_tsv`, which
 fires only when `overview` is written, because the table takes about 120 updates per row inserted. The migration also
-installs `btree_gin`, and `20261120100001_operator_turns_project_search_tsv.sql` (concurrent) adds
+installs `btree_gin`, and `20261120100005_operator_turns_project_search_tsv.sql` (concurrent) adds
 `idx_operator_turns_project_search_tsv`, GIN over `(project_id, search_tsv)`, so a word lookup among one project's
 turns intersects the project inside the index instead of reading every project's matching turns.
 
