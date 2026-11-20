@@ -11,8 +11,8 @@
 #   scripts/build-local-release <target> [--sha <commit>] [--out <dir>] [--deploy]
 #
 # --deploy builds for a deploy to our own machines, never for a release: the infra
-# profile (no cross-crate LTO, more codegen units) through the mbx cache on half the
-# processors, in .claude/worktrees/deploy-<target>, into target/local-deploys by default.
+# profile (no cross-crate LTO, more codegen units) through the mbx cache, in
+# .claude/worktrees/deploy-<target>, into target/local-deploys by default.
 # A commit then restores every crate it did not change. scripts/deploy-infra uses it.
 #
 # Where each target builds:
@@ -24,7 +24,11 @@
 #
 # The commit defaults to origin/main. It builds in the detached worktree
 # .claude/worktrees/release-<target>, which keeps its build directory between
-# runs. The compile runs under `nice -n 10` and takes no machine-wide lock.
+# runs. The compile runs as scripts/cx's builds do (scripts/lib/heavy-build.sh): in its
+# own scope under background.slice, at nice 19 and ionice idle, on half the processors
+# (MIKE_BUILD_JOBS overrides), holding the machine's build lock, so it waits behind
+# another session's build instead of competing with it. Started over ssh it lands in
+# the same slice, because the ssh login reaches the user's systemd manager.
 set -euo pipefail
 
 GLIBC_FLOOR=2.35
@@ -38,6 +42,7 @@ SYSROOT_DEBS=(
 )
 
 die() { echo "build-local-release: $*" >&2; exit 1; }
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 
 target="" want="" out="" deploy=0
 while [ $# -gt 0 ]; do
@@ -45,7 +50,7 @@ while [ $# -gt 0 ]; do
     --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
     --out) out="${2:?--out needs a directory}"; shift 2 ;;
     --deploy) deploy=1; shift ;;
-    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$target" ] || die "one target at a time"; target="$1"; shift ;;
   esac
@@ -138,17 +143,24 @@ if [ "$target" = aarch64-unknown-linux-gnu ]; then
 fi
 
 mkdir -p "$out/$sha"
-echo "==> Building $target at ${sha:0:9} for a $kind; log: $log"
+# shellcheck source=lib/heavy-build.sh
+source "$script_dir/lib/heavy-build.sh"
+low_priority=()
+while IFS= read -r word; do low_priority+=("$word"); done < <(heavy_build_priority)
+CARGO_BUILD_JOBS="$(heavy_build_jobs)"
+export CARGO_BUILD_JOBS MIKE_BUILD_JOBS="$CARGO_BUILD_JOBS"
+heavy_build_lock "build-local-release $target" || die "could not take the machine's build lock"
+trap heavy_build_unlock EXIT
+echo "==> Building $target at ${sha:0:9} for a $kind under ${low_priority[*]}, $CARGO_BUILD_JOBS jobs; log: $log"
 started=$SECONDS
+release_args=(--target "$target" ${glibc:+--glibc "$glibc"})
+[ "$deploy" = 0 ] || release_args+=(--deploy-build)
 {
   cargo fetch --locked
   (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
-  if [ "$deploy" = 0 ]; then
-    nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
-  else
-    nice -n 10 env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"} --deploy-build
-  fi
+  "${low_priority[@]}" env CI=true scripts/release.sh "${release_args[@]}" 8>&-
 } >"$log" 2>&1 || die "the build failed; see $log"
+heavy_build_unlock
 
 candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"
 [ -f "$candidate/manifest.json" ] || die "no candidate printed; see $log"
