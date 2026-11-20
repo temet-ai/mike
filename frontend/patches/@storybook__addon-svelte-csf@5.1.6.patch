@@ -142,19 +142,6 @@ index cb0ff5c3b541f646105198ee23ac0fc3d805023e..00000000000000000000000000000000
 diff --git a/dist/parser/extract/svelte/story/template.test.js b/dist/parser/extract/svelte/story/template.test.js
 deleted file mode 100644
 index 8f48316c30afbed999681c12f6588ebed35b92c7..0000000000000000000000000000000000000000
-diff --git a/dist/runtime/emit-code.js b/dist/runtime/emit-code.js
-index 33f83f425322e8ebcf7020dea05c8c6b42a4ab0e..7bbb20e3ea218b2e091f93419094f1e512a217f2 100644
---- a/dist/runtime/emit-code.js
-+++ b/dist/runtime/emit-code.js
-@@ -79,7 +79,7 @@ const getFunctionName = (fn) => {
-  * convert a value to a stringified version
-  */
- const valueToString = (value) => {
--    if (typeof value === 'object' && value[Symbol.for('svelte.snippet')]) {
-+    if (value !== null && typeof value === 'object' && value[Symbol.for('svelte.snippet')]) {
-         return 'snippet';
-     }
-     if (typeof value === 'function') {
 diff --git a/dist/runtime/emit-code.test.d.ts b/dist/runtime/emit-code.test.d.ts
 deleted file mode 100644
 index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000

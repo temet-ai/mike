@@ -38,7 +38,7 @@ peerDependencyRules:
     'runed>@sveltejs/kit': '^3.0.0'
 
 patchedDependencies:
-  '@storybook/addon-svelte-csf@5.1.2': patches/@storybook__addon-svelte-csf@5.1.2.patch
+  '@storybook/addon-svelte-csf@5.1.6': patches/@storybook__addon-svelte-csf@5.1.6.patch
 
 # pnpm 10 and later refuse to run a dependency's install scripts unless it is
 # named here; pnpm 9 ran them all without asking. esbuild's postinstall puts its

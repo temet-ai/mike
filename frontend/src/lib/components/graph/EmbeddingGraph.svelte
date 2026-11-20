@@ -400,7 +400,6 @@
 			panOnScroll={mode === 'full'}
 			zoomOnScroll
 			proOptions={{ hideAttribution: true }}
-			colorMode="system"
 			{onnodedragstart}
 			{onnodedrag}
 			{onnodedragstop}

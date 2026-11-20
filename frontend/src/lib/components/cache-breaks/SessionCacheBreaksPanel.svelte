@@ -37,9 +37,9 @@
 		try {
 			const result = await getSessionCacheBreaks(id, { limit: PAGE_SIZE, offset: 0 });
 			if (id !== sessionId) return;
-			groups = result.groups;
-			breaks = result.breaks;
-			hasMore = result.has_more;
+			groups = result.groups ?? [];
+			breaks = result.breaks ?? [];
+			hasMore = result.has_more ?? false;
 		} catch {
 			if (id !== sessionId) return;
 			groups = [];

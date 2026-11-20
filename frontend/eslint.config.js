@@ -60,7 +60,10 @@ export default defineConfig(
 	{
 		files: ['**/*.svelte'],
 		rules: {
-			'svelte/valid-compile': ['error', { ignoreWarnings: true }]
+			'svelte/valid-compile': ['error', { ignoreWarnings: true }],
+			// eslint-plugin-svelte 3.24 added this to `recommended`. The SPA has no
+			// `paths.base`, so resolve() would be a no-op on every link and goto().
+			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
 	{

@@ -63,7 +63,7 @@ export function buildChecks(): SetupCheck[] {
 		check('version', 'mike version', 'ok', 'mike 0.1.0 (abc1234)'),
 		check('database_url', 'database url', 'ok', 'postgres://mike@127.0.0.1:5440/claude_proxy'),
 		check('database_reachable', 'database connection', 'ok', 'connected with a read-only session'),
-		check('postgres_version', 'postgres version', 'ok', 'PostgreSQL 19rc1'),
+		check('postgres_version', 'postgres version', 'ok', 'PostgreSQL 19.0'),
 		check('database_migrations', 'database migrations', 'ok', 'every migration is applied'),
 		check('inspect_port', 'inspect port', 'ok', '127.0.0.1:9989 answers'),
 		check(
