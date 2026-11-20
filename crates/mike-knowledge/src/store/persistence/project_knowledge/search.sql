@@ -55,7 +55,7 @@ WITH own_turn AS (
       FROM terms t
      CROSS JOIN LATERAL (SELECT l0.id
                            FROM (SELECT l1.id, l1.project_id FROM memory.lessons l1
-                                  WHERE to_tsvector('english', l1.text) @@ t.tq OFFSET 0) l0
+                                  WHERE l1.search_tsv @@ t.tq OFFSET 0) l0
                           WHERE l0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
@@ -72,7 +72,7 @@ WITH own_turn AS (
       FROM terms t
      CROSS JOIN LATERAL (SELECT t0.id
                            FROM (SELECT t1.id, t1.project_id, t1.opened_by FROM memory.operator_turns t1
-                                  WHERE t1.search_tsv @@ t.tq OFFSET 0) t0
+                                  WHERE t1.project_id = $1 AND t1.search_tsv @@ t.tq OFFSET 0) t0
                           WHERE t0.project_id = $1 AND (t0.opened_by IS NULL OR t0.opened_by = 'operator')) h
      GROUP BY h.id
     UNION ALL
@@ -98,8 +98,7 @@ WITH own_turn AS (
       FROM terms t
      CROSS JOIN LATERAL (SELECT a0.id
                            FROM (SELECT a1.id, a1.project_id FROM workspace.questions a1
-                                  WHERE to_tsvector('english', a1.question || ' ' || COALESCE(a1.answer, '')) @@ t.tq
-                                 OFFSET 0) a0
+                                  WHERE a1.search_tsv @@ t.tq OFFSET 0) a0
                           WHERE a0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
@@ -108,7 +107,7 @@ WITH own_turn AS (
      CROSS JOIN LATERAL (SELECT v0.id
                            FROM (SELECT v1.id, v1.operator_turn_id FROM memory.turn_verdicts v1
                                   WHERE v1.mode = 'live'
-                                    AND to_tsvector('english', v1.unmet_ask || ' ' || v1.rationale) @@ t.tq
+                                    AND v1.search_tsv @@ t.tq
                                  OFFSET 0) v0
                            JOIN memory.operator_turns vt0 ON vt0.id = v0.operator_turn_id
                           WHERE vt0.project_id = $1) h
@@ -118,8 +117,7 @@ WITH own_turn AS (
       FROM terms t
      CROSS JOIN LATERAL (SELECT k0.session_id
                            FROM (SELECT k1.session_id FROM memory.session_knowledge k1
-                                  WHERE to_tsvector('english', memory.session_learnings_text(k1.learnings)) @@ t.tq
-                                 OFFSET 0) k0
+                                  WHERE k1.search_tsv @@ t.tq OFFSET 0) k0
                            JOIN sessions.sessions s0 ON s0.session_uuid = k0.session_id
                           WHERE s0.project_id = $1) h
      GROUP BY h.session_id
@@ -128,7 +126,7 @@ WITH own_turn AS (
       FROM terms t
      CROSS JOIN LATERAL (SELECT s0.id
                            FROM (SELECT s1.id, s1.project_id FROM sessions.sessions s1
-                                  WHERE to_tsvector('english', s1.overview) @@ t.tq OFFSET 0) s0
+                                  WHERE s1.overview_tsv @@ t.tq OFFSET 0) s0
                           WHERE s0.project_id = $1) h
      GROUP BY h.id
     UNION ALL
@@ -340,7 +338,7 @@ WITH own_turn AS (
            'lesson:' || l.uuid, NULL, NULL, false
       FROM (SELECT h.id FROM memory.lessons h
              WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND h.project_id = $1
-               AND to_tsvector('english', h.text) @@ (SELECT match_tsq FROM q)
+               AND h.search_tsv @@ (SELECT match_tsq FROM q)
             UNION
             SELECT ph.kid FROM pool_pick ph WHERE ph.kind = 'lesson'
             UNION
@@ -355,7 +353,7 @@ WITH own_turn AS (
       LEFT JOIN memory.lessons rby ON rby.id = l.retired_by_lesson_id
       LEFT JOIN memory.operator_turns lst ON lst.id = l.source_turn_id
       LEFT JOIN sessions.sessions lss ON lss.id = COALESCE(l.session_id, lst.session_id)
-     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', l.text) END AS tsv
+     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE l.search_tsv END AS tsv
                          OFFSET 0) lt
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
      WHERE l.project_id = $1 AND ($3::text IS NULL OR $3::text = 'lesson')
@@ -487,8 +485,7 @@ WITH own_turn AS (
              'session_title', settler.title),
            'question_answer:' || qa.question_uuid, NULL, NULL, false
       FROM (SELECT h.id FROM workspace.questions h
-             WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND to_tsvector('english', h.question || ' ' || COALESCE(h.answer, ''))
-                   @@ (SELECT match_tsq FROM q)
+             WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND h.search_tsv @@ (SELECT match_tsq FROM q)
             UNION
             SELECT ph.kid FROM pool_pick ph WHERE ph.kind = 'question_answer'
             UNION
@@ -502,7 +499,7 @@ WITH own_turn AS (
       LEFT JOIN sessions.sessions settler ON settler.id = qa.settled_by_session_id CROSS JOIN q
      CROSS JOIN LATERAL (SELECT 'Question: ' || qa.question || E'\n\nAnswer: ' || qa.answer AS txt,
               CASE WHEN $2 = '' THEN ''::tsvector
-                   ELSE to_tsvector('english', qa.question || ' ' || COALESCE(qa.answer, '')) END AS tsv OFFSET 0) doc
+                   ELSE qa.search_tsv END AS tsv OFFSET 0) doc
       LEFT JOIN semantic sem ON sem.reference = 'question_answer:' || qa.question_uuid
      WHERE qa.project_id = $1 AND qa.answer IS NOT NULL AND ($3::text IS NULL OR $3::text = 'question_answer')
        AND ($2 = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
@@ -522,7 +519,7 @@ WITH own_turn AS (
            vk.kind || ':' || v.id, v.operator_turn_id, t.user_prompt, false
       FROM (SELECT h.id FROM memory.turn_verdicts h
              WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND h.mode = 'live'
-               AND to_tsvector('english', h.unmet_ask || ' ' || h.rationale) @@ (SELECT match_tsq FROM q)
+               AND h.search_tsv @@ (SELECT match_tsq FROM q)
             UNION
             SELECT ph.kid FROM pool_pick ph WHERE ph.kind = 'verdict'
             UNION
@@ -535,7 +532,7 @@ WITH own_turn AS (
       JOIN memory.operator_turns t ON t.id = v.operator_turn_id
       LEFT JOIN sessions.sessions vs ON vs.id = v.session_id
      CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector
-                                     ELSE to_tsvector('english', v.unmet_ask || ' ' || v.rationale) END AS tsv
+                                     ELSE v.search_tsv END AS tsv
                          OFFSET 0) vt
      CROSS JOIN LATERAL (VALUES ('unmet_ask'), ('correction')) vk(kind) CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = vk.kind || ':' || v.id
@@ -555,8 +552,7 @@ WITH own_turn AS (
            jsonb_build_object('role', 'judge', 'session_uuid', k.session_id, 'session_title', ls.title),
            'learning:' || k.session_id, NULL, NULL, false
       FROM (SELECT h.session_id FROM memory.session_knowledge h
-             WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND to_tsvector('english', memory.session_learnings_text(h.learnings))
-                   @@ (SELECT match_tsq FROM q)
+             WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND h.search_tsv @@ (SELECT match_tsq FROM q)
             UNION
             SELECT ph.ks1::uuid FROM pool_pick ph WHERE ph.kind = 'learning'
             UNION
@@ -570,7 +566,7 @@ WITH own_turn AS (
              ORDER BY h.generated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.session_knowledge k ON k.session_id = hit.session_id
       JOIN sessions.sessions ls ON ls.session_uuid = k.session_id
-     CROSS JOIN LATERAL (SELECT lkt.txt, CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', lkt.txt) END AS tsv
+     CROSS JOIN LATERAL (SELECT lkt.txt, CASE WHEN $2 = '' THEN ''::tsvector ELSE k.search_tsv END AS tsv
                            FROM (SELECT memory.session_learnings_text(k.learnings) AS txt OFFSET 0) lkt
                          OFFSET 0) lk
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'learning:' || k.session_id
@@ -590,7 +586,7 @@ WITH own_turn AS (
            'session:' || ss.session_uuid, NULL, NULL, false
       FROM (SELECT h.id FROM sessions.sessions h
              WHERE $2 <> '' AND NOT (SELECT pool FROM q) AND h.project_id = $1
-               AND to_tsvector('english', h.overview) @@ (SELECT match_tsq FROM q)
+               AND h.overview_tsv @@ (SELECT match_tsq FROM q)
             UNION
             SELECT ph.kid FROM pool_pick ph WHERE ph.kind = 'session'
             UNION
@@ -602,7 +598,7 @@ WITH own_turn AS (
              ORDER BY COALESCE(h.overview_generated_at, h.last_seen) DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN sessions.sessions ss ON ss.id = hit.id
       LEFT JOIN memory.session_knowledge k ON k.session_id = ss.session_uuid
-     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE to_tsvector('english', ss.overview) END AS tsv
+     CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE ss.overview_tsv END AS tsv
                          OFFSET 0) sv
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'session:' || ss.session_uuid
      WHERE ss.project_id = $1 AND btrim(coalesce(ss.overview, '')) <> '' AND ($3::text IS NULL OR $3::text = 'session')

@@ -1834,6 +1834,7 @@ reproducibility metadata for the periodic sweep over closed, `unknown`-outcome t
 - `operator_turns_judge_queue_idx`: `(closed_at, id) WHERE judge_queued_at IS NOT NULL` (BTree partial) — the live judge claim and backlog count start here; `judge_queued_at` is set by the turn-facts upsert when a turn becomes judge-eligible and cleared when a matching live verdict lands or the turn fails permanently
 - `idx_operator_turns_closed_at`: `closed_at WHERE closed_at IS NOT NULL` (BTree partial) — live judge window
 - `idx_operator_turns_search_tsv`: `search_tsv` (GIN) — full-text search
+- `idx_operator_turns_project_search_tsv`: `(project_id, search_tsv)` (GIN, `btree_gin`): one project's turns matching a word, for the knowledge search
 
 ---
 
@@ -1992,7 +1993,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 - `idx_lessons_injectable_project`: `(project_id, agent_id, stage_id, created_at DESC) WHERE stage IN (2,3) AND NOT archived AND project IS NOT NULL` (BTree partial)
 - `idx_lessons_embedding`: `embedding vector_cosine_ops WHERE NOT NULL` HNSW m=16 ef=64 — semantic lesson recall
 - `idx_lessons_topic`: `(project_id, topic) WHERE topic IS NOT NULL AND archived_at IS NULL` (BTree partial) — exact-match topic recall
-- `idx_lessons_text_tsv`: `to_tsvector('english', text)` (GIN expression index, created concurrently by `20261110110002_lessons_text_search_index.sql`) — the knowledge search's lesson branch asks it for matching lessons instead of scanning every lesson
+- `idx_lessons_search_tsv`: GIN over the stored `search_tsv` (`GENERATED ALWAYS AS (to_tsvector('english', text)) STORED`), both added by `20261120100000_knowledge_search_stored_tsv.sql` in place of the expression index `idx_lessons_text_tsv` — the knowledge search's lesson branch matches and ranks lessons on the stored vector
 
 ---
 
@@ -3089,7 +3090,20 @@ filter reaches `memory.operator_turns`. Read by `search.sql` (kinds `unmet_ask`,
 `memory.knowledge_embedding_sources_v`.
 
 Columns: `id`, `operator_turn_id`, `session_id`, `reaction`, `unmet_ask`, `rationale`, `created_at`,
-`project_id`.
+`project_id`, `search_tsv` (the verdict's stored vector, appended by `20261120100000_knowledge_search_stored_tsv.sql`).
+
+Stored search vectors (`20261120100000_knowledge_search_stored_tsv.sql`): the knowledge search used to derive
+`to_tsvector(...)` for every candidate of five kinds, about 140 ms of a 930 ms any-word pool call. Each kind now keeps
+the vector the old expression index held, indexed in its place, with the same expression, so matches and ranks are
+unchanged: `memory.lessons.search_tsv`, `workspace.questions.search_tsv` (`question || ' ' || coalesce(answer, '')`,
+`idx_questions_search_tsv`), `memory.turn_verdicts.search_tsv` (`unmet_ask || ' ' || rationale`,
+`idx_turn_verdicts_live_search_tsv` `WHERE mode = 'live'`), `memory.session_knowledge.search_tsv`
+(`memory.session_learnings_text(learnings)`, `idx_session_knowledge_search_tsv`) are generated columns;
+`sessions.sessions.overview_tsv` (`idx_sessions_overview_tsv`) is kept by the trigger `sessions_overview_tsv`, which
+fires only when `overview` is written, because the table takes about 120 updates per row inserted. The migration also
+installs `btree_gin`, and `20261120100001_operator_turns_project_search_tsv.sql` (concurrent) adds
+`idx_operator_turns_project_search_tsv`, GIN over `(project_id, search_tsv)`, so a word lookup among one project's
+turns intersects the project inside the index instead of reading every project's matching turns.
 
 The same migration adds `memory.session_learnings_text(text[])`, an immutable `array_to_string(…, E'\n')`
 so session learnings can carry an expression index, and these indexes:
