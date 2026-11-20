@@ -183,6 +183,8 @@ pub struct SettingsOverlay {
 
     pub llm_budget_decision_share_pct: i64,
 
+    pub llm_budget_side_call_share_pct: i64,
+
     pub decisions_model: String,
     pub decisions_timeout_ms: i64,
     pub decisions_turn_guard_mode: String,
@@ -286,6 +288,7 @@ impl Default for SettingsOverlay {
             llm_budget_eval_share_pct: 0,
             llm_budget_other_share_pct: 5,
             llm_budget_decision_share_pct: 5,
+            llm_budget_side_call_share_pct: 5,
             decisions_model: meta_decisions::DEFAULT_MODEL.to_owned(),
             decisions_timeout_ms: meta_decisions::DEFAULT_TIMEOUT_MS,
             decisions_turn_guard_mode: "on".to_owned(),

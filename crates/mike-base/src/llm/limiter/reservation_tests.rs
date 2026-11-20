@@ -53,6 +53,7 @@ fn a_reservation_holds_capacity_against_other_roles() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -117,6 +118,7 @@ fn reservation_still_honours_the_spend_slice_per_call() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });

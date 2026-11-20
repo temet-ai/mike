@@ -105,6 +105,7 @@ fn role_inside_its_share_is_never_refused_while_another_role_saturates() {
         lesson_relations: 5,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -130,6 +131,7 @@ fn role_saturating_the_shared_pool_cannot_touch_reserved_slots() {
         lesson_relations: 5,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -154,6 +156,7 @@ fn borrowed_capacity_is_reclaimed_when_the_window_rolls() {
         lesson_relations: 5,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -180,6 +183,7 @@ fn rate_window_applies_the_same_per_role_guarantee() {
         lesson_relations: 0,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });
@@ -242,6 +246,7 @@ fn available_predicts_exactly_how_many_admits_succeed() {
         lesson_relations: 5,
         lesson_proposer: 0,
         decision: 0,
+        side_call: 0,
         eval: 0,
         other: 0,
     });

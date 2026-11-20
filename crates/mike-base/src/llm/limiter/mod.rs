@@ -247,8 +247,26 @@ impl CallLimiter {
         if let Some(refusal) = self.spend_refusal_for(role, &limits) {
             return Err(self.refuse_spend(role, refusal));
         }
+        self.admit_calls_at(role, reservation, &limits, now)
+    }
+
+    pub fn admit_unbilled(
+        &self,
+        role: LlmRole,
+        reservation: Option<&Reservation>,
+    ) -> Result<(), LlmError> {
+        self.admit_calls_at(role, reservation, &self.limits(), Instant::now())
+    }
+
+    fn admit_calls_at(
+        &self,
+        role: LlmRole,
+        reservation: Option<&Reservation>,
+        limits: &LimiterLimits,
+        now: Instant,
+    ) -> Result<(), LlmError> {
         let mut state = self.lock_state();
-        state.prepare(&limits, now);
+        state.prepare(limits, now);
         if reservation.is_some_and(|r| r.consume(role, state.epochs())) {
             return Ok(());
         }

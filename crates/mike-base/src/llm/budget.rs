@@ -17,6 +17,7 @@ pub struct RoleSharePcts {
     pub eval: u32,
     pub other: u32,
     pub decision: u32,
+    pub side_call: u32,
 }
 
 impl RoleShares {
@@ -30,6 +31,7 @@ impl RoleShares {
         pct[LlmRole::Eval.slot()] = p.eval;
         pct[LlmRole::Unattributed.slot()] = p.other;
         pct[LlmRole::Decision.slot()] = p.decision;
+        pct[LlmRole::SideCall.slot()] = p.side_call;
         Self { pct }
     }
 
@@ -70,6 +72,7 @@ impl Default for RoleShares {
             eval: 0,
             other: 5,
             decision: 5,
+            side_call: 5,
         })
     }
 }
@@ -235,6 +238,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         for limit in [1, 7, 12, 30, 100, 600, 100_000] {
             let sum: u32 = LlmRole::ALL
@@ -256,6 +260,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         let sum: u32 = LlmRole::ALL
             .iter()
@@ -276,6 +281,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         let full = counts(50, 30, 0, 0, 0);
         assert_eq!(
@@ -296,6 +302,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         let steerer_saturated = counts(25, 0, 0, 0, 0);
         assert_eq!(
@@ -324,6 +331,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         assert_eq!(
             calls_available(100, &shares, &counts(0, 0, 0, 0, 0), LlmRole::Unattributed),
@@ -338,6 +346,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         assert_eq!(
             calls_available(100, &shares, &counts(0, 0, 0, 0, 0), LlmRole::Unattributed),
@@ -364,6 +373,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         let mut spent = RoleSpend::default();
         spent.add(LlmRole::Steerer, 0.5);
@@ -391,6 +401,7 @@ mod tests {
             eval: 0,
             other: 0,
             decision: 0,
+            side_call: 0,
         });
         let mut spent = RoleSpend::default();
         spent.add(LlmRole::SessionJudge, 0.3);
