@@ -5,8 +5,7 @@
 # start itself about 20,000 times and fill 46 GB.
 #
 # The run is capped at 300 processes (a systemd user scope) and 10 minutes, so a loop
-# fails this test instead of the machine. It is a build, so it waits on scripts/cx's
-# heavy-build lock like any other.
+# fails this test instead of the machine.
 #
 # Usage: scripts/test-cx-nextest-mbx   Exit 0 on pass or skip; the last line says which.
 set -uo pipefail

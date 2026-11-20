@@ -4,7 +4,6 @@
 # Runs before every `git commit`. Blocks the commit if any grader fails.
 # This hook and the commit-msg hook (commit-msg-hook.sh, which runs G6) are the
 # only commit-time enforcement; they cover every commit, whoever makes it.
-# G2 and G5 do not run here; run_all_graders.sh runs them.
 #
 # This file is NOT committed to the repo (.git/hooks is ignored).
 # It is installed by: scripts/db-code-graders/install-hooks.sh
@@ -141,6 +140,4 @@ for msg in "${messages[@]}"; do
     echo "• $msg"
     echo ""
 done
-echo "Run: scripts/db-code-graders/run_all_graders.sh"
-echo ""
 exit 1

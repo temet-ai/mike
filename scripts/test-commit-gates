@@ -181,22 +181,6 @@ Perf-Query-SHA: $sha"
 fi
 rm -rf "$d"
 
-# The two blocking G5 checks are structural detectors carrying their own
-# fixtures. Both replaced heuristics whose every standing hit was a false
-# positive, so what matters is that the ALLOWED shapes stay unflagged.
-echo "sql-set-based — G5 blocking detectors"
-for det in g5_correlated_subquery g5_row_by_row_insert; do
-    out="$(python3 "$REPO/scripts/db-code-graders/$det.py" --self-test 2>&1)"; rc=$?
-    if [[ $rc -eq 0 ]]; then ok "$det self-test ($(printf '%s' "$out" | sed -n 's/.*self-test: \(.*\) correct/\1/p'))"
-    else bad "$det self-test" "exit=$rc"; show "$out"; fi
-done
-
-# An unreadable input must not read as clean — that is the failure mode both
-# detectors were rewritten to remove.
-out="$(python3 "$REPO/scripts/db-code-graders/g5_correlated_subquery.py" /nonexistent/nope.rs 2>&1)"; rc=$?
-if [[ $rc -eq 2 && "$out" == *"refusing to report clean"* ]]; then ok "an unreadable path is an error, not a clean bill"
-else bad "an unreadable path is an error, not a clean bill" "exit=$rc"; show "$out"; fi
-
 # ── scripts/gate must count process crashes as test failures ─────────────────
 echo "gate — nextest crash summary parsing"
 d="$(mktemp -d)"

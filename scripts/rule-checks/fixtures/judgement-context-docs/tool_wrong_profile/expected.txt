@@ -1,2 +1,0 @@
-exit 1
-DRIFT C4 get_turn_verdicts docs/MCP_BRIDGE.md core tool listed under Full-only tools

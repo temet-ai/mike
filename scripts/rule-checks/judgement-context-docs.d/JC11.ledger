@@ -1,3 +1,0 @@
-# JC11 ledger. The landed sha is the JC11 commit on feat/judgement-context.
-landed   JC11 2026-09-24 2b329da4
-cli      mike eval import holdout
