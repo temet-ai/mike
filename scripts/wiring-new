@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # wiring-new: report code that ships unwired, with `mike structural wiring`.
 #
-#   wiring-new <base>..<head>      the findings the range adds (pre-push hook)
 #   wiring-new --whole [<dir>] [<label>]
 #                                  the findings of a whole tree, one count per kind,
 #                                  recorded in $XDG_STATE_HOME/mike/wiring-counts.log
 #
-# The exit status is 0 whether or not a finding is reported, and also when no mike
-# binary can run the scan (one line says so), except that a range finding of a kind
-# named in $WIRING_BLOCK (space-separated, e.g. pub_fn_no_caller) exits 1. The binary is
-# $MIKE_WIRING_BIN, else the newest target/ build of this checkout, else the
-# installed mike; the first that has `structural wiring` is used. The rules are
-# .mike/structural/wiring.yml of this checkout (of <dir> for --whole when it has one).
+# scripts/nightly-tests runs it. The exit status is 0 whether or not a finding is
+# reported, and also when no mike binary can run the scan (one line says so). The binary
+# is $MIKE_WIRING_BIN, else the newest target/ build of this checkout, else the installed
+# mike; the first that has `structural wiring` is used. The rules are
+# .mike/structural/wiring.yml of <dir> when it has one, else of this checkout. For the
+# findings a range adds, run `mike structural wiring --range <base>..<head>` directly.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
@@ -42,8 +41,8 @@ record() {
   printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >>"$state/$2" 2>/dev/null || true
 }
 
-if [[ $# -lt 1 ]]; then
-  echo "usage: wiring-new <base>..<head> | --whole [<dir>] [<label>]" >&2
+if [[ "${1:-}" != "--whole" ]]; then
+  echo "usage: wiring-new --whole [<dir>] [<label>]" >&2
   exit 2
 fi
 if ! bin="$(find_binary)"; then
@@ -51,34 +50,15 @@ if ! bin="$(find_binary)"; then
   exit 0
 fi
 
-if [[ "$1" == "--whole" ]]; then
-  dir="${2:-$PWD}"
-  label="${3:-$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo -)}"
-  rules="$dir/.mike/structural/wiring.yml"
-  [[ -f "$rules" ]] || rules="$here/.mike/structural/wiring.yml"
-  if ! json="$(cd "$dir" && "$bin" structural wiring --json --rules "$rules")"; then
-    echo "wiring-new: the whole-tree scan could not run" >&2
-    exit 0
-  fi
-  counts="$(python3 -c 'import json,sys; print(" ".join(f"{k}={v}" for k, v in json.load(sys.stdin)["counts"].items()))' <<<"$json")" || counts=""
-  echo "wiring-counts: $label $counts"
-  record "$label	$counts" wiring-counts.log
+dir="${2:-$PWD}"
+label="${3:-$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo -)}"
+rules="$dir/.mike/structural/wiring.yml"
+[[ -f "$rules" ]] || rules="$here/.mike/structural/wiring.yml"
+if ! json="$(cd "$dir" && "$bin" structural wiring --json --rules "$rules")"; then
+  echo "wiring-new: the whole-tree scan could not run" >&2
   exit 0
 fi
-
-range="$1"
-rules="$here/.mike/structural/wiring.yml"
-if ! out="$("$bin" structural wiring --range "$range" --rules "$rules" 2>&1)"; then
-  echo "wiring-new: the scan of $range could not run:" >&2
-  printf '%s\n' "$out" | tail -5 >&2
-  exit 0
-fi
-printf '%s\n' "$out"
-added="$(sed -n 's/^wiring: .*: \([0-9][0-9]*\) new$/\1/p' <<<"$out" | head -1)"
-record "$PWD	$range	${added:-?} new" wiring-scans.log
-block="${WIRING_BLOCK:-}"
-if [[ -n "$block" ]] && grep -Eq "^wiring: (${block// /|}) " <<<"$out"; then
-  echo "wiring-new: $range adds code of a blocking kind ($block) that nothing calls; wire it or drop it" >&2
-  exit 1
-fi
+counts="$(python3 -c 'import json,sys; print(" ".join(f"{k}={v}" for k, v in json.load(sys.stdin)["counts"].items()))' <<<"$json")" || counts=""
+echo "wiring-counts: $label $counts"
+record "$label	$counts" wiring-counts.log
 exit 0

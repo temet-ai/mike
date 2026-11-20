@@ -1,8 +1,8 @@
 ---
 title: Split crate mike into peer crates along measured seams
-status: accepted
+status: active
 created: 2026-11-12
-updated: 2026-11-14
+updated: 2026-11-20
 summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines by references; S6 puts fleet beside knowledge, features and lessons, and the replay by Cargo dependencies is 73% (the chain was 75%); S7 moves each feature's settings into its crate, and the replay is 70%.
 session_id:
   - 6bf6170d-77c4-477e-9e50-5b6dda36334e
@@ -140,7 +140,7 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
 
 | Step | Work | Unlocks |
 |---|---|---|
-| 0 | Done: `scripts/crate-plan`, `scripts/schema-plan` and the map in the repo; the push hook runs `--check` on both against `ratchet` in the map (874 seams, 146 foreign writes on 12 Nov). | grading |
+| 0 | Done: `scripts/crate-plan`, `scripts/schema-plan` and the map in the repo; `--check` on both compares against `ratchet` in the map (874 seams, 146 foreign writes on 12 Nov); nothing runs it now, so the ratchet is not enforced. | grading |
 | 1 | Done (13 Nov): patterns A, B, C, D, F for the base boundary, the repository accessors (H) for every group above `db`, and the S1 extraction: `crates/mike-base`, `crates/mike-features`, and `crates/mike` as the app and binary. | S1 (81%) |
 | 2 | Migrator to the bin; `test_support` behind `test-seams`. | S2 (80%) |
 | 3 | Done (13 Nov): `BaseState` in `mike-base` (`AppState` derefs to it; handlers extract it or `LaunchState` through `FromRef`), `MailPush` for remote-control pushes, shared reads down to `mike-base`, Codex home helpers into `runtime`; then the S3 extraction: `crates/mike-runtime` and `crates/mike-launch` (launch and fleet). | S3 (68%) |
@@ -378,7 +378,5 @@ setting now rebuilds only `mike-lessons` and `mike`.
   working build: S1 already separates the base and the app layer.
 - Steps 1–2 change no behaviour; they move types and modules. Steps 3–5 change how
   persistence methods are declared, not what they run.
-- DB-tier tests (`make test-db`) are required for every step that moves
-  persistence code.
 - `.config/test-tiers.json` and `.config/nextest.toml` are keyed by module and
   binary names; they move with the crates at each extraction.

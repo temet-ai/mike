@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tool-Result Step Layout — Design Spec</title>
+<style>
+/* ──────────────────────────────────────────────────────────────
+   DESIGN TOKENS (verbatim from frontend/src/app.css :root)
+   All hex values match the production token file. No new hex.
+   ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:             #0f1117;
+  --surface:        #161b22;
+  --surface-2:      #1c232d;
+  --sidebar:        #0d1016;
+
+  --border-color:   #30363d;
+  --border-subtle:  #23282f;
+
+  --text-strong:    #dde2e8;
+  --text-1:         #c2c9d1;
+  --text-2:         #adb5be;
+  --text-3:         #c0c7d0;
+  --text-faint:     #c0c7d0;
+
+  --green:          #4a9f6f;
+  --green-dim:      rgba(74, 159, 111, 0.08);
+  --green-border:   rgba(74, 159, 111, 0.15);
+
+  --amber:          #c49060;
+  --amber-dim:      rgba(196, 144, 96, 0.08);
+  --amber-border:   rgba(196, 144, 96, 0.15);
+
+  --red:            #c48080;
+  --red-dim:        rgba(196, 128, 128, 0.08);
+  --red-border:     rgba(196, 128, 128, 0.15);
+
+  --blue:           #6494bb;
+  --blue-dim:       rgba(100, 148, 187, 0.08);
+  --blue-border:    rgba(100, 148, 187, 0.15);
+
+  --teal:           #5a9b8f;
+  --teal-dim:       rgba(90, 155, 143, 0.08);
+  --teal-border:    rgba(90, 155, 143, 0.15);
+
+  /* Type scale (from @theme inline) */
+  --text-micro:   9px;
+  --text-caption: 10px;
+  --text-label:   11px;
+  --tracking-kpi: 0.04em;
+}
+
+/* ── Reset + base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+  padding: 24px;
+  line-height: 1.5;
+}
+
+/* ── Page chrome ── */
+.page-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.page-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 32px;
+  line-height: 1.7;
+}
+.section-label {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-kpi);
+  color: var(--text-3);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.demo-area {
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+.demo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.demo-note {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-color);
+  margin-bottom: 8px;
+  line-height: 1.65;
+}
+.demo-note strong {
+  color: var(--text-2);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   EXISTING BAND + MSG CHROME (from RequestBand.svelte / session-timeline-turns.html)
+   Reproduced verbatim for context. Not modified.
+   ────────────────────────────────────────────────────────────── */
+.request-band {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+.band-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.band-header__id {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.status-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+.status-pill--complete {
+  background: var(--green-dim);
+  color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green-border);
+}
+.band-header__model { color: var(--text-1); }
+.band-header__time  { color: var(--text-3); }
+.band-header__filter {
+  color: var(--blue);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Message role label row */
+.msg__role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 0 8px;
+}
+.msg--harness .msg__role {
+  color: var(--text-3);
+}
+.msg__role .toks {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   NEW: .step-v2 — Nested / indented tool-result hierarchy
+   Spec for phase 2.16.
+
+   STRUCTURE (new):
+     .steps-v2                           — wrapper
+       .step-v2 [.step-v2--open]         — per-step container
+         .step-v2__kind-row              — "Result" kind label + token count (single line)
+           .step-v2__caret               — ▶ chevron (rotates on open)
+           .step-v2__kind                — "RESULT" (green for result, amber for tool)
+           .step-v2__toks               — ~305 tokens (right-justified)
+         .step-v2__tool-name            — tool name on its own line, indented
+         .step-v2__firstline            — first logical line of body (collapsed preview)
+         .step-v2__body [hidden]         — remaining body (revealed on expand)
+
+   DESIGN DECISIONS (see spec section below):
+   1. Kind label + toks on one row — scans instantly; 0px wasted horizontal.
+   2. Tool name on its own line, indented 16px — full name at full width, not
+      competing with summary text for horizontal space.
+   3. "First logical line" as collapsed preview — not an arbitrary char slice.
+      The first \n-terminated line is a complete logical unit (e.g.
+      "Successfully captured zoomed screenshot of region (2065,0)…").
+   4. Remaining lines revealed inline on click — NO separate sheet/drawer/route.
+      Full content at the same call site (inspection-fidelity §4).
+   5. max-height: none on the expanded body — the 280px cap is removed.
+      The body is a scroll container per inspection-fidelity §4 (scroll
+      is permitted; clamping without escape hatch is not).
+
+   TOKEN DEDUPLICATION (fixes Finding 3):
+   The .msg__role .toks is SUPPRESSED when the message has exactly
+   one step and no prose (the total always equals the step total).
+   The kind-row .step-v2__toks carries the number instead.
+   When a message has multiple steps, the .msg__role .toks is restored
+   (it then represents the message total, which differs from any single step).
+   ────────────────────────────────────────────────────────────── */
+
+.steps-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 4px;
+}
+
+/* Per-step container */
+.step-v2 {
+  /* Left indent from band edge — matches existing .step margin+padding */
+  padding-left: 20px;
+  position: relative;
+}
+
+/*
+ * Left accent bar — replaces existing .step { border-left }.
+ * Amber on open (same as existing step--open), subtle on closed.
+ * A 1px bar anchors the indent hierarchy without adding weight.
+ */
+.step-v2::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border-subtle);
+  transition: background 0.15s;
+}
+.step-v2--open::before {
+  background: var(--amber-border);
+}
+
+/* Row 1: Kind label + toks — always visible */
+.step-v2__kind-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s;
+}
+.step-v2__kind-row:hover {
+  background: var(--surface-2);
+}
+.step-v2__kind-row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--blue);
+}
+
+.step-v2__caret {
+  color: var(--text-faint);
+  font-size: var(--text-micro);
+  width: 8px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * Closed: pointing right (▶). The SVG inherits rotation.
+   * We use a CSS border-triangle here for the mockup;
+   * the implementation uses <ChevronDown class="size-3" />
+   * rotated -90deg when closed, 0deg when open.
+   */
+  transition: transform 0.15s;
+  transform: rotate(-90deg);
+}
+.step-v2--open .step-v2__caret {
+  transform: rotate(0);
+}
+/* Chevron rendered as a CSS border-triangle (mockup only — use lucide ChevronDown in impl) */
+.step-v2__caret::before {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+/* Kind label: RESULT / TOOL etc */
+.step-v2__kind {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.step-v2--result .step-v2__kind { color: var(--green); }
+.step-v2--tool   .step-v2__kind { color: var(--amber); }
+.step-v2--system .step-v2__kind { color: var(--text-3); }
+.step-v2--error  .step-v2__kind { color: var(--red); }
+
+/* Token count — right-justified, replaces the duplicate msg__role .toks */
+.step-v2__toks {
+  margin-left: auto;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Row 2: Tool name — own line, full-width, under kind row */
+.step-v2__tool-name {
+  display: block;
+  padding: 0 8px 3px 22px;  /* 22px = caret(8) + kind-gap(6) + small offset */
+  font-size: var(--text-label);
+  font-family: inherit;
+  color: var(--amber);
+  word-break: break-all;   /* long MCP names break at any char */
+  line-height: 1.4;
+}
+.step-v2--result .step-v2__tool-name { color: var(--green); }
+.step-v2--error  .step-v2__tool-name { color: var(--red); }
+
+/* Optional: error badge inline with kind row */
+.step-v2__error-badge {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  flex-shrink: 0;
+}
+
+/*
+ * Row 3: First-line preview — the COLLAPSED content surface.
+ *
+ * INSPECTION-FIDELITY CONTRACT:
+ *   This is the first \n-terminated line of block.text, not an
+ *   arbitrary char slice. For structured tool results the first line
+ *   is always a complete logical unit:
+ *     "Successfully captured zoomed screenshot of region (2065,0) to (2560,196) — 495x196 pixels"
+ *     "Navigated to http://localhost:9990/sessions/…/requests/30041"
+ *     "Scrolled down by 5 ticks at (1111, 444)"
+ *   For unstructured text (plain paragraphs), the first line IS the
+ *   first paragraph — a complete semantic unit.
+ *
+ *   If block.text has no newline at all (single-line result), the
+ *   first-line IS the full content — collapsed = expanded, no toggle
+ *   is rendered (.step-v2--no-more).
+ *
+ *   The remaining lines go into .step-v2__body (hidden until expanded).
+ *   There is NO char limit on the first line.
+ *
+ * RENDERING:
+ *   white-space: pre-wrap so horizontal content (URL, region string)
+ *   wraps naturally within the available column width rather than
+ *   truncating. word-break: break-word so long URLs don't overflow.
+ */
+.step-v2__firstline {
+  display: block;
+  padding: 2px 8px 4px 22px;
+  font-size: var(--text-label);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+/*
+ * Row 4+: Remaining body lines (hidden when collapsed).
+ *
+ * INSPECTION-FIDELITY CONTRACT:
+ *   - Full content: no char cap, no max-height, no line-clamp.
+ *   - overflow: auto makes it a scroll container.
+ *   - No "show more" toggle — content is revealed inline in full.
+ *   - background: #0a0d12 (same as existing .step--result .step__body)
+ *     so the expanded body reads as a code/data surface, not prose.
+ *
+ * NOTE: The inspection-fidelity rule permits scroll containers IFF
+ * "each returned record is complete for that slice." A single
+ * continuous tool-result body is ONE record — it is complete when
+ * the operator can scroll to the bottom with no elision. This
+ * satisfies the rule. The body is never capped mid-content.
+ *
+ * The old 280px max-height is REMOVED. The body height is bounded
+ * only by the viewport / column scroll — an operator sees the true
+ * size of the content. For very large payloads (>5k chars) a future
+ * implementation may apply virtualization, but the current scale of
+ * tool results (typically <3k chars) does not need it.
+ */
+.step-v2__body {
+  display: none;
+  margin: 4px 8px 8px 20px;
+  padding: 10px 14px;
+  background: #0a0d12;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: var(--text-label);
+  line-height: 1.65;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  /* NO max-height — fixes Finding 1 (280px cap removed) */
+}
+.step-v2--open .step-v2__body {
+  display: block;
+}
+.step-v2--result .step-v2__body,
+.step-v2--tool   .step-v2__body {
+  color: var(--text-strong);
+}
+.step-v2--system .step-v2__body {
+  background: var(--surface);
+  color: var(--text-2);
+  font-style: italic;
+}
+
+/*
+ * No-more modifier: single-line results where first-line == full body.
+ * Suppress the caret + tighten spacing. No toggle rendered.
+ */
+.step-v2--no-more .step-v2__caret {
+  visibility: hidden;
+}
+.step-v2--no-more .step-v2__kind-row {
+  cursor: default;
+}
+.step-v2--no-more .step-v2__kind-row:hover {
+  background: transparent;
+}
+
+/*
+ * "More lines" indicator — replaces the old expand affordance.
+ * Shown only in the collapsed state when body has remaining lines.
+ * Padding aligns with firstline column.
+ */
+.step-v2__more-hint {
+  display: block;
+  padding: 1px 8px 3px 22px;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.step-v2--open .step-v2__more-hint {
+  display: none;
+}
+.step-v2__kind-row:hover ~ .step-v2__more-hint,
+.step-v2__more-hint:hover {
+  color: var(--text-3);
+}
+
+/* ── Suppress msg__role .toks when single-step-no-prose ── */
+/* This modifier is set on .msg--harness when step count == 1 and prose == '' */
+.msg--single-step .msg__role .toks {
+  display: none;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   COMPARISON: CURRENT (before) — flat single-row layout
+   Reproduced from RequestBand.svelte for visual diff.
+   NOT the new design — labelled explicitly.
+   ────────────────────────────────────────────────────────────── */
+.step-before {
+  border-left: 1px solid var(--border-subtle);
+  margin-left: 8px;
+  padding-left: 12px;
+}
+.step-before--open {
+  border-left-color: var(--amber-border);
+}
+.step-before__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  width: 100%;
+}
+.step-before__head:hover { background: var(--surface-2); }
+.step-before__caret {
+  color: var(--text-faint);
+  font-size: var(--text-micro);
+  width: 8px;
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  transform: rotate(-90deg);
+}
+.step-before--open .step-before__head .step-before__caret { transform: rotate(0); }
+.step-before__caret::before {
+  content: '';
+  display: block;
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+.step-before__kind {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.step-before__tool-name {
+  color: var(--amber);
+  font-size: var(--text-label);
+  flex-shrink: 0;  /* ← THE PROBLEM: eats 205px for long MCP names */
+}
+.step-before__summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--text-label);
+  word-break: break-word;
+}
+.step-before__toks {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  flex-shrink: 0;
+}
+.step-before__body {
+  display: none;
+  margin: 4px 0 8px 14px;
+  padding: 10px 12px;
+  background: #0a0d12;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-strong);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;   /* ← THE PROBLEM: clips content */
+  overflow: auto;
+}
+.step-before--open .step-before__body { display: block; }
+
+/* ── Demo utility classes ── */
+.layout-label {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-kpi);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+.layout-label--before {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid var(--red-border);
+}
+.layout-label--after {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+.col-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.col-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.col-panel__label {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Spec annotation — dark pill */
+.spec-note {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  line-height: 1.7;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--border-color);
+  border-radius: 0 4px 4px 0;
+}
+.spec-note code {
+  color: var(--text-2);
+  background: var(--surface-2);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: var(--text-caption);
+}
+.spec-note strong {
+  color: var(--text-1);
+}
+</style>
+</head>
+<body>
+
+<div class="demo-area">
+
+<div>
+  <div class="page-title">Tool-Result Step Layout — Design Spec</div>
+  <div class="page-sub">
+    Design mockup for phase 2.16. Addresses RequestBand.svelte Findings 2, 4, 5 from the #30041 review.<br>
+    Nested hierarchy replaces flat single-row. All tokens from frontend/src/app.css. No new hex values.<br>
+    Source: docs/plans/design/tool-result-step-layout.html
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 0: PROBLEM STATEMENT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Problem — Current flat layout (before)</div>
+  <div class="spec-note">
+    The current <code>.step__head</code> is a single flex row: <strong>caret → RESULT → tool-name → summary → toks</strong>.
+    For long MCP names (<code>mcp__claude-in-chrome__computer</code>), the tool name consumes <strong>~205px</strong>
+    at <code>flex-shrink: 0</code> before the summary column starts. The summary then holds
+    <code>collapseWhitespace(fullText)</code> — all 1200 chars on one line wrapping across ~10 lines.
+    Findings 2, 4, and 5 from the #30041 review all trace to this layout.
+  </div>
+
+  <!-- BEFORE: long MCP name -->
+  <div class="col-panel">
+    <div class="col-panel__label">Before — mcp__claude-in-chrome__computer (305 tokens, 1200 chars)</div>
+    <div class="request-band">
+      <div class="msg__role" style="padding: 0 8px;">
+        <span>Harness</span>
+        <span class="toks">~305 tokens</span><!-- duplicate: step also shows ~305 tokens -->
+      </div>
+      <div style="margin-left:8px; padding-left:12px; border-left:1px solid var(--border-subtle);">
+        <div class="step-before step-before--open">
+          <button class="step-before__head">
+            <span class="step-before__caret"></span>
+            <span class="step-before__kind">Result</span>
+            <span class="step-before__tool-name">mcp__claude-in-chrome__computer</span><!-- 205px wide, flex-shrink:0 -->
+            <span class="step-before__summary">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) - 495x196 pixels Tab Context: - Executed on tabId: 346343793 - Available tabs: • tabId 346343793: "Request #30029 · Claude Proxy Inspector" (http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30029) • tabId 346343797: "Session Timeline — Turn Type Design"...</span>
+            <span class="step-before__toks">~305 tokens</span><!-- duplicate of msg__role .toks -->
+          </button>
+          <pre class="step-before__body">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) - 495x196 pixels
+
+Tab Context:
+- Executed on tabId: 346343793
+- Available tabs:
+  • tabId 346343793: "Request #30029 · Claude Proxy Inspector" (http://localhost:9990/...)
+  • tabId 346343797: "Session Timeline — Turn Type Design" (http://127.0.0.1:8899/...)
+  • tabId 346343800: "Pull requests · example/app" (https://github.com/...)
+  [+ 6 more tabs clipped by 280px cap]</pre><!-- PROBLEM: 280px max-height clips 36px of content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec-note" style="margin-top:4px;">
+    <strong>Problems (from the #30041 review):</strong><br>
+    <strong>Finding 2</strong> — Collapsed summary is 1200 chars of collapseWhitespace prose. Not scannable.<br>
+    <strong>Finding 3</strong> — "~305 tokens" appears twice: msg__role and step__toks. Same value, zero information gain.<br>
+    <strong>Finding 4</strong> — tool-name at flex-shrink:0 eats 205px before summary starts (~30% of column width).<br>
+    <strong>Finding 5</strong> — Collapsed row has no structural differentiation from prose; expanded body is polished.<br>
+    <strong>Finding 1</strong> — max-height: 280px clips content by 36px with no visible indicator.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 1: NEW LAYOUT — LONG MCP NAME (collapsed + expanded)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — mcp__claude-in-chrome__computer — Collapsed</div>
+  <div class="demo-note">
+    <strong>Harness &gt; Result &gt; tool-name &gt; first-line</strong> hierarchy.
+    Tool name on its own line — full width, no horizontal competition.
+    First-line is the first \n-terminated line of block.text (complete logical unit, not a char slice).
+    Token count on the kind row only (deduplicates Finding 3).
+  </div>
+
+  <div class="request-band">
+    <!-- msg__role: Harness label — NO .toks here (single-step-no-prose suppression) -->
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+      <!-- .toks suppressed: single step, no prose, count already on step-v2__toks -->
+    </div>
+    <div class="steps-v2">
+      <!-- Collapsed state -->
+      <div class="step-v2 step-v2--result">
+        <!-- Row 1: kind + toks -->
+        <button class="step-v2__kind-row" aria-expanded="false" onclick="this.closest('.step-v2').classList.toggle('step-v2--open'); this.setAttribute('aria-expanded', this.closest('.step-v2').classList.contains('step-v2--open'))">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~305 tokens</span>
+        </button>
+        <!-- Row 2: tool name — full-width own line -->
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__computer</span>
+        <!-- Row 3: first logical line (collapsed preview — NOT a char slice) -->
+        <span class="step-v2__firstline">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) — 495x196 pixels</span>
+        <!-- Remaining-lines hint — visible only when collapsed and body has content -->
+        <span class="step-v2__more-hint">↳ Tab Context + 8 more lines — click to expand</span>
+        <!-- Row 4+: remaining body (hidden until expanded) -->
+        <pre class="step-v2__body">Tab Context:
+- Executed on tabId: 346343793
+- Available tabs:
+  • tabId 346343793: "Request #30029 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30029)
+  • tabId 346343797: "Session Timeline — Turn Type Design"
+    (http://127.0.0.1:8899/session-timeline-turns.html)
+  • tabId 346343800: "Pull requests · example/app"
+    (https://github.com/example/app/pulls)
+  • tabId 346343806: "Issues · example/app"
+    (https://github.com/example/app/issues)
+  • tabId 346343841: "Request #28594 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/fa3223fe-37a9-4bb5-bcc6-e3f68955cf41/requests/28594)
+  • tabId 346343803: "Example App"
+    (https://example.com/)
+  • tabId 346343838: "Blog · Example App"
+    (http://localhost:5176/blog)
+  • tabId 346343863: "Example App"
+    (http://localhost:5176/)
+  • tabId 346343869: "Glossary · Temet Proxy"
+    (http://localhost:9990/help/glossary#usage-tokens)
+&lt;system-reminder&gt;You used a single tool call this turn. Prefer browser_batch…&lt;/system-reminder&gt;</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2: NEW LAYOUT — LONG MCP NAME (expanded, pre-opened)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — mcp__claude-in-chrome__computer — Expanded</div>
+  <div class="demo-note">
+    Remaining lines revealed inline. No max-height cap.
+    The kind-row caret rotates to point down. First-line stays visible (orientation anchor).
+    The body is a scroll container if content exceeds viewport — but content is never capped mid-stream.
+  </div>
+
+  <div class="request-band">
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+    </div>
+    <div class="steps-v2">
+      <!-- Expanded state (step-v2--open pre-applied) -->
+      <div class="step-v2 step-v2--result step-v2--open">
+        <button class="step-v2__kind-row" aria-expanded="true">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~305 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__computer</span>
+        <span class="step-v2__firstline">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) — 495x196 pixels</span>
+        <!-- more-hint hidden when open -->
+        <span class="step-v2__more-hint">↳ Tab Context + 8 more lines — click to expand</span>
+        <pre class="step-v2__body">Tab Context:
+- Executed on tabId: 346343793
+- Available tabs:
+  • tabId 346343793: "Request #30029 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30029)
+  • tabId 346343797: "Session Timeline — Turn Type Design"
+    (http://127.0.0.1:8899/session-timeline-turns.html)
+  • tabId 346343800: "Pull requests · example/app"
+    (https://github.com/example/app/pulls)
+  • tabId 346343806: "Issues · example/app"
+    (https://github.com/example/app/issues)
+  • tabId 346343841: "Request #28594 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/fa3223fe-37a9-4bb5-bcc6-e3f68955cf41/requests/28594)
+  • tabId 346343803: "Example App"
+    (https://example.com/)
+  • tabId 346343838: "Blog · Example App"
+    (http://localhost:5176/blog)
+  • tabId 346343863: "Example App"
+    (http://localhost:5176/)
+  • tabId 346343869: "Glossary · Temet Proxy"
+    (http://localhost:9990/help/glossary#usage-tokens)
+&lt;system-reminder&gt;You used a single tool call this turn. Prefer browser_batch…&lt;/system-reminder&gt;</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 3: SHORT TOOL NAME — Bash (collapsed + expanded)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — Bash result (short tool name) — Collapsed</div>
+  <div class="demo-note">
+    Short names like <strong>Bash</strong>, <strong>Read</strong>, <strong>Write</strong> still get the same hierarchy.
+    The tool-name row is compact; the first-line has more horizontal space.
+    Visual consistency across all tool names — long and short handled identically.
+  </div>
+
+  <div class="request-band">
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+    </div>
+    <div class="steps-v2">
+      <div class="step-v2 step-v2--result">
+        <button class="step-v2__kind-row" aria-expanded="false" onclick="this.closest('.step-v2').classList.toggle('step-v2--open'); this.setAttribute('aria-expanded', this.closest('.step-v2').classList.contains('step-v2--open'))">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~57 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">Bash</span>
+        <span class="step-v2__firstline">"upstream_request_id": "req_011Cb8QTtQ5LQtMDQDs6ZZKc", "model": "claude-sonnet-4-6", "turn_origin": "primary", "status": "Complete",</span>
+        <span class="step-v2__more-hint">↳ "response_status" + 1 more line — click to expand</span>
+        <pre class="step-v2__body">"response_status": 200, "token_usage": { "stop_reason": "tool_use",
+  "input_tokens": 1, "output_tokens": 198 }</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="demo-section">
+  <div class="section-label">After — Bash result (short tool name) — Expanded</div>
+
+  <div class="request-band">
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+    </div>
+    <div class="steps-v2">
+      <div class="step-v2 step-v2--result step-v2--open">
+        <button class="step-v2__kind-row" aria-expanded="true">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~57 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">Bash</span>
+        <span class="step-v2__firstline">"upstream_request_id": "req_011Cb8QTtQ5LQtMDQDs6ZZKc", "model": "claude-sonnet-4-6", "turn_origin": "primary", "status": "Complete",</span>
+        <span class="step-v2__more-hint">↳ "response_status" + 1 more line — click to expand</span>
+        <pre class="step-v2__body">"response_status": 200, "token_usage": { "stop_reason": "tool_use",
+  "input_tokens": 1, "output_tokens": 198 }</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 4: SINGLE-LINE RESULT (no-more state)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — Single-line result (first-line == full body, no toggle)</div>
+  <div class="demo-note">
+    When <code>block.text</code> has no newline, first-line IS the full content.
+    No caret, no expand affordance, no body element. The .step-v2--no-more modifier suppresses the caret.
+    This avoids a pointless toggle on results like "Navigated to URL".
+  </div>
+
+  <div class="request-band">
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+    </div>
+    <div class="steps-v2">
+      <div class="step-v2 step-v2--result step-v2--no-more">
+        <button class="step-v2__kind-row" aria-expanded="false">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~12 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__navigate</span>
+        <span class="step-v2__firstline">Navigated to http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30030</span>
+        <!-- no more-hint, no body -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 5: MULTI-STEP HARNESS (2 results + system reminder)
+     token deduplication when msg has multiple steps
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — Multi-step Harness (msg__role .toks restored when steps > 1)</div>
+  <div class="demo-note">
+    When a HARNESS message has multiple steps, the <code>.msg__role .toks</code> is restored
+    (it shows the message total, which differs from any individual step's token count).
+    The kind-row toks still show per-step counts. No duplication when counts differ.
+  </div>
+
+  <div class="request-band">
+    <!-- Multi-step: msg__role .toks is shown (total differs from individual steps) -->
+    <div class="msg__role" style="padding: 0 8px;">
+      <span>Harness</span>
+      <span class="toks">~420 tokens</span><!-- message total: sum of all 3 steps -->
+    </div>
+    <div class="steps-v2">
+      <!-- Step 1 -->
+      <div class="step-v2 step-v2--result step-v2--no-more">
+        <button class="step-v2__kind-row">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~12 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__navigate</span>
+        <span class="step-v2__firstline">Navigated to http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30030</span>
+      </div>
+      <!-- Step 2 -->
+      <div class="step-v2 step-v2--result">
+        <button class="step-v2__kind-row" aria-expanded="false" onclick="this.closest('.step-v2').classList.toggle('step-v2--open'); this.setAttribute('aria-expanded', this.closest('.step-v2').classList.contains('step-v2--open'))">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~305 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__computer</span>
+        <span class="step-v2__firstline">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) — 495x196 pixels</span>
+        <span class="step-v2__more-hint">↳ Tab Context + 8 more lines — click to expand</span>
+        <pre class="step-v2__body">Tab Context:
+- Executed on tabId: 346343793
+- Available tabs: …</pre>
+      </div>
+      <!-- Step 3: system reminder -->
+      <div class="step-v2 step-v2--system step-v2--no-more">
+        <button class="step-v2__kind-row">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">System</span>
+          <span class="step-v2__toks">~103 tokens</span>
+        </button>
+        <span class="step-v2__tool-name" style="color: var(--text-3);">hook · pre-tool</span>
+        <span class="step-v2__firstline" style="color: var(--text-3);">Reminder: you are working in a shared worktree…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 6: FULL REQUEST BAND (in-situ context)
+     Shows the new step layout inside a realistic band header
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">After — Full request #30041 band (in-situ)</div>
+  <div class="demo-note">
+    The operator's target shape from the brief:<br>
+    <code>Harness → Result → mcp__claude-in-chrome__navigate → Navigated to http://…</code>
+  </div>
+
+  <div class="request-band">
+    <div class="band-header">
+      <span class="band-header__id">#30041</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span style="color: var(--text-3); font-size: 10px;">1h ago</span>
+      <span style="font-size: 10px; color: var(--text-2); font-variant-numeric: tabular-nums;">5.44s</span>
+      <span style="font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums;">
+        +~1 in · +~198 out ·
+        <span style="color: var(--green);">Δin 1</span>
+        <span style="color: var(--blue);">Δout 198</span>
+        <span style="color: var(--teal);">Δcrd 78,487</span>
+        <span style="color: var(--text-1);">Δccr 964</span>
+        · <span style="color: var(--text-strong);">Σ ~548</span>
+      </span>
+      <span class="band-header__filter">filter-modified</span>
+    </div>
+    <!-- HARNESS message: single step, no prose → suppress msg__role .toks -->
+    <div class="msg__role msg--single-step" style="padding: 0 8px;">
+      <span>Harness</span>
+    </div>
+    <div class="steps-v2">
+      <div class="step-v2 step-v2--result">
+        <button class="step-v2__kind-row" aria-expanded="false" onclick="this.closest('.step-v2').classList.toggle('step-v2--open'); this.setAttribute('aria-expanded', this.closest('.step-v2').classList.contains('step-v2--open'))">
+          <span class="step-v2__caret" aria-hidden="true"></span>
+          <span class="step-v2__kind">Result</span>
+          <span class="step-v2__toks">~305 tokens</span>
+        </button>
+        <span class="step-v2__tool-name">mcp__claude-in-chrome__computer</span>
+        <span class="step-v2__firstline">Successfully captured zoomed screenshot of region (2065,0) to (2560,196) — 495x196 pixels</span>
+        <span class="step-v2__more-hint">↳ Tab Context + 8 more lines — click to expand</span>
+        <pre class="step-v2__body">Tab Context:
+- Executed on tabId: 346343793
+- Available tabs:
+  • tabId 346343793: "Request #30029 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/cad603b3-01f0-4425-a26c-e30f5d7066d9/requests/30029)
+  • tabId 346343797: "Session Timeline — Turn Type Design"
+    (http://127.0.0.1:8899/session-timeline-turns.html)
+  • tabId 346343800: "Pull requests · example/app"
+    (https://github.com/example/app/pulls)
+  • tabId 346343806: "Issues · example/app"
+    (https://github.com/example/app/issues)
+  • tabId 346343841: "Request #28594 · Claude Proxy Inspector"
+    (http://localhost:9990/sessions/fa3223fe-37a9-4bb5-bcc6-e3f68955cf41/requests/28594)
+  • tabId 346343803: "Example App"
+    (https://example.com/)
+  • tabId 346343838: "Blog · Example App"
+    (http://localhost:5176/blog)
+  • tabId 346343863: "Example App"
+    (http://localhost:5176/)
+  • tabId 346343869: "Glossary · Temet Proxy"
+    (http://localhost:9990/help/glossary#usage-tokens)
+&lt;system-reminder&gt;You used a single tool call this turn. Prefer browser_batch…&lt;/system-reminder&gt;</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 7: DESIGN SPEC + IMPLEMENTATION NOTES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Implementation Spec</div>
+
+  <div class="spec-note">
+    <strong>New DOM structure (replaces .step / .step__head):</strong>
+    <pre style="margin-top:8px; color: var(--text-2); font-size: var(--text-caption); line-height:1.7;">
+.steps-v2
+  .step-v2 [.step-v2--result | --tool | --system | --error] [.step-v2--open] [.step-v2--no-more]
+    &lt;button&gt; .step-v2__kind-row            ← Row 1: always visible, click target
+      .step-v2__caret                       ← ChevronDown (lucide), rotated -90deg when closed
+      .step-v2__kind                        ← "RESULT" / "TOOL" / "SYSTEM" (uppercase via CSS)
+      [.step-v2__error-badge]               ← "error" badge if is_error
+      .step-v2__toks                        ← ~305 tokens (margin-left: auto → right-justified)
+    &lt;/button&gt;
+    &lt;span&gt; .step-v2__tool-name             ← Row 2: block.tool_name, full-width, own line
+    &lt;span&gt; .step-v2__firstline             ← Row 3: firstLine(block.text), pre-wrap
+    [&lt;span&gt; .step-v2__more-hint]           ← Row 4: "↳ N more lines" (hidden when open / no-more)
+    [&lt;pre&gt;  .step-v2__body]               ← Row 5+: remainingLines(block.text), hidden → block
+    </pre>
+  </div>
+
+  <div class="spec-note" style="margin-top:8px;">
+    <strong>firstLine / remainingLines split (TypeScript, in RequestBand.svelte):</strong>
+    <pre style="margin-top:8px; color: var(--text-2); font-size: var(--text-caption); line-height:1.7;">
+function splitFirstLine(text: string): { first: string; rest: string; hasMore: boolean } {
+  const nl = text.indexOf('\n');
+  if (nl === -1) return { first: text, rest: '', hasMore: false };
+  // Trim leading blank lines from rest so the body doesn't start with whitespace
+  const rest = text.slice(nl + 1).replace(/^\n+/, '');
+  return { first: text.slice(0, nl), rest, hasMore: rest.length > 0 };
+}
+    </pre>
+    <strong>Inspection-fidelity contract:</strong> <code>first</code> is the full first line — never sliced.
+    <code>rest</code> is every remaining byte — never sliced. The <code>hasMore</code> flag
+    gates the caret and more-hint rendering. <code>rest.length === 0</code> → <code>.step-v2--no-more</code>.
+  </div>
+
+  <div class="spec-note" style="margin-top:8px;">
+    <strong>Token deduplication (.msg__role .toks):</strong><br>
+    In Svelte: compute <code>singleStepNoProse = steps.length === 1 &amp;&amp; prose === ''</code>.
+    When true, add <code>msg--single-step</code> to the <code>.msg</code> element.
+    CSS rule: <code>.msg--single-step .msg__role .toks { display: none }</code>.<br>
+    When false (multiple steps or prose present), the .toks shows the message total — meaningful
+    because it differs from any individual step count.
+  </div>
+
+  <div class="spec-note" style="margin-top:8px;">
+    <strong>280px max-height removal:</strong><br>
+    Delete <code>max-height: 280px</code> from <code>.step__body</code>
+    (<code>RequestBand.svelte:1292</code>). Keep <code>overflow: auto</code>.
+    The body is bounded by the column scroll container; content is never capped mid-stream.
+    For the new <code>.step-v2__body</code>, do NOT add a max-height.
+  </div>
+
+  <div class="spec-note" style="margin-top:8px;">
+    <strong>Files in scope for implementation:</strong><br>
+    <code>frontend/src/lib/components/shell/RequestBand.svelte</code> — DOM structure + CSS only.<br>
+    No changes to: <code>SessionTimeline.svelte</code>, <code>messageWalker.ts</code>, API, Rust.
+  </div>
+</div>
+
+</div><!-- /demo-area -->
+
+</body>
+</html>

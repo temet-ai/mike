@@ -24,14 +24,13 @@ other="fedcba9876543210fedcba9876543210fedcba98"
 
 # ── deploy_build_needed ──────────────────────────────────────────────────────
 needed() { if deploy_build_needed "$@"; then echo build; else echo skip; fi; }
-eq "HEAD live, clean, same profile: skip" skip "$(needed "$head" false release "$head" release "$head")"
-eq "uncommitted tracked change: build" build "$(needed "$head" true release "$head" release "$head")"
-eq "record names another commit: build" build "$(needed "$head" false release "$other" release "$head")"
-eq "live binary reports another commit: build" build "$(needed "$head" false release "$head" release "$other")"
-eq "live binary reports nothing: build" build "$(needed "$head" false release "$head" release "")"
-eq "deployed as debug, deploying release: build" build "$(needed "$head" false release "$head" debug "$head")"
-eq "no profile record (deployed before it existed): build" build "$(needed "$head" false release "$head" "" "$head")"
-eq "no HEAD: build" build "$(needed "" false release "" release "")"
+eq "HEAD live, same profile: skip" skip "$(needed "$head" release "$head" release "$head")"
+eq "record names another commit: build" build "$(needed "$head" release "$other" release "$head")"
+eq "live binary reports another commit: build" build "$(needed "$head" release "$head" release "$other")"
+eq "live binary reports nothing: build" build "$(needed "$head" release "$head" release "")"
+eq "deployed as debug, deploying release: build" build "$(needed "$head" release "$head" debug "$head")"
+eq "no profile record (deployed before it existed): build" build "$(needed "$head" release "$head" "" "$head")"
+eq "no HEAD: build" build "$(needed "" release "" release "")"
 
 # ── deploy_build_info_sha ────────────────────────────────────────────────────
 fake() {
@@ -57,7 +56,7 @@ eq "mbx found: mbx" mbx "$(deploy_build_cache /x/mbx)"
 eq "no mbx: cargo" cargo "$(deploy_build_cache "")"
 eq "MIKE_DEPLOY_BUILD_CACHE=cargo: cargo" cargo "$(MIKE_DEPLOY_BUILD_CACHE=cargo deploy_build_cache /x/mbx)"
 
-# ── heavy-build.sh: priority, jobs, which subcommands lock ───────────────────
+# ── heavy-build.sh: priority, jobs, which subcommands run at low priority ────
 # shellcheck source=lib/heavy-build.sh
 source "$root/scripts/lib/heavy-build.sh"
 prefix="$(MIKE_BUILD_SLICE= heavy_build_priority | tr '\n' ' ')"

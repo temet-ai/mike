@@ -12,7 +12,7 @@ The fleet text grows one fix at a time: each run's observer finds a defect, file
 
 ## What you audit
 
-- **The fleet text** in the mike repository: `.claude/fleet/rules.md`, `fleet-command.md`, `worker-contract.md`, `observer-contract.md`, `observer-inspector-brief.md`, and `.claude/agents/fleet-*.md`. `scripts/rule-checks/fleet-text-budget.sh` counts what each seat reads.
+- **The fleet text** in the mike repository: `.claude/fleet/rules.md`, `fleet-command.md`, `observer-inspector-brief.md`, `leaves/*.md`, `.claude/skills/fleet-worker/SKILL.md`, and `.claude/agents/fleet-*.md`. `scripts/rule-checks/fleet-text-budget.sh` counts what each seat reads.
 - **A run**: what the rules, the definition's criteria, its `rules`, the gate and the control seats' additions (obligations, rulings, tasks) cost the seats, read from the run.
 - **A draft definition**, when the fleet's author asks before `ready`.
 

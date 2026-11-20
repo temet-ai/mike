@@ -2,7 +2,7 @@
 title: Offline Development
 status: active
 created: 2026-06-21
-updated: 2026-11-06
+updated: 2026-11-20
 summary: How to compile, lint, and test mike without internet access or a reachable remote Postgres.
 ---
 
@@ -26,7 +26,7 @@ e2e tests require a reachable Postgres admin database at `MIKE_TEST_ADMIN_URL`; 
 
 | Step | Command | Why |
 |---|---|---|
-| 4. Cache the database images | `docker pull` the images `mike database provision` and `scripts/test-db/up.sh` use | Provisioning and the test database need the images already local. |
+| Cache the database images | `docker pull` the images `mike database provision` and `scripts/test-db/up.sh` use | Provisioning and the test database need the images already local. |
 
 The `.sqlx/` query cache is committed. sqlx compile-time macros verify against
 this cache with no DB connection — `cargo build` offline compiles normally without setting any
@@ -99,10 +99,6 @@ under `crates/mike/tests/proxy/` show the request and response shapes to serve. 
 ---
 
 ## Coming back online
-
-```bash
-unset CARGO_NET_OFFLINE
-```
 
 `MIKE_DATABASE_URL` and `MIKE_TEST_ADMIN_URL` should point at your usual Postgres. If you
 overrode them for a local experiment, restore the previous values.

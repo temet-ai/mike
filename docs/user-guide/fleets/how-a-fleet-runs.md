@@ -60,12 +60,11 @@ A worker's turn follows the same pattern for every task:
 
 1. Read its brief and the files it names.
 2. Change only the files its task owns.
-3. Run the narrowest check that covers the change, or ask mike for the project's check result
-   (`fleet_check`).
-4. Commit with `fleet_commit`.
-5. Report with `fleet_report`: the commit, the outcomes it serves, the command that shows the
+3. Commit with `fleet_commit`.
+4. Report with `fleet_report`: the commit, the outcomes it serves, the command that shows the
    change working, and what it could not establish.
-6. Wait for the verdict. A pass ends its task; a fail names the one thing to do next.
+
+The verdict arrives as a message. A pass ends its task; a fail names the one thing to do next.
 
 When it needs something it does not have, it asks another session, the session that owns a
 file, or the reference session, and carries on with whatever it can do meanwhile.
@@ -81,13 +80,10 @@ definition to a number from 1 to 200 to change that limit.
 
 ## What a worker may not do
 
-The fleet's rules keep the sessions from getting in each other's way and from doing things that
-need you:
+A few limits keep the sessions from getting in each other's way and from holding up the fleet:
 
-- It never adds a branch, a worktree or another checkout, and never runs `git add`,
-  `git commit`, `git push`, `git stash` or `git reset`. See [Share one checkout](shared-checkout.md).
-- It never deploys, restarts services, runs migrations on a live database or uses destructive
-  git commands, unless the definition allows it.
+- It commits with `fleet_commit`, which takes only its own task's files. See
+  [Share one checkout](shared-checkout.md).
 - It never stops to ask you a question in its own pane, because the fleet would wait behind it.
   It writes a note for you instead, which the status screen shows under NEEDS YOU.
 - It never opens your browser. mike blocks `open`, `xdg-open` and similar commands in the

@@ -42,7 +42,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [[ -f "$repo_root/.env" ]]; then set -a; source "$repo_root/.env"; set +a; fi
-# Shared query fingerprint (also recomputed by g6_perf_evidence.sh).
+# Shared query fingerprint (scripts/lib/perf-query-sha.sh).
 if [[ -f "$script_dir/lib/perf-query-sha.sh" ]]; then
   source "$script_dir/lib/perf-query-sha.sh"
 fi

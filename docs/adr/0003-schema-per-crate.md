@@ -1,14 +1,14 @@
 ---
 title: One owning crate per Postgres schema, with core tables in the base
-status: proposed
+status: active
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-20
 summary: The database already has 26 schemas, but `memory` (83 tables) belongs to six crates and 54 tables are written by a crate that does not own them. Each schema, or table where it differs, gets one owning crate (docs/adr/0002-crate-map.json, schemas.owners); only the owner writes, the base owns a stable core, `memory` and `launch` split by owner with ALTER TABLE … SET SCHEMA, and the feature-toggle key CHECK that costs a migration per toggle goes. scripts/schema-plan grades it.
 ---
 
 # ADR 0003 — One owning crate per Postgres schema
 
-**Status: proposed.** Measured on `main` at `9c8c7bab` (12 November 2026).
+**Status: active; the ownership map and `scripts/schema-plan` are in the repository.** Measured on `main` at `9c8c7bab` (12 November 2026).
 Companion to [ADR 0002](0002-split-crate-mike.md); the ownership map is the
 `schemas` section of [`0002-crate-map.json`](0002-crate-map.json) and
 `scripts/schema-plan` grades the SQL against it.

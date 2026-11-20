@@ -91,7 +91,21 @@ count_file="$(mktemp)"
 trap 'rm -f "$count_file"' EXIT
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
-size_kb() { du -sk "$1" 2>/dev/null | awk '{print $1}'; }
+# A subfolder holding its own CACHEDIR.TAG (target/mbx-deploy) is a build folder of its own,
+# and an mbx-* folder (target/mbx-<session>) holds hard links into the mbx store; neither
+# counts toward its parent's cap.
+size_kb() {
+  local total sub sub_kb
+  total="$(du -sk "$1" 2>/dev/null | awk '{print $1}')"
+  [[ -n "$total" ]] || return 1
+  for sub in "$1"/*/; do
+    [[ -f "${sub}CACHEDIR.TAG" || "$(basename "$sub")" == mbx-* ]] || continue
+    sub_kb="$(du -sk "$sub" 2>/dev/null | awk '{print $1}')"
+    total=$(( total - ${sub_kb:-0} ))
+  done
+  (( total < 0 )) && total=0
+  printf '%s\n' "$total"
+}
 human() { awk -v k="${1:-0}" 'BEGIN{ if (k>=1048576) printf "%.1fG", k/1048576; else if (k>=1024) printf "%.1fM", k/1024; else printf "%dK", k }'; }
 
 profiles_of() {

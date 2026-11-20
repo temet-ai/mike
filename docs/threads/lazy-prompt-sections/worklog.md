@@ -1,0 +1,19 @@
+---
+thread: lazy-prompt-sections
+status: done
+last_session: 2026-06-19 (session 8a7e7181) @ 766041c1
+---
+
+## State of play
+Where we are: DONE. All work is on main. "51 uncommitted files" claim in previous entry was stale — the tree was committed and merged. Phase 1 shipped: lazy_sections module, Chrome rule 52 seeded, live-verified at req 8998 (strip) and 9000 (R1 guard). Sub-agents (frontend-developer, ui-designer) now have the full Chrome section appended to their .md files — the lazy strip mechanism will compact it to a stub on every send; !!CHROME!! re-injects the full section on demand.
+Next: (optional) dry-run endpoint extension for step 1e.2; R1 guard relaxation decision; phase 2 candidates (skills list, tools-array stripping).
+Open questions: relax R1 guard or keep permanent? tool_use auto-trigger still held (phase-1 default).
+Decisions: trigger token per-rule-configurable, seeded `!!CHROME!!`; auto-trigger held; lazy rules pinned to action=replace; integration tests live in e2e (lazy rules are DB-only state, persist-disabled harness can't seed them); duplicate-409 contract removed rather than re-adding UNIQUE (live data has legitimate duplicate values).
+Blockers: none.
+
+## Session log
+- 2026-06-10 (bb7dad85) @ dbf6bc9 — thread created. Measured Chrome footprint in captured request 5222 (~30 KB/request total); designed phase-1 mechanism (section-level replace + stateless trigger re-injection with stored stripped bytes).
+- 2026-06-10 (bb7dad85) @ dbf6bc9 — wrote design doc `docs/plans/lazy-prompt-sections.md` after grounding in code: filter/ slice rules + reminders/ appender cover most machinery; dropped the stored-bytes idea for per-request re-extraction (client resends full system prompt); identified R1 thinking-signature reserialization as the top deployment risk.
+- 2026-06-10 (bb7dad85) @ dbf6bc9 — wrote UI vision doc `docs/plans/prompt-workbench-vision.md`: the Prompt Workbench — edit-by-example rule authoring (edits reverse-compile to rules), CM6 merge view with git-add-p chunk staging, blame gutter (rule/stage provenance per line), pipeline x-ray (toggleable stages via recompute replay), token weight map + budget gauge, dry-run-against-history with thinking tripwire, lazy-section trigger simulator, cache fault lines, CC-version time machine, rule efficacy via operator_turns outcomes. Build order W1–W7, each phase standalone.
+- 2026-06-10 (03c16670) @ 2e0b8f8 — verified operator's filter rules against captured traffic: block-level first-match-wins silently killed 6 of 7 rules narrowed onto the single 16KB core-prompt block, and project-scoped rules never fired (absolute path vs canonical form). Shipped via agent team: slice-level engine semantics + scope normalization (filter/), `rules.rules.sort_order` migration, order-aware engine + `POST /api/filter/rules/dry-run` + MCP parity (51 tools), `/filter/workbench` three-pane UI (drawer deleted, SystemPromptCard entry point, selection→rule authoring). Wired reorder persistence + dry-run contract inline after agent rate-limit. Live-verified: dry-run engine truth on req 5206, sort_order PATCH round-trip, svelte-check 0 errors, fidelity CLEAN.
+- 2026-06-11 (03c16670) @ 2e0b8f8 — lazy-sections phase 1 built, deployed, live-verified. Migration 20260611000001 (trigger_token col, lazy_section kind row 3, kinds-sequence fix); `lazy_sections/` module (heading-span matcher + injector, 39 unit tests) + handler step 1e.2 + R1 thinking guard; CRUD/MCP/manifest/workbench-form plumbing for the new kind; e2e strip/inject/byte-stability trio green. Fixed all 24 pre-existing red filter tests (TOML harness → DB seeding; duplicate-409 contract removed). Operator deployed; Chrome rule seeded as rule 52; live wire evidence: probe 8998 stripped+injected correctly, thinking session 9000 untouched by R1 guard. Savings limited to non-thinking traffic while the guard holds.

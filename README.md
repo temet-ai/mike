@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/temet-ai/mike/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/temet-ai/mike?include_prereleases&amp;label=release&amp;color=eb300a&amp;labelColor=071c1e"></a>
-  <img alt="Linux x86_64 and Apple Silicon macOS, with Linux ARM64 from the next release" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-eb300a?labelColor=071c1e">
+  <img alt="Linux x86_64, Linux ARM64 and Apple Silicon macOS" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-eb300a?labelColor=071c1e">
   <a href="./LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/license-MIT-eb300a?labelColor=071c1e"></a>
 </p>
 
@@ -108,7 +108,7 @@ Reference and contributor docs. Start with the system map: one page that lists e
 
 ## Contributing
 
-Issues and pull requests are welcome; start with [CONTRIBUTING](CONTRIBUTING.md). A source checkout runs the development stack with `./scripts/start-proxy.sh`, and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) has the loop. Check and test a change with `scripts/cx check` and `scripts/cx test`, never plain `cargo`, which skips the shared build cache. Deploy once a change has landed, not after each step, and run one heavy build (a release build, a deploy, a full test run) on the machine at a time.
+Issues and pull requests are welcome; start with [CONTRIBUTING](CONTRIBUTING.md). A source checkout runs the development stack with `./scripts/start-proxy.sh`, and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) lists the scripts.
 
 ## Support
 

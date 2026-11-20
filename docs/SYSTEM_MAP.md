@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-15
+updated: 2026-11-20
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -58,7 +58,7 @@ Three invariants hold everywhere:
 | Terminal UI | tty | bare `mike` on a terminal (`crates/mike/src/tui/`) | Home, config, setup wizard, start/stop, sessions, requests. Bare `mike` off a tty runs `serve`. |
 | Database | `:6666` owned Docker, `:5440` dev capture DB, `:6667` test DB | PostgreSQL 19 with pgvector (`crates/mike/resources/postgres19.Dockerfile`) | Primary store. Memory-only "trial" mode exists. |
 | Claude Code mods | in Claude Code | `mods/` | Panes, status line, chips and skills inside Claude Code (`mike`, `fleet-comms`, `mike-mail`, `mods`, `thread`, `wiretap`). |
-| Dev-only | `:6006` Storybook | `scripts/systemd/mike-stack-*.service.in` | Started by `scripts/start-proxy.sh`; never by a release install. |
+| Dev-only | `:6006` Storybook | `scripts/systemd/mike-stack-*.service.in` | Started with `systemctl --user start mike-stack-storybook`, never by `scripts/start-proxy.sh` or a release install. |
 
 Installed services: `mike service install` writes `mike.service` and
 `mike-forward.service` (systemd user units) or `ai.temet.mike.proxy` and
@@ -81,8 +81,8 @@ disagree.
 | Scheduled jobs | `crates/mike/src/scheduled_jobs/jobs.rs`; live: `GET /api/scheduled-jobs` |
 | Web UI routes | `frontend/src/routes/` (file routing); nav in `frontend/src/lib/components/shell/DestinationNav.svelte` |
 | Boot config and env | `mike print-config`; `crates/mike-base/src/config/schema.rs`, `config/proxy_config_defaults.rs` |
-| Runtime settings | `GET /api/settings`; `crates/mike/src/settings/meta_*.rs` |
-| Schema | `crates/mike-base/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) has a section per table |
+| Runtime settings | `GET /api/settings`; `crates/mike-base/src/settings/meta_*.rs` |
+| Schema | `crates/mike-base/src/store/persistence/migrations/`; [`SCHEMA.md`](SCHEMA.md) has a section per table |
 | User guide vs CLI | `crates/mike/tests/cli/user_guide.rs`, `scripts/check-user-guide --complete` |
 
 ## Capabilities
@@ -140,7 +140,7 @@ exists in config but the stage does not read it), a cache-scope tripwire
 (`proxy/engine/guards.rs`), capture admission, then forwarding. Each
 `client_serves_*` toggle (11 keys, `client_serves_self_identity` on) tells mike
 to stand aside for one stage when the Claude Code mod does it itself
-([`ARCHITECTURE.md` §4.7](ARCHITECTURE.md#47-client-served-stages-442)).
+([`ARCHITECTURE.md` §4.7](ARCHITECTURE.md#47-client-served-stages-temet-aimike-private442)).
 
 ### Change what the client receives
 
@@ -164,7 +164,7 @@ recorded in `llm.calls`.
 | Steerer fleet | `steerer` (off) | yes | Enrolled steerers watch sessions for goal and anchor drift and queue `<system-reminder>` interventions; verifier and refocus steerers. Verifier input is capped per section by `steerer.verifier.input_budget` | UI `/steering`, `/steering/<id>`, `/settings/steering`; REST `/api/steerers/*`; MCP `get_verifier_rate`, `list_steerer_evaluations` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md), user guide [steering](user-guide/steering.md) |
 | Quiescence worker | `steerer` (off) | via its ticks | Steerer ticks after quiet periods; label ticks; guard demotion; lesson proposer tick when `judge_lessons` is on; turn guard when `turn_guard` is on | — | `quiescence_worker/` |
 | Turn judge | `judge_worker` (off) | yes | Labels and verdicts per operator turn | UI `/sessions/labelling`, `/sessions/labelling/accuracy`; MCP `get_turn_verdicts`, `list_eval_labels`, `relay_label` | user guide [judge](user-guide/judge.md) |
-| Session judge, session-end shadow | `session_judge`, `session_end_shadow` (off) | yes | Outcome and quality per session | MCP `get_session_verdicts`, `list_eval_session_end_items` | [`ARCHITECTURE.md`](ARCHITECTURE.md#decision-session-judge-per-session-outcomequality--issue-24) |
+| Session judge, session-end shadow | `session_judge`, `session_end_shadow` (off) | yes | Outcome and quality per session | MCP `get_session_verdicts`, `list_eval_session_end_items` | [`ARCHITECTURE.md`](ARCHITECTURE.md#decision-session-judge-per-session-outcomequality--issue-temet-aimike-private24) |
 | Turn guard | `turn_guard` (off) | yes | Four guard questions at turn end; each starts in `shadow`, promoted to `append` or `wake` by the operator | UI `/sessions/improvement/guard`; REST `/api/steering/guard/*`; `mike guard …` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
 | Jev decisions | `decisions` (off); each point has a mode under Decisions (`decisions.turn_guard.mode`, default `on`) | yes: Jev (`typesafe/jev-1.14`) on OpenRouter's Decisions endpoint | Narrow typed questions at decision points; code supplies the facts and decides. The turn-guard pre-check holds an `unobserved_done` fire the operator would likely accept (arm `precheck_held`). Every call, whatever its outcome, is a `decisions.records` row; labels land in `decisions.outcomes`; the `decisions_loop` job scores each point and files a finding on the `jev-decisions` work thread; the `decisions_health` wright check flags failures | `mike decisions ask\|loop\|export\|import-replay`; `mike guard precheck-replay`; spend under role `decision` at `/api/llm/spend`; REST `GET /api/decisions/calibration`, `POST /api/fleets/{fleet}/seats/{session}/stop-facts`, `POST /api/sessions/{id}/mail/reply-link`; settings `decisions.*` | [`ARCHITECTURE.md`](ARCHITECTURE.md#18b-jev-decisions), [`SCHEMA.md`](SCHEMA.md#domain-decisions) |
 | Lesson worker | `lesson_worker` (on) | no (embeddings if enabled) | Consolidates, dedups and garbage-collects lessons; nightly consolidation | UI `/memory`; MCP `record_lesson`, `list_lessons`, `delete_lesson` | user guide [memory](user-guide/memory.md) |

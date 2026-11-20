@@ -51,10 +51,9 @@ The schema checksum test compares embedded migrations to `crates/mike/tests/sche
 - **The design system is binding.** [Storybook's Foundations stories](http://localhost:6006/?path=/story/foundations-style-guide--core) (FUNK)
   govern every visual decision; [`frontend/CONVENTIONS.md`](frontend/CONVENTIONS.md)
   governs component code. No raw hex, no inline px, no hand-rolled dialogs.
-- See [`../AGENTS.md`](../AGENTS.md) for agent routing, code-navigation tooling (ast-grep tier 1,
-  LSP tier 2, grep as last resort), and the inspection-fidelity rule that binds any change
-  touching capture, schema columns, REST projections, MCP tool shape, or rendering of inspection
-  content.
+- See [`../AGENTS.md`](../AGENTS.md) for agent routing and code search, and
+  [`../.claude/rules/inspection-fidelity.md`](../.claude/rules/inspection-fidelity.md) for the
+  inspection-fidelity rule.
 
 ## Links
 

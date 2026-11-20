@@ -30,13 +30,12 @@ outcomes T1 must deliver, written into the fleet's definition so that the judge 
 ## What happens, in short
 
 1. You run `/fleet` with the goal in a Claude Code session. That session writes the fleet's
-   definition: the outcomes that prove the goal is met, the tasks, which files each task owns,
-   and the command that tells whether the project is sound. It marks the definition ready and
-   stops.
+   definition: the outcomes that prove the goal is met, the tasks, and which files each task
+   owns. It marks the definition ready and stops.
 2. mike opens one session per task, each told only its own task, and they work at the same
    time in your one checkout on one branch.
-3. Each session commits only its own files and reports what it did. mike runs the checks, and a
-   model call judges the work against the outcomes. A failed piece goes back to the same
+3. Each session commits only its own files and reports what it did. mike runs any checks the
+   definition declares, and a model call judges the work against the outcomes. A failed piece goes back to the same
    session with the one thing still needed.
 4. When every task has passed, mike closes the sessions, records how the run went, and marks
    the fleet `done`.
@@ -50,8 +49,6 @@ alone.
   [Sessions](../sessions.md#choose-a-terminal-first)). A fleet's sessions are ordinary Claude
   Code sessions opened the same way.
 - mike running, with its database.
-- A repository with a command that tells whether the tree is sound, such as a type-check or a
-  build. mike runs it on every commit the fleet makes.
 - A model and key for the judge. The judge uses the model you set for steerers (see
   [Steering](../steering.md)). Without one, the sessions work and commit but their reports wait
   unjudged, and no task is accepted.

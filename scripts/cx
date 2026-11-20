@@ -138,7 +138,8 @@ cx_sweep() {
     return 0
   fi
   echo "cx: reclaiming space in ${CARGO_TARGET_DIR} (${why})" >&2
-  "$SWEEPER" >&2 || true
+  # No wait for other builds to finish: while they run, the sweep removes only stale items.
+  GUARD_SWEEP_WAIT_SECS=0 "$SWEEPER" >&2 || true
 }
 
 # A clean checkout has no target folder yet, and the free-space read needs one.
@@ -166,16 +167,9 @@ set -e
 guard_build_leave
 trap - EXIT
 
-swept=0
 if [[ -n "$lock_before" && -f Cargo.lock ]]; then
   lock_after="$(sha256 < Cargo.lock)"
-  [[ "$lock_after" != "$lock_before" ]] && cx_sweep "dependency graph changed" && swept=1
-fi
-# A build folder over its cap is swept after the build, not hours later by the timer.
-cap_gb="${CARGO_SWEEP_MAXSIZE_GB:-40}"
-size_kb="$(du -sk "$CARGO_TARGET_DIR" 2>/dev/null | cut -f1)"
-if (( ! swept )) && [[ -n "$size_kb" ]] && (( size_kb > cap_gb * 1048576 )); then
-  cx_sweep "$((size_kb / 1048576))G, over the ${cap_gb}G cap"
+  [[ "$lock_after" != "$lock_before" ]] && cx_sweep "dependency graph changed"
 fi
 
 exit "$status"

@@ -37,11 +37,15 @@ scripts.
 ## The retrospective
 
 After the close, mike starts one more session, the retrospective, which reads the whole run: the
-sessions' turns, the checks, the verdicts and the problems. It writes what it finds as notes and
-changes nothing: it does not edit files, run commands, send messages or open issues. It runs on
-a small model by default.
+sessions' turns, the checks, the verdicts and the problems. It asks each worker a few questions
+about the run in a copy of that worker's conversation, so the worker's own session is left as it
+was. It writes what it finds on the project's `fleet-runs` work thread, which the next `/fleet`
+reads, and opens a GitHub issue for each fault it finds in mike itself. It edits no files and runs
+on `sonnet` by default.
 
-Turn it off with `retrospective.enabled: false` in the definition. To let it change files, the
+Turn it off with `retrospective.enabled: false` in the definition. `retrospective.questions`
+replaces the questions, `retrospective.thread` names another work thread, and
+`retrospective.issues_repo` names the repository for issues. To let it change files, the
 definition has to say so explicitly, with what it may change and a separate branch to change it
 on.
 
@@ -61,8 +65,7 @@ so every worker copied from it starts with it. Nothing is added without your app
 - Read the record's minutes lost to faults first. Relaunch gaps point at the terminal or the
   machine; reports waiting for a verdict point at the judge's model and key; commands waiting
   for a resource point at `.claude/fleet/operations.json`.
-- Read the retrospective's notes for briefs that were unclear, files that two tasks needed, and
+- Read the retrospective's finding for briefs that were unclear, files that two tasks needed, and
   checks that could not run.
 - When workers kept reading the same large documents, list them in
   `.claude/fleet/templates/<kind of work>.md`, so the template reads them once for every worker.
-- Correct `.claude/fleet/project.md` if a session got the build or the check wrong.

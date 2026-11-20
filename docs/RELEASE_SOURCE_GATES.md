@@ -2,7 +2,7 @@
 title: Release source gates and hosted routing
 status: active
 created: 2026-10-14
-updated: 2026-11-06
+updated: 2026-11-20
 summary: Local source-gate commands, strict frontend audit outcomes, hosted routing, and where hosted CI runs now (public repository enabled, development repository disabled).
 ---
 
@@ -26,8 +26,7 @@ the actual run, SHA and step for either.
 
 ## Local execution first
 
-Use the existing local commands when their prerequisites are
-available; do not install tools or contact an unrelated database implicitly.
+The local commands:
 
 - `scripts/gate check`: authoritative Rust formatting, structural lint, full fast
   and DB tests, and `cargo deny check` advisory/license policy.
@@ -39,8 +38,7 @@ available; do not install tools or contact an unrelated database implicitly.
 
 `test-suite all` remains fail-fast: later phases are unexecuted after a failure.
 It is not a substitute for `scripts/gate check` (which includes lint and the Rust
-advisory/license gate) or for the standalone Storybook build. Preserve each real
-exit status; never pipe a gate through a command that masks failure.
+advisory/license gate) or for the standalone Storybook build.
 
 The DB tier requires an explicitly selected disposable PostgreSQL 19 fixture with
 pgvector and `MIKE_TEST_ADMIN_URL`; the capture database is never an implicit

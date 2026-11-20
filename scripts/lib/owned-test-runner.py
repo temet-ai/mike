@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Serialize sb-test and clean only the process group this invocation created."""
+"""Serialize sb-test per checkout and clean only the process group this invocation created."""
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import os
 from pathlib import Path
 import signal
@@ -64,12 +65,16 @@ class Runner:
             self.child.close(grace=1)
 
 
-def open_lock() -> int:
-    # A stable location also serializes checkouts with different HOME/TMPDIR/XDG
-    # environments. Never unlink this inode: flock waiters must share it.
+def open_lock(script: str) -> int:
+    # One lock per checkout, so runs in one checkout take turns over its frontend tree
+    # and runs in other checkouts do not wait on them. A stable location keeps it the
+    # same across HOME/TMPDIR/XDG environments. Never unlink this inode: flock waiters
+    # must share it.
     root = Path("/tmp")
+    checkout = str(Path(script).resolve().parents[1])
+    key = hashlib.sha256(checkout.encode()).hexdigest()[:12]
     flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(root / f"mike-sb-test-{os.getuid()}.lock", flags, 0o600)
+    descriptor = os.open(root / f"mike-sb-test-{os.getuid()}-{key}.lock", flags, 0o600)
     info = os.fstat(descriptor)
     if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
         os.close(descriptor)
@@ -85,7 +90,7 @@ def main(args: list[str]) -> int:
     runner = Runner()
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(signum, runner.signal)
-    descriptor = open_lock()
+    descriptor = open_lock(args[0])
     try:
         result = runner.run(args) if runner.acquire(descriptor) else 1
     finally:

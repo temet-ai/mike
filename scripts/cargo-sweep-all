@@ -142,6 +142,16 @@ for dir in "${targets[@]+"${targets[@]}"}"; do
   [[ -d "${dir}" ]] || continue
   tree="$(dirname "${dir}")"
   why=""
+  # The nightly test run and the deploy build keep their build folders warm between runs,
+  # which may be more than a day apart; they are kept under the cap, never emptied.
+  case "${dir}" in
+    */.claude/worktrees/nightly/target | */.claude/worktrees/nightly/target/* | \
+      */.claude/worktrees/deploy/target | */.claude/worktrees/deploy/target/* | \
+      */target/mbx-deploy | */target/deploy-cargo)
+      kept+=("${dir}")
+      continue
+      ;;
+  esac
   if [[ -f "${tree}/CACHEDIR.TAG" ]]; then
     why=""   # a target folder inside a target folder goes with its parent
     # A session's mbx folder (scripts/cx builds in target/mbx-<session>) holds hard

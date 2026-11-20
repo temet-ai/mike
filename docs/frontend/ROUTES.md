@@ -2,7 +2,7 @@
 title: Frontend Architecture — Routes, Components, Stores, API
 status: active
 created: 2026-06-21
-updated: 2026-11-06
+updated: 2026-11-20
 summary: Route-by-route audit of the SvelteKit SPA — route map, layout hierarchy, component inventory, stores, WebSocket integration, and the typed API client.
 ---
 
@@ -506,7 +506,7 @@ Type discipline: a Rust struct change must be reflected here, but the field name
 
 ## 8. Build & Dev
 
-- `vite dev` on `:9990` is the default boot path (`pnpm dev` / `pnpm start` alias to `vite dev`); `scripts/start-proxy.sh` runs it as the `mike-stack-*` SPA unit.
+- In a development checkout, `vite dev` serves `:9990` (`pnpm dev` / `pnpm start` alias to `vite dev`); `scripts/start-proxy.sh` runs it as the `mike-stack-*` SPA unit.
 - `pnpm build` (`vite build` with `adapter-static`, `fallback: 'index.html'`, configured in the `sveltekit()` plugin call in `vite.config.ts`) writes `frontend/build/`. That directory is git-ignored and not in the tree: the SPA is built at release time. `crates/mike/build.rs` sets the `has_spa_build` cfg when `frontend/build/index.html` exists, and `crates/mike/src/spa.rs` embeds the folder into the `mike` binary with `rust-embed`, serving `index.html` as the fallback for every unknown path. A binary built without it answers the SPA bind with 503 ("SPA not built into this binary — run `make spa` and rebuild"). `make spa` runs the build locally; `scripts/release/prepare.py` runs it with `NODE_ENV=production` from frozen, offline dependencies before the native build.
 - `pnpm preview` serves the built output on `:9990` for production-style hosting.
 - Storybook (`pnpm storybook`) renders every `*.stories.svelte`. Stub modules live in `lib/__storybook-stubs__/` and re-export sanitised versions of `api`, `ws`, and the layout-owned stores so stories never hit the network. Tests run only through `scripts/sb-test`.

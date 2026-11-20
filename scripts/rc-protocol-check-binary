@@ -10,8 +10,7 @@
 # (strings, no public spec). It can change with no changelog. This script is
 # one of the two checks that turn a silent break into a loud, named one — see
 # scripts/rc-protocol-check-capture for the other (live-traffic) half. Both
-# follow the house pattern in scripts/fidelity-check and
-# scripts/test-commit-gates: a check that cannot run says so and never
+# follow the house pattern in scripts/fidelity-check: a check that cannot run says so and never
 # silently passes, and every failure names exactly what moved.
 #
 # What "the binary" means here is not one path. Claude Code updates itself,

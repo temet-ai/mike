@@ -66,7 +66,7 @@ them.
 ## While it works
 
 Each worker edits its own file, commits it with `fleet_commit`, and files a report. mike runs
-the project's check on each commit and the judge reads each report. You see the results on the
+any check the definition declares on each commit, and the judge reads each report. You see the results on the
 status screen as they arrive:
 
 ```

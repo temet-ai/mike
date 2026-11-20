@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Session Timeline — Turn Type Design</title>
+<style>
+/* ──────────────────────────────────────────────────────────────
+   DESIGN TOKENS (verbatim from frontend/src/app.css :root)
+   All hex values match the production token file. No new hex.
+   ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:             #0f1117;
+  --surface:        #161b22;
+  --surface-2:      #1c232d;
+  --sidebar:        #0d1016;
+
+  --border-color:   #30363d;
+  --border-subtle:  #23282f;
+
+  --text-strong:    #dde2e8;
+  --text-1:         #c2c9d1;
+  --text-2:         #adb5be;
+  --text-3:         #c0c7d0;
+  --text-faint:     #c0c7d0;
+
+  --green:          #4a9f6f;
+  --green-dim:      rgba(74, 159, 111, 0.08);
+  --green-border:   rgba(74, 159, 111, 0.15);
+
+  --amber:          #c49060;
+  --amber-dim:      rgba(196, 144, 96, 0.08);
+  --amber-border:   rgba(196, 144, 96, 0.15);
+
+  --red:            #c48080;
+  --red-dim:        rgba(196, 128, 128, 0.08);
+  --red-border:     rgba(196, 128, 128, 0.15);
+
+  --blue:           #6494bb;
+  --blue-dim:       rgba(100, 148, 187, 0.08);
+  --blue-border:    rgba(100, 148, 187, 0.15);
+
+  --teal:           #5a9b8f;
+  --teal-dim:       rgba(90, 155, 143, 0.08);
+  --teal-border:    rgba(90, 155, 143, 0.15);
+
+  /* Type scale (from @theme inline) */
+  --text-micro:   9px;
+  --text-caption: 10px;
+  --text-label:   11px;
+  --tracking-kpi: 0.04em;
+}
+
+/* ── Reset + base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+  padding: 24px;
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ── Page chrome ── */
+.page-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.page-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 32px;
+}
+.section-label {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-kpi);
+  color: var(--text-3);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.demo-area {
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   TURN-STREAM PRIMITIVES (new in Phase 2.15)
+   These extend the existing .msg / .step / .band / .you language.
+   CSS classes mirror the naming the implementer will write in
+   RequestBand.svelte and app.css.
+   ────────────────────────────────────────────────────────────── */
+
+/*
+ * .turn-band
+ * The outer container for a single API request's band.
+ * Extends the existing .request-band; adds the left-rail accent
+ * system (--turn-rail-color set per turn type).
+ *
+ * RAIL SYSTEM:
+ *   3px left bar + 1px gap-line (transparent gutter between bands).
+ *   Rail color is set by modifier classes: .turn-band--human,
+ *   --assistant, --tool, --thinking, --harness.
+ *   The rail creates a scannable colour stripe without imposing a
+ *   card background on the entire band (density preserved).
+ */
+.turn-band {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  position: relative;
+  /* Rail gutter: 12px left margin for the 3px bar + 9px whitespace */
+  padding-left: 16px;
+  margin-bottom: 2px;
+}
+.turn-band::before {
+  /* Left-rail accent bar */
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--turn-rail-color, var(--border-subtle));
+  transition: background 0.15s ease;
+}
+
+/* Per-type rail colors — single token each, no new hex */
+.turn-band--human    { --turn-rail-color: var(--blue); }
+.turn-band--assistant { --turn-rail-color: var(--green); }
+.turn-band--tool     { --turn-rail-color: var(--amber); }
+.turn-band--thinking { --turn-rail-color: var(--blue-border); }
+.turn-band--harness  { --turn-rail-color: var(--border-color); }
+
+/*
+ * .turn-chip
+ * The type-identification chip: "USER" / "ASSISTANT" / "TOOL LOOP" /
+ * "THINKING" / "HARNESS". Placed in the .band-header before the #N id.
+ * Reuses existing .tag sizing + uppercase convention; adds per-type color.
+ */
+.turn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-kpi);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+/* Per-type chip colors */
+.turn-chip--human {
+  color: var(--blue);
+  background: var(--blue-dim);
+  border-color: var(--blue-border);
+}
+.turn-chip--assistant {
+  color: var(--green);
+  background: var(--green-dim);
+  border-color: var(--green-border);
+}
+.turn-chip--tool {
+  color: var(--amber);
+  background: var(--amber-dim);
+  border-color: var(--amber-border);
+}
+.turn-chip--thinking {
+  color: var(--blue);
+  background: var(--blue-dim);
+  border-color: var(--blue-border);
+  opacity: 0.75;  /* Muted vs full human chip */
+}
+.turn-chip--harness {
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-color: var(--border-subtle);
+}
+
+/*
+ * .band-header (extended from RequestBand.svelte)
+ * Now includes the turn-chip as the first element.
+ * No other changes to the existing header layout.
+ */
+.band-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.band-header__id {
+  color: var(--text-strong);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.band-header__model { color: var(--text-2); }
+.band-header__time  { color: var(--text-3); }
+.band-header__lat   { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.band-header__actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.band-header__link {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  transition: color 0.12s, background 0.12s;
+}
+.band-header__link:hover {
+  color: var(--amber);
+  background: var(--amber-dim);
+}
+.sep {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+/* Status pill (existing, reused verbatim) */
+.status-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+.status-pill--complete {
+  background: var(--green-dim);
+  color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green-border);
+}
+.status-pill--streaming {
+  background: var(--amber-dim);
+  color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber-border);
+}
+
+/*
+ * .msg (existing from RequestBand.svelte — rendered here for context)
+ * Human prompt and assistant prose use the existing .msg layout.
+ * No changes needed to .msg itself; the turn-chip + rail are the
+ * differentiating layer.
+ */
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+.msg__prose {
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-strong);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg--human .msg__prose {
+  border-left: 2px solid var(--blue);
+}
+.msg--assistant .msg__prose {
+  border-right: 2px solid var(--green);
+}
+
+/*
+ * .tool-loop
+ * Band body for pure tool-use turns. Replaces "(no text content)"
+ * entirely. Each tool call is a compact single line showing:
+ *   tool-name chip · primary arg (wraps, never slices) · token estimate
+ * Matches .toolline sizing + density from the existing system.
+ */
+.tool-loop {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px 8px;
+}
+.tool-loop__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.12s;
+  min-width: 0;
+}
+.tool-loop__item:hover {
+  background: var(--surface-2);
+}
+.tool-loop__item--error {
+  background: var(--red-dim);
+  border-left: 2px solid var(--red-border);
+}
+/* Expand toggle: the entire .tool-loop__item is the button */
+.tool-loop__item[aria-expanded] {
+  cursor: pointer;
+}
+.tool-loop__caret {
+  color: var(--text-faint);
+  font-size: 9px;
+  width: 8px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+}
+.tool-loop__item[aria-expanded="true"] .tool-loop__caret {
+  transform: rotate(90deg);
+}
+/* Tool name chip — amber for tool_use, green for tool_result, red for error */
+.tool-name-chip {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--amber);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.tool-name-chip--result { color: var(--green); }
+.tool-name-chip--error  { color: var(--red); }
+.tool-name-chip--teal   { color: var(--teal); }  /* Task/Agent dispatches */
+/* Key arg — full text, wraps, NEVER sliced */
+.tool-loop__arg {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-2);
+  word-break: break-word;
+}
+.tool-loop__toks {
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+/* Expanded body — full content, scrollable, never clamped */
+.tool-loop__body {
+  margin: 4px 0 6px 24px;
+  padding: 10px 12px;
+  background: #0a0d12;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 280px;  /* scroll container — full content reachable */
+}
+/* Multi-tool-loop size summary in header (allowed: "header summary alongside full content") */
+.tool-loop-summary {
+  font-size: var(--text-caption);
+  color: var(--text-3);
+  padding: 2px 8px 4px;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * .harness-band / .thinking-band
+ * Collapsed-by-default sections. Single-line height when collapsed.
+ * Full body reachable on expand. Byte/token size always in header.
+ * This is the "header summary alongside full content" pattern from
+ * inspection-fidelity.md — NOT truncation.
+ */
+.collapsed-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 8px 4px;
+}
+.collapsed-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s;
+}
+.collapsed-section__head:hover {
+  background: var(--surface-2);
+}
+.collapsed-section__caret {
+  color: var(--text-faint);
+  font-size: 9px;
+  width: 9px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.collapsed-section--open .collapsed-section__caret {
+  transform: rotate(90deg);
+}
+.collapsed-section__title {
+  font-size: 11px;
+  color: var(--text-3);
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+.collapsed-section__size {
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+/* Expanded body — full bytes, scroll, never clamped */
+.collapsed-section__body {
+  margin: 4px 0 6px 20px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--border-color);
+  border-radius: 0 4px 4px 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 320px;  /* scroll container — full content reachable */
+}
+.thinking-body {
+  color: var(--text-2);
+  font-style: italic;
+}
+
+/*
+ * .skeleton-band
+ * Loading state. Shows band identity (turn-chip, #N, model, timing)
+ * derived from request-list row data (always available pre-hydration).
+ * Body is a shimmer placeholder, NOT "Loading…" text.
+ * Replaces the dead "Loading…" band.
+ */
+.skeleton-band {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  padding-left: 16px;
+  margin-bottom: 2px;
+  position: relative;
+  opacity: 0.65;
+}
+.skeleton-band::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+@keyframes skeleton-shimmer {
+  0%   { opacity: 0.3; }
+  50%  { opacity: 0.55; }
+  100% { opacity: 0.3; }
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+.skeleton-block {
+  height: 48px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  margin: 4px 8px;
+}
+
+/* ── Divider between bands ── */
+.band-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+/* ── Section header (for demo grouping) ── */
+.demo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.demo-note {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+/* ── Single-request inspector variant ── */
+.inspector-frame {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.055);
+}
+.inspector-frame__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--sidebar);
+}
+.inspector-frame__body {
+  padding: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="demo-area">
+
+<div>
+  <div class="page-title">Session Timeline — Turn Type Taxonomy</div>
+  <div class="page-sub">
+    Design mockup for phase 2.15. All tokens from frontend/src/app.css.
+    Left-rail colour + type-chip = the sole differentiating layer. No new hex values.
+    Source: docs/plans/woolly-tumbling-balloon.md
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 1: TYPE CHIP + RAIL REFERENCE (legend)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn-Type Legend — Chip + Rail Language</div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; padding:8px;">
+    <span class="turn-chip turn-chip--human">User</span>
+    <span class="turn-chip turn-chip--assistant">Assistant</span>
+    <span class="turn-chip turn-chip--tool">Tool Loop</span>
+    <span class="turn-chip turn-chip--thinking">Thinking</span>
+    <span class="turn-chip turn-chip--harness">Harness</span>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; padding: 4px 8px; font-size:10px; color:var(--text-3);">
+    Rail bars (left): blue · green · amber · blue-faint · muted-grey
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2: HUMAN PROMPT TURN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 1 — Human Prompt</div>
+  <div class="demo-note">Real operator text. Blue rail + USER chip. Full prose, no collapse.</div>
+
+  <div class="turn-band turn-band--human">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--human">User</span>
+      <span class="band-header__id">#38142</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">2m ago</span>
+      <span class="band-header__lat">1.2s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events</button>
+      </div>
+    </div>
+    <div class="msg msg--human">
+      <div class="msg__prose">Design the turn-type visual system for the session timeline. The approved plan is at docs/plans/woolly-tumbling-balloon.md — read it first. Produce a standalone HTML mockup and update the style guide.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 3: ASSISTANT PROSE TURN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 2 — Assistant Prose</div>
+  <div class="demo-note">Model returned text. Green rail + ASSISTANT chip. Full prose, no collapse.</div>
+
+  <div class="turn-band turn-band--assistant">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--assistant">Assistant</span>
+      <span class="band-header__id">#38142</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">2m ago</span>
+      <span class="band-header__lat">4.8s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events 3</button>
+      </div>
+    </div>
+    <div class="msg msg--assistant">
+      <div class="msg__prose">I'll read the plan first, then survey the existing tokens and CSS primitives before designing anything.
+
+The key insight from the plan is that five distinct turn types need distinct visual identities. The approach: a left-rail accent colour (3px bar, existing colour tokens) plus a type chip in the band header. No new hex values, no background fills that would create "flat blocks of colour".</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 4: SINGLE TOOL LOOP
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 3a — Single Tool Loop</div>
+  <div class="demo-note">
+    One tool_use + one tool_result. Amber rail + TOOL LOOP chip.
+    Band body IS the tool line — no "(no text content)" ever rendered.
+    Full args visible (wraps). Expandable to full input + result.
+  </div>
+
+  <div class="turn-band turn-band--tool">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--tool">Tool Loop</span>
+      <span class="band-header__id">#38140</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">3m ago</span>
+      <span class="band-header__lat">0.8s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events 2</button>
+      </div>
+    </div>
+    <div class="tool-loop">
+      <!-- tool_use row — expandable -->
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Bash</span>
+        <span class="tool-loop__arg">git diff --stat HEAD~1 -- frontend/src/lib/app.css</span>
+        <span class="tool-loop__toks">~148 tokens</span>
+      </div>
+      <!-- tool_result row — expandable -->
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip tool-name-chip--result">Result</span>
+        <span class="tool-loop__arg">frontend/src/lib/app.css | 42 +++++++++++++---</span>
+        <span class="tool-loop__toks">~62 tokens</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 5: MULTI TOOL LOOP (expanded example)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 3b — Multi-Tool Loop (one item expanded)</div>
+  <div class="demo-note">
+    Multiple tool calls. Header shows count summary alongside the chip.
+    One item shown expanded — body scrolls, never clamped.
+    Tool name accents: Bash=amber, Task/Agent=teal, Read/Write/Edit=amber.
+  </div>
+
+  <div class="turn-band turn-band--tool">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--tool">Tool Loop</span>
+      <span class="band-header__id">#38135</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">8m ago</span>
+      <span class="band-header__lat">12.4s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events 14</button>
+      </div>
+    </div>
+    <div class="tool-loop-summary">7 tool calls · ~2.4k tokens</div>
+    <div class="tool-loop">
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Read</span>
+        <span class="tool-loop__arg">frontend/src/lib/app.css</span>
+        <span class="tool-loop__toks">~1.2k tokens</span>
+      </div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Read</span>
+        <span class="tool-loop__arg">docs/frontend/style/component-patterns.md</span>
+        <span class="tool-loop__toks">~892 tokens</span>
+      </div>
+      <!-- Expanded item — shows full body in scroll container -->
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="true" style="background:var(--surface-2)">
+        <span class="tool-loop__caret" style="transform:rotate(90deg)">▸</span>
+        <span class="tool-name-chip">Bash</span>
+        <span class="tool-loop__arg">grep -n "\.msg\|\.step\|\.band\|\.request-band" frontend/src/app.css</span>
+        <span class="tool-loop__toks">~88 tokens</span>
+      </div>
+      <div class="tool-loop__body">1686:	.finding .msg {
+1687:	  margin: 0;
+1688:	}
+1689:
+1690:	.request-band {
+1691:	  display: flex;
+1692:	  flex-direction: column;
+1693:	  gap: 6px;
+1694:	  padding: 4px 0;
+1695:	  scroll-margin-top: 8px;
+1696:	  transition: background-color 200ms ease-out;
+1697:	}</div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Write</span>
+        <span class="tool-loop__arg">docs/plans/design/session-timeline-turns.html</span>
+        <span class="tool-loop__toks">~4.8k tokens</span>
+      </div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip tool-name-chip--result">Result (Write)</span>
+        <span class="tool-loop__arg">Written 12,441 bytes</span>
+        <span class="tool-loop__toks">~18 tokens</span>
+      </div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip tool-name-chip--teal">Agent (research)</span>
+        <span class="tool-loop__arg">dispatch: research production dark-UI tab patterns — Linear, GitHub, Vercel</span>
+        <span class="tool-loop__toks">~220 tokens</span>
+      </div>
+      <div class="tool-loop__item tool-loop__item--error" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip tool-name-chip--error">Result (Bash)</span>
+        <span class="tool-loop__arg">Error: command failed with exit code 1 — grep: invalid option</span>
+        <span class="tool-loop__toks">~44 tokens</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 6: THINKING-ONLY TURN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 4 — Thinking-Only</div>
+  <div class="demo-note">
+    Only thinking blocks, no prose. Blue-faint rail + THINKING chip.
+    Collapsed by default. Header shows byte/token size.
+    Full body on expand (scroll container). Same expand pattern as harness.
+  </div>
+
+  <!-- Collapsed state -->
+  <div class="turn-band turn-band--thinking">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--thinking">Thinking</span>
+      <span class="band-header__id">#38138</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">6m ago</span>
+      <span class="band-header__lat">3.2s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events 1</button>
+      </div>
+    </div>
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--thinking" style="margin-right:4px">Thinking</span>
+        <span class="collapsed-section__title" style="color:var(--text-3); font-style:italic">Extended reasoning block</span>
+        <span class="collapsed-section__size">~1.4k tokens · 5.8 KB</span>
+      </button>
+      <!-- body hidden when collapsed, shown with aria-expanded=true -->
+    </div>
+  </div>
+
+  <!-- Expanded state -->
+  <div class="turn-band turn-band--thinking" style="margin-top:16px">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--thinking">Thinking</span>
+      <span class="band-header__id">#38138</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">6m ago</span>
+      <span class="band-header__lat">3.2s</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+      </div>
+    </div>
+    <div class="collapsed-section collapsed-section--open">
+      <button class="collapsed-section__head" aria-expanded="true">
+        <span class="collapsed-section__caret" style="transform:rotate(90deg)">▸</span>
+        <span class="turn-chip turn-chip--thinking" style="margin-right:4px">Thinking</span>
+        <span class="collapsed-section__title" style="color:var(--text-3); font-style:italic">Extended reasoning block</span>
+        <span class="collapsed-section__size">~1.4k tokens · 5.8 KB</span>
+      </button>
+      <div class="collapsed-section__body thinking-body">Let me think about the turn-type taxonomy. The plan calls for five types: human prompt, assistant prose, tool loop, thinking-only, and harness/system. The key design constraint is that collapsed "harness" and "thinking" turns must still show their identity (type chip + request # + model + timing) even when the body is hidden. The rail colour does most of the differentiation work at a glance...
+
+For the left-rail colour mapping: blue for human (consistent with the existing blue left border on .msg--user .msg__prose and .you), green for assistant (consistent with the green right border on assistant prose and .msg--assistant .msg__role), amber for tool (consistent with .step--tool .step__kind and .step__tool-name), blue-border for thinking (a softer blue variant to distinguish from user), muted border-color for harness (demoted, not invisible).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 7: HARNESS/SYSTEM TURN — COLLAPSED (DEFAULT)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 5a — Harness/System (Collapsed, default state)</div>
+  <div class="demo-note">
+    SESSION START hook, &lt;new-diagnostics&gt;, system-reminder, BOOT/SKILLS, MCP boot.
+    Muted rail (--border-color) + HARNESS chip.
+    Collapsed by default = single-line height.
+    Header always shows byte/token size — the "header summary alongside full content" pattern.
+    Full content one click away, NOT a sliced preview.
+  </div>
+
+  <div class="turn-band turn-band--harness">
+    <div class="band-header" style="opacity:0.7">
+      <span class="turn-chip turn-chip--harness">Harness</span>
+      <span class="band-header__id">#38130</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">12m ago</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">response</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events</button>
+      </div>
+    </div>
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px">hook · session-start</span>
+        <span class="collapsed-section__title">SESSION START · BOOT/SKILLS · MCP init · 3 reminders</span>
+        <span class="collapsed-section__size">~14k tokens · 57 KB</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Second harness band — a simpler in-session reminder -->
+  <div class="turn-band turn-band--harness" style="margin-top:2px">
+    <div class="band-header" style="opacity:0.7">
+      <span class="turn-chip turn-chip--harness">Harness</span>
+      <span class="band-header__id">#38136</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">7m ago</span>
+    </div>
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px">system-reminder</span>
+        <span class="collapsed-section__title">&lt;new-diagnostics&gt; · event/info</span>
+        <span class="collapsed-section__size">~489 tokens · 2.0 KB</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 8: HARNESS/SYSTEM TURN — EXPANDED
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Turn Type 5b — Harness/System (Expanded)</div>
+  <div class="demo-note">
+    Identical to collapsed but aria-expanded=true. Body renders in full — scroll container,
+    no clamp. Token/byte size stays in header alongside the body.
+    This is NOT a sliced preview — it is the full content.
+  </div>
+
+  <div class="turn-band turn-band--harness">
+    <div class="band-header" style="opacity:0.7">
+      <span class="turn-chip turn-chip--harness">Harness</span>
+      <span class="band-header__id">#38130</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">12m ago</span>
+    </div>
+    <div class="collapsed-section collapsed-section--open">
+      <button class="collapsed-section__head" aria-expanded="true">
+        <span class="collapsed-section__caret" style="transform:rotate(90deg)">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px">hook · session-start</span>
+        <span class="collapsed-section__title">SESSION START · BOOT/SKILLS · MCP init · 3 reminders</span>
+        <span class="collapsed-section__size">~14k tokens · 57 KB</span>
+      </button>
+      <!-- Full body — scroll container, NOT a sliced preview -->
+      <div class="collapsed-section__body">
+&lt;system-reminder&gt;
+SESSION START
+
+You are Claude Code, Anthropic's official CLI for Claude. You are a UI/design-system specialist...
+&lt;/system-reminder&gt;
+
+&lt;system-reminder&gt;
+The following skills are available:
+- authoring-skills
+- managing-hooks
+- cli-auth-recovery
+- architecture
+- skill-creator
+...
+&lt;/system-reminder&gt;
+
+&lt;system-reminder&gt;
+As you answer the user's questions, you can use the following context:
+# claudeMd
+Codebase and user instructions are shown below...
+&lt;/system-reminder&gt;</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 9: LOADING SKELETON
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Loading Skeleton — Replaces "Loading…" band</div>
+  <div class="demo-note">
+    Shows band identity (type chip + request # + model + timing) from request-list row data
+    (always available pre-hydration). Only the assistant response body lazy-loads.
+    Never renders "Loading…" text — that is a dead band.
+  </div>
+
+  <!-- Skeleton with known summary data (pre-hydration) -->
+  <div class="skeleton-band">
+    <div class="band-header">
+      <!-- Type chip from request-list row — always available -->
+      <span class="turn-chip turn-chip--assistant" style="opacity:0.6">Assistant</span>
+      <span class="band-header__id" style="opacity:0.5">#38133</span>
+      <span class="band-header__model" style="opacity:0.4">claude-sonnet-4-6</span>
+      <span class="band-header__time" style="opacity:0.4">9m ago</span>
+    </div>
+    <div class="skeleton-block" style="height:32px"></div>
+  </div>
+
+  <div class="skeleton-band" style="margin-top:4px">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--tool" style="opacity:0.6">Tool Loop</span>
+      <span class="band-header__id" style="opacity:0.5">#38132</span>
+      <span class="band-header__model" style="opacity:0.4">claude-sonnet-4-6</span>
+      <span class="band-header__time" style="opacity:0.4">10m ago</span>
+    </div>
+    <div class="skeleton-block" style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 10: FULL CONVERSATION STRIP — IN CONTEXT
+     Shows the alternating pattern of all 5 types together
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Conversation Strip — All Types in Context</div>
+  <div class="demo-note">Realistic session excerpt. Scannable at a glance via rail colours.</div>
+
+  <!-- Harness — collapsed -->
+  <div class="turn-band turn-band--harness">
+    <div class="band-header" style="opacity:0.65">
+      <span class="turn-chip turn-chip--harness">Harness</span>
+      <span class="band-header__id">#38130</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">12m ago</span>
+    </div>
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px">hook · session-start</span>
+        <span class="collapsed-section__title">SESSION START · BOOT/SKILLS · 3 reminders</span>
+        <span class="collapsed-section__size">~14k tokens · 57 KB</span>
+      </button>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Human prompt -->
+  <div class="turn-band turn-band--human">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--human">User</span>
+      <span class="band-header__id">#38131</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">11m ago</span>
+      <span class="band-header__lat">0.3s</span>
+    </div>
+    <div class="msg msg--human">
+      <div class="msg__prose">Read the approved plan at docs/plans/woolly-tumbling-balloon.md and produce the session timeline turn-type design.</div>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Thinking — collapsed -->
+  <div class="turn-band turn-band--thinking">
+    <div class="band-header" style="opacity:0.75">
+      <span class="turn-chip turn-chip--thinking">Thinking</span>
+      <span class="band-header__id">#38131</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">11m ago</span>
+      <span class="band-header__lat">3.2s</span>
+    </div>
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--thinking" style="margin-right:4px">Thinking</span>
+        <span class="collapsed-section__title" style="color:var(--text-3);font-style:italic">Extended reasoning</span>
+        <span class="collapsed-section__size">~1.4k tokens · 5.8 KB</span>
+      </button>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Tool loop — 3 tools -->
+  <div class="turn-band turn-band--tool">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--tool">Tool Loop</span>
+      <span class="band-header__id">#38131</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">11m ago</span>
+      <span class="band-header__lat">2.1s</span>
+    </div>
+    <div class="tool-loop-summary">3 tool calls · ~2.8k tokens</div>
+    <div class="tool-loop">
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Read</span>
+        <span class="tool-loop__arg">docs/plans/woolly-tumbling-balloon.md</span>
+        <span class="tool-loop__toks">~1.4k tokens</span>
+      </div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip">Read</span>
+        <span class="tool-loop__arg">frontend/src/lib/app.css</span>
+        <span class="tool-loop__toks">~980 tokens</span>
+      </div>
+      <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+        <span class="tool-loop__caret">▸</span>
+        <span class="tool-name-chip tool-name-chip--result">Result (Read×2)</span>
+        <span class="tool-loop__arg">2 read results</span>
+        <span class="tool-loop__toks">~420 tokens</span>
+      </div>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Assistant prose -->
+  <div class="turn-band turn-band--assistant">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--assistant">Assistant</span>
+      <span class="band-header__id">#38131</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">10m ago</span>
+      <span class="band-header__lat">6.4s</span>
+    </div>
+    <div class="msg msg--assistant">
+      <div class="msg__prose">I'll read the plan first, then survey the existing tokens and CSS primitives before designing anything.</div>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Skeleton band (loading) -->
+  <div class="skeleton-band">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--tool" style="opacity:0.55">Tool Loop</span>
+      <span class="band-header__id" style="opacity:0.5">#38132</span>
+      <span class="band-header__model" style="opacity:0.4">claude-sonnet-4-6</span>
+      <span class="band-header__time" style="opacity:0.4">10m ago</span>
+    </div>
+    <div class="skeleton-block" style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 11: SINGLE-REQUEST INSPECTOR VARIANT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Single-Request Inspector Variant</div>
+  <div class="demo-note">
+    MessageContentRenderer adopts the same chips + tool-call-as-content.
+    Wrapped in an inspector card. Same visual language, denser chrome header.
+  </div>
+
+  <div class="inspector-frame">
+    <div class="inspector-frame__header">
+      <span class="turn-chip turn-chip--tool">Tool Loop</span>
+      <span class="band-header__id">#38135</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span style="margin-left:auto; font-size:10px; color:var(--text-3)">Messages · System · Request · Response · Events · Findings</span>
+    </div>
+    <div class="inspector-frame__body">
+      <div class="tool-loop-summary" style="padding-top:8px;">5 tool calls · ~3.2k tokens</div>
+      <div class="tool-loop" style="padding-top:4px;">
+        <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+          <span class="tool-loop__caret">▸</span>
+          <span class="tool-name-chip">Read</span>
+          <span class="tool-loop__arg">frontend/src/lib/components/shell/RequestBand.svelte</span>
+          <span class="tool-loop__toks">~1.6k tokens</span>
+        </div>
+        <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+          <span class="tool-loop__caret">▸</span>
+          <span class="tool-name-chip">Read</span>
+          <span class="tool-loop__arg">docs/frontend/style/common-mistakes.md</span>
+          <span class="tool-loop__toks">~930 tokens</span>
+        </div>
+        <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+          <span class="tool-loop__caret">▸</span>
+          <span class="tool-name-chip">Bash</span>
+          <span class="tool-loop__arg">wc -l ~/code/mike/docs/frontend/style/common-mistakes.md</span>
+          <span class="tool-loop__toks">~88 tokens</span>
+        </div>
+        <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+          <span class="tool-loop__caret">▸</span>
+          <span class="tool-name-chip tool-name-chip--result">Result (Bash)</span>
+          <span class="tool-loop__arg">1502 ~/code/mike/docs/frontend/style/common-mistakes.md</span>
+          <span class="tool-loop__toks">~22 tokens</span>
+        </div>
+        <div class="tool-loop__item" role="button" tabindex="0" aria-expanded="false">
+          <span class="tool-loop__caret">▸</span>
+          <span class="tool-name-chip tool-name-chip--result">Result (Read×2)</span>
+          <span class="tool-loop__arg">2 read results</span>
+          <span class="tool-loop__toks">~520 tokens</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 12: DENSITY RULE DEMONSTRATION
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Density Rule — Collapsed Harness is Single-Line, Not 80px Dead Zone</div>
+  <div class="demo-note">
+    Three consecutive harness bands collapse to three single-line rows.
+    The conversation bands carry the visual weight; harness is demoted.
+  </div>
+
+  <div class="turn-band turn-band--harness">
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px; font-size:8px">hook · session-start</span>
+        <span class="collapsed-section__title">SESSION START</span>
+        <span class="collapsed-section__size">~14k tokens</span>
+      </button>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+  <div class="turn-band turn-band--harness">
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px; font-size:8px">system-reminder</span>
+        <span class="collapsed-section__title">&lt;new-diagnostics&gt; · 2 events</span>
+        <span class="collapsed-section__size">~489 tokens</span>
+      </button>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+  <div class="turn-band turn-band--harness">
+    <div class="collapsed-section">
+      <button class="collapsed-section__head" aria-expanded="false">
+        <span class="collapsed-section__caret">▸</span>
+        <span class="turn-chip turn-chip--harness" style="margin-right:4px; font-size:8px">system-reminder</span>
+        <span class="collapsed-section__title">agent-memory-hygiene · scope-and-agents</span>
+        <span class="collapsed-section__size">~2.1k tokens</span>
+      </button>
+    </div>
+  </div>
+  <div class="band-sep"></div>
+
+  <!-- Conversation picks up immediately after harness cluster -->
+  <div class="turn-band turn-band--human">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--human">User</span>
+      <span class="band-header__id">#38131</span>
+      <span class="status-pill status-pill--complete">Complete</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">11m ago</span>
+    </div>
+    <div class="msg msg--human">
+      <div class="msg__prose">Design task for the temet-proxy SPA. The approved plan is at docs/plans/woolly-tumbling-balloon.md — read it first.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 13: STREAMING ASSISTANT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="section-label">Live / Streaming State</div>
+  <div class="demo-note">
+    Streaming indicator via .status-pill--streaming + existing green-glow on .msg--streaming.
+    Skeleton bands upstream of streaming band use the known summary data.
+  </div>
+
+  <div class="turn-band turn-band--assistant">
+    <div class="band-header">
+      <span class="turn-chip turn-chip--assistant">Assistant</span>
+      <span class="band-header__id">#38142</span>
+      <span class="status-pill status-pill--streaming">Streaming</span>
+      <span class="band-header__model">claude-sonnet-4-6</span>
+      <span class="band-header__time">just now</span>
+      <div class="band-header__actions">
+        <button class="band-header__link">request</button>
+        <span class="sep">·</span>
+        <button class="band-header__link">events 1</button>
+      </div>
+    </div>
+    <div class="msg msg--assistant">
+      <div class="msg__prose" style="box-shadow: 0 0 0 1px var(--green-dim), 0 0 14px var(--green-dim)">Now I have everything I need. Let me build the mockup HTML and then update the style guide files.
+
+The five turn types map cleanly to existing tokens:
+- Human prompt → --blue rail (matches .msg--user .msg__prose border-left: 2px solid var(--blue))
+- Assistant prose → --green rail (matches .msg--assistant .msg__role: color: var(--green))
+- Tool loop → --amber rail (matches .step--tool .step__kind: color: var(--amber))
+- Thinking → --blue-border rail (softer, distinct from human)
+- Harness → --border-color rail (muted, demoted)▌</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.demo-area -->
+
+</body>
+</html>

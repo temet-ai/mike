@@ -1,4 +1,4 @@
-.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity doc-animations doc-recordings arch-check help
+.PHONY: test-area rc-protocol-record rc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity doc-animations doc-recordings help
 
 INSTALL_DIR     ?= $(HOME)/.local/bin
 CARGO_TARGET_DIR ?= $(CURDIR)/target
@@ -93,7 +93,7 @@ test-db:
 	./scripts/check-test-tiers --require-db
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run --all --profile db
 
-## Everything — fast tier + DB tier. What CI runs.
+## Everything — fast tier + DB tier. What scripts/nightly-tests runs.
 test-all: test-mods
 	./scripts/check-test-tiers --require-db
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run --all --profile ci

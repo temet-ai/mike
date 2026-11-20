@@ -101,7 +101,7 @@ psqlr -c "with s as ($SEATS) select s.seat, s.kind,
  from s left join workspace.session_notes n on n.session_id=s.sid and n.created_at > '$SINCE+00' and n.kind <> 'brief'
  group by 1,2 order by 2,1"
 
-echo; echo "== 7 build and test commands per seat, through a project's wrappers too (mike checks each pushed commit; no seat runs the full gate or lint-rust in the checkout)"
+echo; echo "== 7 build and test commands per seat, through a project's wrappers too"
 psqlr -c "with s as ($SEATS),
  b as (select s.seat, s.kind, u.input->>'command' c from s join tools.uses u on u.session_id=s.sid
        where u.created_at > '$SINCE+00' and u.tool_name='Bash' and u.input->>'command' ~ '$CARGO' and u.input->>'command' !~ '$NOTCARGO')
@@ -109,8 +109,7 @@ psqlr -c "with s as ($SEATS),
    count(*) filter (where c ~ '(cx check|cargo check)') checks, count(*) filter (where c ~ '(nextest|cargo test)') tests,
    count(*) filter (where c ~ 'clippy') clippy, count(*) filter (where c ~ '(scripts/gate|lint-rust( |$)|make (check|lint)([[:space:];&|]|$))') gate_or_lint,
    count(*) filter (where c ~ '(cx run|cargo run)') cargo_run, count(*) filter (where c ~ '(cx fmt|cargo fmt)') fmt_whole_crate,
-   count(*) filter (where c ~ 'sqlx prepare') prepares,
-   case when kind in ('coordinator','observer') then 'NOT A SEAT THAT BUILDS' else '' end flag
+   count(*) filter (where c ~ 'sqlx prepare') prepares
  from b group by 1,2 order by 3 desc"
 echo "-- the same cargo command run by more than one seat (each repeat is a result another seat could have read)"
 psqlr -c "with s as ($SEATS),

@@ -81,11 +81,16 @@ fi
 
 
 worktree="$root/.claude/worktrees/$kind-$target"
-if git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
+# The folder sits inside the main checkout, so only its own .git file proves it is the
+# worktree; otherwise git would answer for the main checkout.
+git -C "$root" worktree prune
+if [ -f "$worktree/.git" ] &&
+  [ "$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null)" = "$(cd "$worktree" && pwd -P)" ]; then
   git -C "$worktree" checkout -q --detach "$sha"
   git -C "$worktree" clean -fdq
 else
-  git -C "$root" worktree add -q --detach "$worktree" "$sha"
+  rm -rf "$worktree"
+  git -C "$root" worktree add -q --force --detach "$worktree" "$sha"
 fi
 cd "$worktree"
 if [ -n "$glibc" ] && ! grep -q -- '--glibc' scripts/release/prepare.py; then

@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<!--
+  Tool Uses Panel — design mockup
+  Location in app: session detail page (/sessions/[sessionId]/+page.svelte)
+                   rendered in the fourth column (col.detail) when no request
+                   is selected, as a section inside SessionOverview.svelte.
+  Data source: GET /api/sessions/{id}/tool_uses
+  Row shape: { request_id, session_id, created_at, tool_id, tool_name,
+               input (full JSONB), file_path (string|null), ord }
+
+  Design tokens: see frontend/src/app.css and docs/frontend/style/tokens.md
+  Typography:    JetBrains Mono body; Syne headings — see docs/frontend/style/typography.md
+  Shell context: 4-pane grid — this panel is inside col.detail (1fr column)
+                 see docs/frontend/style/patterns.md § App Shell / 4-Pane Grid
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tool Uses Panel — Design Mockup</title>
+  <style>
+    /* ── Reset / base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Design tokens (verbatim from frontend/src/app.css) ── */
+    :root {
+      --bg:           #0f1117;
+      --surface:      #161b22;
+      --surface-2:    #1c232d;
+      --sidebar:      #0d1016;
+
+      --border-color: #30363d;
+      --border-subtle:#23282f;
+
+      --text-strong:  #dde2e8;
+      --text-1:       #c2c9d1;
+      --text-2:       #adb5be;
+      --text-3:       #c0c7d0;
+      --text-faint:   #c0c7d0;
+
+      --green:        #4a9f6f;
+      --green-dim:    rgba(74, 159, 111, 0.08);
+      --green-border: rgba(74, 159, 111, 0.15);
+
+      --amber:        #c49060;
+      --amber-dim:    rgba(196, 144, 96, 0.08);
+      --amber-border: rgba(196, 144, 96, 0.15);
+
+      --red:          #c48080;
+      --red-dim:      rgba(196, 128, 128, 0.08);
+      --red-border:   rgba(196, 128, 128, 0.15);
+
+      --blue:         #6494bb;
+      --blue-dim:     rgba(100, 148, 187, 0.08);
+      --blue-border:  rgba(100, 148, 187, 0.15);
+
+      --teal:         #5a9b8f;
+      --teal-dim:     rgba(90, 155, 143, 0.08);
+      --teal-border:  rgba(90, 155, 143, 0.15);
+
+      /* type scale (phase 2.9) */
+      --text-micro:   9px;
+      --text-caption: 10px;
+      --text-label:   11px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px;
+    }
+
+    /* ── App shell skeleton (illustrative context only) ── */
+    .shell-ctx {
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+      border: 1px dashed var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .topbar-sketch {
+      height: 44px;
+      background: var(--sidebar);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: var(--text-3);
+      font-size: var(--text-label);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .app-sketch {
+      display: grid;
+      grid-template-columns: 132px 260px 380px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+    .col-sketch {
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+    .col-sketch:last-child { border-right: none; }
+    .col-head-sketch {
+      height: 48px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      color: var(--text-3);
+      font-size: var(--text-label);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .col-body-sketch {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    /* ── Tool Uses Panel ── */
+
+    /* Section header: mirrors the column-header style for reuse
+       inside the SessionOverview panel body. */
+    .tool-uses-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .tool-uses-header__left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tool-uses-header__title {
+      font-family: 'Syne', 'JetBrains Mono', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-strong);
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .tool-uses-header__count {
+      /*
+       * Row count badge. Uses badge-muted appearance (neutral chip):
+       * --surface bg, --text-3 text, --border-subtle border.
+       * font-size: --text-label (11px); border-radius: 4px.
+       */
+      display: inline-flex;
+      align-items: center;
+      font-size: var(--text-label);
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(74, 85, 104, 0.12);
+      color: var(--text-3);
+      border: 1px solid rgba(74, 85, 104, 0.15);
+    }
+
+    /* ── Tool list ── */
+    .tool-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      /* No gap between rows — borders provide separation. */
+    }
+
+    /* ── Tool row ── */
+    /*
+     * Each row is a <li> containing:
+     *   [kind-indicator] [tool-name] [file-path|arg-preview] [timestamp] [req-link]
+     *
+     * The kind indicator is a 2px left border:
+     *   - file-modifying tools (Edit, Write, MultiEdit, NotebookEdit, NotebookEditCell):
+     *       --amber left border (warm — "something changed")
+     *   - all other tools (Read, Bash, Task, MCP tools, WebFetch, …):
+     *       --border-subtle left border (neutral)
+     *
+     * This uses the SAME amber-left-rail pattern as `.detail` in app.css:
+     *   "amber = you are here / this matters" navigation cue.
+     *   The amber border on file-modifying rows reads "this row made a change"
+     *   rather than "navigation cue", so it is ALWAYS visible (not hover-only),
+     *   which is the deliberate deviation from the .detail pattern.
+     *   See common-mistakes.md § Navigation Cues / where am I for context.
+     */
+    .tool-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px 12px 9px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      border-left: 2px solid var(--border-subtle);
+      position: relative;
+      transition: background 0.12s ease, border-left-color 0.12s ease;
+      cursor: default;
+    }
+    .tool-row:last-child {
+      border-bottom: none;
+    }
+    .tool-row:hover {
+      background: var(--surface-2);
+    }
+    /* File-modifying kind: amber left border (always on, not hover-only) */
+    .tool-row--file {
+      border-left-color: var(--amber);
+    }
+    /* Row is expanded (input JSONB visible) */
+    .tool-row--expanded {
+      background: var(--surface-2);
+    }
+    /* Focus ring for keyboard navigation */
+    .tool-row:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 1px var(--blue);
+    }
+
+    /* ── Row interior ── */
+    .tool-row__toggle {
+      /* Chevron for expand/collapse; rendered as a <button>
+         only when the row has an input payload to show. */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: var(--text-3);
+      transition: color 0.1s ease;
+    }
+    .tool-row__toggle:hover { color: var(--text-strong); }
+    /* Spacer used when there is no toggle (non-expandable flat row) */
+    .tool-row__toggle-spacer {
+      width: 14px;
+      flex-shrink: 0;
+    }
+
+    .tool-row__main {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tool-row__top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Tool name chip (styled like a badge-muted but with tool-specific color) */
+    .tool-name {
+      font-size: var(--text-label);
+      font-weight: 600;
+      color: var(--text-strong);
+      white-space: nowrap;
+    }
+    /* File-modifying tools: amber text to match the amber border */
+    .tool-name--file {
+      color: var(--amber);
+    }
+    /* Agent dispatch (Task): teal accent */
+    .tool-name--task {
+      color: var(--teal);
+    }
+    /* Bash: blue accent */
+    .tool-name--bash {
+      color: var(--blue);
+    }
+
+    /* File path display */
+    .tool-row__filepath {
+      font-size: 12px;
+      color: var(--text-2);
+      /* Full path, no truncation.
+         Wraps and scrolls. See inspection-fidelity rule: no truncation
+         on content surfaces. */
+      word-break: break-all;
+      overflow-wrap: anywhere;
+    }
+
+    /* Arg/command preview for non-file tools (Bash command, Task subagent name).
+       This is the FIRST LINE of the input, not a slice — it shows only
+       when the input starts with a command string that has a natural line break.
+       Full input is always in the expandable section below. */
+    .tool-row__arg-preview {
+      font-size: 12px;
+      color: var(--text-2);
+      font-style: italic;
+    }
+
+    /* ord counter — sequence within the request */
+    .tool-row__ord {
+      /*
+       * `ord` = position of this tool call within its parent request's
+       * tool_calls array (0-indexed). Helps the operator see "this was
+       * the 3rd tool call in request #42."
+       * Displayed as "#ord" next to the tool name, styled like the
+       * request-ID chip (muted mono, underline decoration).
+       */
+      font-size: var(--text-label);
+      font-weight: 500;
+      color: var(--text-3);
+      text-decoration: underline;
+      text-decoration-color: var(--border-color);
+      text-underline-offset: 2px;
+      white-space: nowrap;
+    }
+
+    /* Meta row: timestamp + request link */
+    .tool-row__meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tool-row__ts {
+      font-size: var(--text-caption);
+      color: var(--text-3);
+    }
+    .tool-row__req-link {
+      /*
+       * Link to the source request. Uses <a> for semantic + keyboard nav.
+       * Blue underline styling: same as the request-ID link in RequestsColumn.
+       */
+      font-size: var(--text-caption);
+      color: var(--blue);
+      text-decoration: underline;
+      text-decoration-color: var(--blue-border);
+      text-underline-offset: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tool-row__req-link:hover {
+      color: var(--text-strong);
+      text-decoration-color: var(--blue);
+    }
+    .tool-row__req-link:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--blue);
+      border-radius: 2px;
+    }
+
+    /* tool_id tooltip target */
+    .tool-row__tool-id {
+      font-size: var(--text-caption);
+      color: var(--text-3);
+      font-style: normal;
+    }
+
+    /* ── Expandable input section ── */
+    /*
+     * The full `input` JSONB is rendered inside a scroll container — NOT
+     * truncated. The inspection-fidelity rule (inspection-fidelity.md) is
+     * explicit: no .slice(), no line-clamp, no manual "show more" that hides
+     * content from the operator. The full JSON must be readable without any
+     * further interaction once the row is expanded.
+     *
+     * Scroll container: `overflow-y: auto; max-height: 320px` — this is
+     * virtualization, not truncation. The data is fully in the DOM; the
+     * visible window scrolls. See inspection-fidelity.md: "It is NOT
+     * truncation to paginate (…) or to Virtualize very large lists."
+     * A max-height scroll container for a single JSON block is equivalent:
+     * all bytes are in the DOM, none are hidden behind a "show more" gate.
+     */
+    .tool-input {
+      margin-top: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow-y: auto;
+      /*
+       * max-height: limits the visible window without hiding data.
+       * The operator can scroll to read the full JSON.
+       * NEVER use max-height + overflow:hidden — that clips the data.
+       */
+      max-height: 320px;
+    }
+    .tool-input__label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 1;
+    }
+    .tool-input__label-text {
+      font-size: var(--text-label);
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tool-input__copy-btn {
+      /*
+       * Icon button — copy the full JSON to clipboard.
+       * Follows the `.iconbtn` pattern from app.css:
+       *   resting: --text-3; hover: bg --surface, text --text-strong.
+       */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: none;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-3);
+      transition: background 0.1s ease, color 0.1s ease;
+    }
+    .tool-input__copy-btn:hover {
+      background: var(--surface);
+      color: var(--text-strong);
+    }
+    .tool-input__copy-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--blue);
+    }
+    .tool-input__body {
+      padding: 10px;
+      overflow-x: auto;
+    }
+    .tool-input__json {
+      /*
+       * Pre-formatted JSON. All bytes are in the DOM — no slicing.
+       * font-size: 11px (text-label) — dense but legible at this scale.
+       * white-space: pre — preserves JSON indentation.
+       * word-break: normal — JSON keys/values should not break mid-token.
+       * overflow-x: auto on .tool-input__body handles wide lines.
+       */
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: var(--text-label);
+      color: var(--text-1);
+      white-space: pre;
+      word-break: normal;
+      line-height: 1.6;
+    }
+    /* JSON syntax highlighting */
+    .json-key   { color: var(--blue);   }
+    .json-str   { color: var(--green);  }
+    .json-num   { color: var(--amber);  }
+    .json-bool  { color: var(--teal);   }
+    .json-null  { color: var(--text-3); }
+    .json-punct { color: var(--text-3); }
+
+    /* ── Empty state ── */
+    .tool-uses-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 40px 24px;
+      color: var(--text-3);
+    }
+    .tool-uses-empty__icon {
+      width: 24px;
+      height: 24px;
+      opacity: 0.4;
+    }
+    .tool-uses-empty__text {
+      font-size: 12px;
+      text-align: center;
+    }
+    .tool-uses-empty__sub {
+      font-size: var(--text-caption);
+      color: var(--text-faint);
+      text-align: center;
+    }
+
+    /* ── Section card wrapper (mirrors .card-surface) ── */
+    .tool-uses-section {
+      background: var(--surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      /*
+       * Inset highlight: top-edge light catch per card-surface spec.
+       * Source: frontend/src/app.css .card-surface
+       */
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+      overflow: hidden;
+    }
+
+    /* ── Chevron icon (pure CSS — no SVG dep in mockup) ── */
+    .chev {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+    }
+    .chev--up { transform: rotate(-135deg); }
+
+    /* ── Annotation callouts (design doc only — not shipped) ── */
+    .annotation {
+      margin: 16px 0;
+      padding: 10px 14px;
+      border-left: 2px solid var(--blue);
+      background: var(--blue-dim);
+      border-radius: 0 4px 4px 0;
+      font-size: var(--text-label);
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+    .annotation strong { color: var(--text-1); }
+    .annotation code {
+      font-family: inherit;
+      background: var(--surface-2);
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: var(--text-strong);
+    }
+
+    /* ── Section labels in design doc ── */
+    .doc-section {
+      margin: 32px 0 12px;
+      font-size: var(--text-label);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-3);
+    }
+
+    /* ── Tooltip simulation ── */
+    [data-tooltip] { position: relative; cursor: default; }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-2);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: var(--text-caption);
+      color: var(--text-1);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+    }
+    [data-tooltip]:hover::after { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<p class="doc-section">Shell context (illustrative — fourth column only)</p>
+<div class="shell-ctx" aria-label="Shell context illustration">
+  <div class="topbar-sketch">TopBar · Claude Proxy Inspector</div>
+  <div class="app-sketch">
+    <div class="col-sketch">
+      <div class="col-head-sketch">Nav</div>
+      <div class="col-body-sketch"></div>
+    </div>
+    <div class="col-sketch">
+      <div class="col-head-sketch">Sessions</div>
+      <div class="col-body-sketch"></div>
+    </div>
+    <div class="col-sketch">
+      <div class="col-head-sketch">Requests</div>
+      <div class="col-body-sketch"></div>
+    </div>
+
+    <!-- Fourth column: detail (1fr) — this is where the panel lives -->
+    <div class="col-sketch" style="overflow-y:auto;">
+      <div class="col-head-sketch" style="font-family:'Syne','JetBrains Mono',sans-serif;font-size:13px;font-weight:600;text-transform:none;color:var(--text-strong);letter-spacing:0;">
+        Session abc123…
+      </div>
+      <div class="col-body-sketch" style="padding:16px;overflow-y:auto;">
+
+        <!-- ─────────────────────────────────────────────────
+             TOOL USES PANEL (the deliverable)
+             Lives inside SessionOverview.svelte as a section
+             below the existing stats/overview content.
+             ───────────────────────────────────────────────── -->
+        <div class="tool-uses-section">
+
+          <!-- Panel header -->
+          <div class="tool-uses-header">
+            <div class="tool-uses-header__left">
+              <!--
+                Title: Syne font, 13px, font-weight:600, color:text-strong
+                per column-head pattern.
+              -->
+              <span class="tool-uses-header__title">Tool Uses</span>
+              <!--
+                Row count: badge-muted chip.
+                Microcopy: "N uses" tells the operator at a glance how many
+                tool invocations occurred this session.
+                The count is a badge, not just a number, so it is visually
+                grouped with the heading without ambiguity.
+              -->
+              <span class="tool-uses-header__count" aria-label="12 tool uses">12</span>
+            </div>
+            <!-- (Future: filter controls / sort toggle could live here) -->
+          </div>
+
+          <!-- Tool list — rendered row variant examples follow -->
+          <ul class="tool-list" role="list" aria-label="Session tool uses, chronological">
+
+            <!-- ─── ROW 1: Write (file-modifying, expanded) ─── -->
+            <!--
+              file-modifying tools: Edit, Write, MultiEdit, NotebookEdit,
+              NotebookEditCell → .tool-row--file → amber left border +
+              amber tool name.
+              Semantic: "this row made a persistent change."
+              (A file-modifying tool row is also --expanded here to show the
+              input section.)
+            -->
+            <li class="tool-row tool-row--file tool-row--expanded"
+                role="listitem">
+              <!--
+                Toggle button: present because this row has input JSON to show.
+                Element: <button type="button" aria-expanded="true" …>
+                aria-label: "Collapse tool input for Write"
+              -->
+              <button class="tool-row__toggle" aria-expanded="true"
+                      aria-label="Collapse tool input for Write">
+                <span class="chev chev--up"></span>
+              </button>
+
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <!--
+                    Tool name: amber (file-modifying class).
+                    Full tool name from the row's `tool_name` field.
+                  -->
+                  <span class="tool-name tool-name--file">Write</span>
+                  <!--
+                    ord chip: "sequence position within the request".
+                    Tooltip text (shown on hover): "Tool call #2 within
+                    request #47 — i.e. this was the 2nd tool invoked in
+                    that request."
+                  -->
+                  <span class="tool-row__ord"
+                        data-tooltip="2nd tool call in request #47">#2</span>
+                  <!--
+                    file_path: full path, no truncation.
+                    The path wraps if long — it does NOT ellipsis.
+                    Source: inspection-fidelity.md § Frontend rendering
+                  -->
+                  <span class="tool-row__filepath">~/code/mike/frontend/src/lib/components/shell/ToolUsesPanel.svelte</span>
+                </div>
+
+                <div class="tool-row__meta">
+                  <!--
+                    Timestamp: relative time (e.g. "2 min ago").
+                    Full ISO timestamp in tooltip on hover.
+                  -->
+                  <span class="tool-row__ts"
+                        data-tooltip="2026-04-30T14:22:11Z">2 min ago</span>
+                  <!--
+                    Request link: routes to the request that issued this tool
+                    call — anchors to the request detail in the fourth column.
+                    aria-label includes both the request ID and context.
+                    href: /sessions/{sessionId}/requests/{request_id}
+                  -->
+                  <a class="tool-row__req-link"
+                     href="#req-47"
+                     aria-label="Open source request #47">
+                    req #47
+                  </a>
+                  <!--
+                    tool_id: the Anthropic-assigned call ID (toolu_xxx).
+                    Displayed small/muted; tooltip explains the field.
+                    Operators need this to correlate with raw SSE events.
+                  -->
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID — matches the toolu_xxx ID in the raw SSE stream">
+                    toolu_01XYZ…
+                  </span>
+                </div>
+
+                <!-- Input JSONB — rendered full, no truncation -->
+                <div class="tool-input" aria-label="Full tool input JSON">
+                  <div class="tool-input__label">
+                    <span class="tool-input__label-text">input</span>
+                    <!--
+                      Copy button: copies full JSON string to clipboard.
+                      Follows .iconbtn pattern (text-3 → text-strong on hover).
+                    -->
+                    <button class="tool-input__copy-btn"
+                            aria-label="Copy input JSON">
+                      <!-- Lucide Copy icon 12px — implementation uses @lucide/svelte -->
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round"
+                           aria-hidden="true">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="tool-input__body">
+                    <!--
+                      JSON rendered verbatim with syntax highlighting.
+                      This is the FULL input blob — no slicing.
+                      In Svelte: JSON.stringify(row.input, null, 2)
+                      rendered in a <pre> inside a scroll container.
+                    -->
+                    <pre class="tool-input__json"><span class="json-punct">{</span>
+  <span class="json-key">"file_path"</span><span class="json-punct">:</span> <span class="json-str">"~/code/mike/frontend/src/lib/components/shell/ToolUsesPanel.svelte"</span><span class="json-punct">,</span>
+  <span class="json-key">"content"</span><span class="json-punct">:</span> <span class="json-str">"&lt;script lang=\"ts\"&gt;\n  // ToolUsesPanel — session tool-use history panel\n  // ...\n&lt;/script&gt;\n\n&lt;!-- rendered markup --&gt;"</span>
+<span class="json-punct">}</span></pre>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <!-- ─── ROW 2: Edit (file-modifying, collapsed) ─── -->
+            <li class="tool-row tool-row--file" role="listitem">
+              <button class="tool-row__toggle" aria-expanded="false"
+                      aria-label="Expand tool input for Edit">
+                <span class="chev"></span>
+              </button>
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <span class="tool-name tool-name--file">Edit</span>
+                  <span class="tool-row__ord"
+                        data-tooltip="1st tool call in request #47">#1</span>
+                  <span class="tool-row__filepath">~/code/mike/docs/frontend/style/components.md</span>
+                </div>
+                <div class="tool-row__meta">
+                  <span class="tool-row__ts" data-tooltip="2026-04-30T14:22:09Z">2 min ago</span>
+                  <a class="tool-row__req-link" href="#req-47"
+                     aria-label="Open source request #47">req #47</a>
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID">toolu_01ABC…</span>
+                </div>
+              </div>
+            </li>
+
+            <!-- ─── ROW 3: Bash (non-file, collapsed) ─── -->
+            <!--
+              Non-file tools: Read, Bash, Task, WebFetch, MCP tools, etc.
+              → --border-subtle left border (neutral)
+              → blue tool name accent for Bash (terminal-like signal)
+            -->
+            <li class="tool-row" role="listitem">
+              <button class="tool-row__toggle" aria-expanded="false"
+                      aria-label="Expand tool input for Bash">
+                <span class="chev"></span>
+              </button>
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <span class="tool-name tool-name--bash">Bash</span>
+                  <span class="tool-row__ord"
+                        data-tooltip="3rd tool call in request #47">#3</span>
+                  <!--
+                    Bash arg preview: first significant word of the command.
+                    This is NOT a slice — it is an inline label rendered
+                    from a well-defined extraction (first token of the
+                    command string). It does not replace the full input;
+                    the full `input` JSON is in the expandable section.
+                    Svelte implementation: extract via
+                    `row.input?.command?.split(/\s+/)[0] ?? ''`
+                  -->
+                  <span class="tool-row__arg-preview">cargo test --all</span>
+                </div>
+                <div class="tool-row__meta">
+                  <span class="tool-row__ts" data-tooltip="2026-04-30T14:22:14Z">2 min ago</span>
+                  <a class="tool-row__req-link" href="#req-47"
+                     aria-label="Open source request #47">req #47</a>
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID">toolu_01DEF…</span>
+                </div>
+              </div>
+            </li>
+
+            <!-- ─── ROW 4: MultiEdit (file-modifying, collapsed) ─── -->
+            <!--
+              MultiEdit edits multiple files. file_path may be null (MultiEdit
+              has edits[] array not a single path). In that case, omit the
+              file_path span and show the count of edited files from the
+              input.edits array length.
+            -->
+            <li class="tool-row tool-row--file" role="listitem">
+              <button class="tool-row__toggle" aria-expanded="false"
+                      aria-label="Expand tool input for MultiEdit">
+                <span class="chev"></span>
+              </button>
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <span class="tool-name tool-name--file">MultiEdit</span>
+                  <span class="tool-row__ord"
+                        data-tooltip="4th tool call in request #47">#4</span>
+                  <!--
+                    file_path is null for MultiEdit. Instead show the edit
+                    count from the input JSONB (input.edits.length).
+                    This is computed by the implementation, not a truncation.
+                  -->
+                  <span class="tool-row__arg-preview">3 files</span>
+                </div>
+                <div class="tool-row__meta">
+                  <span class="tool-row__ts" data-tooltip="2026-04-30T14:22:16Z">1 min ago</span>
+                  <a class="tool-row__req-link" href="#req-47"
+                     aria-label="Open source request #47">req #47</a>
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID">toolu_01GHI…</span>
+                </div>
+              </div>
+            </li>
+
+            <!-- ─── ROW 5: Read (non-file, collapsed) ─── -->
+            <li class="tool-row" role="listitem">
+              <!-- No toggle: Read tool always has an input; show toggle -->
+              <button class="tool-row__toggle" aria-expanded="false"
+                      aria-label="Expand tool input for Read">
+                <span class="chev"></span>
+              </button>
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <span class="tool-name">Read</span>
+                  <span class="tool-row__ord"
+                        data-tooltip="1st tool call in request #48">#1</span>
+                  <span class="tool-row__filepath">~/code/mike/crates/claude-proxy/src/api/manifest.rs</span>
+                </div>
+                <div class="tool-row__meta">
+                  <span class="tool-row__ts" data-tooltip="2026-04-30T14:23:05Z">1 min ago</span>
+                  <a class="tool-row__req-link" href="#req-48"
+                     aria-label="Open source request #48">req #48</a>
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID">toolu_01JKL…</span>
+                </div>
+              </div>
+            </li>
+
+            <!-- ─── ROW 6: Task (subagent dispatch, collapsed) ─── -->
+            <!--
+              Task dispatches a subagent. file_path is null.
+              Teal accent: distinguishes "delegation" from "I/O" operations.
+              The arg preview shows the subagent description field.
+            -->
+            <li class="tool-row" role="listitem">
+              <button class="tool-row__toggle" aria-expanded="false"
+                      aria-label="Expand tool input for Task">
+                <span class="chev"></span>
+              </button>
+              <div class="tool-row__main">
+                <div class="tool-row__top">
+                  <span class="tool-name tool-name--task">Task</span>
+                  <span class="tool-row__ord"
+                        data-tooltip="2nd tool call in request #48">#2</span>
+                  <span class="tool-row__arg-preview">frontend-developer</span>
+                </div>
+                <div class="tool-row__meta">
+                  <span class="tool-row__ts" data-tooltip="2026-04-30T14:23:08Z">1 min ago</span>
+                  <a class="tool-row__req-link" href="#req-48"
+                     aria-label="Open source request #48">req #48</a>
+                  <span class="tool-row__tool-id"
+                        data-tooltip="Anthropic tool call ID">toolu_01MNO…</span>
+                </div>
+              </div>
+            </li>
+
+          </ul><!-- /tool-list -->
+        </div><!-- /tool-uses-section -->
+
+      </div><!-- /col-body-sketch -->
+    </div><!-- /col.detail -->
+  </div><!-- /app-sketch -->
+</div><!-- /shell-ctx -->
+
+
+<!-- ─── ANNOTATIONS ─────────────────────────────────── -->
+
+<p class="doc-section">Design annotations</p>
+
+<div class="annotation">
+  <strong>Visual differentiation: file-modifying tools</strong><br>
+  Tools that change files on disk — <code>Edit</code>, <code>Write</code>, <code>MultiEdit</code>,
+  <code>NotebookEdit</code>, <code>NotebookEditCell</code> — get:
+  <ul style="margin:8px 0 0 16px;line-height:1.8;">
+    <li>Amber left border (2px, always-on) — uses the same amber token as the
+        "where am I" cue but <em>always on</em> (not hover-only), because the
+        amber here signals "this row made a change," not "you are reading this."</li>
+    <li>Amber tool name color (<code>var(--amber)</code>) — reinforces the left border
+        without adding a background fill (avoids the flat-block mistake).</li>
+  </ul>
+  All other tools: neutral <code>--border-subtle</code> left border, <code>--text-strong</code> tool name.
+</div>
+
+<div class="annotation">
+  <strong>Bash accent (blue)</strong><br>
+  <code>Bash</code> gets <code>var(--blue)</code> tool name. Rationale: blue = "execution / info"
+  in this palette (same as request info and ring/focus tokens). This gives the operator
+  an instant signal for "shell command ran here."
+</div>
+
+<div class="annotation">
+  <strong>Task accent (teal)</strong><br>
+  <code>Task</code> (subagent dispatch) gets <code>var(--teal)</code>. Teal = tertiary accent —
+  distinct from amber (file change) and blue (shell exec), so Task stands apart as
+  "delegation" rather than direct I/O.
+</div>
+
+<div class="annotation">
+  <strong>No truncation: <code>input</code> JSONB</strong><br>
+  The full <code>input</code> JSON blob renders in an <code>overflow-y:auto</code> scroll container
+  with <code>max-height: 320px</code>. This is a scroll window, not a data truncation.
+  All bytes are in the DOM once the row is expanded. Never use
+  <code>JSON.stringify(input).slice(0, N)</code> or <code>class="line-clamp-*"</code> here.
+  See <code>docs/frontend/style/common-mistakes.md § Inspection Fidelity</code>.
+</div>
+
+<div class="annotation">
+  <strong>file_path display: no truncation</strong><br>
+  Long paths wrap via <code>word-break: break-all; overflow-wrap: anywhere</code>.
+  They do not ellipsis. Operators need to read the full path to determine which file was
+  affected — capping to 40 chars would require a hover to confirm.
+</div>
+
+<div class="annotation">
+  <strong>MultiEdit: null <code>file_path</code> handling</strong><br>
+  <code>MultiEdit</code> has an <code>edits: [{file_path, old_string, new_string}]</code>
+  input shape and no top-level <code>file_path</code>. When <code>file_path</code> is null,
+  the implementation should: (a) render no path span, (b) show "N files" from
+  <code>input?.edits?.length</code> as an arg-preview. The full <code>edits</code> array
+  is in the expandable input section. Never render partial path lists.
+</div>
+
+<div class="annotation">
+  <strong>Arg preview for Bash / Task</strong><br>
+  The inline preview for Bash shows <code>input.command</code> (the full command string).
+  For Task it shows <code>input.description</code> (the subagent brief label). This is
+  <em>not</em> a truncated slice — it is a well-defined field extracted from the input
+  object. The full input remains in the expandable section. If the command/description
+  is long, it <em>wraps</em> — it does not ellipsis.
+</div>
+
+<div class="annotation">
+  <strong><code>ord</code> field tooltip</strong><br>
+  <code>ord</code> is the 0-indexed position of this tool call in the parent request's
+  <code>tool_calls</code> array. Displayed as <code>#N</code> (1-indexed for human display:
+  <code>ord + 1</code>). Tooltip on hover: <em>"Nth tool call in request #R"</em>.
+  Helps the operator correlate the row with the raw SSE stream order.
+</div>
+
+<div class="annotation">
+  <strong><code>tool_id</code> field tooltip</strong><br>
+  <code>tool_id</code> is the Anthropic-generated call ID (<code>toolu_xxx</code>). Displayed
+  at caption size, muted. Tooltip: <em>"Anthropic tool call ID — matches the
+  <code>toolu_xxx</code> ID in the raw SSE stream"</em>. Truncated in display to first 12 chars
+  + <code>…</code> because the full ID is noise at this scale — the full value is shown
+  in the tooltip and in the expanded input JSON. (This is UI chrome truncation of an ID,
+  not content truncation — the full ID is always reachable.)
+</div>
+
+<div class="annotation">
+  <strong>Empty state</strong><br>
+  When <code>GET /api/sessions/{id}/tool_uses</code> returns an empty array:
+  show the wrench icon at 40% opacity, the text "No tool uses recorded",
+  sub-text "Tool calls appear here once the session makes its first tool use."
+  Do not hide the panel — the header + empty state still communicate that the
+  data category was checked and came up empty.
+</div>
+
+<!-- ─── EMPTY STATE DEMO ─────────────────────────────── -->
+
+<p class="doc-section">Empty state</p>
+
+<div class="tool-uses-section" style="max-width:540px;">
+  <div class="tool-uses-header">
+    <div class="tool-uses-header__left">
+      <span class="tool-uses-header__title">Tool Uses</span>
+      <span class="tool-uses-header__count">0</span>
+    </div>
+  </div>
+  <div class="tool-uses-empty" role="status" aria-live="polite">
+    <!-- Lucide Wrench icon 24px at 40% opacity -->
+    <svg class="tool-uses-empty__icon" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+         stroke-linejoin="round" aria-hidden="true">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+    <span class="tool-uses-empty__text">No tool uses recorded</span>
+    <span class="tool-uses-empty__sub">Tool calls appear here once the session makes its first tool use.</span>
+  </div>
+</div>
+
+<!-- ─── EXPANDED ROW (standalone detail) ──────────────── -->
+
+<p class="doc-section">Expanded row with large input (scroll container demo)</p>
+
+<div class="tool-uses-section" style="max-width:640px;">
+  <div class="tool-uses-header">
+    <div class="tool-uses-header__left">
+      <span class="tool-uses-header__title">Tool Uses</span>
+      <span class="tool-uses-header__count">1</span>
+    </div>
+  </div>
+  <ul class="tool-list">
+    <li class="tool-row tool-row--file tool-row--expanded">
+      <button class="tool-row__toggle" aria-expanded="true"
+              aria-label="Collapse tool input for Write">
+        <span class="chev chev--up"></span>
+      </button>
+      <div class="tool-row__main">
+        <div class="tool-row__top">
+          <span class="tool-name tool-name--file">Write</span>
+          <span class="tool-row__ord" data-tooltip="1st tool call in request #23">#1</span>
+          <span class="tool-row__filepath">~/code/mike/docs/plans/design/tool-uses-panel.html</span>
+        </div>
+        <div class="tool-row__meta">
+          <span class="tool-row__ts" data-tooltip="2026-04-30T10:00:00Z">today</span>
+          <a class="tool-row__req-link" href="#req-23" aria-label="Open source request #23">req #23</a>
+          <span class="tool-row__tool-id" data-tooltip="Anthropic tool call ID — matches the toolu_xxx ID in the raw SSE stream">toolu_01PQR…</span>
+        </div>
+        <!-- Full JSON in scroll container — note the max-height + overflow-y:auto -->
+        <div class="tool-input">
+          <div class="tool-input__label">
+            <span class="tool-input__label-text">input</span>
+            <button class="tool-input__copy-btn" aria-label="Copy input JSON">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+          <div class="tool-input__body">
+            <pre class="tool-input__json"><span class="json-punct">{</span>
+  <span class="json-key">"file_path"</span><span class="json-punct">:</span> <span class="json-str">"~/code/mike/docs/plans/design/tool-uses-panel.html"</span><span class="json-punct">,</span>
+  <span class="json-key">"content"</span><span class="json-punct">:</span> <span class="json-str">"&lt;!DOCTYPE html&gt;\n&lt;html lang=\"en\"&gt;\n&lt;head&gt;\n  &lt;meta charset=\"UTF-8\" /&gt;\n  &lt;title&gt;Tool Uses Panel&lt;/title&gt;\n&lt;/head&gt;\n&lt;body&gt;\n  ...\n  [full file contents rendered here]\n  ...\n&lt;/body&gt;\n&lt;/html&gt;"</span>
+<span class="json-punct">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </li>
+  </ul>
+</div>
+
+</body>
+</html>

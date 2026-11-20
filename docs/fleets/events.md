@@ -17,7 +17,7 @@ stale and a run can be replayed from its rows alone.
 
 mike writes 22 of the 26 kinds. `plan_versioned`, `seat_heartbeat_stale`, `operator_touched`
 and `resource_admitted` exist in the table and the code, and a problem's dossier reads
-`plan_versioned` (`launch/fleet/leaves/solver.rs`), but nothing writes them. Writers, relative to `crates/mike/src/`:
+`plan_versioned` (`launch/fleet/leaves/solver.rs`), but nothing writes them. Writers, relative to `crates/mike-fleet/src/`:
 
 | Kinds | Written by |
 |---|---|

@@ -4,7 +4,7 @@ Every seat of a fleet works under these rules; your brief says what your seat do
 
 ## How the seats work together
 
-1. **Ask the record what others changed; ask git only for your own.** `what_changed` replaces `git status`, `git log` and `git diff` for other seats' work; git stays right for your own diff, for history, and when the answer says `recording: false`.
+Ask the record what others changed; ask git only for your own. `what_changed` replaces `git status`, `git log` and `git diff` for other seats' work; git stays right for your own diff, for history, and when the answer says `recording: false`.
 
 ## Mail
 
@@ -15,10 +15,6 @@ Every seat of a fleet works under these rules; your brief says what your seat do
 
 `finding` is something established, `decision` a choice a later seat would otherwise reopen, with the reason, and `task` with a `status` work in flight; `fleet_commit` writes `result` notes. Paths, shas and numbers go in `data`. A note with `data.carry` true is offered to the operator as a lesson for later templates; carry only what a later seat would find out the slow way.
 
-## Committing
-
-Seats commit with `fleet_commit`.
-
 ## Goals
 
 When your brief gives you a goal, Claude Code's `/goal` is armed with it after your first turn, and a model judges it after every turn from your conversation alone.
@@ -28,6 +24,7 @@ When your brief gives you a goal, Claude Code's `/goal` is armed with it after y
 ## Context
 
 Read with `select` projections and diffs a file at a time; give wide sweeps and any read over about 2,000 tokens to a haiku `Explore` subagent.
+
 ## Fences
 
 - Never ask the operator with `AskUserQuestion`: the fleet stops behind it. Write a note with `status: "operator"`, titled with what you need from him in his words, and carry on; mike raises it as NEEDS YOU. Set it `answered` when it is settled.

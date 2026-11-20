@@ -2,20 +2,21 @@
 title: GitHub Actions Workflows
 status: active
 created: 2026-06-28
-updated: 2026-11-06
+updated: 2026-11-20
 summary: Reference for the GitHub Actions workflows in mike - which repository runs which, triggers, purpose, loop guards, and operational notes.
 ---
 
 # GitHub Actions Workflows
 
-Seven workflows live in `.github/workflows/`. Actions is enabled on the
+Ten workflows live in `.github/workflows/`. Actions is enabled on the
 public repository `temet-ai/mike` and disabled on the private development repository
 ([`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md#hosted-ci-today)),
 so nothing here runs privately: the workflows run only on the public repository.
 
 Four are CI gates (pull requests, and pushes to `main` for three of them); one is an
 advisory usability gate on frontend PRs; two are release workflows (a tag-triggered
-alpha build and a manual candidate source-gate run).
+alpha build and a manual candidate source-gate run); three are listed at the end
+(`dependency-review.yml`, `docs-agent.yml`, `deps-agent.yml`).
 
 ---
 
@@ -43,9 +44,8 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 
 | Where | What |
 |---|---|
-| Before a commit | The staged files: secret scan, Rust and frontend formatting (fixed for you), the 500-line limit, ESLint errors on added lines |
-| Before a push | Nothing; there are no git hooks |
-| Nightly, on the machine that turns it on | `scripts/nightly-tests` (systemd user timer `mike-dev-nightly-tests`, enabled where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`): `make test-all`, every Rust tier, at `origin/main` in `.claude/worktrees/nightly` |
+| Before a commit or a push | Nothing; there are no git hooks |
+| Nightly, on the machine that turns it on | `scripts/nightly-tests` (systemd user timer `mike-dev-nightly-tests`, enabled where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`): `scripts/lint-rust` and `make test-all`, every Rust tier, at `origin/main` in `.claude/worktrees/nightly` |
 | Push to `main` | Rust `lint` and `fast`; frontend `checks` |
 | Pull request | Those plus `integration`, the DB tier in three shards with `cargo sqlx prepare --check` on shard 1, and frontend `storybook` |
 | Nightly | Rust `lint`, `fast` and `integration` |
@@ -91,8 +91,7 @@ svelte-check, unit, integration, and Storybook browser tests), then runs
 
 ## `e2e.yml`
 
-**Triggers:** PRs that touch `frontend/**` or the workflow file; every push to `main`;
-`workflow_dispatch` and `workflow_call` (the last two unfiltered).
+**Triggers:** `workflow_dispatch` and `workflow_call` (from `release-alpha.yml` on a tag).
 
 **What it does:** Installs pnpm + Playwright chromium (with OS deps) and runs `pnpm exec playwright test`.
 
@@ -149,3 +148,8 @@ GitHub Actions versions update weekly as one group. Nothing merges automatically
 Code scanning is CodeQL default setup, configured in the repository's settings rather than a
 workflow file. `dependency-review.yml` fails a pull request that adds a high or critical
 advisory.
+
+`docs-agent.yml` runs on a push to `main` and opens a pull request with documentation updates
+([`development/docs-agent-pattern.md`](development/docs-agent-pattern.md)). `deps-agent.yml`
+runs on Mondays at 06:31 UTC and opens a pull request that fixes dependency advisories and
+deprecations.

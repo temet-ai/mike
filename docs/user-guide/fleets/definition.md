@@ -16,8 +16,8 @@ The definition lives in mike's database, and Claude reads and changes it with th
 | Criteria | Three to seven outcomes, each with the evidence that settles it and the files involved |
 | Workers | A model, and optionally a specialist agent, for each kind of work (for example `backend`, `web`, `docs`) |
 | Tasks | For each: a name, its kind of work, the criteria it serves, the files it may touch, up to three tasks it must wait for, and a brief |
-| Check | The command that says whether the tree is sound, and the paths its answer depends on |
-| Gate | A quick command mike runs on every pushed commit, and once on a clean copy before any session opens |
+| Check (optional) | The command that says whether the tree is sound, and the paths its answer depends on |
+| Gate (optional) | A quick command mike runs on every pushed commit, and once on a clean copy before any session opens |
 | Rules | Anything no session may do in this run in particular |
 
 ## Outcomes the judge can check
@@ -93,6 +93,9 @@ A task without `done_when` goes straight to the judge. See [How work is accepted
 
 ## The check, the commit check and the gate
 
+All three are optional, and `/fleet` sets none of them; add them to the definition yourself when
+you want mike to run them.
+
 - `check.command` is the one command that says whether the tree is sound, such as
   `npm run typecheck` or `cargo check --workspace`. `check.paths` lists what its answer depends
   on. mike runs it on every new commit in a clean copy (see
@@ -103,9 +106,8 @@ A task without `done_when` goes straight to the judge. See [How work is accepted
   files. When that first run fails, only a repair task named in `baseline.repair_task` may
   start, until the gate passes.
 
-A project can keep these in `.claude/fleet/project.md`, a short file saying how it is built and
-checked, which `/fleet` reads, and declare its slow commands in `.claude/fleet/operations.json`
-(see [Share one checkout](shared-checkout.md#declared-operations)).
+A project can declare its slow commands in `.claude/fleet/operations.json` (see
+[Share one checkout](shared-checkout.md#declared-operations)).
 
 ## Workers, models and goals
 

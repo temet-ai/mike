@@ -2,7 +2,7 @@
 title: Alpha feedback and corrective releases
 status: active
 created: 2026-10-13
-updated: 2026-11-06
+updated: 2026-11-20
 summary: Safe install/runtime feedback forms, candidate handoff requirements, and evidence templates for alpha feedback; the pilot was dropped, and nothing here claims that any target or channel is qualified.
 ---
 
@@ -12,7 +12,7 @@ This is the feedback kit for the public alpha (FEEDBACK01 in the
 [acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)). The file keeps its old name
 because the issue forms link to it. There is no pilot and no invited cohort: anyone
 who installs an alpha may report. The kit does not certify an archive, install channel,
-outside-user journey, or corrective release; [`RELEASING.md`](RELEASING.md#where-things-stand-2026-11-06)
+outside-user journey, or corrective release; [`RELEASING.md`](RELEASING.md#where-things-stand)
 records where the release stands. Required **NOT RUN is not a pass**. Local checks remain useful when hosted CI
 is unavailable.
 

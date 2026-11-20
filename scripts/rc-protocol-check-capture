@@ -7,8 +7,8 @@
 # the client binary cannot reveal — the other reason the two checks must be
 # independent: either alone can be fooled.
 #
-# Every sub-check below is graded PASS, FAIL, or NOTRUN independently, in the
-# style of scripts/test-commit-gates: a sub-check that has nothing to verify
+# Every sub-check below is graded PASS, FAIL, or NOTRUN independently: a sub-check
+# that has nothing to verify
 # reports NOTRUN and is never counted as a pass. Issue #230, which built the
 # capture route this script reads, landed 2026-09-03; the live database has
 # carried real Remote Control traffic since (245,000+ rows in

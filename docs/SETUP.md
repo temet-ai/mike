@@ -2,9 +2,8 @@
 title: Optional dependencies and launchers
 status: active
 created: 2026-07-20
-updated: 2026-11-09
+updated: 2026-11-20
 summary: What each optional external service buys you, what mike does without it, what it is commonly but wrongly assumed to need, and the cc shell launcher for captured restartable sessions.
-supersedes: the first-run and feature-toggle material this doc used to carry
 ---
 
 # Optional dependencies and launchers

@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # nightly-tests — clippy over the workspace (scripts/lint-rust) and every Rust test
 # tier (make test-all) against the tip of main, once a night, in a detached worktree
-# of its own. The pre-push hook compiles nothing, so this is where lint and test
-# failures on main are found. The systemd user
-# timer mike-dev-nightly-tests runs this script; start-proxy.sh enables it only
-# where .env sets MIKE_DEV_NIGHTLY_TESTS=1, the one machine that carries the run.
+# of its own. No git hook runs lint or tests, so this is where lint and test
+# failures on main are found. The systemd user timer mike-dev-nightly-tests runs this
+# script on Linux; start-proxy.sh enables it only where .env sets
+# MIKE_DEV_NIGHTLY_TESTS=1, the one machine that carries the run. There is no launchd
+# job for it, so it does not run on the Mac.
 #
 # The worktree (MIKE_NIGHTLY_DIR, default <checkout>/.claude/worktrees/nightly) is
-# kept between runs, so its target/ stays warm and only what main changed since
-# the last night is compiled. It borrows the checkout's .env (the test database
-# URL) by symlink. Plain cargo: the run must not depend on the mbx store.
+# kept between runs, and the builds go through scripts/cx and the mbx cache, so only
+# what main changed since the last night is compiled. It borrows the checkout's .env
+# (the test database URL) by symlink.
 #
 # Before the tests it records the whole-tree wiring count of each kind (scripts/wiring-new
 # --whole: one "wiring-counts:" line here, one row in wiring-counts.log under the state dir).
 #
 # Usage: scripts/nightly-tests [--print]   --print says what it would run, runs nothing.
-# Exit status: 0 when every tier passed; the last line is NIGHTLY-TESTS: PASS|FAIL <sha>.
+# Exit status: 0 when every tier passed, else 1, which leaves the systemd unit failed;
+# the last line is NIGHTLY-TESTS: PASS|FAIL <sha>.
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,9 +30,9 @@ for arg in "$@"; do
   esac
 done
 
-# infra (aarch64 Linux) never builds Rust; the pre-push hook refuses there too.
+# infra (aarch64 Linux) never builds Rust.
 if [[ "$(uname -s)" == Linux && "$(uname -m)" == aarch64 ]]; then
-  echo "nightly-tests: this machine does not build Rust; turn the job on on omit or the Mac" >&2
+  echo "nightly-tests: this machine does not build Rust; turn the job on on omit" >&2
   echo "NIGHTLY-TESTS: FAIL refused-on-aarch64"
   exit 1
 fi
@@ -38,7 +40,7 @@ fi
 if (( print )); then
   echo "worktree: $wt"
   echo "update:   git fetch origin main; checkout --detach origin/main"
-  echo "run:      MIKE_BUILD_CACHE=cargo make -C $wt test-all"
+  echo "run:      $wt/scripts/lint-rust; make -C $wt test-all"
   exit 0
 fi
 
@@ -47,13 +49,16 @@ if ! git -C "$root" fetch --quiet origin main; then
   echo "NIGHTLY-TESTS: FAIL fetch"
   exit 1
 fi
-if [[ ! -e "$wt/.git" ]]; then
-  mkdir -p "$(dirname "$wt")"
-  git -C "$root" worktree add --quiet --detach "$wt" origin/main || {
-    echo "NIGHTLY-TESTS: FAIL worktree"; exit 1; }
-else
+# A worktree removed by hand, or a folder left without its .git, is made again.
+git -C "$root" worktree prune
+if [[ -f "$wt/.git" && "$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null)" == "$(cd "$wt" && pwd -P)" ]]; then
   git -C "$wt" checkout --quiet --detach --force origin/main &&
     git -C "$wt" clean -fdq || { echo "NIGHTLY-TESTS: FAIL checkout"; exit 1; }
+else
+  rm -rf "$wt"
+  mkdir -p "$(dirname "$wt")"
+  git -C "$root" worktree add --quiet --force --detach "$wt" origin/main || {
+    echo "NIGHTLY-TESTS: FAIL worktree"; exit 1; }
 fi
 [[ -f "$root/.env" && ! -e "$wt/.env" ]] && ln -s "$root/.env" "$wt/.env"
 
@@ -63,12 +68,12 @@ echo "nightly-tests: lint-rust and make test-all at $sha in $wt"
 log="$(mktemp "${TMPDIR:-/tmp}/nightly-tests.XXXXXX")"
 trap 'rm -f "$log"' EXIT
 lint_rc=0
-MIKE_BUILD_CACHE=cargo "$wt/scripts/lint-rust" 2>&1 | tee "$log"; lint_rc=${PIPESTATUS[0]}
-if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all 2>&1 | tee -a "$log"; [[ ${PIPESTATUS[0]} -eq 0 && $lint_rc -eq 0 ]]; then
+"$wt/scripts/lint-rust" 2>&1 | tee "$log"; lint_rc=${PIPESTATUS[0]}
+if nice -n 10 make -C "$wt" test-all 2>&1 | tee -a "$log"; [[ ${PIPESTATUS[0]} -eq 0 && $lint_rc -eq 0 ]]; then
   echo "NIGHTLY-TESTS: PASS $sha"
   exit 0
 fi
-# The scheduled-jobs panel shows only the last lines, so the failures go last.
+# The failures go last, where `tail .deploy/nightly-tests.log` shows them.
 echo "nightly-tests: what failed:"
 grep -E '^rust-lint: FAIL|^\(fail\) |^ +FAIL \[|test-mods: .* FAIL|^error(\[|:)|^make: \*\*\*' "$log" | head -40
 echo "NIGHTLY-TESTS: FAIL $sha"

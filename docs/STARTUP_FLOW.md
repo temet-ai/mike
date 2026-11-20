@@ -2,7 +2,7 @@
 title: Startup flow — mike + mike-mcp
 status: active
 created: 2026-05-22
-updated: 2026-11-15
+updated: 2026-11-20
 summary: Symbol-cited startup sequence for the mike and mike-mcp binaries — CLI dispatch, the pre-bind reconciliations, every background worker and its gates, the three listeners, and shutdown.
 ---
 
@@ -123,7 +123,7 @@ These 29 entry points are called from `serve/workers.rs` in this order. The gate
 | `mailbox_reaper::spawn_mailbox_reaper` | persistence present | on | Sweeps stale mailbox rows |
 | `work_registry_worker::spawn_work_registry_worker` | persistence present | on | Reconciles work-item attention every 60s; only sends mailbox attention when `work_registry.wake_mode` is `deliver` and the item is recent |
 | `eval_metrics::spawn_eval_metrics_worker` | persistence present; the work is gated by `eval.rollup.enabled` | on | The daily rate rollup and the alarm evaluation. SQL only; no LLM call |
-| `cross_session::spawn_cross_session_worker` | persistence present | on | Keeps the guard's calibration snapshot; on each new rollup generation runs the threshold pass for the guard's four questions and for the verifier and monitor-over-sleep steerers (`guard.threshold.mode`, default off; every pass is recorded in `steering.threshold_pass_runs`) and the directive proposer (`directive_proposer` toggle, default off). SQL only |
+| `cross_session::spawn_cross_session_worker` | persistence present | on | Keeps the guard's calibration snapshot; on each new rollup generation runs the threshold pass for the guard's four questions and for the verifier and monitor-over-sleep steerers (both off; `guard.threshold.mode`, default off; every pass is recorded in `steering.threshold_pass_runs`) and the directive proposer (`directive_proposer` toggle, default off). SQL only |
 | `channel_link_sweep::spawn_channel_link_sweep` | `channel_link_sweep` toggle, persistence | **on** | Re-checks the toggle each tick and *exits* when it goes off — flipping it back on in the UI needs a restart |
 | `proxy::remote_control::spawn_repush_sweep` | persistence present | on | Every 10s retries eligible pending reminders for sessions with an open Remote Control stream |
 | `workspace_reaper::spawn_workspace_reaper` | persistence present | on | Expires workspace roster registrations whose lease lapsed |

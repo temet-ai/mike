@@ -2,9 +2,8 @@
 title: Frontend Component Conventions
 status: active
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-11-20
 summary: Code-level conventions for Svelte components and stories. The visual system lives in Storybook's Foundations stories — this file never restates it.
-supersedes: docs/frontend/style/component-patterns.md, docs/frontend/style/storybook-conventions.md, docs/frontend/style/tokens.md, docs/frontend/style/typography.md, docs/frontend/style/components.md, docs/frontend/style/patterns.md, docs/frontend/style/common-mistakes.md, docs/frontend/style/adoption-gaps.md, docs/frontend/style/DIGEST.md, docs/frontend/THEMEABLE_DESIGN_SYSTEM.md
 ---
 
 # Frontend Component Conventions
@@ -123,7 +122,7 @@ per-size and design-exploration variants are banned; the `__foundations__/*` gal
 - Interactive components carry a `play` test.
 - **No raw hex.** Stories are checked for it like production code — the gallery's tokens are the only source.
 - **Preserve inspection content.** Lean views need a full-content route; use scrolling or virtualization for complete items
-  (project instructions: [`../../AGENTS.md`](../../AGENTS.md)).
+  ([`../../.claude/rules/inspection-fidelity.md`](../../.claude/rules/inspection-fidelity.md)).
 
 Run them with `scripts/sb-test` — the single frontend command (typecheck + unit + Storybook browser tests).
 Not `pnpm test`, not `vitest --project storybook` directly. `--json` gives a structured verdict.

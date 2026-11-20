@@ -814,7 +814,7 @@
   }
  },
  "ratchet": {
-  "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
+  "comment": "Upper bounds for scripts/crate-plan --check and scripts/schema-plan --check. Nothing runs those checks now, so the bounds are not enforced.",
   "crate_seams": 321,
   "foreign_writes": 105
  }

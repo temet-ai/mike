@@ -2,7 +2,7 @@
 title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
-updated: 2026-11-09
+updated: 2026-11-20
 summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.5 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
@@ -12,7 +12,7 @@ summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.5 is published), th
 the cases a candidate is judged on.
 **A prepared candidate is not a qualified or published release.**
 
-## Where things stand (2026-11-08)
+## Where things stand
 
 - **Repositories.** `temet-ai/mike` is public. It was created on 2026-11-06 from a
   collapsed export of the private development repository (the public-export step,
@@ -26,7 +26,7 @@ the cases a candidate is judged on.
   read and write and `temet-ai/homebrew-mike` in its Repository access. On alpha.4 the tap
   was missing from its repositories, so the push failed with 403 and `publish` shows as
   failed although the release itself was published. The tap was added and the secret
-  replaced on 2026-11-07; the next tag is the first release to push with it. The formulas
+  replaced on 2026-11-07. The formulas
   of alpha.3 and alpha.4 were written by hand with `scripts/release/homebrew_alpha.py`.
   A real install and `brew test` of both alpha.4 formulas pass on Apple Silicon.
 - **mise needs two tools.** The `github:` backend takes one archive per tool, so `mike`
@@ -136,7 +136,7 @@ publishes only when every target builds, so a failure on one holds the alpha for
 three. It does not run the acceptance matrix: a published archive is an alpha, not a
 qualified release, and the tap formulas are not the qualified `homebrew.py`
 route below. The three real tag runs so far are described under
-[Where things stand](#where-things-stand-2026-11-06); alpha.3 is the first to reach `publish`.
+[Where things stand](#where-things-stand); alpha.3 is the first to reach `publish`.
 
 Preparation uses one Cargo build job and disables incremental compilation to
 keep native local verification resource-bounded. Ambient Cargo resource overrides

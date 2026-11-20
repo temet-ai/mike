@@ -2,7 +2,7 @@
 title: Learning recovery and weekly efficiency review
 status: active
 created: 2026-10-04
-updated: 2026-11-15
+updated: 2026-11-20
 summary: Diagnose lesson delivery, run the weekly audit, and reuse validated tool artifacts.
 ---
 
@@ -42,7 +42,7 @@ Normal evaluation and action-effect calculation have independent completion mark
 
 ## Reusable tools and results
 
-Before creating another helper, search the existing scripts and `scripts/tool-reuse list`. Inspect a recipe with `show ID`. `run ID` executes its argv directly, without shell interpolation, and returns a small JSON receipt naming the original exit code and full stdout/stderr artifacts. `--fresh` deliberately recomputes it.
+`scripts/tool-reuse list` lists the registered recipes. Inspect a recipe with `show ID`. `run ID` executes its argv directly, without shell interpolation, and returns a small JSON receipt naming the original exit code and full stdout/stderr artifacts. `--fresh` deliberately recomputes it.
 
 Recipes are explicit validated contracts, not commands mined and executed from captured conversations. Register one with:
 

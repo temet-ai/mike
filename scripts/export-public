@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# scripts/export-public OUT_DIR
+#
+# Builds the public tree of mike from this repository's HEAD (committed files
+# only) in OUT_DIR, which must not exist. It runs once, for the first push: the
+# public repository then becomes the one repository, so there is no sync mode and
+# no push option. Left out: the internal material below (EXCLUDE) and the
+# `session_id:` front matter of Markdown files. Then it checks the tree and
+# refuses at the first hit:
+#   - gitleaks, when installed (a missing gitleaks is a refusal);
+#   - the private word list (scripts/private-words-check);
+#   - the maintainer's own paths, session links and private repository names;
+#   - a public file that points at what the export leaves out.
+# Nothing is pushed anywhere; the first public commit is the operator's.
+set -euo pipefail
+
+[ $# -eq 1 ] || { echo "usage: $0 OUT_DIR" >&2; exit 2; }
+out=$1
+
+root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+cd "$root"
+if [ -e "$out" ]; then
+    echo "export-public: $out exists; give a new folder" >&2
+    exit 1
+fi
+if ! git diff --quiet HEAD; then
+    echo "export-public: note, uncommitted changes are not exported (HEAD is)" >&2
+fi
+
+EXCLUDE=(
+    .claude
+    .codex
+    .github/settings.json
+    .github/workflows/deps-agent.yml
+    .github/workflows/docs-agent.yml
+    .mcp.json
+    .mike
+    CLAUDE.md
+    config.toml
+    docs/development/docs-agent-pattern.md
+    docs/rust-playbook
+    scripts/capture-db/move-to-nvme.sh
+    scripts/migrate-db-to-armitage.sh
+    .github/agents
+    .github/copilot-instructions.md
+    .github/instructions
+    artifacts
+    docs/plans
+    docs/threads
+    docs/changes
+    docs/research
+    docs/measurements
+    docs/FLEET_ISSUE_STATUS.md
+    docs/FLEET_RULINGS.md
+    docs/FLEET_PERFORMANCE_VALIDATION.md
+    docs/architecture/plans
+    scripts/export-public
+    scripts/link-artifacts
+    scripts/slow-query-report.sh
+)
+
+# Compiled into the binary with include_str!, so they are product files.
+KEEP=(
+    .claude/agents/fleet-capability-author.md
+    .claude/agents/fleet-rule-auditor.md
+    .claude/fleet/fleet-command.md
+    .claude/fleet/leaves/checker.md
+    .claude/fleet/leaves/judge.md
+    .claude/fleet/leaves/problem-solver.md
+    .claude/fleet/outcome-checks.sh
+    .claude/fleet/rules.md
+    .claude/skills/fleet-worker/SKILL.md
+)
+
+mkdir -p "$out"
+out=$(cd "$out" && pwd)
+git archive HEAD | tar -x -C "$out"
+(
+    cd "$out"
+    for p in "${EXCLUDE[@]}"; do
+        rm -rf "./$p"
+    done
+)
+git archive HEAD -- "${KEEP[@]}" | tar -x -C "$out"
+
+# `session_id:` front matter (a list of the sessions that wrote a document).
+python3 -I - "$out" <<'PY'
+import pathlib, re, sys
+for f in pathlib.Path(sys.argv[1]).rglob("*.md"):
+    t = f.read_text(encoding="utf-8", errors="surrogateescape")
+    m = re.match(r"---\n(.*?\n)---\n", t, re.S)
+    if not m or "session_id:" not in m.group(1):
+        continue
+    kept, skip = [], False
+    for line in m.group(1).splitlines(keepends=True):
+        if line.startswith("session_id:"):
+            skip = True
+            continue
+        if skip and re.match(r"\s+- ", line):
+            continue
+        skip = False
+        kept.append(line)
+    head = f"---\n{''.join(kept)}---\n" if kept else ""
+    body = t[m.end():] if kept else t[m.end():].lstrip("\n")
+    f.write_text(head + body, encoding="utf-8", errors="surrogateescape")
+PY
+
+# The maintainer's own home folders and a real session link, in fixtures and
+# evidence, become made-up ones; the same text in the same place on both sides of a
+# test stays equal. `mike-artifacts` is the maintainer's private repository.
+python3 -I - "$out" <<'PY'
+import pathlib, re, sys
+swaps = [("/Users/dawiddutoit", "/Users/vimes"), ("-Users-dawiddutoit-", "-Users-vimes-"),
+         ("/home/unit", "/home/vimes"), ("mike-artifacts", "night-watch-notes")]
+link = re.compile(r"(claude\.ai/code/session_)[A-Za-z0-9]{12,}")
+# Links to what the export leaves out lose their target and keep their text.
+gone = (r"(?:docs/(?:plans|threads|changes|research|measurements)/|docs/architecture/plans/"
+        r"|FLEET_(?:ISSUE_STATUS|RULINGS|PERFORMANCE_VALIDATION)\.md"
+        r"|\.claude/[a-z-]+/|\.codex/|artifacts/[0-9a-z])")
+unlink = re.compile(r"\[([^\]]*)\]\([^)\s]*" + gone + r"[^)\s]*\)")
+c4_link = re.compile(r"^[ \t]*link https://github\.com/temet-ai/mike/(?:blob|tree)/\S*" + gone + r".*\n", re.M)
+for f in pathlib.Path(sys.argv[1]).rglob("*"):
+    if not f.is_file() or f.is_symlink() or "node_modules" in f.parts:
+        continue
+    raw = f.read_bytes()
+    if b"\0" in raw:
+        continue
+    t = raw.decode("utf-8", errors="surrogateescape")
+    n = t
+    for a, b in swaps:
+        n = n.replace(a, b)
+    n = link.sub(r"\g<1>01SAMPLE", n)
+    if f.suffix == ".md":
+        n = unlink.sub(r"\1", n)
+    elif f.suffix == ".c4":
+        n = c4_link.sub("", n)
+    if n != t:
+        f.write_bytes(n.encode("utf-8", errors="surrogateescape"))
+PY
+
+fail=0
+refuse() { echo "export-public: REFUSED: $*" >&2; fail=1; }
+
+for p in "${EXCLUDE[@]}"; do
+    if [ "$p" != .claude ] && [ -e "$out/$p" ]; then refuse "$p is still in the tree"; fi
+done
+kept=$(printf '%s\n' "${KEEP[@]}" | sort)
+if [ "$(cd "$out" && find .claude -type f | sort)" != "$kept" ]; then
+    refuse ".claude holds more than the files the binary embeds"
+fi
+if hits=$(python3 -I - "$out" <<'PY'
+import os, pathlib, re, sys
+root = sys.argv[1]
+for rs in pathlib.Path(root, "crates").rglob("*.rs"):
+    text = rs.read_text(errors="ignore")
+    for match in re.finditer(r'include_(?:str|bytes)!\(\s*"([^"]+)"', text):
+        target = os.path.normpath(os.path.join(rs.parent, match.group(1)))
+        if not os.path.exists(target):
+            print(f"{rs.relative_to(root)}: {match.group(1)}")
+    for match in re.finditer(r'include_(?:str|bytes)!\(\s*concat!\(\s*env!\("CARGO_MANIFEST_DIR"\),\s*"([^"]+)"', text):
+        crate = next(p for p in rs.parents if (p / "Cargo.toml").exists())
+        target = os.path.normpath(str(crate) + match.group(1))
+        if not os.path.exists(target):
+            print(f"{rs.relative_to(root)}: {match.group(1)}")
+PY
+); [ -n "$hits" ]; then
+    refuse "the build includes files the export left out:"$'\n'"$hits"
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+    if ! gitleaks dir "$out" --no-banner --redact >"$out.gitleaks.log" 2>&1; then
+        refuse "gitleaks found a secret (see $out.gitleaks.log)"
+    fi
+else
+    refuse "gitleaks is not installed"
+fi
+
+if ! words=$("$root/scripts/private-words-check" --tree "$out" 2>&1); then
+    refuse "private words in the tree:"$'\n'"$words"
+fi
+
+personal='/Users/dawiddutoit|/home/dawid|/home/unit|/mnt/data/projects/(work/([^a]|a[^n])|equal[e]xperts)|claude\.ai/code/session_[A-Za-z0-9]{12,}|dawiddutoit|mike-artifacts'
+if hits=$(grep -r -n -I -E "$personal" "$out" | head -20); [ -n "$hits" ]; then
+    refuse "private paths, links or names in the tree:"$'\n'"$hits"
+fi
+# A public file pointing at what the export leaves out is a dead link.
+gone='(docs/(plans|threads|changes|research|measurements)/|docs/architecture/plans/|FLEET_(ISSUE_STATUS|RULINGS|PERFORMANCE_VALIDATION)\.md|\.claude/[a-z-]+/|\.codex/|artifacts/[0-9a-z])'
+# Only links count: a Markdown link target, or a blob URL on this repository. Other
+# mentions are examples of folders in the reader's own projects.
+dead="\]\([^)]*$gone|github\.com/temet-ai/mike/(blob|tree)/[^ )\"]*$gone"
+if hits=$(grep -r -n -I -E "$dead" "$out" --exclude-dir=node_modules | head -20); [ -n "$hits" ]; then
+    refuse "public files point at material the export leaves out:"$'\n'"$hits"
+fi
+if hits=$(grep -r -n -E --include='*.md' '^session_id:' "$out" | head -20); [ -n "$hits" ]; then
+    refuse "session_id front matter left:"$'\n'"$hits"
+fi
+for f in LICENSE AGENTS.md; do
+    [ -f "$out/$f" ] || refuse "$f is missing from the tree"
+done
+if ls "$out" | grep -q -i -E '^(CLA([._-]|$)|CONTRIBUTOR.*AGREEMENT)'; then
+    refuse "a CLA file is in the tree; the licence is MIT with no CLA"
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "export-public: the tree is in $out for a look" >&2
+    exit 1
+fi
+rm -f "$out.gitleaks.log"
+echo "export-public: $out is clean ($(cd "$out" && find . -type f | wc -l | tr -d ' ') files); nothing pushed"

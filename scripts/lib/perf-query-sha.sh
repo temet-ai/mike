@@ -1,10 +1,7 @@
 # perf-query-sha.sh — shared SQL fingerprint for the perf-evidence binding (temet-ai/mike-private#192).
 #
-# Sourced by scripts/db-perf-check (emits the `Perf-Query-SHA:` trailer for the
-# measured AFTER query) and by scripts/db-code-graders/g6_perf_evidence.sh
-# (recomputes the fingerprint over the after-snapshot STAGED in the commit and
-# requires equality). Keep both sides on THIS implementation — drift between
-# them turns every honest commit into a false block.
+# Sourced by scripts/db-perf-check, which emits the `Perf-Query-SHA:` trailer for the
+# measured AFTER query, so a reader can recompute it over the committed after-snapshot.
 #
 # Normalization makes the fingerprint invariant to exactly the differences the
 # measuring workflow legitimately introduces between the shipped query and the

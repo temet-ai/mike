@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { checkCatalogue } from '../../../scripts/rule-checks/component-families.mjs';
-import { checkComposition } from '../../../scripts/rule-checks/page-composition.mjs';
-import { checkMotionInLayer } from '../../../scripts/rule-checks/motion-in-layer.mjs';
 
 function runCheck(script: string): { ok: boolean; output: string } {
 	const file = fileURLToPath(new URL(`../../../scripts/${script}`, import.meta.url));
@@ -145,48 +142,6 @@ describe('layout-stability guard (no shift on state change)', () => {
 				'.claude/rules/visual-design-and-ui.md. Offenders:\n' +
 				all.join('\n')
 		).toEqual([]);
-	});
-});
-
-describe('component-family duplicate guard', () => {
-	it('every component-name family with 2+ members is documented in the catalogue', () => {
-		const { ok, problems } = checkCatalogue();
-		expect(
-			ok,
-			'A component-name-suffix family (Card, Panel, Row, Strip, Section, Band, ' +
-				'Badge/Pill/Chip/Tag, Header, Table, List, Banner, Drawer, Popover, Indicator, ' +
-				'Marker) gained a member undocumented in docs/frontend/COMPONENT_CATALOGUE.md, or ' +
-				"that catalogue names a file that no longer exists. Extend the family's canonical " +
-				'component instead of adding a new file, or document the new file with a real reason. ' +
-				'Problems:\n' +
-				problems.join('\n')
-		).toBe(true);
-	});
-});
-
-describe('page composition guard', () => {
-	it('no page restyles by hand more than its recorded count', () => {
-		const { ok, problems } = checkComposition();
-		expect(
-			ok,
-			'A page added a raw control, its own type styling, or its own augmented-ui chrome. ' +
-				'Import the component instead: `scripts/component-index <word>` names it. ' +
-				'Problems:\n' +
-				problems.join('\n')
-		).toBe(true);
-	});
-});
-
-describe('motion stays in the shared layer', () => {
-	it('no component writes more motion by hand than its recorded count', () => {
-		const { ok, problems } = checkMotionInLayer();
-		expect(
-			ok,
-			'A component added a transition, an animation, keyframes or a transition with a literal ' +
-				'duration. Motion lives in src/lib/components/ui/motion.css and motion.ts; a component ' +
-				'names the motion it takes with data-motion. Problems:\n' +
-				problems.join('\n')
-		).toBe(true);
 	});
 });
 

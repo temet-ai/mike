@@ -87,7 +87,9 @@
 # change restore from the store, and scripts/lib/stamp_build_identity.py then writes the commit
 # into the staged copy. A staged binary whose --build-info does not report HEAD is refused before
 # anything touches the live proxy. Without mbx (or with MIKE_DEPLOY_BUILD_CACHE=cargo) it is
-# plain cargo with MIKE_BUILD_IDENTITY=git, as before. Decisions: scripts/lib/deploy-build.sh.
+# plain cargo with MIKE_BUILD_IDENTITY=git into <target>/deploy-cargo. The main checkout's
+# frontend/build is linked into the worktree, so the UI stays embedded without a frontend
+# build. Decisions: scripts/lib/deploy-build.sh.
 #
 # Stop the deployed proxy later with ./scripts/stop-proxy.sh (frees the ports).
 #
@@ -224,10 +226,33 @@ fi
 # exits, however it exits. A process that outlives the script must not inherit
 # it or the lock would outlive the deploy: every spawn below closes it (9>&-),
 # and the units are started by systemd, which never sees it. Where there is no
-# flock command (macOS) there is no lock, as before.
+# flock command (macOS) the lock is the folder deploy.lock.d holding the owner's pid,
+# removed by the cleanup trap; a folder whose pid is gone is taken over.
 DEPLOY_LOCK="${DEPLOY_DIR}/deploy.lock"
+DEPLOY_LOCK_DIR=""
 DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-1800}"
-if command -v flock >/dev/null 2>&1; then
+if ! command -v flock >/dev/null 2>&1; then
+    _lock_dir="${DEPLOY_DIR}/deploy.lock.d"
+    _lock_waited=0
+    until mkdir "${_lock_dir}" 2>/dev/null; do
+        _lock_pid="$(cat "${_lock_dir}/pid" 2>/dev/null || true)"
+        if [[ -n "${_lock_pid}" ]] && ! kill -0 "${_lock_pid}" 2>/dev/null; then
+            rm -rf "${_lock_dir}"
+            continue
+        fi
+        if (( _lock_waited == 0 )); then
+            echo "==> Another deploy is running (pid ${_lock_pid:-starting}) — waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s for it to finish"
+        fi
+        if (( _lock_waited >= DEPLOY_LOCK_WAIT_SECONDS )); then
+            echo "==> The other deploy did not finish within ${DEPLOY_LOCK_WAIT_SECONDS}s — giving up. Nothing was touched." >&2
+            exit 1
+        fi
+        sleep 2
+        _lock_waited=$(( _lock_waited + 2 ))
+    done
+    printf '%s\n' "$$" >"${_lock_dir}/pid"
+    DEPLOY_LOCK_DIR="${_lock_dir}"
+else
     exec 9>>"${DEPLOY_LOCK}"
     if ! flock -n 9; then
         echo "==> Another deploy is running ($(tail -n1 "${DEPLOY_LOCK}" 2>/dev/null || true)) — waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s for it to finish"
@@ -411,6 +436,7 @@ cleanup() {
     if [[ "${code}" -ne 0 && "${CUTOVER_DONE}" == "false" ]]; then
         echo "==> Aborted before cutover — the live proxy was not touched." >&2
     fi
+    [[ -n "${DEPLOY_LOCK_DIR}" ]] && rm -rf "${DEPLOY_LOCK_DIR}"
     exit "${code}"
 }
 trap cleanup EXIT INT TERM
@@ -474,7 +500,7 @@ HEAD_SHA="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || true)"
 BUILD_TREE="${PROJECT_ROOT}"
 BUILD_NEEDED="true"
 if [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" ]] \
-    && ! deploy_build_needed "${HEAD_SHA}" false "${BUILD_PROFILE}" \
+    && ! deploy_build_needed "${HEAD_SHA}" "${BUILD_PROFILE}" \
         "$(cat "${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true)" \
         "$(cat "${DEPLOY_DIR}/mike.deployed.profile" 2>/dev/null || true)" \
         "$(deploy_build_info_sha "${LIVE_BIN}")"; then
@@ -492,12 +518,21 @@ else
     BUILD_JOBS="$(heavy_build_jobs)"
     if [[ -n "${HEAD_SHA}" ]]; then
         BUILD_TREE="${PROJECT_ROOT}/.claude/worktrees/deploy"
-        if [[ -e "${BUILD_TREE}/.git" ]]; then
+        # A worktree removed by hand, or a folder left without its .git, is made again.
+        git -C "${PROJECT_ROOT}" worktree prune
+        if [[ -f "${BUILD_TREE}/.git" ]] \
+            && [[ "$(git -C "${BUILD_TREE}" rev-parse --show-toplevel 2>/dev/null)" == "$(cd "${BUILD_TREE}" && pwd -P)" ]]; then
             git -C "${BUILD_TREE}" checkout -q --detach --force "${HEAD_SHA}"
             git -C "${BUILD_TREE}" clean -fdq
         else
+            rm -rf "${BUILD_TREE}"
             mkdir -p "$(dirname "${BUILD_TREE}")"
-            git -C "${PROJECT_ROOT}" worktree add -q --detach "${BUILD_TREE}" "${HEAD_SHA}"
+            git -C "${PROJECT_ROOT}" worktree add -q --force --detach "${BUILD_TREE}" "${HEAD_SHA}"
+        fi
+        # frontend/build is ignored, so the worktree has none; crates/mike/build.rs embeds the
+        # UI only when it is there. Link the main checkout's, so the deploy keeps the UI it had.
+        if [[ -f "${PROJECT_ROOT}/frontend/build/index.html" && ! -e "${BUILD_TREE}/frontend/build" ]]; then
+            ln -s "${PROJECT_ROOT}/frontend/build" "${BUILD_TREE}/frontend/build"
         fi
         echo "==> Building ${HEAD_SHA:0:12} in ${BUILD_TREE}"
     fi
@@ -523,9 +558,12 @@ else
     else
         ensure_build_toolchain
         # MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
+        # A target folder of its own: the worktree's crates hash differently from the main
+        # checkout's, and the main checkout's builds must not wait on this one's cargo lock.
+        BUILT_BIN="${TARGET_DIR}/deploy-cargo/${BUILD_PROFILE}/mike"
         (
             cd "${BUILD_TREE}"
-            MIKE_BUILD_IDENTITY=git CARGO_TARGET_DIR="${TARGET_DIR}" CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+            MIKE_BUILD_IDENTITY=git CARGO_TARGET_DIR="${TARGET_DIR}/deploy-cargo" CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
                 "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 9>&-
         )
     fi

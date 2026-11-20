@@ -3,7 +3,7 @@
 A fleet is one goal split into tasks, each given to its own Claude Code session that mike
 opens, all committing to one branch of one checkout. mike starts the sessions, checks what
 they commit, judges their reports against the definition and closes the run. The code is
-`crates/mike-launch/src/launch/fleet/`; the files a fleet's sessions read are under `.claude/fleet/`.
+`crates/mike-fleet/src/launch/fleet/`; the files a fleet's sessions read are under `.claude/fleet/`.
 
 ## For people using fleets
 
@@ -32,7 +32,7 @@ The diagrams on those pages are animated SVGs in `docs/user-guide/images/fleet-*
 
 ## What to put in `gate`
 
-A definition's `gate` has two commands:
+A definition's `gate` is optional; `/fleet` does not set one. It has two commands:
 
 - `gate.command` is the **quick** gate: format and compile, nothing slower (in this repository
   `make gate-quick`). mike runs it once on a clean copy of the branch before any seat opens, and
@@ -40,8 +40,7 @@ A definition's `gate` has two commands:
   long run per push.
 - `gate.full_command` is the **full** gate (in this repository `scripts/gate --json check`). mike
   runs it once when the work is done: when every seat has exited, at the branch's newest commit,
-  and when the acceptance seat asks with `mike fleet gate`. The fleet stays open until it passes.
-  Left empty, `gate.command` is used in its place.
+  and when someone asks with `mike fleet gate`. The fleet stays open until it passes. Left empty, `gate.command` is used in its place.
 
 `define_fleet` answers with a warning under `at_ready.missing` when `gate.command` looks like a
 full gate and `gate.full_command` is empty: its declared operation's name or purpose says
@@ -56,8 +55,10 @@ The files a running fleet reads, under `.claude/fleet/`:
 | `fleet-command.md` | The `/fleet` command that writes a definition. |
 | `leaves/judge.md`, `checker.md`, `problem-solver.md` | The prompts of the three model calls. |
 | `templates/<discipline>.md` | What a template reads, per kind of work. |
-| `project.md`, `operations.json` | How this repository is built and checked, and its declared operations. |
+| `operations.json` | This repository's declared operations. |
 | `observer-retro.md` | The checklist the retrospective follows after a run. |
+| `outcome-checks.sh` | A read-only report of a run from the capture database. |
+| `mike-machinery.md` | What mike's steering machinery does, for reading a run. |
 
 mike compiles its own copies of the rules, the leaf prompts, the `/fleet` command and the
 `fleet-worker` skill into the binary (`launch/fleet/bundle.rs`); a project's own file of the

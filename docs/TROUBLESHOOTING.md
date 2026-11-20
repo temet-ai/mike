@@ -2,7 +2,7 @@
 title: Troubleshooting
 status: active
 created: 2026-06-17
-updated: 2026-11-07
+updated: 2026-11-20
 summary: Fixes for common local runtime failures — DB reachability, port conflicts, inspect-API Host/Origin 403s, MCP connection errors, and stale frontend state.
 ---
 
@@ -20,10 +20,10 @@ and there is no `DATABASE_URL` env var in this repo. What a bare `cargo build` i
 *does* lack is everything the untracked `.env` carries — `MIKE_DATABASE_URL`,
 `MIKE_TEST_ADMIN_URL` and the rest — so any DB-backed test fails on an unset variable. Use
 `scripts/cx <cargo args>` instead: it resolves the repo root from its own location (so it runs
-from any cwd), sources `.env`, and builds into the checkout's own `target/` unless
-`CARGO_TARGET_DIR` is set.
+from any cwd), sources `.env`, and builds through mbx into `target/mbx-<session>` (into
+`target/` when mbx is not installed).
 
-A live Postgres is required for two things: `cargo sqlx prepare` (to regenerate the `.sqlx` cache
+A live Postgres is required for two things: `scripts/sqlx-prepare` (to regenerate the `.sqlx` cache
 after changing a query — needs `MIKE_DATABASE_URL`), and DB-backed tests (need
 `MIKE_TEST_ADMIN_URL`, which clones an ephemeral per-test DB from a migrated template). Both
 variables live in `.env`; neither is in `.cargo/config.toml`.

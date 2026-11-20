@@ -44,11 +44,8 @@ EDGE_HASH_DIR="${EDGE_REPO_ROOT}/scripts/.edge"
 #     reconcile" and hand-edits of generated output. No cargo build, no DB, so it
 #     stays a sub-second boot gate and does not false-flag on unrelated source
 #     edits (e.g. a non-DTO change in the 10k-line handlers.rs).
-#   - CI (scripts/check-generated-types.sh, `cargo sqlx prepare --check`):
-#     regenerate from the producer and diff — the authoritative "artifact matches
-#     the Rust source" check. It needs a build, so it does not run at boot.
-# This mirrors how the .sqlx offline cache already works: committed artifact,
-# `prepare --check` in CI.
+#   - regenerating from the producer and diffing is the authoritative "artifact
+#     matches the Rust source" check. It needs a build, so it does not run at boot.
 _edge_artifact_path() {
   case "$1" in
     sqlx)      echo "${EDGE_REPO_ROOT}/.sqlx" ;;

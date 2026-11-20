@@ -21,12 +21,12 @@ deploy_build_info_sha() {
     printf '%s' "${sha}"
 }
 
-# deploy_build_needed <head> <tree_dirty> <profile> <recorded_commit> <recorded_profile> <live_sha>
+# deploy_build_needed <head> <profile> <recorded_commit> <recorded_profile> <live_sha>
 # Returns 1 (no build needed) only when the live binary was deployed from HEAD with this
-# profile, reports HEAD itself, and the tree has no uncommitted tracked change; else 0.
+# profile and reports HEAD itself; else 0.
 deploy_build_needed() {
-    local head="$1" dirty="$2" profile="$3" recorded="$4" recorded_profile="$5" live_sha="$6"
-    [[ -n "${head}" && "${dirty}" == "false" ]] || return 0
+    local head="$1" profile="$2" recorded="$3" recorded_profile="$4" live_sha="$5"
+    [[ -n "${head}" ]] || return 0
     [[ "${recorded}" == "${head}" && "${recorded_profile}" == "${profile}" ]] || return 0
     [[ "${live_sha}" == "${head}" ]] || return 0
     return 1

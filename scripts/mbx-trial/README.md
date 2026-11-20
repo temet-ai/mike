@@ -58,9 +58,9 @@ With `MIKE_BUILD_CACHE=mbx`:
 
 ## Deploy builds
 
-`scripts/deploy-proxy.sh` builds mike through mbx into `target/mbx-deploy`, under
-`nice -n 19 ionice -c 3`, and skips the build when the live binary was deployed from
-HEAD and reports it (`.deploy/mike.deployed.commit` and `.deploy/mike.deployed.profile`).
+`scripts/deploy-proxy.sh` checks out the HEAD it started from in `.claude/worktrees/deploy`
+and builds mike there through mbx into `target/mbx-deploy`, under `nice -n 19 ionice -c 3`.
+It skips the build when the live binary was deployed from HEAD and reports it (`.deploy/mike.deployed.commit` and `.deploy/mike.deployed.profile`).
 The identity problem is solved outside the cached units: `crates/mike-base`
 (`change_log/build.rs`) holds a 256-byte slot that opens with
 `MIKE-BUILD-STAMP-SLOT-V1:`, and `current_build()` reads it with a volatile read.
@@ -137,15 +137,11 @@ the first two. What is left is the crates above the change, which no cache can s
   stops when available memory falls under 5 GB.
 - `two-at-once.sh` starts the same two builds together and records both times and
   the lowest available memory; it stops when a `STOP` file appears in its output
-  folder or memory falls under 5 GB. Run it once, when no seat is building. It
-  decides whether two builds in one checkout, each in its own directory, finish
-  sooner and stay within memory compared with the same two queued behind one
-  lock; if they do, seats can be moved to their own directories.
+  folder or memory falls under 5 GB.
 
 ## 6 October 2026: why the first build did not store crate `mike`
 
-**Cause found in mbx's documentation, not yet proven by a recorded build.**
-mbx's default `learned_incremental = true` (docs/incremental.md in
+**Cause.** mbx's default `learned_incremental = true` (docs/incremental.md in
 jdx/mr-boxington) compiles a workspace crate whose source has changed since the
 checkout's last recorded build with private incremental state, and never stores
 that result in the shared store. In a fleet checkout crate `mike` always counts
@@ -176,32 +172,9 @@ each time, `MBX_SUMMARY=full`; cheap enough to run whatever the memory):
 So the edited crate is stored only with the setting off: with the default, a
 restore starts at the fourth build (the pattern seen for crate `mike`), with the
 setting off at the third build, one build earlier, and the edit build itself
-is stored. This establishes the mechanism and the fix on mbx 1.22.0; it does not
-replace the build of crate `mike` below, which was never completed.
+is stored.
 
-**Proof on crate `mike`: not recorded.** On 6 October four attempts at a fresh-store, two-build
-proof (`CARGO_BUILD_JOBS=2` to 6, `MBX_CACHE_DIR` in a scratch folder) were
-stopped by the script's own guard (available memory fell to 4.8 to 5.0 GB while
-other seats built) and two more failed on other seats' uncommitted files. A
-last attempt (`CARGO_BUILD_JOBS=2`, guard lowered to 1.5 GB, fresh store) built
-every dependency and reached `Compiling mike`, then was ended at 347 s when
-available memory fell to 1.3 GB; it wrote no stats report, so it says nothing
-about crate `mike`. What is established without a completed build: the 5 October
-reports (build 1 stored dependencies only; build 2 compiled `mike` in 1m 8s),
-mbx's documented rule, and that the opt-in now turns that rule off. Nothing has
-been tried and ruled out; the cause is neither confirmed nor excluded. To record
-it once the machine has room:
-
-```
-CARGO_BUILD_JOBS=2 MBX_CACHE_DIR=<empty folder> OUT=<folder> scripts/mbx-trial/one-build.sh
-```
-
-Pass if the second build's report lists crate `mike` as a hit (restored) and
-not under `slowest uncached crates`. If it is still compiled, the cause above
-is ruled out and the next suspects are the compile key differing between the
-two directories and the store being written only on a clean build.
-
-### Recorded on crate `mike`, 6 October, after the fleet
+### Recorded on crate `mike`, 6 October
 
 Run by the lead on `main` at 52bf4b83, nothing else building, 14 GB or more
 available, `CARGO_BUILD_JOBS=6`, a fresh `MBX_CACHE_DIR` each time.

@@ -2,7 +2,7 @@
 title: Configuration
 status: active
 created: 2026-07-08
-updated: 2026-11-15
+updated: 2026-11-20
 summary: Boot configuration reference — the four-layer precedence including the per-user config file, how MIKE_* environment variables map to fields, every documented knob and its real default, the variables that are special-cased or ignored, and persistent storage setup.
 ---
 
@@ -652,7 +652,7 @@ The cross-session worker re-reads its settings every 60 s and, on each new `eval
 | `guard.threshold.weight.session_reply` | `1.0` | The same for a label taken from the session's own reply to a delivered note |
 | `guard.threshold.weight.session_end` | `0.8` | The same for a label inferred when the session ended |
 | `guard.threshold.weight.next_message` | `0.5` | The same for a label inferred from the operator's next message, the weakest source |
-| `guard.threshold.steerer_bar` | `0.75` | Wilson lower-bound precision the verifier and monitor-over-sleep steerers' fires must reach before their confidence threshold is raised; with no confidence level clearing it the pass records `below_bar` and keeps the threshold in force |
+| `guard.threshold.steerer_bar` | `0.75` | Wilson lower-bound precision the verifier and monitor-over-sleep steerers' fires (both steerers are off) must reach before their confidence threshold is raised; with no confidence level clearing it the pass records `below_bar` and keeps the threshold in force |
 | `directives.proposer.sources` | `["repeated_directive", "confirmed_handback"]` | Proposer sources; the tag and pattern sources are reported as unavailable |
 | `directives.proposer.window_days` | `30` | Evidence window |
 | `directives.proposer.min_sessions` | `2` | Sessions a directive must be restated in, one of them in a correcting message |

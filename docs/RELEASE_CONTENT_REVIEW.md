@@ -2,7 +2,7 @@
 title: Release content and source exposure review
 status: draft
 created: 2026-10-13
-updated: 2026-11-06
+updated: 2026-11-20
 summary: Redacted local PUBLIC01/PUBLIC02 inventory and hash-pinned source-export dry runs, the one-shot public tree export and what it did and did not catch, with explicit human approval and coverage limits.
 ---
 
@@ -388,4 +388,4 @@ The acceptance policy is `docs/RELEASE_ACCEPTANCE_MATRIX.md`, pinned by reposito
 None of those checks builds the exported tree. The first public tag, `v0.1.0-alpha.1`,
 did not compile: `EXCLUDE` removed `.claude` files that the `mike` crate embeds with
 `include_str!`/`include_bytes!`. The fix turns the export into an allowlist (`KEEP`) and
-refuses when an embedded file is left out. Build an exported tree before pushing it.
+refuses when an embedded file is left out.

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# link-artifacts — point ./artifacts at the sibling mike-artifacts repository.
+#
+# Working artifacts (plans, reviews, evidence, raw captures) moved out of this
+# repository on 2026-09-17 so that the source tree carries no conversation
+# content. Tools and docs still write to and link artifacts/…, so a checkout
+# needs this symlink. Usage: scripts/link-artifacts [path-to-mike-artifacts]
+set -euo pipefail
+root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+target="${1:-$root/../mike-artifacts}"
+link="$root/artifacts"
+if [ ! -d "$target/.git" ]; then
+  echo "link-artifacts: $target is not a git checkout of mike-artifacts" >&2
+  exit 1
+fi
+if [ -L "$link" ]; then
+  echo "artifacts -> $(readlink "$link") (already linked)"
+  exit 0
+fi
+if [ -e "$link" ]; then
+  echo "link-artifacts: $link exists and is not a symlink; move it aside first" >&2
+  exit 1
+fi
+rel="$(realpath --relative-to="$root" "$target")"
+ln -s "$rel" "$link"
+echo "artifacts -> $rel"

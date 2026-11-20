@@ -3,17 +3,13 @@ title: Frontend Component Catalogue
 status: active
 created: 2026-09-08
 updated: 2026-10-08
-summary: Every component-name family (Card, Panel, Row, ...) with two or more members, its canonical component, and why every other member is not yet an extension of it. Checked by scripts/rule-checks/component-families.mjs on every frontend gate.
----
+summary: Every component-name family (Card, Panel, Row, ...) with two or more members, its canonical component, and why every other member is not yet an extension of it.---
 
 # Frontend component catalogue
 
-The frontend groups components by convention, not enforcement — a name ending in `Card`, `Panel`,
-`Row` and so on signals "this is shaped like the others with that suffix," but nothing checked that
-signal against reality. `scripts/rule-checks/component-families.mjs` does: it groups every
-production component under `frontend/src/lib/components/` by filename suffix into the families
-below, and fails the frontend gate the moment a family gains a member this file doesn't account
-for. `Badge`, `Pill`, `Chip`, `Chips` and `Tag` are grouped as one family, `Badge`, because unit B2
+The frontend groups components by convention: a name ending in `Card`, `Panel`, `Row` and so on
+signals "this is shaped like the others with that suffix." The families below group every
+production component under `frontend/src/lib/components/` by filename suffix. `Badge`, `Pill`, `Chip`, `Chips` and `Tag` are grouped as one family, `Badge`, because unit B2
 below folded them into one consolidation target, not five unrelated suffixes.
 
 Each family names a **canonical** component — picked on the evidence available today, importer
