@@ -96,6 +96,16 @@ the fleet's definition, under its `decisions` keys: `stop_check`, `wake_check`, 
 itself. See [Write a fleet definition](fleets/definition.md). The switch on the Steering page
 still turns all of them off at once.
 
+In post-alpha.5 builds containing PR #453, **Steering note check** uses
+`decisions.note_gate.mode`. The point defaults to **On**, but the global
+**Decisions** switch defaults off. The point also needs persistence and an
+available configured OpenRouter Decisions client. **Shadow** can still send
+the input to OpenRouter and record the hypothetical result, but it does not
+hold the note. **Off** makes no call for this point. If the call fails or does
+not return both usable scores, the note is allowed past this check; other
+checks and delivery rules still apply. See [Steering](steering.md#check-why-a-steering-note-was-held)
+and [Privacy](privacy.md#steering-note-check).
+
 ## See how well each point does
 
 mike records every call: the question, the answer, how long it took, what it cost and whether

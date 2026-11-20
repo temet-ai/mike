@@ -169,6 +169,23 @@ Every outbound model call's full body is recorded in the database, so you can re
 
 Adding a lesson or reminder to a request sends that context to Anthropic. The rewrite itself does not require a separate model provider, but other features you enable can make the additional calls listed above. [Settings](settings.md) lists the switches and their defaults. Each feature's page says what it sends: [Memory](memory.md), [Steering](steering.md), [Judge](judge.md), [Filters](filters.md) and [Compression](compression.md).
 
+### Steering note check
+
+In post-alpha.5 builds containing PR #453, **Steering note check** can call
+the configured OpenRouter Decisions endpoint in **On** or **Shadow** mode.
+Its input includes the candidate note (which can quote project rules or a
+request), the first 2,000 characters of the operator's ask, the last 1,500
+characters of the turn's ending text, and up to the last 40 available tool
+summaries. Each summary includes the tool name and up to 200 characters of
+a command or path, when present. The note itself has no extra length cap at
+this check. The request also carries the model name and both decision questions
+with their instructions and criteria. This is not a full transcript or a dump
+of tool results; excerpts may still contain private text, commands or paths.
+
+Turning off **Decisions** or setting this point to **Off** stops this specific
+call, not every steering call. See [Steering](steering.md#check-why-a-steering-note-was-held)
+and [Decisions](decisions.md#set-a-mode-for-one-point).
+
 ### The forwarding sidecar
 
 The optional sidecar sits on `127.0.0.1:9987`, opens HTTPS connections on Claude Code's behalf and signs them with a certificate authority it generates for itself. A client that trusts that authority accepts certificates the sidecar signs for any hostname. Protect its private signing key (`ca-key.pem`), which is separate from the certificate (`ca-cert.pem`) a client loads. Keep that trust limited to the intended client; do not add the CA to your system's certificate store. Keep the sidecar on `127.0.0.1`: bound to any other address, it would let other machines reach mike's local API as if they were you.
