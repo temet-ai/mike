@@ -1,4 +1,4 @@
-.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity gate-tests doc-animations doc-recordings arch-check help
+.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity doc-animations doc-recordings arch-check help
 
 INSTALL_DIR     ?= $(HOME)/.local/bin
 CARGO_TARGET_DIR ?= $(CURDIR)/target
@@ -126,7 +126,7 @@ test-frontend:
 test-e2e:
 	@./scripts/test-suite e2e
 
-## Commit-gate and docs-agent regression tests.
+## Script and docs-agent regression tests.
 test-scripts:
 	@./scripts/test-suite scripts
 
@@ -184,7 +184,7 @@ deny:
 	cargo deny check || { echo "deny: advisory fetch failed; checking against the cached advisory database" >&2; cargo deny --offline check; }
 
 ## Full pre-completion gate: fmt-check + lint + ALL tests (fast + DB) + deny.
-check: fmt-check lint test-all deny gate-tests
+check: fmt-check lint test-all deny
 
 ## Quick gate for a fleet's start and its pushed commits: format and compile only.
 ## The full gate (`check`) runs once, when the work is finished.
@@ -205,10 +205,6 @@ mcp-fallback-report:
 ## Run the inspection-fidelity self-check (scripts/fidelity-check): prints CLEAN or the hits.
 fidelity:
 	@./scripts/fidelity-check
-
-## Run the commit-gate regression suite (fidelity-check scope + G3/G6 commit scope).
-gate-tests:
-	@./scripts/test-commit-gates
 
 ## Run a gate (default: check) and print a verdict that survives a pipe. Optional: make gate T=test-all
 T ?= check

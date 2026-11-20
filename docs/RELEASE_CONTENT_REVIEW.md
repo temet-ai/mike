@@ -168,10 +168,8 @@ The licence is MIT with no CLA. Pushing is the operator's step and is not script
 
 The private word list lives outside the repository: `~/.config/mike-dev/private-words.txt`
 (or `$MIKE_PRIVATE_WORDS`), one case-insensitive extended regex per line. The same list
-drives `scripts/private-words-check`, which the pre-commit hook runs on staged lines and
-file names and the commit-msg hook runs on the message. Do not write a listed word into
-any tracked file, including this one; a script that has to name one writes it as a regex
-with a bracketed letter. The checks are reinstalled with `scripts/db-code-graders/install-hooks.sh`.
+drives `scripts/private-words-check` and `scripts/check-user-guide`. A script that has to
+name a listed word writes it as a regex with a bracketed letter.
 
 Fixtures, stories and tests use invented names. The replacement map, so a later fixture
 stays consistent:

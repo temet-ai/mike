@@ -3,7 +3,7 @@ title: Development
 status: active
 created: 2026-07-08
 updated: 2026-11-20
-summary: Scripts that exist, what the push hook and the nightly job run, and house rules for code in mike.
+summary: Scripts that exist, what the nightly job runs, and house rules for code in mike.
 ---
 
 # Development
@@ -27,7 +27,7 @@ Storybook, the interactive workbench at `:6006`, is the systemd user unit `mike-
 
 ## What runs when
 
-- The pre-push hook runs gitleaks, semgrep, `crate-plan`, `schema-plan` and the `lint-rust` suppression, architecture and log-field checks. It compiles nothing.
+- There are no git hooks.
 - Clippy and every test tier run nightly (`scripts/nightly-tests`, the `mike-dev-nightly-tests` systemd user timer, enabled where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`). [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) lists the rest.
 
 ## Test databases

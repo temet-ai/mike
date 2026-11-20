@@ -58,7 +58,7 @@ class RustChangeScopeTests(unittest.TestCase):
         return scope.area_commands(self.root, paths, self.packages)
 
     def install_runner(self):
-        for file in ["scripts/test-area", "scripts/pre-push-check", "scripts/semgrep-new", "scripts/lib/rust_change_scope.py",
+        for file in ["scripts/test-area", "scripts/lib/rust_change_scope.py",
                      "scripts/lib/split_crates.py", "docs/adr/0002-crate-map.json"]:
             target = self.root / file
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -69,25 +69,6 @@ class RustChangeScopeTests(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "runner")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-
-    def push(self):
-        self.git("add", ".")
-        self.git("commit", "-qm", "change")
-        head = self.git("rev-parse", "HEAD")
-        base = self.git("rev-parse", "origin/main")
-        for name, body in [("gitleaks", ""), ("semgrep", "echo '{\"results\": []}'\n")]:
-            target = self.write(f"tools/{name}", f"#!/bin/sh\n{body}exit 0\n")
-            target.chmod(0o755)
-        env = dict(os.environ, PATH=f"{self.root / 'tools'}:{os.environ['PATH']}")
-        env.pop("MIKE_SEAT", None)
-        hook = self.root / ".git/hooks/pre-push"
-        if not hook.exists():
-            hook.symlink_to(self.root / "scripts/pre-push-check")
-        return subprocess.run(
-            [str(hook)], cwd=self.root,
-            input=f"refs/heads/change {head} refs/heads/change {base}\n",
-            env=env, check=True, capture_output=True, text=True,
-        )
 
     def calls(self):
         return [json.loads(line) for line in (self.root / "scripts/calls.jsonl").read_text().splitlines()]
@@ -224,42 +205,6 @@ class RustChangeScopeTests(unittest.TestCase):
              patch.object(sys, "stderr", io.StringIO()):
             self.assertEqual(scope.main(), 0)
             self.assertEqual(output.getvalue().strip(), "--workspace")
-
-    def test_pre_push_checks_consumers_then_only_changed_area(self):
-        self.install_runner()
-        self.write("crates/mike-codex/src/lib.rs", "pub fn changed() {}\n")
-        self.push()
-        calls = self.calls()
-        packages = ["-p", "mike", "-p", "mike-codex", "-p", "mike-mcp"]
-        self.assertIn(["lint-rust", "-p", "mike-codex"], calls)
-        self.assertIn(["cx", "check", "-p", "mike", "-p", "mike-mcp"], calls)
-        self.assertNotIn(["cx", "nextest", "run", *packages, "--no-fail-fast"], calls)
-        focused = calls[-1]
-        self.assertEqual(focused[1:6], ["nextest", "run", "-p", "mike-codex", "--tests"])
-        self.assertNotIn("--all", focused)
-
-    def test_push_of_many_files_still_runs_rust_gates(self):
-        self.install_runner()
-        for i in range(3000):
-            self.write(f"crates/mike-codex/src/m{i:04}.rs", "")
-        self.push()
-        self.assertTrue(any(call[0] == "lint-rust" for call in self.calls()))
-
-    def test_sqlx_only_push_runs_rust_gates(self):
-        self.install_runner()
-        self.write(".sqlx/query-example.json", "{}")
-        self.push()
-        self.assertIn(["lint-rust", "-p", "mike"], self.calls())
-        self.assertIn(["cx", "check", "-p", "mike-mcp"], self.calls())
-        self.assertEqual(len([call for call in self.calls() if call[1:3] == ["nextest", "run"]]), 1)
-
-    def test_script_only_push_runs_scope_regressions(self):
-        self.install_runner()
-        self.write("scripts/tests/test_rust_change_scope.py", 'import pathlib, unittest\nclass Check(unittest.TestCase):\n    def test_marker(self):\n        pathlib.Path("regression-ran").write_text("yes")\n')
-        self.push()
-        self.assertTrue((self.root / "regression-ran").exists())
-        self.assertFalse((self.root / "scripts/calls.jsonl").exists())
-
 
 if __name__ == "__main__":
     unittest.main()
