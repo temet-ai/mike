@@ -29,6 +29,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ "$(uname -s)/$(uname -m)" = Linux/aarch64 ] || die "this builds natively on ARM64 Linux; run scripts/deploy-infra instead"
+for tool in mbx cargo-zigbuild python-zig mise; do
+  command -v "$tool" >/dev/null || die "$tool is not on PATH; the deploy build needs mbx, cargo-zigbuild, zig (uv tool install ziglang) and mise"
+done
 
 state="${XDG_STATE_HOME:-$HOME/.local/state}/mike/arm-deploy"
 mkdir -p "$state"
