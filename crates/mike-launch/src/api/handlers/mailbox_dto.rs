@@ -13,6 +13,20 @@ pub fn mailbox_error(status: StatusCode, error: &'static str, message: String) -
     (status, Json(MailboxErrorBody { error, message })).into_response()
 }
 
+pub fn missing_sender(from: Option<&str>, unsigned: bool) -> Option<Response> {
+    if from.is_some() || unsigned {
+        return None;
+    }
+    Some(mailbox_error(
+        StatusCode::BAD_REQUEST,
+        "missing_from",
+        "this mail names no sender: the recipient would see it as from an unknown sender \
+         and would not trust it. Pass your own session id as `from` (send_session_message \
+         fills it in). A caller that has no session of its own passes \"unsigned\": true."
+            .to_string(),
+    ))
+}
+
 pub const MAX_CONTEXT_ITEMS: usize = 32;
 pub const MAX_TAGS: usize = 16;
 pub const MAX_CONTEXT_FIELD_CHARS: usize = 2048;

@@ -28,9 +28,8 @@ pub(super) async fn resolve_from(
     client: &InspectClient,
     message: &str,
     explicit_from: Option<&str>,
-    request_reply: bool,
+    _request_reply: bool,
 ) -> Result<ReplyResolution, RmcpError> {
-    let asked = explicit_from.is_some() || request_reply;
     let confirmed = resolve_via_tool_use(client, message).await;
 
     if let Some(from) = explicit_from {
@@ -53,14 +52,9 @@ pub(super) async fn resolve_from(
         });
     }
 
-    if !asked {
-        return Ok(ReplyResolution {
-            from: None,
-            from_unverified: false,
-        });
-    }
     Err(RmcpError::invalid_params(
-        "request_reply is true but this session's identity could not be resolved: no \
+        "Not sent: this session's identity could not be resolved, and mail with no sender \
+         reaches the recipient as from an unknown sender. No \
          single session's captured send_session_message tool_use carries this exact \
          message, and this process's CLAUDE_CODE_SESSION_ID is missing, malformed, or \
          belongs to a session with no primary-turn activity. Pass `from` explicitly with \
@@ -89,7 +83,7 @@ fn refusal_error(given: &str, resolved: &str) -> RmcpError {
     RmcpError::invalid_params(
         format!(
             "Refused: `from` is {given}, but this call came from session {resolved}. You are \
-             {resolved}. Resend with from={resolved}, or pass request_reply: true and omit \
+             {resolved}. Resend with from={resolved}, or omit \
              `from`."
         ),
         None,
@@ -402,12 +396,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_from_sends_without_a_sender_when_none_resolves_and_none_was_asked()
-    -> anyhow::Result<()> {
+    async fn resolve_from_never_sends_without_a_sender() -> anyhow::Result<()> {
         let (server, client) = start_mock().await;
         mount_find(&server, &[]).await;
-        let resolution = resolve_from(&client, "hi", None, false).await?;
-        assert!(resolution.from.is_none() || resolution.from_unverified);
+        match resolve_from(&client, "hi", None, false).await {
+            Ok(resolution) => assert!(resolution.from.is_some() && resolution.from_unverified),
+            Err(err) => assert!(err.message.contains("unknown sender")),
+        }
         Ok(())
     }
 
@@ -471,7 +466,7 @@ mod tests {
         let Err(err) = resolve_from(&client, "hi", None, true).await else {
             anyhow::bail!("no confirmed sender and no usable env id must be a tool error");
         };
-        assert!(err.message.contains("request_reply"));
+        assert!(err.message.contains("unknown sender"));
         Ok(())
     }
 }

@@ -18,6 +18,8 @@ pub struct PostThreadBody {
     #[serde(default, alias = "from", alias = "from_session_uuid")]
     pub from_session_id: Option<String>,
     #[serde(default)]
+    pub unsigned: bool,
+    #[serde(default)]
     pub project_path: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
@@ -48,6 +50,11 @@ pub async fn post_thread(
     };
 
     let (subject, trimmed_body) = validate_thread_body(&body).map_err(|e| *e)?;
+    if let Some(refusal) =
+        crate::api::handlers::missing_sender(body.from_session_id.as_deref(), body.unsigned)
+    {
+        return Err(refusal);
+    }
     let (from_session_uuid, created_by_session_id) =
         resolve_thread_sender(handle, body.from_session_id.as_deref()).await?;
     let notify_uuids = parse_notify_uuids(&body.notify).map_err(|e| *e)?;

@@ -93,6 +93,11 @@ pub(super) async fn validate_send_request(
         return Err(mailbox_error(StatusCode::BAD_REQUEST, code, message));
     }
 
+    if let Some(refusal) =
+        crate::api::handlers::missing_sender(body.from_session_id.as_deref(), body.unsigned)
+    {
+        return Err(refusal);
+    }
     Ok(ParsedSend {
         from_session_uuid,
         thread_id_param,

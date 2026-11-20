@@ -164,6 +164,7 @@ async fn directed_reply_to_the_seats_own_message_is_never_held() -> anyhow::Resu
         .to_owned();
     let reply = PostSessionMessageBody {
         from_session_id: Some(f.t1.session.to_string()),
+        unsigned: false,
         message: "here is the answer".to_owned(),
         thread_id: None,
         in_reply_to: Some(parent),

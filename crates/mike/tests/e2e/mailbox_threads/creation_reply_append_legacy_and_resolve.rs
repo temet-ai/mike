@@ -171,6 +171,7 @@ async fn assert_thread_id_appends_and_unknown_404(
         .post(format!("{inspect_url}/api/sessions/{alice}/message"))
         .json(&json!({
             "message": "should never land",
+            "unsigned": true,
             "thread_id": unknown_thread,
         }))
         .send()
@@ -277,7 +278,7 @@ async fn assert_legacy_send_has_no_thread(
 ) -> anyhow::Result<()> {
     let legacy_resp = client
         .post(format!("{inspect_url}/api/sessions/{bob}/message"))
-        .json(&json!({ "message": "plain unthreaded message" }))
+        .json(&json!({ "message": "plain unthreaded message", "unsigned": true }))
         .send()
         .await?;
     anyhow::ensure!(
