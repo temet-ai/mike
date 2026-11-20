@@ -232,8 +232,8 @@ fn available_reports_calls_now_and_ceiling_headroom_separately() {
     let budget = limiter.available_at(LlmRole::Unattributed, Instant::now());
     assert_eq!(budget.calls_now, 3);
     assert_eq!(
-        budget.window_remaining_calls, 7,
-        "the ceiling window offers the role its 5% guarantee (2) plus the 5 calls no role is guaranteed"
+        budget.window_remaining_calls, 10,
+        "the ceiling window offers the role its 5% guarantee (2) plus the 8 calls the rounded-down shares leave unguaranteed"
     );
 }
 
@@ -295,6 +295,7 @@ fn live_overlay_shares_change_the_guarantee_immediately() {
         llm_budget_lesson_relations_share_pct: 10,
         llm_budget_other_share_pct: 10,
         llm_budget_decision_share_pct: 0,
+        llm_budget_side_call_share_pct: 0,
         ..SettingsOverlay::default()
     }));
     let limiter = CallLimiter::new(1, MINUTE, 1, HOUR);
@@ -311,6 +312,7 @@ fn live_overlay_shares_change_the_guarantee_immediately() {
         llm_budget_lesson_relations_share_pct: 0,
         llm_budget_other_share_pct: 0,
         llm_budget_decision_share_pct: 0,
+        llm_budget_side_call_share_pct: 0,
         ..SettingsOverlay::default()
     }));
     assert_eq!(limiter.available_at(LlmRole::Steerer, now).calls_now, 90);

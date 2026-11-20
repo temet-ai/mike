@@ -21,7 +21,9 @@ fn extra_arguments(tool: &str) -> Map<String, Value> {
         "define_fleet" => json!({"slug": "x", "project_path": "x"}),
         "fleet_report" => json!({"exercised": {"command": "x", "exit": 0, "output_ref": "x"}}),
         "fleet_decide" => json!({"evidence_read": ["x"]}),
-        "send_session_message" => json!({"to": "x"}),
+        "send_session_message" => {
+            json!({"to": "x", "from": "00000000-0000-4000-8000-000000000001"})
+        }
         "ask" | "answer" | "decline" => json!({"from": "x"}),
         "work_thread_list"
         | "work_thread_get"
