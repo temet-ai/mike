@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# morning-report — starts the morning session after the nightly run (ExecStopPost of
+# mike-dev-nightly-tests.service). The session checks the nightly tests, Wright, the four
+# machines and overnight sessions, fixes what is broken or stuck, and writes a short
+# report in its pane, which Dawid reads in the Claude app over Remote Control.
+# Brief: scripts/morning-report.md.
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec mike spawn open "$root" \
+  --session-name morning-report \
+  --goal "Morning report: fix what failed or got stuck overnight, then report" \
+  --prompt-file "$root/scripts/morning-report.md"
