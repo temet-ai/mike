@@ -202,6 +202,8 @@ pub(crate) async fn patch_session_analyzer(
 pub(crate) struct PostSessionMessageBody {
     #[serde(default, alias = "from", alias = "from_session_uuid")]
     pub(crate) from_session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) unsigned: bool,
     pub(crate) message: String,
     #[serde(default)]
     pub(crate) thread_id: Option<String>,

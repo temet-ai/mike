@@ -68,7 +68,7 @@ async fn assert_bare_send_has_empty_context_items(ctx: &Ctx<'_>, bob: &str) -> a
     let bare_resp = ctx
         .client
         .post(format!("{}/api/sessions/{bob}/message", ctx.inspect_url))
-        .json(&json!({ "message": "no context here" }))
+        .json(&json!({ "message": "no context here", "unsigned": true }))
         .send()
         .await?;
     anyhow::ensure!(

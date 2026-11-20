@@ -147,6 +147,7 @@ impl Env {
     ) -> (StatusCode, Value) {
         let body = PostSessionMessageBody {
             from_session_id: from.map(|f| f.to_string()),
+            unsigned: from.is_none(),
             message: "please look at the mail path".to_owned(),
             thread_id: None,
             in_reply_to: None,

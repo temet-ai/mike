@@ -88,6 +88,8 @@ pub struct ListThreadsParams {
 pub struct PostThreadMessageBody {
     #[serde(default, alias = "from", alias = "from_session_uuid")]
     pub from_session_id: Option<String>,
+    #[serde(default)]
+    pub unsigned: bool,
     pub body: String,
     #[serde(default)]
     pub to: Option<Vec<String>>,

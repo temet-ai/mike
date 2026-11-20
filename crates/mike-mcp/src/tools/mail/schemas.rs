@@ -36,7 +36,7 @@ fn send_session_message_properties() -> Vec<(&'static str, Value)> {
             "request_reply",
             json!({
                 "type": "boolean",
-                "description": "Fail with a tool error instead of sending without a sender when your own id cannot be resolved (from this call's tool_use in the capture, else CLAUDE_CODE_SESSION_ID, which sets `from_unverified: true`). Ignored when `from` is given. Default false."
+                "description": "Kept for older callers; it changes nothing. A send always carries your own id (from this call's tool_use in the capture, else CLAUDE_CODE_SESSION_ID, which sets `from_unverified: true`), and fails with a tool error when neither resolves."
             }),
         ),
         (

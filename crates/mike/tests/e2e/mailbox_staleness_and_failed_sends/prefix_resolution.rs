@@ -22,7 +22,7 @@ async fn unique_id_prefix_resolves_to_the_session() -> anyhow::Result<()> {
 
     let resp = client
         .post(format!("{inspect_url}/api/sessions/44e5d7ab/message"))
-        .json(&json!({"message": "hello via short id"}))
+        .json(&json!({"message": "hello via short id", "unsigned": true}))
         .send()
         .await?;
     let status = resp.status();

@@ -144,7 +144,7 @@ pub(super) async fn post_message(
 ) -> anyhow::Result<(reqwest::StatusCode, Value)> {
     let resp = client
         .post(format!("{inspect_url}/api/sessions/{to_session}/message"))
-        .json(&json!({"message": message}))
+        .json(&json!({"message": message, "unsigned": true}))
         .send()
         .await?;
     let status = resp.status();

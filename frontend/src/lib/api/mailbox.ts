@@ -56,7 +56,8 @@ export async function sendSessionMessage(
 	const res = await fetch(path, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json', accept: 'application/json' },
-		body: JSON.stringify(body)
+		// The operator's UI has no session of its own: say so, or mike refuses mail with no sender.
+		body: JSON.stringify(body.from_session_id ? body : { ...body, unsigned: true })
 	});
 	if (!res.ok) {
 		throw new ApiError(`POST ${path} failed: ${res.status} ${res.statusText}`, res.status, path);

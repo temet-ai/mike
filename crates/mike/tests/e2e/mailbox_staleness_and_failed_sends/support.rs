@@ -175,7 +175,7 @@ pub(super) async fn queue_message(
 ) -> anyhow::Result<uuid::Uuid> {
     let resp = client
         .post(format!("{inspect_url}/api/sessions/{to_session}/message"))
-        .json(&json!({"message": message}))
+        .json(&json!({"message": message, "unsigned": true}))
         .send()
         .await?;
     anyhow::ensure!(

@@ -50,6 +50,7 @@ async fn context_url_kind_rejects_non_http_schemes_on_both_routes() -> anyhow::R
         .post(format!("{inspect_url}/api/sessions/{bob}/message"))
         .json(&json!({
             "message": "safe link",
+            "unsigned": true,
             "context": [{"kind": "url", "value": "https://example.com/runbook"}],
         }))
         .send()

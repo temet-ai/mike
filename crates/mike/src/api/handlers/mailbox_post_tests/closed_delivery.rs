@@ -73,6 +73,7 @@ async fn closed_thread_notify_reports_failure_and_retains_post_body() -> anyhow:
         subject: "closed notify".into(),
         body: Some("keep this thread body".into()),
         from_session_id: Some(f.lead.session.to_string()),
+        unsigned: false,
         project_path: None,
         tags: Vec::new(),
         notify: vec![f.t2.session.to_string()],
@@ -121,6 +122,7 @@ async fn threaded_reply_counts_only_open_recipients_with_context() -> anyhow::Re
         .await?;
     let body = PostThreadMessageBody {
         from_session_id: Some(f.lead.session.to_string()),
+        unsigned: false,
         body: "reply with context".into(),
         to: Some(vec![f.t1.session.to_string(), f.t2.session.to_string()]),
         in_reply_to: None,
@@ -213,6 +215,7 @@ async fn direct_closed_send_with_context_is_refused_before_queueing() -> anyhow:
     {
         let body = PostSessionMessageBody {
             from_session_id: Some(f.lead.session.to_string()),
+            unsigned: false,
             message: "must not queue".into(),
             thread_id: None,
             in_reply_to: None,

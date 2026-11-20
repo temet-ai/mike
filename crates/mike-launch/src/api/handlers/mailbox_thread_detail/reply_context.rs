@@ -40,6 +40,11 @@ pub async fn build_reply_context(
 
     let in_reply_to_id =
         resolve_in_reply_to(handle, thread_uuid, core.id, body.in_reply_to.as_deref()).await?;
+    if let Some(refusal) =
+        crate::api::handlers::missing_sender(body.from_session_id.as_deref(), body.unsigned)
+    {
+        return Err(refusal);
+    }
     let (from_session_uuid, from_session_id) =
         resolve_from_session(handle, body.from_session_id.as_deref()).await?;
 
