@@ -262,6 +262,38 @@ Preserve problem, action, repair or follow-up ids and relevant timestamps. Redac
 before reporting it, and never include the pairing credential. Switching off Wright is not
 an undo of external publications or cancellation of an already-started ordinary fixer.
 
+## Changes cannot resolve a checkout
+
+On post-alpha.5 builds containing [PR #449](https://github.com/temet-ai/mike/pull/449),
+callers using the bounded repository-identity lookup wait up to three seconds for
+filesystem reads on a blocking worker. The warning `file read took longer than its
+limit; carrying on without it` with `what="repo identity"` means the caller continued
+without that result. It does not prove the repository is absent or cancel a read
+already running on the blocking worker; this is not a three-second limit for the
+entire API request.
+
+A Changes request may then report an error beginning `no checkout: pass`. Missing or
+unrecorded working folders and an unrecognized repository can produce the same error.
+Check the running build, session identity, owning machine and actual working folder
+before changing anything. Compare the resolved Git root using the read-only commands
+below, and preserve the time and redacted warning rather than deleting Git metadata
+or reassigning the project.
+
+For a Changes query without a resolved active fleet seat, an explicit nonblank
+`checkout` is used before automatic discovery from the session's working folder.
+Supply only a verified checkout path for the intended machine. A resolved fleet
+seat's configured repository wins over that argument. Supplying the path only
+bypasses this identity lookup: it does not repair filesystem access, validate the
+path as a repository at this step, bypass session requirements or restore missing
+change history.
+
+The separate checkout-presence watcher uses the same three-second bound for the
+filesystem-observation portion of each presence pass. If it overruns, it skips
+recording presence marks and automatic location moves for that pass; it does not
+mark every checkout absent. Check subsequent observations rather than treating an
+unchanged location as proof the folder was inspected. These source changes are not
+in alpha.5 and do not establish deployment or recovery on your machine.
+
 ## Unexpected disk activity while recording changes
 
 First distinguish the session folder from the Git repository Mike resolves for it.
