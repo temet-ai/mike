@@ -265,6 +265,39 @@ async fn machine_source_registration_reuses_the_row_for_the_same_name() -> anyho
 }
 
 #[tokio::test]
+async fn machine_source_registration_with_a_moved_root_keeps_the_row() -> anyhow::Result<()> {
+    let Some(fx) = fixture().await? else {
+        return Ok(());
+    };
+    let machine = fx.machine().await?;
+    let name = format!("skills-{}", Uuid::new_v4());
+    let first = fx.machine_source(machine, &name).await?;
+
+    let moved = fx
+        .handle
+        .knowledge()
+        .register_machine_knowledge_sources(&[MachineSourceInput {
+            machine_uuid: machine,
+            name: name.clone(),
+            root_path: format!("/root/.claude/{name}"),
+        }])
+        .await?
+        .into_iter()
+        .next()
+        .flatten()
+        .ok_or_else(|| anyhow::anyhow!("the moved machine source was not registered"))?;
+
+    assert_eq!(moved.source_uuid, first);
+    let root: String =
+        sqlx::query_scalar("SELECT root_path FROM memory.knowledge_sources WHERE source_uuid = $1")
+            .bind(first)
+            .fetch_one(fx.handle.pool())
+            .await?;
+    assert_eq!(root, format!("/root/.claude/{name}"));
+    Ok(())
+}
+
+#[tokio::test]
 async fn machine_source_missing_root_is_recorded_as_a_failure() -> anyhow::Result<()> {
     let Some(fx) = fixture().await? else {
         return Ok(());

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources s SET root_path = x.root_path\n               FROM unnest($1::uuid[], $2::text[], $3::text[]) AS x(machine_uuid, name, root_path)\n              WHERE s.machine_uuid = x.machine_uuid AND s.name = x.name\n                AND s.root_path <> x.root_path",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc4381c8615f03e7f2341b49eb8ddb1ab46c52edd926291cd852d5935a0b6efc"
+}
