@@ -36,11 +36,32 @@ pub struct Rule {
     pub scope: Vec<String>,
 }
 
+const COMMIT_WORDS: [&str; 8] = [
+    "commit",
+    "commits",
+    "committing",
+    "committed",
+    "push",
+    "pushes",
+    "pushing",
+    "pushed",
+];
+const WRITE_TOOLS: [&str; 4] = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
+
 impl Rule {
     pub fn is_obligation(&self) -> bool {
         let lower = self.text.to_lowercase();
         has_word(&lower, "must") || has_word(&lower, "always")
     }
+
+    pub fn is_about_commits(&self) -> bool {
+        let lower = self.text.to_lowercase();
+        COMMIT_WORDS.iter().any(|w| has_word(&lower, w))
+    }
+}
+
+fn is_commit_or_push(tool_name: &str, command: &str) -> bool {
+    tool_name == "Bash" && (command.contains("git commit") || command.contains("git push"))
 }
 
 fn frontmatter_scope(text: &str) -> (Vec<String>, &str) {
@@ -176,6 +197,7 @@ pub struct TurnTools {
     pub lines: Vec<String>,
     pub full: Vec<String>,
     pub paths: Vec<String>,
+    pub committed: bool,
 }
 
 const LINE_CHARS: usize = 200;
@@ -207,9 +229,21 @@ impl TurnTools {
                 .lines
                 .push(format!("{name}: {}", cut_at_whitespace(detail, LINE_CHARS)));
             tools.full.push(format!("{name}: {detail}"));
-            tools.paths.extend(path.map(str::to_owned));
+            if WRITE_TOOLS.contains(&name) {
+                tools.paths.extend(path.map(str::to_owned));
+            }
+            tools.committed |= command.is_some_and(|c| is_commit_or_push(name, c));
         }
         tools
+    }
+
+    pub fn writes_only_outside(&self, root: &str) -> bool {
+        let root = std::path::Path::new(root);
+        !self.paths.is_empty()
+            && !self
+                .paths
+                .iter()
+                .any(|p| std::path::Path::new(p).starts_with(root))
     }
 
     fn bag(&self) -> BTreeSet<String> {

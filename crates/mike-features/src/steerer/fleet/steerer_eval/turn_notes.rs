@@ -4,6 +4,7 @@ use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
 use crate::steerer::commit_message as commit_point;
 use crate::steerer::guard::GuardTurn;
+use crate::steerer::note_gate;
 use crate::steerer::note_policy::{self, NoteLimits, SessionNotes};
 use crate::steerer::registry::Steerer;
 use crate::steerer::rule_check as rule_point;
@@ -113,10 +114,13 @@ async fn rule_note(
     scope: &TurnScope<'_>,
     decider: &Decider,
 ) {
-    let rules = rule_point::rules::load(&scope.checkout).await;
     let tools = rule_point::TurnTools::from_calls(
         scope.calls.iter().map(|c| (c.tool_name.as_str(), &c.input)),
     );
+    if tools.writes_only_outside(&scope.checkout) {
+        return;
+    }
+    let rules = rule_point::rules::load(&scope.checkout).await;
     let picked = rule_point::rules::relevant(&rules, &tools, rule_point::RULES_PER_TURN);
     let input = rule_point::TurnInput { tools: &tools };
     let Some(checked) = rule_point::check(decider, &input, &picked, subject(scope.turn)).await
@@ -124,12 +128,22 @@ async fn rule_note(
         return;
     };
     let text = checked.outcome.note(checked.rule);
+    let gate_input = note_gate::NoteInput {
+        kind: note_gate::NoteKind::Rule,
+        note: &text,
+        operator_ask: &window.eval_inputs.operator_ask,
+        tool_lines: &tools.lines,
+        final_text: &window.eval_inputs.eval_text,
+    };
+    let gate = decider_for(window, note_gate::POINT);
+    let admitted = checked.outcome.violated
+        && note_gate::admits(gate.as_ref(), &gate_input, subject(scope.turn)).await;
     let note = JevNote {
         topic: rule_point::POINT,
         text: &text,
         operator_turn_id: scope.turn.operator_turn_id,
     };
-    let delivered = checked.outcome.violated && deliver(window, steerer, &note).await.is_some();
+    let delivered = admitted && deliver(window, steerer, &note).await.is_some();
     rule_point::mark(decider, &checked, delivered).await;
 }
 

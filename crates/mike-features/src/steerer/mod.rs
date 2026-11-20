@@ -18,6 +18,7 @@ pub use guard::test_seams as guard_test_seams;
 pub mod inject;
 pub mod intake_criteria;
 pub mod model_catalogue;
+pub mod note_gate;
 pub mod note_policy;
 pub mod precheck;
 pub mod prod_point;

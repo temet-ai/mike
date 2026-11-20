@@ -8,6 +8,7 @@ pub mod guard_seam;
 pub mod jev_note;
 pub mod judgement;
 pub mod log;
+pub mod note_gate_seam;
 pub mod record;
 pub mod rollout;
 pub mod steps;
@@ -193,6 +194,12 @@ async fn fire_after_precheck(
         verifier_seam::run(window, steerer, resolved, nudge_message, rows, context).await;
     if let Some(held) = precheck.as_ref().filter(|p| p.holds()) {
         held.mark(false).await;
+        return Exit::would_fire(resolved.verdict.clone());
+    }
+    if !note_gate_seam::verifier_admits(window, steerer, nudge_message).await {
+        if let Some(sent) = precheck {
+            sent.mark(false).await;
+        }
         return Exit::would_fire(resolved.verdict.clone());
     }
     let exit = fire_steerer(window, steerer, resolved, nudge_message).await;

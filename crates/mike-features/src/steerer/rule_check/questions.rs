@@ -5,7 +5,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::noul;
 
 pub const POINT: &str = "rule_check";
-pub const QUESTION_SET: &str = "rule_check_v3";
+pub const QUESTION_SET: &str = "rule_check_v4";
 
 pub fn key(index: usize) -> String {
     format!("rule_{index}")
@@ -13,6 +13,21 @@ pub fn key(index: usize) -> String {
 
 pub fn requires_key(index: usize) -> String {
     format!("rule_{index}_requires")
+}
+
+pub fn applies_key(index: usize) -> String {
+    format!("rule_{index}_applies")
+}
+
+fn applies(index: usize) -> Question {
+    noul(
+        &format!(
+            "Does a call in `tool_calls` do the kind of work `rules.{}` is about?",
+            key(index)
+        ),
+        "A call does that kind of work, e.g. the rule is about committing and a call runs git commit, or the rule is about database queries and a call runs psql.",
+        "No call does that kind of work, e.g. the rule is about committing and nothing is committed, the rule is setup advice and nothing is set up, or the rule describes how a system works.",
+    )
 }
 
 fn forbids(index: usize) -> Question {
@@ -37,11 +52,12 @@ fn leaves_out(index: usize) -> Question {
     )
 }
 
-pub fn questions(rules: &[&Rule]) -> BTreeMap<String, Question> {
+pub fn questions(rules: &[&Rule], committed: bool) -> BTreeMap<String, Question> {
     let mut asked = BTreeMap::new();
     for (index, rule) in rules.iter().enumerate() {
         asked.insert(key(index), forbids(index));
-        if rule.is_obligation() {
+        asked.insert(applies_key(index), applies(index));
+        if rule.is_obligation() && (committed || !rule.is_about_commits()) {
             asked.insert(requires_key(index), leaves_out(index));
         }
     }

@@ -65,6 +65,11 @@ points![
         "Jev checks each turn against the project's AGENTS.md and CLAUDE.md rules."
     ),
     (
+        "note_gate",
+        "Steering note check",
+        "Jev checks a rule or verifier note against the turn's calls and ending before it is delivered."
+    ),
+    (
         "verifier_precheck",
         "Verifier pre-check",
         "Jev decides whether a verifier fire is worth sending before it is delivered."
@@ -295,6 +300,7 @@ pub fn area(point: &str) -> &'static str {
         "turn_guard_precheck"
         | "commit_message"
         | "rule_check"
+        | "note_gate"
         | "verifier_precheck"
         | "wake_recheck"
         | "step_class"

@@ -1,11 +1,12 @@
 use serde_json::{Value, json};
 
-use super::questions::{key, requires_key};
+use super::questions::{applies_key, key, requires_key};
 use super::rules::Rule;
 use crate::llm::decisions::point::Asked;
 
-pub const WARN_AT: f64 = 0.8;
+pub const WARN_AT: f64 = 0.9;
 pub const HOLD_AT: f64 = 0.3;
+pub const APPLIES_AT: f64 = 0.75;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Outcome {
@@ -33,6 +34,7 @@ impl Outcome {
             "held": self.held,
             "warn_at": WARN_AT,
             "hold_at": HOLD_AT,
+            "applies_at": APPLIES_AT,
             "delivered": delivered,
         })
     }
@@ -46,6 +48,9 @@ impl Outcome {
 }
 
 fn chance(asked: &Asked, index: usize) -> Option<f64> {
+    if asked.noul(&applies_key(index))? < APPLIES_AT {
+        return Some(0.0);
+    }
     let forbids = asked.noul(&key(index))?;
     Some(
         asked
