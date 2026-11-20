@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH bounds AS MATERIALIZED (\n                     SELECT (SELECT rsp.id FROM requests.system_prompts rsp\n                              WHERE rsp.request_id >= (SELECT r.id FROM requests.requests r\n                                                        WHERE r.created_at >= NOW() - INTERVAL '7 days'\n                                                        ORDER BY r.created_at LIMIT 1)\n                              ORDER BY rsp.request_id LIMIT 1) AS week_prompt_id,\n                            (SELECT rsp.id FROM requests.system_prompts rsp\n                              WHERE rsp.request_id >= (SELECT r.id FROM requests.requests r\n                                                        WHERE r.created_at >= NOW() - INTERVAL '1 day'\n                                                        ORDER BY r.created_at LIMIT 1)\n                              ORDER BY rsp.request_id LIMIT 1) AS day_prompt_id\n                 ), per_rule AS (\n                     SELECT j.filter_rule_id,\n                            MAX(j.request_system_prompt_id) AS last_prompt_id,\n                            COUNT(*) FILTER (WHERE j.request_system_prompt_id >= (SELECT b.day_prompt_id FROM bounds b)) AS fires_24h,\n                            COUNT(*) AS fires_7d\n                     FROM requests.system_prompt_firing_rules j\n                     WHERE j.request_system_prompt_id >= (SELECT b.week_prompt_id FROM bounds b)\n                     GROUP BY j.filter_rule_id\n                 )\n                 SELECT\n                     fr.id AS \"id!\",\n                     lr.created_at AS last_fired_at,\n                     COALESCE(pr.fires_24h, 0)::BIGINT AS \"fires_24h!\",\n                     COALESCE(pr.fires_7d, 0)::BIGINT AS \"fires_7d!\"\n                 FROM rules.rules fr\n                 LEFT JOIN per_rule pr ON pr.filter_rule_id = fr.id\n                 LEFT JOIN requests.system_prompts lp ON lp.id = pr.last_prompt_id\n                 LEFT JOIN requests.requests lr ON lr.id = lp.request_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_fired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "fires_24h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "fires_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "59cbc18c6b01144d25d155aa40cd4fbd1196d79ee19fb07bb185db54415364fe"
+}
