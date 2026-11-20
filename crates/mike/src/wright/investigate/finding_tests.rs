@@ -61,6 +61,24 @@ fn investigate_finding_without_established_cause_says_so() -> anyhow::Result<()>
 }
 
 #[test]
+fn investigate_finding_with_a_confirmed_cause_and_no_suspected_one_takes_the_confirmed()
+-> anyhow::Result<()> {
+    let repo = repo()?;
+    let finding = validate(&with("suspected_cause", json!("")), repo.path())
+        .map_err(anyhow::Error::msg)?
+        .finding;
+    assert_eq!(finding.suspected_cause, "logs.rs reads past the 8 MiB bound");
+    let mut doc = established();
+    doc["suspected_cause"] = json!("");
+    doc["cause_established"] = json!(false);
+    doc["confirmed_cause"] = Value::Null;
+    doc["owning_part"] = Value::Null;
+    let refused = validate(doc.to_string().as_bytes(), repo.path()).err();
+    assert_eq!(refused.as_deref(), Some("suspected_cause is empty"));
+    Ok(())
+}
+
+#[test]
 fn investigate_finding_breaking_the_contract_is_refused_with_the_reason() -> anyhow::Result<()> {
     let repo = repo()?;
     let cases = [
