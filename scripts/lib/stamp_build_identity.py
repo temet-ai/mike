@@ -71,8 +71,24 @@ def stamp_file(path: str, payload: bytes) -> None:
             os.unlink(tmp)
         raise
     if sys.platform == "darwin":
-        subprocess.run(["codesign", "--force", "--sign", "-", path], check=True,
-                       stdout=subprocess.DEVNULL)
+        subprocess.run(codesign_command(path), check=True, stdout=subprocess.DEVNULL)
+
+
+# macOS keeps a privacy grant such as Local Network access only while the binary's
+# designated requirement stays the same. An ad-hoc signature's requirement is the
+# content hash, so every build would ask again; a fixed certificate and identifier keep
+# one grant across builds. Without the certificate the binary is signed ad hoc.
+SIGNING_IDENTITY = os.environ.get("MIKE_CODESIGN_IDENTITY", "mike-local")
+SIGNING_IDENTIFIER = "ai.temet.mike"
+
+
+def codesign_command(path: str) -> list[str]:
+    found = subprocess.run(["security", "find-identity", "-p", "codesigning"],
+                           capture_output=True, text=True, check=False).stdout
+    if SIGNING_IDENTITY and f'"{SIGNING_IDENTITY}"' in found:
+        return ["codesign", "--force", "--timestamp=none", "--sign", SIGNING_IDENTITY,
+                "--identifier", SIGNING_IDENTIFIER, path]
+    return ["codesign", "--force", "--sign", "-", path]
 
 
 def git(repo: str, *args: str) -> str:
