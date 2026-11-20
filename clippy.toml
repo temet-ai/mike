@@ -9,4 +9,11 @@ too-many-lines-threshold = 100
 # Handlers return an HTTP response as their error and the launch CLI returns a
 # full failure report. Clippy 1.100 began flagging both at its 128-byte default
 # (246 functions); the largest is 248 bytes. Raise this only with a measured size.
-large-error-threshold = 256
+
+# Handlers return an HTTP response as their error. axum's `Response` and
+# proxy-forward's `Response<ResponseBody>` are each 128 bytes (measured with
+# `std::mem::size_of`), and clippy flags an error type of 128 bytes or more, so
+# 129 is the smallest threshold that clears them. The allowance exists for
+# handlers that return an HTTP response as their error; our own error types stay
+# under 128 bytes.
+large-error-threshold = 129

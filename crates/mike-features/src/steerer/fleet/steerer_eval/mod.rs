@@ -99,34 +99,34 @@ pub enum StepOutcome {
 
 pub struct Exit {
     step: StepOutcome,
-    resolution: Resolution,
+    resolution: Box<Resolution>,
 }
 
 impl Exit {
     fn not_judged(step: StepOutcome, reason: Abstention) -> Self {
         Self {
             step,
-            resolution: Resolution::Pass(TurnJudgement::not_judged(reason)),
+            resolution: Box::new(Resolution::Pass(TurnJudgement::not_judged(reason))),
         }
     }
 
     fn judged(verdict: SteererVerdict, reason: Abstention) -> Self {
         Self {
             step: StepOutcome::Continue,
-            resolution: Resolution::Pass(TurnJudgement {
+            resolution: Box::new(Resolution::Pass(TurnJudgement {
                 verdict: Some(verdict),
                 abstention: Some(reason),
-            }),
+            })),
         }
     }
 
     fn would_fire(verdict: SteererVerdict) -> Self {
         Self {
             step: StepOutcome::Continue,
-            resolution: Resolution::WouldFire(TurnJudgement {
+            resolution: Box::new(Resolution::WouldFire(TurnJudgement {
                 verdict: Some(verdict),
                 abstention: None,
-            }),
+            })),
         }
     }
 }
@@ -170,14 +170,14 @@ async fn fire_steerer(
     match record_and_broadcast(&fire, nudge_message).await {
         Some((uuid, reminder)) => Exit {
             step: StepOutcome::Fired(uuid, reminder),
-            resolution: Resolution::Fired {
+            resolution: Box::new(Resolution::Fired {
                 intervention: uuid,
                 judgement,
-            },
+            }),
         },
         None => Exit {
             step: StepOutcome::Continue,
-            resolution: Resolution::Pass(judgement),
+            resolution: Box::new(Resolution::Pass(judgement)),
         },
     }
 }
@@ -274,7 +274,7 @@ async fn evaluate_one_steerer(
     }
     let rows = dispatch_rows(window, steerer).await;
     let exit = judge_past_gate(window, steerer, state, &rows).await;
-    resolve_exit(window.recorder.as_ref(), &rows, exit.resolution).await;
+    resolve_exit(window.recorder.as_ref(), &rows, *exit.resolution).await;
     exit.step
 }
 

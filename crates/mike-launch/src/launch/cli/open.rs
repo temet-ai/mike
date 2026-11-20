@@ -22,7 +22,7 @@ pub const MCP_MISSING: &str = "mike_mcp_missing";
 
 #[derive(Debug)]
 pub struct OpenFailure {
-    pub output: Option<LaunchOutput>,
+    pub output: Option<Box<LaunchOutput>>,
     pub error: LaunchError,
 }
 
@@ -97,10 +97,10 @@ pub async fn execute(
 
 pub fn fail(output: LaunchOutput, error: LaunchError, reason: &str) -> OpenFailure {
     OpenFailure {
-        output: Some(LaunchOutput {
+        output: Some(Box::new(LaunchOutput {
             reason: Some(reason.to_string()),
             ..output
-        }),
+        })),
         error,
     }
 }
@@ -319,7 +319,7 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
     if let Err(error) = record_opened(runner, admission, launch_id, &request, &surface).await {
         record_unconfirmed(runner, launch_id, &error).await;
         return Err(OpenFailure {
-            output: Some(opened_output(output, &spec, &surface, &delivery)),
+            output: Some(Box::new(opened_output(output, &spec, &surface, &delivery))),
             error,
         });
     }
@@ -368,7 +368,7 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
     if unconfirmed {
         return Err(OpenFailure {
             error: delivery::unconfirmed_error(&output, &surface),
-            output: Some(output),
+            output: Some(Box::new(output)),
         });
     }
     Ok(output)

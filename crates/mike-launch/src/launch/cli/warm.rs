@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn mechanically_launched_true_on_an_unconfirmed_err_that_still_opened_and_delivered() {
         let result: OpenResult = Err(OpenFailure {
-            output: Some(output(true, Some(true))),
+            output: Some(Box::new(output(true, Some(true)))),
             error: LaunchError::Unconfirmed("prompt not seen to become a turn".into()),
         });
         assert!(mechanically_launched(&result));
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn mechanically_launched_false_when_never_opened_or_no_output_at_all() {
         let not_opened: OpenResult = Err(OpenFailure {
-            output: Some(output(false, None)),
+            output: Some(Box::new(output(false, None))),
             error: LaunchError::Refused("untrusted".into()),
         });
         assert!(!mechanically_launched(&not_opened));
