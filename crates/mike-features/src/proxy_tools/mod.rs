@@ -5,6 +5,7 @@ pub mod roster;
 pub mod scanner;
 pub mod session;
 pub mod stage;
+pub mod thread_stage;
 
 pub struct ProxyTool {
     pub name: &'static str,
