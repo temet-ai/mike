@@ -18,6 +18,7 @@ mod tests;
 const LEASE_ROLE: &str = "seat_memory_index";
 const TICK: Duration = Duration::from_secs(30);
 const BACKSTOP: Duration = Duration::from_secs(30 * 60);
+const MIN_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 pub fn spawn_seat_memory_worker(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -34,11 +35,17 @@ pub struct RefreshMark {
     generation: Option<i64>,
     marks: Option<SeatMemoryMarks>,
     swept_at: Option<Instant>,
+    refreshed_at: Option<Instant>,
 }
 
 impl RefreshMark {
     pub fn due(&self, generation: i64, now: Instant) -> bool {
-        self.generation != Some(generation) || self.sweep_due(now)
+        (self.generation != Some(generation) && self.interval_passed(now)) || self.sweep_due(now)
+    }
+
+    fn interval_passed(&self, now: Instant) -> bool {
+        self.refreshed_at
+            .is_none_or(|at| now.duration_since(at) >= MIN_INTERVAL)
     }
 
     pub fn since(&self, now: Instant) -> Option<SeatMemoryMarks> {
@@ -52,6 +59,7 @@ impl RefreshMark {
     pub fn record(&mut self, generation: i64, now: Instant, refresh: Refreshed) {
         self.generation = Some(generation);
         self.marks = Some(refresh.marks);
+        self.refreshed_at = Some(now);
         if refresh.swept {
             self.swept_at = Some(now);
         }
