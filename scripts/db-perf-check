@@ -48,11 +48,15 @@ if [[ -f "$script_dir/lib/perf-query-sha.sh" ]]; then
 fi
 
 DB_URL="${MIKE_DATABASE_URL:?MIKE_DATABASE_URL not set (expected in .env)}"
+# Reads go through the read-only mike_adhoc role (MIKE_ADHOC_DATABASE_URL in .env) so
+# Wright's slow_queries check does not count the measurement as mike's own statement.
+# Mutations need write rights inside their rolled-back transaction, so they stay on DB_URL.
+READ_URL="${MIKE_ADHOC_DATABASE_URL:-$DB_URL}"
 
 TIER="" LABEL="" BEFORE_FILE="" AFTER_FILE="" SEQ_SCAN_ROWS=5000 BUDGET="" RUNS=3
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --db)    DB_URL="${2:?--db needs a database URL}"; shift 2 ;;
+    --db)    DB_URL="${2:?--db needs a database URL}"; READ_URL="$DB_URL"; shift 2 ;;
     --tier)  TIER="$2"; shift 2 ;;
     --label) LABEL="$2"; shift 2 ;;
     --before) BEFORE_FILE="$2"; shift 2 ;;
@@ -101,14 +105,15 @@ is_mutation() {
 # Run EXPLAIN (ANALYZE, BUFFERS) on a query file; print the plan to stdout.
 # Mutations/DDL are wrapped BEGIN; … ROLLBACK; so nothing is persisted.
 run_explain() {
-  local qfile="$1" wrap="$tmpdir/wrap.sql"
+  local qfile="$1" wrap="$tmpdir/wrap.sql" url="$READ_URL"
   if is_mutation "$qfile"; then
+    url="$DB_URL"
     { echo "BEGIN;"; echo "EXPLAIN (ANALYZE, BUFFERS)"; cat "$qfile"; echo ";"; echo "ROLLBACK;"; } > "$wrap"
   else
     { echo "EXPLAIN (ANALYZE, BUFFERS)"; cat "$qfile"; echo ";"; } > "$wrap"
   fi
   # -f file (never a pipe) so the exit code is honest (psql-in-a-pipe masks it).
-  psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$wrap" 2>&1
+  psql "$url" -X -q -v ON_ERROR_STOP=1 -f "$wrap" 2>&1
 }
 
 exec_ms()  { grep -oE 'Execution Time: [0-9.]+' <<<"$1" | grep -oE '[0-9.]+' | tail -1; }

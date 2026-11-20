@@ -210,6 +210,28 @@ async fn conflicting_fix_is_dropped_at_the_rebase_and_the_rest_lands() -> anyhow
 }
 
 #[tokio::test]
+async fn fix_already_merged_into_main_by_another_branch_lands_instead_of_dropping()
+-> anyhow::Result<()> {
+    let bench = Bench::boot(WritesFiles::new(&[("src/calc.sh", FIXED)])).await?;
+    let (_, finding) = bench.defect().await?;
+    tick(&bench.ctx, true).await?;
+    let batch = bench.only_batch().await?;
+    sh(
+        &bench.batch_dir(),
+        &["push", "--quiet", "origin", "HEAD:main"],
+    )?;
+    bench.backdate(batch.id).await?;
+
+    let report = tick(&bench.ctx, true).await?;
+    assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
+    let repair = bench.repair_of(finding).await?;
+    assert_eq!(repair.state, states::LANDED, "{:?}", repair.reason);
+    assert_eq!(bench.scratch.gate_log(), "", "nothing was left to gate");
+    assert!(bench.ctx.runner.prs().is_empty());
+    bench.cleanup().await
+}
+
+#[tokio::test]
 async fn operator_can_close_a_batch_that_holds_a_fix() -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[("src/calc.sh", FIXED)])).await?;
     let (_, finding) = bench.defect().await?;

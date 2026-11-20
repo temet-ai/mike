@@ -88,6 +88,15 @@ fn same_cause(doc: &FindingDoc) -> Result<Vec<i64>, String> {
     Ok(ids)
 }
 
+fn suspected(doc: &FindingDoc, confirmed: Option<&str>) -> Result<String, String> {
+    match confirmed {
+        Some(confirmed) if doc.suspected_cause.trim().is_empty() => {
+            text("suspected_cause", confirmed)
+        }
+        _ => text("suspected_cause", &doc.suspected_cause),
+    }
+}
+
 fn text(field: &str, value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -241,7 +250,7 @@ pub(crate) fn validate(bytes: &[u8], repo: &Path) -> Result<Validated, String> {
     let same_cause_as = same_cause(&doc)?;
     let finding = NewFinding {
         symptom: text("symptom", &doc.symptom)?,
-        suspected_cause: text("suspected_cause", &doc.suspected_cause)?,
+        suspected_cause: suspected(&doc, confirmed_cause.as_deref())?,
         confirmed_cause,
         cause_established: doc.cause_established,
         owning_part,

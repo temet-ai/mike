@@ -41,6 +41,28 @@ fn forked_args() -> Value {
 }
 
 #[test]
+fn classify_ignores_the_flags_mike_adds_to_each_launch() {
+    let launched = json!([
+        "--resume",
+        "abc",
+        "--fork-session",
+        "--model",
+        "opus",
+        "--agent",
+        "rust-developer",
+        "--name",
+        "rust-hard-1",
+        "--remote-control",
+        "--dangerously-load-development-channels",
+        "server:mike"
+    ]);
+    assert_eq!(
+        classify(&fork(template_args(), launched, Some(10)), TTL),
+        ColdCause::Unexplained
+    );
+}
+
+#[test]
 fn classify_a_fork_whose_prefix_changed_within_the_cache_window_blames_the_prefix() {
     let changed = json!([
         "--resume",

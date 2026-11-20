@@ -5,7 +5,7 @@ use super::batch_blame::attribute;
 use super::batch_git::{self, Commit, locate, trailer_id};
 use super::batch_land::{BatchEnd, Gated, Lander, Lost, split_fixes};
 use super::feedback::{OUTPUT_TAIL, tail_of};
-use super::land::Candidate;
+use super::land::{Candidate, Landed};
 use super::perf::{PERF_BRIEF, Perf};
 use super::port::{RepairEngineer, RepairJob, RepairRun};
 use super::prepare::{changed_files, refusal};
@@ -373,5 +373,21 @@ where
             }
             other => Ok(other),
         }
+    }
+
+    pub(super) async fn settle_merged(
+        &self,
+        merged: &[(BatchFix, String)],
+        main: &str,
+    ) -> Result<BatchEnd, PersistError> {
+        self.remap(merged).await?;
+        let note = format!(
+            "every fix of the day is already on main {main}, merged there by another branch, so there was nothing to gate"
+        );
+        let landed = Landed {
+            merge_sha: main.to_owned(),
+            note: Some(note),
+        };
+        self.finish(landed).await
     }
 }

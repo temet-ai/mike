@@ -1,4 +1,5 @@
 use dashmap::DashSet;
+use serde_json::value::RawValue;
 
 pub type SessionsWithMikeTools = DashSet<String>;
 
@@ -17,10 +18,27 @@ pub fn session_brought_its_own(
     true
 }
 
+#[derive(serde::Deserialize)]
+struct Head<'a> {
+    #[serde(borrow, default)]
+    tools: Option<&'a RawValue>,
+    #[serde(borrow, default)]
+    messages: Vec<&'a RawValue>,
+}
+
 fn names_every_mcp_tool(body: &[u8]) -> bool {
+    let Ok(head) = serde_json::from_slice::<Head<'_>>(body) else {
+        return false;
+    };
+    let parts: Vec<&[u8]> = head
+        .tools
+        .into_iter()
+        .chain(head.messages.first().copied())
+        .map(|raw| raw.get().as_bytes())
+        .collect();
     super::catalogue()
         .iter()
-        .all(|tool| names_mcp_tool(body, tool.mcp_tool))
+        .all(|tool| parts.iter().any(|part| names_mcp_tool(part, tool.mcp_tool)))
 }
 
 fn names_mcp_tool(body: &[u8], mcp_tool: &str) -> bool {
@@ -85,6 +103,16 @@ mod tests {
         let known = SessionsWithMikeTools::new();
         assert!(session_brought_its_own(&known, "s1", LOADED));
         assert!(!session_brought_its_own(&known, "s2", WITHOUT));
+    }
+
+    #[test]
+    fn a_tool_listing_later_in_the_history_does_not_count() {
+        let known = SessionsWithMikeTools::new();
+        let body = br#"{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":"ok"},{"role":"user","content":"deferred tools: mcp__mike__get_workspace_roster"}],"tools":[{"name":"ToolSearch"}]}"#;
+        assert!(
+            !session_brought_its_own(&known, "fork", body),
+            "a fork of a session mike declared for keeps the declaration"
+        );
     }
 
     #[test]
