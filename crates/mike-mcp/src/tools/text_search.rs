@@ -114,7 +114,7 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
             "date_from",
             json!({
                 "type": "string",
-                "description": "RFC 3339 lower bound for the `created_at` search window. Applied when no id scope is given; defaults to 7 days ago when both absent."
+                "description": "RFC 3339 lower bound for the `created_at` search window. Applied when no id scope is given; defaults to one day ago when both absent."
             }),
         ),
         (
@@ -153,7 +153,7 @@ fn find_text_tool() -> Tool {
              `reminder_matches_skipped` and `own_search_matches_skipped`. whole_bodies=true scans every \
              request body in full instead (`positions` \"body\"). source=response and request_sent always \
              scan bodies. `request_id` scans that one request. With neither id the search reads response \
-             bodies (7-day default window, widen with date_from and date_to); asking for source=request \
+             bodies (one-day default window, widen with date_from and date_to); asking for source=request \
              without an id is an error. A session scan covers the whole session in one call or reports \
              `scan_complete` false with `requests_scanned`, `requests_total`, `has_more` and `next_cursor` \
              (pass it back as `cursor`). An empty `matches` always means the whole scope was scanned: an \

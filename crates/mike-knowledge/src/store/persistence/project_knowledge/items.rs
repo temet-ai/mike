@@ -115,12 +115,20 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 
     pub async fn reconcile_knowledge_items(self) -> Result<i64, PersistError> {
-        let changed = sqlx::query_scalar!(
-            r#"SELECT COALESCE(sum(memory.reconcile_knowledge_items(k.kind)), 0)::bigint AS "changed!"
-                 FROM memory.knowledge_kinds k WHERE k.enabled"#
+        let kinds = sqlx::query_scalar!(
+            "SELECT k.kind FROM memory.knowledge_kinds k WHERE k.enabled ORDER BY k.kind"
         )
-        .fetch_one(self.pool())
+        .fetch_all(self.pool())
         .await?;
+        let mut changed = 0;
+        for kind in &kinds {
+            changed += sqlx::query_scalar!(
+                r#"SELECT memory.reconcile_knowledge_items($1) AS "changed!""#,
+                kind
+            )
+            .fetch_one(self.pool())
+            .await?;
+        }
         if changed > 0 {
             self.forget_knowledge_coverage();
         }

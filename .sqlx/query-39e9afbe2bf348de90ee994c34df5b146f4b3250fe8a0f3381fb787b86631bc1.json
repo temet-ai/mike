@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT k.kind FROM memory.knowledge_kinds k WHERE k.enabled ORDER BY k.kind",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_kinds",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "39e9afbe2bf348de90ee994c34df5b146f4b3250fe8a0f3381fb787b86631bc1"
+}

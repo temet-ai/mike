@@ -1237,6 +1237,7 @@ the `token_usage` JSONB at write time, so per-turn sums are `SUM(col)` instead o
 **Indexes:**
 - `idx_request_responses_request_id`: `request_id` (BTree)
 - `idx_request_responses_completed_at`: `completed_at` BRIN
+- `idx_responses_completed_at`: `completed_at` (BTree, `20261120160000`) — the unscoped `find_text` response scan reads the responses that completed in its window; heap pages are reused, so the BRIN index cannot narrow a recent range
 - `idx_request_responses_stop_reason`: `stop_reason_id WHERE NOT NULL` (BTree partial)
 - `idx_request_responses_upstream_request_id`: `upstream_request_id WHERE NOT NULL` (BTree partial)
 - `idx_responses_upstream_message_id`: `upstream_message_id INCLUDE (request_id) WHERE NOT NULL` (BTree partial) — resolves a body's `thread.previous_message_id` to the request that answered it
@@ -2753,8 +2754,10 @@ update of a source that the kind's view still lists upserts the item with `needs
 it. The sweep (`pending_embeddings.sql`) reads only waiting, due items through `idx_knowledge_items_waiting`,
 reads their text from the kind's view by id, and `save_knowledge_embeddings`
 (`store/persistence/project_knowledge/items.rs`) clears `needs_embedding` unless the item changed again
-while it was embedded. `memory.reconcile_knowledge_items(kind)` adds items a trigger missed; the sweep's
-leader runs it when it takes the lease and then daily.
+while it was embedded. `memory.reconcile_knowledge_items(kind)` adds items a trigger missed and requeues items whose source is
+gone or moved project, in one statement that reads the kind's view once (`20261120160002`; it plans with
+`random_page_cost = 4`, since a full diff reads every source row); the sweep's leader runs it once per
+enabled kind, each kind its own statement, when it takes the lease and then daily.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -4623,6 +4626,7 @@ the AC5 quiescence sweep) supersedes it.
 **Indexes:**
 - `idx_evaluations_steerer_id`: `steerer_id` (BTree)
 - `idx_evaluations_operator_turn_id`: `operator_turn_id` (BTree)
+- `idx_evaluations_admitted_turn`: `operator_turn_id INCLUDE (steerer_id, question, trigger_point, dispatched_at, id) WHERE status <> 'dispatched' AND (mode = 'shadow' OR arm IN ('holdback', 'precheck_held'))` (BTree partial, `20261120160001`) — the newest admitted pass per turn for `guard_label_candidates`, read from the index
 - `idx_evaluations_session_dispatched`: `(session_id, dispatched_at DESC)` (BTree) — hot path for "latest evaluation for this session"
 - `idx_evaluations_intervention_uuid`: `intervention_uuid WHERE NOT NULL` (BTree partial)
 

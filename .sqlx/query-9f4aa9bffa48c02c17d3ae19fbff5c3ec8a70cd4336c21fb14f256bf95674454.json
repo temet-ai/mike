@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH hits AS MATERIALIZED (\n                       SELECT resp.request_id\n                         FROM responses.responses resp\n                        WHERE resp.completed_at >= $1\n                          AND resp.completed_at <  $2::timestamptz + interval '6 hours'\n                          AND resp.response_body != '\\x'::bytea\n                          AND position($3 IN resp.response_body) > 0\n                   )\n                   SELECT\n                       r.id                 AS \"request_id!\",\n                       s.session_uuid::text AS \"session_id!\",\n                       r.created_at         AS \"created_at!\"\n                   FROM hits\n                   JOIN requests.requests   r ON r.id  = hits.request_id\n                   JOIN sessions.sessions   s ON s.id  = r.session_id\n                   WHERE r.created_at   >= $1\n                     AND r.created_at   <  $2\n                   ORDER BY r.created_at DESC, r.id DESC\n                   LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "9f4aa9bffa48c02c17d3ae19fbff5c3ec8a70cd4336c21fb14f256bf95674454"
+}

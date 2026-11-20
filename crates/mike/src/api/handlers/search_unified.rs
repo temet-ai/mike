@@ -123,16 +123,17 @@ async fn find_text_unscoped_corpus(
         ));
     };
     let has_id_scope = false;
-    let window = crate::web_base::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window_spanning(
         params.date_from.as_deref(),
         params.date_to.as_deref(),
         has_id_scope,
+        FIND_TEXT_CORPUS_DEFAULT_DAYS,
     )
     .map_err(|e| find_text_error(StatusCode::BAD_REQUEST, &format!("invalid date: {e}")))?;
 
-    let from = window
-        .effective_from
-        .unwrap_or_else(|| chrono::Utc::now() - chrono::Duration::days(7));
+    let from = window.effective_from.unwrap_or_else(|| {
+        chrono::Utc::now() - chrono::Duration::days(FIND_TEXT_CORPUS_DEFAULT_DAYS)
+    });
     let to = window.effective_to.unwrap_or_else(chrono::Utc::now);
 
     let (full_count, all_matches, own_skipped) = tokio::time::timeout(

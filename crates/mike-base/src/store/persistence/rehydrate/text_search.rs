@@ -157,17 +157,23 @@ async fn response_body_candidates(
 ) -> Result<Vec<FindTextCandidateRow>, PersistError> {
     let rows = sqlx::query_as!(
         FindTextCandidateRow,
-        r#"SELECT
+        r#"WITH hits AS MATERIALIZED (
+                       SELECT resp.request_id
+                         FROM responses.responses resp
+                        WHERE resp.completed_at >= $1
+                          AND resp.completed_at <  $2::timestamptz + interval '6 hours'
+                          AND resp.response_body != '\x'::bytea
+                          AND position($3 IN resp.response_body) > 0
+                   )
+                   SELECT
                        r.id                 AS "request_id!",
                        s.session_uuid::text AS "session_id!",
                        r.created_at         AS "created_at!"
-                   FROM responses.responses resp
-                   JOIN requests.requests   r ON r.id  = resp.request_id
+                   FROM hits
+                   JOIN requests.requests   r ON r.id  = hits.request_id
                    JOIN sessions.sessions   s ON s.id  = r.session_id
                    WHERE r.created_at   >= $1
                      AND r.created_at   <  $2
-                     AND resp.response_body != '\x'::bytea
-                     AND position($3 IN resp.response_body) > 0
                    ORDER BY r.created_at DESC, r.id DESC
                    LIMIT $4"#,
         from,

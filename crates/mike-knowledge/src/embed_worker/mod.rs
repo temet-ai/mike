@@ -33,6 +33,8 @@ pub mod knowledge_report_tests;
 #[cfg(test)]
 pub mod knowledge_session_tests;
 #[cfg(test)]
+mod knowledge_reconcile_tests;
+#[cfg(test)]
 pub mod knowledge_tests;
 #[cfg(test)]
 pub mod knowledge_unchanged_tests;

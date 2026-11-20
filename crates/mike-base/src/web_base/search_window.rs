@@ -23,6 +23,15 @@ pub fn resolve_window(
     date_to: Option<&str>,
     has_id_scope: bool,
 ) -> Result<SearchWindow, DateParseError> {
+    resolve_window_spanning(date_from, date_to, has_id_scope, 7)
+}
+
+pub fn resolve_window_spanning(
+    date_from: Option<&str>,
+    date_to: Option<&str>,
+    has_id_scope: bool,
+    default_days: i64,
+) -> Result<SearchWindow, DateParseError> {
     let from = parse_optional(date_from)?;
     let to = parse_optional(date_to)?;
 
@@ -45,13 +54,12 @@ pub fn resolve_window(
     match (from, to) {
         (None, None) => {
             let now = Utc::now();
-            let seven_days_ago = now - Duration::days(7);
             Ok(SearchWindow {
-                effective_from: Some(seven_days_ago),
+                effective_from: Some(now - Duration::days(default_days)),
                 effective_to: Some(now),
                 windowed: true,
                 defaulted: true,
-                widen_hint: "showing last 7 days — pass date_from to widen".to_owned(),
+                widen_hint: default_hint(default_days),
             })
         }
         (from, to) => {
@@ -79,6 +87,14 @@ pub fn resolve_window(
                 widen_hint,
             })
         }
+    }
+}
+
+fn default_hint(days: i64) -> String {
+    if days == 1 {
+        "showing the last day — pass date_from to widen".to_owned()
+    } else {
+        format!("showing last {days} days — pass date_from to widen")
     }
 }
 
@@ -278,6 +294,24 @@ mod tests {
             window.widen_hint.contains("date_from"),
             "hint must name the param to widen, got: {}",
             window.widen_hint
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn spanning_one_day_default_starts_a_day_ago_and_says_so() -> anyhow::Result<()> {
+        let before = Utc::now();
+        let window =
+            resolve_window_spanning(None, None, false, 1).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let from = window
+            .effective_from
+            .ok_or_else(|| anyhow::anyhow!("effective_from must be set"))?;
+        assert!(window.defaulted);
+        assert!(from >= before - Duration::days(1) - Duration::seconds(1));
+        assert!(from <= Utc::now() - Duration::days(1) + Duration::seconds(1));
+        assert_eq!(
+            window.widen_hint,
+            "showing the last day — pass date_from to widen"
         );
         Ok(())
     }
