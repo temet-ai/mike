@@ -20,7 +20,7 @@ This page is the honest inventory of the optional pieces. For the first run see
 
 **PostgreSQL 19 with the `vector` (pgvector), `pgcrypto`, and `pg_trgm` server packages for the installed provider.**
 
-Mike requires PostgreSQL major version 19. Capture runs 19rc1 with pgvector 0.8.7.
+Mike requires PostgreSQL major version 19. Capture runs 19.0 with pgvector 0.8.7.
 Older and future majors are rejected before migrations. Fresh managed installs,
 CI, and disposable tests build the same image using
 `scripts/capture-db/Dockerfile.pg19`; the installed binary embeds that recipe.

@@ -36,30 +36,28 @@ credential and volume. Losing the credential requires restoring it; setup never
 rotates a credential behind an existing database. State lives in the selected
 installation's state directory, under `database/`; the password file is owner-only.
 
-The default image is `mike/postgres-pgvector:19rc1-0.8.7`, built locally from the
+The default image is `mike/postgres-pgvector:19.0-0.8.7`, built locally from the
 embedded `crates/mike/resources/postgres19.Dockerfile` (`scripts/capture-db/Dockerfile.pg19` mirrors it, checked by the source-routing tests). Capture, disposable tests, development Compose, CI,
-and both provisioning commands use the same recipe: PostgreSQL 19rc1 (the
+and both provisioning commands use the same recipe: PostgreSQL 19.0 (the
 multi-platform base image is pinned by digest) with pgvector 0.8.7. No upstream
 pgvector PostgreSQL 19 image is published yet. Provisioning materializes the
 Dockerfile beside the private Compose file and builds it before starting.
 `PGDATA` is explicit so the owned volume remains the database storage location.
 
-## Release candidate status
+## PostgreSQL 19.0 base image
 
-The managed database is a release candidate. It runs PostgreSQL 19rc1, not a
-final PostgreSQL 19 release. As of 2026-11-05 Docker Hub publishes no
-`postgres:19` tag (only `19rc1-bookworm`), and pgvector publishes no PostgreSQL 19
-image, so no final base exists to pin. The base stays
+The managed database runs the final PostgreSQL 19.0 release. The base is
+`postgres:19.0-bookworm@sha256:f4859caf96de494e38efa69ed703b08a5bbd9605e152e604f2daec8841c87c41`
+in both Dockerfiles; pgvector still publishes no PostgreSQL 19 image, so the recipe builds
+pgvector 0.8.7 on top of it.
+
+History: until 2026-11-20 the base was the release candidate
 `postgres:19rc1-bookworm@sha256:d3d249b3dcc7920ab06f437a49ceb8fb83d483d7863bef31e1bf1d4bdc584cc2`
-in both Dockerfiles.
-
-Switching to a final PostgreSQL 19 is one reviewed line change: the `FROM` line of
-`crates/mike/resources/postgres19.Dockerfile`, mirrored byte-for-byte in
-`scripts/capture-db/Dockerfile.pg19`, with the new digest, the pinned image tag in
-`crates/mike/src/setup/docker_resource.rs` (`DEFAULT_IMAGE`) and the source-routing test,
-and a rebuild. Changing the image tag does not recreate an existing managed
-database (setup refuses an image mismatch), so that switch needs its own reviewed
-upgrade of the cluster.
+and the image tag was `mike/postgres-pgvector:19rc1-0.8.7`. The 19rc1 and 19.0 builds share
+catalog version 202610061, so a data directory initialised by 19rc1 starts directly under 19.0
+(no pg_upgrade or dump/restore). Changing the image tag does not recreate an existing managed
+database (setup refuses an image mismatch), so moving an installed database to the new tag
+needs its own reviewed step.
 
 ### Measured first managed setup
 
@@ -71,7 +69,7 @@ local image store; the build itself ran with `--no-cache`.
 |---|---|---|
 | Cold build of the recipe (`docker build --no-cache`) | 1 min 25 s | Downloads apt packages and the pgvector 0.8.7 git tag; image 636 MB |
 | `database provision --port 6670` | 6.1 s | Image already present under the managed tag; reuses it, no rebuild needed |
-| `database check` | not timed | Reports PostgreSQL 19rc1 and 312 embedded migrations pending |
+| `database check` | not timed | Reports PostgreSQL 19rc1 (measured on the release candidate) and 312 embedded migrations pending |
 | `database stop` | 1.3 s | Keeps the volume and credential |
 
 The provisioned volume held 46 MB of PostgreSQL data after provisioning, before any migrations.

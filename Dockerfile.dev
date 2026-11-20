@@ -11,9 +11,9 @@
 #
 # The repo itself is bind-mounted at runtime (see compose), not COPYed, so the
 # image is toolchain-only and shared across every session/worktree.
-FROM rust:1.95-bookworm
+FROM rust:1.100-bookworm
 
-ARG SQLX_VERSION=0.8
+ARG SQLX_VERSION=0.9
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

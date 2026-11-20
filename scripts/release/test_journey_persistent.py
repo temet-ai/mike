@@ -92,7 +92,7 @@ class PersistentFixtureTests(unittest.TestCase):
                 "MIKE_TEST_ADMIN_URL": "postgres://postgres@127.0.0.1:6432/postgres?sslmode=disable",
                 "MIKE_RECOVERY_TEST_PGDATA": str(self.root)}, clear=True), \
                     patch("integration_recovery_fixture.shutil.which", return_value="/offline/psql"), \
-                    patch.object(Cluster, "command", return_value="psql (PostgreSQL) 19rc1"), \
+                    patch.object(Cluster, "command", return_value="psql (PostgreSQL) 19.0"), \
                     patch.object(Cluster, "sql", return_value=json.dumps(actual)):
                 with self.assertRaisesRegex(JourneyError, "FIXTURE_INVALID_OR_UNAVAILABLE"):
                     owned_cluster()

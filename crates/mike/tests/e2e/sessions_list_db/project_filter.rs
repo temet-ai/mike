@@ -39,7 +39,7 @@ async fn list_sessions_project_filter_returns_full_row_shape() -> anyhow::Result
         let resp = client
             .get(format!(
                 "{}/api/sessions?project=proj-beta{extra}",
-                &inspect_url
+                inspect_url
             ))
             .send()
             .await?;
@@ -74,7 +74,7 @@ async fn list_sessions_project_filter_returns_full_row_shape() -> anyhow::Result
     let none: Value = client
         .get(format!(
             "{}/api/sessions?project=proj-beta&min_request_count=5",
-            &inspect_url
+            inspect_url
         ))
         .send()
         .await?

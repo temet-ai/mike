@@ -1,7 +1,7 @@
 # One-off pg_upgrade tool: the PostgreSQL 19 + pgvector image plus PostgreSQL 17
 # with the pgvector release the capture DB has installed (0.8.6), so pg_upgrade
 # can run both servers. Used by scripts/capture-db/upgrade-to-19.sh.
-FROM mike/postgres-pgvector:19rc1-0.8.7
+FROM mike/postgres-pgvector:19.0-0.8.7
 
 ARG OLD_MAJOR=17
 ARG OLD_PGVECTOR_VERSION=0.8.6

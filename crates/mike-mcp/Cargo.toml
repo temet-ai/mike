@@ -3,6 +3,7 @@ name = "mike-mcp"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish = false  # private binary, never published; satisfies cargo-deny licenses.private
 
 # `publish = false` hides a package from cargo-dist by default; this crate
@@ -15,7 +16,7 @@ name = "mike-mcp"
 path = "src/main.rs"
 
 [dependencies]
-rmcp = { version = "3.9", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "3.11", features = ["server", "transport-io", "macros"] }
 anyhow = { workspace = true }
 bytes = { workspace = true }
 futures-util = { version = "0.3", default-features = false }

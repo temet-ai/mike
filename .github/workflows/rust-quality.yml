@@ -138,11 +138,11 @@ jobs:
 
       - name: Start PostgreSQL 19 with pgvector
         run: |
-          docker build -t mike/postgres-pgvector:19rc1-0.8.7 -f scripts/capture-db/Dockerfile.pg19 scripts/capture-db
+          docker build -t mike/postgres-pgvector:19.0-0.8.7 -f scripts/capture-db/Dockerfile.pg19 scripts/capture-db
           docker run --detach --name mike-ci-pg --publish 127.0.0.1:5432:5432 \
             --env POSTGRES_PASSWORD=postgres --env POSTGRES_USER=postgres \
             --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30 \
-            mike/postgres-pgvector:19rc1-0.8.7
+            mike/postgres-pgvector:19.0-0.8.7
           for attempt in $(seq 1 60); do
             [ "$(docker inspect --format '{{.State.Health.Status}}' mike-ci-pg)" = healthy ] && exit 0
             sleep 2

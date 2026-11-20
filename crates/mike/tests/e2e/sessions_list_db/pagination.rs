@@ -25,7 +25,7 @@ async fn list_sessions_paginates_and_orders_by_last_seen_desc() -> anyhow::Resul
     }
 
     let p1: Value = client
-        .get(format!("{}/api/sessions?offset=0&limit=2", &inspect_url))
+        .get(format!("{}/api/sessions?offset=0&limit=2", inspect_url))
         .send()
         .await?
         .json()
@@ -34,7 +34,7 @@ async fn list_sessions_paginates_and_orders_by_last_seen_desc() -> anyhow::Resul
     assert_eq!(p1_arr.len(), 2, "page 1 must have exactly 2 rows");
 
     let p2: Value = client
-        .get(format!("{}/api/sessions?offset=2&limit=2", &inspect_url))
+        .get(format!("{}/api/sessions?offset=2&limit=2", inspect_url))
         .send()
         .await?
         .json()
@@ -55,7 +55,7 @@ async fn list_sessions_paginates_and_orders_by_last_seen_desc() -> anyhow::Resul
     }
 
     let all: Value = client
-        .get(format!("{}/api/sessions?limit=200", &inspect_url))
+        .get(format!("{}/api/sessions?limit=200", inspect_url))
         .send()
         .await?
         .json()
@@ -121,20 +121,20 @@ async fn list_sessions_order_asc_is_exact_mirror_of_default_desc() -> anyhow::Re
     let desc: Value = client
         .get(format!(
             "{}/api/sessions?limit=200&order=desc",
-            &inspect_url
+            inspect_url
         ))
         .send()
         .await?
         .json()
         .await?;
     let default_page: Value = client
-        .get(format!("{}/api/sessions?limit=200", &inspect_url))
+        .get(format!("{}/api/sessions?limit=200", inspect_url))
         .send()
         .await?
         .json()
         .await?;
     let asc: Value = client
-        .get(format!("{}/api/sessions?limit=200&order=asc", &inspect_url))
+        .get(format!("{}/api/sessions?limit=200&order=asc", inspect_url))
         .send()
         .await?
         .json()
@@ -154,7 +154,7 @@ async fn list_sessions_order_asc_is_exact_mirror_of_default_desc() -> anyhow::Re
     );
 
     let bad = client
-        .get(format!("{}/api/sessions?order=newest", &inspect_url))
+        .get(format!("{}/api/sessions?order=newest", inspect_url))
         .send()
         .await?;
     assert_eq!(bad.status(), reqwest::StatusCode::BAD_REQUEST);

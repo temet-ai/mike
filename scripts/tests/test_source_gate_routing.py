@@ -84,7 +84,7 @@ class SourceGateRoutingTests(unittest.TestCase):
         match = re.search(r'const DEFAULT_IMAGE: &str =\s*"([^"]+)";', provider)
         self.assertIsNotNone(match)
         image = match.group(1)
-        self.assertEqual(image, "mike/postgres-pgvector:19rc1-0.8.7")
+        self.assertEqual(image, "mike/postgres-pgvector:19.0-0.8.7")
         dockerfile = (ROOT / "scripts/capture-db/Dockerfile.pg19").read_text()
         self.assertEqual(dockerfile, (ROOT / "crates/mike/resources/postgres19.Dockerfile").read_text())
         self.assertRegex(dockerfile, r"FROM postgres:19[^@]+@sha256:[0-9a-f]{64}")

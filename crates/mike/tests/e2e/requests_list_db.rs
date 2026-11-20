@@ -456,7 +456,7 @@ async fn list_requests_order_asc_is_exact_mirror_of_default_desc() -> anyhow::Re
     );
 
     let bad = client
-        .get(format!("{}/api/requests?order=sideways", &inspect_url))
+        .get(format!("{}/api/requests?order=sideways", inspect_url))
         .send()
         .await?;
     assert_eq!(

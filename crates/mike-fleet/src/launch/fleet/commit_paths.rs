@@ -328,9 +328,9 @@ mod tests {
         };
         assert_eq!(chosen.paths, strings(&["crates/client/a.rs"]));
         assert_eq!(chosen.warnings.len(), 50);
-        for n in 0..50 {
-            assert!(chosen.warnings[n].contains(&format!("tests/snapshots/mix_{n}.snap")));
-            assert!(chosen.warnings[n].contains("left uncommitted"));
+        for (n, warning) in chosen.warnings.iter().enumerate() {
+            assert!(warning.contains(&format!("tests/snapshots/mix_{n}.snap")));
+            assert!(warning.contains("left uncommitted"));
         }
     }
 

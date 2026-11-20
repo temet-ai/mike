@@ -67,7 +67,7 @@ impl Reservation {
         }
         self.held
             .remaining
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |left| {
                 left.checked_sub(1)
             })
             .is_ok()

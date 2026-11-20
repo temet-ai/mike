@@ -1,7 +1,7 @@
 # PostgreSQL 19 with pgvector, for the capture DB and the test DB.
 # pgvector publishes no pg19 image yet, so this builds it from the release tag.
 # OPTFLAGS="" keeps the build portable instead of tuned to the build host's CPU.
-FROM postgres:19rc1-bookworm@sha256:d3d249b3dcc7920ab06f437a49ceb8fb83d483d7863bef31e1bf1d4bdc584cc2
+FROM postgres:19.0-bookworm@sha256:f4859caf96de494e38efa69ed703b08a5bbd9605e152e604f2daec8841c87c41
 
 ARG PGVECTOR_VERSION=0.8.7
 

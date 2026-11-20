@@ -70,7 +70,7 @@ impl PairJev {
             return false;
         }
         self.left
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
             .is_ok()
     }
 }

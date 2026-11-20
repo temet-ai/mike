@@ -3,16 +3,17 @@ name = "mike-code"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]
-ast-grep-config = "=0.51.2"
-ast-grep-core = "=0.51.2"
-ast-grep-language = { version = "=0.51.2", default-features = false, features = ["tree-sitter-rust", "tree-sitter-typescript", "tree-sitter-bash", "tree-sitter-python", "tree-sitter-go", "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-java", "tree-sitter-kotlin", "tree-sitter-lua", "tree-sitter-ruby", "tree-sitter-swift", "tree-sitter-elixir", "tree-sitter-zig"] }
+ast-grep-config = "=0.51.3"
+ast-grep-core = "=0.51.3"
+ast-grep-language = { version = "=0.51.3", default-features = false, features = ["tree-sitter-rust", "tree-sitter-typescript", "tree-sitter-bash", "tree-sitter-python", "tree-sitter-go", "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-java", "tree-sitter-kotlin", "tree-sitter-lua", "tree-sitter-ruby", "tree-sitter-swift", "tree-sitter-elixir", "tree-sitter-zig"] }
 hex = { workspace = true }
 regex = "1"
 serde = { workspace = true }
-serde-saphyr = "=2.1.1"
+serde-saphyr = "=2.2.0"
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 

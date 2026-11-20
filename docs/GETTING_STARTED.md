@@ -41,7 +41,7 @@ stored value.
 
 | Prerequisite | Why | Get it |
 |---|---|---|
-| **Rust toolchain** | Builds the `mike` / `mike-mcp` binaries. `rust-toolchain.toml` pins the channel (1.95.0) — no manual version pick needed. | [rustup.rs](https://rustup.rs) |
+| **Rust toolchain** | Builds the `mike` / `mike-mcp` binaries. `rust-toolchain.toml` pins the channel (1.100.0) — no manual version pick needed. | [rustup.rs](https://rustup.rs) |
 | **Node.js ≥ 25** | Builds the SvelteKit SPA (`frontend/package.json` `engines`). | [nodejs.org](https://nodejs.org) or a version manager: [nvm](https://github.com/nvm-sh/nvm) / [fnm](https://github.com/Schniz/fnm) |
 | **pnpm** | Frontend package manager. The `packageManager` field in `frontend/package.json` pins the exact version — use that one. | `corepack enable` (bundled with Node), or [pnpm.io/installation](https://pnpm.io/installation) |
 | **Claude Code CLI** | The client you point at the proxy. | [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) — `npm i -g @anthropic-ai/claude-code` |
@@ -70,7 +70,7 @@ mike db up
 
 This needs only Docker (Docker Desktop, OrbStack or Colima) and the `mike` binary, not the
 source checkout and not a `psql` on the host. It writes a compose file embedded in the binary
-to `~/.local/state/mike/db/docker-compose.yml`, builds and starts `mike/postgres-pgvector:19rc1-0.8.7` as the
+to `~/.local/state/mike/db/docker-compose.yml`, builds and starts `mike/postgres-pgvector:19.0-0.8.7` as the
 container `mike-db` bound to `127.0.0.1:6666` only, keeps the data in the docker volume
 `mike_pg_data`, waits until the database is healthy, and applies mike's own migrations. The
 generated password is stored in the per-user config file `~/.config/mike/config.toml`

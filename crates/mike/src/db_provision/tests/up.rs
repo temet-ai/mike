@@ -65,7 +65,7 @@ async fn up_on_a_fresh_machine_starts_postgres_waits_and_saves_a_working_url() -
     let compose_file = home.paths.compose_dir().join("docker-compose.yml");
     let compose = std::fs::read_to_string(&compose_file)?;
     assert!(
-        compose.contains("image: mike/postgres-pgvector:19rc1-0.8.7"),
+        compose.contains("image: mike/postgres-pgvector:19.0-0.8.7"),
         "{compose}"
     );
     assert!(

@@ -19,7 +19,7 @@ async fn list_sessions_effective_pinned_cascade_from_project() -> anyhow::Result
     send_request(&client, &proxy_url, &session, "u").await?;
 
     let initial: Value = client
-        .get(format!("{}/api/sessions?limit=200", &inspect_url))
+        .get(format!("{}/api/sessions?limit=200", inspect_url))
         .send()
         .await?
         .json()
@@ -51,7 +51,7 @@ async fn list_sessions_effective_pinned_cascade_from_project() -> anyhow::Result
         .await?;
 
     let after_pin: Value = client
-        .get(format!("{}/api/sessions?limit=200", &inspect_url))
+        .get(format!("{}/api/sessions?limit=200", inspect_url))
         .send()
         .await?
         .json()

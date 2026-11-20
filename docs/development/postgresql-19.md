@@ -9,7 +9,7 @@ summary: Operating mike on PostgreSQL 19 — the major-version requirement, the 
 # PostgreSQL 19 operations
 
 Mike requires major version 19 for setup, runtime connections, migrations and
-backup/restore. Capture uses PostgreSQL 19rc1 and pgvector 0.8.7. All fresh Docker
+backup/restore. Capture uses PostgreSQL 19.0 and pgvector 0.8.7. All fresh Docker
 installations build `scripts/capture-db/Dockerfile.pg19`; installed binaries embed
 the same file. Older clusters need a separate major upgrade before running mike.
 The historical `upgrade-to-19.sh` intentionally still names its source version.

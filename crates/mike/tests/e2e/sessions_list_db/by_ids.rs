@@ -26,7 +26,7 @@ async fn list_sessions_by_ids_returns_exactly_those_sessions_full_shape() -> any
 
     let ids_param = format!("{},{}", session_ids[0], session_ids[2]);
     let resp = client
-        .get(format!("{}/api/sessions", &inspect_url))
+        .get(format!("{}/api/sessions", inspect_url))
         .query(&[("ids", ids_param.as_str())])
         .send()
         .await?;
@@ -90,7 +90,7 @@ async fn list_sessions_by_ids_unknown_id_omitted_and_duplicates_dedupe() -> anyh
     let unknown = uuid::Uuid::new_v4().to_string();
     let ids_param = format!("{known},{unknown},{known}");
     let resp = client
-        .get(format!("{}/api/sessions", &inspect_url))
+        .get(format!("{}/api/sessions", inspect_url))
         .query(&[("ids", ids_param.as_str())])
         .send()
         .await?;
@@ -129,7 +129,7 @@ async fn list_sessions_by_ids_malformed_uuid_returns_400() -> anyhow::Result<()>
     let valid = uuid::Uuid::new_v4().to_string();
     let ids_param = format!("{valid},not-a-uuid");
     let resp = client
-        .get(format!("{}/api/sessions", &inspect_url))
+        .get(format!("{}/api/sessions", inspect_url))
         .query(&[("ids", ids_param.as_str())])
         .send()
         .await?;
@@ -157,7 +157,7 @@ async fn list_sessions_by_ids_over_cap_returns_400() -> anyhow::Result<()> {
         .collect::<Vec<_>>()
         .join(",");
     let resp = client
-        .get(format!("{}/api/sessions", &inspect_url))
+        .get(format!("{}/api/sessions", inspect_url))
         .query(&[("ids", ids_param.as_str())])
         .send()
         .await?;

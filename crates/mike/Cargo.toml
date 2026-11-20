@@ -3,6 +3,7 @@ name = "mike"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish = false  # private binary, never published; satisfies cargo-deny licenses.private
 autotests = false
 
@@ -108,12 +109,12 @@ ts-rs = { version = "12", optional = true, features = ["no-serde-warnings"] }
 tower = "0.5"
 tower-http = { version = "0.7", features = ["compression-gzip", "cors", "request-id", "timeout", "trace"] }
 tracing = { workspace = true }
-tracing-opentelemetry = "0.33"
+tracing-opentelemetry = "0.34"
 tracing-appender = "0.2"
 tracing-subscriber = { workspace = true, features = ["json"] }
-opentelemetry = { version = "0.32", features = ["trace"] }
-opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic", "trace"] }
+opentelemetry = { version = "0.33.1", features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.33.1", features = ["grpc-tonic", "trace"] }
 uuid = { workspace = true }
 
 [dev-dependencies]
@@ -121,13 +122,13 @@ uuid = { workspace = true }
 # (`crate::in_flight::register_for_tests`) without requiring callers to
 # pass `--features test-seams` on the cargo test command line.
 mike = { path = ".", features = ["test-seams"] }
-nix = { version = "0.29.0", default-features = false, features = ["user"] }
+nix = { version = "0.32", default-features = false, features = ["user"] }
 futures = "0.3"
 insta = { version = "1", features = ["json"] }
 proptest = "1"
-proptest-derive = "0.8"
+proptest-derive = "0.9"
 serial_test = { version = "4", default-features = false }
-tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "handshake"] }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "handshake"] }
 wiremock = "0.6"
 
 # Test source stays split by concern while Cargo compiles and links one harness

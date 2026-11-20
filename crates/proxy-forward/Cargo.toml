@@ -3,6 +3,7 @@ name = "proxy-forward"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish = false  # private binary, never published; satisfies cargo-deny licenses.private
 
 # The sidecar ships to users inside the `mike` binary (`mike forward`); this

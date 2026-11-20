@@ -7,7 +7,7 @@ use crate::config::paths::InstallationPaths;
 
 use super::docker_command::DockerCommand;
 
-pub(super) const DEFAULT_IMAGE: &str = "mike/postgres-pgvector:19rc1-0.8.7";
+pub(super) const DEFAULT_IMAGE: &str = "mike/postgres-pgvector:19.0-0.8.7";
 pub(crate) const DOCKERFILE: &str = include_str!("../../resources/postgres19.Dockerfile");
 const LABEL: &str = "io.temet.mike.installation";
 const MANAGED: &str = "io.temet.mike.managed-database";

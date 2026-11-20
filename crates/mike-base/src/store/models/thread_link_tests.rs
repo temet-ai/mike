@@ -53,7 +53,7 @@ fn from_body_not_json_is_none() {
 fn from_body_escaped_previous_id_is_decoded() -> anyhow::Result<()> {
     let body = [
         &br#"{"thread":{"type":"continue","previous_message_id":"msg_"#[..],
-        &[b'\\', b'u'][..],
+        &b"\\u"[..],
         &br#"0031"}}"#[..],
     ]
     .concat();

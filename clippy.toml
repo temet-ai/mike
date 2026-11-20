@@ -5,3 +5,8 @@
 cognitive-complexity-threshold = 15
 too-many-arguments-threshold = 6
 too-many-lines-threshold = 100
+
+# Handlers return an HTTP response as their error and the launch CLI returns a
+# full failure report. Clippy 1.100 began flagging both at its 128-byte default
+# (246 functions); the largest is 248 bytes. Raise this only with a measured size.
+large-error-threshold = 256

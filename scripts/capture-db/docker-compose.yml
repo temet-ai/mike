@@ -24,7 +24,7 @@ name: armitage-pg
 
 services:
   postgres:
-    image: mike/postgres-pgvector:19rc1-0.8.7
+    image: mike/postgres-pgvector:19.0-0.8.7
     build:
       context: .
       dockerfile: Dockerfile.pg19
