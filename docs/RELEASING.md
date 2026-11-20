@@ -285,18 +285,21 @@ archives and their `.sha256` files, the same files the workflow uploads.
 
 `--deploy` builds the same archive shape for a deploy to our own machines, never for a
 release: profile `infra` through the mbx cache, in `.claude/worktrees/deploy-<target>`,
-into `target/local-deploys/`. `scripts/deploy-infra [--sha <commit>]` builds infra's
-archive that way, copies it to infra and installs it there
+into `target/local-deploys/`. `scripts/deploy-infra [--sha <commit>]`, run on omit,
+writes the commit to deus's `~/.local/state/mike/arm-deploy/wanted`, starts
+`scripts/deploy-arm-local` in deus's systemd user unit `mike-arm-deploy` and returns.
+deus builds the ARM64 archive natively that way on all four of its processors, installs
+it on deus, then copies it to infra and installs it there. A commit asked for during a
+build is built next, and the ones in between are skipped
 ([`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md#infra-deploy-builds)).
 
 | Target | Built on | How |
 |---|---|---|
 | `aarch64-apple-darwin` | an Apple Silicon Mac | natively |
 | `x86_64-unknown-linux-gnu` | omit (x86_64 Linux) | cargo-zigbuild at glibc 2.35 |
-| `aarch64-unknown-linux-gnu` | omit | cross-built with cargo-zigbuild at glibc 2.35; smoke-tested under qemu |
+| `aarch64-unknown-linux-gnu` | deus for deploys; omit for releases | cargo-zigbuild at glibc 2.35, so infra's glibc 2.36 runs what deus (2.41) builds; under qemu when built on omit |
 
-An ARM64 Linux machine (infra, a Raspberry Pi) never builds mike; the script
-refuses there. The compile runs under `nice -n 10` and takes no machine-wide lock. The ARM64 smoke tests need qemu-aarch64 registered
+The compile runs under `nice -n 10` and takes no machine-wide lock. The ARM64 smoke tests need qemu-aarch64 registered
 with binfmt; the script unpacks Ubuntu 22.04's ARM64 `libc6` and `libgcc-s1`
 packages, pinned by sha256, into `~/.cache/mike-release/` as qemu's sysroot. Node
 comes from mise or nvm at the `.nvmrc` version, and cargo-zigbuild needs zig on

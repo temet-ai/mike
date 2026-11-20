@@ -127,7 +127,7 @@ def native_target(root, env):
 
 
 # The one cross-build: Linux ARM64 archives made on an x86_64 Linux host with
-# cargo-zigbuild, so the Raspberry Pi that runs them never builds mike.
+# cargo-zigbuild. deus builds its own deploy archives natively (scripts/deploy-arm-local).
 CROSS_TARGETS = {("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu")}
 QEMU_AARCH64 = Path("/proc/sys/fs/binfmt_misc/qemu-aarch64")
 

@@ -128,11 +128,12 @@ own verdict. Once a background gate has exited, read that verdict with
 
 **Which machine builds.** Build, test and push on the machine that holds your
 checkout: omit, the Mac or infra. On infra (aarch64) the pre-push hook builds and
-tests on two processors and starts the test database for the push; infra runs the aarch64
-binary omit builds. Wright commits every fix, from repair runs and issue fixers, on omit
+tests on two processors and starts the test database for the push. deus builds the
+aarch64 binary that deus and infra run: `scripts/deploy-infra`, run on omit, queues the
+commit on deus and returns, and deus builds and installs it in its own time
+(`scripts/deploy-arm-local`). Wright commits every fix, from repair runs and issue fixers, on omit
 (the fix host, `wright.followup_limits.fix_host`): infra investigates but does not repair. Heavy builds on a machine queue one at a
-time on the build lock that scripts/cx, deploy-proxy.sh and build-local-release (so
-deploy-infra's ARM build) take, and run in background.slice at the lowest priority on
+time on the build lock that scripts/cx, deploy-proxy.sh and build-local-release take, and run in background.slice at the lowest priority on
 half the processors (`scripts/lib/heavy-build.sh`), also when started over ssh. Never
 compile on omit outside those scripts, and never wrap a command in any other flock or
 shared lock. Deploy omit, the Mac, infra and deus once a batch of PRs has merged, not

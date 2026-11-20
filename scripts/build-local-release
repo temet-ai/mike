@@ -13,14 +13,15 @@
 # --deploy builds for a deploy to our own machines, never for a release: the infra
 # profile (no cross-crate LTO, more codegen units) through the mbx cache, in
 # .claude/worktrees/deploy-<target>, into target/local-deploys by default.
-# A commit then restores every crate it did not change. scripts/deploy-infra uses it.
+# A commit then restores every crate it did not change. scripts/deploy-arm-local uses it
+# on deus.
 #
 # Where each target builds:
 #   aarch64-apple-darwin       natively on an Apple Silicon Mac
 #   x86_64-unknown-linux-gnu   on x86_64 Linux, with cargo-zigbuild at glibc 2.35
-#   aarch64-unknown-linux-gnu  on x86_64 Linux, cross-built with cargo-zigbuild at
-#                              glibc 2.35 and smoke-tested under qemu-aarch64
-# An ARM64 Linux machine never builds mike; it installs what omit built.
+#   aarch64-unknown-linux-gnu  natively on ARM64 Linux (deus), or on x86_64 Linux
+#                              smoke-tested under qemu-aarch64; with cargo-zigbuild at
+#                              glibc 2.35 either way, so infra's older glibc runs it
 #
 # The commit defaults to origin/main. It builds in the detached worktree
 # .claude/worktrees/release-<target>, which keeps its build directory between
@@ -61,7 +62,7 @@ host="$(uname -s)/$(uname -m)"
 case "$target@$host" in
   aarch64-apple-darwin@Darwin/arm64) glibc="" ;;
   x86_64-unknown-linux-gnu@Linux/x86_64|aarch64-unknown-linux-gnu@Linux/x86_64) glibc="$GLIBC_FLOOR" ;;
-  *@Linux/aarch64) die "this ARM64 Linux machine never builds mike; build $target on omit and install it here" ;;
+  aarch64-unknown-linux-gnu@Linux/aarch64) glibc="$GLIBC_FLOOR" ;;
   *) die "$target is not built on $host" ;;
 esac
 
@@ -123,7 +124,7 @@ if [ -n "$glibc" ]; then
 fi
 
 # A user-space sysroot whose loader and C library let qemu run the ARM64 binaries.
-if [ "$target" = aarch64-unknown-linux-gnu ]; then
+if [ "$target" = aarch64-unknown-linux-gnu ] && [ "$(uname -m)" != aarch64 ]; then
   [ -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ] || die "register qemu-aarch64 with binfmt to smoke-test ARM64 binaries"
   sysroot="${XDG_CACHE_HOME:-$HOME/.cache}/mike-release/sysroot-aarch64-glibc$GLIBC_FLOOR"
   if [ ! -e "$sysroot/lib/ld-linux-aarch64.so.1" ]; then
