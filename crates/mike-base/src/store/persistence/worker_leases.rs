@@ -14,7 +14,7 @@ use crate::llm::LlmRole;
 mod tests;
 
 pub const MIN_LEASE_TIMEOUT: Duration = Duration::from_secs(180);
-const RENEW_EVERY: Duration = Duration::from_secs(30);
+const RENEW_EVERY: Duration = Duration::from_secs(60);
 const TIMEOUT_IN_TICKS: u32 = 3;
 
 pub fn lease_timeout(loop_interval: Duration) -> Duration {
