@@ -74,119 +74,28 @@ never with `nohup`. Deploys serialise on `.deploy/deploy.lock`. A deploy never
 starts Storybook: `systemctl --user start mike-stack-storybook` when you need it. Deploy the shared proxy from the main
 checkout only.
 
-**The change loop.** This is the whole verification a change needs before it is pushed:
-1. Make the change.
-2. While editing, at most one compile check, through `scripts/cx`, never plain
-   `cargo`: `scripts/cx check --lib -p <crate>`, where `<crate>` is the crate that
-   holds the file you edited, never `--workspace` (edits in several crates take one
-   call with a `-p` per crate). A test you are writing may be run by name once
-   (`scripts/cx nextest run -p <crate> -E 'test(<name>)'`). Frontend:
-   `scripts/sb-test --skip-typecheck <filter>`; a script: the one script test you
-   touched.
-3. Don't run what the push runs: no clippy, `lint-rust`, `fmt --check`, `test-t`,
-   crate-wide nextest or `cx check --tests` before pushing. The hook runs them; running
-   them first doubles the work and holds the build lock other sessions queue on.
-4. Commit, then push once, in the background. The pre-push hook
-   (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
-   gitleaks, semgrep, fmt, the crate-split ratchet (`scripts/crate-plan --check`, `scripts/schema-plan --check`), `lint-rust` and `scripts/test-area` (the tests of the areas
-   the push changed, in every tier) for what the push changed, plus the crates' whole
-   fast tier when a change belongs to no area (manifests, lockfile, build scripts,
-   crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the
-   `mike-dev-nightly-tests` systemd user timer on the machine whose `.env` sets
-   `MIKE_DEV_NIGHTLY_TESTS=1`). Don't run `test-area` yourself first, and never run
-   the full suite. What CI would add when it runs is in
-   [`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
-5. If the push fails, fix every failure the log shows, rerun only the failed step, and
-   push again. The hook stops before lint and tests when gitleaks, semgrep or fmt fail.
-
-Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
-push.
-
-**Hand finished branches to the lander.** On omit, don't wait on your own push: once
-the branch is committed, mail `role:lander` the worktree path, branch, and PR title and
-body, then go on working or end. The lander pushes, fixes what the hook refuses (or
-mails you the failing step), merges, removes the worktree and deploys each batch. If
-no lander is on the roster, start one with `mike spawn open` (name and role `lander`).
-
-**Done-checks run now.** A done-check runs within minutes of the deploy: drive a live
-session through the case, restart and check again, or backfill over data already
-captured. Decision points get labels now from `mike decisions replay`. Never "after a day
-of traffic", "check in a week", "once N labels collect" or "ship in shadow first", in a
-brief, a thread's next steps or an issue: finish the work in the session.
+**Shipping a change.** Check the crate you changed through `scripts/cx`
+(`scripts/cx clippy -p <crate> --all-targets`, `scripts/cx nextest run -p <crate> -E
+'test(/^<module>::/)'`; frontend `scripts/sb-test <filter>`), commit, push to `main`, then
+deploy every machine at once: `./scripts/start-proxy.sh` on omit,
+`ssh mac 'cd ~/projects/temet/mike && git pull -q --ff-only origin main && ./scripts/deploy-proxy.sh --release'`,
+and `scripts/deploy-infra` (deus builds and installs deus and infra). The push hook
+compiles nothing. Clippy and every test tier run nightly on main on omit
+(`scripts/nightly-tests`).
 
 **Rust structural limits** (graded by `scripts/lint-rust`): files ≤ 500 lines,
 functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6 arguments;
 `allow`/`expect` attributes that weaken these are rejected, so split by
 responsibility.
 
-**Long commands and gates run in the background.** Start builds, pushes and gates
-with `run_in_background`, do the next piece of work or end the turn, and let the
-harness re-invoke you when they exit. Never poll a running task (`sleep` loops,
-`tail -f`, `scripts/task-wait` on a live task) and never pipe a gate: it reports its
-own verdict. Once a background gate has exited, read that verdict with
-`scripts/task-wait <output> --grade-only`.
+**Builds.** `scripts/cx` runs cargo through the mbx cache (compiled units shared by every
+checkout and worktree on the machine), at nice 19 in background.slice on half the
+processors; builds run side by side. A hook refuses raw `cargo build|check|test|clippy|nextest`.
+Never `cargo clean`. Details: [`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
 
-**Which machine builds.** Build, test and push on the machine that holds your
-checkout: omit, the Mac or infra. On infra (aarch64) the pre-push hook builds and
-tests on two processors and starts the test database for the push. deus builds the
-aarch64 binary that deus and infra run: `scripts/deploy-infra`, run on omit, queues the
-commit on deus and returns, and deus builds and installs it in its own time
-(`scripts/deploy-arm-local`). Wright commits every fix, from repair runs and issue fixers, on omit
-(the fix host, `wright.followup_limits.fix_host`): infra investigates but does not repair. Heavy builds on a machine queue one at a
-time on the build lock that scripts/cx, deploy-proxy.sh and build-local-release take, and run in background.slice at the lowest priority on
-half the processors (`scripts/lib/heavy-build.sh`), also when started over ssh. Never
-compile on omit outside those scripts, and never wrap a command in any other flock or
-shared lock. Deploy omit, the Mac, infra and deus once a batch of PRs has merged, not
-after each PR.
-
-**Builds go through mbx.** `scripts/cx` (and so `scripts/lint-rust`) sends `check`,
-`clippy`, `test`, `nextest` and `build` through the mbx cache by itself whenever mbx is installed, into `target/mbx-<session>` (named from
-`MIKE_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`). mbx restores the units any
-earlier mbx build on this machine stored, from any checkout, worktree or directory,
-so a new worktree starts warm instead of building cold: crate `mike`'s library
-restores in seconds. `nextest` runs with `CARGO` pointing at a cargo shim that cx
-writes for the mbx it found (`~/.cache/mike-cx/bin/cargo`), so the test binaries it
-builds come from the store; there is no setup step. You type nothing extra. Every heavy build
-(`check`, `clippy`, `build`, `test`, `nextest`) runs under `nice -n 19 ionice -c 3` on
-half the processors (`MIKE_BUILD_JOBS` overrides; `scripts/lib/heavy-build.sh`). A
-project hook (`.claude/hooks/raw-cargo-guard.sh`) refuses raw
-`cargo build|check|test|clippy|nextest`; `MIKE_RAW_CARGO=1` bypasses it. The deploy build
-(`scripts/deploy-proxy.sh`, so `./scripts/start-proxy.sh`) also goes through mbx, into
-`target/mbx-deploy` under `nice -n 19 ionice -c 3`, and is skipped when the live binary
-already reports HEAD; `--build-only` builds and stages without a cutover. An mbx build
-compiles a fixed identity, so a commit restores every unit it did not change, and the
-deploy writes the commit into the staged copy (`scripts/lib/stamp_build_identity.py`)
-and refuses one whose `--build-info` is not HEAD. The rest stays on plain cargo in the
-checkout's `target/`, shared by the sessions in that checkout:
-- `build` with `MIKE_BUILD_IDENTITY=git` (`make install`, the release scripts), which
-  embeds the commit through build.rs; every other build reports `dev-build` (or
-  `mbx-build`), so a commit or branch switch never recompiles crate `mike`;
-- `scripts/sqlx-prepare`, which needs the macros to run against a database;
-- any `CARGO_TARGET_DIR` you name, such as the fleet's `target/fleet-check`.
-
-`scripts/cx` refuses plain cargo in an `mbx-*` directory (read-only hard links into
-the store). `MIKE_BUILD_CACHE=cargo` forces plain cargo; `MIKE_BUILD_CACHE=mbx` with a
-named `CARGO_TARGET_DIR` forces mbx. Without mbx installed everything is plain
-cargo. `CX_SCCACHE=1` adds sccache to plain cargo (dependencies only; it turns off
-incremental builds, so not for editing). `.cargo/config.toml` is stock. Never
-`cargo clean`. Traps and measurements:
-[`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
-
-**Worktrees.** Fleet seats never create one; they follow
-[`.claude/fleet/rules.md`](.claude/fleet/rules.md) (one checkout, one branch). The
-managed slots under `.claude/worktrees/` (`mike-check`, `mike-check-2`, `mike-gate`)
-belong to mike: never create, reset or remove them. Every other worktree is yours to
-remove as soon as its work is finished, in the same session and without being asked:
-when its branch merges or is dropped, and when a detached checkout made for a build,
-a release or a check has done its job. Run `git worktree remove <path>`, then
-`git branch -d <branch>`, which deletes its `target/`, `dist-out/` and
-`frontend/node_modules` with it. A worktree holds 12-21 GB of build output. The
-scheduled sweep (`scripts/cargo-sweep-all`) only empties a finished checkout's
-`target/`: two hours after a merged branch last built, a day after a detached
-checkout on main last built, never for a detached checkout off main. It never removes
-the worktree, its `frontend/node_modules` or its `dist-out/`. A session's
-`target/mbx-<session>` is emptied a day after it was last built in. Before a session ends,
-run `git worktree list` and remove each worktree of yours that nothing is using.
+**Worktrees.** Remove yours when its work is done (`git worktree remove <path>`, then
+`git branch -d <branch>`); a worktree holds 12-21 GB. `mike-check`, `mike-check-2` and
+`mike-gate` under `.claude/worktrees/` belong to mike.
 
 **Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
 Runtime config lives at

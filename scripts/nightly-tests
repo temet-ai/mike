@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# nightly-tests — every Rust test tier (make test-all) against the tip of main,
-# once a night, in a detached worktree of its own.
-#
-# The pre-push hook runs only the tests of the areas a push changed
-# (scripts/test-area), not each crate's whole fast tier, so a change that breaks
-# a test in an area it never touched is caught here instead. The systemd user
+# nightly-tests — clippy over the workspace (scripts/lint-rust) and every Rust test
+# tier (make test-all) against the tip of main, once a night, in a detached worktree
+# of its own. The pre-push hook compiles nothing, so this is where lint and test
+# failures on main are found. The systemd user
 # timer mike-dev-nightly-tests runs this script; start-proxy.sh enables it only
 # where .env sets MIKE_DEV_NIGHTLY_TESTS=1, the one machine that carries the run.
 #
@@ -61,15 +59,17 @@ fi
 
 sha="$(git -C "$wt" rev-parse --short HEAD)"
 "$root/scripts/wiring-new" --whole "$wt" "$sha" || true
-echo "nightly-tests: make test-all at $sha in $wt"
+echo "nightly-tests: lint-rust and make test-all at $sha in $wt"
 log="$(mktemp "${TMPDIR:-/tmp}/nightly-tests.XXXXXX")"
 trap 'rm -f "$log"' EXIT
-if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all 2>&1 | tee "$log"; [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+lint_rc=0
+MIKE_BUILD_CACHE=cargo "$wt/scripts/lint-rust" 2>&1 | tee "$log"; lint_rc=${PIPESTATUS[0]}
+if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all 2>&1 | tee -a "$log"; [[ ${PIPESTATUS[0]} -eq 0 && $lint_rc -eq 0 ]]; then
   echo "NIGHTLY-TESTS: PASS $sha"
   exit 0
 fi
 # The scheduled-jobs panel shows only the last lines, so the failures go last.
 echo "nightly-tests: what failed:"
-grep -E '^\(fail\) |^ +FAIL \[|test-mods: .* FAIL|^error(\[|:)|^make: \*\*\*' "$log" | head -40
+grep -E '^rust-lint: FAIL|^\(fail\) |^ +FAIL \[|test-mods: .* FAIL|^error(\[|:)|^make: \*\*\*' "$log" | head -40
 echo "NIGHTLY-TESTS: FAIL $sha"
 exit 1

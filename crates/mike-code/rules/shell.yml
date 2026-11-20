@@ -1,5 +1,5 @@
 id: sh-pkill-pgrep-f
-url: 'mike:lesson/2327'
+url: 'AGENTS.md#builds'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^(pkill|pgrep)\s+(-[A-Za-z]*f|--full)'}
@@ -24,7 +24,7 @@ url: 'mike:lesson/2522'
 language: bash
 severity: warning
 rule: {kind: command, regex: '^flock\b'}
-message: No ad-hoc machine-wide locks; only the heavy-build lock that scripts/cx and deploy-proxy.sh take.
+message: No ad-hoc machine-wide locks.
 ---
 id: sh-cargo-clean
 url: 'AGENTS.md#builds-go-through-mbx'
@@ -32,13 +32,6 @@ language: bash
 severity: error
 rule: {kind: command, regex: '^cargo\s+(clean|sqlx\s+prepare)'}
 message: Never cargo clean; use scripts/sqlx-prepare, not cargo sqlx prepare.
----
-id: sh-raw-cargo
-url: 'AGENTS.md#builds-go-through-mbx'
-language: bash
-severity: warning
-rule: {kind: command, regex: '^cargo\s+(build|check|test|clippy|nextest)\b'}
-message: Use scripts/cx so builds go through mbx and the build lock.
 ---
 id: sh-push-piped-to-tail
 url: 'mike:lesson/2483'

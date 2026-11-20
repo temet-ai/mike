@@ -83,7 +83,6 @@ disagree.
 | Boot config and env | `mike print-config`; `crates/mike-base/src/config/schema.rs`, `config/proxy_config_defaults.rs` |
 | Runtime settings | `GET /api/settings`; `crates/mike/src/settings/meta_*.rs` |
 | Schema | `crates/mike-base/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) has a section per table |
-| Doc drift gate | `scripts/rule-checks/judgement-context-docs.sh` (ledgers in `judgement-context-docs.d/`) |
 | User guide vs CLI | `crates/mike/tests/cli/user_guide.rs`, `scripts/check-user-guide --complete` |
 
 ## Capabilities
@@ -397,9 +396,6 @@ Facts a reader would otherwise rediscover the hard way.
   them, so they are full-only.
 - The quiescence worker, and with it the lesson proposer, runs only while
   `steerer` is on.
-- The doc drift gate (`scripts/rule-checks/judgement-context-docs.sh`) owns
-  this page too: a `schema.table` named here must exist in a migration, and the
-  ledgers under `judgement-context-docs.d/` require some fragments of it.
 - The agent names in `AGENTS.md`'s routing table (`rust-developer`,
   `frontend-developer`, …) are user-level agents, not files in this repository;
   `.claude/agents/` holds only the two fleet agents.

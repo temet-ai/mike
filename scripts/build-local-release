@@ -150,8 +150,6 @@ low_priority=()
 while IFS= read -r word; do low_priority+=("$word"); done < <(heavy_build_priority)
 CARGO_BUILD_JOBS="$(heavy_build_jobs)"
 export CARGO_BUILD_JOBS MIKE_BUILD_JOBS="$CARGO_BUILD_JOBS"
-heavy_build_lock "build-local-release $target" || die "could not take the machine's build lock"
-trap heavy_build_unlock EXIT
 echo "==> Building $target at ${sha:0:9} for a $kind under ${low_priority[*]}, $CARGO_BUILD_JOBS jobs; log: $log"
 started=$SECONDS
 release_args=(--target "$target" ${glibc:+--glibc "$glibc"})
@@ -161,7 +159,6 @@ release_args=(--target "$target" ${glibc:+--glibc "$glibc"})
   (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
   "${low_priority[@]}" env CI=true scripts/release.sh "${release_args[@]}" 8>&-
 } >"$log" 2>&1 || die "the build failed; see $log"
-heavy_build_unlock
 
 candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"
 [ -f "$candidate/manifest.json" ] || die "no candidate printed; see $log"

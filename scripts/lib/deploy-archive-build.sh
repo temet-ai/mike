@@ -40,7 +40,6 @@ else
   cargo_cmd=(env "CARGO=$shim" cargo-zigbuild zigbuild)
 fi
 
-heavy_build_lock "release.sh --deploy-build" || exit 1
 started=$SECONDS
 CARGO_BUILD_JOBS="$jobs" "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike 8>&-
 (
@@ -48,7 +47,6 @@ CARGO_BUILD_JOBS="$jobs" "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike
   CARGO_BUILD_JOBS="$jobs" MIKE_BUILD_IDENTITY=git SOURCE_DATE_EPOCH="$epoch" \
     "${priority[@]}" "${cargo_cmd[@]}" "${args[@]}" -p mike-mcp 8>&-
 )
-heavy_build_unlock
 echo "==> Compiled mike and mike-mcp ($jobs jobs) in $((SECONDS - started))s"
 
 dest="$out/$target/dist"

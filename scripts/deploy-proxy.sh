@@ -486,7 +486,6 @@ if [[ "${BUILD_NEEDED}" == "false" ]]; then
     BUILT_BIN="${LIVE_BIN}"
 else
     BUILD_JOBS="$(heavy_build_jobs)"
-    heavy_build_lock "deploy-proxy.sh build" || exit 1
     echo "==> Building mike ${RELEASE_FLAG:+(release) }through ${BUILD_CACHE} at the lowest priority (${LOW_PRIORITY[*]}), ${BUILD_JOBS} jobs"
     # Build against the committed .sqlx offline cache — this script runs with no
     # DATABASE_URL (only MIKE_DATABASE_URL, read at runtime), so without offline
@@ -511,7 +510,6 @@ else
         MIKE_BUILD_IDENTITY=git CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
             "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 8>&- 9>&-
     fi
-    heavy_build_unlock
     echo "==> Build OK in $(( SECONDS - BUILD_STARTED ))s"
 fi
 

@@ -44,7 +44,7 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 | Where | What |
 |---|---|
 | Before a commit | The staged files: secret scan, Rust and frontend formatting (fixed for you), the 500-line limit, ESLint errors on added lines |
-| Before a push | `scripts/pre-push-check`, for what changed: secret scan, SAST, the crate-split ratchet (`crate-plan --check`, `schema-plan --check`), clippy and structural lint, `scripts/test-area` (plus the fast Rust tier for a change no area owns), frontend typecheck and unit tests, cargo-deny when the lockfile changed |
+| Before a push | `scripts/pre-push-check`, for what changed: secret scan, SAST, the crate-split ratchet (`crate-plan --check`, `schema-plan --check`) and the `lint-rust` suppression, architecture and log-field checks. It compiles nothing |
 | Nightly, on the machine that turns it on | `scripts/nightly-tests` (systemd user timer `mike-dev-nightly-tests`, enabled where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`): `make test-all`, every Rust tier, at `origin/main` in `.claude/worktrees/nightly` |
 | Push to `main` | Rust `lint` and `fast`; frontend `checks` |
 | Pull request | Those plus `integration`, the DB tier in three shards with `cargo sqlx prepare --check` on shard 1, and frontend `storybook` |
@@ -54,10 +54,7 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 A failure in `lint` does not stop the tests, and the reverse. Setup shared by the jobs is
 in `.github/actions/rust-setup`.
 
-Rust and frontend changes land through a pull request; docs and scripts may be pushed
-directly. GitHub cannot require a pull request for some paths only, and requiring checks on
-`main` would block every direct push, so the hook refuses a direct Rust or frontend push and
-the `direct` job fails and runs the integration shards on any Rust commit that gets past it.
+Sessions push straight to `main`; the `direct` job runs the integration shards on any Rust commit that lands there.
 Fleet pushes skip the hook, because they have a 20 second limit and their own gates. ESLint
 is checked on added lines only, because the frontend has 823 older errors.
 

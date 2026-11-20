@@ -1,2 +1,0 @@
-exit 1
-DRIFT C1 memory.turn_verdicts docs/SCHEMA.md column "reaction" not in the section

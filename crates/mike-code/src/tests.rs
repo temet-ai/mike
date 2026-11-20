@@ -134,7 +134,6 @@ fn each_script_and_typescript_rule_fires_on_its_sample() -> Result<()> {
         ("scripts/x.sh", "pkill -f mike\n", "sh-pkill-pgrep-f"),
         ("scripts/x.sh", "git push --no-verify\n", "sh-no-verify"),
         ("scripts/x.sh", "sed -i 's/a/b/' f\n", "sh-sed-inplace"),
-        ("scripts/x.sh", "cargo build\n", "sh-raw-cargo"),
         (
             "scripts/x.sh",
             "echo x > /tmp/mike-out.txt\n",

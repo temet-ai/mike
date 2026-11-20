@@ -24,8 +24,8 @@ which embeds the commit through build.rs; the deploy build stamps it instead (be
 Every uncached subcommand stays on plain cargo, because mbx runs what it does not cache
 as plain cargo inside its own directory. Agents check and test through `scripts/cx
 check` and `scripts/cx test` (a project hook refuses raw cargo builds), a deploy runs
-once per landed change, not after each step, and heavy builds queue one at a time on
-the machine's build lock, at the lowest priority on half the processors
+once per landed change, not after each step, and heavy builds run side by side
+at the lowest priority on half the processors
 (`scripts/lib/heavy-build.sh`). Plain cargo is refused
 in an `mbx-*` directory, and `MIKE_BUILD_CACHE=cargo` forces plain cargo. What
 follows describes the explicit form, `MIKE_BUILD_CACHE=mbx` with a named directory,
@@ -92,7 +92,7 @@ from a release build in three ways, and only for a deploy:
   (thin LTO);
 - through mbx into `target/mbx-deploy-<target>` of the `deploy-<target>` worktree, via
   cargo-zigbuild with `CARGO` set to the cargo shim (`mbx_cargo_shim`), on half the
-  processors under the build lock, where a release runs one job on plain cargo;
+  processors, where a release runs one job on plain cargo;
 - `SOURCE_DATE_EPOCH` is kept out of the compile, because `build_identity.rs` reruns on
   it. mike compiles with the fixed `mbx-build` identity and is stamped with the commit;
   mike-mcp has no stamp slot and no workspace dependency, so it compiles with the commit's
