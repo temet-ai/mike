@@ -1,4 +1,4 @@
-use super::{BACKSTOP, RefreshMark, Refreshed};
+use super::{BACKSTOP, MIN_INTERVAL, RefreshMark, Refreshed};
 use crate::store::persistence::seat_memory::SeatMemoryMarks;
 use std::time::Duration;
 use tokio::time::Instant;
@@ -37,11 +37,20 @@ fn refresh_mark_same_generation_within_backstop_is_not_due() {
 }
 
 #[test]
-fn refresh_mark_moved_generation_is_due() {
+fn refresh_mark_moved_generation_is_due_after_min_interval() {
     let now = Instant::now();
     let mut mark = RefreshMark::default();
     mark.record(7, now, swept());
-    assert!(mark.due(8, now + Duration::from_secs(1)));
+    assert!(mark.due(8, now + MIN_INTERVAL));
+}
+
+#[test]
+fn refresh_mark_moved_generation_within_min_interval_is_not_due() {
+    let now = Instant::now();
+    let mut mark = RefreshMark::default();
+    mark.record(7, now, swept());
+    assert!(!mark.due(8, now + Duration::from_secs(30)));
+    assert!(!mark.due(9, now + MIN_INTERVAL - Duration::from_secs(1)));
 }
 
 #[test]
