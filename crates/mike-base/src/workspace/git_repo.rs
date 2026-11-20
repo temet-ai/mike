@@ -24,19 +24,23 @@ async fn off_request_threads_within<T: Send + 'static>(
 ) -> Option<T> {
     match tokio::time::timeout(limit, tokio::task::spawn_blocking(read)).await {
         Ok(Ok(value)) => Some(value),
-        Ok(Err(error)) => {
-            tracing::warn!(what, %error, "file read on the blocking pool failed");
-            None
-        }
-        Err(_) => {
-            tracing::warn!(
-                what,
-                limit_ms = limit.as_millis(),
-                "file read took longer than its limit; carrying on without it"
-            );
-            None
-        }
+        Ok(Err(error)) => warn_failed(what, &error),
+        Err(_) => warn_overran(what, limit),
     }
+}
+
+fn warn_failed<T>(what: &'static str, error: &tokio::task::JoinError) -> Option<T> {
+    tracing::warn!(what, %error, "file read on the blocking pool failed");
+    None
+}
+
+fn warn_overran<T>(what: &'static str, limit: Duration) -> Option<T> {
+    tracing::warn!(
+        what,
+        limit_ms = limit.as_millis(),
+        "file read took longer than its limit; carrying on without it"
+    );
+    None
 }
 
 pub async fn repo_identity_bounded(cwd: &Path) -> Option<RepoIdentity> {

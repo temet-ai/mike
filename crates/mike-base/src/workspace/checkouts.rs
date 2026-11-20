@@ -78,16 +78,9 @@ pub async fn record_origins(
     machine: Uuid,
 ) -> Result<Vec<crate::store::persistence::location_move::LocationMove>, PersistError> {
     for location in persist.locations_on_machine(machine).await? {
-        let root = Path::new(location.root_path.trim_end_matches('/'));
-        let Some(identity) = repo_identity_bounded(root).await else {
-            continue;
-        };
-        if identity.checkout_root != root {
-            continue;
-        }
-        if let Some(origin) = identity.origin_url.as_deref() {
+        if let Some(origin) = own_origin(&location.root_path).await {
             persist
-                .set_location_origin(location.location_uuid, origin)
+                .set_location_origin(location.location_uuid, &origin)
                 .await?;
         }
     }
@@ -97,6 +90,14 @@ pub async fn record_origins(
             "checkouts: a missing checkout reappeared at a new folder; its location moved there");
     }
     Ok(moves)
+}
+
+async fn own_origin(root_path: &str) -> Option<String> {
+    let root = Path::new(root_path.trim_end_matches('/'));
+    let identity = repo_identity_bounded(root).await?;
+    (identity.checkout_root == root)
+        .then_some(identity.origin_url)
+        .flatten()
 }
 
 const SCRATCH_PREFIXES: [&str; 5] = [
