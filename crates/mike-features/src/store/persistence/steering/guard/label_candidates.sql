@@ -56,21 +56,24 @@ settled AS MATERIALIZED (
           LIMIT 1
      ) f
 ),
+admitted_newest AS (
+    SELECT DISTINCT ON (n.operator_turn_id, n.question, n.trigger_point)
+           n.id, n.operator_turn_id, n.question, n.trigger_point, n.dispatched_at
+      FROM steering.evaluations n
+     WHERE n.steerer_id = $1
+       AND n.status <> 'dispatched'
+       AND (n.mode = 'shadow' OR n.arm IN ('holdback', 'precheck_held'))
+       AND n.operator_turn_id IN (SELECT s.operator_turn_id FROM settled s)
+     ORDER BY n.operator_turn_id, n.question, n.trigger_point, n.dispatched_at DESC, n.id DESC
+),
 ranked AS (
     SELECT s.*, (newer_admitted.id IS NULL AND newer_live.id IS NULL) AS is_last
       FROM settled s
-      LEFT JOIN LATERAL (
-          SELECT n.id
-            FROM steering.evaluations n
-           WHERE n.operator_turn_id = s.operator_turn_id
-             AND n.steerer_id = $1
-             AND n.status <> 'dispatched'
-             AND (n.mode = 'shadow' OR n.arm IN ('holdback', 'precheck_held'))
-             AND n.question IS NOT DISTINCT FROM s.question
-             AND n.trigger_point IS NOT DISTINCT FROM s.trigger_point
-             AND (n.dispatched_at, n.id) > (s.dispatched_at, s.id)
-           LIMIT 1
-      ) newer_admitted ON true
+      LEFT JOIN admitted_newest newer_admitted
+        ON newer_admitted.operator_turn_id = s.operator_turn_id
+       AND newer_admitted.question IS NOT DISTINCT FROM s.question
+       AND newer_admitted.trigger_point IS NOT DISTINCT FROM s.trigger_point
+       AND (newer_admitted.dispatched_at, newer_admitted.id) > (s.dispatched_at, s.id)
       LEFT JOIN live_newest newer_live
         ON newer_live.operator_turn_id = s.operator_turn_id
        AND newer_live.question IS NOT DISTINCT FROM s.question
