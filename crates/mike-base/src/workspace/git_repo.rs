@@ -1,10 +1,53 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+const FILE_READ_LIMIT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoIdentity {
     pub checkout_root: PathBuf,
     pub main_root: PathBuf,
     pub origin_url: Option<String>,
+}
+
+pub async fn off_request_threads<T: Send + 'static>(
+    what: &'static str,
+    read: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    off_request_threads_within(FILE_READ_LIMIT, what, read).await
+}
+
+async fn off_request_threads_within<T: Send + 'static>(
+    limit: Duration,
+    what: &'static str,
+    read: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    match tokio::time::timeout(limit, tokio::task::spawn_blocking(read)).await {
+        Ok(Ok(value)) => Some(value),
+        Ok(Err(error)) => warn_failed(what, &error),
+        Err(_) => warn_overran(what, limit),
+    }
+}
+
+fn warn_failed<T>(what: &'static str, error: &tokio::task::JoinError) -> Option<T> {
+    tracing::warn!(what, %error, "file read on the blocking pool failed");
+    None
+}
+
+fn warn_overran<T>(what: &'static str, limit: Duration) -> Option<T> {
+    tracing::warn!(
+        what,
+        limit_ms = limit.as_millis(),
+        "file read took longer than its limit; carrying on without it"
+    );
+    None
+}
+
+pub async fn repo_identity_bounded(cwd: &Path) -> Option<RepoIdentity> {
+    let cwd = cwd.to_path_buf();
+    off_request_threads("repo identity", move || repo_identity(&cwd))
+        .await
+        .flatten()
 }
 
 pub fn repo_identity(cwd: &Path) -> Option<RepoIdentity> {

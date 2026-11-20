@@ -2,7 +2,34 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use super::{normalize_remote, repo_identity};
+use super::{normalize_remote, off_request_threads_within, repo_identity, repo_identity_bounded};
+
+#[tokio::test]
+async fn bounded_identity_matches_the_direct_read() -> anyhow::Result<()> {
+    let tmp = tempfile::tempdir()?;
+    let main = fs::canonicalize(tmp.path())?.join("repo");
+    init_repo(&main)?;
+    fs::create_dir_all(main.join("src"))?;
+
+    let bounded = repo_identity_bounded(&main.join("src")).await;
+
+    assert_eq!(bounded, repo_identity(&main.join("src")));
+    assert_eq!(bounded.map(|id| id.checkout_root), Some(main));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_read_past_the_limit_gives_nothing_and_frees_the_caller() {
+    let limit = std::time::Duration::from_millis(20);
+    let stalled = off_request_threads_within(limit, "stalled read", || {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        1
+    });
+
+    let answer = tokio::time::timeout(std::time::Duration::from_secs(1), stalled).await;
+
+    assert_eq!(answer, Ok(None));
+}
 
 fn write(path: &Path, contents: &str) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {

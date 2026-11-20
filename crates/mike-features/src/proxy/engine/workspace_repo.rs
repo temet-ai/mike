@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::store::persistence::project_knowledge::{ProjectIdentity, RepoLocationAdoption};
 use crate::store::persistence::{PersistError, PersistHandle};
 use crate::workspace::checkouts::project_or_new;
-use crate::workspace::git_repo::repo_identity;
+use crate::workspace::git_repo::repo_identity_bounded;
 
 pub async fn bind_by_repo(
     persist: &PersistHandle,
@@ -14,7 +14,7 @@ pub async fn bind_by_repo(
     machine: Uuid,
     cwd: &str,
 ) -> Result<Option<ProjectIdentity>, PersistError> {
-    let Some(identity) = repo_identity(Path::new(cwd)) else {
+    let Some(identity) = repo_identity_bounded(Path::new(cwd)).await else {
         return Ok(None);
     };
     let Some(project_id) = project_or_new(persist, machine, &identity).await? else {

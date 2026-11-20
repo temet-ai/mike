@@ -9,7 +9,7 @@ use crate::store::persistence::project_placement::{MachineLocationRoot, Unplaced
 use crate::store::persistence::web_repo::WebPersist as _;
 use crate::store::persistence::{PersistError, PersistHandle};
 use crate::workspace::checkouts::is_scratch;
-use crate::workspace::git_repo::{RepoIdentity, repo_identity};
+use crate::workspace::git_repo::{RepoIdentity, repo_identity_bounded};
 
 const TICK: Duration = Duration::from_secs(600);
 
@@ -89,7 +89,7 @@ pub(crate) async fn reconcile_unplaced_projects(
     let mut report = ReconcileReport::default();
     let mut roots: Option<Vec<MachineLocationRoot>> = None;
     for candidate in persist.unplaced_projects().await? {
-        let Some(identity) = own_checkout(&candidate.project_path) else {
+        let Some(identity) = own_checkout(&candidate.project_path).await else {
             continue;
         };
         if roots.is_none() {
@@ -190,7 +190,7 @@ async fn record_location(
     Ok(())
 }
 
-fn own_checkout(project_path: &str) -> Option<RepoIdentity> {
+async fn own_checkout(project_path: &str) -> Option<RepoIdentity> {
     let trimmed = project_path.trim_end_matches('/');
     if is_scratch(trimmed) {
         return None;
@@ -199,7 +199,7 @@ fn own_checkout(project_path: &str) -> Option<RepoIdentity> {
     if !dir.is_absolute() {
         return None;
     }
-    let identity = repo_identity(dir)?;
+    let identity = repo_identity_bounded(dir).await?;
     (identity.checkout_root == dir && identity.main_root == dir).then_some(identity)
 }
 
