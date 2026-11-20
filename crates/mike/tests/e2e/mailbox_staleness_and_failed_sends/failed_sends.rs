@@ -101,7 +101,7 @@ async fn unknown_recipient_send_is_captured_in_failed_sends() -> anyhow::Result<
         .post(format!(
             "{inspect_url}/api/sessions/{bogus_recipient}/message"
         ))
-        .json(&json!({"message": "is anyone there"}))
+        .json(&json!({"message": "is anyone there", "unsigned": true}))
         .send()
         .await?;
     assert_eq!(resp.status(), 404);

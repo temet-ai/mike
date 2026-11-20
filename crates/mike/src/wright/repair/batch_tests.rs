@@ -218,7 +218,7 @@ async fn fix_already_merged_into_main_by_another_branch_lands_instead_of_droppin
     let batch = bench.only_batch().await?;
     sh(
         &bench.batch_dir(),
-        &["push", "--quiet", "origin", "HEAD:main"],
+        &["push", "--quiet", "--no-verify", "origin", "HEAD:main"],
     )?;
     bench.backdate(batch.id).await?;
 

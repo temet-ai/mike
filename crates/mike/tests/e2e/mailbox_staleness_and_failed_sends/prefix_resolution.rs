@@ -174,7 +174,7 @@ async fn full_uuid_send_unchanged_and_404_carries_hint() -> anyhow::Result<()> {
     let unknown = uuid::Uuid::new_v4();
     let resp = client
         .post(format!("{inspect_url}/api/sessions/{unknown}/message"))
-        .json(&json!({"message": "anyone?"}))
+        .json(&json!({"message": "anyone?", "unsigned": true}))
         .send()
         .await?;
     let status = resp.status();

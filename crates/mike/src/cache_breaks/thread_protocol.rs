@@ -153,11 +153,13 @@ pub fn spawn_delta_correction(state: &AppState) {
 
 pub(crate) fn correction_row(progress: Option<&CorrectionState>) -> CapabilityRow {
     let Some(p) = progress else {
-        return row(
-            CapabilityState::Off,
-            "The thread-delta correction has not started".to_owned(),
-            String::new(),
-        );
+        return CapabilityRow {
+            id: CORRECTION_ID,
+            label: CORRECTION_LABEL,
+            state: CapabilityState::Off,
+            detail: "The thread-delta correction has not started".to_owned(),
+            fix: String::new(),
+        };
     };
     let detail = if p.finished {
         format!(

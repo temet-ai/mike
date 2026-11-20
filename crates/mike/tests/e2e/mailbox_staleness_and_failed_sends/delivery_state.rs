@@ -172,7 +172,7 @@ async fn post_message_response_carries_recipient_delivery_state() -> anyhow::Res
         .post(format!(
             "{inspect_url}/api/sessions/{active_session}/message"
         ))
-        .json(&json!({"message": "hello active recipient"}))
+        .json(&json!({"message": "hello active recipient", "unsigned": true}))
         .send()
         .await?;
     assert_eq!(resp.status(), 201);
@@ -188,7 +188,7 @@ async fn post_message_response_carries_recipient_delivery_state() -> anyhow::Res
         .post(format!(
             "{inspect_url}/api/sessions/{silent_session}/message"
         ))
-        .json(&json!({"message": "hello silent recipient"}))
+        .json(&json!({"message": "hello silent recipient", "unsigned": true}))
         .send()
         .await?;
     assert_eq!(resp.status(), 201);

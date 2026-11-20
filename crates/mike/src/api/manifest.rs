@@ -378,6 +378,8 @@ mod tests {
             "db_cost",
             "memory_keeper",
             "prompt_cache",
+            "thread_protocol",
+            "thread_delta_correction",
         ];
         assert_eq!(rows.len(), expected_ids.len());
         for (row, expected_id) in rows.iter().zip(expected_ids) {

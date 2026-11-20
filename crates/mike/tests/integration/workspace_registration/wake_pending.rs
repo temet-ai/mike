@@ -54,7 +54,7 @@ async fn wake_pending_known_pid_with_queued_reminder_returns_counts() -> anyhow:
             "{}/api/sessions/{session}/message",
             handle.inspect_url
         ))
-        .json(&json!({"message": "wake up"}))
+        .json(&json!({"message": "wake up", "unsigned": true}))
         .send()
         .await?;
     assert_eq!(
