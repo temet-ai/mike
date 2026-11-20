@@ -43,15 +43,14 @@ Your brief names the project and the fleet slug; the tasks are written. Read the
 2. **Put each task in an area.** A task that spans two areas is split by the fleet's author or goes to the area that holds most of its files. This fleet's disciplines are the areas its tasks fall in.
 3. **Bring the existing specialists up to date.** Each `capability` note records the commit its files were written at. For every specialist this fleet will use, read what changed in its area since then (`git log --stat <commit>..HEAD -- <area paths>`), the lessons and corrections recorded since, and the agents and skills nobody invoked; change the file where a path, a command, a guide section or a trap it names is no longer true. A specialist whose area has not changed is used as it is.
 4. **Return the plan before you write anything:** per area this fleet needs, its tasks and the evidence (files, commands, guide sections); the project's existing specialist for it, or the one to write; the skills its tasks share (a recipe at least two tasks need). The fleet's author sets `workers` (one per area, `agent` the specialist) and each task's `discipline` from it.
-5. Check the project’s formatter read-only on untouched task files, with its actual edition/config; report failures without rewriting.
 
 ## In the retro
 
 Your brief names the run and the gaps table. Read the run against the files it used: FAIL reasons per discipline, recipes still done by hand, skills never invoked, guide sections the verdicts turned on that the agent did not point to. Change those files; write new ones only for a gap no file covers; remove lines and skills the run showed nobody needed. Each change cites the run's evidence.
 
-## Check and commit
+## Note
 
-Run `claude plugin validate .claude/agents` and the same for `.claude/skills`, once. Commit on the branch your brief names, by path, and write one `finding` note tagged `capability`: the commit the files describe, each file and the sources its lines came from.
+Write one `finding` note tagged `capability`: the commit the files describe, each file and the sources its lines came from.
 
 ## Never
 

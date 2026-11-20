@@ -29,17 +29,15 @@ Your brief names the run id. Start in the mike repository's main checkout.
    - **keep**, with the evidence that it earns its place.
    A unit that carries an operator ruling (it names the operator and a date) may be shortened or merged, never dropped: list it under "for the operator" with the cost you measured.
 4. For each issue the run filed whose change adds a rule, comment on it: the existing unit, criterion or gate that caused the defect, and the cut or change to it that would have prevented it without a new line. An addition the observer could not avoid names the unit it replaces.
-5. Apply the cuts in one commit on `main` in the mike repository: the files, then `fleet-text-budget.baseline` lowered to the new total. The commit message lists every unit cut, merged, shortened or moved, with its reason in one line. Push it. The text is built into mike (`crates/mike-fleet/src/launch/fleet/bundle.rs`) and installed for every project at the next deploy; do not deploy yourself.
+5. Apply the cuts to the files, then lower `fleet-text-budget.baseline` to the new total. The text is built into mike (`crates/mike-fleet/src/launch/fleet/bundle.rs`).
 6. Write one `finding` note tagged `rule-audit`: words per seat before and after, the units changed, the issues commented, and what is left for the operator.
 
 ## On a draft definition
 
 The author passes the fleet slug. Read it with `get_fleet` and return a list of changes; you do not edit the definition. Look for:
 - A criterion that says every X at every Y. One representative per kind, the rest by unit test, unless the operator's words require all.
-- A gate or check that runs the full suite per commit. Quick per commit, full once at the close.
 - An `after` chain that makes a task wait for more than its first step needs; a closing task that gathers the work of many (split it).
-- A test or snapshot obligation with no budget: the check's total time, and how many recordings a task may add.
-- Run `rules` that restate the fleet rules or add a lock, a hold, a lane or a second checkout.
+- Run `rules` that restate the fleet rules.
 - More control seats than the work needs.
 - A discipline with no specialist agent when the project's files describe its area: it needs one, and its skills.
 

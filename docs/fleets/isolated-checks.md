@@ -39,18 +39,16 @@ output says so. Switching commits refuses to overwrite an ignored obstruction.
 Tracked, staged and untracked peer files in the shared checkout are left untouched.
 
 Each slot retains its own ignored build cache. Mike does not copy the shared
-target tree, arbitrary untracked files or `node_modules`. The configured command
-must prepare the ignored dependencies it needs on first use. Mike's internal Git
+target tree, arbitrary untracked files or `node_modules`. Mike's internal Git
 preparation and verification disable Git hooks command-locally
 (`core.hooksPath=/dev/null`, `launch/fleet/owned_git.rs`); ordinary commit hooks
-are unchanged. Projects relying on checkout-hook setup must express that setup
-inside the configured grading command. Failure output names this boundary.
+are unchanged. Failure output names this boundary.
 
 Post-run source verification checks the captured SHA and tracked and untracked
 working-tree state (`launch/fleet/gate_source.rs`). Mutation or unavailable
 verification invalidates reusable proof, even if the process originally returned
 zero. After a run, files the command changed in the slot are put back and the
-output names them; a check must not write source files. Diagnostics are
+output names them. Diagnostics are
 interpreted relative to the actual execution checkout. Ownership notifications do
 not prove who caused a failure; genuinely committed defects remain failures.
 
@@ -73,11 +71,6 @@ of arbitrary Git-filter descendants before the lock is released. Canceled,
 timed-out or source-unverified work does not become a successful grade.
 
 # Early shared scaffolds
-
-When tasks share a file, the producer's compiling scaffold is committed before
-later contributions. Queue the narrow project compile check through
-`fleet_check(command)` and wait for a real pass; the scaffold is not final
-acceptance.
 
 Shared files may receive successive named commits. `fleet_commit` snapshots whole
 files, not selected authors' hunks: coordinate their complete contents and never

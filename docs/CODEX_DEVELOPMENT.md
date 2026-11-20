@@ -3,7 +3,7 @@ title: Developing the Codex client
 status: active
 created: 2026-11-12
 updated: 2026-11-12
-summary: The independent managed Codex client, its Mike integration boundary, and focused development checks.
+summary: The independent managed Codex client and its Mike integration boundary.
 ---
 
 # Developing the Codex client
@@ -27,42 +27,6 @@ Codex installation, credentials, model inference, database or running Mike.
 The existing opt-in real-Codex tests remain host integration tests; a fake-server
 test is not evidence that a new Codex version emits the same protocol.
 
-## Focused checks
-
-From the repository root:
-
-```sh
-scripts/cx test -p mike-codex
-scripts/cx check -p mike-codex --lib
-scripts/lint-rust -p mike-codex
-```
-
-Choose the appropriate narrow check for the change and run Rust lint after the
-last edit, following [the project check workflow](GITHUB_WORKFLOWS.md).
-Do not run every command above for every edit. Cargo still needs a host
-integration build when Mike consumes a changed client; extraction does not
-eliminate that cost.
-
-The push gate checks changed workspace packages and their dependent consumers,
-including development/build dependencies. Changes to workspace configuration or
-unresolved source ownership retain conservative coverage. The changed-area test
-runner selects packages and targets before filtering tests, so unrelated test
-executables do not have to build for a focused adapter run.
-
-The initial extraction was measured on 2026-11-12 in the existing checkout:
-
-| Check | Elapsed | Result |
-| --- | --- | --- |
-| Existing managed-client tests in `mike` | 783.8 seconds | 8 passed |
-| Extracted `mike-codex` suite | 9.3 seconds | 13 passed |
-| Client and host Rust lint (`-p mike-codex -p mike`) | 502.2 seconds | Passed, including all-target Clippy compilation |
-
-These timings include compilation. Cache state and shared-host load differed, so
-these are observed command times, not a controlled speedup ratio or a measurement
-of the complete delivery gate. The extracted suite includes subprocess lifecycle
-tests; its one ignored entry is the fake app-server executable used by those
-tests. The old host run excluded the database-backed thread-binding test.
-
 ## Integration boundary
 
 The shared observation work for [#181](https://github.com/temet-ai/mike/issues/181)
@@ -79,10 +43,6 @@ partial results as complete. Provider fixture and malformed/oversized-stream
 tests run here. Host integration tests cover the boundary: identity, atomic
 facts/retry handling, quotas, mail state and common reader results. They do not
 repeat the entire provider protocol fixture matrix inside Mike.
-
-When extending the client, keep its dependency tree independent of Mike even in
-tests. Use the host tests to verify registration, mail and database integration;
-do not pull those systems into the client test suite.
 
 ## Experimental network proxy
 

@@ -14,8 +14,7 @@ Write the definition with `define_fleet`; mike starts it. Do not coordinate, lau
 
 ## Ground rules
 
-- **Read only:** this file; `.claude/fleet/rules.md` (fallback: `~/.local/state/mike/fleet/rules.md`); the project's instructions, `.claude/fleet/project.md` and source needed to trace criterion paths.
-- **Never investigate or test the launcher** (`mike spawn doctor`, settings, panes). `define_fleet` and `at_ready` supply its checks.
+- **Read only:** this file; `.claude/fleet/rules.md` (fallback: `~/.local/state/mike/fleet/rules.md`); the project's instructions and source needed to trace criterion paths.
 - **Create the fleet within your first five tool calls,** then fill it in a few items to a call.
 - **A fleet needs at least two tasks that can run at the same time on files that do not overlap.** Otherwise say so and stop: that is one session, not a fleet.
 
@@ -32,42 +31,23 @@ Write the definition with `define_fleet`; mike starts it. Do not coordinate, lau
 
    A fleet's only seats are the workers, their templates and the reference seat; write no coordinator, acceptance or observer. mike runs the floor at each reported commit, then the judge, the checker and the problem-solver, and the retrospective reads the run after it closes. A discipline is a name you choose for tasks that share the same reading (`backend`, `web`, `docs`).
 
-   **Every discipline runs as the project's own specialist for that area** (`rust-developer`, `frontend-developer`), never a fleet-shaped worker. When the project already has one for every discipline, set `workers` yourself. Otherwise, after step 6, dispatch one `fleet-capability-author` subagent (`model: "opus"`) with the project and the slug. It returns each task's area and that area's specialist and skills, written or updated and tested; set `workers` and each task's `discipline` from it.
+   **Every discipline runs as the project's own specialist for that area** (`rust-developer`, `frontend-developer`), never a fleet-shaped worker. When the project already has one for every discipline, set `workers` yourself. Otherwise, after step 6, dispatch one `fleet-capability-author` subagent (`model: "opus"`) with the project and the slug. It returns each task's area and that area's specialist and skills, written or updated; set `workers` and each task's `discipline` from it.
 
    **Goals.** `{criteria}` means criterion ids and this task’s contribution, not fleet-wide completion. A worker with a goal (`goals.workers` with `{task}`, `{name}` and `{criteria}`; `tasks.<id>.goal` for one task) keeps working until it holds. A goal has four parts: one measurable end state; the check that shows it, which the seat must put in its own output because the judge reads only the conversation; the constraints on the way; and a bounded handoff. Use the worker's own `Fleet-Seat` SHA and `fleet_report`, never shared HEAD or a later verdict.
 
    **Decisions.** `decisions` {`stop_check`, `wake_check`, `triage`, `commit_message`, `effort`} each take `off`, `shadow` or `on` (default `on`, and only while mike's global `decisions` toggle is on); `workers.<discipline>.decisions` overrides them for one worker. Leave them alone unless the operator names one.
-5. **The check, the commit check and the gate.** Take all three from `.claude/fleet/project.md` when it names them. Leave `reference` alone.
-   - `check.command`: the one command that says whether the tree is sound (`cargo check --workspace`, `npm run typecheck`); `check.paths`: what its answer depends on. The command owns its dependency setup and cache policy.
-   - `commit_check.command` and `commit_check.files`: the project’s check-only formatter and file endings, only after the capability author proves the untouched owned files pass it. Config existence proves nothing; keep existing style when the baseline fails.
-   - `gate.command`: the quick form of the project's gate, since mike runs it on every pushed commit; the full gate runs once, at the close. It must not change files. Startup runs it on a clean checkout before opening seats; a verified red baseline starts only a nominated `baseline.repair_task`, until it fixes it.
 6. **Tasks,** a few to a call. `tasks.T1` and so on, each with:
    - `name`; `discipline` (a key under `workers`); `criteria` (the ids it serves);
    - `files`: paths it may touch, including generated snapshots. Give each output a producer and scoped update command; `shared_files` alone names no producer.
    - `after`: at most three task ids it cannot start without; it waits for their passing floor and judge, not the close.
-   - `brief`: one independent task, its criteria, owned files, what to read first (threads by slug), and how to exercise or inspect its outcome. The seat knows only the rules, the definition and this brief.
+   - `brief`: one independent task, its criteria, owned files, and what to read first (threads by slug). The seat knows only the rules, the definition and this brief.
 
    Start independent tasks together. Enumerate required screens and interactions, with their fixture/reference/demo-data producers. Put the thinnest real end-to-end path and these producers in the first wave. Integration is never a closing collection task.
-7. **Rules.** `rules`: only what no seat may do in this run in particular. Never a second checkout, a branch, a lock, a limit on seats or a new kind of seat.
-8. **Fix what the answer lists**: `missing`, `at_ready.machine` (what this machine would refuse) and `at_ready.starts`, until both lists are empty, or until `missing` is empty when there is no `at_ready`.
+7. **Rules.** `rules`: only what no seat may do in this run in particular.8. **Fix what the answer lists**: `missing`, `at_ready.machine` (what this machine would refuse) and `at_ready.starts`, until both lists are empty, or until `missing` is empty when there is no `at_ready`.
 9. **Send `ready: true`** (not in `--drill`). With the `fleet_auto_start` setting off, the fleet waits for `mike fleet start <slug>`.
 10. **Report and stop.** The slug, `mike fleet status <slug>`, the workspace name (`fleet-<slug>-<8 hex>`), the seats and tasks started, the tasks waiting, and which seats carry a goal. If the start `failed`, read `start_report` in `get_fleet`, fix the definition and send `ready` again.
 
 When `at_ready.machine` says the fleet does not fit the terminal, do not add `after` or switch `reference` off: report the two numbers to the operator, or cut the goal and name the rest for the next fleet.
-
-## A project with no `.claude/fleet/project.md`
-
-Write it before step 5, in under twenty lines, from the repository's instruction file and build files:
-
-```markdown
-# This project: how it is built and checked
-
-- The fleet's check is `<check.command>`.
-- After an edit: `<the narrowest form of the check>`; one test: `<how to run one test>`.
-- The quick gate is `<gate.command>`; the full gate is `<full gate>`.
-- Formatting baseline: `<check-only command and result>`; scoped formatter: `<scoped command>`.
-- <what a seat would get wrong here: a build that cannot run twice at once, a generated folder nobody edits, a port each seat must choose>
-```
 
 Write `.claude/fleet/templates/<discipline>.md` only for a discipline with three or more tasks that all need the same large documents: those documents, in reading order.
 

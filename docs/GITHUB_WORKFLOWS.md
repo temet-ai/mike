@@ -54,10 +54,6 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 A failure in `lint` does not stop the tests, and the reverse. Setup shared by the jobs is
 in `.github/actions/rust-setup`.
 
-Sessions push straight to `main`; the `direct` job runs the integration shards on any Rust commit that lands there.
-Fleet pushes skip the hook, because they have a 20 second limit and their own gates. ESLint
-is checked on added lines only, because the frontend has 823 older errors.
-
 **Concurrency:** `rust-quality-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress` set for pull requests only. On a pull request only the latest push runs. On `main` a running job finishes and the newest push queues behind it, so a busy branch still gets a verdict (the caller's workflow name is in the group so a candidate run cannot cancel a main run).
 
 **External actions used:** `actions/checkout`, `dtolnay/rust-toolchain`, `taiki-e/install-action` (sccache, nextest, cargo-deny), `Swatinem/rust-cache`.
@@ -123,9 +119,6 @@ svelte-check, unit, integration, and Storybook browser tests), then runs
 
 **Concurrency:** `ui-usability-${{ github.ref }}`, cancel-in-progress.
 
-**Setup:** add an `ANTHROPIC_API_KEY` repo secret to enable the `grade` job; the `gate` job runs
-regardless.
-
 The grep checks the `gate` job runs are written into `scripts/usability-gate.sh`, and the
 `grade` job's four rubric dimensions are written into the workflow's prompt; neither reads a
 skill file. The `grade` job is currently switched off in the workflow (`if: false`, with the
@@ -156,11 +149,3 @@ GitHub Actions versions update weekly as one group. Nothing merges automatically
 Code scanning is CodeQL default setup, configured in the repository's settings rather than a
 workflow file. `dependency-review.yml` fails a pull request that adds a high or critical
 advisory.
-
----
-
-## Repository Actions settings (important)
-
-The workflows use external GitHub-hosted actions (`actions/checkout`, `dtolnay/rust-toolchain`, `taiki-e/install-action`, `Swatinem/rust-cache`, `pnpm/action-setup`, `actions/setup-python`, `actions/setup-node`).
-
-**The repo must have Actions permissions set to "Allow all actions and reusable workflows"** (Settings → Actions → General → Actions permissions). If this is changed to "Allow local actions only" or a restricted allowlist, every workflow fails immediately with `startup_failure` (zero jobs start, zero log output). This is not an outage — it is a settings misconfiguration. (The public repository is set to "all actions" with Actions enabled. The private development repository has Actions disabled altogether, so its workflows do not start at all.)

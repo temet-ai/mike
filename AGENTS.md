@@ -28,8 +28,7 @@ record, questions),
 `crates/mike-features` (proxy features, dossier, steering, eval), `crates/mike-lessons`
 (lessons, memory keeper, recall, lesson delivery; reached by the proxy through
 `LessonHooks`) and `crates/mike`
-(API, serve, CLI, binary). Modules keep their paths in every crate; `scripts/crate-plan`
-names the crate a new module belongs in.
+(API, serve, CLI, binary). Modules keep their paths in every crate.
 Design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); only
 the non-obvious parts are here.
 
@@ -58,21 +57,12 @@ new MCP tool or route.
 
 | Task                      | Command                                                                                                                                                                              |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Build / test / lint / fmt | `make build` · `make test` (no DB) · `make test-db` · `make test-all` · `make lint` · `make fmt`                                                                                     |
-| Narrow a test run         | `make test-p p=<crate>` · `make test-t t=<filter>`                                                                                                                                   |
-| Full local gate           | `scripts/gate [--json] [target]` (default `check`)                                                                                                                                   |
-| Raw cargo                 | `scripts/cx <cargo args>` — loads `.env` (DB URL) and the target dir; use when no make target fits                                                                                   |
-| Install the MCP binary    | `make install` (builds `mike-mcp` into `~/.local/bin/`)                                                                                                                              |
 | Run the stack             | `./scripts/start-proxy.sh` builds and deploys what changed, without asking. Then `cc` (`scripts/shell/cc.zsh`, via the sidecar) or `ANTHROPIC_BASE_URL=http://localhost:9988 claude` |
 | Launch a session          | `mike spawn open <folder> [claude args…]` · `list` · `kill --session <uuid>` · `doctor` — see [`docs/LAUNCH_DOMAIN.md`](docs/LAUNCH_DOMAIN.md)                                       |
-| Every target              | `make help`                                                                                                                                                                          |
 
 **Stack supervision.** Proxy, sidecar, prompt assistant, SPA and Storybook
 run as systemd user units `mike-stack-*` (templates in
-`scripts/systemd/`); logs in `.deploy/*.log`. Start them through the scripts,
-never with `nohup`. Deploys serialise on `.deploy/deploy.lock`. A deploy never
-starts Storybook: `systemctl --user start mike-stack-storybook` when you need it. Deploy the shared proxy from the main
-checkout only.
+`scripts/systemd/`); logs in `.deploy/*.log`.
 
 **Shipping a change.** Commit, push to `main`, then deploy every machine at once: `./scripts/start-proxy.sh` on omit,
 `ssh mac 'cd ~/projects/temet/mike && git pull -q --ff-only origin main && ./scripts/deploy-proxy.sh --release'`,
@@ -84,15 +74,6 @@ compiles nothing. Clippy and every test tier run nightly on main on omit
 functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6 arguments;
 `allow`/`expect` attributes that weaken these are rejected, so split by
 responsibility.
-
-**Builds.** `scripts/cx` runs cargo through the mbx cache (compiled units shared by every
-checkout and worktree on the machine), at nice 19 in background.slice on half the
-processors; builds run side by side. A hook refuses raw `cargo build|check|test|clippy|nextest`.
-Never `cargo clean`. Details: [`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
-
-**Worktrees.** Remove yours when its work is done (`git worktree remove <path>`, then
-`git branch -d <branch>`); a worktree holds 12-21 GB. `mike-check`, `mike-check-2` and
-`mike-gate` under `.claude/worktrees/` belong to mike.
 
 **Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
 Runtime config lives at
@@ -114,7 +95,7 @@ session actually got.
 
 These are user-level agents (`~/.claude/agents/`), not files in this repository; `.claude/agents/` holds only the
 two fleet agents. Where a named agent is not installed, the general-purpose agent does that work.
-Hand an agent well-specified or multi-file work and read its report when it returns; do not re-run its checks.
+Hand an agent well-specified or multi-file work and read its report when it returns.
 Make small edits and subtle or cross-cutting changes yourself.
 
 ## Conventions
@@ -129,8 +110,7 @@ Make small edits and subtle or cross-cutting changes yourself.
 - **Code search.** `rg` for most searches (config keys, SQL, CSS, docs, comments). `scripts/callsites <sym>` or ast-grep
   when the answer must be complete — every call site before changing a signature, every `sqlx::query!` before a schema
   change. LSP for definitions and references.
-- **Frontend tests** run only through `scripts/sb-test`, never `pnpm test` or raw `vitest`. Storybook's Foundations
-  stories are the visual source of truth.
+- Storybook's Foundations stories are the visual source of truth.
 
 ### Database
 
@@ -139,8 +119,6 @@ Make small edits and subtle or cross-cutting changes yourself.
   Tests never touch the capture DB.
 - Migrations: `crates/mike-base/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
   while the ledger differs from the binary.
-- Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
-  session in the checkout.
 - Read-only SQL:
   `PGOPTIONS='-c statement_timeout=5000 -c lock_timeout=2000' docker exec armitage-pg psql -U mike_adhoc -d claude_proxy -X -At -c "<select>"`,
   time-bounded on large tables. Prefer the `mike-mcp` read tools. Ad-hoc queries and benchmarks
@@ -153,31 +131,15 @@ All resolve the repo root themselves.
 
 | Tool                                                     | Use it for                                                                                                               |
 |----------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `scripts/fidelity-check` (`make fidelity`)               | Inspection-fidelity check on added lines; `git add -N` untracked files first                                             |
-| `scripts/test-commit-gates` (`make gate-tests`)          | Regression suite for the landing gates                                                                                   |
-| `scripts/test-timing` (`make test-timing`)               | Where each test suite spends its time; report folder it prints                                                           |
 | `scripts/spill-query <file> [PATTERN] [--jq E]`          | Query harness spill files instead of reading them whole                                                                  |
-| `scripts/expensive-cmd-cache run\|show\|grep`            | Run an expensive gate once, filter the cached output after                                                               |
 | `scripts/component-index [word]`                         | Which component implements each style-guide pattern                                                                      |
 | `scripts/story-shot [--shot] <word>`                     | Find stories; `--shot` saves cropped pictures to Read (needs Storybook running)                                          |
 | `scripts/motion-shot <word> [--do …]`                    | Film one state change in a story frame by frame; never alongside `sb-test`                                               |
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
 | `scripts/module-graph [deps\|users <module>]`          | Crate mike's module dependency graph and its largest cycle |
-| `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades the split crates against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
-| `scripts/schema-plan [--writes N\|--reads N\|--table T]` | Grades the SQL against schema ownership: foreign writes, foreign reads, migrations per schema ([ADR 0003](docs/adr/0003-schema-per-crate.md)) |
-| `scripts/wiring-new <A>..<B>` · `--whole`                | Code a range adds that nothing calls, registers, spawns, reads or consumes (`mike structural wiring`, rules in `.mike/structural/wiring.yml`); the push hook runs it and fails on a pub fn with no caller (other kinds report only), nightly records the whole-tree counts |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |
 | `scripts/cargo-dep-info <crate>[@ver]`                   | Latest version, yanked flag, MSRV, dependents                                                                            |
-
-## After pulling changes
-
-| What changed       | What to do                                                      |
-|--------------------|-----------------------------------------------------------------|
-| `crates/mike-mcp/` | `make install` (on infra, `scripts/deploy-infra` run on omit), then restart Claude Code |
-| `crates/mike*/`    | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
-| `frontend/` only   | Nothing; the SPA hot-reloads                                    |
-| migrations         | Restart the stack — migrations run on startup                   |
 
