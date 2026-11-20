@@ -15,7 +15,7 @@ use crate::reminders::RemindersOutcome;
 use crate::reminders::change_record_tail::{
     ChangeRecordTailStage, TAIL_HEADING, tail_reminder, tail_reminder_text,
 };
-use crate::reminders::client_context::prompt_context;
+use crate::reminders::client_context::prompt_context_within;
 use crate::reminders::stage_test_support::{StageCtxFixture, make_ctx};
 use crate::store::models::RequestId;
 use crate::store::persistence::change_record::test_seed::{self, Fixture};
@@ -230,6 +230,11 @@ async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::state::AppS
     Ok(state)
 }
 
+/// `prompt_context` gives each gathered part 200 ms of wall clock and drops a part that
+/// misses it, so on a busy machine the tail comes back absent. This test is about the
+/// cursor, not the deadline, so it gives the gather a budget no database read reaches.
+const UNBOUNDED: std::time::Duration = std::time::Duration::from_secs(3600);
+
 #[tokio::test]
 async fn context_tail_advances_the_cursor_once_and_the_stage_stands_aside() -> anyhow::Result<()> {
     let Some(seat) = seat().await? else {
@@ -239,10 +244,10 @@ async fn context_tail_advances_the_cursor_once_and_the_stage_stands_aside() -> a
     let me = seat.me.to_string();
     seat.i_edit("src/ctx.rs").await?;
     seat.other_edits("src/ctx.rs").await?;
-    prompt_context(&state, seat.me, &me, &seat.checkout).await;
+    prompt_context_within(&state, seat.me, &me, &seat.checkout, UNBOUNDED).await;
 
     seat.other_edits("src/ctx.rs").await?;
-    let blocks = prompt_context(&state, seat.me, &me, &seat.checkout).await;
+    let blocks = prompt_context_within(&state, seat.me, &me, &seat.checkout, UNBOUNDED).await;
     let [block] = blocks.as_slice() else {
         anyhow::bail!("expected exactly the tail block: {blocks:?}");
     };
