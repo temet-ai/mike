@@ -23,7 +23,12 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				parser: ts.parser
+				parser: ts.parser,
+				// Type information lets svelte/no-navigation-without-resolve accept any
+				// value typed `ResolvedPathname` (what resolve() returns), not only a
+				// literal resolve() call.
+				projectService: true,
+				extraFileExtensions: ['.svelte']
 			}
 		}
 	},
@@ -46,24 +51,9 @@ export default defineConfig(
 		}
 	},
 	{
-		rules: {
-			'@typescript-eslint/no-unused-vars': [
-				'error',
-				{
-					argsIgnorePattern: '^_',
-					varsIgnorePattern: '^_',
-					caughtErrorsIgnorePattern: '^_'
-				}
-			]
-		}
-	},
-	{
 		files: ['**/*.svelte'],
 		rules: {
-			'svelte/valid-compile': ['error', { ignoreWarnings: true }],
-			// eslint-plugin-svelte 3.24 added this to `recommended`. The SPA has no
-			// `paths.base`, so resolve() would be a no-op on every link and goto().
-			'svelte/no-navigation-without-resolve': 'off'
+			'svelte/valid-compile': ['error', { ignoreWarnings: true }]
 		}
 	},
 	{

@@ -91,7 +91,7 @@
 		restoreErrors = nextErrors;
 		try {
 			await restoreLesson(action.lesson_id);
-			restoredActionIds = new Set(restoredActionIds).add(action.id);
+			restoredActionIds = new Set([...restoredActionIds, action.id]);
 			restoreAnnouncement = `Lesson #${action.lesson_id} restored.`;
 		} catch (err) {
 			restoreErrors = {

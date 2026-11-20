@@ -47,11 +47,7 @@
 			collapseStore.toggle(agentOpenKey(agentId));
 			return;
 		}
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- copy-mutate-reassign pattern: `next` is a throwaway local, never read while being mutated; reactivity comes from replacing `expandedAgentsLocal` below, not from in-place mutation
-		const next = new Set(expandedAgentsLocal);
-		if (next.has(agentId)) next.delete(agentId);
-		else next.add(agentId);
-		expandedAgentsLocal = next;
+		expandedAgentsLocal = new Set(expandedAgentsLocal.has(agentId) ? [...expandedAgentsLocal].filter((v) => v !== agentId) : [...expandedAgentsLocal, agentId]);
 	}
 
 	let allRuns = $state<WorkflowRunDto[]>([]);

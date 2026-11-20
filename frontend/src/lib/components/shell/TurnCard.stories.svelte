@@ -133,7 +133,6 @@
 			turn: TURN,
 			eventTurn: EVENT_TURN,
 			index: 2,
-			isFirst: false,
 			toolCalls: TOOL_CALLS,
 			ledgerUnavailable: false,
 			live: false,

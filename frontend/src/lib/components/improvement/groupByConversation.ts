@@ -1,14 +1,15 @@
+import type { ResolvedPathname } from '$app/types';
 export const NO_PROJECT = 'No project';
 
 export interface ConversationItem {
 	projectLabel: string;
 	projectPath?: string | null;
-	sessionHref: string;
+	sessionHref: ResolvedPathname;
 	sessionTitle: string;
 }
 
 export interface Conversation<T> {
-	href: string;
+	href: ResolvedPathname;
 	title: string;
 	items: T[];
 }

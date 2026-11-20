@@ -9,7 +9,6 @@
 	interface Props {
 		turn: OperatorTurnDto;
 		index: number;
-		isFirst: boolean;
 		toolCalls: ToolUseDto[];
 		ledgerUnavailable: boolean;
 		live: boolean;

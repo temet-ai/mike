@@ -63,7 +63,7 @@ reviewer's evidence, loads since it was written, and the user's decision.
 
 	const backHref = $derived(
 		draft
-			? `${resolve('/skills')}?project=${encodeURIComponent(draft.project_uuid)}`
+			? resolve(`/skills?project=${encodeURIComponent(draft.project_uuid)}`)
 			: resolve('/skills')
 	);
 
@@ -108,7 +108,6 @@ reviewer's evidence, loads since it was written, and the user's decision.
 
 <section class="sd-scroll" aria-label="Skill">
 	<div class="sd">
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- backHref is built from resolve('/skills') plus a query string -->
 		<a class="sd-back" href={backHref}><ArrowLeft class="size-4" aria-hidden="true" /> Skills</a>
 
 		{#if data.error || !detail || !draft}

@@ -1,3 +1,5 @@
+import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import { UNRESOLVED_PERSONA_SEGMENT } from '$lib/api';
 import { formatRelative } from '$lib/time';
 import type { PromptAnomalyGroup, PromptClassDto, PromptSubPattern } from '$lib/types';
@@ -17,7 +19,7 @@ export interface PromptCatalogueRowViewModel {
 	lastSeenLabel: string | null;
 	firingRuleCount: number;
 	actionLabel: string;
-	href: string;
+	href: ResolvedPathname;
 	sortAnchor: number;
 }
 
@@ -61,10 +63,12 @@ function displayNameForClass(dto: PromptClassDto): string {
 	return 'Subagent (persona unresolved)';
 }
 
-function classHref(dto: PromptClassDto): string {
+function classHref(dto: PromptClassDto, search = ''): ResolvedPathname {
 	return dto.lane === 'main'
-		? '/prompts/main'
-		: `/prompts/subagent/${encodeURIComponent(dto.subagent_persona ?? UNRESOLVED_PERSONA_SEGMENT)}`;
+		? resolve(search ? `/prompts/main?${search}` : '/prompts/main')
+		: resolve(
+				`prompts/subagent/${encodeURIComponent(dto.subagent_persona ?? UNRESOLVED_PERSONA_SEGMENT)}${search ? `?${search}` : ''}` as `prompts/subagent/${string}`
+			);
 }
 
 export interface ClassifyOptions {
@@ -80,7 +84,6 @@ export function classifyPromptClass(
 	const persona = dto.subagent_persona;
 	const displayName = displayNameForClass(dto);
 	const registered = dto.registration.registered;
-	const href = classHref(dto);
 
 	let state: PromptRowState;
 	let badgeText: string;
@@ -106,8 +109,10 @@ export function classifyPromptClass(
 
 	const registerHref =
 		dto.lane === 'main'
-			? '/prompts/new?lane=main'
-			: `/prompts/new?persona=${encodeURIComponent(persona ?? UNRESOLVED_PERSONA_SEGMENT)}`;
+			? resolve('/prompts/new?lane=main')
+			: resolve(
+					`/prompts/new?persona=${encodeURIComponent(persona ?? UNRESOLVED_PERSONA_SEGMENT)}`
+				);
 
 	return {
 		key: `${dto.lane}:${persona ?? ''}`,
@@ -123,7 +128,7 @@ export function classifyPromptClass(
 			dto.last_seen !== null ? formatRelative(dto.last_seen, opts.now ?? Date.now()) : null,
 		firingRuleCount: opts.firingRuleCount ?? 0,
 		actionLabel,
-		href: registered ? (state === 'drifted' ? `${href}?tab=drift` : href) : registerHref,
+		href: registered ? classHref(dto, state === 'drifted' ? 'tab=drift' : '') : registerHref,
 		sortAnchor: dto.first_seen !== null ? Date.parse(dto.first_seen) : 0
 	};
 }
@@ -159,24 +164,32 @@ function anomalyRowNav(
 	recommendedAction: PromptSubPattern['recommended_action'],
 	requestId: number | null,
 	sessionId: string | null
-): { href: string; actionLabel: string } {
+): { href: ResolvedPathname; actionLabel: string } {
 	if (requestId === null || sessionId === null) {
-		return { href: '/prompts', actionLabel: 'Investigate' };
+		return { href: resolve('/prompts'), actionLabel: 'Investigate' };
 	}
-	const requestHref = `/sessions/${encodeURIComponent(sessionId)}/requests/${requestId}`;
+	const requestPath = `sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as const;
 	switch (recommendedAction) {
 		case 'view-filter-diff':
 			return {
-				href: `${requestHref}?drawer=request&bodyTab=transformations`,
+				href: resolve(
+					`${requestPath}?drawer=request&bodyTab=transformations` as `sessions/${string}/requests/${string}?${string}`
+				),
 				actionLabel: 'View filter diff'
 			};
 		case 'register-class':
 		case 'register-variant':
-			return { href: `/prompts/new?from=request:${requestId}`, actionLabel: 'Register this' };
+			return {
+				href: resolve(`/prompts/new?from=request:${requestId}`),
+				actionLabel: 'Register this'
+			};
 		case 'investigate-caller':
 		case 'open-sample-request':
 		default:
-			return { href: requestHref, actionLabel: 'Investigate' };
+			return {
+				href: resolve(requestPath as `sessions/${string}/requests/${string}`),
+				actionLabel: 'Investigate'
+			};
 	}
 }
 

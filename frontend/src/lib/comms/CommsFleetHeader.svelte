@@ -13,10 +13,11 @@
 	const { sessionId, project, dto, unavailable }: Props = $props();
 
 	const fleetHref = $derived.by(() => {
-		const params = new URLSearchParams();
-		if (project) params.set('project', project);
-		params.set('node', sessionId);
-		if (dto) params.set('window', String(dto.window_hours));
+		const params = new URLSearchParams([
+			...(project ? [['project', project]] : []),
+			['node', sessionId],
+			...(dto ? [['window', String(dto.window_hours)]] : [])
+		]);
 		return resolve(`/fleet?${params.toString()}` as `/fleet?${string}`);
 	});
 </script>

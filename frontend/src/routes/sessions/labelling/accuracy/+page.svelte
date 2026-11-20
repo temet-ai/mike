@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { page } from '$app/state';
@@ -32,7 +33,7 @@
 		if (next === 'session_judge') url.searchParams.set('for', 'sessions');
 		else url.searchParams.delete('for');
 		try {
-			replaceState(`${url.pathname}${url.search}`, {});
+			replaceState(resolvedPathWithSearch(url.pathname, url.search), {});
 		} catch {
 			return;
 		}
@@ -138,7 +139,8 @@
 								<dt>{s.label}</dt>
 								<dd class="page-strip__num">{s.percent}</dd>
 								<dd class="page-strip__sub">
-									{s.of}{#if latestHref}{' · '}<a href={latestHref}>See the run</a>{/if}
+									{s.of}
+									{#if latestHref}· <a href={latestHref}>See the run</a>{/if}
 								</dd>
 							</div>
 						{/each}

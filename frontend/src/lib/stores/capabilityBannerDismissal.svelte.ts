@@ -21,7 +21,9 @@ function persist(dismissed: ReadonlySet<string>): void {
 	if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
 	try {
 		localStorage.setItem(LS_KEY, JSON.stringify(Array.from(dismissed)));
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 let dismissed = $state<Set<string>>(loadPersisted());
@@ -34,6 +36,7 @@ export const capabilityBannerDismissal = {
 	dismiss(id: string, state: string): void {
 		const key = dismissalKey(id, state);
 		if (dismissed.has(key)) return;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 		const next = new Set(dismissed);
 		next.add(key);
 		dismissed = next;

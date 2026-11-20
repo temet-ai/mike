@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { Button } from '$lib/components/ui/button';
 	import SectionCard from '$lib/components/detail/SectionCard.svelte';
 	import Badge from '$lib/components/shared/Badge.svelte';
@@ -22,7 +23,7 @@
 		startedAt: string | null;
 		agentCount: number;
 		title: string | null;
-		timelineHref: string;
+		timelineHref: ResolvedPathname;
 		stale?: boolean;
 		staleReasons?: readonly string[];
 	} = $props();

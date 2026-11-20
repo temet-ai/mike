@@ -79,11 +79,11 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -- purely a mouse-hover
-     boundary around already-accessible children (`.sfn`'s own
-     role="button"/tabindex/onkeydown, the expand button below); keyboard
+<!-- svelte-ignore a11y_no_static_element_interactions (purely a mouse-hover
+     boundary around already-accessible children [`.sfn`'s own
+     role="button"/tabindex/onkeydown, the expand button below]; keyboard
      users reach the SAME highlight this hover drives by selecting the node,
-     which `EmbeddingGraph.svelte` treats identically to a hover. -->
+     which `EmbeddingGraph.svelte` treats identically to a hover.) -->
 <div class="sfn-root" {onmouseenter} {onmouseleave}>
 	<div class="sfn-handle-anchor" aria-hidden="true">
 		<Handle type="target" id="c" position={Position.Top} isConnectable={false} />

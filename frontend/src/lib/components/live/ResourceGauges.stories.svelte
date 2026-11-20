@@ -17,16 +17,6 @@
 
 	const MAX_STORE = 104_857_600;
 
-	const ALL_7_FIELDS = [
-		'request_body',
-		'response_body',
-		'filtered_request_body',
-		'tool_calls',
-		'tool_results',
-		'tool_results_in_body',
-		'system_prompt_blocks'
-	];
-
 	const breakdown7 = [
 		{ field: 'request_body', bytes: 1_843_200 },
 		{ field: 'response_body', bytes: 1_048_576 },

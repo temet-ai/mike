@@ -1,3 +1,4 @@
+import type { ExternalHref } from '$lib/resolveHref';
 import type { RepeatGroup } from '$lib/api/improvement';
 import { formatDay } from '$lib/components/eval/evalReview';
 
@@ -51,12 +52,12 @@ export function issueBody(group: RepeatGroup): string {
 	return `${lines.join('\n')}\n\n${MEASURE_LINE}`;
 }
 
-function linkFor(title: string, body: string): string {
+function linkFor(title: string, body: string): ExternalHref {
 	return `${ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
 }
 
 /** The link with the full list in it. */
-export function fullIssueHref(group: RepeatGroup): string {
+export function fullIssueHref(group: RepeatGroup): ExternalHref {
 	return linkFor(issueTitle(group), issueBody(group));
 }
 
@@ -66,7 +67,7 @@ export function issueTooLong(group: RepeatGroup): boolean {
 }
 
 /** The link the button carries: the full one, or the title and a paste line when it is too long. */
-export function issueHref(group: RepeatGroup): string {
+export function issueHref(group: RepeatGroup): ExternalHref {
 	if (!issueTooLong(group)) return fullIssueHref(group);
 	return linkFor(issueTitle(group), `${PASTE_LINE}\n\n${MEASURE_LINE}`);
 }

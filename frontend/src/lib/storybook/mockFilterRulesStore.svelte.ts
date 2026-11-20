@@ -42,6 +42,7 @@ export function createMockFilterRulesStore(initial: FilterRuleDto[] = []): Filte
 				title: body.title ?? null,
 				enabled: body.enabled ?? true,
 				source: 'ui',
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 				updated_at: new Date().toISOString(),
 				trigger_token: body.trigger_token ?? null,
 				sort_order: rules.length + 1,
@@ -57,6 +58,7 @@ export function createMockFilterRulesStore(initial: FilterRuleDto[] = []): Filte
 			let updated: FilterRuleDto | undefined;
 			rules = rules.map((r) => {
 				if (r.id !== id) return r;
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 				updated = { ...r, ...patch, updated_at: new Date().toISOString() };
 				return updated;
 			});

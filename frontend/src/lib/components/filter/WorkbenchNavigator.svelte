@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+		import { resolve } from '$app/paths';
 	import { ChevronRight } from '@lucide/svelte';
 	import { formatCount, formatRelative } from '$lib/time';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
@@ -76,12 +76,11 @@
 
 	const otherModels = $derived.by((): OtherModelRow[] => {
 		if (catalogueClass === undefined) return [];
-		const seen = new Set<string>();
-		for (const v of catalogueClass.versions) {
-			for (const m of v.models) {
-				if (m.model !== null && m.model !== model) seen.add(m.model);
-			}
-		}
+		const seen = new Set<string>(
+			catalogueClass.versions.flatMap((v) =>
+				v.models.flatMap((m) => (m.model !== null && m.model !== model ? [m.model] : []))
+			)
+		);
 		const rows: OtherModelRow[] = [];
 		for (const otherModel of seen) {
 			const current = extractModelReleases(catalogueClass.versions, otherModel)[0];
@@ -141,7 +140,7 @@
 			</button>
 		</h2>
 	</header>
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex -- keyboard-focusable scroll region (axe scrollable-region-focusable); carries role=region + aria-label -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex (keyboard-focusable scroll region [axe scrollable-region-focusable]; carries role=region + aria-label) -->
 	<div
 		class="wb-pane-scroll wbn-scroll"
 		role="region"

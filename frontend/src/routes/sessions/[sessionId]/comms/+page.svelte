@@ -36,6 +36,7 @@
 
 	const sessionId = $derived(page.params.sessionId ?? '');
 	const threadIdentities = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const map = new Map<string, ParticipantIdentityDto>();
 		for (const t of comms.threads) {
 			for (const p of t.participant_identities ?? []) {

@@ -26,17 +26,14 @@
 	const detailKey = $derived(`session:${sessionId}:launch-detail-open`);
 
 	let launch = $state<LaunchRow | null>(null);
-	let loading = $state(false);
 	let loadedForSession = $state<string | null>(null);
 
 	async function load(id: string): Promise<void> {
-		loading = true;
 		try {
 			launch = await getLaunch(id);
 		} catch {
 			launch = null;
 		} finally {
-			loading = false;
 			loadedForSession = id;
 		}
 	}
@@ -148,124 +145,122 @@
 				<span>{result.label}</span>
 			</span>
 		{/snippet}
-		{#snippet children()}
-			<div class="slp-body">
-				<div class="slp-summary">
-					<span class="slp-backend">{row.backend}</span>
-					<span class="slp-meta">placement {placementOf(row)}</span>
-					<span class="slp-meta" title={absoluteTitle(row.created_at)}
-						>launched {formatRelative(row.created_at, now)}</span
+		<div class="slp-body">
+			<div class="slp-summary">
+				<span class="slp-backend">{row.backend}</span>
+				<span class="slp-meta">placement {placementOf(row)}</span>
+				<span class="slp-meta" title={absoluteTitle(row.created_at)}
+					>launched {formatRelative(row.created_at, now)}</span
+				>
+				{#if row.closed_at}
+					<span class="slp-meta" title={absoluteTitle(row.closed_at)}
+						>closed {formatRelative(row.closed_at, now)}</span
 					>
-					{#if row.closed_at}
-						<span class="slp-meta" title={absoluteTitle(row.closed_at)}
-							>closed {formatRelative(row.closed_at, now)}</span
-						>
-					{/if}
-				</div>
+				{/if}
+			</div>
 
-				<div class="slp-facts" role="list" aria-label="Launch pipeline status">
-					{#each pipelineFacts(row) as d (d.label)}
-						<span class="slp-fact slp-fact--{d.tone}" role="listitem" title={d.title}>
-							<d.icon size={13} aria-hidden="true" />
-							<span>{d.label}</span>
+			<div class="slp-facts" role="list" aria-label="Launch pipeline status">
+				{#each pipelineFacts(row) as d (d.label)}
+					<span class="slp-fact slp-fact--{d.tone}" role="listitem" title={d.title}>
+						<d.icon size={13} aria-hidden="true" />
+						<span>{d.label}</span>
+					</span>
+				{/each}
+			</div>
+
+			{#if row.reason}
+				<p class="slp-reason">{row.reason}</p>
+			{/if}
+
+			<div class="slp-actions">
+				{#if canKill}
+					{#if confirmKill}
+						<span class="slp-confirm" role="group" aria-label="Confirm kill">
+							<span class="slp-confirm__text">Close this surface?</span>
+							<Button
+								variant="destructive"
+								size="sm"
+								disabled={killing}
+								onclick={() => void performKill()}
+							>
+								{killing ? 'Killing...' : 'Confirm'}
+							</Button>
+							<Button variant="outline" size="sm" onclick={cancelKillConfirm} disabled={killing}
+								>Cancel</Button
+							>
 						</span>
-					{/each}
-				</div>
-
-				{#if row.reason}
-					<p class="slp-reason">{row.reason}</p>
-				{/if}
-
-				<div class="slp-actions">
-					{#if canKill}
-						{#if confirmKill}
-							<span class="slp-confirm" role="group" aria-label="Confirm kill">
-								<span class="slp-confirm__text">Close this surface?</span>
-								<Button
-									variant="destructive"
-									size="sm"
-									disabled={killing}
-									onclick={() => void performKill()}
-								>
-									{killing ? 'Killing...' : 'Confirm'}
-								</Button>
-								<Button variant="outline" size="sm" onclick={cancelKillConfirm} disabled={killing}
-									>Cancel</Button
-								>
-							</span>
-						{:else}
-							<Button variant="outline" size="sm" onclick={beginKillConfirm}>Kill</Button>
-						{/if}
+					{:else}
+						<Button variant="outline" size="sm" onclick={beginKillConfirm}>Kill</Button>
 					{/if}
-				</div>
-				{#if killError}
-					<p class="slp-error" role="alert">{killError}</p>
 				{/if}
+			</div>
+			{#if killError}
+				<p class="slp-error" role="alert">{killError}</p>
+			{/if}
 
-				{#if hasFullDetail}
-					<button
-						type="button"
-						class="slp-detail-toggle"
-						aria-expanded={detailExpanded}
-						aria-controls="slp-detail-body"
-						onclick={toggleDetail}
-					>
-						{detailExpanded
-							? 'hide full launch detail'
-							: `click to expand full launch detail (brief, argv${row.stderr_text ? ', stderr' : ''})`}
-					</button>
-					{#if detailExpanded}
-						<div class="slp-detail-body" id="slp-detail-body">
-							{#if row.claude_args.length > 0}
-								<div class="slp-block">
-									<span class="slp-block__label">claude argv (full)</span>
-									<!-- svelte-ignore a11y_no_noninteractive_tabindex (axe scrollable-region-focusable requires the overflow container be keyboard-focusable) -->
-									<pre
-										class="slp-pre"
-										tabindex="0"
-										role="region"
-										aria-label="Complete claude arguments (scrollable)">{row.claude_args.join(
-											'\n'
-										)}</pre>
-								</div>
-							{/if}
-							{#if row.prompt_present}
-								<div class="slp-block">
-									<span class="slp-block__label">
-										Brief {row.brief_mode
-											? `(${row.brief_mode}${row.brief_path ? `: ${row.brief_path}` : ''})`
-											: ''}
-									</span>
-									{#if row.brief_text}
-										<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-										<pre
-											class="slp-pre"
-											tabindex="0"
-											role="region"
-											aria-label="Full brief text (scrollable)">{row.brief_text}</pre>
-									{:else}
-										<p class="slp-note">A brief was sent, but its full text is not on this row.</p>
-									{/if}
-								</div>
-							{/if}
-							{#if row.stderr_text}
-								<div class="slp-block">
-									<span class="slp-block__label">
-										Backend stderr{row.stderr_truncated ? ' (capped at 64 KiB — more was cut)' : ''}
-									</span>
+			{#if hasFullDetail}
+				<button
+					type="button"
+					class="slp-detail-toggle"
+					aria-expanded={detailExpanded}
+					aria-controls="slp-detail-body"
+					onclick={toggleDetail}
+				>
+					{detailExpanded
+						? 'hide full launch detail'
+						: `click to expand full launch detail (brief, argv${row.stderr_text ? ', stderr' : ''})`}
+				</button>
+				{#if detailExpanded}
+					<div class="slp-detail-body" id="slp-detail-body">
+						{#if row.claude_args.length > 0}
+							<div class="slp-block">
+								<span class="slp-block__label">claude argv (full)</span>
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex (axe scrollable-region-focusable requires the overflow container be keyboard-focusable) -->
+								<pre
+									class="slp-pre"
+									tabindex="0"
+									role="region"
+									aria-label="Complete claude arguments (scrollable)">{row.claude_args.join(
+										'\n'
+									)}</pre>
+							</div>
+						{/if}
+						{#if row.prompt_present}
+							<div class="slp-block">
+								<span class="slp-block__label">
+									Brief {row.brief_mode
+										? `(${row.brief_mode}${row.brief_path ? `: ${row.brief_path}` : ''})`
+										: ''}
+								</span>
+								{#if row.brief_text}
 									<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 									<pre
 										class="slp-pre"
 										tabindex="0"
 										role="region"
-										aria-label="Backend stderr (scrollable)">{row.stderr_text}</pre>
-								</div>
-							{/if}
-						</div>
-					{/if}
+										aria-label="Full brief text (scrollable)">{row.brief_text}</pre>
+								{:else}
+									<p class="slp-note">A brief was sent, but its full text is not on this row.</p>
+								{/if}
+							</div>
+						{/if}
+						{#if row.stderr_text}
+							<div class="slp-block">
+								<span class="slp-block__label">
+									Backend stderr{row.stderr_truncated ? ' (capped at 64 KiB — more was cut)' : ''}
+								</span>
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+								<pre
+									class="slp-pre"
+									tabindex="0"
+									role="region"
+									aria-label="Backend stderr (scrollable)">{row.stderr_text}</pre>
+							</div>
+						{/if}
+					</div>
 				{/if}
-			</div>
-		{/snippet}
+			{/if}
+		</div>
 	</SectionCard>
 {/if}
 

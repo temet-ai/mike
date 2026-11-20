@@ -234,11 +234,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
-					<ProjectMemoryPanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+				<ProjectMemoryPanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>

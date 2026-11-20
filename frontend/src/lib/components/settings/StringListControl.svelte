@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { X, Plus } from '@lucide/svelte';
-	import { untrack } from 'svelte';
 
 	interface Props {
 		items: string[];
@@ -11,11 +10,7 @@
 
 	let { items = [], maxLen, disabled = false, onSave }: Props = $props();
 
-	let localItems = $state<string[]>(untrack(() => [...items]));
-
-	$effect(() => {
-		localItems = [...items];
-	});
+	let localItems = $derived<string[]>([...items]);
 
 	function commit(): void {
 		const nonEmpty = localItems.filter((s) => s.length > 0);

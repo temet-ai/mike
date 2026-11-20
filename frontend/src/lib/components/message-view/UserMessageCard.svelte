@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn, type WithElementRef } from '$lib/utils';
-	import { formatCount } from '$lib/time';
 	import CopyIconButton from '../shared/CopyIconButton.svelte';
 	import { estimateTokens, formatTokens } from './parseSystemPrompt';
 

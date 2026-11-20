@@ -102,52 +102,50 @@
 				<UnfoldHorizontal size={13} aria-hidden="true" />
 			</a>
 		{/snippet}
-		{#snippet children()}
-			<div class="pep-body">
-				{#if project.project_id == null}
-					<p class="pep-empty" data-slot="project-embedding-unavailable">
-						No session map available for this project yet.
-					</p>
-				{:else if loading && !data}
-					<div class="pep-skeleton" aria-hidden="true">
-						<div class="pep-skel-row"></div>
-						<div class="pep-skel-row pep-skel-row--short"></div>
+		<div class="pep-body">
+			{#if project.project_id == null}
+				<p class="pep-empty" data-slot="project-embedding-unavailable">
+					No session map available for this project yet.
+				</p>
+			{:else if loading && !data}
+				<div class="pep-skeleton" aria-hidden="true">
+					<div class="pep-skel-row"></div>
+					<div class="pep-skel-row pep-skel-row--short"></div>
+				</div>
+			{:else if error}
+				<LoadErrorBanner
+					title="Couldn't load the session map"
+					detail={error}
+					hint="The project embedding-graph endpoint may not be reachable yet."
+					onRetry={retry}
+				/>
+			{:else if data && !data.centroid.present}
+				<p class="pep-empty" data-slot="project-embedding-empty">
+					No embedded sessions for this project yet.
+				</p>
+			{:else if data}
+				<EmbeddingGraph {store} mode="compact" onOpenSession={goToSession} />
+				{#if data.sibling_projects.length > 0}
+					<div class="pep-siblings">
+						<span class="pep-siblings__label">Similar projects</span>
+						<ul class="pep-siblings__list">
+							{#each data.sibling_projects as sibling (sibling.project_id)}
+								<li>
+									<button
+										type="button"
+										class="pep-siblings__link"
+										onclick={() => goToProject(sibling.project_path)}
+									>
+										{sibling.project_path}
+										<span class="pep-siblings__pct">{Math.round(sibling.similarity * 100)}%</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
 					</div>
-				{:else if error}
-					<LoadErrorBanner
-						title="Couldn't load the session map"
-						detail={error}
-						hint="The project embedding-graph endpoint may not be reachable yet."
-						onRetry={retry}
-					/>
-				{:else if data && !data.centroid.present}
-					<p class="pep-empty" data-slot="project-embedding-empty">
-						No embedded sessions for this project yet.
-					</p>
-				{:else if data}
-					<EmbeddingGraph {store} mode="compact" onOpenSession={goToSession} />
-					{#if data.sibling_projects.length > 0}
-						<div class="pep-siblings">
-							<span class="pep-siblings__label">Similar projects</span>
-							<ul class="pep-siblings__list">
-								{#each data.sibling_projects as sibling (sibling.project_id)}
-									<li>
-										<button
-											type="button"
-											class="pep-siblings__link"
-											onclick={() => goToProject(sibling.project_path)}
-										>
-											{sibling.project_path}
-											<span class="pep-siblings__pct">{Math.round(sibling.similarity * 100)}%</span>
-										</button>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
 				{/if}
-			</div>
-		{/snippet}
+			{/if}
+		</div>
 	</SectionCard>
 </div>
 

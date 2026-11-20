@@ -164,7 +164,7 @@
 <Story name="AllThemes" tags={['design-exploration']}>
 	{#snippet template()}
 		<div class="flex flex-wrap gap-6 p-4">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme} class="rounded-lg border border-border bg-card p-4">
 					<p class="text-foreground mb-3 text-xs font-medium">{theme}</p>
 					<Dialog.Root>
@@ -450,7 +450,7 @@
 <Story
 	name="EscKeyClosesDialog"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await waitFor(() => {
 			const btn = document.body.querySelector('[data-slot="dialog-close"]');
 			if (!btn) throw new Error('dialog-close not yet in portal');
@@ -945,7 +945,7 @@
 >
 	{#snippet template()}
 		<div class="flex flex-wrap gap-6 p-4">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme} class="rounded-lg border border-border bg-card p-4">
 					<p class="text-foreground mb-3 text-xs font-medium">{theme}</p>
 					<Dialog.Root>

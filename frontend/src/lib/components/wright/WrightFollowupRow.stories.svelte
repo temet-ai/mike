@@ -162,7 +162,7 @@
 		const open = canvas.getByRole('link', { name: /Open issue #277/ });
 		await expect(open).toHaveAttribute('href', 'https://github.com/temet-ai/mike/issues/277');
 		await expect(open).toHaveAttribute('target', '_blank');
-		await expect(open).toHaveAttribute('rel', 'noopener noreferrer');
+		await expect(open).toHaveAttribute('rel', 'external noopener noreferrer');
 	}}
 >
 	{#snippet template()}

@@ -142,6 +142,7 @@ export class EmbeddingGraphStore {
 			viewport.height,
 			this.centreId
 		);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		const posById = new Map(positions.map((p) => [p.id, p]));
 
 		if (sessionGraph) {
@@ -251,6 +252,7 @@ export class EmbeddingGraphStore {
 	}
 
 	collapse(id: string): void {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const toRemove = new Set<string>();
 		const frontier: string[] = [id];
 		while (frontier.length > 0) {
@@ -331,6 +333,7 @@ export class EmbeddingGraphStore {
 			this.centreId,
 			seed
 		);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		const posById = new Map(positions.map((p) => [p.id, p]));
 		for (const node of this.nodes.values()) {
 			if (node.pinned) continue;

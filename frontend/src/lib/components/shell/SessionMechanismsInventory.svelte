@@ -91,8 +91,6 @@
 		sessionActive: boolean;
 		onEnrol: (steererId: number) => void;
 		onDisenrol: (steererId: number) => void;
-		onToggleRule?: (ruleId: number, enabled: boolean) => void;
-		onToggleAnalyzer?: (analyzerName: string, enabled: boolean) => void;
 		onToggleSteerer?: (steererId: number, enabled: boolean) => void;
 		verifierCounts?: { fired: number; delivered: number } | null;
 		topOpen?: boolean;
@@ -134,14 +132,7 @@
 	let enrollingId = $state<number | null>(null);
 
 	function toggleSection(id: string): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- copy-mutate-reassign pattern: `next` is a throwaway local, never read while being mutated; reactivity comes from replacing `openSections` below, not from in-place mutation
-		const next = new Set(openSections);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
-		}
-		openSections = next;
+		openSections = new Set(openSections.has(id) ? [...openSections].filter((v) => v !== id) : [...openSections, id]);
 	}
 
 	function handleEnrol(row: SteererRow): void {

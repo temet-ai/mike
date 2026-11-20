@@ -70,7 +70,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §2.
 	function setQuestionTab(key: string): void {
 		tabParam = key;
 		if (page.url.searchParams.get('question') === key) return;
-		void goto(`${resolve('/sessions/improvement/guard')}?question=${encodeURIComponent(key)}`, {
+		void goto(resolve(`/sessions/improvement/guard?question=${encodeURIComponent(key)}`), {
 			replace: true,
 			reset: false
 		});
@@ -168,7 +168,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §2.
 							<a
 								class="gps-pick"
 								class:gps-pick--live={waitingCount > 0}
-								href={`${resolve('/sessions/improvement')}?waiting=nudges`}
+								href={resolve('/sessions/improvement?waiting=nudges')}
 								aria-label={`Waiting for your answer: ${waitingCount}. Open What the judge did, Nudges tab`}
 								>{waitingCount}</a
 							>

@@ -20,31 +20,6 @@
 		events: DispatchEvent[];
 	}
 
-	const OUTCOME_LABELS: Record<Exclude<DispatchOutcome, null>, string> = {
-		completed: 'Completed',
-		abandoned: 'Abandoned',
-		error: 'Errored'
-	};
-
-	const OUTCOME_TOOLTIPS: Record<Exclude<DispatchOutcome, null> | 'inflight', string> = {
-		completed: 'The agent sub-task finished and reported back.',
-		abandoned: 'The agent sub-task was cancelled or did not report back.',
-		error: 'The agent sub-task terminated with an error.',
-		inflight: 'The agent sub-task is still running — no outcome yet.'
-	};
-
-	const MODEL_TOOLTIPS: Record<string, string> = {
-		'claude-sonnet-4-6':
-			'claude-sonnet-4-6 — Anthropic Sonnet 4.6. Balanced performance and speed.',
-		'claude-haiku-4-5-20251001':
-			'claude-haiku-4-5-20251001 — Anthropic Haiku 4.5. Fast and cost-effective.',
-		'claude-opus-4-8': 'claude-opus-4-8 — Anthropic Opus 4.8. Highest capability.'
-	};
-
-	function modelTooltip(model: string): string {
-		return MODEL_TOOLTIPS[model] ?? model;
-	}
-
 	const AGENT_FIXTURE: AgentData = {
 		subagentType: 'rust-developer',
 		model: 'claude-sonnet-4-6',
@@ -89,27 +64,6 @@
 	function agentFg(type: string): string {
 		const slot = AGENT_SLOT[type];
 		return slot ? `var(--agent-${slot}-fg)` : 'var(--text-faint)';
-	}
-
-	function outcomeStyle(outcome: DispatchOutcome): string {
-		switch (outcome) {
-			case 'completed':
-				return 'color: var(--status-success-fg); background: var(--status-success-bg); border-color: var(--status-success-border);';
-			case 'abandoned':
-				return 'color: var(--text-2); background: var(--surface-2); border-color: var(--border-subtle);';
-			case 'error':
-				return 'color: var(--status-danger-fg); background: var(--status-danger-bg); border-color: var(--status-danger-border);';
-			case null:
-				return 'color: var(--status-info-fg); background: var(--surface-2); border-color: var(--border-subtle);';
-		}
-	}
-
-	function formatTimestamp(iso: string): string {
-		try {
-			return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		} catch {
-			return iso;
-		}
 	}
 
 	const onJumpTo = fn();

@@ -184,7 +184,7 @@
 </script>
 
 <div class="fbv" data-design="funk">
-	<!-- svelte-ignore a11y_no_static_element_interactions -- pan/zoom viewport, not a semantic control; every reachable action (node select, zoom buttons) has its own focusable/interactive element -->
+	<!-- svelte-ignore a11y_no_static_element_interactions (pan/zoom viewport, not a semantic control; every reachable action [node select, zoom buttons] has its own focusable/interactive element) -->
 	<div
 		class="fbv-frame"
 		bind:this={frameEl}

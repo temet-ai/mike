@@ -297,7 +297,7 @@
 					<span class="font-mono text-caption text-[var(--text-2)]">3 interventions</span>
 				</div>
 
-				{#each FIRED_INTERVENTIONS as iv}
+				{#each FIRED_INTERVENTIONS as iv (iv.id)}
 					<div
 						class="relative flex min-h-0 flex-col rounded border border-[var(--border-subtle)] {rowSurface(
 							iv.verdict
@@ -365,7 +365,7 @@
 					>
 				</div>
 
-				{#each ALL_VERDICT_INTERVENTIONS as iv}
+				{#each ALL_VERDICT_INTERVENTIONS as iv (iv.id)}
 					<div
 						class="relative flex min-h-0 flex-col rounded border border-[var(--border-subtle)] {rowSurface(
 							iv.verdict
@@ -418,7 +418,7 @@
 				All verdict types — visual weight hierarchy
 			</p>
 			<div class="max-w-2xl space-y-1">
-				{#each ALL_VERDICT_INTERVENTIONS as iv}
+				{#each ALL_VERDICT_INTERVENTIONS as iv (iv.id)}
 					<div
 						class="relative flex min-h-0 flex-wrap items-center gap-2 rounded border border-[var(--border-subtle)] {rowSurface(
 							iv.verdict

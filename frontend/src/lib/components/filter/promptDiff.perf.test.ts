@@ -185,7 +185,7 @@ describe('diffText real-fixture benchmark (round-4 defect #6)', () => {
 		const newResult = runFullPipeline(sourceBlocks, resultBlocks, diffText);
 		const newElapsed = performance.now() - beforeNew;
 
-		// eslint-disable-next-line no-console -- deliberate: this IS the benchmark's report
+		// Deliberate: this IS the benchmark's report.
 		console.log(
 			`[promptDiff perf] request 421514 (11,395 → 12,236 system-prompt chars, 9 firing rules): ` +
 				`OLD (unconditional word-diff) ${oldElapsed.toFixed(2)}ms / ${oldResult.segmentCount} segments — ` +

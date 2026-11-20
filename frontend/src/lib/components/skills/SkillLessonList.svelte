@@ -5,11 +5,12 @@ learned from, in full.
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import type { ResolvedPathname } from '$app/types';
 	import type { SkillLesson } from '$lib/api/skills';
 
 	let { lessons }: { lessons: SkillLesson[] } = $props();
 
-	function lessonHref(id: number): string {
+	function lessonHref(id: number): ResolvedPathname {
 		return resolve(
 			`sessions/improvement/lessons/${id}` as `sessions/improvement/lessons/${string}`
 		);

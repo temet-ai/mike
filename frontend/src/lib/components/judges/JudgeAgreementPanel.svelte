@@ -7,10 +7,11 @@ such run it says so and how to start one.
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import type { EvalRunDto } from '$lib/api/evalRuns';
 	import { Button } from '$lib/components/ui/button';
 	import {
-		LABELLING_QUERY,
+		accuracyRunsHref,
 		QUESTION_NAME,
 		questionScore,
 		runName,
@@ -46,7 +47,7 @@ such run it says so and how to start one.
 		role === 'session_judge' ? 'mike eval run --role session_judge' : 'mike eval run'
 	);
 
-	function runHref(id: number): string {
+	function runHref(id: number): ResolvedPathname {
 		return resolve(`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`);
 	}
 </script>
@@ -66,7 +67,7 @@ such run it says so and how to start one.
 			<p class="jap-text">
 				<a class="jap-link" href={runHref(run.id)}>{runName(run)}</a> · {turnSetWords(
 					run
-				)}{#if run.repeat_of_run_id !== null}{' '}· a repeat of an earlier run on the same turns, to
+				)} {#if run.repeat_of_run_id !== null}· a repeat of an earlier run on the same turns, to
 					see how much the result moves by chance{/if}
 			</p>
 			<div class="jap-scores">
@@ -118,7 +119,7 @@ such run it says so and how to start one.
 			{/if}
 			<a
 				class="jap-link jap-all"
-				href={`${resolve('/sessions/labelling/accuracy')}${LABELLING_QUERY[role]}`}
+				href={accuracyRunsHref(role)}
 				>All labelling accuracy runs</a
 			>
 		{/if}

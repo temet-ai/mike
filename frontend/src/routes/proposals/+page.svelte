@@ -27,10 +27,9 @@ would add, and accepts or declines it.
 
 	function go(uuid: string, order: ListOrder): void {
 		const sort = sortQuery(order);
-		void goto(
-			`${resolve('/proposals')}?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`,
-			{ reset: false }
-		);
+		void goto(resolve(`/proposals?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`), {
+			reset: false
+		});
 	}
 
 	function choose(uuid: string): void {

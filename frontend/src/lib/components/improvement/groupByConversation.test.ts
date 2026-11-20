@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import type { ResolvedPathname } from '$app/types';
 import { groupByProjectAndConversation, projectLabelOf } from './groupByConversation';
 
 const item = (projectLabel: string, sessionHref: string, id: number) => ({
 	id,
 	projectLabel,
 	projectPath: projectLabel === 'No project' ? null : `/work/${projectLabel}`,
-	sessionHref,
+	sessionHref: sessionHref as ResolvedPathname,
 	sessionTitle: `title ${sessionHref}`
 });
 

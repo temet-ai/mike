@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-
 	interface Props {
 		value: string;
 		defaultValue: string;
@@ -24,14 +22,10 @@
 	const uid = $props.id();
 	const noticeId = `${uid}-blank-notice`;
 
-	let draft = $state<string>(untrack(() => value));
+	let draft = $derived<string>(value);
 	let textareaEl: HTMLTextAreaElement | undefined = $state();
 
 	let showBlankNotice = $state(false);
-
-	$effect(() => {
-		draft = value;
-	});
 
 	$effect(() => {
 		if (showBlankNotice && draft.trim() !== '') showBlankNotice = false;

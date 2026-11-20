@@ -8,13 +8,14 @@ in the URL. Used on Labelling accuracy (one card per run) and at the top of a ru
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import type { BundleDto, EvalGateDto, EvalRunDto } from '$lib/api/evalRuns';
 	import { Button } from '$lib/components/ui/button';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
 	import { formatWhen } from '$lib/components/eval/evalReview';
 	import {
 		JUDGE_NAME,
-		LABELLING_QUERY,
+		labellingHref as labellingHrefFor,
 		QUESTION_NAME,
 		configurationLine,
 		gateBarLines,
@@ -59,12 +60,14 @@ in the URL. Used on Labelling accuracy (one card per run) and at the top of a ru
 	const session = $derived(role === 'session_judge' ? sessionScore(run) : null);
 	const questions: QuestionKey[] = ['reaction', 'delivery'];
 
-	function runHref(id: number): string {
+	function runHref(id: number): ResolvedPathname {
 		return resolve(`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`);
 	}
 
-	function reviewHref(key: QuestionKey): string {
-		return `${resolve(`sessions/labelling/accuracy/${run.id}/review` as `sessions/labelling/accuracy/${string}/review`)}?mode=${key}`;
+	function reviewHref(key: QuestionKey): ResolvedPathname {
+		return resolve(
+			`sessions/labelling/accuracy/${run.id}/review?mode=${key}` as `sessions/labelling/accuracy/${string}/review?${string}`
+		);
 	}
 
 	function nameOf(id: number): string {
@@ -72,7 +75,7 @@ in the URL. Used on Labelling accuracy (one card per run) and at the top of a ru
 		return found ? runName(found) : 'an earlier accuracy run';
 	}
 
-	const labellingHref = $derived(`${resolve('/sessions/labelling')}${LABELLING_QUERY[role]}`);
+	const labellingHref = $derived(labellingHrefFor(role));
 
 	const regression = $derived(gate?.report?.regression?.corrected ?? null);
 </script>

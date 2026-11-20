@@ -24,8 +24,11 @@ function mem(): BoundedLruCache<string, unknown> {
 	return memory;
 }
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const inFlight = new Map<string, Promise<unknown>>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const revalidating = new Set<string>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const revalidatedAt = new Map<string, number>();
 
 const RE_FRESH_STRUCTURAL =
@@ -49,6 +52,7 @@ function isFresh(path: string, now: number): boolean {
 }
 
 type UpdateListener = (value: unknown) => void;
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const updateListeners = new Map<string, Set<UpdateListener>>();
 
 interface PrefixEntry {
@@ -73,6 +77,7 @@ export function onApiCacheUpdate(
 
 	let set = updateListeners.get(key);
 	if (!set) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		set = new Set();
 		updateListeners.set(key, set);
 	}
@@ -184,6 +189,7 @@ async function revalidate(path: string, fetcher: () => Promise<unknown>): Promis
 		void idbPutApiResponse(path, fresh);
 		if (!jsonEqual(prev, fresh)) emitUpdate(path, fresh);
 	} catch {
+		// A failed revalidation keeps the cached response.
 	} finally {
 		revalidating.delete(path);
 		revalidatedAt.set(path, Date.now());

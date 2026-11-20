@@ -5,6 +5,7 @@ lessons grouped by project (alphabetical, "No project" last) and by the conversa
 from, newest first. A decided lesson stays in its place; `decided` says how each was decided.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import LessonCandidateCard from './LessonCandidateCard.svelte';
 	import ProjectConversationGroups from './ProjectConversationGroups.svelte';
@@ -14,7 +15,7 @@ from, newest first. A decided lesson stays in its place; `decided` says how each
 		candidates: LessonCandidate[];
 		error: string | null;
 		decided?: ReadonlyMap<number, 'approved' | 'rejected'>;
-		detailHrefFor: (id: number) => string;
+		detailHrefFor: (id: number) => ResolvedPathname;
 		onApprove: (id: number) => Promise<void>;
 		onReject: (id: number, reason: RejectReason, note?: string) => Promise<void>;
 		onRetry: () => void;

@@ -240,7 +240,9 @@
 			try {
 				parsed = JSON.parse(text) as PromptCompositionExport;
 			} catch (err) {
-				throw new Error(`file is not valid JSON: ${err instanceof Error ? err.message : err}`);
+				throw new Error(`file is not valid JSON: ${err instanceof Error ? err.message : err}`, {
+					cause: err
+				});
 			}
 			if (typeof parsed !== 'object' || parsed === null || !Array.isArray(parsed.compositions)) {
 				throw new Error('file does not match the export shape (missing `compositions` array)');

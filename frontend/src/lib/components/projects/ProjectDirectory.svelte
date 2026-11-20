@@ -82,11 +82,7 @@
 	}
 
 	function toggleFolder(path: string): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment below, not in-place mutation
-		const next = new Set(collapsedFolders);
-		if (next.has(path)) next.delete(path);
-		else next.add(path);
-		collapsedFolders = next;
+		collapsedFolders = new Set(collapsedFolders.has(path) ? [...collapsedFolders].filter((v) => v !== path) : [...collapsedFolders, path]);
 	}
 
 	const normalizedQuery = $derived(query.trim().toLowerCase());

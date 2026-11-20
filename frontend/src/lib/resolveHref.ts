@@ -22,3 +22,32 @@ export type StaticHref =
 export function resolveStatic(href: StaticHref): ResolvedPathname {
 	return resolve(...([href] as Parameters<typeof resolve<'/'>>));
 }
+
+/**
+ * Resolve an app path that arrives as text, such as one inside a fix written by the proxy.
+ * The path cannot be checked against the route table at compile time; `resolve()` still
+ * applies the base path to it.
+ */
+export function resolveAppPath(path: string): ResolvedPathname {
+	return resolve(...([path] as Parameters<typeof resolve<'/'>>));
+}
+
+/**
+ * A pathname that is already resolved, with a search string appended, for `goto()` and
+ * `replaceState()` that rewrite the current page's query in place. `page.url.pathname` carries
+ * the base path (SvelteKit documents it as a resolved pathname), so it must not go through
+ * `resolve()` again; its type only widens it to `string`, and this states what it is.
+ */
+export function resolvedPathWithSearch(pathname: string, search: string): ResolvedPathname {
+	return `${pathname}${search}` as ResolvedPathname;
+}
+
+/**
+ * A link that leaves the app's own routes: a full `http(s)` URL, or a path on the inspect API
+ * (`/api/...`), which the same origin serves but SvelteKit does not route.
+ */
+export type ExternalHref = `http://${string}` | `https://${string}` | `/api/${string}`;
+
+export function isExternalHref(href: string): href is ExternalHref {
+	return /^(https?:\/\/|\/api\/)/.test(href);
+}

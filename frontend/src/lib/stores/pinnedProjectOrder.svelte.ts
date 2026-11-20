@@ -17,7 +17,9 @@ function persist(order: readonly string[]): void {
 	if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
 	try {
 		localStorage.setItem(LS_KEY, JSON.stringify(order));
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 function sameOrder(a: readonly string[], b: readonly string[]): boolean {
@@ -28,6 +30,7 @@ export function computeDisplayOrder(
 	order: readonly string[],
 	pinnedPaths: readonly string[]
 ): string[] {
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const pinnedSet = new Set(pinnedPaths);
 	const known = order.filter((p) => pinnedSet.has(p));
 	const additions = pinnedPaths.filter((p) => !order.includes(p));

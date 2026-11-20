@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { onMount, untrack } from 'svelte';
 	import { getContext } from 'svelte';
 	import { page } from '$app/state';
@@ -38,14 +39,12 @@
 	import { createPromptCatalogue } from './promptCatalogue.svelte';
 	import { paragraphContainsRule, paragraphIndicesTouchedByRule } from './rule-matching';
 	import { buildPromptOutline } from './blockParagraphs';
-	import { parseFromParam } from './workbench';
 	import {
 		findLatestCaptureInProject,
 		type ProjectPromptLookupResult
 	} from './projectPromptLookup';
 	import {
 		formatProjectParam,
-		parseProjectParam,
 		resolveInitialProject,
 		saveRememberedProject
 	} from './workbenchProject';
@@ -161,7 +160,7 @@
 		if (url.searchParams.get('project') === formatted) return;
 		url.searchParams.set('project', formatted);
 		const qs = url.searchParams.toString();
-		void goto(`${url.pathname}${qs ? `?${qs}` : ''}`, {
+		void goto(resolvedPathWithSearch(url.pathname, qs ? `?${qs}` : ''), {
 			replace: true,
 			reset: false
 		});

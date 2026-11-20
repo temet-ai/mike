@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bot, Inbox, Send } from '@lucide/svelte';
+	import { Inbox, Send } from '@lucide/svelte';
 	import { formatRelative } from '$lib/time';
 	import { roleTokens } from '$lib/fleet/roleTokens';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';

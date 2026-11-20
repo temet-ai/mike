@@ -171,9 +171,9 @@
 	</button>
 
 	{#if open}
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -- onkeydown only catches
-		     Escape bubbling up from the form's own focusable controls (inputs, textarea, buttons);
-		     the <form> is never itself a focus or click target. -->
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions (onkeydown only catches
+		     Escape bubbling up from the form's own focusable controls [inputs, textarea, buttons];
+		     the <form> is never itself a focus or click target.) -->
 		<form
 			class="new-thread__form"
 			data-augmented-ui="tl-clip br-clip border"

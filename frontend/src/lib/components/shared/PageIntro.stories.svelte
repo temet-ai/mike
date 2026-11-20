@@ -32,16 +32,14 @@
 	{#snippet template()}
 		<div class="p-6">
 			<PageIntro title="Prompt management" learnMoreHref="/help/glossary#composition">
-				{#snippet children()}
-					<span class="flex items-center gap-1.5">
-						<span>System-prompt</span>
-						<span class="inline-flex items-center gap-1">
-							<span>compositions</span>
-							<HelpHint slug="composition" />
-						</span>
-						<span>captured from the system block of recent requests.</span>
+				<span class="flex items-center gap-1.5">
+					<span>System-prompt</span>
+					<span class="inline-flex items-center gap-1">
+						<span>compositions</span>
+						<HelpHint slug="composition" />
 					</span>
-				{/snippet}
+					<span>captured from the system block of recent requests.</span>
+				</span>
 			</PageIntro>
 		</div>
 	{/snippet}

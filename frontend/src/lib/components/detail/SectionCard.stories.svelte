@@ -76,9 +76,7 @@
 				collapsible
 				sectionKey="story-diag-expanded"
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">Expanded section content is visible here.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">Expanded section content is visible here.</p>
 				{#snippet headerActions()}
 					<button
 						type="button"
@@ -96,9 +94,7 @@
 				bordered={false}
 				sectionKey="story-grouped-expanded"
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">Grouped content, no frame of its own.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">Grouped content, no frame of its own.</p>
 			</SectionCardHarness>
 			<SectionCardHarness
 				{collapseStore}
@@ -106,9 +102,7 @@
 				expandable={false}
 				description="This description stays visible even when locked."
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">This body never renders.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">This body never renders.</p>
 			</SectionCardHarness>
 			<SectionCardHarness
 				{collapseStore}
@@ -117,9 +111,7 @@
 				sectionKey="story-tooltip-expanded"
 				titleTooltip="This is the sibling info-icon tooltip pattern six panels hand-rolled before composing SectionCard."
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">Body content for the tooltip example.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">Body content for the tooltip example.</p>
 			</SectionCardHarness>
 			<SectionCardHarness
 				{collapseStore}
@@ -128,9 +120,7 @@
 				sectionKey="story-accent-expanded"
 				accent="teal"
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">Teal edge accent, from WorkerCard.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">Teal edge accent, from WorkerCard.</p>
 			</SectionCardHarness>
 			<SectionCardHarness
 				{collapseStore}
@@ -139,9 +129,7 @@
 				expandable={false}
 				description="Locked sections never show an accent colour — never alarming, per WorkerCard's own convention."
 			>
-				{#snippet children()}
-					<p class="text-sm text-[var(--text-2)]">This body never renders.</p>
-				{/snippet}
+				<p class="text-sm text-[var(--text-2)]">This body never renders.</p>
 			</SectionCardHarness>
 		</div>
 	{/snippet}

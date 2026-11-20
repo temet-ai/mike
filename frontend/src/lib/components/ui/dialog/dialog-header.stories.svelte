@@ -507,7 +507,7 @@
 >
 	{#snippet template()}
 		<div style="display:flex; flex-direction:column; gap:16px; padding:8px;">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme}>
 					<Dialog.Root open>
 						<Dialog.Content showCloseButton={false} class="sm:max-w-md">

@@ -55,7 +55,9 @@ if (
 		queueMicrotask(() => {
 			try {
 				animation.finish();
-			} catch {}
+			} catch {
+				// finish() throws when the animation was already cancelled.
+			}
 		});
 		return animation;
 	};

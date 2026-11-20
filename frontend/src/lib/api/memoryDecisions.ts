@@ -242,7 +242,9 @@ export async function restoreLesson(id: number): Promise<LessonDto> {
 			if (errBody && typeof errBody.error === 'string' && errBody.error.length > 0) {
 				message = errBody.error;
 			}
-		} catch {}
+		} catch {
+			// The error response has no JSON body; keep the message built from the status.
+		}
 		throw new ApiError(message, res.status, path);
 	}
 	void invalidateApiCache('/api/memory/decisions');

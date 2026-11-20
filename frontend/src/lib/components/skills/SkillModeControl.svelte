@@ -17,9 +17,9 @@ after the user approves each one. Saves through `onChange`; shows the save error
 		onChange: (mode: SkillMode) => Promise<void>;
 	} = $props();
 
-	// svelte-ignore state_referenced_locally -- seeded once; the control owns the value while it saves
+	// svelte-ignore state_referenced_locally (seeded once; the control owns the value while it saves)
 	let value = $state<string>(mode);
-	// svelte-ignore state_referenced_locally -- the last saved choice, to fall back to on failure
+	// svelte-ignore state_referenced_locally (the last saved choice, to fall back to on failure)
 	let saved = $state<string>(mode);
 	let saving = $state(false);
 	let error = $state<string | null>(null);

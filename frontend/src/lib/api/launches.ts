@@ -102,7 +102,9 @@ async function toLaunchApiError(res: Response, path: string): Promise<LaunchApiE
 		if (typeof body.error === 'string' && body.error.length > 0) code = body.error;
 		if (typeof body.message === 'string' && body.message.length > 0) message = body.message;
 		if (typeof body.remedy === 'string' && body.remedy.length > 0) remedy = body.remedy;
-	} catch {}
+	} catch {
+		// The error response has no JSON body; keep the message built from the status.
+	}
 	return new LaunchApiError(message, res.status, code, remedy);
 }
 

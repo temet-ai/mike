@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { resolveAppPath } from '$lib/resolveHref';
 
 	interface Props {
 		title: string;
 		description?: string;
 		children?: Snippet;
 		actions?: Snippet;
-		learnMoreHref?: string;
+		/** A help page, such as `/help/guides/retention` or `/help/glossary#agent-registry`. */
+		learnMoreHref?: `/help/${string}`;
 		learnMoreLabel?: string;
 		level?: 'h1' | 'h2';
 	}
@@ -41,16 +43,14 @@
 			</p>
 		{/if}
 		{#if learnMoreHref}
-			<!-- eslint-disable svelte/no-navigation-without-resolve -- learnMoreHref accepts any internal /help route (guide or glossary-hash) from a closed but varied set of callers; no single resolve() overload branch covers all shapes -->
 			<a
 				class="pi-learn-more"
 				data-motion="hover"
-				href={learnMoreHref}
+				href={resolveAppPath(learnMoreHref)}
 				data-slot="page-intro-learn-more"
 			>
 				{learnMoreLabel}
 			</a>
-			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		{/if}
 	</header>
 {/snippet}

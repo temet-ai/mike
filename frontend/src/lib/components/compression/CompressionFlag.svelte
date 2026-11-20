@@ -13,7 +13,7 @@
 	let error = $state('');
 	const key = $derived(`${target.kind}:${target.request_id}:${target.tool_use_id ?? ''}`);
 	$effect(() => {
-		key;
+		void key; // re-run when the target changes
 		open = false;
 		saved = false;
 		busy = false;

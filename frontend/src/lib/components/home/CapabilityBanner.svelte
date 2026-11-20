@@ -59,12 +59,16 @@
 				<p class="cap-banner__fix">
 					{#each fixSegments(row.fix) as segment, i (i)}
 						{#if segment.kind === 'link'}
-							<a
-								class="cap-banner__link"
-								href={segment.href}
-								target={segment.external ? '_blank' : undefined}
-								rel={segment.external ? 'noopener noreferrer' : undefined}>{segment.text}</a
-							>
+							{#if segment.external}
+								<a
+									class="cap-banner__link"
+									href={segment.href}
+									target="_blank"
+									rel="external noopener noreferrer">{segment.text}</a
+								>
+							{:else}
+								<a class="cap-banner__link" href={segment.href}>{segment.text}</a>
+							{/if}
 						{:else}
 							{segment.text}
 						{/if}

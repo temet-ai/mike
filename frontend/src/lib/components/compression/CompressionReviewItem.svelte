@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ExternalHref } from '$lib/resolveHref';
 	import {
 		reviewCompression,
 		type CompressionReview,
@@ -9,7 +10,7 @@
 	import { Select } from '$lib/components/ui/select';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	let { item, onSaved }: { item: CompressionReview; onSaved: () => void } = $props();
-	let status = $state('');
+	let status = $derived(item.status);
 	let note = $state('');
 	let busy = $state(false);
 	let error = $state('');
@@ -17,10 +18,7 @@
 		value,
 		label: value
 	}));
-	$effect(() => {
-		status = item.status;
-	});
-	const bodyHref = $derived(
+	const bodyHref = $derived<ExternalHref>(
 		`/api/requests/${item.target.request_id}/body/${item.target.kind === 'response' ? 'response' : 'request'}`
 	);
 	async function save(event: SubmitEvent) {
@@ -50,8 +48,7 @@
 		</h2>
 		<span>{item.status}</span>
 	</div>
-	<Button variant="outline" size="sm" href={bodyHref} target="_blank" rel="noreferrer"
-		>Original capture</Button
+	<Button variant="outline" size="sm" href={bodyHref} target="_blank">Original capture</Button
 	>
 	<details>
 		<summary class="cursor-pointer">Evidence and history ({item.history.length})</summary>

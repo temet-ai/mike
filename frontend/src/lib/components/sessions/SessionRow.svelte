@@ -1,10 +1,5 @@
-<script module lang="ts">
-	import type { DetailMetrics, SessionMatchInfo } from './sessionRowTypes';
-	// eslint-disable-next-line no-import-assign -- false positive: re-exporting an imported type from a `<script module>` block trips this rule regardless of syntax (bare, `from`-form, or aliased all reproduce it) since the type-only export is erased at runtime and never actually reassigns the import binding.
-	export type { DetailMetrics, SessionMatchInfo };
-</script>
-
 <script lang="ts">
+	import type { DetailMetrics, SessionMatchInfo } from './sessionRowTypes';
 	import { ChevronDown, Inbox } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { deriveSessionActivity } from '$lib/sessionActivity';
@@ -122,13 +117,13 @@
 			{/if}
 		</span>
 		<span class="ssn-req"
-			>{formatCount(s.request_count)}<span class="ssn-req-unit">{' req'}</span></span
+			>{formatCount(s.request_count)} <span class="ssn-req-unit">req</span></span
 		>
 		<span class="ssn-clock ssn-clock--first" title={formatClockAbsolute(s.first_seen)}
-			><span class="ssn-clock-label">{'Started '}</span>{formatClockLabel(s.first_seen, now)}</span
+			><span class="ssn-clock-label">Started</span> {formatClockLabel(s.first_seen, now)}</span
 		>
 		<span class="ssn-clock ssn-clock--last" title={formatClockAbsolute(s.last_seen)}
-			><span class="ssn-clock-label">{'Active '}</span>{formatClockLabel(s.last_seen, now)}</span
+			><span class="ssn-clock-label">Active</span> {formatClockLabel(s.last_seen, now)}</span
 		>
 		<span class="ssn-id-cell">
 			<span class="ssn-id-text">{shortSessionId(s.id)}</span>

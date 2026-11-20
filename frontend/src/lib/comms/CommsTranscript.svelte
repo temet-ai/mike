@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+		import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import { tick } from 'svelte';
 	import type { Component } from 'svelte';
 	import {
@@ -173,7 +174,7 @@
 
 	const replyUuid = $derived(thread?.created_by_session_uuid ?? thread?.participants[0] ?? null);
 
-	function participantHref(uuid: string | null): string | null {
+	function participantHref(uuid: string | null): ResolvedPathname | null {
 		if (!uuid) return null;
 		return resolve(`sessions/${encodeURIComponent(uuid)}/comms` as `sessions/${string}/comms`);
 	}
@@ -207,6 +208,7 @@
 		nodes: MessageTreeNode[],
 		referenceNow: number
 	): Map<string, MsgRenderMeta> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const meta = new Map<string, MsgRenderMeta>();
 		let prev: {
 			sender: string | null;
@@ -403,7 +405,6 @@
 						sessionUuid={m.from_session_uuid ?? ''}
 						label={fromLabel}
 						role={fromRoleFields.role}
-						agentType={fromRoleFields.agentType}
 						size="message"
 						sender={m.from_session_uuid === null ? 'mike' : 'session'}
 					/>

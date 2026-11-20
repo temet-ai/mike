@@ -10,7 +10,6 @@
 		sessionUuid: string;
 		label: string | null;
 		role?: string | null;
-		agentType?: string | null;
 		size?: CommsAvatarSize;
 		decorative?: boolean;
 		sender?: 'session' | 'mike' | 'operator';
@@ -20,7 +19,6 @@
 		sessionUuid,
 		label,
 		role = null,
-		agentType = null,
 		size = 'message',
 		decorative = true,
 		sender = 'session'

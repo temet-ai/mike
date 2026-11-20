@@ -21,11 +21,8 @@ export const load: PageLoad = async ({ params }): Promise<SkillDraftPageData> =>
 	} catch (e) {
 		return { id, detail: null, skills: null, error: e instanceof Error ? e.message : String(e) };
 	}
-	let skills: SkillFoldersResponse | null = null;
-	try {
-		skills = await getProjectSkills(detail.draft.project_uuid);
-	} catch {
-		skills = null;
-	}
+	const skills: SkillFoldersResponse | null = await getProjectSkills(
+		detail.draft.project_uuid
+	).catch(() => null);
 	return { id, detail, skills, error: null };
 };

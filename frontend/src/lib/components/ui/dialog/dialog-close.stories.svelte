@@ -153,7 +153,7 @@
 <Story
 	name="AllThemesSnapshot"
 	tags={['visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await captureStorySnapshot(document.body, 'dialog-close/AllThemesSnapshot', {
 			selector: '[data-slot="dialog-content"]'
 		});
@@ -174,7 +174,7 @@
 <Story
 	name="DataSlotAttribute"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'dialog-close should have data-slot="dialog-close"').not.toBeNull();
 		await expect(
@@ -197,7 +197,7 @@
 <Story
 	name="DataStateAttribute"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'close button should exist').not.toBeNull();
 		const dataState = closeBtn?.getAttribute('data-state');
@@ -221,7 +221,7 @@
 <Story
 	name="AccessibleName"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const body = within(document.body);
 		const closeBtn = body.getByRole('button', { name: /close/i });
 		await expect(
@@ -248,7 +248,7 @@
 <Story
 	name="TypePropPassthrough"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'close button should exist').not.toBeNull();
 		await expect(
@@ -271,7 +271,7 @@
 <Story
 	name="TypePropSubmit"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'close button should exist').not.toBeNull();
 		await expect(
@@ -299,7 +299,7 @@
 <Story
 	name="TypePropReset"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'close button should exist').not.toBeNull();
 		await expect(
@@ -327,7 +327,7 @@
 <Story
 	name="DisabledPropPassthrough"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		disabledStoryOpen = true;
 		onDisabledClose.mockClear();
 
@@ -366,7 +366,7 @@
 <Story
 	name="KeyboardFocusTabIndex"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector(
 			'[data-slot="dialog-close"]'
 		) as HTMLElement | null;
@@ -392,7 +392,7 @@
 <Story
 	name="ClickClosesDialog"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		clickStoryOpen = true;
 		onClickClose.mockClear();
 
@@ -419,7 +419,7 @@
 <Story
 	name="EnterKeyClosesDialog"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		enterStoryOpen = true;
 		onEnterClose.mockClear();
 
@@ -449,7 +449,7 @@
 <Story
 	name="SpaceKeyClosesDialog"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		spaceStoryOpen = true;
 		onSpaceClose.mockClear();
 
@@ -479,7 +479,7 @@
 <Story
 	name="RestPropsPassthrough"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const closeBtn = document.body.querySelector('[data-slot="dialog-close"]');
 		await expect(closeBtn, 'close button should exist').not.toBeNull();
 		await expect(
@@ -516,7 +516,7 @@
 <Story
 	name="RefBinding"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await expect(closeRef, 'closeRef should be populated after render').not.toBeNull();
 		await expect(
 			closeRef instanceof HTMLButtonElement,
@@ -549,7 +549,7 @@
 <Story
 	name="DefaultVisualSnapshot"
 	tags={['visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await captureStorySnapshot(document.body, 'dialog-close/Default', {
 			selector: '[data-slot="dialog-content"]'
 		});
@@ -570,7 +570,7 @@
 <Story
 	name="ExplicitFooterSnapshot"
 	tags={['visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await captureStorySnapshot(document.body, 'dialog-close/ExplicitFooter', {
 			selector: '[data-slot="dialog-content"]'
 		});
@@ -597,7 +597,7 @@
 <Story
 	name="DisabledVisualSnapshot"
 	tags={['visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		await captureStorySnapshot(document.body, 'dialog-close/Disabled', {
 			selector: '[data-slot="dialog-content"]'
 		});

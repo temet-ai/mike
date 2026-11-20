@@ -287,7 +287,7 @@
 			<p class="text-[var(--text-2)] text-xs font-mono">
 				SheetTrigger (outline Button) — all 5 themes
 			</p>
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					class="flex items-center gap-3 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3"

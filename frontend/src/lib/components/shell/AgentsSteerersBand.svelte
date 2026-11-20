@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { ArrowUpRight } from '@lucide/svelte';
-	import type { AgentEntry, AgentEvent, DispatchOutcome } from '$lib/agentDispatches';
+	import type { AgentEntry, DispatchOutcome } from '$lib/agentDispatches';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
-
-	export type { AgentEntry, AgentEvent, DispatchOutcome };
 
 	export type VerdictCode =
 		| 'fired'
@@ -125,16 +123,12 @@
 	let steerersGroupExpanded = $state(true);
 	let agentsGroupExpanded = $state(true);
 
-	let steererExpanded = $state<boolean[]>([]);
-	let agentExpanded = $state<boolean[]>([]);
+	let steererExpanded = $derived<boolean[]>(steerers.map(() => false));
+	let agentExpanded = $derived<boolean[]>(agents.map(() => false));
 
-	$effect(() => {
-		steererExpanded = steerers.map(() => false);
-	});
-
-	$effect(() => {
-		agentExpanded = agents.map(() => false);
-	});
+	function toggled(flags: boolean[], index: number): boolean[] {
+		return flags.map((open, j) => (j === index ? !open : open));
+	}
 
 	function modelTooltip(model: string): string {
 		return MODEL_TOOLTIPS[model] ?? model;
@@ -271,7 +265,7 @@
 											data-motion="hover"
 											aria-expanded={steererExpanded[i]}
 											onclick={() => {
-												steererExpanded[i] = !steererExpanded[i];
+												steererExpanded = toggled(steererExpanded, i);
 											}}
 										>
 											<DisclosureMarker open={steererExpanded[i] ?? false} size={11} />
@@ -409,7 +403,7 @@
 										data-motion="hover"
 										aria-expanded={agentExpanded[i]}
 										onclick={() => {
-											agentExpanded[i] = !agentExpanded[i];
+											agentExpanded = toggled(agentExpanded, i);
 										}}
 									>
 										<DisclosureMarker open={agentExpanded[i] ?? false} size={11} />

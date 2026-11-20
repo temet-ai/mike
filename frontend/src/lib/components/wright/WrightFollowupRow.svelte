@@ -6,6 +6,7 @@ into or out of stuck repaints in place and the rows below stay where they are.
 Design: artifacts/2026-11-15/wright-followups-ui.md.
 -->
 <script lang="ts">
+	import { isExternalHref } from '$lib/resolveHref';
 	import { CircleDot, ExternalLink, FileSearch, Link, Wrench } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import type { FollowupLimits, WrightFollowup } from '$lib/api/wright';
@@ -34,7 +35,9 @@ Design: artifacts/2026-11-15/wright-followups-ui.md.
 
 	const stuck = $derived(followup.state === 'stuck');
 	const badge = $derived(followupBadge(followup.state));
-	const issueUrl = $derived(followup.issue_url);
+	const issueUrl = $derived(
+		followup.issue_url !== null && isExternalHref(followup.issue_url) ? followup.issue_url : null
+	);
 
 	const links = $derived.by<LinkChip[]>(() => {
 		const chips: LinkChip[] = [];
@@ -111,13 +114,7 @@ Design: artifacts/2026-11-15/wright-followups-ui.md.
 		</div>
 		<span class="followup__action" data-slot="followup-action">
 			{#if stuck && issueUrl !== null && followup.issue_number !== null}
-				<Button
-					variant="outline"
-					size="sm"
-					href={issueUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-				>
+				<Button variant="outline" size="sm" href={issueUrl} target="_blank">
 					<ExternalLink aria-hidden="true" />
 					Open issue #{followup.issue_number}
 				</Button>

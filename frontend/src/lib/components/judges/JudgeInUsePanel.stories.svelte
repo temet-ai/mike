@@ -18,7 +18,6 @@
 		component: JudgeInUsePanel,
 		tags: ['autodocs'],
 		args: {
-			role: 'turn_judge',
 			bundle: BUNDLE_14,
 			liveId: 14,
 			runs: TURN_RUNS,

@@ -400,7 +400,7 @@
 			<p class="text-[var(--text-2)] text-xs font-mono">
 				SheetOverlay — bg-[var(--surface-bg)]/70 across all 5 themes
 			</p>
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					class="relative h-[80px] overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--surface-card)]"

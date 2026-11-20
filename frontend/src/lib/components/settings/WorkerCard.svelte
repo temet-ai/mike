@@ -97,62 +97,60 @@
 				/>
 			</div>
 		{/snippet}
-		{#snippet children()}
-			<div class="wc-body">
-				{#if models.length > 0}
-					<div class="wc-models">
-						<span class="wc-models-label">Model</span>
-						<div class="edge wc-models-frame">
-							<RadioGroup.Root
-								name={`${name}-model`}
-								value={selectedModelId}
-								aria-label="{label} model"
-								onValueChange={(id) => onSelectModel?.(id)}
-							>
-								{#each models as m (m.id)}
-									{@const meta = [m.released, m.pricing, m.context].filter(Boolean).join('  ·  ')}
-									<RadioGroup.Item
-										value={m.id}
-										label={m.label ?? m.id}
-										description={[meta, m.description].filter(Boolean).join(' — ') || undefined}
-									/>
-								{/each}
-							</RadioGroup.Root>
+		<div class="wc-body">
+			{#if models.length > 0}
+				<div class="wc-models">
+					<span class="wc-models-label">Model</span>
+					<div class="edge wc-models-frame">
+						<RadioGroup.Root
+							name={`${name}-model`}
+							value={selectedModelId}
+							aria-label="{label} model"
+							onValueChange={(id) => onSelectModel?.(id)}
+						>
+							{#each models as m (m.id)}
+								{@const meta = [m.released, m.pricing, m.context].filter(Boolean).join('  ·  ')}
+								<RadioGroup.Item
+									value={m.id}
+									label={m.label ?? m.id}
+									description={[meta, m.description].filter(Boolean).join(' — ') || undefined}
+								/>
+							{/each}
+						</RadioGroup.Root>
+					</div>
+				</div>
+			{/if}
+
+			{#if config.length > 0}
+				<div class="wc-config">
+					{#each config as c (c.label)}
+						<div class="wc-cfg">
+							<span class="wc-cfg-label">{c.label}</span>
+							{#if c.help}
+								<Tooltip text={c.help}>
+									{#snippet child({ props })}
+										<button
+											{...props}
+											type="button"
+											class="wc-cfg-help"
+											aria-label={`About ${c.label}`}
+											><Info size={13} aria-hidden="true" /></button
+										>
+									{/snippet}
+								</Tooltip>
+							{/if}
+							{#if c.value !== undefined}<code class="wc-cfg-value">{c.value}</code>{/if}
 						</div>
-					</div>
-				{/if}
+					{/each}
+				</div>
+			{/if}
 
-				{#if config.length > 0}
-					<div class="wc-config">
-						{#each config as c (c.label)}
-							<div class="wc-cfg">
-								<span class="wc-cfg-label">{c.label}</span>
-								{#if c.help}
-									<Tooltip text={c.help}>
-										{#snippet child({ props })}
-											<button
-												{...props}
-												type="button"
-												class="wc-cfg-help"
-												aria-label={`About ${c.label}`}
-												><Info size={13} aria-hidden="true" /></button
-											>
-										{/snippet}
-									</Tooltip>
-								{/if}
-								{#if c.value !== undefined}<code class="wc-cfg-value">{c.value}</code>{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				{#if extraContent}
-					<div class="wc-config">
-						{@render extraContent()}
-					</div>
-				{/if}
-			</div>
-		{/snippet}
+			{#if extraContent}
+				<div class="wc-config">
+					{@render extraContent()}
+				</div>
+			{/if}
+		</div>
 	</SectionCard>
 </div>
 

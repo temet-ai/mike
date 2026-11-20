@@ -20,7 +20,9 @@ async function putJson<Req, Res>(path: string, body: Req): Promise<Res> {
 			const errBody = (await res.json()) as { error?: string; message?: string };
 			const human = errBody?.message ?? errBody?.error;
 			if (typeof human === 'string' && human.length > 0) message = human;
-		} catch {}
+		} catch {
+			// The error response has no JSON body; keep the message built from the status.
+		}
 		throw new ApiError(message, res.status, path);
 	}
 	return (await res.json()) as Res;

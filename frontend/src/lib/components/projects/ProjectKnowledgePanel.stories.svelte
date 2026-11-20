@@ -189,11 +189,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
-					<ProjectKnowledgePanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+				<ProjectKnowledgePanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>
@@ -237,11 +235,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
-					<ProjectKnowledgePanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+				<ProjectKnowledgePanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>
@@ -276,11 +272,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
-					<ProjectKnowledgePanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+				<ProjectKnowledgePanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>

@@ -145,11 +145,11 @@
 
 	let expandedTurns = $state<Set<number>>(new Set());
 	function toggleTurn(turnId: number): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- `next` is a plain local copy, mutated then reassigned wholesale to `expandedTurns` below; never mutated in place.
-		const next = new Set(expandedTurns);
-		if (next.has(turnId)) next.delete(turnId);
-		else next.add(turnId);
-		expandedTurns = next;
+		expandedTurns = new Set(
+			expandedTurns.has(turnId)
+				? [...expandedTurns].filter((v) => v !== turnId)
+				: [...expandedTurns, turnId]
+		);
 	}
 
 	const isEmpty = $derived(
@@ -255,122 +255,120 @@
 			{/if}
 			<a class="pmp-memory-link" href={resolve(memoryHref)}>View in memory →</a>
 		{/snippet}
-		{#snippet children()}
-			<span class="sr-only" role="status" aria-live="polite">{restoreAnnouncement}</span>
-			<div class="pmp-body">
-				{#if loading && !data}
-					<div class="pmp-skeleton" aria-hidden="true">
-						<div class="pmp-skel-row"></div>
-						<div class="pmp-skel-row pmp-skel-row--short"></div>
-					</div>
-				{/if}
+		<span class="sr-only" role="status" aria-live="polite">{restoreAnnouncement}</span>
+		<div class="pmp-body">
+			{#if loading && !data}
+				<div class="pmp-skeleton" aria-hidden="true">
+					<div class="pmp-skel-row"></div>
+					<div class="pmp-skel-row pmp-skel-row--short"></div>
+				</div>
+			{/if}
 
-				{#if error}
-					<LoadErrorBanner
-						title="Couldn't load project memory"
-						detail={error}
-						hint="The recall endpoint may not be reachable, or this project has no recorded memory yet."
-						onRetry={retry}
-					/>
-				{/if}
+			{#if error}
+				<LoadErrorBanner
+					title="Couldn't load project memory"
+					detail={error}
+					hint="The recall endpoint may not be reachable, or this project has no recorded memory yet."
+					onRetry={retry}
+				/>
+			{/if}
 
-				{#if data && !error}
-					{#if isEmpty}
-						<p class="pmp-empty" data-slot="project-memory-empty">
-							No recorded lessons or turns for this project yet.
-						</p>
-					{:else}
-						<div class="pmp-section">
-							<div class="pmp-section__head">
-								<GraduationCap size={13} aria-hidden="true" />
-								<h4 class="pmp-section__title">Lessons</h4>
-							</div>
-							{#if data.lessons.length === 0}
-								<p class="pmp-empty">No active lessons recorded for this project.</p>
-							{:else}
-								<ul class="pmp-lesson-list" role="list">
-									{#each data.lessons as lesson (lesson.id)}
-										{@render lessonRow(lesson)}
-									{/each}
-								</ul>
-							{/if}
+			{#if data && !error}
+				{#if isEmpty}
+					<p class="pmp-empty" data-slot="project-memory-empty">
+						No recorded lessons or turns for this project yet.
+					</p>
+				{:else}
+					<div class="pmp-section">
+						<div class="pmp-section__head">
+							<GraduationCap size={13} aria-hidden="true" />
+							<h4 class="pmp-section__title">Lessons</h4>
 						</div>
-
-						<div class="pmp-section">
-							<div class="pmp-section__head">
-								<Wrench size={13} aria-hidden="true" />
-								<h4 class="pmp-section__title">Recently corrected</h4>
-								<span class="pmp-section__sub">last {data.recent_corrected.length}</span>
-							</div>
-							{#if data.recent_corrected.length === 0}
-								<p class="pmp-empty">No corrected turns recorded for this project.</p>
-							{:else}
-								<ul class="pmp-turn-list" role="list">
-									{#each data.recent_corrected as turn (turn.turn_id)}
-										{@render turnRow(turn, '--status-danger-fg')}
-									{/each}
-								</ul>
-							{/if}
-						</div>
-
-						<div class="pmp-section">
-							<div class="pmp-section__head">
-								<Rocket size={13} aria-hidden="true" />
-								<h4 class="pmp-section__title">Recently shipped</h4>
-								<span class="pmp-section__sub">last {data.recent_shipped.length}</span>
-							</div>
-							{#if data.recent_shipped.length === 0}
-								<p class="pmp-empty">No shipped turns recorded for this project.</p>
-							{:else}
-								<ul class="pmp-turn-list" role="list">
-									{#each data.recent_shipped as turn (turn.turn_id)}
-										{@render turnRow(turn, '--status-info-fg')}
-									{/each}
-								</ul>
-							{/if}
-						</div>
-					{/if}
-				{/if}
-
-				<div class="pmp-section">
-					<div class="pmp-section__head">
-						<Archive size={13} aria-hidden="true" />
-						<h4 class="pmp-section__title">Archived</h4>
-						{#if archivedLessons.length > 0}
-							<span class="pmp-section__sub">{archivedLessons.length}</span>
+						{#if data.lessons.length === 0}
+							<p class="pmp-empty">No active lessons recorded for this project.</p>
+						{:else}
+							<ul class="pmp-lesson-list" role="list">
+								{#each data.lessons as lesson (lesson.id)}
+									{@render lessonRow(lesson)}
+								{/each}
+							</ul>
 						{/if}
 					</div>
-					{#if archivedLoading && archivedLessons.length === 0}
-						<div class="pmp-skeleton" aria-hidden="true">
-							<div class="pmp-skel-row"></div>
+
+					<div class="pmp-section">
+						<div class="pmp-section__head">
+							<Wrench size={13} aria-hidden="true" />
+							<h4 class="pmp-section__title">Recently corrected</h4>
+							<span class="pmp-section__sub">last {data.recent_corrected.length}</span>
 						</div>
-					{:else if archivedError}
-						<LoadErrorBanner
-							title="Couldn't load archived lessons"
-							detail={archivedError}
-							hint="The lessons-archived endpoint may not be reachable yet."
-							onRetry={retryArchived}
-						/>
-					{:else if archivedLessons.length === 0}
-						<p class="pmp-empty">No archived lessons for this project.</p>
-					{:else}
-						<ul class="pmp-archived-list" role="list">
-							{#each archivedLessons as lesson (lesson.id)}
-								<li>
-									<ArchivedLessonCard
-										{lesson}
-										onRestore={handleRestore}
-										restoring={restoringLessonId === lesson.id}
-										restoreError={restoreErrors[lesson.id] ?? null}
-										restored={restoredLessonIds.has(lesson.id)}
-									/>
-								</li>
-							{/each}
-						</ul>
+						{#if data.recent_corrected.length === 0}
+							<p class="pmp-empty">No corrected turns recorded for this project.</p>
+						{:else}
+							<ul class="pmp-turn-list" role="list">
+								{#each data.recent_corrected as turn (turn.turn_id)}
+									{@render turnRow(turn, '--status-danger-fg')}
+								{/each}
+							</ul>
+						{/if}
+					</div>
+
+					<div class="pmp-section">
+						<div class="pmp-section__head">
+							<Rocket size={13} aria-hidden="true" />
+							<h4 class="pmp-section__title">Recently shipped</h4>
+							<span class="pmp-section__sub">last {data.recent_shipped.length}</span>
+						</div>
+						{#if data.recent_shipped.length === 0}
+							<p class="pmp-empty">No shipped turns recorded for this project.</p>
+						{:else}
+							<ul class="pmp-turn-list" role="list">
+								{#each data.recent_shipped as turn (turn.turn_id)}
+									{@render turnRow(turn, '--status-info-fg')}
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
+			{/if}
+
+			<div class="pmp-section">
+				<div class="pmp-section__head">
+					<Archive size={13} aria-hidden="true" />
+					<h4 class="pmp-section__title">Archived</h4>
+					{#if archivedLessons.length > 0}
+						<span class="pmp-section__sub">{archivedLessons.length}</span>
 					{/if}
 				</div>
+				{#if archivedLoading && archivedLessons.length === 0}
+					<div class="pmp-skeleton" aria-hidden="true">
+						<div class="pmp-skel-row"></div>
+					</div>
+				{:else if archivedError}
+					<LoadErrorBanner
+						title="Couldn't load archived lessons"
+						detail={archivedError}
+						hint="The lessons-archived endpoint may not be reachable yet."
+						onRetry={retryArchived}
+					/>
+				{:else if archivedLessons.length === 0}
+					<p class="pmp-empty">No archived lessons for this project.</p>
+				{:else}
+					<ul class="pmp-archived-list" role="list">
+						{#each archivedLessons as lesson (lesson.id)}
+							<li>
+								<ArchivedLessonCard
+									{lesson}
+									onRestore={handleRestore}
+									restoring={restoringLessonId === lesson.id}
+									restoreError={restoreErrors[lesson.id] ?? null}
+									restored={restoredLessonIds.has(lesson.id)}
+								/>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</div>
-		{/snippet}
+		</div>
 	</SectionCard>
 </div>
 

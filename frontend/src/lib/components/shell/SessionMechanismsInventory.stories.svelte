@@ -4,9 +4,6 @@
 	import SessionMechanismsInventory from './SessionMechanismsInventory.svelte';
 	import 'augmented-ui/augmented-ui.min.css';
 	import type {
-		AuthorityCode,
-		ModeCode,
-		FilterRuleKind,
 		SteererRow,
 		GraderRow,
 		FilterRuleRow,

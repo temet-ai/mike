@@ -19,7 +19,9 @@
 				: [];
 			if (!keys.includes(key)) keys.push(key);
 			localStorage.setItem('proxy-inspector:collapsed', JSON.stringify(keys));
-		} catch {}
+		} catch {
+			// Storage is unavailable (private mode or full); the value is simply not kept.
+		}
 	}
 
 	const RULE_SYSTEM_REMINDER: FilterRuleDto = {

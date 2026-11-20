@@ -178,7 +178,6 @@
 			'[data-slot="project-knowledge-panel"]'
 		) as HTMLElement;
 		const knowledgeCard = knowledgePanel.querySelector('.dsc-card') as HTMLElement;
-		const members = [vitals, embeddingPanel, sessionsPanel, memoryPanel];
 
 		await expect(topRow.contains(vitals)).toBe(true);
 		await expect(topRow.contains(embeddingPanel)).toBe(true);

@@ -767,7 +767,7 @@
 <Story
 	name="InteractiveEvents"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		interactiveEventsPortalActionSpy.mockClear();
 		const portalledButton = document.querySelector(
 			'[data-testid="portalled-action-btn"]'
@@ -841,7 +841,7 @@
 <Story
 	name="InteractiveSlotForwarding"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const portalInput = document.getElementById('portal-slot-test-input');
 		await expect(portalInput, 'portalled input should exist in document').not.toBeNull();
 

@@ -157,6 +157,7 @@ export function createPromptCatalogue(
 	let error = $state<string | null>(null);
 	let detailsSettled = $state(false);
 	let inFlight: Promise<void> | null = null;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const dtoByKey = new Map<string, PromptClassDto>();
 
 	function detailParams(row: CatalogueModelRow): GetPromptClassObservationsParams {

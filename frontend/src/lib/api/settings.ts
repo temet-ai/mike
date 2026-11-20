@@ -127,7 +127,9 @@ export async function patchFeature(key: string, enabled: boolean): Promise<Featu
 			if (errBody && typeof errBody.error === 'string' && errBody.error.length > 0) {
 				message = errBody.error;
 			}
-		} catch {}
+		} catch {
+			// The error response has no JSON body; keep the message built from the status.
+		}
 		throw new ApiError(message, res.status, path);
 	}
 	void invalidateApiCache('/api/settings');
@@ -196,7 +198,9 @@ export async function patchSetting(
 			if (errBody && typeof errBody.error === 'string' && errBody.error.length > 0) {
 				message = errBody.error;
 			}
-		} catch {}
+		} catch {
+			// The error response has no JSON body; keep the message built from the status.
+		}
 		throw new ApiError(message, res.status, path);
 	}
 	void invalidateApiCache('/api/settings');

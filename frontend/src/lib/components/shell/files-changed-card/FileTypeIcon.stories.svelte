@@ -38,7 +38,7 @@
 >
 	{#snippet template()}
 		<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px;">
-			{#each EXAMPLE_PATHS as path}
+			{#each EXAMPLE_PATHS as path (path)}
 				<FileTypeIcon {path} size={20} />
 			{/each}
 		</div>

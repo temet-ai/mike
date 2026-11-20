@@ -307,14 +307,7 @@
 
 	let matchExpandedIds = $state<Set<string>>(new Set());
 	function toggleMatchExpand(id: string): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment below, not in-place mutation
-		const next = new Set(matchExpandedIds);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
-		}
-		matchExpandedIds = next;
+		matchExpandedIds = new Set(matchExpandedIds.has(id) ? [...matchExpandedIds].filter((v) => v !== id) : [...matchExpandedIds, id]);
 	}
 
 	const UNGROUPED_KEY = '__ungrouped__';

@@ -163,8 +163,11 @@ See design-spec.md §6.
 							{#if ev.existingLessonText}
 								<p class="les-note">
 									Already a lesson:
-									<a class="les-link" href={ev.existingLessonHref ?? '#'}>{ev.existingLessonText}</a
-									>
+									{#if ev.existingLessonHref}
+										<a class="les-link" href={ev.existingLessonHref}>{ev.existingLessonText}</a>
+									{:else}
+										{ev.existingLessonText}
+									{/if}
 								</p>
 							{/if}
 						</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip';
+		import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip';
 	import LegendFilter from '$lib/components/shared/LegendFilter.svelte';
 	import type { LegendEntry } from '$lib/components/shared/LegendFilter.svelte';
 	import { formatUsd } from '$lib/format';
@@ -52,9 +52,11 @@
 	);
 
 	let active = $state<Set<string>>(new Set());
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const seenKeys = new Set<string>();
 	$effect(() => {
 		const keys = callerOrder;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 		const next = new Set(active);
 		let changed = false;
 		for (const k of keys) {
@@ -81,17 +83,14 @@
 	}
 
 	const days = $derived.by((): DayBar[] => {
-		const byDay = new Map<string, Map<string, LlmSpendDayCallerDto>>();
-		for (const row of byDayCaller) {
-			if (!active.has(row.key)) continue;
-			const dayMap = byDay.get(row.day) ?? new Map<string, LlmSpendDayCallerDto>();
-			dayMap.set(row.key, row);
-			byDay.set(row.day, dayMap);
-		}
+		const byDay = Map.groupBy(
+			byDayCaller.filter((row) => active.has(row.key)),
+			(row) => row.day
+		);
 		return [...byDay.keys()]
 			.sort((a, b) => a.localeCompare(b))
 			.map((day) => {
-				const dayMap = byDay.get(day) ?? new Map<string, LlmSpendDayCallerDto>();
+				const dayMap = new Map((byDay.get(day) ?? []).map((row) => [row.key, row] as const));
 				const segments: DaySegment[] = [];
 				let total = 0;
 				for (const key of callerOrder) {
@@ -153,13 +152,7 @@
 	}
 
 	function groupedTooltipSections(bar: DayBar): TooltipGroupSection[] {
-		const byRole = new Map<string, DaySegment[]>();
-		for (const seg of bar.segments) {
-			const role = roleByKey.get(seg.key) ?? seg.key;
-			const list = byRole.get(role) ?? [];
-			list.push(seg);
-			byRole.set(role, list);
-		}
+		const byRole = Map.groupBy(bar.segments, (seg) => roleByKey.get(seg.key) ?? seg.key);
 		return [...byRole.entries()]
 			.map(([role, segments]): TooltipGroupSection => ({
 				groupKey: role,

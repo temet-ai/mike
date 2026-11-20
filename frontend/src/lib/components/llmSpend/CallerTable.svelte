@@ -174,7 +174,6 @@
 							<tr class="ct-row" class:ct-row--failing={(member?.failed_count ?? 0) > 0}>
 								<td class="ct-td ct-td--label">
 									{#if href}
-										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is one of several dynamically-built internal route shapes (steerer id, workers, judge-disagreements runs) from callerHref(); no single resolve() overload covers all of them -->
 										<a class="ct-caller-link" {href}>{member?.label}</a>
 									{:else}
 										<span class="ct-caller-plain">{member?.label}</span>
@@ -245,7 +244,6 @@
 									<tr class="ct-row ct-row--member" class:ct-row--failing={member.failed_count > 0}>
 										<td class="ct-td ct-td--label ct-td--indent">
 											{#if href}
-												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is one of several dynamically-built internal route shapes from callerHref(); no single resolve() overload covers all of them -->
 												<a class="ct-caller-link" {href}>{memberDisplayLabel(member)}</a>
 											{:else}
 												<span class="ct-caller-plain">{memberDisplayLabel(member)}</span>

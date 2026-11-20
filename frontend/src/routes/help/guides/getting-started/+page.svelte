@@ -131,8 +131,7 @@
 	</ol>
 	<p>
 		If nothing appears, check Inspect API in the help drawer or
-		<!-- eslint-disable svelte/no-navigation-without-resolve -- Same-origin backend endpoint, not a SvelteKit page. -->
-		<a href="/api/health" target="_blank" rel="noopener noreferrer"
+		<a href="/api/health" target="_blank" rel="external noopener noreferrer"
 			>this instance's health endpoint</a
 		>. Then follow
 		<a href={resolve('/help/docs/[slug]', { slug: 'recovery-and-maintenance' })}
@@ -143,8 +142,7 @@
 	<h2 id="next-steps">Next steps</h2>
 	<ul>
 		<li>
-			<a href={resolve('/help/guides/inspecting-requests')}>Inspect a captured request</a>
-			<!-- eslint-enable svelte/no-navigation-without-resolve -->.
+			<a href={resolve('/help/guides/inspecting-requests')}>Inspect a captured request</a>.
 		</li>
 		<li><a href={resolve('/settings')}>Review active features and provider settings</a>.</li>
 		<li>

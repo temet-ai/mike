@@ -58,6 +58,7 @@
 	];
 
 	const deliveryBuckets = $derived.by((): DeliveryBucket[] => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const buckets = new Map<string, DeliveryBucket>();
 		for (const m of [...(envelope?.inbox ?? []), ...(envelope?.outbox ?? [])]) {
 			const presentation = describeDelivery(m, now);
@@ -129,58 +130,56 @@
 			<span class="mbx-meta">{totalCount} {totalCount === 1 ? 'message' : 'messages'}</span>
 		{/if}
 	{/snippet}
-	{#snippet children()}
-		<div class="mbx-panel-body">
-			{#if loading && !loaded}
-				<div class="mbx-skeleton" aria-hidden="true">
-					<div class="mbx-skel-row mbx-skel-row--short"></div>
-				</div>
+	<div class="mbx-panel-body">
+		{#if loading && !loaded}
+			<div class="mbx-skeleton" aria-hidden="true">
+				<div class="mbx-skel-row mbx-skel-row--short"></div>
+			</div>
+		{/if}
+
+		{#if error}
+			<LoadErrorBanner
+				title="Couldn't load mailbox"
+				detail={error}
+				hint="The mailbox endpoint may not be live yet, or this session has no messages."
+				onRetry={retry}
+			/>
+		{/if}
+
+		{#if loaded && !error}
+			{#if totalCount === 0}
+				<p class="mbx-empty">No messages exchanged yet</p>
+			{:else}
+				<ul class="mbx-counts" role="list">
+					{#each deliveryBuckets as bucket (bucket.label)}
+						<li class="badge-nx {toneBadgeClass(bucket.tone)}">
+							{bucket.label}
+							{bucket.count}
+						</li>
+					{/each}
+				</ul>
 			{/if}
 
-			{#if error}
-				<LoadErrorBanner
-					title="Couldn't load mailbox"
-					detail={error}
-					hint="The mailbox endpoint may not be live yet, or this session has no messages."
-					onRetry={retry}
-				/>
-			{/if}
-
-			{#if loaded && !error}
-				{#if totalCount === 0}
-					<p class="mbx-empty">No messages exchanged yet</p>
-				{:else}
-					<ul class="mbx-counts" role="list">
-						{#each deliveryBuckets as bucket (bucket.label)}
-							<li class="badge-nx {toneBadgeClass(bucket.tone)}">
-								{bucket.label}
-								{bucket.count}
+			{#if threadsLoaded && threads.length > 0}
+				<div class="mbx-threads">
+					<span class="mbx-threads__title">Newest threads</span>
+					<ul class="mbx-thread-list" role="list">
+						{#each threads as t (t.thread_uuid)}
+							<li class="mbx-thread-row">
+								<span class="mbx-thread-row__subject">{t.subject}</span>
+								<span class="mbx-thread-row__time">{formatRelative(t.last_message_at, now)}</span>
 							</li>
 						{/each}
 					</ul>
-				{/if}
-
-				{#if threadsLoaded && threads.length > 0}
-					<div class="mbx-threads">
-						<span class="mbx-threads__title">Newest threads</span>
-						<ul class="mbx-thread-list" role="list">
-							{#each threads as t (t.thread_uuid)}
-								<li class="mbx-thread-row">
-									<span class="mbx-thread-row__subject">{t.subject}</span>
-									<span class="mbx-thread-row__time">{formatRelative(t.last_message_at, now)}</span>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
+				</div>
 			{/if}
+		{/if}
 
-			<a class="mbx-open-comms" href={commsHref} data-augmented-ui="tl-clip br-clip border">
-				Open comms
-				<ArrowRight size={13} aria-hidden="true" />
-			</a>
-		</div>
-	{/snippet}
+		<a class="mbx-open-comms" href={commsHref} data-augmented-ui="tl-clip br-clip border">
+			Open comms
+			<ArrowRight size={13} aria-hidden="true" />
+		</a>
+	</div>
 </SectionCard>
 
 <style>

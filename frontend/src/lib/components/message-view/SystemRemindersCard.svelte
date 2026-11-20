@@ -3,12 +3,10 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn, type WithElementRef } from '$lib/utils';
 	import { Bell } from '@lucide/svelte';
-	import { formatCount } from '$lib/time';
 	import { formatTokens } from './parseSystemPrompt';
 
 	interface Props extends WithElementRef<HTMLAttributes<HTMLElement>> {
 		groupCount: number;
-		totalChars: number;
 		totalTokens: number;
 		children: Snippet;
 	}
@@ -17,7 +15,6 @@
 		ref = $bindable(null),
 		class: className,
 		groupCount,
-		totalChars,
 		totalTokens,
 		children,
 		...restProps

@@ -48,12 +48,11 @@
 			<Badge variant="chip-muted" data-end-axis="tag">{tag.replaceAll('_', ' ')}</Badge>
 		{/each}
 		{#if sessionId}
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- an inspect API URL opened as JSON, not an app route -->
 			<a
 				class="text-micro text-[var(--text-faint)] hover:text-[var(--text-strong)]"
 				href="/api/sessions/{sessionId}/verdicts"
 				target="_blank"
-				rel="noopener noreferrer">verdict history</a
+				rel="external noopener noreferrer">verdict history</a
 			>
 		{/if}
 	</span>

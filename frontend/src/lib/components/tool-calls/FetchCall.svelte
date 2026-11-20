@@ -23,8 +23,9 @@
 		<div class="fetch-call__url-row">
 			<Download size={13} aria-hidden="true" class="fetch-call__icon" />
 			{#if href !== null}
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL from the model's tool call (validated http(s):// above), never an internal route -->
-				<a {href} class="fetch-call__url" target="_blank" rel="noopener noreferrer">{url}</a>
+				<a {href} class="fetch-call__url" target="_blank" rel="external noopener noreferrer">
+					{url}
+				</a>
 			{:else}
 				<span class="fetch-call__url fetch-call__url--plain">{url}</span>
 			{/if}

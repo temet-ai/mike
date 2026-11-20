@@ -33,7 +33,6 @@
 	</div>
 	<div class="launchpad-grid">
 		{#each paths as path, index (path.href)}
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- paths contains resolved literal routes -->
 			<a
 				href={path.href}
 				class="launch-card"

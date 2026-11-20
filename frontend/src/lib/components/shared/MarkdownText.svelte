@@ -27,7 +27,9 @@ block until its closing fence arrives.
 {#snippet segments(list: MdSegment[])}
 	{#each list as seg, j (j)}
 		{#if seg.href !== null}
-			<a class="md-link" href={seg.href} target="_blank" rel="noopener noreferrer">{seg.text}</a>
+			<a class="md-link" href={seg.href} target="_blank" rel="external noopener noreferrer">
+				{seg.text}
+			</a>
 		{:else if seg.code}
 			<code class="md-code">{seg.text}</code>
 		{:else if seg.bold}

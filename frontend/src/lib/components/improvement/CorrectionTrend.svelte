@@ -157,7 +157,7 @@ listed as links under the chart.
 					<p class="ct-warn-lead">
 						<span class="ct-warn-tag">Judge changed</span>
 						The judge changed during these weeks. A different judge can label the same kind of turn differently,
-						so a rise or fall across a change may come from the judge, not from Claude.{#if latestChanged}{' '}The
+						so a rise or fall across a change may come from the judge, not from Claude. {#if latestChanged}The
 							latest week is one of them, so compare it with the week before with care.{/if}
 					</p>
 					<ul class="ct-warn-list">
@@ -230,7 +230,7 @@ listed as links under the chart.
 							/>
 						{/each}
 						{#each weekly as p, i (p.weekEnd)}
-							<!-- svelte-ignore a11y_no_noninteractive_tabindex -- each week takes keyboard focus so keyboard readers get the same tooltip pointer readers get; the table below carries the same values -->
+							<!-- svelte-ignore a11y_no_noninteractive_tabindex (each week takes keyboard focus so keyboard readers get the same tooltip pointer readers get; the table below carries the same values) -->
 							<rect
 								class="ct-hit"
 								x={hitLeft(i)}
@@ -282,8 +282,8 @@ listed as links under the chart.
 				{/if}
 			</div>
 			<p class="ct-legend">
-				Dots are weeks, dated by their last day.{#if changes.length > 0}{' '}A thin vertical line
-					marks a change of judge.{/if}{#if placedMarkers.length > 0}{' '}A grey diamond on the
+				Dots are weeks, dated by their last day. {#if changes.length > 0}A thin vertical line
+					marks a change of judge.{/if} {#if placedMarkers.length > 0}A grey diamond on the
 					bottom line marks a lesson or directive decision.{/if}
 			</p>
 			<details class="ct-table-wrap">
@@ -303,7 +303,7 @@ listed as links under the chart.
 								<td class="ct-num">{p.n > 0 ? `${sharePct(p)} (${p.k})` : '—'}</td>
 								<td class="ct-num">{p.n}</td>
 								<td>
-									{p.judges.map((j) => j.name).join(', ') || '—'}{#if judgeChanged(p)}{' '}<span
+									{p.judges.map((j) => j.name).join(', ') || '—'} {#if judgeChanged(p)}<span
 											class="ct-changed-note">· changed</span
 										>{/if}
 								</td>

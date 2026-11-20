@@ -4,6 +4,7 @@ The threads of one project, newest change first. Each row is a link that opens t
 the list; the status filter narrows the list through the URL.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import Badge from '$lib/components/shared/Badge.svelte';
 	import { formatDay } from '$lib/components/eval/evalReview';
 	import type { ThreadListRow } from '$lib/api/workThreads';
@@ -16,13 +17,12 @@ the list; the status filter narrows the list through the URL.
 	}: {
 		threads: ThreadListRow[];
 		selected: string | null;
-		hrefFor: (slug: string) => string;
+		hrefFor: (slug: string) => ResolvedPathname;
 	} = $props();
 </script>
 
 <nav class="tl" aria-label="Threads" data-slot="thread-list">
 	{#each threads as thread (thread.slug)}
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- hrefFor builds the route with resolve() in the page -->
 		<a
 			class="tl-row"
 			href={hrefFor(thread.slug)}

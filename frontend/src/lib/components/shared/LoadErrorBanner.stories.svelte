@@ -1,5 +1,8 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import { resolve } from '$app/paths';
+	import type { ResolvedPathname } from '$app/types';
+	import type { ExternalHref } from '$lib/resolveHref';
 	import { expect, fn, userEvent } from 'storybook/test';
 	import LoadErrorBanner from './LoadErrorBanner.svelte';
 
@@ -8,9 +11,9 @@
 		detail?: string;
 		hint?: string;
 		onRetry?: () => void;
-		backHref?: string;
+		backHref?: ResolvedPathname;
 		backLabel?: string;
-		docsHref?: string;
+		docsHref?: ResolvedPathname | ExternalHref;
 		docsLabel?: string;
 		message?: string;
 	}
@@ -103,9 +106,9 @@
 	args={buildLoadErrorProps({
 		hint: 'The session may have been evicted by the TTL policy.',
 		onRetry: fn(),
-		backHref: '/sessions',
+		backHref: resolve('/sessions'),
 		backLabel: 'Back to sessions',
-		docsHref: '/help/glossary#session',
+		docsHref: resolve('/help/glossary#session'),
 		docsLabel: 'What is a session?'
 	})}
 	play={async ({ canvasElement, args }) => {

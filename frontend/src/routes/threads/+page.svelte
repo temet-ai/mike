@@ -5,6 +5,7 @@ dependencies, linked sessions and history, with editing. mike's database holds t
 machine with a location for the project shows the same ones.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -45,7 +46,11 @@ machine with a location for the project shows the same ones.
 		...THREAD_STATUSES.map((value) => ({ value }))
 	];
 
-	function query(next: { project?: string; status?: string; thread?: string | null }): string {
+	function threadsHref(next: {
+		project?: string;
+		status?: string;
+		thread?: string | null;
+	}): ResolvedPathname {
 		const params = new SvelteURLSearchParams();
 		const project = next.project ?? data.project;
 		const status = next.status ?? data.status;
@@ -54,17 +59,17 @@ machine with a location for the project shows the same ones.
 		if (status) params.set('status', status);
 		if (thread) params.set('thread', thread);
 		const text = params.toString();
-		return text ? `?${text}` : '';
+		return text ? resolve(`/threads?${text}`) : resolve('/threads');
 	}
 
-	function hrefFor(slug: string): string {
-		return `${resolve('/threads')}${query({ thread: slug })}`;
+	function hrefFor(slug: string): ResolvedPathname {
+		return threadsHref({ thread: slug });
 	}
 
 	function go(next: { project?: string; status?: string; thread?: string | null }): void {
 		editing = false;
 		failed = null;
-		void goto(`${resolve('/threads')}${query(next)}`, { reset: false });
+		void goto(threadsHref(next), { reset: false });
 	}
 
 	async function run(action: () => Promise<unknown>): Promise<void> {

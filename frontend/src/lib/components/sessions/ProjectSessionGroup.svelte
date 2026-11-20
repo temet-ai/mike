@@ -18,11 +18,12 @@
 	import { resolve } from '$app/paths';
 	import PinToggle from '$lib/components/shared/PinToggle.svelte';
 	import SessionTableHead from './SessionTableHead.svelte';
-	import SessionRow, { type DetailMetrics } from './SessionRow.svelte';
+	import SessionRow from './SessionRow.svelte';
+	import type { DetailMetrics } from './sessionRowTypes';
 	import type { ProxyEvent } from '$lib/types';
 
 	interface Props {
-		group: ProjectGroupRow;
+		group: Omit<ProjectGroupRow, 'project'>;
 		now: number;
 		collapsed: boolean;
 		onToggleCollapse: () => void;

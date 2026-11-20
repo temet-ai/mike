@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { ArrowLeft, BookOpen, RefreshCw } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import type { ResolvedPathname } from '$app/types';
+	import type { ExternalHref } from '$lib/resolveHref';
 
 	interface Props {
 		title?: string;
 		detail?: string;
 		hint?: string;
 		onRetry?: () => void;
-		backHref?: string;
+		backHref?: ResolvedPathname;
 		backLabel?: string;
-		docsHref?: string;
+		docsHref?: ResolvedPathname | ExternalHref;
 		docsLabel?: string;
 		message?: string;
 	}
@@ -71,7 +73,6 @@
 					variant="outline"
 					href={docsHref}
 					target={docsHref.startsWith('http') ? '_blank' : undefined}
-					rel={docsHref.startsWith('http') ? 'noopener noreferrer' : undefined}
 					data-slot="load-error-docs"
 				>
 					<BookOpen class="size-3" aria-hidden="true" />

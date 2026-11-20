@@ -67,7 +67,9 @@ function persistColumns(): void {
 			requestsWidth: shellState.requestsWidth
 		};
 		localStorage.setItem(LS_KEY, JSON.stringify(payload));
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 function clamp(n: number, min: number, max: number): number {

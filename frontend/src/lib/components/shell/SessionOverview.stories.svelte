@@ -209,7 +209,9 @@ Prefer targeted, minimal changes. Do not refactor unless asked.`
 				copiedId = false;
 				copyTimer = null;
 			}, 1500);
-		} catch {}
+		} catch {
+			// The clipboard is unavailable or refused; nothing is copied.
+		}
 	}
 
 	let sysBlockOpen = $state<Record<number, boolean>>({ 0: true, 1: false, 2: false });

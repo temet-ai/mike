@@ -63,6 +63,7 @@
 	const isSearchActive = $derived(appliedSearch.length >= SEARCH_MIN_QUERY);
 
 	function dedupeById(rows: SessionSummary[]): SessionSummary[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const seen = new Set<string>();
 		const out: SessionSummary[] = [];
 		for (const row of rows) {
@@ -210,147 +211,145 @@
 		{#snippet headerActions()}
 			<span class="psp-meta" data-slot="project-sessions-count">{countLine}</span>
 		{/snippet}
-		{#snippet children()}
-			<div class="psp-controls">
-				<div class="psp-search-wrap" data-augmented-ui="tl-clip border">
-					<Search class="psp-search-icon" size={13} aria-hidden="true" />
-					<input
-						bind:value={rawQuery}
-						type="search"
-						class="psp-search-input"
-						placeholder="Search by session title or full id"
-						autocomplete="off"
-						autocapitalize="off"
-						spellcheck="false"
-						aria-label="Search this project's sessions by title or full id"
-						data-slot="project-sessions-search"
-					/>
-					{#if trimmedRawQuery.length > 0}
-						<button
-							type="button"
-							class="psp-search-clear"
-							aria-label="Clear search"
-							onclick={clearSearch}
-						>
-							<X size={12} aria-hidden="true" />
-						</button>
-					{/if}
-				</div>
-
-				<div class="psp-seg" role="group" aria-label="Which sessions to show">
-					<div class="psp-seg-item">
-						<button
-							type="button"
-							class="psp-seg-btn"
-							class:psp-seg-btn--active={activeWindow === 'week'}
-							aria-pressed={activeWindow === 'week'}
-							onclick={() => (activeWindow = 'week')}
-							data-slot="project-sessions-window-week"
-						>
-							<span class="psp-seg-label">Last 7 days</span>
-						</button>
-					</div>
-					<div class="psp-seg-item">
-						<button
-							type="button"
-							class="psp-seg-btn"
-							class:psp-seg-btn--active={activeWindow === 'all'}
-							aria-pressed={activeWindow === 'all'}
-							onclick={switchToAllTime}
-							data-slot="project-sessions-window-all"
-						>
-							<span class="psp-seg-label">All time</span>
-						</button>
-					</div>
-				</div>
-
-				<Tooltip
-					text="Matches a session's title, or a session id pasted in full — partial ids don't match. It doesn't search prompts, conversation or response bodies; the Sessions page search covers those."
-				>
-					<span class="psp-search-scope">titles · full ids</span>
-				</Tooltip>
-			</div>
-
-			<div class="psp-table" data-slot="project-sessions-table">
-				{#if error}
-					<div class="psp-state">
-						<LoadErrorBanner
-							title="Couldn't load this project's sessions"
-							detail={error}
-							hint="The inspect API may not be reachable on :9989."
-							onRetry={retry}
-						/>
-					</div>
-				{:else if loading && sessions.length === 0}
-					<div class="psp-skeleton" aria-hidden="true" data-slot="project-sessions-loading">
-						<div class="psp-skel-row"></div>
-						<div class="psp-skel-row"></div>
-						<div class="psp-skel-row psp-skel-row--short"></div>
-					</div>
-				{:else if isSearchEmpty}
-					<div class="psp-state" data-slot="project-sessions-empty">
-						<p class="psp-empty">
-							No sessions match "{appliedSearch}"{activeWindow === 'week'
-								? ' in the last 7 days'
-								: ''}.
-						</p>
-						<p class="psp-empty">Search covers session titles and full session ids only.</p>
-						{#if activeWindow === 'week'}
-							<button type="button" class="psp-inline-action" onclick={switchToAllTime}>
-								switch to all time
-							</button>
-						{/if}
-					</div>
-				{:else if isWindowEmptyWithMore}
-					<div class="psp-state" data-slot="project-sessions-empty">
-						<p class="psp-empty">No sessions in the last 7 days.</p>
-						<p class="psp-empty">This project has {allTimeLabel} older ones.</p>
-						<button
-							type="button"
-							class="psp-seg-btn psp-seg-btn--active psp-show-all"
-							onclick={switchToAllTime}
-						>
-							<span class="psp-seg-label">Show all {allTimeLabel}</span>
-						</button>
-					</div>
-				{:else if isGenuinelyEmpty}
-					<div class="psp-state" data-slot="project-sessions-empty">
-						<p class="psp-empty">No sessions captured for this project.</p>
-					</div>
-				{:else}
-					<div class="psp-thead"><SessionTableHead /></div>
-					<div class="psp-tbody">
-						{#each sessions as s (s.id)}
-							<SessionRow
-								session={s}
-								{now}
-								detail={detailLoader.metrics.get(s.id)}
-								{latestWsEventForSession}
-								onHoverIntent={detailLoader.scheduleLoad}
-								onHoverCancel={detailLoader.cancelLoad}
-								onTogglePin={(session) => void togglePin(session)}
-							/>
-						{/each}
-					</div>
-					{#if hasMore}
-						<button
-							type="button"
-							class="psp-load-older"
-							disabled={loadingMore}
-							onclick={loadOlder}
-							data-slot="project-sessions-load-older"
-						>
-							{loadingMore ? 'Loading' : 'Load older sessions'}
-						</button>
-						{#if loadMoreError}
-							<p class="psp-load-error" role="alert" data-slot="project-sessions-load-older-error">
-								{loadMoreError}
-							</p>
-						{/if}
-					{/if}
+		<div class="psp-controls">
+			<div class="psp-search-wrap" data-augmented-ui="tl-clip border">
+				<Search class="psp-search-icon" size={13} aria-hidden="true" />
+				<input
+					bind:value={rawQuery}
+					type="search"
+					class="psp-search-input"
+					placeholder="Search by session title or full id"
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+					aria-label="Search this project's sessions by title or full id"
+					data-slot="project-sessions-search"
+				/>
+				{#if trimmedRawQuery.length > 0}
+					<button
+						type="button"
+						class="psp-search-clear"
+						aria-label="Clear search"
+						onclick={clearSearch}
+					>
+						<X size={12} aria-hidden="true" />
+					</button>
 				{/if}
 			</div>
-		{/snippet}
+
+			<div class="psp-seg" role="group" aria-label="Which sessions to show">
+				<div class="psp-seg-item">
+					<button
+						type="button"
+						class="psp-seg-btn"
+						class:psp-seg-btn--active={activeWindow === 'week'}
+						aria-pressed={activeWindow === 'week'}
+						onclick={() => (activeWindow = 'week')}
+						data-slot="project-sessions-window-week"
+					>
+						<span class="psp-seg-label">Last 7 days</span>
+					</button>
+				</div>
+				<div class="psp-seg-item">
+					<button
+						type="button"
+						class="psp-seg-btn"
+						class:psp-seg-btn--active={activeWindow === 'all'}
+						aria-pressed={activeWindow === 'all'}
+						onclick={switchToAllTime}
+						data-slot="project-sessions-window-all"
+					>
+						<span class="psp-seg-label">All time</span>
+					</button>
+				</div>
+			</div>
+
+			<Tooltip
+				text="Matches a session's title, or a session id pasted in full — partial ids don't match. It doesn't search prompts, conversation or response bodies; the Sessions page search covers those."
+			>
+				<span class="psp-search-scope">titles · full ids</span>
+			</Tooltip>
+		</div>
+
+		<div class="psp-table" data-slot="project-sessions-table">
+			{#if error}
+				<div class="psp-state">
+					<LoadErrorBanner
+						title="Couldn't load this project's sessions"
+						detail={error}
+						hint="The inspect API may not be reachable on :9989."
+						onRetry={retry}
+					/>
+				</div>
+			{:else if loading && sessions.length === 0}
+				<div class="psp-skeleton" aria-hidden="true" data-slot="project-sessions-loading">
+					<div class="psp-skel-row"></div>
+					<div class="psp-skel-row"></div>
+					<div class="psp-skel-row psp-skel-row--short"></div>
+				</div>
+			{:else if isSearchEmpty}
+				<div class="psp-state" data-slot="project-sessions-empty">
+					<p class="psp-empty">
+						No sessions match "{appliedSearch}"{activeWindow === 'week'
+							? ' in the last 7 days'
+							: ''}.
+					</p>
+					<p class="psp-empty">Search covers session titles and full session ids only.</p>
+					{#if activeWindow === 'week'}
+						<button type="button" class="psp-inline-action" onclick={switchToAllTime}>
+							switch to all time
+						</button>
+					{/if}
+				</div>
+			{:else if isWindowEmptyWithMore}
+				<div class="psp-state" data-slot="project-sessions-empty">
+					<p class="psp-empty">No sessions in the last 7 days.</p>
+					<p class="psp-empty">This project has {allTimeLabel} older ones.</p>
+					<button
+						type="button"
+						class="psp-seg-btn psp-seg-btn--active psp-show-all"
+						onclick={switchToAllTime}
+					>
+						<span class="psp-seg-label">Show all {allTimeLabel}</span>
+					</button>
+				</div>
+			{:else if isGenuinelyEmpty}
+				<div class="psp-state" data-slot="project-sessions-empty">
+					<p class="psp-empty">No sessions captured for this project.</p>
+				</div>
+			{:else}
+				<div class="psp-thead"><SessionTableHead /></div>
+				<div class="psp-tbody">
+					{#each sessions as s (s.id)}
+						<SessionRow
+							session={s}
+							{now}
+							detail={detailLoader.metrics.get(s.id)}
+							{latestWsEventForSession}
+							onHoverIntent={detailLoader.scheduleLoad}
+							onHoverCancel={detailLoader.cancelLoad}
+							onTogglePin={(session) => void togglePin(session)}
+						/>
+					{/each}
+				</div>
+				{#if hasMore}
+					<button
+						type="button"
+						class="psp-load-older"
+						disabled={loadingMore}
+						onclick={loadOlder}
+						data-slot="project-sessions-load-older"
+					>
+						{loadingMore ? 'Loading' : 'Load older sessions'}
+					</button>
+					{#if loadMoreError}
+						<p class="psp-load-error" role="alert" data-slot="project-sessions-load-older-error">
+							{loadMoreError}
+						</p>
+					{/if}
+				{/if}
+			{/if}
+		</div>
 	</SectionCard>
 </div>
 

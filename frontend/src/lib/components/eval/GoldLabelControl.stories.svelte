@@ -152,7 +152,9 @@
 		await userEvent.click(save);
 		await waitFor(() => expect(canvas.getByText('Your notes')).toBeTruthy());
 		await waitFor(() => expect(canvas.getByText('Looks fine to me')).toBeTruthy());
-		await expect(canvas.getByRole('link', { name: 'session notebook' })).toBeTruthy();
+		await waitFor(() =>
+			expect(canvas.getByRole('link', { name: 'session notebook' })).toBeTruthy()
+		);
 		await expect(save).toBeDisabled();
 		await userEvent.click(canvas.getByRole('radio', { name: 'Corrected' }));
 		await userEvent.click(canvas.getByRole('radio', { name: 'Partial' }));

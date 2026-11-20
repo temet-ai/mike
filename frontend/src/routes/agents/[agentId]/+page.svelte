@@ -34,11 +34,7 @@
 	let expandedDispatches = $state<Set<number>>(new Set());
 
 	function toggleDispatch(toolUseId: number): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment below, not in-place mutation
-		const next = new Set(expandedDispatches);
-		if (next.has(toolUseId)) next.delete(toolUseId);
-		else next.add(toolUseId);
-		expandedDispatches = next;
+		expandedDispatches = new Set(expandedDispatches.has(toolUseId) ? [...expandedDispatches].filter((v) => v !== toolUseId) : [...expandedDispatches, toolUseId]);
 	}
 
 	async function loadMoreDispatches(): Promise<void> {

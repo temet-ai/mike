@@ -280,8 +280,8 @@
 						class="st-env-pending">checking</span
 					>{:else if anthropicAccessOk}<span class="st-env-ok">{anthropicAccessLabel}</span
 					>{:else}<span class="st-env-warn">{anthropicAccessLabel}</span>{/if}
-				— <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve()'d route with a static in-page anchor appended; the rule only recognizes a bare resolve() call as an href expression -->
-				<a href={resolve('/settings/integrations') + `#${selectedProvider}`}
+				—
+				<a href={resolve(`/settings/integrations#${selectedProvider}`)}
 					>change in Integrations</a
 				></span
 			>

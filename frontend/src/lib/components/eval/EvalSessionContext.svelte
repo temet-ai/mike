@@ -137,7 +137,7 @@ one frame with hairline seams.
 					>
 				</button>
 				{#if earlierOpen}
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -- a scroll container must take focus so the keyboard can scroll it -->
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex (a scroll container must take focus so the keyboard can scroll it) -->
 					<ol
 						class="esc-earlier"
 						tabindex="0"

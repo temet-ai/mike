@@ -117,13 +117,12 @@
 	<div class="ori-card" data-augmented-ui="tl-clip br-clip border">
 		<div class="ori-card-header">
 			<h2 class="ori-title" id="ori-title">OpenRouter</h2>
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external OpenRouter dashboard URL, not an app route -->
 			<a
 				class="ori-topup"
 				data-augmented-ui="tr-clip bl-clip border"
 				href="https://openrouter.ai/settings/credits"
 				target="_blank"
-				rel="noopener noreferrer"
+				rel="external noopener noreferrer"
 			>
 				Top up credits
 				<ExternalLink size={11} aria-hidden="true" />

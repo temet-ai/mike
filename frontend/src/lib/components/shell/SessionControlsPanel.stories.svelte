@@ -161,21 +161,19 @@
 >
 	{#snippet template()}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div style="max-width: 760px; background: var(--surface-bg); padding: 16px;">
-					<SessionControlsPanel
-						sessionId={STORY_SESSION}
-						now={STATIC_NOW}
-						steerersEnrolled={1}
-						steerersTotal={1}
-						gradersActive={0}
-						rulesActive={0}
-						analyzersActive={8}
-						agents={AGENTS}
-						onJumpTo={() => {}}
-					/>
-				</div>
-			{/snippet}
+			<div style="max-width: 760px; background: var(--surface-bg); padding: 16px;">
+				<SessionControlsPanel
+					sessionId={STORY_SESSION}
+					now={STATIC_NOW}
+					steerersEnrolled={1}
+					steerersTotal={1}
+					gradersActive={0}
+					rulesActive={0}
+					analyzersActive={8}
+					agents={AGENTS}
+					onJumpTo={() => {}}
+				/>
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>

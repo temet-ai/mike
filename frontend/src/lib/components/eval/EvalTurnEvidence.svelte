@@ -7,6 +7,7 @@ on: the last message for "What was delivered", your reply for "How you reacted".
 the one link into the session, which lands on the session page scrolled to this turn.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { ArrowUpRight } from '@lucide/svelte';
 	import type { EvalReviewContextDto } from '$lib/api/evalRuns';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
@@ -29,7 +30,7 @@ the one link into the session, which lands on the session page scrolled to this 
 		cited: CitedSpan | null;
 		turnNumber: number | null;
 		nextTurnNumber: number | null;
-		turnHref: string | null;
+		turnHref: ResolvedPathname | null;
 		onRetryFacts: () => void;
 	}
 
@@ -156,7 +157,7 @@ the one link into the session, which lands on the session page scrolled to this 
 						{/if}
 					</div>
 					{#if filesOpen && known}
-						<!-- svelte-ignore a11y_no_noninteractive_tabindex -- a scroll container must take focus so the keyboard can scroll it -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex (a scroll container must take focus so the keyboard can scroll it) -->
 						<div
 							class="ete-files-list"
 							tabindex="0"

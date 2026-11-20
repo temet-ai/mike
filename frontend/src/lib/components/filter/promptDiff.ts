@@ -372,7 +372,7 @@ export function diffTextWithPreview(
 	// the "before"/"after" round-trip the same way `diffText` itself guarantees.
 	const aSegs: OffsetSeg[] = [];
 	const removedBefore: string[] = [];
-	let trailingRemoved = '';
+	let trailingRemoved: string;
 	{
 		let pos = 0;
 		let pending = '';

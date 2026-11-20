@@ -1,4 +1,5 @@
 <script module lang="ts">
+	import { resolve } from '$app/paths';
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect } from 'storybook/test';
 	import FlowHeaderBand from './FlowHeaderBand.svelte';
@@ -19,7 +20,9 @@
 		startedAt: '2026-09-10T12:00:00Z',
 		agentCount: 24,
 		title: 'Fleet build — 24 delegated agents',
-		timelineHref: `/sessions/${FLEET_SESSION_ID}?view=requests`
+		timelineHref: resolve(
+			`sessions/${FLEET_SESSION_ID}?view=requests` as `sessions/${string}?${string}`
+		)
 	}}
 	play={async ({ canvas }) => {
 		await expect(canvas.getByText('Session flow')).toBeVisible();

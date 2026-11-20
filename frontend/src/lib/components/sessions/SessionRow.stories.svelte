@@ -77,7 +77,7 @@
 	name="Populated"
 	tags={['data-driven', 'interactive']}
 	args={{ session: SESSION, now: STATIC_NOW, detail: DETAIL, matchInfo: MATCH_INFO }}
-	play={async ({ canvasElement, args }) => {
+	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 
 		await expect(canvas.getByText('Implement auth middleware')).toBeInTheDocument();

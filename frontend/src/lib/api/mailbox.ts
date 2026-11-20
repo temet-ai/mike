@@ -94,7 +94,9 @@ async function describeAckError(res: Response): Promise<string> {
 	let body: Partial<MailboxErrorBody> = {};
 	try {
 		body = (await res.json()) as Partial<MailboxErrorBody>;
-	} catch {}
+	} catch {
+		// The error response has no JSON body; keep the message built from the status.
+	}
 	const detail =
 		typeof body.message === 'string' && body.message.length > 0 ? body.message : res.statusText;
 	const plain = typeof body.error === 'string' ? ACK_ERROR_COPY[body.error] : undefined;

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';

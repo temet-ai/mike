@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import { resolveStatic } from '$lib/resolveHref';
+	import { resolveAppPath, resolveStatic } from '$lib/resolveHref';
 	import { ArrowRight } from '@lucide/svelte';
 
 	export type DestinationGroupAccent = 'levers' | 'insight' | 'system';
@@ -41,7 +40,6 @@
 		stat?: LiveStat;
 		openHref: DestinationOpenHref;
 		howItWorksHref?: DestinationHowItWorksHref;
-		children?: Snippet;
 	}
 
 	const { group, tag, whatItIs, why, stat, openHref, howItWorksHref }: Props = $props();
@@ -67,8 +65,10 @@
 
 	// The Diagnostics card links to `/diagnostics`, which has no page of its own (only
 	// `/diagnostics/memory`, `/agent-dispatches` and `/tool-errors` exist), so Kit 3's typed
-	// `resolve()` rejects it. It is left as it was, an unresolved link.
-	const openLink = $derived(openHref === '/diagnostics' ? openHref : resolveStatic(openHref));
+	// `resolve()` rejects it as a route id, so it goes through the text-path resolver.
+	const openLink = $derived(
+		openHref === '/diagnostics' ? resolveAppPath(openHref) : resolveStatic(openHref)
+	);
 </script>
 
 <div
@@ -92,7 +92,6 @@
 		<p class="dc-stat"><strong>{stat.value}</strong> {stat.label}</p>
 	{/if}
 	<div class="dc-learn">
-		<!-- eslint-disable svelte/no-navigation-without-resolve -- both hrefs are parameterless routes (openLink is resolveStatic() of openHref, apart from the page-less /diagnostics); resolve() cannot take a union this wide -->
 		<a
 			class="dc-learn-link dc-learn-link--open"
 			data-motion="hover"
@@ -109,7 +108,6 @@
 				aria-label={`How ${tag} works`}>How it works</a
 			>
 		{/if}
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	</div>
 </div>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, Search } from '@lucide/svelte';
+		import { Check, Search } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import type { ModelEntry } from '$lib/types';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
@@ -112,13 +112,7 @@
 	function toggleDescription(modelId: string, e: MouseEvent | KeyboardEvent) {
 		e.stopPropagation();
 		e.preventDefault();
-		const next = new Set(expandedIds);
-		if (next.has(modelId)) {
-			next.delete(modelId);
-		} else {
-			next.add(modelId);
-		}
-		expandedIds = next;
+		expandedIds = new Set(expandedIds.has(modelId) ? [...expandedIds].filter((v) => v !== modelId) : [...expandedIds, modelId]);
 	}
 
 	function capabilityTags(model: ModelEntry): string[] {

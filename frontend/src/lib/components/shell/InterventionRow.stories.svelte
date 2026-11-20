@@ -38,28 +38,6 @@
 		};
 	}
 
-	const firedNoLinks = makeRow({
-		intervention_id: 1006,
-		verdict: 'fired',
-		authority: 'redirect',
-		mode: 'augment',
-		confidence: 0.87,
-		trigger_request_id: null,
-		sent_request_id: null,
-		sent_response_id: null,
-		off_thread_topic:
-			'User asked about general cooking techniques instead of the assigned debugging task.',
-		anchor_text:
-			'## Thread: Debug the authentication middleware\n\nFocus on tracing the JWT validation path...',
-		payload_text:
-			'<system-reminder>\nPlease return to the task: debugging the authentication middleware.\n</system-reminder>',
-		verdict_json: { verdict: 'fired', confidence: 0.87, topic_drift: true },
-		sent_at: '2026-06-17T10:32:45Z',
-		processed_at: '2026-06-17T10:32:46Z',
-		expires_at: '2026-06-17T10:37:45Z',
-		created_at: '2026-06-17T10:32:44Z'
-	});
-
 	const fullContentRow = makeRow({
 		intervention_id: 1013,
 		verdict: 'fired',

@@ -1,4 +1,6 @@
 import { ApiError } from '$lib/api';
+import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import { formatUsd, formatUsdPrecise } from '$lib/format';
 import { cachedGet } from '$lib/stores/cache/apiCache.svelte';
 
@@ -111,17 +113,23 @@ export async function getLlmSpend(params: LlmSpendParams = {}): Promise<LlmSpend
 	return getJson<LlmSpendResponse>(`/api/llm/spend${spendQueryString(params)}`);
 }
 
-const CALLER_HREF_BY_ROLE: Partial<Record<string, string>> = {
-	judge_worker: '/sessions/labelling',
-	session_judge: '/sessions/labelling?for=sessions',
-	eval: '/sessions/labelling/accuracy'
-};
-
-export function callerHref(caller: Pick<LlmSpendCallerDto, 'role' | 'steerer_id'>): string | null {
-	if (caller.role === 'steerer') {
-		return caller.steerer_id !== null ? `/steerers/${caller.steerer_id}` : null;
+export function callerHref(
+	caller: Pick<LlmSpendCallerDto, 'role' | 'steerer_id'>
+): ResolvedPathname | null {
+	switch (caller.role) {
+		case 'steerer':
+			return caller.steerer_id !== null
+				? resolve(`steerers/${caller.steerer_id}` as `steerers/${string}`)
+				: null;
+		case 'judge_worker':
+			return resolve('/sessions/labelling');
+		case 'session_judge':
+			return resolve('/sessions/labelling?for=sessions');
+		case 'eval':
+			return resolve('/sessions/labelling/accuracy');
+		default:
+			return null;
 	}
-	return CALLER_HREF_BY_ROLE[caller.role] ?? null;
 }
 
 const GROUP_LABEL_BY_ROLE: Partial<Record<string, string>> = {

@@ -103,6 +103,7 @@
 	});
 
 	const steererEntries = $derived.by<SteererEntry[]>(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const byName = new Map<string, SteererEntry>();
 		for (const e of enrolments) {
 			if (e.disenrolled_at !== null) continue;
@@ -161,12 +162,10 @@
 			analyzers
 		</span>
 	{/snippet}
-	{#snippet children()}
-		<div class="scp-body">
-			<SessionSteeringSection {sessionId} {now} embedded />
-			<AgentsSteerersBand steerers={steererEntries} {agents} {onJumpTo} embedded />
-		</div>
-	{/snippet}
+	<div class="scp-body">
+		<SessionSteeringSection {sessionId} {now} embedded />
+		<AgentsSteerersBand steerers={steererEntries} {agents} {onJumpTo} embedded />
+	</div>
 </SectionCard>
 
 <style>

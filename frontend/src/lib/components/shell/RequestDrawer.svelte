@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { getContext, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -96,10 +98,7 @@
 		if (nextKind === null || nextBandId === null) {
 			if (!url.searchParams.has('drawer')) return;
 			url.searchParams.delete('drawer');
-			{
-				/* eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own already-resolved pathname + a modified query string, not navigating to a named route; not expressible as a typed SvelteKit route */
-			}
-			void goto(url.pathname + url.search, {
+			void goto(resolvedPathWithSearch(url.pathname, url.search), {
 				replace: true,
 				reset: false
 			});
@@ -111,13 +110,12 @@
 		const targetPath =
 			Number.isFinite(ridParsed) && ridParsed === nextBandId
 				? url.pathname
-				: `/sessions/${encodeURIComponent(sid)}/requests/${nextBandId}`;
+				: resolve(
+						`sessions/${encodeURIComponent(sid)}/requests/${nextBandId}` as `sessions/${string}/requests/${string}`
+					);
 		url.searchParams.set('drawer', nextKind);
-		const target = targetPath + url.search;
+		const target = resolvedPathWithSearch(targetPath, url.search);
 		if (target === page.url.pathname + page.url.search) return;
-		{
-			/* eslint-disable-next-line svelte/no-navigation-without-resolve -- target mixes the current page's own pathname (or a computed sessions/requests path) with a modified query string; not a single named route */
-		}
 		void goto(target, {
 			replace: true,
 			reset: false

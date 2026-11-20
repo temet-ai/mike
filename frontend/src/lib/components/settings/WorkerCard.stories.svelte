@@ -2,7 +2,6 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { within, expect, userEvent, waitFor } from 'storybook/test';
 	import WorkerCard from './WorkerCard.svelte';
-	import CollapseStoreProvider from '$lib/components/__harness__/CollapseStoreProvider.svelte';
 
 	const MODELS = [
 		{

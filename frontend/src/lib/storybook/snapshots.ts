@@ -1,5 +1,10 @@
 const UPDATE_SNAPSHOTS = import.meta.env.STORYBOOK_UPDATE_SNAPSHOTS === '1';
 
+/** The part of the browser locator used here; its typed options omit `save` and `path`. */
+interface ScreenshotLocator {
+	screenshot(options: Record<string, unknown>): Promise<unknown>;
+}
+
 export async function captureStorySnapshot(
 	canvasElement: HTMLElement,
 	snapshotName: string,
@@ -23,10 +28,10 @@ export async function captureStorySnapshot(
 		? (canvasElement.querySelector(options.selector) ?? canvasElement)
 		: canvasElement;
 
-	const locator = page.elementLocator(targetElement as Element);
+	const locator = page.elementLocator(targetElement as Element) as unknown as ScreenshotLocator;
 
 	if (UPDATE_SNAPSHOTS) {
-		await (locator as any).screenshot({
+		await locator.screenshot({
 			path: committedPath,
 			save: true,
 			animations: 'disabled',
@@ -36,7 +41,7 @@ export async function captureStorySnapshot(
 		return;
 	}
 
-	await (locator as any).screenshot({
+	await locator.screenshot({
 		save: false,
 		animations: 'disabled',
 		caret: 'hide',

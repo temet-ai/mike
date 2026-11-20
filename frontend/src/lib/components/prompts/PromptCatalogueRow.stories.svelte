@@ -1,4 +1,5 @@
 <script module lang="ts">
+	import { resolve } from '$app/paths';
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect } from 'storybook/test';
 	import PromptCatalogueRow from './PromptCatalogueRow.svelte';
@@ -66,7 +67,7 @@
 			lastSeenLabel: '4h ago',
 			firingRuleCount: 0,
 			actionLabel: 'Register this',
-			href: '/prompts/new?persona=Frontend%20Development%20Expert',
+			href: resolve('/prompts/new?persona=Frontend%20Development%20Expert'),
 			sortAnchor: Date.now() - 4 * 60 * 60 * 1000
 		},
 		{
@@ -82,7 +83,7 @@
 			lastSeenLabel: '6h ago',
 			firingRuleCount: 0,
 			actionLabel: 'Register this',
-			href: '/prompts/new?persona=file%20search%20specialist%20for%20Claude%20Code',
+			href: resolve('/prompts/new?persona=file%20search%20specialist%20for%20Claude%20Code'),
 			sortAnchor: Date.now() - 6 * 60 * 60 * 1000
 		},
 		{

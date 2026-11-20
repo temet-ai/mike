@@ -40,6 +40,7 @@
 				copyTimer = null;
 			}, 1500);
 		} catch {
+			// The clipboard is unavailable or refused; nothing is copied.
 		} finally {
 			loading = false;
 		}

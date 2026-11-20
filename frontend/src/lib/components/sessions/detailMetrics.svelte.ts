@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import type { DetailMetrics } from './sessionRowTypes';
 import { getSession, getRequest } from '$lib/api';
 import { cachePercent } from '$lib/format';
@@ -14,7 +15,7 @@ export interface DetailMetricsLoader {
 }
 
 export function createDetailMetricsLoader(): DetailMetricsLoader {
-	let metrics = $state<Map<string, DetailMetrics>>(new Map());
+	const metrics = new SvelteMap<string, DetailMetrics>();
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- pending-timer bookkeeping only; never read by a template or a derived, so no reactive tracking is needed
 	const hoverTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -37,8 +38,7 @@ export function createDetailMetricsLoader(): DetailMetricsLoader {
 
 	async function loadDetailMetrics(id: string): Promise<void> {
 		if (metrics.has(id)) return;
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
-		metrics = new Map(metrics).set(id, {
+		metrics.set(id, {
 			loading: true,
 			error: null,
 			model: null,
@@ -103,8 +103,7 @@ export function createDetailMetricsLoader(): DetailMetricsLoader {
 			}
 			const totalRequests = detail.total_requests ?? ids.length;
 
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
-			metrics = new Map(metrics).set(id, {
+			metrics.set(id, {
 				loading: false,
 				error: null,
 				model: dominantModel,
@@ -117,8 +116,7 @@ export function createDetailMetricsLoader(): DetailMetricsLoader {
 				partial: totalRequests > ids.length
 			});
 		} catch (err) {
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
-			metrics = new Map(metrics).set(id, {
+			metrics.set(id, {
 				loading: false,
 				error: err instanceof Error ? err.message : String(err),
 				model: null,

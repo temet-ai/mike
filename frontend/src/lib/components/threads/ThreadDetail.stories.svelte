@@ -1,5 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import { resolve } from '$app/paths';
 	import { expect, within } from 'storybook/test';
 	import ThreadDetail from './ThreadDetail.svelte';
 	import { THREAD_DETAIL } from './threadFixtures';
@@ -13,7 +14,7 @@
 
 <Story
 	name="Thread with state, criteria, dependencies and sessions"
-	args={{ detail: THREAD_DETAIL, hrefFor: (slug: string) => `/threads?thread=${slug}` }}
+	args={{ detail: THREAD_DETAIL, hrefFor: (slug: string) => resolve(`/threads?thread=${slug}`) }}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(

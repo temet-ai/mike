@@ -1,4 +1,6 @@
 import { ApiError } from '$lib/api';
+import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import { getLlmSpend } from '$lib/api/llmSpend';
 import { projectLabelOf } from '$lib/components/improvement/groupByConversation';
 
@@ -21,8 +23,8 @@ export interface LessonCandidate {
 	correctingQuote: string;
 	createdAt: string;
 	sessionTitle: string;
-	sessionHref: string;
-	turnHref: string;
+	sessionHref: ResolvedPathname;
+	turnHref: ResolvedPathname;
 	projectLabel: string;
 	projectPath?: string | null;
 	askText: string;
@@ -33,12 +35,12 @@ export interface LessonCandidatesResponse {
 }
 
 export interface EvidenceCorrection {
-	turnHref: string;
+	turnHref: ResolvedPathname;
 	sessionTitle: string;
 	createdAt: string;
 	correctingQuote: string;
 	existingLessonText: string | null;
-	existingLessonHref: string | null;
+	existingLessonHref: ResolvedPathname | null;
 }
 
 export type EffectResult =
@@ -65,7 +67,7 @@ export type EffectResult =
 			nHoldback: number;
 			nTreated: number;
 			readPoint: number;
-			detailHref: string;
+			detailHref: ResolvedPathname;
 	  };
 
 /**
@@ -89,8 +91,8 @@ export interface LessonDetail {
 	assistantEndingText: string;
 	correctingQuote: string;
 	sessionTitle: string;
-	sessionHref: string;
-	turnHref: string;
+	sessionHref: ResolvedPathname;
+	turnHref: ResolvedPathname;
 	judgeRationale: string;
 	similarCorrections: EvidenceCorrection[];
 	reinforcingCorrections: EvidenceCorrection[];
@@ -124,7 +126,7 @@ export interface ActionEffectItem {
 	scope: string;
 	/** `null` when the wire row carries no timestamp for this action (guard questions today). */
 	decidedAt: string | null;
-	href: string;
+	href: ResolvedPathname;
 	effect: EffectResult;
 }
 
@@ -157,7 +159,7 @@ export interface TrendJudge {
 export interface TrendMarker {
 	date: string;
 	label: string;
-	href: string;
+	href: ResolvedPathname;
 }
 
 export interface TrendResponse {
@@ -199,10 +201,10 @@ export interface GuardWake {
 	questionLabel: string;
 	arm: 'wake' | 'append';
 	sessionTitle: string;
-	sessionHref: string;
+	sessionHref: ResolvedPathname;
 	projectLabel: string;
 	projectPath: string | null;
-	turnHref: string;
+	turnHref: ResolvedPathname;
 	deliveredAt: string;
 	outcome: GuardWakeOutcome;
 	operatorLabel: 'right' | 'wrong' | null;
@@ -261,13 +263,22 @@ interface LessonCandidateRowDto {
 	retired_by_lesson_id?: number | null;
 }
 
-function sessionHrefFor(sessionUuid: string | null): string {
-	return sessionUuid ? `/sessions/${encodeURIComponent(sessionUuid)}` : '#';
+/** A session's page; the session list when the row names no session. */
+function sessionHrefFor(sessionUuid: string | null): ResolvedPathname {
+	return sessionUuid
+		? resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`)
+		: resolve('/sessions');
 }
 
-function turnHrefFor(sessionUuid: string | null, turnId: number | null): string {
-	const base = sessionHrefFor(sessionUuid);
-	return sessionUuid && turnId !== null ? `${base}?request=${turnId}` : base;
+function turnHrefFor(sessionUuid: string | null, turnId: number | null): ResolvedPathname {
+	if (!sessionUuid || turnId === null) return sessionHrefFor(sessionUuid);
+	return resolve(
+		`sessions/${encodeURIComponent(sessionUuid)}?request=${turnId}` as `sessions/${string}?${string}`
+	);
+}
+
+function lessonHref(id: number | string): ResolvedPathname {
+	return resolve(`sessions/improvement/lessons/${id}` as `sessions/improvement/lessons/${string}`);
 }
 
 function toLessonCandidate(dto: LessonCandidateRowDto): LessonCandidate {
@@ -575,7 +586,7 @@ function toGuardEffectResult(dto: GuardEffectViewDto): EffectResult {
 		nHoldback: dto.n_holdback,
 		nTreated: dto.n_treated,
 		readPoint: dto.read_point,
-		detailHref: '/sessions/improvement/guard'
+		detailHref: resolve('/sessions/improvement/guard')
 	};
 }
 
@@ -587,7 +598,7 @@ function toActionEffectItem(dto: ActionFeedItemDto): ActionEffectItem {
 			label: `A lesson: ${dto.text}`,
 			scope: dto.project ?? 'every project',
 			decidedAt: dto.created_at,
-			href: `/sessions/improvement/lessons/${dto.id}`,
+			href: lessonHref(dto.id),
 			effect: toEffectResult(dto.effect)
 		};
 	}
@@ -597,7 +608,7 @@ function toActionEffectItem(dto: ActionFeedItemDto): ActionEffectItem {
 		label: `A guard question: ${guardQuestionLabel(dto.id)}`,
 		scope: 'every project',
 		decidedAt: null,
-		href: '/sessions/improvement/guard',
+		href: resolve('/sessions/improvement/guard'),
 		effect: toGuardEffectResult(dto.effect)
 	};
 }
@@ -689,10 +700,10 @@ function markerLabel(row: ChangeLogRowDto): string {
 	return `A ${kind} was decided`;
 }
 
-function markerHref(row: ChangeLogRowDto): string {
+function markerHref(row: ChangeLogRowDto): ResolvedPathname {
 	return row.subject_kind === 'lesson_decision'
-		? `/sessions/improvement/lessons/${row.subject_key}`
-		: '/sessions/improvement';
+		? lessonHref(row.subject_key)
+		: resolve('/sessions/improvement');
 }
 
 function toTrendMarker(row: ChangeLogRowDto): TrendMarker {

@@ -172,6 +172,7 @@
 				<div
 					class="block-markdown markdown-prose w-full rounded border border-[var(--border-default)] bg-[var(--surface-bg)] p-3 font-mono text-sm text-[var(--text-1)]"
 				>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderedMarkdown is markdown-it output passed through DOMPurify.sanitize; the rule cannot see the sanitiser -->
 					{@html renderedMarkdown}
 				</div>
 			{:else if editable}

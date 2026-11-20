@@ -1,6 +1,5 @@
 <script lang="ts">
 	import {
-		getAnthropicIntegration,
 		setAnthropicKey,
 		clearAnthropicKey,
 		testAnthropicConnection,
@@ -519,7 +518,7 @@
 									data-augmented-ui="tr-clip bl-clip border"
 									href={cliLogin.url}
 									target="_blank"
-									rel="noopener noreferrer">Open sign-in page</a
+									rel="external noopener noreferrer">Open sign-in page</a
 								>
 								<form class="ani-cli-codeform" onsubmit={submitCliCode}>
 									<input

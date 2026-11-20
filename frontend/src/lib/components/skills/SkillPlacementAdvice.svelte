@@ -6,6 +6,7 @@ advice. On a folder's row it is read-only and links to the skill page. Every slo
 life of the block and a button that cannot work is disabled, so nothing moves.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { onMount } from 'svelte';
 	import { ArrowRight, ClipboardCopy, Signpost } from '@lucide/svelte';
 	import SectionCard from '$lib/components/detail/SectionCard.svelte';
@@ -17,7 +18,7 @@ life of the block and a button that cannot work is disabled, so nothing moves.
 	let {
 		review,
 		variant,
-		decideHref = '',
+		decideHref,
 		draftReview = null,
 		retired = false,
 		editing = false,
@@ -29,13 +30,13 @@ life of the block and a button that cannot work is disabled, so nothing moves.
 		review: ReviewerVerdict;
 		variant: 'row' | 'page';
 		/** Row: the skill page where the decision is made. */
-		decideHref?: string;
+		decideHref?: ResolvedPathname;
 		draftReview?: DraftReview | null;
 		retired?: boolean;
 		editing?: boolean;
 		busy?: SkillDecision | null;
 		/** Page: the skill page of the folder the reviewer named, or null when mike keeps none. */
-		existingHref?: string | null;
+		existingHref?: ResolvedPathname | null;
 		lessons?: SkillLesson[];
 		onDecide?: (decision: SkillDecision) => void;
 	} = $props();
@@ -80,20 +81,25 @@ life of the block and a button that cannot work is disabled, so nothing moves.
 		{#if review.reason}<p class="spa-reason">{review.reason}</p>{/if}
 		{#if advice.followUp}<p class="spa-follow">{advice.followUp}</p>{/if}
 		{#if variant === 'row'}
-			<a class="spa-link" href={decideHref}>
-				Decide on the skill page <ArrowRight class="size-3.5" aria-hidden="true" />
-			</a>
+			{#if decideHref}
+				<a class="spa-link" href={decideHref}>
+					Decide on the skill page <ArrowRight class="size-3.5" aria-hidden="true" />
+				</a>
+			{/if}
 		{:else}
 			<div class="spa-buttons" role="group" aria-label="What to do with the reviewer's advice">
 				{#if toExisting}
-					<Button
-						variant="outline"
-						href={existingHref ?? '#'}
-						disabled={existingHref === null || name === null}
-					>
-						{name ? `Open ${name}` : 'Open the existing skill'}
-						<ArrowRight aria-hidden="true" />
-					</Button>
+					{#if existingHref !== null && name !== null}
+						<Button variant="outline" href={existingHref}>
+							{`Open ${name}`}
+							<ArrowRight aria-hidden="true" />
+						</Button>
+					{:else}
+						<Button variant="outline" disabled>
+							{name ? `Open ${name}` : 'Open the existing skill'}
+							<ArrowRight aria-hidden="true" />
+						</Button>
+					{/if}
 				{:else if toRule}
 					<Button
 						variant="outline"

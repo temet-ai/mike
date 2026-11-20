@@ -2,7 +2,6 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect, userEvent, within } from 'storybook/test';
 	import RequestDrawerHarness from './__harness__/RequestDrawerHarness.svelte';
-	import type { RequestDetail } from '$lib/types';
 	import { buildRequestDetail } from '$lib/components/__fixtures__/request';
 	import { stubBandBodyFetch } from '$lib/components/__fixtures__/bandBodies';
 	import { buildMockDetailStore } from '$lib/test-support';

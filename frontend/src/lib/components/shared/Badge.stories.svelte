@@ -1,4 +1,5 @@
 <script module lang="ts">
+	import { resolve } from '$app/paths';
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect, within } from 'storybook/test';
 	import Badge from './Badge.svelte';
@@ -49,7 +50,7 @@
 
 		const link = canvas.getByText('rust-developer');
 		expect(link.tagName).toBe('A');
-		expect(link.getAttribute('href')).toBe('/prompts/abc123');
+		expect(link.getAttribute('href')).toBe('/prompts/main');
 		expect(link.className).toContain('class-chip-active');
 	}}
 >
@@ -64,6 +65,6 @@
 		<Badge variant="tag-green">hook</Badge>
 		<Badge variant="tag-blue">boot</Badge>
 		<Badge variant="identity">main-agent</Badge>
-		<Badge variant="identity-active" href="/prompts/abc123">rust-developer</Badge>
+		<Badge variant="identity-active" href={resolve('/prompts/main')}>rust-developer</Badge>
 	</div>
 </Story>

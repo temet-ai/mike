@@ -219,6 +219,7 @@
 	}
 
 	function defaultExpansion(nodes: readonly TreeNode[]): Map<string, boolean> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const expanded = new Map<string, boolean>();
 		seedCollapsed(nodes, expanded);
 
@@ -326,7 +327,7 @@
 		<div class="fc-empty">No files changed</div>
 	{:else}
 		<ul class="fc-file-tree" role="tree" aria-label="Changed files">
-			{#each treeRows as row}
+			{#each treeRows as row, index (row.kind === 'separator' ? `separator:${index}` : row.node.path)}
 				{#if row.kind === 'directory'}
 					<li
 						class="fc-tree-row fc-tree-row--directory"

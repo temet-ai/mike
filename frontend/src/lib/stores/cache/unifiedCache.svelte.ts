@@ -72,8 +72,11 @@ function buildMemoryCaches(): void {
 
 buildMemoryCaches();
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const bodyInFlight = new Map<string, Promise<BodyPayload>>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const detailInFlight = new Map<number, Promise<RequestDetail | null>>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const sessionPageInFlight = new Map<string, Promise<RequestSummary[]>>();
 
 function bodyKey(id: number, kind: BodyKind): string {

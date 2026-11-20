@@ -1,4 +1,5 @@
 <script lang="ts">
+		import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { onMount, onDestroy, getContext, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -30,7 +31,6 @@
 
 	const collapseStore = getContext<CollapseStore | undefined>(COLLAPSE_STORE_KEY);
 
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 	let expandedRowsLocal = $state<Set<string>>(new Set());
 	let openedRowsOnce = $state<Set<string>>(new Set());
 
@@ -40,6 +40,7 @@
 
 	function toggleRow(key: string): void {
 		if (!openedRowsOnce.has(key)) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const seen = new Set(openedRowsOnce);
 			seen.add(key);
 			openedRowsOnce = seen;
@@ -48,10 +49,7 @@
 			collapseStore.toggle(key);
 			return;
 		}
-		const next = new Set(expandedRowsLocal);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		expandedRowsLocal = next;
+		expandedRowsLocal = new Set(expandedRowsLocal.has(key) ? [...expandedRowsLocal].filter((v) => v !== key) : [...expandedRowsLocal, key]);
 	}
 
 	function hasRowOpened(key: string): boolean {
@@ -75,10 +73,7 @@
 			collapseStore.toggle(key);
 			return;
 		}
-		const next = new Set(collapsedProjectsLocal);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		collapsedProjectsLocal = next;
+		collapsedProjectsLocal = new Set(collapsedProjectsLocal.has(key) ? [...collapsedProjectsLocal].filter((v) => v !== key) : [...collapsedProjectsLocal, key]);
 	}
 
 	const UNGROUPED_KEY = '__ungrouped__';
@@ -101,6 +96,7 @@
 	const projectGroups = $derived.by((): ToolProjectGroupRow[] => {
 		if (rows.length === 0) return [];
 		const order: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const buckets = new Map<string, ToolBucket>();
 		for (const row of rows) {
 			const isUngrouped = row.project === null;
@@ -154,11 +150,11 @@
 	$effect(() => {
 		const wantHash = errorsOnly ? '#errors' : '';
 		untrack(() => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 			const url = new URL(page.url.href);
 			if (url.hash === wantHash) return;
 			url.hash = wantHash;
-			const target = `${url.pathname}${url.search}${url.hash}`;
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own pathname/query with only the #errors fragment toggled; the combined search+hash shape isn't expressible as a single resolve() route-id cast (RouteIdWithSearchOrHash has no "?search#hash" member)
+			const target = resolvedPathWithSearch(url.pathname, `${url.search}${url.hash}`);
 			void goto(target, { replace: true, reset: false });
 		});
 	});

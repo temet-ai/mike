@@ -101,7 +101,9 @@ export async function __deleteIdbForTests(): Promise<void> {
 			tx.objectStore(STORE_API).clear()
 		]);
 		await tx.done;
-	} catch {}
+	} catch {
+		// The cache is best-effort; a failed clear leaves the old entries until they expire.
+	}
 }
 
 function isCurrentSchema<T>(envelope: IdbEnvelope<T>): boolean {

@@ -45,7 +45,6 @@
 	let open = $state(false);
 
 	const store = createMockFilterRulesStore([buildRule()]);
-	// svelte-ignore state_referenced_locally -- one-time context registration for the story
 	setContext(FILTER_RULES_STORE_KEY, store);
 
 	const rule = $derived(store.rules.find((r) => r.id === 'rule-card-1') ?? store.rules[0]!);

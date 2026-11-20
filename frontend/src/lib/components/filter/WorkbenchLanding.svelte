@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+		import { getContext } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { ArrowRight } from '@lucide/svelte';
 	import { formatCount, formatRelative } from '$lib/time';
@@ -101,10 +101,7 @@
 	}
 
 	function toggleGroup(key: string): void {
-		const next = new Set(expandedGroups);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		expandedGroups = next;
+		expandedGroups = new Set(expandedGroups.has(key) ? [...expandedGroups].filter((v) => v !== key) : [...expandedGroups, key]);
 	}
 
 	const collapseStore = getContext<CollapseStore | undefined>(COLLAPSE_STORE_KEY);
@@ -127,10 +124,7 @@
 			collapseStore.toggle(key);
 			return;
 		}
-		const next = new Set(localCollapsedKeys);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		localCollapsedKeys = next;
+		localCollapsedKeys = new Set(localCollapsedKeys.has(key) ? [...localCollapsedKeys].filter((v) => v !== key) : [...localCollapsedKeys, key]);
 	}
 </script>
 
@@ -217,7 +211,7 @@
 			Every model, its captured prompt classes, and their Claude Code release history.
 		</span>
 	</header>
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex -- keyboard-focusable scroll region (axe scrollable-region-focusable); carries role=region + aria-label -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex (keyboard-focusable scroll region [axe scrollable-region-focusable]; carries role=region + aria-label) -->
 	<div
 		class="wb-pane-scroll wbl-scroll"
 		role="region"

@@ -20,16 +20,6 @@
 		judged_at: '2026-06-25T09:14:32Z'
 	};
 
-	const SESSION_META = {
-		id: 'a3f8b2c1-4e5d-6f7a-8b9c-0d1e2f3a4b5c',
-		project: '/Users/dev/projects/temet/temet-proxy',
-		title: 'JWT middleware refactor',
-		request_count: 47,
-		turn_count: 12,
-		status: 'Complete',
-		models: ['claude-opus-4-8', 'claude-haiku-4-5-20251001']
-	};
-
 	const { Story } = defineMeta({
 		title: 'Shell/SessionOverviewSummary',
 		component: SessionOverviewSummary,

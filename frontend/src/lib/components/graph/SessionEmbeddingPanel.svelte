@@ -101,30 +101,28 @@
 			<UnfoldHorizontal size={13} aria-hidden="true" />
 		</a>
 	{/snippet}
-	{#snippet children()}
-		<div class="sep-body">
-			{#if loading && !data}
-				<div class="sep-skeleton" aria-hidden="true">
-					<div class="sep-skel-row"></div>
-					<div class="sep-skel-row sep-skel-row--short"></div>
-				</div>
-			{:else if error}
-				<LoadErrorBanner
-					title="Couldn't load related sessions"
-					detail={error}
-					hint="The embedding-graph endpoint may not be reachable yet."
-					onRetry={retry}
-				/>
-			{:else if data && !data.embedding.present}
-				<p class="sep-no-vector" data-slot="session-embedding-no-vector">
-					{noVectorSentence(data.embedding.reason)}
-				</p>
-			{:else if data}
-				<p class="sep-caption">{neighbourCount} related session{neighbourCount === 1 ? '' : 's'}</p>
-				<EmbeddingGraph {store} mode="compact" onOpenSession={goToSession} />
-			{/if}
-		</div>
-	{/snippet}
+	<div class="sep-body">
+		{#if loading && !data}
+			<div class="sep-skeleton" aria-hidden="true">
+				<div class="sep-skel-row"></div>
+				<div class="sep-skel-row sep-skel-row--short"></div>
+			</div>
+		{:else if error}
+			<LoadErrorBanner
+				title="Couldn't load related sessions"
+				detail={error}
+				hint="The embedding-graph endpoint may not be reachable yet."
+				onRetry={retry}
+			/>
+		{:else if data && !data.embedding.present}
+			<p class="sep-no-vector" data-slot="session-embedding-no-vector">
+				{noVectorSentence(data.embedding.reason)}
+			</p>
+		{:else if data}
+			<p class="sep-caption">{neighbourCount} related session{neighbourCount === 1 ? '' : 's'}</p>
+			<EmbeddingGraph {store} mode="compact" onOpenSession={goToSession} />
+		{/if}
+	</div>
 </SectionCard>
 
 <style>

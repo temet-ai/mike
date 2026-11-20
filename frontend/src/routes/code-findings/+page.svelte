@@ -59,7 +59,7 @@
 
 	function onWindowChange(value: string): void {
 		windowHours = value;
-		void goto(`${resolve('/code-findings')}?hours=${windowHours}`, {
+		void goto(resolve(`/code-findings?hours=${windowHours}`), {
 			replace: true,
 			reset: false
 		});

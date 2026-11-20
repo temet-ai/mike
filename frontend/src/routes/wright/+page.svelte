@@ -5,6 +5,7 @@ fix changed, and the conversation beside it. Design: artifacts/2026-10-16/reside
 API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 -->
 <script lang="ts">
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { onMount, untrack } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -68,7 +69,8 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 		const pairToken = pairTokenFromHash(window.location.hash);
 		if (pairToken !== null) {
 			storeOperatorToken(pairToken);
-			const clean = `${window.location.pathname}${window.location.search}${hashWithoutPair(window.location.hash)}`;
+			const { pathname, search, hash } = window.location;
+			const clean = resolvedPathWithSearch(pathname, `${search}${hashWithoutPair(hash)}`);
 			try {
 				replaceState(clean, {});
 			} catch {

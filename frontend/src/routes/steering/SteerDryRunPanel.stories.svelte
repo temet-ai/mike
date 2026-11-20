@@ -889,7 +889,7 @@ container, no line-clamp, no truncation. The preview IS the diagnostic artifact.
 								</div>
 								<div class="turn-detail-field">
 									<span class="injection-preview-label">Would inject</span>
-									<!-- svelte-ignore a11y_no_noninteractive_tabindex -- the box scrolls, so it must take keyboard focus for its content to be reachable -->
+									<!-- svelte-ignore a11y_no_noninteractive_tabindex (the box scrolls, so it must take keyboard focus for its content to be reachable) -->
 									<div
 										class="injection-preview-box"
 										role="region"

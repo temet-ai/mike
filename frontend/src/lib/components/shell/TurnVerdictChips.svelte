@@ -35,11 +35,10 @@
 			>{source}</Badge
 		>
 	</Tooltip>
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- an inspect API URL opened as JSON, not an app route -->
 	<a
 		class="text-micro text-[var(--text-faint)] hover:text-[var(--text-strong)]"
 		href={verdictHistoryHref(turn.turn_id)}
 		target="_blank"
-		rel="noopener noreferrer">verdict history</a
+		rel="external noopener noreferrer">verdict history</a
 	>
 </span>

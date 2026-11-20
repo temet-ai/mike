@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import type { CodeFinding } from '$lib/api/codeFindings';
 	import { StatusMark } from '$lib/components/ui/status-mark';
 	import { formatRelative } from '$lib/time';
@@ -15,7 +16,7 @@
 
 	const groups = $derived(groupFindings(findings));
 
-	function requestHref(finding: CodeFinding, requestId: number): string {
+	function requestHref(finding: CodeFinding, requestId: number): ResolvedPathname {
 		const session = finding.session_id ?? sessionId;
 		return resolve(
 			`sessions/${encodeURIComponent(session)}/requests/${requestId}` as `sessions/${string}/requests/${string}`

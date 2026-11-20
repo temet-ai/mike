@@ -456,7 +456,7 @@
 	aria-label="System prompt"
 	data-slot="workbench-prompt-pane"
 >
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex -- keyboard-focusable scroll region (axe scrollable-region-focusable); carries role=region + aria-label -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex (keyboard-focusable scroll region [axe scrollable-region-focusable]; carries role=region + aria-label) -->
 	<div
 		bind:this={paneEl}
 		class="wb-pane-scroll"

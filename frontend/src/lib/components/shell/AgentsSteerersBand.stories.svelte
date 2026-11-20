@@ -16,79 +16,6 @@
 	type ModeCode = 'augment' | 'drive';
 	type DispatchOutcome = 'completed' | 'abandoned' | 'error' | null;
 
-	const VERDICT_LABELS: Record<VerdictCode, string> = {
-		fired: 'Fired',
-		suppressed_debounce: 'Held back (debounce)',
-		suppressed_arbitration: 'Held back (arbitration)',
-		no_drift: 'No drift detected',
-		gate_miss: 'Gate not met',
-		failed_closed: 'Failed safe'
-	};
-
-	const VERDICT_TOOLTIPS: Record<VerdictCode, string> = {
-		fired: 'The steerer judged drift above threshold and injected a nudge on the next turn.',
-		suppressed_debounce:
-			'Held back (debounce): the steerer judged drift and would have fired, but was suppressed ' +
-			'because it already fired within the last debounce_turns turns ' +
-			'(a re-fire cooldown so it does not nag every turn).',
-		suppressed_arbitration:
-			'Held back (arbitration): another steerer with higher priority fired first this turn.',
-		no_drift: 'No drift detected: the steerer evaluated but confidence was below threshold.',
-		gate_miss:
-			'Gate not met: the gate condition was not triggered — evaluator did not run this turn.',
-		failed_closed: 'Failed safe: the steerer evaluator errored and did not inject.'
-	};
-
-	const AUTHORITY_LABELS: Record<AuthorityCode, string> = {
-		supply_context: 'Supply context',
-		redirect: 'Redirect',
-		command: 'Command'
-	};
-
-	const AUTHORITY_TOOLTIPS: Record<AuthorityCode, string> = {
-		supply_context: 'supply_context — supply missing context/facts to the session.',
-		redirect: 'redirect — call out the drift and point attention back to the thread.',
-		command: 'command — issue a direct instruction.'
-	};
-
-	const MODE_LABELS: Record<ModeCode, string> = {
-		augment: 'Augment',
-		drive: 'Drive'
-	};
-
-	const MODE_TOOLTIPS: Record<ModeCode, string> = {
-		augment: 'augment — adds a nudge alongside the conversation.',
-		drive: 'drive — takes a stronger, driving steering role.'
-	};
-
-	const CONFIDENCE_TOOLTIP =
-		"confidence (0–1): the steerer's LLM-judge certainty that the session has drifted from its thread anchor. " +
-		"The intervention only fires when confidence ≥ the steerer's confidence_threshold (typically 0.7–0.95).";
-
-	const OUTCOME_LABELS: Record<Exclude<DispatchOutcome, null>, string> = {
-		completed: 'Completed',
-		abandoned: 'Abandoned',
-		error: 'Errored'
-	};
-
-	const OUTCOME_TOOLTIPS: Record<Exclude<DispatchOutcome, null> | 'inflight', string> = {
-		completed: 'The agent sub-task finished and reported back.',
-		abandoned: 'The agent sub-task was cancelled or did not report back.',
-		error: 'The agent sub-task terminated with an error.',
-		inflight: 'The agent sub-task is still running — no outcome yet.'
-	};
-
-	const MODEL_TOOLTIPS: Record<string, string> = {
-		'claude-sonnet-4-6':
-			'claude-sonnet-4-6 — Anthropic Sonnet 4.6. Balanced performance and speed.',
-		'claude-haiku-4-5-20251001':
-			'claude-haiku-4-5-20251001 — Anthropic Haiku 4.5. Fast and cost-effective.'
-	};
-
-	function modelTooltip(model: string): string {
-		return MODEL_TOOLTIPS[model] ?? model;
-	}
-
 	interface SteererEvent {
 		createdAt: string;
 		verdict: VerdictCode;
@@ -251,56 +178,6 @@
 			]
 		}
 	];
-
-	const AGENT_SLOT: Record<string, string> = {
-		'rust-developer': '1',
-		'frontend-developer': '2',
-		'ui-designer': '3',
-		'db-dev': '4',
-		watchdog: '5'
-	};
-
-	function agentFg(type: string): string {
-		const slot = AGENT_SLOT[type];
-		return slot ? `var(--agent-${slot}-fg)` : 'var(--text-faint)';
-	}
-
-	function verdictStyle(v: VerdictCode): string {
-		switch (v) {
-			case 'fired':
-				return 'color: var(--status-success-fg); background: var(--status-success-bg); border-color: var(--status-success-border);';
-			case 'suppressed_debounce':
-			case 'suppressed_arbitration':
-				return 'color: var(--text-2); background: var(--surface-2); border-color: var(--border-subtle);';
-			case 'no_drift':
-				return 'color: var(--text-3); background: var(--surface-2); border-color: var(--border-subtle);';
-			case 'gate_miss':
-				return 'color: var(--text-3); background: transparent; border-color: transparent;';
-			case 'failed_closed':
-				return 'color: var(--status-danger-fg); background: var(--status-danger-bg); border-color: var(--status-danger-border);';
-		}
-	}
-
-	function outcomeStyle(outcome: DispatchOutcome): string {
-		switch (outcome) {
-			case 'completed':
-				return 'color: var(--status-success-fg); background: var(--status-success-bg); border-color: var(--status-success-border);';
-			case 'abandoned':
-				return 'color: var(--text-2); background: var(--surface-2); border-color: var(--border-subtle);';
-			case 'error':
-				return 'color: var(--status-danger-fg); background: var(--status-danger-bg); border-color: var(--status-danger-border);';
-			case null:
-				return 'color: var(--status-info-fg); background: var(--surface-2); border-color: var(--border-subtle);';
-		}
-	}
-
-	function formatTimestamp(iso: string): string {
-		try {
-			return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		} catch {
-			return iso;
-		}
-	}
 
 	const onJumpTo = fn();
 

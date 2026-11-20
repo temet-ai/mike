@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SettingsPage from '$lib/components/settings/SettingsPage.svelte';
+		import SettingsPage from '$lib/components/settings/SettingsPage.svelte';
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
 	import SearchField from '$lib/components/shared/SearchField.svelte';
 	import FilteredEmptyState from '$lib/components/shared/FilteredEmptyState.svelte';
@@ -53,7 +53,7 @@
 	let settings = $state<SettingMeta[]>([]);
 	let fileReadCompressionEffective = $state<CompressionEffective | null>(null);
 	let shellOutputCompressionEffective = $state<CompressionEffective | null>(null);
-	let settingQuery = $state('');
+	let settingQuery = $derived(data.find ?? '');
 	const normalizedQuery = $derived(settingQuery.trim().toLowerCase());
 	let settingsLoadError = $state<string | null>(null);
 	let settingsLoading = $state(true);
@@ -78,10 +78,6 @@
 		capabilities = data.capabilities ?? [];
 		capabilitiesLoadError = data.capabilitiesLoadError;
 		capabilitiesLoading = false;
-	});
-
-	$effect(() => {
-		settingQuery = data.find ?? '';
 	});
 
 	onMount(() => {
@@ -234,6 +230,7 @@
 	const otherPageGroups = $derived<{ page: string; href: OtherPageHref; features: FeatureDto[] }[]>(
 		(() => {
 			if (!searching) return [];
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			const byPage = new Map<
 				string,
 				{ page: string; href: OtherPageHref; features: FeatureDto[] }
@@ -251,6 +248,7 @@
 	);
 	const settingGroups = $derived<[string, SettingMeta[]][]>(
 		(() => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			const map = new Map<string, SettingMeta[]>();
 			for (const s of settings) {
 				if (isMovedGroup(s.group)) continue;

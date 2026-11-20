@@ -33,14 +33,9 @@
 	let expanded = $state(new Set<number>());
 
 	function toggleRow(key: number): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- `next` is a plain local copy, mutated then reassigned wholesale to `expanded` below; never mutated in place, so plain reactivity already tracks it.
-		const next = new Set(expanded);
-		if (next.has(key)) {
-			next.delete(key);
-		} else {
-			next.add(key);
-		}
-		expanded = next;
+		expanded = new Set(
+			expanded.has(key) ? [...expanded].filter((v) => v !== key) : [...expanded, key]
+		);
 	}
 
 	function relativeTime(ms: number): string {

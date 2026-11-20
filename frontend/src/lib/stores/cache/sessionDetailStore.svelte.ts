@@ -52,6 +52,7 @@ export interface SessionPageEviction {
 
 type SessionPageEvictionListener = (event: SessionPageEviction) => void;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const sessionPageEvictionListeners = new Set<SessionPageEvictionListener>();
 
 export function onSessionPageEvict(listener: SessionPageEvictionListener): () => void {
@@ -79,6 +80,7 @@ export interface DetailEviction {
 
 type DetailEvictionListener = (event: DetailEviction) => void;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const detailEvictionListeners = new Set<DetailEvictionListener>();
 
 export function onDetailEviction(listener: DetailEvictionListener): () => void {
@@ -127,6 +129,7 @@ interface CachedSession {
 	lastTouchedAt: number;
 }
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const sessionCache = new Map<string, CachedSession>();
 
 function evictPagesUntilWithinCap(entry: CachedSession, sessionId: string): void {
@@ -172,6 +175,7 @@ export function __clearSessionCacheForTests(): void {
 export function __sessionCachePagesForTests(id: string): Map<number, number> | null {
 	const entry = sessionCache.get(id);
 	if (!entry) return null;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const out = new Map<number, number>();
 	for (const [offset, rows] of entry.pages) {
 		out.set(offset, rows.length);
@@ -182,6 +186,7 @@ export function __sessionCachePagesForTests(id: string): Map<number, number> | n
 function projectFromCache(entry: CachedSession): SessionDetail {
 	const offsets = Array.from(entry.pages.keys()).sort((a, b) => a - b);
 	const requests: RequestSummary[] = [];
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const seen = new Set<number>();
 	let firstOffset: number | null = null;
 	let lastLimit = PAGE_SIZE;
@@ -259,7 +264,9 @@ export function createSessionDetailStore(): SessionDetailStore {
 		loadOlderError: null,
 		notFound: false,
 		currentId: null,
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		details: new Map<number, RequestDetail>(),
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		detailErrors: new Set<number>(),
 		operatorTurns: [],
 		promptKindFilter: null
@@ -271,6 +278,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 	let loadAllDoneFor: string | null = null;
 	let loadAllInFlight: Promise<void> | null = null;
 	let turnsFetchEpoch = 0;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const pendingRowFetches = new Set<number>();
 
 	function fetchOperatorTurns(sid: string): void {
@@ -303,6 +311,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 		promise: Promise<void>;
 		cancelled: boolean;
 	};
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const detailInFlight = new Map<number, DetailFetchEntry>();
 
 	async function fetchInitialPage(id: string): Promise<{
@@ -375,6 +384,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 					observation,
 					runtimeItems,
 					total,
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 					pages: new Map([[pageOffset, page]]),
 					lastTouchedAt: Date.now()
 				};
@@ -417,7 +427,9 @@ export function createSessionDetailStore(): SessionDetailStore {
 			return Promise.resolve();
 		}
 		if (connState.currentId !== id) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			connState.details = new Map();
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			connState.detailErrors = new Set();
 			detailInFlight.clear();
 			connState.loadOlderError = null;
@@ -654,12 +666,15 @@ export function createSessionDetailStore(): SessionDetailStore {
 					) {
 						try {
 							detail.accumulated_text = await getAccumulatedText(id);
-						} catch {}
+						} catch {
+							// The accumulated text is optional; the detail shows without it.
+						}
 					}
 					return detail;
 				});
 				if (!fetched) {
 					if (!entry.cancelled && connState.currentId !== null) {
+						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 						const next = new Set(connState.detailErrors);
 						next.add(rid);
 						connState.detailErrors = next;
@@ -669,10 +684,12 @@ export function createSessionDetailStore(): SessionDetailStore {
 				if (entry.cancelled) return;
 				if (connState.currentId === null) return;
 				if (fetched.session_id !== connState.currentId) return;
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 				const next = new Map(connState.details);
 				next.set(rid, fetched);
 				connState.details = next;
 				if (connState.detailErrors.has(rid)) {
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 					const cleared = new Set(connState.detailErrors);
 					cleared.delete(rid);
 					connState.detailErrors = cleared;
@@ -680,6 +697,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 				evictDetailsUntilWithinCap();
 			} catch {
 				if (!entry.cancelled && connState.currentId !== null) {
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 					const next = new Set(connState.detailErrors);
 					next.add(rid);
 					connState.detailErrors = next;
@@ -701,6 +719,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 			existing.cancelled = true;
 		}
 		if (connState.details.has(rid)) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Map(connState.details);
 			next.delete(rid);
 			connState.details = next;
@@ -717,6 +736,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 			const head = connState.details.keys().next();
 			if (head.done) return;
 			const rid = head.value;
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Map(connState.details);
 			next.delete(rid);
 			connState.details = next;
@@ -807,6 +827,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 			connState.detail = projectFromCache(entry);
 			touchCache(sid);
 		} catch {
+			// The request summary could not be fetched; the session detail stays as it is.
 		} finally {
 			pendingRowFetches.delete(rid);
 		}

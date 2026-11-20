@@ -548,7 +548,9 @@
 			configuredDefaultModel =
 				(settings.find((s) => s.key === 'steerer.model' && typeof s.value === 'string')
 					?.value as string) ?? '';
-		} catch {}
+		} catch {
+			// The configured model is optional; the unset default stands.
+		}
 	}
 
 	onMount(() => {

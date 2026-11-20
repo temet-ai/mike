@@ -53,7 +53,9 @@ beforeEach(() => {
 	if (typeof window !== 'undefined') {
 		try {
 			window.localStorage.clear();
-		} catch {}
+		} catch {
+			// Storage is unavailable (private mode or full); the value is simply not kept.
+		}
 	}
 });
 

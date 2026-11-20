@@ -1,16 +1,17 @@
 <script module lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	export interface EmbeddingGraphProps {
 		store: EmbeddingGraphStore;
 		mode: 'compact' | 'full';
 		onOpenSession: (sessionId: string) => void;
-		expandHref?: string;
-		collapseHref?: string;
+		expandHref?: ResolvedPathname;
+		collapseHref?: ResolvedPathname;
 		fetchSession?: SessionFetcher;
 	}
 </script>
 
 <script lang="ts">
-	import { tick } from 'svelte';
+		import { tick } from 'svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import {
 		SvelteFlow,
@@ -80,12 +81,12 @@
 	const activeId = $derived(hoveredId ?? store.selectedId);
 	const incidentIds = $derived.by(() => {
 		if (activeId == null) return null;
-		const ids = new Set<string>([activeId]);
-		for (const edge of visibleEdges) {
-			if (edge.from === activeId) ids.add(edge.to);
-			else if (edge.to === activeId) ids.add(edge.from);
-		}
-		return ids;
+		return new Set<string>([
+			activeId,
+			...visibleEdges.flatMap((edge) =>
+				edge.from === activeId ? [edge.to] : edge.to === activeId ? [edge.from] : []
+			)
+		]);
 	});
 
 	let previewNode = $state<SessionPreviewNode | null>(null);
@@ -404,56 +405,54 @@
 			{onnodedrag}
 			{onnodedragstop}
 		>
-			{#snippet children()}
-				<FlowController onReady={(fit) => (doFit = fit)} />
-				<Background variant={BackgroundVariant.Dots} gap={22} size={1} />
-				{#if mode === 'full'}
-					<Controls showLock={false} />
-					<MiniMap pannable zoomable />
-					<Panel position="top-left">
-						<div
-							class="eg-toolbar"
-							data-slot="embedding-graph-toolbar"
-							data-augmented-ui="tl-clip br-clip border"
+			<FlowController onReady={(fit) => (doFit = fit)} />
+			<Background variant={BackgroundVariant.Dots} gap={22} size={1} />
+			{#if mode === 'full'}
+				<Controls showLock={false} />
+				<MiniMap pannable zoomable />
+				<Panel position="top-left">
+					<div
+						class="eg-toolbar"
+						data-slot="embedding-graph-toolbar"
+						data-augmented-ui="tl-clip br-clip border"
+					>
+						<label class="eg-toolbar__threshold" for="eg-threshold-slider">
+							<span>Min similarity</span>
+							<Slider
+								id="eg-threshold-slider"
+								aria-label="Minimum similarity"
+								value={store.similarityThreshold * 100}
+								min={30}
+								max={100}
+								step={5}
+								onValueChange={(v) => (store.similarityThreshold = v / 100)}
+							/>
+							<span class="eg-toolbar__value">{Math.round(store.similarityThreshold * 100)}%</span
+							>
+						</label>
+						<button
+							type="button"
+							class="eg-toolbar__btn"
+							onclick={() => void handleRelayout()}
+							aria-label="Relayout"
+							title="Relayout"
 						>
-							<label class="eg-toolbar__threshold" for="eg-threshold-slider">
-								<span>Min similarity</span>
-								<Slider
-									id="eg-threshold-slider"
-									aria-label="Minimum similarity"
-									value={store.similarityThreshold * 100}
-									min={30}
-									max={100}
-									step={5}
-									onValueChange={(v) => (store.similarityThreshold = v / 100)}
-								/>
-								<span class="eg-toolbar__value">{Math.round(store.similarityThreshold * 100)}%</span
-								>
-							</label>
-							<button
-								type="button"
-								class="eg-toolbar__btn"
-								onclick={() => void handleRelayout()}
-								aria-label="Relayout"
-								title="Relayout"
-							>
-								<RotateCcw size={12} aria-hidden="true" />
-								Relayout
-							</button>
-							<button
-								type="button"
-								class="eg-toolbar__btn"
-								onclick={() => doFit?.()}
-								aria-label="Fit to view"
-								title="Fit to view"
-							>
-								<Locate size={12} aria-hidden="true" />
-								Fit
-							</button>
-						</div>
-					</Panel>
-				{/if}
-			{/snippet}
+							<RotateCcw size={12} aria-hidden="true" />
+							Relayout
+						</button>
+						<button
+							type="button"
+							class="eg-toolbar__btn"
+							onclick={() => doFit?.()}
+							aria-label="Fit to view"
+							title="Fit to view"
+						>
+							<Locate size={12} aria-hidden="true" />
+							Fit
+						</button>
+					</div>
+				</Panel>
+			{/if}
 		</SvelteFlow>
 	</div>
 

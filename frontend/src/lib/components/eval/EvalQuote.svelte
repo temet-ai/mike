@@ -33,7 +33,7 @@ box with every character still reachable.
 		{#if meta}<span class="band-hd__meta eq-meta">{@render meta()}</span>{/if}
 	</figcaption>
 	{#if scroll}
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -- a scroll container must take focus so the keyboard can scroll it -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex (a scroll container must take focus so the keyboard can scroll it) -->
 		<div
 			class="band-body eq-body eq-scroll"
 			data-testid={testid}

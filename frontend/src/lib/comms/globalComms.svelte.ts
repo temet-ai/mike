@@ -189,7 +189,9 @@ export function createGlobalCommsStore(options: { project?: string } = {}): Glob
 			if (state.selectedThreadUuid !== uuid) return;
 			state.selectedThread = res.thread;
 			state.messages = res.messages;
-		} catch {}
+		} catch {
+			// The thread could not be fetched; the list stays as it is.
+		}
 	}
 
 	let listeners: ((event: ProxyEvent) => void)[] = [];

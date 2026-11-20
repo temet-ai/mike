@@ -123,7 +123,7 @@
 		const firstIdFull = rows()[0]!.querySelector('.ssn-id-text-full');
 		await expect(firstIdFull?.textContent).toBe(uuidFor(1));
 		await expect(getComputedStyle(rows()[0]!.querySelector('.ssn-id-text')!).display).toBe('none');
-		await expect(rows()[0]!.querySelector('.ssn-clock-label')?.textContent).toBe('Started ');
+		await expect(rows()[0]!.querySelector('.ssn-clock-label')?.textContent).toBe('Started');
 		await expect(getComputedStyle(rows()[0]!.querySelector('.ssn-req-unit')!).display).not.toBe(
 			'none'
 		);

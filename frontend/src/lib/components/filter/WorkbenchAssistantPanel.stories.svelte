@@ -174,7 +174,6 @@
 	let mounted = $state(true);
 
 	const store = createMockFilterRulesStore([EXISTING_RULE]);
-	// svelte-ignore state_referenced_locally -- one-time context registration for the story
 	setContext(FILTER_RULES_STORE_KEY, store);
 </script>
 

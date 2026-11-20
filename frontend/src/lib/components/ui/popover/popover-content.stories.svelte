@@ -336,7 +336,7 @@
 <Story
 	name="DataSlotAttribute"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const contentEl = document.querySelector('[data-slot="popover-content"]');
 		await expect(
 			contentEl,
@@ -396,7 +396,7 @@
 <Story
 	name="ClickCloseButton"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const contentBefore = document.querySelector('[data-slot="popover-content"]');
 		await expect(
 			contentBefore,
@@ -450,7 +450,7 @@
 <Story
 	name="EscapeKeyCloses"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const contentBefore = document.querySelector('[data-slot="popover-content"]');
 		await expect(contentBefore, 'popover content must be mounted before Escape key').toBeTruthy();
 
@@ -492,7 +492,7 @@
 <Story
 	name="FormSubmission"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		formSubmissionSubmitSpy.mockClear();
 		const saveBtn = document.querySelector('[data-slot="popover-content"] button[type="submit"]');
 		await expect(saveBtn, 'submit button must be in document').toBeTruthy();
@@ -554,7 +554,7 @@
 <Story
 	name="MenuItemClick"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		menuItemClickCopyIdSpy.mockClear();
 		const firstItem = document.querySelector('[data-slot="popover-content"] ul button');
 		await expect(firstItem, 'first menu item button must be in document').toBeTruthy();
@@ -645,7 +645,7 @@
 <Story
 	name="RefBinding"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const contentEl = document.querySelector('[data-slot="popover-content"]');
 		await expect(
 			contentEl,

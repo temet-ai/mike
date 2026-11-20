@@ -68,7 +68,6 @@
 					sessionUuid={peer.sessionId}
 					label={peer.identity.label}
 					role={peer.identity.role}
-					agentType={peer.identity.agentType}
 					size="compact"
 				/>
 				<span class="peer-row__text">

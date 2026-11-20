@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { EvalRateDto, EvalRollupDto } from '$lib/api/evalMetrics';
+		import type { EvalRateDto, EvalRollupDto } from '$lib/api/evalMetrics';
 	import { formatShare } from '$lib/api/evalMetrics';
 
 	let {
@@ -41,6 +41,7 @@
 	}
 
 	let rows = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const byKey = new Map<string, SliceRow>();
 		for (const rate of rates.filter((r) => r.role === role && r.window_days === null)) {
 			const key = [

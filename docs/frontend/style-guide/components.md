@@ -33,6 +33,7 @@ Props:
 
 - `variant?: ButtonVariant`
 - `size?: ButtonSize`
+- `href?: ResolvedPathname | ExternalHref`
 
 Story: UI/Button
 
@@ -48,6 +49,7 @@ Props:
 
 - `variant?: ButtonVariant`
 - `size?: ButtonSize`
+- `href?: ResolvedPathname | ExternalHref`
 
 Story: UI/Button
 
@@ -238,9 +240,9 @@ Props:
 - `detail?: string`
 - `hint?: string`
 - `onRetry?: () => void`
-- `backHref?: string`
+- `backHref?: ResolvedPathname`
 - `backLabel?: string`
-- `docsHref?: string`
+- `docsHref?: ResolvedPathname | ExternalHref`
 - `docsLabel?: string`
 - `message?: string`
 
@@ -409,7 +411,7 @@ Props:
 - `description?: string`
 - `children?: Snippet`
 - `actions?: Snippet`
-- `learnMoreHref?: string`
+- `learnMoreHref?: `/help/${string}``
 - `learnMoreLabel?: string`
 - `level?: 'h1' | 'h2'`
 
@@ -437,7 +439,7 @@ See it: `scripts/story-shot --shot shared overviewband`
 
 Props:
 
-- `group: ProjectGroupRow`
+- `group: Omit<ProjectGroupRow, 'project'>`
 - `now: number`
 - `collapsed: boolean`
 - `onToggleCollapse: () => void`
@@ -553,7 +555,6 @@ Props:
 - `stat?: LiveStat`
 - `openHref: DestinationOpenHref`
 - `howItWorksHref?: DestinationHowItWorksHref`
-- `children?: Snippet`
 
 Story: Home/DestinationCard
 

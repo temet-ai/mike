@@ -7,26 +7,22 @@
 		{
 			sessionUuid: 'db1-execute-triage-6f2a9c11',
 			label: 'Execute triage map DB1 session',
-			role: 'db-dev',
-			agentType: null
+			role: 'db-dev'
 		},
 		{
 			sessionUuid: 'fe-review-handover-7c3e0d42',
 			label: 'Review session handover and merge verified work',
-			role: 'frontend-developer',
-			agentType: null
+			role: 'frontend-developer'
 		},
 		{
 			sessionUuid: 'coordinator-9a1b5e60',
 			label: 'Coordinator',
-			role: null,
-			agentType: 'coordinator'
+			role: null
 		},
 		{
 			sessionUuid: 'a1b2c3d4-0000-4a11-9fee-unresolved00',
 			label: null,
-			role: null,
-			agentType: null
+			role: null
 		}
 	];
 

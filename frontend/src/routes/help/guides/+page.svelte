@@ -2,8 +2,9 @@
 	import { ChevronRight } from '@lucide/svelte';
 	import { GUIDES } from '$lib/help/guides';
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 
-	function guideHref(slug: string): string {
+	function guideHref(slug: string): ResolvedPathname {
 		switch (slug) {
 			case 'getting-started':
 				return resolve('/help/guides/getting-started');
@@ -45,7 +46,6 @@
 	<ul class="guide-list">
 		{#each GUIDES as guide (guide.slug)}
 			<li>
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- guideHref() resolves each known literal internally; the rule can't see through the function wrapper -->
 				<a
 					class="guide-row"
 					href={guideHref(guide.slug)}

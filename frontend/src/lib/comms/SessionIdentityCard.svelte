@@ -157,7 +157,7 @@
 	{:else if loadError && !identity}
 		<LoadErrorBanner title="Couldn't load session identity" detail={loadError} onRetry={retry} />
 	{:else if editing}
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -- onkeydown only catches Escape bubbling from the form's own focusable controls, never a click/nav target on the form itself. -->
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions (onkeydown only catches Escape bubbling from the form's own focusable controls, never a click/nav target on the form itself.) -->
 		<form
 			class="sid-form"
 			onsubmit={(e) => {

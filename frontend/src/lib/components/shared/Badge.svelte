@@ -1,11 +1,12 @@
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn, type WithElementRef } from '$lib/utils';
 	import { badgeVariants, needsClip, type BadgeVariant } from './Badge.variants';
 
 	interface Props extends WithElementRef<HTMLAttributes<HTMLElement>> {
 		variant?: BadgeVariant;
-		href?: string;
+		href?: ResolvedPathname;
 	}
 
 	let {
@@ -22,7 +23,6 @@
 </script>
 
 {#if href}
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is caller-computed (ClassChip forwards routes/prompts/new's `boundIdentityHref`, typed `string | undefined` there); narrowing this prop to a resolve()-compatible literal type would require changing that out-of-scope caller and its stories file too. -->
 	<a
 		bind:this={ref}
 		{href}

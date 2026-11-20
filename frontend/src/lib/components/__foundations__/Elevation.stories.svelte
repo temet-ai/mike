@@ -200,13 +200,11 @@
 						collapsible
 						sectionKey="foundations-elevation"
 					>
-						{#snippet children()}
-							<p class="fk-demo-copy">
-								A clipped card at the card layer. Its shadow is on the wrapper around it, because a
-								clip-path would have eaten it here, and its surface comes from the token that
-								wrapper re-points. Point at the header and both move up a layer together.
-							</p>
-						{/snippet}
+						<p class="fk-demo-copy">
+							A clipped card at the card layer. Its shadow is on the wrapper around it, because a
+							clip-path would have eaten it here, and its surface comes from the token that wrapper
+							re-points. Point at the header and both move up a layer together.
+						</p>
 					</SectionCardHarness>
 				</div>
 

@@ -18,7 +18,7 @@
 </script>
 
 <Story name="Default (non-expandable)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow>
 				<span class="text-[0.8125rem] text-[var(--text-1)]">
@@ -30,7 +30,7 @@
 </Story>
 
 <Story name="Expandable collapsed">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow expandable={true} open={false} ariaLabel="SessionStart hook — expand for details">
 				<span class="text-[0.8125rem] text-[var(--text-1)]"> SessionStart hook </span>
@@ -40,7 +40,7 @@
 </Story>
 
 <Story name="Expandable open">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow expandable={true} open={true} ariaLabel="UserPromptSubmit hook — collapse">
 				<span class="text-[0.8125rem] text-[var(--text-1)]"> UserPromptSubmit hook </span>
@@ -50,7 +50,7 @@
 </Story>
 
 <Story name="Muted">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow muted={true}>
 				<span class="text-[0.8125rem]"> mike (no instructions provided) </span>
@@ -60,7 +60,7 @@
 </Story>
 
 <Story name="Fired (hook event)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow
 				expandable={true}
@@ -75,7 +75,7 @@
 </Story>
 
 <Story name="Hide chevron">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow hideChevron={true}>
 				<span class="text-[0.8125rem] text-[var(--text-1)]"> Row without chevron gutter </span>
@@ -85,7 +85,7 @@
 </Story>
 
 <Story name="Long text (no-truncation tripwire)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRow>
 				<span class="text-[0.8125rem] text-[var(--text-1)]">

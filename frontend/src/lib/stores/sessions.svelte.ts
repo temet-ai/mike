@@ -186,7 +186,9 @@ function writeCachedFirstPage(sessions: SessionSummary[]): void {
 		const saved: SavedFirstPage = { savedAt: Date.now(), sessions: sessions.slice(0, PAGE_SIZE) };
 		localStorage.setItem(SESSION_LIST_CACHE_KEY, JSON.stringify(saved));
 		localStorage.removeItem(LEGACY_SESSION_LIST_CACHE_KEY);
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 export function createSessionListStore(): SessionListStore {
@@ -338,9 +340,11 @@ export function createSessionListStore(): SessionListStore {
 	}
 
 	async function hydrateMissingSessions(seq: number): Promise<void> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const known = new Set<string>();
 		for (const sess of s.sessions) known.add(sess.id);
 		for (const sess of s.searchHits) known.add(sess.id);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const needed = new Set<string>();
 		for (const g of s.contentHits) {
 			if (!known.has(g.session_id)) needed.add(g.session_id);
@@ -409,10 +413,14 @@ export function createSessionListStore(): SessionListStore {
 		}, SESSION_SEARCH_DEBOUNCE_MS);
 	}
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const wsEventByRequestId = new Map<number, ProxyEvent>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const requestToSession = new Map<number, string>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const sessionToRequests = new Map<string, Set<number>>();
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const lastLiveAt = new Map<string, number>();
 
 	function clearWsTracking(): void {
@@ -438,6 +446,7 @@ export function createSessionListStore(): SessionListStore {
 		s.loadMoreError = null;
 		s.hasMore = fetched.length >= PAGE_SIZE;
 		clearWsTracking();
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		const currentIds = new Set(fetched.map((sess) => sess.id));
 		pruneWsTracking(currentIds);
 		s.projectLoadingMore = {};
@@ -482,6 +491,7 @@ export function createSessionListStore(): SessionListStore {
 			try {
 				const offset = s.sessions.length;
 				const fetched = await listSessions({ offset, limit: PAGE_SIZE });
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 				const existingIds = new Set(s.sessions.map((sess) => sess.id));
 				const appended = fetched.filter((sess) => !existingIds.has(sess.id));
 				if (appended.length > 0) {
@@ -500,6 +510,7 @@ export function createSessionListStore(): SessionListStore {
 		return promise;
 	}
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const projectLoadMoreInFlight = new Map<string, Promise<void>>();
 
 	async function loadMoreForProject(project: string): Promise<void> {
@@ -512,6 +523,7 @@ export function createSessionListStore(): SessionListStore {
 			try {
 				const offset = s.sessions.filter((sess) => sess.project === project).length;
 				const fetched = await listSessions({ project, offset, limit: PAGE_SIZE });
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 				const existingIds = new Set(s.sessions.map((sess) => sess.id));
 				const appended = fetched.filter((sess) => !existingIds.has(sess.id));
 				if (appended.length > 0) {
@@ -553,6 +565,7 @@ export function createSessionListStore(): SessionListStore {
 	}
 
 	async function toggleProjectPin(path: string, next: boolean): Promise<void> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const previousById = new Map<string, boolean | undefined>();
 		for (const sess of s.sessions) {
 			if (sess.project === path) previousById.set(sess.id, sess.pinned);
@@ -647,6 +660,7 @@ export function createSessionListStore(): SessionListStore {
 				requestToSession.delete(rid);
 			}
 		}
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const set = new Set(requestIds);
 		sessionToRequests.set(sessionId, set);
 		for (const rid of requestIds) {

@@ -47,8 +47,8 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -- a resizable splitter (role="separator") is a documented WAI-ARIA pattern that is keyboard-focusable and draggable, unlike a plain non-interactive separator -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -- pointer + keyboard handlers implement the splitter's own drag/arrow-key resize; there is no more specific interactive role for a resize handle -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex (a resizable splitter [role="separator"] is a documented WAI-ARIA pattern that is keyboard-focusable and draggable, unlike a plain non-interactive separator) -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (pointer + keyboard handlers implement the splitter's own drag/arrow-key resize; there is no more specific interactive role for a resize handle) -->
 <div
 	class="wb-divider"
 	class:wb-divider--vertical={orientation === 'vertical'}

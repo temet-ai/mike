@@ -35,7 +35,9 @@
 		const target = event.currentTarget as HTMLElement;
 		try {
 			target.releasePointerCapture(event.pointerId);
-		} catch {}
+		} catch {
+			// The pointer capture was already released.
+		}
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {

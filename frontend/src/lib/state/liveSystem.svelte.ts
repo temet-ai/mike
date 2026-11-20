@@ -105,6 +105,7 @@ export function createLiveSystemStore(deps: Deps = {}): LiveSystemStore {
 		stale: true
 	});
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const pending = new Map<number, PendingRequest>();
 	const throughputEvents: ThroughputEvent[] = [];
 	const memHistory: number[] = [];

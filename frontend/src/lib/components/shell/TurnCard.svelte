@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, untrack } from 'svelte';
+		import { getContext, untrack } from 'svelte';
 	import {
 		ChevronDown,
 		MessageSquare,
@@ -46,7 +46,6 @@
 	interface Props {
 		turn: OperatorTurnDto;
 		index: number;
-		isFirst: boolean;
 		toolCalls: ToolUseDto[];
 		ledgerUnavailable: boolean;
 		live: boolean;
@@ -68,7 +67,6 @@
 	let {
 		turn,
 		index,
-		isFirst,
 		toolCalls,
 		ledgerUnavailable,
 		live,
@@ -177,11 +175,9 @@
 	const maxBytes = $derived(Math.max(1, ...toolCalls.map((t) => t.result?.content_bytes ?? 0)));
 
 	const workflowRequestIds = $derived.by(() => {
-		const seen = new Set<number>();
-		for (const t of toolCalls) {
-			if (t.tool_name === 'Workflow') seen.add(t.request_id);
-		}
-		return Array.from(seen);
+		return Array.from(
+			new Set(toolCalls.filter((t) => t.tool_name === 'Workflow').map((t) => t.request_id))
+		);
 	});
 
 	type ReasoningState =

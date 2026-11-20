@@ -108,7 +108,7 @@
 
 	function onWindowChange(value: string): void {
 		windowHours = value;
-		void goto(`${resolve('/diagnostics/prompt-cache')}?hours=${windowHours}`, {
+		void goto(resolve(`/diagnostics/prompt-cache?hours=${windowHours}`), {
 			replace: true,
 			reset: false
 		});

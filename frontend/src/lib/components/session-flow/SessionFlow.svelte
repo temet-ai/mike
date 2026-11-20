@@ -35,6 +35,7 @@
 </script>
 
 <script lang="ts">
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
@@ -85,7 +86,7 @@
 		const params = new SvelteURLSearchParams(page.url.search);
 		params.set('view', 'requests');
 		const query = params.toString();
-		return query ? `${page.url.pathname}?${query}` : page.url.pathname;
+		return resolvedPathWithSearch(page.url.pathname, query ? `?${query}` : '');
 	});
 
 	let groupWidth = $state(0);

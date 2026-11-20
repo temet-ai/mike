@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount, untrack } from 'svelte';
+		import { getContext, onMount, untrack } from 'svelte';
 	import { ArrowLeft } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import SectionCard from '$lib/components/detail/SectionCard.svelte';
@@ -51,8 +51,10 @@
 			: 'Comms'
 	);
 	const openHref = $derived.by(() => {
-		const params = new URLSearchParams({ project: projectPath });
-		if (store.selectedThreadUuid) params.set('thread', store.selectedThreadUuid);
+		const params = new URLSearchParams({
+			project: projectPath,
+			...(store.selectedThreadUuid ? { thread: store.selectedThreadUuid } : {})
+		});
 		return resolve(`/comms?${params.toString()}` as `/comms?${string}`);
 	});
 
@@ -75,76 +77,74 @@
 		{#snippet headerActions()}
 			<a class="pcm-open" href={openHref} data-slot="project-comms-open-link">Open in Comms</a>
 		{/snippet}
-		{#snippet children()}
-			{#if store.threadsUnavailable}
-				<p class="pcm-note">Thread comms aren't live yet.</p>
-			{:else if store.threadsError}
-				<LoadErrorBanner
-					title="Couldn't load threads"
-					detail={store.threadsError}
-					onRetry={() => void store.refreshThreads()}
+		{#if store.threadsUnavailable}
+			<p class="pcm-note">Thread comms aren't live yet.</p>
+		{:else if store.threadsError}
+			<LoadErrorBanner
+				title="Couldn't load threads"
+				detail={store.threadsError}
+				onRetry={() => void store.refreshThreads()}
+			/>
+		{:else if store.selectedThreadUuid}
+			<div class="pcm-thread" data-slot="project-comms-thread">
+				<div class="pcm-back">
+					<Button variant="outline" size="sm" onclick={() => void store.selectThread(null)}>
+						<ArrowLeft size={14} aria-hidden="true" /> All threads
+					</Button>
+				</div>
+				<CommsTranscript
+					sessionId=""
+					readOnly
+					subjectLevel="h3"
+					thread={store.selectedThread}
+					messages={store.messages}
+					loading={store.threadLoading}
+					error={store.threadError}
+					{now}
+					peers={[]}
+					replyPhase="idle"
+					replyError={null}
+					replyNotice={null}
+					resolvePhase={store.resolvePhase}
+					onSendReply={() => {}}
+					onResolve={() => void store.resolveSelected()}
+					onAck={() => {}}
+					onOpenThread={(uuid) => void store.selectThread(uuid)}
 				/>
-			{:else if store.selectedThreadUuid}
-				<div class="pcm-thread" data-slot="project-comms-thread">
-					<div class="pcm-back">
-						<Button variant="outline" size="sm" onclick={() => void store.selectThread(null)}>
-							<ArrowLeft size={14} aria-hidden="true" /> All threads
-						</Button>
-					</div>
-					<CommsTranscript
-						sessionId=""
-						readOnly
-						subjectLevel="h3"
-						thread={store.selectedThread}
-						messages={store.messages}
-						loading={store.threadLoading}
-						error={store.threadError}
-						{now}
-						peers={[]}
-						replyPhase="idle"
-						replyError={null}
-						replyNotice={null}
-						resolvePhase={store.resolvePhase}
-						onSendReply={() => {}}
-						onResolve={() => void store.resolveSelected()}
-						onAck={() => {}}
-						onOpenThread={(uuid) => void store.selectThread(uuid)}
-					/>
-				</div>
-			{:else}
-				<div class="pcm-list" data-slot="project-comms-list">
-					<CommsThreadFilters
-						tags={store.tags}
-						filterTag={store.filterTag}
-						filterParticipant={store.filterParticipant}
-						filterResolved={store.filterResolved}
-						onFilterTag={store.setFilterTag}
-						onClearParticipant={() => store.setFilterParticipant(null)}
-						onFilterResolved={store.setFilterResolved}
-					/>
-					{#if store.threadsLoading && !store.threadsLoaded}
-						<p class="pcm-note" role="status">Loading threads</p>
-					{:else if threads.length === 0}
-						{#if hasActiveFilter}
-							<p class="pcm-note">
-								No threads match the current filters.
-								<button type="button" class="pcm-clear" onclick={clearFilters}>Clear filters</button
-								>
-							</p>
-						{:else}
-							<p class="pcm-note">No threads in this project yet.</p>
-						{/if}
+			</div>
+		{:else}
+			<div class="pcm-list" data-slot="project-comms-list">
+				<CommsThreadFilters
+					tags={store.tags}
+					filterTag={store.filterTag}
+					filterParticipant={store.filterParticipant}
+					filterResolved={store.filterResolved}
+					onFilterTag={store.setFilterTag}
+					onClearParticipant={() => store.setFilterParticipant(null)}
+					onFilterResolved={store.setFilterResolved}
+				/>
+				{#if store.threadsLoading && !store.threadsLoaded}
+					<p class="pcm-note" role="status">Loading threads</p>
+				{:else if threads.length === 0}
+					{#if hasActiveFilter}
+						<p class="pcm-note">
+							No threads match the current filters.
+							<button type="button" class="pcm-clear" onclick={clearFilters}>Clear filters</button
+							>
+						</p>
 					{:else}
-						<CommsThreadRows
-							{threads}
-							selectedThreadUuid={store.selectedThreadUuid}
-							{now}
-							onSelect={(uuid) => void store.selectThread(uuid)}
-						/>
+						<p class="pcm-note">No threads in this project yet.</p>
 					{/if}
-				</div>
-			{/if}
-		{/snippet}
+				{:else}
+					<CommsThreadRows
+						{threads}
+						selectedThreadUuid={store.selectedThreadUuid}
+						{now}
+						onSelect={(uuid) => void store.selectThread(uuid)}
+					/>
+				{/if}
+			</div>
+		{/if}
 	</SectionCard>
 </div>
 

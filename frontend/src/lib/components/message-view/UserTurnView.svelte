@@ -3,7 +3,6 @@
 	import { getContext } from 'svelte';
 	import { cn, type WithElementRef } from '$lib/utils';
 	import { Bell, Folder, Globe, Server, Sparkles, Wrench, Zap } from '@lucide/svelte';
-	import { formatCount } from '$lib/time';
 	import type {
 		ClaudeMdSection,
 		ClaudeMdSubsection,
@@ -312,11 +311,7 @@
 >
 	{#if parsed.groups.length > 0}
 		{#if renderCardChrome}
-			<SystemRemindersCard
-				groupCount={parsed.groups.length}
-				totalChars={parsed.totalChars}
-				totalTokens={parsed.totalTokens}
-			>
+			<SystemRemindersCard groupCount={parsed.groups.length} totalTokens={parsed.totalTokens}>
 				{@render reminderBody()}
 			</SystemRemindersCard>
 		{:else}

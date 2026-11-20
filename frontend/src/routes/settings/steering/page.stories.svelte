@@ -301,7 +301,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					enabled = JSON.parse(init.body).enabled ?? true;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			const existing = FEATURES.find((f) => f.key === key);
 			return json({
@@ -349,7 +351,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					value = JSON.parse(init.body).value;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			const existing = SETTINGS.find((s) => s.key === key);
 			if (key === 'steerer.model') modelPatches.push(value);
@@ -374,7 +378,9 @@
 						const body = JSON.parse(init.body);
 						enabled = body.enabled ?? s.enabled;
 						model = body.model ?? s.model;
-					} catch {}
+					} catch {
+						// A request body that is not JSON leaves the default.
+					}
 				}
 				return json({
 					steerer: {

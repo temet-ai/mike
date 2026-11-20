@@ -1,3 +1,6 @@
+import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
+import { resolveAppPath } from '$lib/resolveHref';
 import type { EvalAlarmDto } from '$lib/api/evalMetrics';
 import type { BundleDto, EvalGateDto, EvalRunDto } from '$lib/api/evalRuns';
 import { wordFor } from '$lib/components/eval/labelControl';
@@ -19,10 +22,26 @@ export const JUDGE_NAME: Record<JudgeRole, string> = {
 	session_judge: 'Session judge'
 };
 
-export const LABELLING_QUERY: Record<JudgeRole, string> = {
-	turn_judge: '',
-	session_judge: '?for=sessions'
-};
+/** The labelling page for a judge: the session judge's labels live under `?for=sessions`. */
+export function labellingHref(role: JudgeRole): ResolvedPathname {
+	return role === 'session_judge'
+		? resolve('/sessions/labelling?for=sessions')
+		: resolve('/sessions/labelling');
+}
+
+/** The labelling page for a judge, opened to edit one configuration. */
+export function labellingEditHref(role: JudgeRole, bundleId: number): ResolvedPathname {
+	return role === 'session_judge'
+		? resolve(`/sessions/labelling?for=sessions&edit=${bundleId}`)
+		: resolve(`/sessions/labelling?edit=${bundleId}`);
+}
+
+/** The labelling accuracy run list for a judge. */
+export function accuracyRunsHref(role: JudgeRole): ResolvedPathname {
+	return role === 'session_judge'
+		? resolve('/sessions/labelling/accuracy?for=sessions')
+		: resolve('/sessions/labelling/accuracy');
+}
 
 export function runWhen(run: EvalRunDto): string {
 	return [formatDay(run.created_at), formatClock(run.created_at)].filter(Boolean).join(' ');
@@ -119,6 +138,11 @@ export interface AlarmAction {
 		| '/sessions/labelling/accuracy'
 		| '/sessions/labelling/review';
 	suffix: string;
+}
+
+/** Where an alarm's next-step link goes: its route plus the query or fragment that names the spot. */
+export function alarmActionHref(action: AlarmAction): ResolvedPathname {
+	return resolveAppPath(`${action.path}${action.suffix}`);
 }
 
 export interface AlarmWords {

@@ -42,7 +42,6 @@
 		'below the steerer toggle, which is wrong. We need a reusable component for ' +
 		'defining a worker/agent: the top shows what the worker is, then lets the user ' +
 		'enable/disable it; if disabled, the model selection collapses.';
-	const STATIC_NOW = new Date('2026-06-27T19:12:00Z').getTime();
 
 	function buildSummary(overrides: Partial<SessionSummary> = {}): SessionSummary {
 		return {

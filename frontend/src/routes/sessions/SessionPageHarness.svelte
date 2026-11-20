@@ -277,16 +277,13 @@ What I want:
 		},
 		toggle(key: string): void {
 			onToggle?.();
-			const next = new Set(collapsed);
-			if (next.has(key)) {
-				next.delete(key);
-			} else {
-				next.add(key);
-			}
-			collapsed = next;
+			collapsed = new Set(
+				collapsed.has(key) ? [...collapsed].filter((v) => v !== key) : [...collapsed, key]
+			);
 		},
 		setDefault(_key: string, _c: boolean): void {},
 		setAll(keys: string[], c: boolean): void {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Set(collapsed);
 			for (const k of keys) {
 				if (c) {
@@ -533,6 +530,7 @@ What I want:
 		contentSearchError = null;
 
 		const known = new Set([...sessions.map((s) => s.id), ...searchHits.map((s) => s.id)]);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const needed = new Set<string>();
 		for (const g of contentHits) if (!known.has(g.session_id)) needed.add(g.session_id);
 		for (const m of bodyHits) if (!known.has(m.session_id)) needed.add(m.session_id);

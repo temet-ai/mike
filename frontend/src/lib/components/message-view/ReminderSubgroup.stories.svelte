@@ -21,7 +21,7 @@
 </script>
 
 <Story name="Hooks (expanded)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderSubgroup open={true} ariaLabel="Hooks group" onToggle={() => {}}>
 				{#snippet head()}
@@ -42,7 +42,7 @@
 </Story>
 
 <Story name="MCP (collapsed)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderSubgroup open={false} ariaLabel="MCP group" onToggle={() => {}}>
 				{#snippet head()}
@@ -60,7 +60,7 @@
 </Story>
 
 <Story name="Large group (many subrows, expanded)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderSubgroup open={true} ariaLabel="Context group" onToggle={() => {}}>
 				{#snippet head()}

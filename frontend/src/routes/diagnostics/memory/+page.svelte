@@ -400,149 +400,143 @@
 	<SectionCard
 		title="RSS history (last {Math.round((rssHistory.length * DEFAULT_POLL_MS) / 1000)}s)"
 	>
-		{#snippet children()}
-			{#if sparkPath}
-				<p class="mem-hint">
-					min {formatBytes(sparkPath.min)} · max {formatBytes(sparkPath.max)} · samples {rssHistory.length}
-				</p>
-				<svg
-					class="memory-spark"
-					viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
-					preserveAspectRatio="none"
-					aria-label="Process RSS over the last six minutes"
-					role="img"
-				>
-					<path d={sparkPath.path} fill="none" stroke="currentColor" stroke-width="1.5" />
-				</svg>
-			{:else}
-				<p class="text-xs italic text-[var(--text-3)]">Awaiting first snapshot…</p>
-			{/if}
-		{/snippet}
+		{#if sparkPath}
+			<p class="mem-hint">
+				min {formatBytes(sparkPath.min)} · max {formatBytes(sparkPath.max)} · samples {rssHistory.length}
+			</p>
+			<svg
+				class="memory-spark"
+				viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+				preserveAspectRatio="none"
+				aria-label="Process RSS over the last six minutes"
+				role="img"
+			>
+				<path d={sparkPath.path} fill="none" stroke="currentColor" stroke-width="1.5" />
+			</svg>
+		{:else}
+			<p class="text-xs italic text-[var(--text-3)]">Awaiting first snapshot…</p>
+		{/if}
 	</SectionCard>
 
 	<p class="text-label font-semibold uppercase tracking-kpi text-[var(--text-3)]">Investigation</p>
 	<SectionCard title="Largest resident requests">
-		{#snippet children()}
-			<p class="mem-hint">Completed requests ordered by total bytes.</p>
-			{#if topEntries.length > 0}
-				<div class="memory-table-wrap">
-					<table class="memory-table">
-						<thead>
+		<p class="mem-hint">Completed requests ordered by total bytes.</p>
+		{#if topEntries.length > 0}
+			<div class="memory-table-wrap">
+				<table class="memory-table">
+					<thead>
+						<tr>
+							<th>Request</th>
+							<th>Session</th>
+							<th>Status</th>
+							<th class="num">Req body</th>
+							<th class="num">Resp body</th>
+							<th class="num">Filt req</th>
+							<th class="num">Total</th>
+							<th>Created</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each topEntries as entry (entry.id)}
 							<tr>
-								<th>Request</th>
-								<th>Session</th>
-								<th>Status</th>
-								<th class="num">Req body</th>
-								<th class="num">Resp body</th>
-								<th class="num">Filt req</th>
-								<th class="num">Total</th>
-								<th>Created</th>
+								<td>
+									<a
+										href={resolve(
+											`sessions/${encodeURIComponent(entry.session_id)}/requests/${entry.id}`
+										)}
+									>
+										{entry.id}
+									</a>
+								</td>
+								<td>
+									<a href={resolve(`sessions/${encodeURIComponent(entry.session_id)}`)}>
+										{entry.session_id}
+									</a>
+								</td>
+								<td>{entry.status}</td>
+								<td class="num">{formatBytes(entry.request_body_bytes)}</td>
+								<td class="num">{formatBytes(entry.response_body_bytes)}</td>
+								<td class="num">{formatBytes(entry.filtered_request_body_bytes)}</td>
+								<td class="num memory-table__total">{formatBytes(entry.total_bytes)}</td>
+								<td>
+									<time datetime={entry.created_at} title={absTime(entry.created_at)}
+										>{relTime(entry.created_at)}</time
+									>
+								</td>
 							</tr>
-						</thead>
-						<tbody>
-							{#each topEntries as entry (entry.id)}
-								<tr>
-									<td>
-										<a
-											href={resolve(
-												`sessions/${encodeURIComponent(entry.session_id)}/requests/${entry.id}`
-											)}
-										>
-											{entry.id}
-										</a>
-									</td>
-									<td>
-										<a href={resolve(`sessions/${encodeURIComponent(entry.session_id)}`)}>
-											{entry.session_id}
-										</a>
-									</td>
-									<td>{entry.status}</td>
-									<td class="num">{formatBytes(entry.request_body_bytes)}</td>
-									<td class="num">{formatBytes(entry.response_body_bytes)}</td>
-									<td class="num">{formatBytes(entry.filtered_request_body_bytes)}</td>
-									<td class="num memory-table__total">{formatBytes(entry.total_bytes)}</td>
-									<td>
-										<time datetime={entry.created_at} title={absTime(entry.created_at)}
-											>{relTime(entry.created_at)}</time
-										>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{:else if snapshot}
-				<p class="text-xs italic text-[var(--text-3)]">Store is empty.</p>
-			{:else}
-				<p class="text-xs italic text-[var(--text-3)]">Awaiting first snapshot…</p>
-			{/if}
-		{/snippet}
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{:else if snapshot}
+			<p class="text-xs italic text-[var(--text-3)]">Store is empty.</p>
+		{:else}
+			<p class="text-xs italic text-[var(--text-3)]">Awaiting first snapshot…</p>
+		{/if}
 	</SectionCard>
 
 	<SectionCard title="SPA eviction activity">
-		{#snippet children()}
-			<p class="mem-hint">
-				{totalEvictionsObserved} evictions since this page mounted ·
-				{evictionRecords.length} resident in tail · 5 surfaces wired
-			</p>
-			<div class="mem-subhead">
-				<Tooltip
-					text="How often the browser SPA dropped cached data to stay within its in-tab memory budget, counted per source over the last window. High counts mean the SPA is churning its caches, not that memory is leaking."
-				>
-					<h4 class="mem-subhead__title">Pressure (last {COUNTER_WINDOW_MS / 1000}s)</h4>
-				</Tooltip>
-			</div>
-			{#if sortedCounts.length === 0}
-				<p class="text-xs italic text-[var(--text-3)]">No evictions observed.</p>
-			{:else}
-				<ul class="memory-counter-list">
-					{#each sortedCounts as [key, count] (key)}
-						<li>
-							<span class="memory-counter-list__key">{key}</span>
-							<span class="memory-counter-list__count">{count}</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+		<p class="mem-hint">
+			{totalEvictionsObserved} evictions since this page mounted ·
+			{evictionRecords.length} resident in tail · 5 surfaces wired
+		</p>
+		<div class="mem-subhead">
+			<Tooltip
+				text="How often the browser SPA dropped cached data to stay within its in-tab memory budget, counted per source over the last window. High counts mean the SPA is churning its caches, not that memory is leaking."
+			>
+				<h4 class="mem-subhead__title">Pressure (last {COUNTER_WINDOW_MS / 1000}s)</h4>
+			</Tooltip>
+		</div>
+		{#if sortedCounts.length === 0}
+			<p class="text-xs italic text-[var(--text-3)]">No evictions observed.</p>
+		{:else}
+			<ul class="memory-counter-list">
+				{#each sortedCounts as [key, count] (key)}
+					<li>
+						<span class="memory-counter-list__key">{key}</span>
+						<span class="memory-counter-list__count">{count}</span>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 
-			<div class="mem-subdivider" aria-hidden="true"></div>
+		<div class="mem-subdivider" aria-hidden="true"></div>
 
-			<div class="mem-subhead">
-				<Tooltip
-					text="Newest first. Buffer caps at {EVICTION_RECORDS_CAP} entries — older records roll out as new ones arrive at the head; the total counter above tracks everything observed since mount."
-				>
-					<h4 class="mem-subhead__title">Recent evictions</h4>
-				</Tooltip>
-			</div>
-			{#if recentEvictions.length === 0}
-				<p class="text-xs italic text-[var(--text-3)]">No evictions observed.</p>
-			{:else}
-				<div class="memory-table-wrap memory-table-wrap--feed">
-					<table class="memory-table memory-table--feed">
-						<thead>
+		<div class="mem-subhead">
+			<Tooltip
+				text="Newest first. Buffer caps at {EVICTION_RECORDS_CAP} entries — older records roll out as new ones arrive at the head; the total counter above tracks everything observed since mount."
+			>
+				<h4 class="mem-subhead__title">Recent evictions</h4>
+			</Tooltip>
+		</div>
+		{#if recentEvictions.length === 0}
+			<p class="text-xs italic text-[var(--text-3)]">No evictions observed.</p>
+		{:else}
+			<div class="memory-table-wrap memory-table-wrap--feed">
+				<table class="memory-table memory-table--feed">
+					<thead>
+						<tr>
+							<th>Time</th>
+							<th>Source</th>
+							<th>Reason</th>
+							<th>Detail</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each recentEvictions as rec (rec.at + ':' + rec.source + ':' + rec.detail)}
 							<tr>
-								<th>Time</th>
-								<th>Source</th>
-								<th>Reason</th>
-								<th>Detail</th>
+								<td>
+									<time datetime={toIso(rec.at)} title={absTime(rec.at)}>{relTime(rec.at)}</time>
+								</td>
+								<td>{rec.source}</td>
+								<td>{rec.reason}</td>
+								<td class="mono">{rec.detail}</td>
 							</tr>
-						</thead>
-						<tbody>
-							{#each recentEvictions as rec (rec.at + ':' + rec.source + ':' + rec.detail)}
-								<tr>
-									<td>
-										<time datetime={toIso(rec.at)} title={absTime(rec.at)}>{relTime(rec.at)}</time>
-									</td>
-									<td>{rec.source}</td>
-									<td>{rec.reason}</td>
-									<td class="mono">{rec.detail}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-		{/snippet}
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
 	</SectionCard>
 </section>
 

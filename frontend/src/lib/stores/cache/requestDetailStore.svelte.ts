@@ -26,6 +26,7 @@ export interface RequestDetailEviction {
 
 type RequestDetailEvictionListener = (event: RequestDetailEviction) => void;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const requestDetailEvictionListeners = new Set<RequestDetailEvictionListener>();
 
 function emitRequestDetailEviction(event: RequestDetailEviction): void {
@@ -76,6 +77,7 @@ interface RequestDetailEntry {
 	handleEvent(event: ProxyEvent): void;
 }
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const detailCache = new Map<number, RequestDetailEntry>();
 
 function touch(entry: RequestDetailEntry): void {
@@ -231,7 +233,9 @@ function createEntry(id: number): RequestDetailEntry {
 				if (needsChunkHydration) {
 					try {
 						fetched.accumulated_text = await getAccumulatedText(id);
-					} catch {}
+					} catch {
+						// The accumulated text is optional; the detail shows without it.
+					}
 				}
 				connState.detail = fetched;
 				connState.error = null;

@@ -273,7 +273,7 @@
 >
 	{#snippet template()}
 		<div class="flex gap-4 flex-wrap p-2">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					class="relative h-[200px] w-[180px] overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--surface-bg)]"

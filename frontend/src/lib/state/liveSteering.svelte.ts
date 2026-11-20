@@ -59,7 +59,9 @@ export function createLiveSteeringStore(deps: Deps = {}): LiveSteeringStore {
 		awaitingFirstEvent: boolean;
 	}>({
 		feed: [],
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		perSteerer: new Map(),
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		enrolledSessions: new Set(),
 		awaitingFirstEvent: true
 	});
@@ -91,6 +93,7 @@ export function createLiveSteeringStore(deps: Deps = {}): LiveSteeringStore {
 
 		s.feed = [entry, ...s.feed].slice(0, FEED_RING_CAP);
 
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		s.enrolledSessions = new Set([...s.enrolledSessions, ev.session_uuid]);
 
 		const name = ev.steerer_name ?? '__unknown__';
@@ -106,6 +109,7 @@ export function createLiveSteeringStore(deps: Deps = {}): LiveSteeringStore {
 					fires: existing.fires + (isFire ? 1 : 0),
 					suppressions: existing.suppressions + (isSuppress ? 1 : 0),
 					noDrifts: existing.noDrifts + (isNoDrift ? 1 : 0),
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 					lastFireAt: isFire ? new Date(nowMs).toISOString() : existing.lastFireAt,
 					displayName: ev.steerer_display_name ?? existing.displayName
 				}
@@ -115,9 +119,11 @@ export function createLiveSteeringStore(deps: Deps = {}): LiveSteeringStore {
 					fires: isFire ? 1 : 0,
 					suppressions: isSuppress ? 1 : 0,
 					noDrifts: isNoDrift ? 1 : 0,
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 					lastFireAt: isFire ? new Date(nowMs).toISOString() : null
 				};
 
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		s.perSteerer = new Map(s.perSteerer).set(name, updated);
 		s.awaitingFirstEvent = false;
 	}

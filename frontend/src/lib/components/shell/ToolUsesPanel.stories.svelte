@@ -315,7 +315,9 @@
 					configurable: true,
 					value: undefined
 				});
-			} catch {}
+			} catch {
+				// The clipboard is unavailable or refused; nothing is copied.
+			}
 			return {
 				restore: () => {
 					globalThis.fetch = origFetch;
@@ -380,11 +382,9 @@
 >
 	{#snippet template()}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div style="width: 500px; background: var(--surface-bg); padding: 8px;">
-					<ToolUsesPanel sessionId={STORY_SESSION_ID} now={STATIC_NOW} />
-				</div>
-			{/snippet}
+			<div style="width: 500px; background: var(--surface-bg); padding: 8px;">
+				<ToolUsesPanel sessionId={STORY_SESSION_ID} now={STATIC_NOW} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>

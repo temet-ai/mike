@@ -85,6 +85,7 @@ export function createSessionFlowStore(
 	} = {}
 ): SessionFlowStore {
 	const fetchPage = options.fetchPage ?? fetchSessionFlowPage;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 	const components = [...new Set(options.components ?? FLOW_COMPONENTS)];
 	const limits = { ...DEFAULT_LIMITS, ...options.limits };
 	const continuationDelayMs = options.continuationDelayMs ?? 0;
@@ -110,14 +111,22 @@ export function createSessionFlowStore(
 		controller: AbortController | null = null;
 	let running: Promise<void> | null = null;
 	let scheduled = false;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const authoritative = new Map<SessionFlowComponent, ComponentData>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const dirty = new Map<SessionFlowComponent, number>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const pending = new Set<SessionFlowComponent>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const failures = new Map<SessionFlowComponent, string>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const bounded = new Set<SessionFlowComponent>();
 	function publish(): void {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const actors = new Map<string, SessionFlowActor>(),
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			activities = new Map<string, SessionFlowActivity>(),
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			relationships = new Map<string, SessionFlowRelationship>();
 		const coverage: SessionFlowCoverage[] = [];
 		for (const [component, data] of authoritative) {
@@ -140,11 +149,15 @@ export function createSessionFlowStore(
 			relationships: [...relationships.values()],
 			coverage
 		});
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		staleReasons = [...new Set(failures.values())];
 	}
 	function fits(component: SessionFlowComponent, stage: ComponentData): boolean {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		const actors = new Set(stage.actors.keys()),
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 			activities = new Set(stage.activities.keys()),
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 			relationships = new Set(stage.relationships.keys());
 		for (const [other, data] of authoritative)
 			if (other !== component) {
@@ -165,6 +178,7 @@ export function createSessionFlowStore(
 				pending.add(component);
 				failures.set(component, reason);
 			}
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		staleReasons = [...new Set(failures.values())];
 	}
 	function capped(
@@ -191,6 +205,7 @@ export function createSessionFlowStore(
 		const generation = dirty.get(component) ?? 0;
 		let stage: ComponentData | null = null,
 			cursor: string | undefined;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const cursors = new Set<string>();
 		for (let pageNumber = 0; pageNumber < limits.pagesPerTraversal; pageNumber++) {
 			const page = await fetchPage({ sessionId, component, cursor, limit: 100, signal });
@@ -210,8 +225,11 @@ export function createSessionFlowStore(
 				return false;
 			}
 			const next: ComponentData = {
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 				actors: new Map(stage?.actors),
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 				activities: new Map(stage?.activities),
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 				relationships: new Map(stage?.relationships),
 				coverage: { ...page.coverage, lower_id: stage?.coverage.lower_id ?? page.coverage.lower_id }
 			};
@@ -230,8 +248,11 @@ export function createSessionFlowStore(
 				capped(
 					component,
 					stage ?? {
+						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 						actors: new Map(),
+						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 						activities: new Map(),
+						// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 						relationships: new Map(),
 						coverage: { ...page.coverage, returned_through_id: null }
 					},
@@ -267,6 +288,7 @@ export function createSessionFlowStore(
 		const signal = controller.signal;
 		loading = true;
 		error = null;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const attempts = new Map<SessionFlowComponent, number>();
 		const work = async () => {
 			while (pending.size && token === epoch && !signal.aborted) {

@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { resolveAppPath } from '$lib/resolveHref';
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import {
 		BookOpen,
 		Bot,
@@ -45,7 +47,7 @@
 
 	const anthropic: Array<{ label: string; href: string; description: string }> = ANTHROPIC_DOCS;
 
-	function guideHref(slug: string): string {
+	function guideHref(slug: string): ResolvedPathname {
 		switch (slug) {
 			case 'getting-started':
 				return resolve('/help/guides/getting-started');
@@ -64,12 +66,12 @@
 		}
 	}
 
-	function docHref(href: string): string {
+	function docHref(href: string): ResolvedPathname {
 		if (href === '/help') return resolve('/help');
 		if (href === '/help/glossary') return resolve('/help/glossary');
 		if (href.startsWith('/help/docs/'))
 			return resolve('/help/docs/[slug]', { slug: href.split('/').at(-1) ?? '' });
-		return href;
+		return resolveAppPath(href);
 	}
 
 	let health = $state<HealthResponse | null>(null);
@@ -141,7 +143,6 @@
 				<ul class="link-list">
 					{#each GUIDES as guide (guide.slug)}
 						<li>
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- guideHref() resolves each known literal internally; the rule can't see through the function wrapper -->
 							<a class="link-row" href={guideHref(guide.slug)}>
 								<span class="link-title">
 									<span>{guide.title}</span>
@@ -202,22 +203,27 @@
 				<ul class="link-list">
 					{#each docs as link (link.href)}
 						<li>
-							<!-- eslint-disable svelte/no-navigation-without-resolve -- docs mixes internal routes (resolved via docHref) with external doc URLs from PROJECT_DOCS -->
-							<a
-								class="link-row"
-								href={link.internal ? docHref(link.href) : link.href}
-								target={link.internal ? undefined : '_blank'}
-								rel={link.internal ? undefined : 'noopener noreferrer'}
-							>
-								<span class="link-title">
-									<span>{link.label}</span>
-									{#if !link.internal}
+							{#if link.internal}
+								<a class="link-row" href={docHref(link.href)}>
+									<span class="link-title">
+										<span>{link.label}</span>
+									</span>
+									<span class="link-desc">{link.description}</span>
+								</a>
+							{:else}
+								<a
+									class="link-row"
+									href={link.href}
+									target="_blank"
+									rel="external noopener noreferrer"
+								>
+									<span class="link-title">
+										<span>{link.label}</span>
 										<ExternalLink class="size-3" aria-hidden="true" />
-									{/if}
-								</span>
-								<span class="link-desc">{link.description}</span>
-							</a>
-							<!-- eslint-enable svelte/no-navigation-without-resolve -->
+									</span>
+									<span class="link-desc">{link.description}</span>
+								</a>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -231,15 +237,18 @@
 				<ul class="link-list">
 					{#each anthropic as link (link.href)}
 						<li>
-							<!-- eslint-disable svelte/no-navigation-without-resolve -- anthropic entries are always external Anthropic/Claude Code doc URLs -->
-							<a class="link-row" href={link.href} target="_blank" rel="noopener noreferrer">
+							<a
+								class="link-row"
+								href={link.href}
+								target="_blank"
+								rel="external noopener noreferrer"
+							>
 								<span class="link-title">
 									<span>{link.label}</span>
 									<ExternalLink class="size-3" aria-hidden="true" />
 								</span>
 								<span class="link-desc">{link.description}</span>
 							</a>
-							<!-- eslint-enable svelte/no-navigation-without-resolve -->
 						</li>
 					{/each}
 				</ul>
@@ -331,8 +340,12 @@
 				</details>
 				<ul class="link-list">
 					<li>
-						<!-- eslint-disable svelte/no-navigation-without-resolve -- Same-origin backend endpoint, not a SvelteKit page. -->
-						<a class="link-row" href="/api/requests" target="_blank" rel="noopener noreferrer">
+						<a
+							class="link-row"
+							href="/api/requests"
+							target="_blank"
+							rel="external noopener noreferrer"
+						>
 							<span class="link-title">
 								<span>Open this instance’s inspect API</span>
 								<ExternalLink class="size-3" aria-hidden="true" />
@@ -341,7 +354,6 @@
 								Raw request list from the same origin as this browser UI.
 							</span>
 						</a>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					</li>
 				</ul>
 			</section>

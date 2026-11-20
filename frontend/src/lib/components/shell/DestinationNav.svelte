@@ -382,7 +382,6 @@
 						<li>
 							<Tooltip text={item.hint} placement="right">
 								{#snippet child({ props })}
-									<!-- eslint-disable svelte/no-navigation-without-resolve -- every NavHref is a parameterless route; resolveStatic() resolves it, because resolve() cannot take a union this wide -->
 									<a
 										{...props}
 										href={resolveStatic(item.href)}
@@ -399,7 +398,6 @@
 										</span>
 										<span class="dn-item-label">{item.label}</span>
 									</a>
-									<!-- eslint-enable svelte/no-navigation-without-resolve -->
 								{/snippet}
 							</Tooltip>
 						</li>

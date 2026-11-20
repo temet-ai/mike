@@ -43,7 +43,7 @@
 			</p>
 			<p class="text-caption text-[var(--text-3)]"></p>
 
-			{#each GAP_SCALE as item}
+			{#each GAP_SCALE as item (item.tailwind)}
 				<div class="flex items-center gap-4">
 					<div class="flex shrink-0" style:gap="{item.px}px">
 						<div
@@ -75,7 +75,7 @@
 			</p>
 			<p class="text-caption text-[var(--text-3)]"></p>
 
-			{#each PADDING_SCALE as item}
+			{#each PADDING_SCALE as item (item.tailwind)}
 				<div class="flex items-center gap-4">
 					<div class="border border-dashed border-[var(--border-default)] inline-block">
 						<div

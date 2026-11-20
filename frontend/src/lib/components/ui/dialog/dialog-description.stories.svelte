@@ -14,7 +14,7 @@
 <Story
 	name="Default"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(content, 'dialog-content must be portalled into document.body').toBeTruthy();
 		await captureStorySnapshot(document.body, 'dialog-description/Default', {
@@ -40,7 +40,7 @@
 <Story
 	name="CustomClass"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const desc = document.body.querySelector('[data-slot="dialog-description"]');
 		await expect(desc, 'dialog-description element must be in DOM').toBeTruthy();
 		await expect(
@@ -78,7 +78,7 @@
 <Story
 	name="WithLinks"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(content, 'dialog-content must be portalled into document.body').toBeTruthy();
 		await captureStorySnapshot(document.body, 'dialog-description/WithLinks', {
@@ -104,7 +104,7 @@
 <Story
 	name="WithLinksInteraction"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const desc = document.body.querySelector('[data-slot="dialog-description"]');
 		await expect(desc, 'dialog-description must be in DOM (portalled into body)').toBeTruthy();
 		const links = Array.from(desc?.querySelectorAll('a') ?? []);
@@ -144,7 +144,7 @@
 <Story
 	name="LongContent"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(content, 'dialog-content must be portalled into document.body').toBeTruthy();
 		await captureStorySnapshot(document.body, 'dialog-description/LongContent', {
@@ -173,7 +173,7 @@
 <Story
 	name="EmptyContent"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const desc = document.body.querySelector('[data-slot="dialog-description"]');
 		await expect(desc, 'dialog-description must render even with no text content').toBeTruthy();
 		await expect(
@@ -197,7 +197,7 @@
 <Story
 	name="RefBinding"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const desc = document.body.querySelector('[data-slot="dialog-description"]');
 		await expect(desc, 'dialog-description DOM node must be present').toBeTruthy();
 		await expect(
@@ -241,7 +241,7 @@
 <Story
 	name="DataAttributes"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const desc = document.body.querySelector('[data-slot="dialog-description"]');
 		await expect(desc, 'dialog-description must be in DOM (portalled into body)').toBeTruthy();
 		await expect(
@@ -272,7 +272,7 @@
 <Story
 	name="ThemeForge"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(
 			content,
@@ -303,7 +303,7 @@
 <Story
 	name="ThemeGlacier"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(
 			content,
@@ -334,7 +334,7 @@
 <Story
 	name="ThemeVoid"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(
 			content,
@@ -365,7 +365,7 @@
 <Story
 	name="ThemePhosphor"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(
 			content,
@@ -396,7 +396,7 @@
 <Story
 	name="ThemeCrimson"
 	tags={['interactive', 'visual']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const content = document.body.querySelector('[data-slot="dialog-content"]');
 		await expect(
 			content,
@@ -427,7 +427,7 @@
 <Story name="AllThemes" tags={['design-exploration']}>
 	{#snippet template()}
 		<div class="flex flex-col gap-4 p-4">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-story-theme={theme}
 					data-theme={theme}

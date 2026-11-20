@@ -74,11 +74,7 @@
 			collapseStore.toggle(key);
 			return;
 		}
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment below
-		const next = new Set(expandedLocal);
-		if (next.has(id)) next.delete(id);
-		else next.add(id);
-		expandedLocal = next;
+		expandedLocal = new Set(expandedLocal.has(id) ? [...expandedLocal].filter((v) => v !== id) : [...expandedLocal, id]);
 	}
 
 	let confirmKillId = $state<number | null>(null);
@@ -172,235 +168,233 @@
 				>
 			{/if}
 		{/snippet}
-		{#snippet children()}
-			<div class="plp-toolbar">
-				<label class="plp-toggle">
-					<input type="checkbox" bind:checked={openOnly} />
-					<span>Open only</span>
-				</label>
-			</div>
+		<div class="plp-toolbar">
+			<label class="plp-toggle">
+				<input type="checkbox" bind:checked={openOnly} />
+				<span>Open only</span>
+			</label>
+		</div>
 
-			{#if errorMessage}
-				<LoadErrorBanner
-					title="Couldn't load this project's launches"
-					detail={errorMessage}
-					onRetry={() => void load()}
-				/>
-			{:else if loading && allRows.length === 0}
-				<div class="plp-status" role="status" aria-live="polite">Loading...</div>
-			{:else if visibleRows.length === 0}
-				<FilteredEmptyState
-					icon={SquareTerminal}
-					filtered={openOnly}
-					emptyText="No launches recorded for this project"
-					emptySubtext="A launch appears here as soon as mike's launcher starts one into this project's directory — mike spawn open, or POST /api/launches."
-					filteredText="No launches are currently open."
-					filteredSubtext="Every recorded launch for this project has closed. Turn off “Open only” to see the full history."
-					onClearFilters={() => (openOnly = false)}
-					clearLabel="Show all"
-				/>
-			{:else}
-				<ul class="plp-list" role="list">
-					{#each visibleRows as row (row.id)}
-						{@const open = isExpanded(row.id)}
-						{@const result = describeResult(row.result)}
-						{@const bodyId = `plp-body-${row.id}`}
-						{@const canKill = row.session_uuid !== null && row.closed_at === null}
-						<li class="plp-row" class:plp-row--expanded={open}>
-							<div class="plp-row__head">
-								<button
-									type="button"
-									class="plp-row__disclose"
-									aria-expanded={open}
-									aria-controls={bodyId}
-									aria-label={open ? `Collapse launch #${row.id}` : `Expand launch #${row.id}`}
-									onclick={() => toggleRow(row.id)}
+		{#if errorMessage}
+			<LoadErrorBanner
+				title="Couldn't load this project's launches"
+				detail={errorMessage}
+				onRetry={() => void load()}
+			/>
+		{:else if loading && allRows.length === 0}
+			<div class="plp-status" role="status" aria-live="polite">Loading...</div>
+		{:else if visibleRows.length === 0}
+			<FilteredEmptyState
+				icon={SquareTerminal}
+				filtered={openOnly}
+				emptyText="No launches recorded for this project"
+				emptySubtext="A launch appears here as soon as mike's launcher starts one into this project's directory — mike spawn open, or POST /api/launches."
+				filteredText="No launches are currently open."
+				filteredSubtext="Every recorded launch for this project has closed. Turn off “Open only” to see the full history."
+				onClearFilters={() => (openOnly = false)}
+				clearLabel="Show all"
+			/>
+		{:else}
+			<ul class="plp-list" role="list">
+				{#each visibleRows as row (row.id)}
+					{@const open = isExpanded(row.id)}
+					{@const result = describeResult(row.result)}
+					{@const bodyId = `plp-body-${row.id}`}
+					{@const canKill = row.session_uuid !== null && row.closed_at === null}
+					<li class="plp-row" class:plp-row--expanded={open}>
+						<div class="plp-row__head">
+							<button
+								type="button"
+								class="plp-row__disclose"
+								aria-expanded={open}
+								aria-controls={bodyId}
+								aria-label={open ? `Collapse launch #${row.id}` : `Expand launch #${row.id}`}
+								onclick={() => toggleRow(row.id)}
+							>
+								<DisclosureMarker {open} size={12} />
+								<span class="plp-backend">{row.backend}</span>
+								<span class="plp-fact plp-fact--{result.tone}" title={result.title}>
+									<result.icon size={13} aria-hidden="true" />
+									<span>{result.label}</span>
+								</span>
+								<span class="plp-ts" title={absoluteTitle(row.created_at)}
+									>{formatRelative(row.created_at, now)}</span
 								>
-									<DisclosureMarker {open} size={12} />
-									<span class="plp-backend">{row.backend}</span>
-									<span class="plp-fact plp-fact--{result.tone}" title={result.title}>
-										<result.icon size={13} aria-hidden="true" />
-										<span>{result.label}</span>
-									</span>
-									<span class="plp-ts" title={absoluteTitle(row.created_at)}
-										>{formatRelative(row.created_at, now)}</span
+							</button>
+							<div class="plp-row__meta">
+								{#if row.session_uuid}
+									<a
+										class="plp-link"
+										href={resolve(`sessions/${encodeURIComponent(row.session_uuid)}`)}
 									>
-								</button>
-								<div class="plp-row__meta">
-									{#if row.session_uuid}
-										<a
-											class="plp-link"
-											href={resolve(`sessions/${encodeURIComponent(row.session_uuid)}`)}
-										>
-											{shortSessionId(row.session_uuid)}
-										</a>
-									{/if}
-									{#if canKill}
-										{#if confirmKillId === row.id}
-											<span class="plp-confirm" role="group" aria-label="Confirm kill">
-												<span class="plp-confirm__text">Close this surface?</span>
-												<Button
-													variant="destructive"
-													size="sm"
-													disabled={killingId === row.id}
-													onclick={() => void performKill(row)}
-												>
-													{killingId === row.id ? 'Killing...' : 'Confirm'}
-												</Button>
-												<Button
-													variant="outline"
-													size="sm"
-													onclick={cancelKillConfirm}
-													disabled={killingId === row.id}
-												>
-													Cancel
-												</Button>
-											</span>
-										{:else}
-											<Button variant="outline" size="sm" onclick={() => beginKillConfirm(row.id)}
-												>Kill</Button
+										{shortSessionId(row.session_uuid)}
+									</a>
+								{/if}
+								{#if canKill}
+									{#if confirmKillId === row.id}
+										<span class="plp-confirm" role="group" aria-label="Confirm kill">
+											<span class="plp-confirm__text">Close this surface?</span>
+											<Button
+												variant="destructive"
+												size="sm"
+												disabled={killingId === row.id}
+												onclick={() => void performKill(row)}
 											>
-										{/if}
+												{killingId === row.id ? 'Killing...' : 'Confirm'}
+											</Button>
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={cancelKillConfirm}
+												disabled={killingId === row.id}
+											>
+												Cancel
+											</Button>
+										</span>
+									{:else}
+										<Button variant="outline" size="sm" onclick={() => beginKillConfirm(row.id)}
+											>Kill</Button
+										>
 									{/if}
-								</div>
+								{/if}
 							</div>
-							{#if killErrors[row.id]}
-								<p class="plp-row__error" role="alert">{killErrors[row.id]}</p>
-							{/if}
+						</div>
+						{#if killErrors[row.id]}
+							<p class="plp-row__error" role="alert">{killErrors[row.id]}</p>
+						{/if}
 
-							<div class="plp-row__body" class:plp-row__body--open={open} id={bodyId}>
-								<div class="plp-row__body-clip" inert={!open}>
-									<div class="plp-detail">
-										<div class="plp-facts" role="list" aria-label="Launch pipeline status">
-											{#each pipelineFacts(row) as d (d.label)}
-												<span class="plp-fact plp-fact--{d.tone}" role="listitem" title={d.title}>
-													<d.icon size={13} aria-hidden="true" />
-													<span>{d.label}</span>
-												</span>
-											{/each}
+						<div class="plp-row__body" class:plp-row__body--open={open} id={bodyId}>
+							<div class="plp-row__body-clip" inert={!open}>
+								<div class="plp-detail">
+									<div class="plp-facts" role="list" aria-label="Launch pipeline status">
+										{#each pipelineFacts(row) as d (d.label)}
+											<span class="plp-fact plp-fact--{d.tone}" role="listitem" title={d.title}>
+												<d.icon size={13} aria-hidden="true" />
+												<span>{d.label}</span>
+											</span>
+										{/each}
+									</div>
+
+									{#if row.reason}
+										<div class="plp-block">
+											<span class="plp-block__label">Reason</span>
+											<p class="plp-pre-text">{row.reason}</p>
 										</div>
+									{/if}
 
-										{#if row.reason}
-											<div class="plp-block">
-												<span class="plp-block__label">Reason</span>
-												<p class="plp-pre-text">{row.reason}</p>
-											</div>
-										{/if}
-
-										<div class="plp-grid">
-											<div class="plp-cell">
-												<span class="plp-cell__k">Folder</span><span class="plp-cell__v"
-													>{row.folder}</span
-												>
-											</div>
-											{#if row.repo_root}
-												<div class="plp-cell">
-													<span class="plp-cell__k">Repo root</span><span class="plp-cell__v"
-														>{row.repo_root}</span
-													>
-												</div>
-											{/if}
-											<div class="plp-cell">
-												<span class="plp-cell__k">Placement</span><span class="plp-cell__v"
-													>{placementOf(row)}</span
-												>
-											</div>
-											{#if row.model}
-												<div class="plp-cell">
-													<span class="plp-cell__k">Model</span><span class="plp-cell__v"
-														>{row.model}</span
-													>
-												</div>
-											{/if}
-											{#if row.agent}
-												<div class="plp-cell">
-													<span class="plp-cell__k">Agent</span><span class="plp-cell__v"
-														>{row.agent}</span
-													>
-												</div>
-											{/if}
-											<div class="plp-cell">
-												<span class="plp-cell__k">Created</span><span
-													class="plp-cell__v"
-													title={absoluteTitle(row.created_at)}
-													>{formatRelative(row.created_at, now)}</span
-												>
-											</div>
-											<div class="plp-cell">
-												<span class="plp-cell__k">Closed</span><span
-													class="plp-cell__v"
-													title={absoluteTitle(row.closed_at)}
-													>{row.closed_at ? formatRelative(row.closed_at, now) : '—'}</span
-												>
-											</div>
-											{#if row.close_reason}
-												<div class="plp-cell">
-													<span class="plp-cell__k">Close reason</span><span class="plp-cell__v"
-														>{row.close_reason}</span
-													>
-												</div>
-											{/if}
+									<div class="plp-grid">
+										<div class="plp-cell">
+											<span class="plp-cell__k">Folder</span><span class="plp-cell__v"
+												>{row.folder}</span
+											>
 										</div>
-
-										{#if row.claude_args.length > 0}
-											<div class="plp-block">
-												<span class="plp-block__label">claude argv (full)</span>
-												<!-- svelte-ignore a11y_no_noninteractive_tabindex (axe scrollable-region-focusable requires the overflow container be keyboard-focusable) -->
-												<pre
-													class="plp-pre"
-													tabindex="0"
-													role="region"
-													aria-label="Complete claude arguments (scrollable)">{row.claude_args.join(
-														'\n'
-													)}</pre>
+										{#if row.repo_root}
+											<div class="plp-cell">
+												<span class="plp-cell__k">Repo root</span><span class="plp-cell__v"
+													>{row.repo_root}</span
+												>
 											</div>
 										{/if}
-
-										{#if row.prompt_present}
-											<div class="plp-block">
-												<span class="plp-block__label">
-													Brief {row.brief_mode
-														? `(${row.brief_mode}${row.brief_path ? `: ${row.brief_path}` : ''})`
-														: ''}
-												</span>
-												{#if row.brief_text}
-													<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-													<pre
-														class="plp-pre"
-														tabindex="0"
-														role="region"
-														aria-label="Full brief text (scrollable)">{row.brief_text}</pre>
-												{:else}
-													<p class="plp-note">
-														A brief was sent, but its full text is not on this row.
-													</p>
-												{/if}
+										<div class="plp-cell">
+											<span class="plp-cell__k">Placement</span><span class="plp-cell__v"
+												>{placementOf(row)}</span
+											>
+										</div>
+										{#if row.model}
+											<div class="plp-cell">
+												<span class="plp-cell__k">Model</span><span class="plp-cell__v"
+													>{row.model}</span
+												>
 											</div>
 										{/if}
+										{#if row.agent}
+											<div class="plp-cell">
+												<span class="plp-cell__k">Agent</span><span class="plp-cell__v"
+													>{row.agent}</span
+												>
+											</div>
+										{/if}
+										<div class="plp-cell">
+											<span class="plp-cell__k">Created</span><span
+												class="plp-cell__v"
+												title={absoluteTitle(row.created_at)}
+												>{formatRelative(row.created_at, now)}</span
+											>
+										</div>
+										<div class="plp-cell">
+											<span class="plp-cell__k">Closed</span><span
+												class="plp-cell__v"
+												title={absoluteTitle(row.closed_at)}
+												>{row.closed_at ? formatRelative(row.closed_at, now) : '—'}</span
+											>
+										</div>
+										{#if row.close_reason}
+											<div class="plp-cell">
+												<span class="plp-cell__k">Close reason</span><span class="plp-cell__v"
+													>{row.close_reason}</span
+												>
+											</div>
+										{/if}
+									</div>
 
-										{#if row.stderr_text}
-											<div class="plp-block">
-												<span class="plp-block__label">
-													Backend stderr{row.stderr_truncated
-														? ' (capped at 64 KiB — more was cut)'
-														: ''}
-												</span>
+									{#if row.claude_args.length > 0}
+										<div class="plp-block">
+											<span class="plp-block__label">claude argv (full)</span>
+											<!-- svelte-ignore a11y_no_noninteractive_tabindex (axe scrollable-region-focusable requires the overflow container be keyboard-focusable) -->
+											<pre
+												class="plp-pre"
+												tabindex="0"
+												role="region"
+												aria-label="Complete claude arguments (scrollable)">{row.claude_args.join(
+													'\n'
+												)}</pre>
+										</div>
+									{/if}
+
+									{#if row.prompt_present}
+										<div class="plp-block">
+											<span class="plp-block__label">
+												Brief {row.brief_mode
+													? `(${row.brief_mode}${row.brief_path ? `: ${row.brief_path}` : ''})`
+													: ''}
+											</span>
+											{#if row.brief_text}
 												<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 												<pre
 													class="plp-pre"
 													tabindex="0"
 													role="region"
-													aria-label="Backend stderr (scrollable)">{row.stderr_text}</pre>
-											</div>
-										{/if}
-									</div>
+													aria-label="Full brief text (scrollable)">{row.brief_text}</pre>
+											{:else}
+												<p class="plp-note">
+													A brief was sent, but its full text is not on this row.
+												</p>
+											{/if}
+										</div>
+									{/if}
+
+									{#if row.stderr_text}
+										<div class="plp-block">
+											<span class="plp-block__label">
+												Backend stderr{row.stderr_truncated
+													? ' (capped at 64 KiB — more was cut)'
+													: ''}
+											</span>
+											<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+											<pre
+												class="plp-pre"
+												tabindex="0"
+												role="region"
+												aria-label="Backend stderr (scrollable)">{row.stderr_text}</pre>
+										</div>
+									{/if}
 								</div>
 							</div>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		{/snippet}
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</SectionCard>
 </div>
 

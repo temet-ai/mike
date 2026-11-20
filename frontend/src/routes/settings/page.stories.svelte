@@ -251,7 +251,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					enabled = JSON.parse(init.body).enabled ?? true;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			return json({ key, enabled, scope: 'session', applies: 'new_sessions' });
 		}
@@ -267,7 +269,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					value = JSON.parse(init.body).value;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			return json(meta({ key, value: (value ?? '') as SettingMeta['value'] }));
 		}

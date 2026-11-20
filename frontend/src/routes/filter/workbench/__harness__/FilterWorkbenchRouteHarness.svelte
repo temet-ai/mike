@@ -10,7 +10,7 @@
 
 	let { rulesStore }: Props = $props();
 
-	// svelte-ignore state_referenced_locally -- captures the init-time store prop once
+	// svelte-ignore state_referenced_locally (captures the init-time store prop once)
 	setContext(FILTER_RULES_STORE_KEY, rulesStore);
 </script>
 

@@ -1,4 +1,5 @@
 <script module lang="ts">
+	import { resolve } from '$app/paths';
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect } from 'storybook/test';
 	import SettingsSection from './SettingsSection.svelte';
@@ -78,7 +79,7 @@
 					frozen setting.
 				{/snippet}
 				{#snippet action()}
-					<a href="/settings/steering" style="font-size:11px; color:var(--text-3);">
+					<a href={resolve('/settings/steering')} style="font-size:11px; color:var(--text-3);">
 						Steering settings
 					</a>
 				{/snippet}

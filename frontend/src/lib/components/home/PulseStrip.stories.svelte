@@ -20,7 +20,7 @@
 		activeStreams: 2,
 		activeSessionsCount: 3
 	}}
-	play={async ({ canvasElement, args }) => {
+	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(canvas.getByText('ONLINE')).toBeInTheDocument();
 		await expect(canvas.getByText('4d 02h')).toBeInTheDocument();

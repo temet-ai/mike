@@ -332,7 +332,7 @@
 							health = { ...health, spent_today_usd: health.spent_today_usd + event.cost_usd };
 						}
 					} else if (event.type === 'applied') {
-						appliedProposalIds = new Set(appliedProposalIds).add(event.proposal_id);
+						appliedProposalIds = new Set([...appliedProposalIds, event.proposal_id]);
 						onApplied(event.rule_id);
 					}
 				}
@@ -397,7 +397,7 @@
 				plan.kind === 'update'
 					? await store.update(plan.id, plan.patch)
 					: await store.create(plan.body);
-			appliedProposalIds = new Set(appliedProposalIds).add(proposal.id);
+			appliedProposalIds = new Set([...appliedProposalIds, proposal.id]);
 			if (previewingProposalId === proposal.id) onStopPreview();
 			onApplied(rule.id);
 		} catch (err) {

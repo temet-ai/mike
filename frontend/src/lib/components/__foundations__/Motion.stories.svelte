@@ -22,6 +22,7 @@
 	] as const;
 
 	function keyframeProperties(name: string): string[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const found = new Set<string>();
 		for (const sheet of Array.from(document.styleSheets)) {
 			let rules: CSSRuleList;
@@ -60,7 +61,7 @@
 </script>
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+		import { onMount } from 'svelte';
 
 	const collapseStore = createCollapseStore();
 
@@ -392,12 +393,10 @@
 						collapsible
 						sectionKey="foundations-motion"
 					>
-						{#snippet children()}
-							<p class="fk-demo-copy">
-								The body's row grows from nothing to exactly this content's height, so what sits
-								below moves once and smoothly. The marker in the header turns over the same span.
-							</p>
-						{/snippet}
+						<p class="fk-demo-copy">
+							The body's row grows from nothing to exactly this content's height, so what sits
+							below moves once and smoothly. The marker in the header turns over the same span.
+						</p>
 					</SectionCardHarness>
 				</div>
 

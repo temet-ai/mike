@@ -10,6 +10,7 @@ it is and shows "Approved" or "Rejected" in the footprint the buttons held.
 </script>
 
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { ArrowUpRight } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
@@ -20,7 +21,7 @@ it is and shows "Approved" or "Rejected" in the footprint the buttons held.
 
 	interface Props {
 		candidate: LessonCandidate;
-		detailHref: string;
+		detailHref: ResolvedPathname;
 		showSession?: boolean;
 		decision?: CandidateState;
 		busy: boolean;

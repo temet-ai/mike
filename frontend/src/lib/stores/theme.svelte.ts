@@ -9,7 +9,9 @@ function readInitialTheme(): ThemeId {
 	try {
 		const stored = localStorage.getItem(THEME_STORAGE_KEY);
 		if (isThemeId(stored)) return stored;
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 
 	return DEFAULT_THEME;
 }
@@ -25,7 +27,9 @@ class ThemeStore {
 		}
 		try {
 			localStorage.setItem(THEME_STORAGE_KEY, id);
-		} catch {}
+		} catch {
+			// Storage is unavailable (private mode or full); the value is simply not kept.
+		}
 	}
 }
 

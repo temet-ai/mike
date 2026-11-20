@@ -48,12 +48,14 @@
 
 	const counts = $derived.by((): Map<string, number> => {
 		const cutoff = now - WINDOW_MS;
-		const out = new Map<string, number>();
-		for (const rec of records) {
-			if (rec.at < cutoff) continue;
-			out.set(rec.reason, (out.get(rec.reason) ?? 0) + 1);
-		}
-		return out;
+		return new Map(
+			[
+				...Map.groupBy(
+					records.filter((rec) => rec.at >= cutoff),
+					(rec) => rec.reason
+				)
+			].map(([reason, group]) => [reason, group.length])
+		);
 	});
 
 	const rows = $derived.by(() => {

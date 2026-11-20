@@ -130,6 +130,7 @@ function identityFor(node: FleetGraphNode | undefined, label: string | null): Pe
 }
 
 function labelsFromThreads(threads: ThreadSummaryDto[]): Map<string, string> {
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const labels = new Map<string, string>();
 	for (const t of threads) {
 		for (const p of t.participant_identities ?? []) {
@@ -146,6 +147,7 @@ function derivePeers(
 	identityByPeer: Map<string, FleetGraphNode>,
 	labelByPeer: Map<string, string>
 ): PeerSummary[] {
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const counts = new Map<string, { messageCount: number; unconsumedCount: number }>();
 	const bump = (peer: string | null, status: string): void => {
 		if (!peer || peer === sessionId) return;
@@ -221,12 +223,14 @@ export function createCommsStore(): CommsStore {
 	}
 
 	async function loadPeers(sessionId: string, project: string | null): Promise<void> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		let identityByPeer = new Map<string, FleetGraphNode>();
 		if (project) {
 			try {
 				const windowHours = state.fleetDto?.window_hours ?? 24;
 				const graph = await getFleetGraph(project, windowHours);
 				if (state.sessionId !== sessionId) return;
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 				identityByPeer = new Map(graph.nodes.map((n) => [n.session_id, n]));
 			} catch {
 				if (state.sessionId !== sessionId) return;
@@ -425,6 +429,7 @@ export function createCommsStore(): CommsStore {
 			return;
 		state.newThreadPhase = 'sending';
 		state.newThreadError = null;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 		const knownUuids = new Set(state.threads.map((t) => t.thread_uuid));
 		try {
 			await postNewThreadMessage(recipient, {
@@ -451,7 +456,9 @@ export function createCommsStore(): CommsStore {
 			if (state.selectedThreadUuid !== uuid) return;
 			state.selectedThread = res.thread;
 			state.messages = res.messages;
-		} catch {}
+		} catch {
+			// The thread could not be fetched; the list stays as it is.
+		}
 	}
 
 	function handleEvent(event: ProxyEvent): void {

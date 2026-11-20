@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { expect, waitFor, within } from 'storybook/test';
+	import { expect, waitFor } from 'storybook/test';
 	import { captureStorySnapshot } from '$lib/storybook/snapshots';
 	import * as Tooltip from './index';
 	import { Button } from '../button';

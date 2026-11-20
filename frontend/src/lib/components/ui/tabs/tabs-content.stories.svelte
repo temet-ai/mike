@@ -251,7 +251,7 @@
 <Story name="AllThemes" tags={['design-exploration']}>
 	{#snippet template()}
 		<div style="display: flex; flex-direction: column; gap: 2rem; padding: 1rem;">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					style="background: var(--surface-1, var(--bg-base)); border-radius: 0.5rem; padding: 1rem;"
@@ -351,7 +351,7 @@
 >
 	{#snippet template()}
 		<div style="display: flex; flex-direction: column; gap: 2rem; padding: 1rem;">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					style="background: var(--surface-1, var(--bg-base)); border-radius: 0.5rem; padding: 1rem;"

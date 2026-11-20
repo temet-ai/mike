@@ -116,6 +116,7 @@ function resolveRectCollisions(nodes: readonly SimNode[]): boolean {
 			const aPinned = a.fx != null && a.fy != null;
 			const bPinned = b.fx != null && b.fy != null;
 			if (aPinned && bPinned) {
+				// Both are pinned: neither moves.
 			} else if (aPinned) {
 				b.x = (b.x ?? 0) + pushX;
 				b.y = (b.y ?? 0) + pushY;

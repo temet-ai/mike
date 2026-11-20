@@ -11,7 +11,7 @@ renders nothing, so an empty box never shows.
 	import { Button } from '$lib/components/ui/button';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
 	import { formatWhen } from '$lib/components/eval/evalReview';
-	import { alarmWords } from '$lib/components/judges/judges';
+	import { alarmActionHref, alarmWords } from '$lib/components/judges/judges';
 	import type { AlarmHome } from '$lib/components/judges/judges';
 
 	let {
@@ -88,9 +88,7 @@ renders nothing, so an empty box never shows.
 							<ul class="eal-actions-list">
 								{#each words.actions as action (action.label)}
 									<li>
-										<a class="eal-link" href={`${resolve(action.path)}${action.suffix}`}
-											>{action.label}</a
-										>
+										<a class="eal-link" href={alarmActionHref(action)}>{action.label}</a>
 									</li>
 								{/each}
 							</ul>

@@ -1,11 +1,13 @@
 <script module lang="ts">
+	import { resolve } from '$app/paths';
 	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import type { ResolvedPathname } from '$app/types';
 	import ClassChip from './ClassChip.svelte';
 
-	function buildChip(overrides: { label: string; isActive?: boolean; href?: string }): {
+	function buildChip(overrides: { label: string; isActive?: boolean; href?: ResolvedPathname }): {
 		label: string;
 		isActive?: boolean;
-		href?: string;
+		href?: ResolvedPathname;
 	} {
 		return {
 			label: overrides.label,
@@ -20,13 +22,13 @@
 
 	const LINK_CHIP = buildChip({
 		label: 'frontend-developer',
-		href: '/prompts/abc123def456'
+		href: resolve('/prompts/main')
 	});
 
 	const ACTIVE_LINK_CHIP = buildChip({
 		label: 'rust-developer',
 		isActive: true,
-		href: '/prompts/abc123def456'
+		href: resolve('/prompts/main')
 	});
 
 	const LONG_LABEL_CHIP = buildChip({ label: 'very-long-subagent-persona-identifier' });

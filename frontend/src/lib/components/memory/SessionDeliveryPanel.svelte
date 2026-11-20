@@ -87,35 +87,33 @@
 			>
 		{/if}
 	{/snippet}
-	{#snippet children()}
-		<span class="sr-only" role="status" aria-live="polite">{statusAnnouncement}</span>
-		<div class="sdl-body" data-slot="session-delivery-panel">
-			{#if loading && !data}
-				<div class="sdl-skeleton" aria-hidden="true">
-					<div class="sdl-skel-row"></div>
-					<div class="sdl-skel-row sdl-skel-row--short"></div>
-				</div>
-			{/if}
-			{#if error}
-				<LoadErrorBanner
-					title="Couldn't load what was delivered"
-					detail={error}
-					hint="The session delivery endpoint may not be reachable yet."
-					onRetry={reload}
-				/>
-			{:else if data}
-				<SessionDeliveryProfile {data} />
-				<SessionDeliveryContent {sessionId} {data} />
-				<SessionDeliveryStages {sessionId} {data} />
-				<div class="sdl-foot">
-					<Button variant="ghost" size="sm" onclick={reload} disabled={loading}>
-						<RefreshCw size={12} aria-hidden="true" />
-						Reload
-					</Button>
-				</div>
-			{/if}
-		</div>
-	{/snippet}
+	<span class="sr-only" role="status" aria-live="polite">{statusAnnouncement}</span>
+	<div class="sdl-body" data-slot="session-delivery-panel">
+		{#if loading && !data}
+			<div class="sdl-skeleton" aria-hidden="true">
+				<div class="sdl-skel-row"></div>
+				<div class="sdl-skel-row sdl-skel-row--short"></div>
+			</div>
+		{/if}
+		{#if error}
+			<LoadErrorBanner
+				title="Couldn't load what was delivered"
+				detail={error}
+				hint="The session delivery endpoint may not be reachable yet."
+				onRetry={reload}
+			/>
+		{:else if data}
+			<SessionDeliveryProfile {data} />
+			<SessionDeliveryContent {sessionId} {data} />
+			<SessionDeliveryStages {sessionId} {data} />
+			<div class="sdl-foot">
+				<Button variant="ghost" size="sm" onclick={reload} disabled={loading}>
+					<RefreshCw size={12} aria-hidden="true" />
+					Reload
+				</Button>
+			</div>
+		{/if}
+	</div>
 </SectionCard>
 
 <style>

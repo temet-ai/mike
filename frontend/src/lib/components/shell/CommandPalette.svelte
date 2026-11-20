@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { resolveStatic } from '$lib/resolveHref';
+	import { resolvedPathWithSearch, resolveStatic } from '$lib/resolveHref';
 	import {
 		AlertTriangle,
 		BookOpen,
@@ -588,8 +588,7 @@
 		shellState.commandPaletteOpen = false;
 
 		if (entry.kind === 'route') {
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolveStatic() resolves the route before its saved search parameters are appended.
-			await goto(`${resolveStatic(entry.href)}${entry.search ?? ''}`);
+			await goto(resolvedPathWithSearch(resolveStatic(entry.href), entry.search ?? ''));
 		} else if (entry.kind === 'external') {
 			if (typeof window !== 'undefined') {
 				window.open(entry.href, '_blank', 'noopener,noreferrer');

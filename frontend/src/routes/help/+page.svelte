@@ -3,8 +3,9 @@
 	import { GUIDES } from '$lib/help/guides';
 	import { EXTERNAL_DOCS } from '$lib/help/externalDocs';
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 
-	function guideHref(slug: string): string {
+	function guideHref(slug: string): ResolvedPathname {
 		switch (slug) {
 			case 'getting-started':
 				return resolve('/help/guides/getting-started');
@@ -54,7 +55,6 @@
 			<ul class="card-list">
 				{#each GUIDES as guide (guide.slug)}
 					<li>
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- guideHref() resolves each known literal internally; the rule can't see through the function wrapper -->
 						<a class="card" href={guideHref(guide.slug)} data-augmented-ui="tl-clip br-clip border">
 							<span class="card-title">{guide.title}</span>
 							<span class="card-desc">{guide.description}</span>
@@ -112,23 +112,30 @@
 			<ul class="card-list">
 				{#each EXTERNAL_DOCS as doc (doc.href)}
 					<li>
-						<!-- eslint-disable svelte/no-navigation-without-resolve -- Shared doc entries are either resolved local routes or external upstream references -->
-						<a
-							class="card"
-							href={doc.internal
-								? resolve('/help/docs/[slug]', { slug: doc.href.split('/').at(-1) ?? '' })
-								: doc.href}
-							target={doc.internal ? undefined : '_blank'}
-							rel={doc.internal ? undefined : 'noopener noreferrer'}
-							data-augmented-ui="tl-clip br-clip border"
-						>
-							<span class="card-title">
-								{doc.label}
-								{#if !doc.internal}<ExternalLink class="size-3" aria-hidden="true" />{/if}
-							</span>
-							<span class="card-desc">{doc.description}</span>
-						</a>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+						{#if doc.internal}
+							<a
+								class="card"
+								href={resolve('/help/docs/[slug]', { slug: doc.href.split('/').at(-1) ?? '' })}
+								data-augmented-ui="tl-clip br-clip border"
+							>
+								<span class="card-title">{doc.label}</span>
+								<span class="card-desc">{doc.description}</span>
+							</a>
+						{:else}
+							<a
+								class="card"
+								href={doc.href}
+								target="_blank"
+								rel="external noopener noreferrer"
+								data-augmented-ui="tl-clip br-clip border"
+							>
+								<span class="card-title">
+									{doc.label}
+									<ExternalLink class="size-3" aria-hidden="true" />
+								</span>
+								<span class="card-desc">{doc.description}</span>
+							</a>
+						{/if}
 					</li>
 				{/each}
 			</ul>

@@ -14,6 +14,7 @@ export interface FindingEviction {
 
 type FindingEvictionListener = (event: FindingEviction) => void;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const findingEvictionListeners = new Set<FindingEvictionListener>();
 
 function emitFindingEviction(event: FindingEviction): void {
@@ -125,6 +126,7 @@ export function createFindingsStore(): FindingsStore {
 				if (s.findings === null) {
 					s.findings = fetched;
 				} else {
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 					const fetchedKeys = new Set(fetched.map(findingKey));
 					const olderRows = s.findings.filter((f) => !fetchedKeys.has(findingKey(f)));
 					s.findings = [...fetched, ...olderRows];
@@ -164,6 +166,7 @@ export function createFindingsStore(): FindingsStore {
 				const fetched = page.findings;
 				if (s.analyzerFilter !== analyzer || s.sessionFilter !== sessionId) return;
 				s.total = page.total;
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- lookup built once from an array and only read; not state
 				const existingKeys = new Set((s.findings ?? []).map(findingKey));
 				const appended = fetched.filter((f) => !existingKeys.has(findingKey(f)));
 				if (appended.length > 0) {
@@ -307,16 +310,19 @@ export interface CategoryGroup {
 }
 
 export function groupFindings(findings: Finding[]): CategoryGroup[] {
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const byCategory = new Map<Finding['category'], Map<string, Map<number, Finding[]>>>();
 
 	for (const finding of findings) {
 		let sessionMap = byCategory.get(finding.category);
 		if (!sessionMap) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			sessionMap = new Map();
 			byCategory.set(finding.category, sessionMap);
 		}
 		let requestMap = sessionMap.get(finding.session_id);
 		if (!requestMap) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 			requestMap = new Map();
 			sessionMap.set(finding.session_id, requestMap);
 		}

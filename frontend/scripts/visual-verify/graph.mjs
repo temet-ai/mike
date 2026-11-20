@@ -151,7 +151,6 @@ function parseImportEdges(scriptText, { warnUnresolvedDynamicImport } = {}) {
 
 function parseReexportTable(scriptText) {
 	const table = new Map();
-	let hasStarExport = false;
 
 	for (const m of scriptText.matchAll(EXPORT_NAMED_FROM_RE)) {
 		const [, namedRaw, specifier] = m;
@@ -162,7 +161,7 @@ function parseReexportTable(scriptText) {
 			table.set(exportedName, { specifier, sourceName });
 		}
 	}
-	hasStarExport = [...scriptText.matchAll(EXPORT_STAR_RE)].length > 0;
+	const hasStarExport = [...scriptText.matchAll(EXPORT_STAR_RE)].length > 0;
 	return { table, hasStarExport };
 }
 

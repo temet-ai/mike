@@ -11,10 +11,8 @@ configuration happens only through the panel's Edit button, which opens the chan
 	import { Button } from '$lib/components/ui/button';
 	import { formatWhen } from '$lib/components/eval/evalReview';
 	import { gateForBundle, inUseBarWords, modelOf, rubricDate, thinkingOf } from './judges';
-	import type { JudgeRole } from './judges';
 
 	interface Props {
-		role: JudgeRole;
 		bundle: BundleDto | null;
 		liveId: number;
 		runs: EvalRunDto[];

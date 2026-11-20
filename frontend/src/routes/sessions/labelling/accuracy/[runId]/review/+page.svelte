@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { Switch } from '$lib/components/ui/switch';
 	import { tick, untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -139,13 +140,19 @@
 	let scroller = $state<HTMLElement | undefined>();
 	let bar = $state<ReturnType<typeof EvalDecisionBar> | undefined>();
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const detailCache = new Map<number, Promise<Loaded>>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const detailDone = new Map<number, Loaded>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const factsCache = new Map<number, Promise<OperatorTurnFactsDto>>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const factsDone = new Map<number, OperatorTurnFactsDto>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const sessionStarted = new Set<string>();
 	const sessions = new SvelteMap<string, SessionData>();
 	const rowInfo = new SvelteMap<number, RowInfo>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const seenSessions = new Set<string>();
 	let queueToken = 0;
 	let openToken = 0;
@@ -219,9 +226,11 @@
 	);
 	const turnHref = $derived.by(() => {
 		if (!sessionUuid) return null;
-		const base = resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`);
+		const path = `sessions/${encodeURIComponent(sessionUuid)}` as const;
 		const start = knownFacts?.start_request_id;
-		return start ? `${base}?request=${start}` : base;
+		return start
+			? resolve(`${path}?request=${start}` as `sessions/${string}?${string}`)
+			: resolve(path as `sessions/${string}`);
 	});
 	const startedAt = $derived(formatWhen(knownFacts?.created_at));
 	const answeredBy = $derived.by(() => {
@@ -319,6 +328,7 @@
 		if (sessionUuid) writeFold(sessionUuid, open);
 	}
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 	const sessionPromises = new Map<
 		string,
 		{ summary: Promise<SessionSummary>; turns: Promise<OperatorTurnDto[]> }
@@ -529,7 +539,7 @@
 		const search = paramsFor(filters, selected).toString();
 		untrack(() => {
 			try {
-				replaceState(`${page.url.pathname}${search ? `?${search}` : ''}`, {});
+				replaceState(resolvedPathWithSearch(page.url.pathname, search ? `?${search}` : ''), {});
 			} catch {
 				return;
 			}

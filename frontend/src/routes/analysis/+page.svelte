@@ -63,14 +63,7 @@
 			collapseStore.toggle(key);
 			return;
 		}
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment below, not in-place mutation
-		const next = new Set(localExpanded);
-		if (next.has(key)) {
-			next.delete(key);
-		} else {
-			next.add(key);
-		}
-		localExpanded = next;
+		localExpanded = new Set(localExpanded.has(key) ? [...localExpanded].filter((v) => v !== key) : [...localExpanded, key]);
 	}
 
 	async function toggleAndScroll(key: string, event: MouseEvent | KeyboardEvent): Promise<void> {

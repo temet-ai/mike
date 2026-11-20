@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+		import { untrack } from 'svelte';
 	import {
 		buildChildrenMap,
 		layeredLayout,
@@ -45,6 +45,7 @@
 	});
 
 	const visibleIds = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 		const visible = new Set<string>();
 		for (const n of nodes) {
 			if ((layout.levels.get(n.id) ?? 0) <= 1) visible.add(n.id);

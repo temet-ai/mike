@@ -4,6 +4,7 @@ Every draft of one skill folder, newest first, each linking to its own page.
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import type { ResolvedPathname } from '$app/types';
 	import type { SkillRevision } from '$lib/api/skills';
 
 	let { revisions, current }: { revisions: SkillRevision[]; current: number } = $props();
@@ -15,7 +16,7 @@ Every draft of one skill folder, newest first, each linking to its own page.
 		rejected: 'did not pass review'
 	};
 
-	function href(id: number): string {
+	function href(id: number): ResolvedPathname {
 		return resolve(`skills/${id}` as `skills/${string}`);
 	}
 </script>

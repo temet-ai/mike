@@ -37,10 +37,15 @@
 
 	const nextNightly = $derived.by((): Date | null => {
 		if (nightlyHourUtc === null) return null;
-		const next = new Date(now);
-		next.setUTCHours(nightlyHourUtc, 0, 0, 0);
-		if (next.getTime() <= now) next.setUTCDate(next.getUTCDate() + 1);
-		return next;
+		const today = new Date(now);
+		const at = Date.UTC(
+			today.getUTCFullYear(),
+			today.getUTCMonth(),
+			today.getUTCDate(),
+			nightlyHourUtc
+		);
+		// UTC has no daylight saving, so the next day is exactly 24 hours on.
+		return new Date(at <= now ? at + 24 * 60 * 60 * 1000 : at);
 	});
 </script>
 

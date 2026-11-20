@@ -66,7 +66,7 @@
 	const EXPECTED_AFTER_CHARS = RESULT_BLOCKS[0]!.length + RESULT_BLOCKS[1]!.length;
 
 	function stubFetch(): void {
-		globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+		globalThis.fetch = async (input: RequestInfo | URL) => {
 			const url = typeof input === 'string' ? input : input.toString();
 			if (url.startsWith('/api/projects')) {
 				return new Response(JSON.stringify([]), {
@@ -296,7 +296,6 @@
 
 <script lang="ts">
 	const store = createMockFilterRulesStore([buildRule()]);
-	// svelte-ignore state_referenced_locally -- one-time context registration for the story
 	setContext(FILTER_RULES_STORE_KEY, store);
 </script>
 

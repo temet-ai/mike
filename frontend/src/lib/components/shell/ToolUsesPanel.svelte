@@ -154,92 +154,90 @@
 	{#snippet headerActions()}
 		<span class="tup-meta">{totalCount} {totalCount === 1 ? 'call' : 'calls'}</span>
 	{/snippet}
-	{#snippet children()}
-		{#if loading && loadedSessionId !== sessionId}
-			<div class="tool-uses-status" role="status" aria-live="polite">Loading…</div>
-		{:else if errorMessage}
-			<div class="tool-uses-status tool-uses-status--error" role="alert">
-				Couldn't load tool uses: {errorMessage}
-			</div>
-		{:else if rows.length === 0}
-			<div class="tool-uses-empty" role="status" aria-live="polite">
-				<Wrench size={24} aria-hidden="true" class="empty-icon" />
-				<span class="tool-uses-empty__text">No tool uses recorded</span>
-				<span class="tool-uses-empty__sub">
-					Tool calls appear here once the session makes its first tool use.
-				</span>
-			</div>
-		{:else}
-			<ul class="tool-list" role="list">
-				{#each rows as row (row.tool_id)}
-					<li class="tool-row" class:tool-row--file={isFileTool(row.tool_name)}>
-						<ToolCallCard
-							compressionTarget={row.use_id && row.result?.request_id
-								? {
-										kind: 'tool_result',
-										request_id: row.result.request_id,
-										tool_use_id: row.use_id
-									}
-								: undefined}
-							name={row.tool_name}
-							input={row.input}
-							collapsible
-							result={row.result != null
-								? {
-										toolName: row.tool_name,
-										content: row.result.content,
-										isError: row.result.is_error
-									}
-								: undefined}
-						>
-							{#snippet meta()}
-								<span class="tool-row__meta">
-									<span
-										class="tool-row__ord"
-										title="{row.ord + 1}{ordinalSuffix(
-											row.ord + 1
-										)} tool call in request #{row.request_id}">#{row.ord + 1}</span
-									>
-									<span class="tool-row__ts" title={row.created_at}>
-										{formatRelative(row.created_at, now)}
-									</span>
-									<span class="tool-row__req">req #{row.request_id}</span>
-									<span
-										class="tool-row__tool-id"
-										title="Anthropic tool call ID — matches the toolu_xxx ID in the raw SSE stream. Full ID: {row.tool_id}"
-										>{shortToolId(row.tool_id)}</span
-									>
+	{#if loading && loadedSessionId !== sessionId}
+		<div class="tool-uses-status" role="status" aria-live="polite">Loading…</div>
+	{:else if errorMessage}
+		<div class="tool-uses-status tool-uses-status--error" role="alert">
+			Couldn't load tool uses: {errorMessage}
+		</div>
+	{:else if rows.length === 0}
+		<div class="tool-uses-empty" role="status" aria-live="polite">
+			<Wrench size={24} aria-hidden="true" class="empty-icon" />
+			<span class="tool-uses-empty__text">No tool uses recorded</span>
+			<span class="tool-uses-empty__sub">
+				Tool calls appear here once the session makes its first tool use.
+			</span>
+		</div>
+	{:else}
+		<ul class="tool-list" role="list">
+			{#each rows as row (row.tool_id)}
+				<li class="tool-row" class:tool-row--file={isFileTool(row.tool_name)}>
+					<ToolCallCard
+						compressionTarget={row.use_id && row.result?.request_id
+							? {
+									kind: 'tool_result',
+									request_id: row.result.request_id,
+									tool_use_id: row.use_id
+								}
+							: undefined}
+						name={row.tool_name}
+						input={row.input}
+						collapsible
+						result={row.result != null
+							? {
+									toolName: row.tool_name,
+									content: row.result.content,
+									isError: row.result.is_error
+								}
+							: undefined}
+					>
+						{#snippet meta()}
+							<span class="tool-row__meta">
+								<span
+									class="tool-row__ord"
+									title="{row.ord + 1}{ordinalSuffix(
+										row.ord + 1
+									)} tool call in request #{row.request_id}">#{row.ord + 1}</span
+								>
+								<span class="tool-row__ts" title={row.created_at}>
+									{formatRelative(row.created_at, now)}
 								</span>
-							{/snippet}
-						</ToolCallCard>
-					</li>
-				{/each}
-			</ul>
-			{#if remaining > 0}
-				<div class="tool-uses-footer">
-					<span class="tool-uses-footer__count" role="status">
-						Showing {rows.length} of {totalCount}; {remaining} more not loaded.
+								<span class="tool-row__req">req #{row.request_id}</span>
+								<span
+									class="tool-row__tool-id"
+									title="Anthropic tool call ID — matches the toolu_xxx ID in the raw SSE stream. Full ID: {row.tool_id}"
+									>{shortToolId(row.tool_id)}</span
+								>
+							</span>
+						{/snippet}
+					</ToolCallCard>
+				</li>
+			{/each}
+		</ul>
+		{#if remaining > 0}
+			<div class="tool-uses-footer">
+				<span class="tool-uses-footer__count" role="status">
+					Showing {rows.length} of {totalCount}; {remaining} more not loaded.
+				</span>
+				<span class="tool-uses-footer__load-more-backing">
+					<button
+						type="button"
+						class="tool-uses-footer__load-more"
+						data-augmented-ui="tr-clip bl-clip border"
+						disabled={loadingMore}
+						onclick={loadMore}
+					>
+						{loadingMore ? 'Loading…' : 'Load more tool calls'}
+					</button>
+				</span>
+				{#if loadMoreError}
+					<span class="tool-uses-footer__error" role="alert">
+						{loadMoreError}
 					</span>
-					<span class="tool-uses-footer__load-more-backing">
-						<button
-							type="button"
-							class="tool-uses-footer__load-more"
-							data-augmented-ui="tr-clip bl-clip border"
-							disabled={loadingMore}
-							onclick={loadMore}
-						>
-							{loadingMore ? 'Loading…' : 'Load more tool calls'}
-						</button>
-					</span>
-					{#if loadMoreError}
-						<span class="tool-uses-footer__error" role="alert">
-							{loadMoreError}
-						</span>
-					{/if}
-				</div>
-			{/if}
+				{/if}
+			</div>
 		{/if}
-	{/snippet}
+	{/if}
 </SectionCard>
 
 <style>

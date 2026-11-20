@@ -20,7 +20,7 @@
 </script>
 
 <Story name="Tools row">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderRow>
 				<span class="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-1)]">
@@ -37,7 +37,7 @@
 </Story>
 
 <Story name="Skills row">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderRow>
 				<span class="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-1)]">
@@ -54,7 +54,7 @@
 </Story>
 
 <Story name="Generic leaf row">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<ReminderRow>
 				<span class="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-1)]">

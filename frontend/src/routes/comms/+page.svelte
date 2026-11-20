@@ -25,7 +25,6 @@
 	import ProjectSettingsDialog from '$lib/components/projects/ProjectSettingsDialog.svelte';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import {
-		buildThreadIdentityIndex,
 		resolveParticipantLabel
 	} from '$lib/comms/participantIdentity';
 	import { buildCommsProjects } from '$lib/comms/groupThreads';

@@ -5,6 +5,7 @@ Sessions › What the judge did: a summary strip, what is waiting on you as tabs
 See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
@@ -23,7 +24,6 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 	import {
 		approveLessonCandidate,
 		getCorrectionTrend,
-		getImprovementSummary,
 		getRepeats,
 		listActionEffects,
 		listLessonCandidates,
@@ -61,35 +61,35 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 	// independently via its own retry/mutate call (approve/reject/label). Re-deriving from `data`
 	// would overwrite an in-flight local edit the moment `data` was read again, so each line is a
 	// one-time snapshot, not a bug.
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let lessonCandidates = $state<LessonCandidate[] | null>(data.candidates);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let candidatesError = $state<string | null>(data.candidatesError);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let directiveProposals = $state<DirectiveProposal[] | null>(data.proposals);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let proposalsError = $state<string | null>(data.proposalsError);
 	let proposalOrder = $state<ListOrder>('default');
 	let proposalChances = $state<AcceptChances | undefined>(undefined);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let guardWakes = $state<GuardWake[] | null>(data.wakes);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let wakesError = $state<string | null>(data.wakesError);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let summary = $state<ImprovementSummary | null>(data.summary);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let summaryError = $state<string | null>(data.summaryError);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let actions = $state<ActionEffectItem[] | null>(data.actions);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let actionsError = $state<string | null>(data.actionsError);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let trend = $state<TrendResponse | null>(data.trend);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let trendError = $state<string | null>(data.trendError);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let repeats = $state<RepeatsResponse | null>(data.repeats);
-	// svelte-ignore state_referenced_locally -- see note above
+	// svelte-ignore state_referenced_locally (see note above)
 	let repeatsError = $state<string | null>(data.repeatsError);
 
 	// A decided lesson keeps its row until the next page load (stable-list-ordering); this records
@@ -149,7 +149,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 	function setWaitingTab(tab: WaitingTab): void {
 		waitingTab = tab;
 		if (page.url.searchParams.get('waiting') === tab) return;
-		void goto(`${resolve('/sessions/improvement')}?waiting=${tab}`, {
+		void goto(resolve(`/sessions/improvement?waiting=${tab}`), {
 			replace: true,
 			reset: false
 		});
@@ -160,7 +160,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 		document.getElementById('imp-waiting-hd')?.scrollIntoView({ block: 'start' });
 	}
 
-	function detailHrefFor(id: number): string {
+	function detailHrefFor(id: number): ResolvedPathname {
 		return resolve(
 			`sessions/improvement/lessons/${id}` as `sessions/improvement/lessons/${string}`
 		);

@@ -42,7 +42,9 @@ function evictToCapInPlace(set: Set<string>, protectedKey?: string): void {
 function saveToStorage(collapsed: Set<string>): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(collapsed)));
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 function loadSeededFromStorage(): Set<string> {
@@ -60,7 +62,9 @@ function loadSeededFromStorage(): Set<string> {
 function saveSeededToStorage(seeded: Set<string>): void {
 	try {
 		sessionStorage.setItem(SEEDED_STORAGE_KEY, JSON.stringify(Array.from(seeded)));
-	} catch {}
+	} catch {
+		// Storage is unavailable (private mode or full); the value is simply not kept.
+	}
 }
 
 export function createCollapseStore(): CollapseStore {
@@ -78,6 +82,7 @@ export function createCollapseStore(): CollapseStore {
 		},
 
 		toggle(key: string): void {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Set(collapsed);
 			if (next.has(key)) {
 				next.delete(key);
@@ -95,6 +100,7 @@ export function createCollapseStore(): CollapseStore {
 			saveSeededToStorage(defaultsApplied);
 			if (collapsed.has(key)) return;
 			if (!value) return;
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Set(collapsed);
 			next.add(key);
 			collapsed = next;
@@ -103,6 +109,7 @@ export function createCollapseStore(): CollapseStore {
 
 		setAll(keys: string[], value: boolean): void {
 			if (keys.length === 0) return;
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const next = new Set(collapsed);
 			let changed = false;
 			for (const key of keys) {

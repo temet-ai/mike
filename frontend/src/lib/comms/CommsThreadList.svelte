@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+		import type { Snippet } from 'svelte';
 	import { ArrowUpRight, Star } from '@lucide/svelte';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
 	import { pinnedProjectOrder } from '$lib/stores/pinnedProjectOrder.svelte';
@@ -51,10 +51,7 @@
 	let collapsedKeys = $state<Set<string>>(new Set());
 
 	function toggleGroup(key: string): void {
-		const next = new Set(collapsedKeys);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		collapsedKeys = next;
+		collapsedKeys = new Set(collapsedKeys.has(key) ? [...collapsedKeys].filter((v) => v !== key) : [...collapsedKeys, key]);
 	}
 
 	function clearFilters(): void {

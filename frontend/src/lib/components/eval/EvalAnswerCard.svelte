@@ -130,8 +130,9 @@ the judge did not label.
 					</div>
 				{/if}
 				{#if judgeSaw}<p class="eac-saw" class:eac-saw--warn={missed} data-testid="judge-saw">
-						{judgeSaw}{#if missed}{' '}Its answer rests on incomplete input, so it says little about
-							how good the judge is.{/if}
+						{judgeSaw}
+						{#if missed}Its answer rests on incomplete input, so it says little about how good the
+							judge is.{/if}
 					</p>{/if}
 				{#if input}
 					<button

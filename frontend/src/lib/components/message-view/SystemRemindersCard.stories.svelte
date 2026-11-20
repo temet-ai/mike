@@ -24,21 +24,19 @@
 </script>
 
 <Story name="Zero groups (empty)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[720px]">
-			<SystemRemindersCard groupCount={0} totalChars={0} totalTokens={0}>
-				{#snippet children()}
-					<p class="text-[0.8125rem] text-[var(--text-3)]">No reminders.</p>
-				{/snippet}
+			<SystemRemindersCard groupCount={0} totalTokens={0}>
+				<p class="text-[0.8125rem] text-[var(--text-3)]">No reminders.</p>
 			</SystemRemindersCard>
 		</div>
 	{/snippet}
 </Story>
 
 <Story name="Few groups (hooks + MCP)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[720px]">
-			<SystemRemindersCard groupCount={2} totalChars={840} totalTokens={210}>
+			<SystemRemindersCard groupCount={2} totalTokens={210}>
 				<ReminderSubgroup open={true} ariaLabel="Hooks group" onToggle={() => {}}>
 					{#snippet head()}
 						<Webhook size={12} aria-hidden="true" />
@@ -70,9 +68,9 @@
 </Story>
 
 <Story name="Many groups (mixed kinds)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[720px]">
-			<SystemRemindersCard groupCount={4} totalChars={12480} totalTokens={3120}>
+			<SystemRemindersCard groupCount={4} totalTokens={3120}>
 				<ReminderSubgroup open={true} ariaLabel="Hooks group" onToggle={() => {}}>
 					{#snippet head()}
 						<Webhook size={12} aria-hidden="true" />

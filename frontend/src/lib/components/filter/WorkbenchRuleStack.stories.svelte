@@ -94,7 +94,6 @@
 	let createRequest = $state<{ value: string; action: FilterRuleDto['action'] } | null>(null);
 
 	const store = createMockFilterRulesStore(RULES);
-	// svelte-ignore state_referenced_locally -- one-time context registration for the story
 	setContext(FILTER_RULES_STORE_KEY, store);
 </script>
 

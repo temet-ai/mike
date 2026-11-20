@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import { Button } from '$lib/components/ui/button';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import TestRunCard from '$lib/components/judges/TestRunCard.svelte';
 	import {
-		LABELLING_QUERY,
+		labellingEditHref,
 		QUESTION_NAME,
 		gateFor,
 		currentRunFor,
@@ -28,14 +29,12 @@
 	);
 	const keys: QuestionKey[] = ['reaction', 'delivery'];
 
-	function runHref(id: number): string {
+	function runHref(id: number): ResolvedPathname {
 		return resolve(`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`);
 	}
 
 	const useHref = $derived(
-		run
-			? `${resolve('/sessions/labelling')}${LABELLING_QUERY[role] || '?'}${LABELLING_QUERY[role] ? '&' : ''}edit=${run.bundle_id}`
-			: null
+		run ? labellingEditHref(role, run.bundle_id) : null
 	);
 
 	function score(r: NonNullable<typeof run>, key: QuestionKey): string {

@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Filter, SearchX } from '@lucide/svelte';
-	import type { OperatorTurnDto, RequestSummary, ToolUseDto, ToolUsesResponse } from '$lib/types';
+	import type { OperatorTurnDto, RequestSummary, ToolUseDto } from '$lib/types';
 	import { isAtBottom } from '$lib/scroll-utils';
 	import {
 		resetForRoute,
@@ -497,11 +497,7 @@
 
 	let hkOpen = $state<Set<number>>(new Set());
 	function toggleHk(anchorId: number): void {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- copy-mutate-reassign pattern: `next` is a throwaway local, never read while being mutated; reactivity comes from replacing `hkOpen` below, not from in-place mutation
-		const next = new Set(hkOpen);
-		if (next.has(anchorId)) next.delete(anchorId);
-		else next.add(anchorId);
-		hkOpen = next;
+		hkOpen = new Set(hkOpen.has(anchorId) ? [...hkOpen].filter((v) => v !== anchorId) : [...hkOpen, anchorId]);
 	}
 
 	let flashAnchorId = $state<number | null>(null);
@@ -885,7 +881,6 @@
 						<TurnCard
 							turn={row.turn}
 							index={turnIndexOf(row.turn)}
-							isFirst={row.turn.start_request_number === 1}
 							toolCalls={toolUsesByTurnId.get(row.turn.turn_id) ?? []}
 							ledgerUnavailable={toolUsesLoadError !== null}
 							live={row.live}

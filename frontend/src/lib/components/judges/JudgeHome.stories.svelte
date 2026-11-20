@@ -120,7 +120,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					enabled = JSON.parse(init.body).enabled ?? true;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			const existing = JUDGE_FEATURES.find((f) => f.key === key);
 			return json({
@@ -138,7 +140,9 @@
 			if (init && typeof init.body === 'string') {
 				try {
 					value = JSON.parse(init.body).value;
-				} catch {}
+				} catch {
+					// A request body that is not JSON leaves the default.
+				}
 			}
 			const existing = JUDGE_SETTINGS.find((s) => s.key === key);
 			if (existing) return json({ ...existing, value: value ?? existing.value });

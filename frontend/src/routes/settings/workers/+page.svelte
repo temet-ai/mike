@@ -203,11 +203,11 @@
 		Background workers that run across all sessions.
 		<span data-testid="judges-pointer"
 			>How <a class="st-env-link" href={resolve('/sessions/labelling')}>turns</a> and
-			<a class="st-env-link" href={`${resolve('/sessions/labelling')}?for=sessions`}>sessions</a> are
+			<a class="st-env-link" href={resolve('/sessions/labelling?for=sessions')}>sessions</a> are
 			labelled is set on the Labelling page under Sessions.</span
 		>
 		What they cost is on the
-		<a class="st-env-link" href={resolve('/settings/integrations') + '#openrouter'}
+		<a class="st-env-link" href={resolve('/settings/integrations#openrouter')}
 			>Integrations page</a
 		>.
 	{/snippet}

@@ -268,7 +268,8 @@ its settings. Everything about operating this judge is here and nowhere else.
 							<dt>{fact.label}</dt>
 							<dd class="page-strip__num">{fact.percent}</dd>
 							<dd class="page-strip__sub">
-								{fact.of}{#if runHref}{' · '}<a href={runHref}>latest accuracy run</a>{/if}
+								{fact.of}
+								{#if runHref}· <a href={runHref}>latest accuracy run</a>{/if}
 							</dd>
 						</div>
 					{/each}
@@ -370,7 +371,6 @@ its settings. Everything about operating this judge is here and nowhere else.
 
 		<div class="jh-panels">
 			<JudgeInUsePanel
-				{role}
 				bundle={liveBundle}
 				{liveId}
 				runs={data.runs}

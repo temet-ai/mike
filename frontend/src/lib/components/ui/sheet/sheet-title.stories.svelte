@@ -151,7 +151,7 @@
 				SheetTitle — text-[var(--text-strong)] text-base leading-none font-semibold across all 5
 				themes
 			</p>
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div
 					data-theme={theme}
 					class="flex flex-col gap-1 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3"
@@ -355,7 +355,7 @@
 	name="RefBinding"
 	tags={['interactive']}
 	args={{ onclick: fn() }}
-	play={async ({ canvasElement, args }) => {
+	play={async ({ args }) => {
 		const anchor = document.body.querySelector('[data-story="ref-binding"]');
 		await expect(
 			anchor,

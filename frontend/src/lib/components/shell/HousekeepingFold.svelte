@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bot, Gauge, Activity, Hash, Globe, Lightbulb, Circle } from '@lucide/svelte';
+		import { Bot, Gauge, Activity, Hash, Globe, Lightbulb, Circle } from '@lucide/svelte';
 	import type { Component } from 'svelte';
 	import type { HousekeepingItemView } from './timelineTurnView';
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
@@ -27,11 +27,9 @@
 	}
 
 	const distinctLabels = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const it of items) counts.set(it.label, (counts.get(it.label) ?? 0) + 1);
-		const parts: string[] = [];
-		for (const [label, n] of counts) parts.push(n > 1 ? `${label} ×${n}` : label);
-		return parts.join(', ');
+		return [...Map.groupBy(items, (it) => it.label)]
+			.map(([label, group]) => (group.length > 1 ? `${label} ×${group.length}` : label))
+			.join(', ');
 	});
 
 	const range = $derived.by(() => {

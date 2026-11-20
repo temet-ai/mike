@@ -22,7 +22,7 @@
 	import DisclosureMarker from '$lib/components/shared/DisclosureMarker.svelte';
 
 	interface Props {
-		group: ToolProjectGroupRow;
+		group: Omit<ToolProjectGroupRow, 'project'>;
 		now: number;
 		collapsed: boolean;
 		onToggleCollapse: () => void;

@@ -147,13 +147,11 @@
 			audience="developer"
 			duration="2 min"
 		>
-			{#snippet children()}
-				<h2 id="section-one">Section one</h2>
-				<p>
-					When the <code>toc</code> prop is absent or empty, GuideLayout omits the sticky sidebar entirely
-					and the article column expands to fill the full content area.
-				</p>
-			{/snippet}
+			<h2 id="section-one">Section one</h2>
+			<p>
+				When the <code>toc</code> prop is absent or empty, GuideLayout omits the sticky sidebar entirely
+				and the article column expands to fill the full content area.
+			</p>
 		</GuideLayout>
 	{/snippet}
 </Story>

@@ -9,7 +9,6 @@
 	let { group, now }: Props = $props();
 
 	let collapsed = $state(false);
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 	let expandedKeys = $state<Set<string>>(new Set());
 	let openedKeys = $state<Set<string>>(new Set());
 
@@ -19,14 +18,14 @@
 
 	function onToggleRow(key: string): void {
 		if (!openedKeys.has(key)) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- cloned, mutated, then reassigned wholesale; reactivity comes from the reassignment, not in-place mutation
 			const seen = new Set(openedKeys);
 			seen.add(key);
 			openedKeys = seen;
 		}
-		const next = new Set(expandedKeys);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		expandedKeys = next;
+		expandedKeys = new Set(
+			expandedKeys.has(key) ? [...expandedKeys].filter((v) => v !== key) : [...expandedKeys, key]
+		);
 	}
 
 	function hasRowOpened(key: string): boolean {

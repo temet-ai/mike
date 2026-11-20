@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { expect, fn, userEvent, within } from 'storybook/test';
+	import { expect, fn, userEvent } from 'storybook/test';
 	import * as Dialog from './index';
 	import { captureStorySnapshot } from '$lib/storybook/snapshots';
 
@@ -551,7 +551,7 @@
 >
 	{#snippet template()}
 		<div style="display:flex; flex-direction:column; gap:16px; padding:8px;">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme}>
 					<Dialog.Root open>
 						<Dialog.Content showCloseButton={false} class="sm:max-w-md">

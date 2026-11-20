@@ -26,7 +26,7 @@
 </script>
 
 <Story name="With table of contents">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="bg-[var(--surface-bg)] min-h-[500px]">
 			<GuideLayout
 				title="Setting up the Claude proxy"
@@ -85,7 +85,7 @@
 </Story>
 
 <Story name="Without table of contents">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="bg-[var(--surface-bg)] min-h-[400px]">
 			<GuideLayout
 				title="Reading captured requests"
@@ -113,7 +113,7 @@
 </Story>
 
 <Story name="Long content (full render, no clamp)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="bg-[var(--surface-bg)] min-h-[400px]">
 			<GuideLayout
 				title="Understanding the session memory model"

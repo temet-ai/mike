@@ -1,5 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import { resolve } from '$app/paths';
 	import { expect, within } from 'storybook/test';
 	import ThreadList from './ThreadList.svelte';
 	import { THREAD_ROWS } from './threadFixtures';
@@ -16,7 +17,7 @@
 	args={{
 		threads: THREAD_ROWS,
 		selected: 'search-latency',
-		hrefFor: (slug: string) => `/threads?thread=${slug}`
+		hrefFor: (slug: string) => resolve(`/threads?thread=${slug}`)
 	}}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);

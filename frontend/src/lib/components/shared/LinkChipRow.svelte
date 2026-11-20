@@ -6,7 +6,10 @@
 		/** Small-caps word before the text, such as `Problem` or `Action`. */
 		kind?: string;
 		text: string;
-		/** Already resolved by the caller. Absent and no `onclick`: drawn as a label. */
+		/**
+		 * An app path (with any query), an in-page `#fragment`, or, with `external`, a full URL.
+		 * Absent and no `onclick`: drawn as a label.
+		 */
 		href?: string;
 		external?: boolean;
 		onclick?: () => void;
@@ -15,6 +18,8 @@
 </script>
 
 <script lang="ts">
+	import { resolveAppPath } from '$lib/resolveHref';
+
 	interface Props {
 		items: LinkChip[];
 		label?: string;
@@ -29,21 +34,25 @@
 			{@const Icon = item.icon}
 			<li>
 				{#if item.href && item.external}
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the caller resolves the href -->
 					<a
 						class="link-chip"
 						href={item.href}
 						target="_blank"
-						rel="noopener noreferrer"
+						rel="external noopener noreferrer"
 						title={item.title}
 					>
 						<Icon size={11} aria-hidden="true" />
 						{#if item.kind}<span class="link-chip__kind">{item.kind}</span>{/if}
 						{item.text}
 					</a>
+				{:else if item.href?.startsWith('#')}
+					<a class="link-chip" href={`#${item.href.slice(1)}`} title={item.title}>
+						<Icon size={11} aria-hidden="true" />
+						{#if item.kind}<span class="link-chip__kind">{item.kind}</span>{/if}
+						{item.text}
+					</a>
 				{:else if item.href}
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the caller resolves the href -->
-					<a class="link-chip" href={item.href} title={item.title}>
+					<a class="link-chip" href={resolveAppPath(item.href)} title={item.title}>
 						<Icon size={11} aria-hidden="true" />
 						{#if item.kind}<span class="link-chip__kind">{item.kind}</span>{/if}
 						{item.text}

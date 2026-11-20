@@ -26,7 +26,7 @@ artifacts/2026-10-14/learned-skills-ui/design.md.
 	function go(uuid: string, order: ListOrder): void {
 		const sort = sortQuery(order);
 		void goto(
-			`${resolve('/skills')}?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`,
+			resolve(`/skills?project=${encodeURIComponent(uuid)}${sort ? `&${sort}` : ''}`),
 			{ reset: false }
 		);
 	}

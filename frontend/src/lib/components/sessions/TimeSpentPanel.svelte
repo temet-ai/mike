@@ -203,245 +203,243 @@
 	{#snippet headerActions()}
 		<span class="tsp-meta" data-slot="time-spent-summary">{headerLine}</span>
 	{/snippet}
-	{#snippet children()}
-		<div class="tsp" data-slot="time-spent-panel">
-			<span class="tsp-live" role="status" aria-live="polite">{announcement}</span>
+	<div class="tsp" data-slot="time-spent-panel">
+		<span class="tsp-live" role="status" aria-live="polite">{announcement}</span>
 
-			<div class="tsp-controls">
-				{#if isList}
-					<Select label="Project" bind:value={project} options={projectOptions} />
-				{/if}
-				{#if hasPeriod}
-					<Select label="Period" bind:value={period} options={PERIOD_OPTIONS} />
-				{/if}
-				<Checkbox bind:checked={includeSubagents} label="Include subagents" />
-			</div>
+		<div class="tsp-controls">
+			{#if isList}
+				<Select label="Project" bind:value={project} options={projectOptions} />
+			{/if}
+			{#if hasPeriod}
+				<Select label="Period" bind:value={period} options={PERIOD_OPTIONS} />
+			{/if}
+			<Checkbox bind:checked={includeSubagents} label="Include subagents" />
+		</div>
 
-			{#if error}
-				<LoadErrorBanner
-					title="Couldn't load where the time went"
-					detail={error}
-					onRetry={() => (retryTick += 1)}
-				/>
-			{:else}
-				<div class="tsp-body" class:tsp-body--busy={refetching} aria-busy={refetching}>
-					{#if data && !answered}
-						<p class="tsp-caption">
-							{hasPeriod
-								? 'No answers that called a tool in this period.'
-								: 'This session has no answers that called a tool yet.'}
-						</p>
-					{:else}
-						<div class="tsp-two">
-							<section class="tsp-split" aria-labelledby="{uid}-split">
-								<h2 class="machine tsp-hd" id="{uid}-split">Model against waiting</h2>
-								<div class="tsp-readouts">
-									<InstrumentReadout
-										label="Model answering"
-										value={data ? formatTimeSpent(data.totals.model_seconds) : '—'}
-										accentToken="--signal-live"
-									/>
-									<InstrumentReadout
-										label="Waiting on tools"
-										value={data ? formatTimeSpent(data.totals.wait_seconds) : '—'}
-										accentToken="--signal-info"
-									/>
-									<InstrumentReadout
-										label="Answers"
-										value={data ? data.totals.answers.toLocaleString('en-US') : '—'}
-										accentToken="--text-3"
-									/>
-								</div>
-								{#if data}
-									<ShareBar
-										size="split"
-										segments={[
-											{ value: data.totals.model_seconds, tone: 'live' },
-											{ value: data.totals.wait_seconds, tone: 'info' }
-										]}
-									/>
-									<p class="tsp-caption">
-										{Math.round(modelShare)}% of the time went to waiting on tools.
-									</p>
-								{/if}
-							</section>
-
-							<section class="tsp-builds" aria-labelledby="{uid}-builds">
-								<h2 class="machine tsp-hd" id="{uid}-builds">
-									Builds and test runs while other sessions build
-								</h2>
-								{#if !data}
-									{@render skeleton(4)}
-								{:else if builds.length === 0}
-									<p class="tsp-caption">
-										No builds or test runs {where}.
-									</p>
-								{:else}
-									{#if alone && worst}
-										<p class="tsp-lead">
-											{#if slowdown >= 2}
-												A build or test run took <strong
-													>{Math.round(slowdown)} times as long</strong
-												>
-												with 6 or more others running: {unbroken(worst.p50_seconds)} against
-												{unbroken(alone.p50_seconds)} with none.
-											{:else}
-												Builds and test runs took about as long with others running as with none.
-											{/if}
-										</p>
-									{/if}
-									<div class="tsp-build-head">
-										<span>Others running</span>
-										<span></span>
-										<span class="tsp-num">Typical</span>
-										<span class="tsp-num">Runs</span>
-									</div>
-									<ul class="tsp-list">
-										{#each builds as row (row.running_at_once)}
-											{@const slow =
-												alone !== undefined && row.p50_seconds >= alone.p50_seconds * 2}
-											<li class="tsp-build">
-												<span class="tsp-label">{buildLabel(row.running_at_once)}</span>
-												<ShareBar
-													segments={[{ value: row.p50_seconds, tone: slow ? 'warn' : 'info' }]}
-													max={maxBuild}
-												/>
-												<span class="tsp-num tsp-strong">{formatTimeSpent(row.p50_seconds)}</span>
-												<span class="tsp-num">{row.calls.toLocaleString('en-US')}</span>
-											</li>
-										{/each}
-									</ul>
-								{/if}
-							</section>
-						</div>
-
-						<section class="tsp-kinds" aria-labelledby="{uid}-kinds">
-							<h2 class="machine tsp-hd" id="{uid}-kinds">Where the waiting went</h2>
-							<p class="tsp-caption">Pick a kind of command to list its slowest commands.</p>
-							<div class="tsp-kind-head">
-								<span>Kind</span>
-								<span></span>
-								<span class="tsp-num">Waited</span>
-								<span class="tsp-num">Answers</span>
-								<span class="tsp-num">
-									<Tooltip text="Half the answers waited less than this.">Typical</Tooltip>
-								</span>
-								<span class="tsp-num">
-									<Tooltip text="One answer in ten waited longer than this.">1 in 10 over</Tooltip>
-								</span>
+		{#if error}
+			<LoadErrorBanner
+				title="Couldn't load where the time went"
+				detail={error}
+				onRetry={() => (retryTick += 1)}
+			/>
+		{:else}
+			<div class="tsp-body" class:tsp-body--busy={refetching} aria-busy={refetching}>
+				{#if data && !answered}
+					<p class="tsp-caption">
+						{hasPeriod
+							? 'No answers that called a tool in this period.'
+							: 'This session has no answers that called a tool yet.'}
+					</p>
+				{:else}
+					<div class="tsp-two">
+						<section class="tsp-split" aria-labelledby="{uid}-split">
+							<h2 class="machine tsp-hd" id="{uid}-split">Model against waiting</h2>
+							<div class="tsp-readouts">
+								<InstrumentReadout
+									label="Model answering"
+									value={data ? formatTimeSpent(data.totals.model_seconds) : '—'}
+									accentToken="--signal-live"
+								/>
+								<InstrumentReadout
+									label="Waiting on tools"
+									value={data ? formatTimeSpent(data.totals.wait_seconds) : '—'}
+									accentToken="--signal-info"
+								/>
+								<InstrumentReadout
+									label="Answers"
+									value={data ? data.totals.answers.toLocaleString('en-US') : '—'}
+									accentToken="--text-3"
+								/>
 							</div>
+							{#if data}
+								<ShareBar
+									size="split"
+									segments={[
+										{ value: data.totals.model_seconds, tone: 'live' },
+										{ value: data.totals.wait_seconds, tone: 'info' }
+									]}
+								/>
+								<p class="tsp-caption">
+									{Math.round(modelShare)}% of the time went to waiting on tools.
+								</p>
+							{/if}
+						</section>
+
+						<section class="tsp-builds" aria-labelledby="{uid}-builds">
+							<h2 class="machine tsp-hd" id="{uid}-builds">
+								Builds and test runs while other sessions build
+							</h2>
 							{#if !data}
 								{@render skeleton(4)}
+							{:else if builds.length === 0}
+								<p class="tsp-caption">
+									No builds or test runs {where}.
+								</p>
 							{:else}
+								{#if alone && worst}
+									<p class="tsp-lead">
+										{#if slowdown >= 2}
+											A build or test run took <strong
+												>{Math.round(slowdown)} times as long</strong
+											>
+											with 6 or more others running: {unbroken(worst.p50_seconds)} against
+											{unbroken(alone.p50_seconds)} with none.
+										{:else}
+											Builds and test runs took about as long with others running as with none.
+										{/if}
+									</p>
+								{/if}
+								<div class="tsp-build-head">
+									<span>Others running</span>
+									<span></span>
+									<span class="tsp-num">Typical</span>
+									<span class="tsp-num">Runs</span>
+								</div>
 								<ul class="tsp-list">
-									{#each kinds as row (row.kind)}
-										{@const pressed = selectedKind === row.kind}
-										<li>
-											{#if kindRunsShellCommands(row.kind)}
-												<button
-													type="button"
-													class="tsp-kind tsp-kind--pick"
-													aria-pressed={pressed}
-													onclick={() => toggleKind(row.kind)}
-												>
-													{@render kindCells(row, pressed)}
-												</button>
-											{:else}
-												<div class="tsp-kind">{@render kindCells(row, false)}</div>
-											{/if}
+									{#each builds as row (row.running_at_once)}
+										{@const slow =
+											alone !== undefined && row.p50_seconds >= alone.p50_seconds * 2}
+										<li class="tsp-build">
+											<span class="tsp-label">{buildLabel(row.running_at_once)}</span>
+											<ShareBar
+												segments={[{ value: row.p50_seconds, tone: slow ? 'warn' : 'info' }]}
+												max={maxBuild}
+											/>
+											<span class="tsp-num tsp-strong">{formatTimeSpent(row.p50_seconds)}</span>
+											<span class="tsp-num">{row.calls.toLocaleString('en-US')}</span>
 										</li>
 									{/each}
 								</ul>
-								{#if leftOutTotal > 0}
-									<p class="tsp-caption">
-										Left out of the sums: {leftOutTotal} waits over an hour ({leftOut
-											.map((k) => `${kindLabel(k.kind)} ${k.answers_over_an_hour}`)
-											.join(', ')}).
-									</p>
-								{/if}
 							{/if}
 						</section>
+					</div>
 
-						<section class="tsp-commands" aria-labelledby="{uid}-commands">
-							<div class="tsp-commands-top">
-								<h2 class="machine tsp-hd" id="{uid}-commands">{commandsHeading}</h2>
-								<span class="tsp-show-all" class:tsp-show-all--off={selectedKind === null}>
-									<Button
-										variant="ghost"
-										size="sm"
-										disabled={selectedKind === null}
-										onclick={() => (selectedKind = null)}>Show every kind</Button
-									>
-								</span>
-							</div>
-							{#if !data}
-								{@render skeleton(2)}
-							{:else}
-								<table class="tsp-table">
-									<thead>
-										<tr>
-											<th scope="col">Command</th>
-											<th scope="col">Kind</th>
-											<th scope="col" class="tsp-num">Runs</th>
-											<th scope="col" class="tsp-num">Total</th>
-											<th scope="col" class="tsp-num">
-												<Tooltip text="Half the runs took less than this.">Typical</Tooltip>
-											</th>
-											{#if hasPeriod}<th scope="col" class="tsp-num">Sessions</th>{/if}
-										</tr>
-									</thead>
-									<tbody>
-										{#each commands as row, i (i)}
-											<tr>
-												<td class="tsp-cmd"><code>{row.command}</code></td>
-												<td data-label="Kind">{kindLabel(row.kind)}</td>
-												<td class="tsp-num" data-label="Runs"
-													>{row.calls.toLocaleString('en-US')}</td
-												>
-												<td class="tsp-num tsp-strong" data-label="Total">
-													{formatTimeSpent(row.seconds)}
-												</td>
-												<td class="tsp-num" data-label="Typical"
-													>{formatTimeSpent(row.p50_seconds)}</td
-												>
-												{#if hasPeriod}
-													<td class="tsp-num" data-label="Sessions">{row.sessions}</td>
-												{/if}
-											</tr>
+					<section class="tsp-kinds" aria-labelledby="{uid}-kinds">
+						<h2 class="machine tsp-hd" id="{uid}-kinds">Where the waiting went</h2>
+						<p class="tsp-caption">Pick a kind of command to list its slowest commands.</p>
+						<div class="tsp-kind-head">
+							<span>Kind</span>
+							<span></span>
+							<span class="tsp-num">Waited</span>
+							<span class="tsp-num">Answers</span>
+							<span class="tsp-num">
+								<Tooltip text="Half the answers waited less than this.">Typical</Tooltip>
+							</span>
+							<span class="tsp-num">
+								<Tooltip text="One answer in ten waited longer than this.">1 in 10 over</Tooltip>
+							</span>
+						</div>
+						{#if !data}
+							{@render skeleton(4)}
+						{:else}
+							<ul class="tsp-list">
+								{#each kinds as row (row.kind)}
+									{@const pressed = selectedKind === row.kind}
+									<li>
+										{#if kindRunsShellCommands(row.kind)}
+											<button
+												type="button"
+												class="tsp-kind tsp-kind--pick"
+												aria-pressed={pressed}
+												onclick={() => toggleKind(row.kind)}
+											>
+												{@render kindCells(row, pressed)}
+											</button>
 										{:else}
-											<tr>
-												<td colspan={columnCount} class="tsp-empty">
-													No commands of this kind {where}.
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-								{#if hasMore}
-									<div class="tsp-more">
-										<Button variant="ghost" size="sm" disabled={moreLoading} onclick={loadMore}>
-											Show 20 more
-										</Button>
-									</div>
-								{/if}
-							{/if}
-						</section>
-					{/if}
-
-					{#if data}
-						<section class="tsp-notes" aria-labelledby="{uid}-notes">
-							<h2 class="machine tsp-hd" id="{uid}-notes">How this is measured</h2>
-							<ul>
-								{#each data.notes as note, i (i)}
-									<li>{note}</li>
+											<div class="tsp-kind">{@render kindCells(row, false)}</div>
+										{/if}
+									</li>
 								{/each}
 							</ul>
-						</section>
-					{/if}
-				</div>
-			{/if}
-		</div>
-	{/snippet}
+							{#if leftOutTotal > 0}
+								<p class="tsp-caption">
+									Left out of the sums: {leftOutTotal} waits over an hour ({leftOut
+										.map((k) => `${kindLabel(k.kind)} ${k.answers_over_an_hour}`)
+										.join(', ')}).
+								</p>
+							{/if}
+						{/if}
+					</section>
+
+					<section class="tsp-commands" aria-labelledby="{uid}-commands">
+						<div class="tsp-commands-top">
+							<h2 class="machine tsp-hd" id="{uid}-commands">{commandsHeading}</h2>
+							<span class="tsp-show-all" class:tsp-show-all--off={selectedKind === null}>
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={selectedKind === null}
+									onclick={() => (selectedKind = null)}>Show every kind</Button
+								>
+							</span>
+						</div>
+						{#if !data}
+							{@render skeleton(2)}
+						{:else}
+							<table class="tsp-table">
+								<thead>
+									<tr>
+										<th scope="col">Command</th>
+										<th scope="col">Kind</th>
+										<th scope="col" class="tsp-num">Runs</th>
+										<th scope="col" class="tsp-num">Total</th>
+										<th scope="col" class="tsp-num">
+											<Tooltip text="Half the runs took less than this.">Typical</Tooltip>
+										</th>
+										{#if hasPeriod}<th scope="col" class="tsp-num">Sessions</th>{/if}
+									</tr>
+								</thead>
+								<tbody>
+									{#each commands as row, i (i)}
+										<tr>
+											<td class="tsp-cmd"><code>{row.command}</code></td>
+											<td data-label="Kind">{kindLabel(row.kind)}</td>
+											<td class="tsp-num" data-label="Runs"
+												>{row.calls.toLocaleString('en-US')}</td
+											>
+											<td class="tsp-num tsp-strong" data-label="Total">
+												{formatTimeSpent(row.seconds)}
+											</td>
+											<td class="tsp-num" data-label="Typical"
+												>{formatTimeSpent(row.p50_seconds)}</td
+											>
+											{#if hasPeriod}
+												<td class="tsp-num" data-label="Sessions">{row.sessions}</td>
+											{/if}
+										</tr>
+									{:else}
+										<tr>
+											<td colspan={columnCount} class="tsp-empty">
+												No commands of this kind {where}.
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+							{#if hasMore}
+								<div class="tsp-more">
+									<Button variant="ghost" size="sm" disabled={moreLoading} onclick={loadMore}>
+										Show 20 more
+									</Button>
+								</div>
+							{/if}
+						{/if}
+					</section>
+				{/if}
+
+				{#if data}
+					<section class="tsp-notes" aria-labelledby="{uid}-notes">
+						<h2 class="machine tsp-hd" id="{uid}-notes">How this is measured</h2>
+						<ul>
+							{#each data.notes as note, i (i)}
+								<li>{note}</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </SectionCard>
 
 {#snippet skeleton(rows: number)}
@@ -461,15 +459,15 @@
 	<span class="tsp-num tsp-strong">{formatTimeSpent(row.wait_seconds)}</span>
 	<span class="tsp-stats">
 		<span class="tsp-num"
-			>{row.answers.toLocaleString('en-US')}<span class="tsp-inline-label">{' answers'}</span></span
+			>{row.answers.toLocaleString('en-US')} <span class="tsp-inline-label">answers</span></span
 		>
 		<span class="tsp-num"
-			><span class="tsp-inline-label">{'typical '}</span>{formatTimeSpent(
+			><span class="tsp-inline-label">typical</span> {formatTimeSpent(
 				row.p50_wait_seconds
 			)}</span
 		>
 		<span class="tsp-num"
-			><span class="tsp-inline-label">{'1 in 10 over '}</span>{formatTimeSpent(
+			><span class="tsp-inline-label">1 in 10 over</span> {formatTimeSpent(
 				row.p90_wait_seconds
 			)}</span
 		>

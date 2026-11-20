@@ -103,7 +103,6 @@
 									sessionUuid={p}
 									label={identity?.label ?? null}
 									role={identity?.role ?? null}
-									agentType={identity?.agent_type ?? null}
 									size="compact"
 								/>
 								<span class="sr-only">{label}</span>

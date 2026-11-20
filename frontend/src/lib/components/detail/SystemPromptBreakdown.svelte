@@ -116,7 +116,9 @@
 				copied = false;
 				copyTimer = null;
 			}, 1500);
-		} catch {}
+		} catch {
+			// The clipboard is unavailable or refused; nothing is copied.
+		}
 	}
 
 	const canCopy = $derived(clipboardSupported && joinedText.length > 0);

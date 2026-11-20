@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/api';
 import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import { guardQuestionLabel, guardQuestionShortLabel, labelGuardWake } from '$lib/api/improvement';
 import { shortSessionId } from '$lib/format';
 import { operatorPromptText } from '$lib/sessionPrompt';
@@ -155,11 +156,11 @@ function toGuardEffectEstimate(dto: EffectEstimateDto): GuardEffectEstimate {
 	};
 }
 
-function sessionHrefFor(sessionUuid: string): string {
+function sessionHrefFor(sessionUuid: string): ResolvedPathname {
 	return resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`);
 }
 
-function turnHrefFor(sessionUuid: string, deliveredRequestId: number | null): string {
+function turnHrefFor(sessionUuid: string, deliveredRequestId: number | null): ResolvedPathname {
 	if (deliveredRequestId === null) return sessionHrefFor(sessionUuid);
 	return resolve(
 		`sessions/${encodeURIComponent(sessionUuid)}/requests/${deliveredRequestId}` as `sessions/${string}/requests/${string}`

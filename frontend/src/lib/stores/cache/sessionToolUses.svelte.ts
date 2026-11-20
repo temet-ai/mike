@@ -3,8 +3,10 @@ import type { ToolUseDto } from '$lib/types';
 
 const PAGE_LIMIT = 1000;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const cache = new Map<string, ToolUseDto[]>();
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation
 const inFlight = new Map<string, Promise<ToolUseDto[]>>();
 
 export function loadSessionToolUses(sessionId: string): Promise<ToolUseDto[]> {

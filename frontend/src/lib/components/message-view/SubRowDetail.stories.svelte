@@ -18,7 +18,7 @@
 </script>
 
 <Story name="With KV body">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRowDetail label="SessionStart hook details">
 				<div class="detail__section">
@@ -39,7 +39,7 @@
 </Story>
 
 <Story name="With long text body (no-truncation)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRowDetail label="claudeMd context — full file body">
 				<div class="detail__section">
@@ -74,7 +74,7 @@ When you have a persistent memory directory, follow these rules strictly.
 </Story>
 
 <Story name="Without body (label only)">
-	{#snippet template(args)}
+	{#snippet template()}
 		<div class="p-6 bg-[var(--surface-bg)] max-w-[600px]">
 			<SubRowDetail label="Empty detail region" />
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -82,7 +83,7 @@
 	}
 
 	/** `resolve()` takes one pathname shape per call, so the main class is resolved by route. */
-	function resolveClassPath(path: ClassPath): string {
+	function resolveClassPath(path: ClassPath): ResolvedPathname {
 		return path === 'prompts/main' ? resolve('/prompts/main') : resolve(path);
 	}
 

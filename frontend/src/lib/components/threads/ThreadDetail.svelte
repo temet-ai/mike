@@ -4,6 +4,7 @@ One thread in one card, sections divided by hairlines: identity and goal, curren
 criteria, dependencies, linked sessions and history. The state is what the last checkpoint wrote.
 -->
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
 	import Badge from '$lib/components/shared/Badge.svelte';
@@ -18,7 +19,7 @@ criteria, dependencies, linked sessions and history. The state is what the last 
 		actions
 	}: {
 		detail: ThreadDetail;
-		hrefFor: (slug: string) => string;
+		hrefFor: (slug: string) => ResolvedPathname;
 		actions?: Snippet;
 	} = $props();
 
@@ -117,7 +118,6 @@ criteria, dependencies, linked sessions and history. The state is what the last 
 			{#if detail.depends_on.length > 0}
 				<ul class="td-list">
 					{#each detail.depends_on as slug (slug)}
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- hrefFor builds the route with resolve() in the page -->
 						<li><a href={hrefFor(slug)}>{slug}</a></li>
 					{/each}
 				</ul>
@@ -130,7 +130,6 @@ criteria, dependencies, linked sessions and history. The state is what the last 
 			{#if detail.depended_on_by.length > 0}
 				<ul class="td-list">
 					{#each detail.depended_on_by as slug (slug)}
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- hrefFor builds the route with resolve() in the page -->
 						<li><a href={hrefFor(slug)}>{slug}</a></li>
 					{/each}
 				</ul>

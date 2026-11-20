@@ -27,11 +27,7 @@
 		compact = false
 	}: Props = $props();
 
-	let localValue = $state<SettingValue>(untrack(() => setting.value));
-
-	$effect(() => {
-		localValue = setting.value;
-	});
+	let localValue = $derived<SettingValue>(setting.value);
 
 	let saved = $state(false);
 	let wasSaving = false;

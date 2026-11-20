@@ -119,11 +119,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[480px] bg-[var(--surface-bg)]">
-					<SessionEmbeddingPanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[480px] bg-[var(--surface-bg)]">
+				<SessionEmbeddingPanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>
@@ -152,11 +150,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[480px] bg-[var(--surface-bg)]">
-					<SessionEmbeddingPanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[480px] bg-[var(--surface-bg)]">
+				<SessionEmbeddingPanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>
@@ -183,11 +179,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[480px] bg-[var(--surface-bg)]">
-					<SessionEmbeddingPanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[480px] bg-[var(--surface-bg)]">
+				<SessionEmbeddingPanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>
@@ -242,11 +236,9 @@
 >
 	{#snippet template(args)}
 		<CollapseStoreProvider>
-			{#snippet children()}
-				<div class="w-[480px] bg-[var(--surface-bg)]">
-					<SessionEmbeddingPanel {...args} />
-				</div>
-			{/snippet}
+			<div class="w-[480px] bg-[var(--surface-bg)]">
+				<SessionEmbeddingPanel {...args} />
+			</div>
 		</CollapseStoreProvider>
 	{/snippet}
 </Story>

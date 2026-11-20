@@ -176,14 +176,16 @@
 				<p class="sj-fix">
 					{#each fixSegments(job.fix) as segment, i (i)}
 						{#if segment.kind === 'link'}
-							<!-- eslint-disable svelte/no-navigation-without-resolve -- the fix text is written by the proxy and holds app paths or full URLs, not literal routes -->
-							<a
-								class="sj-link"
-								href={segment.href}
-								target={segment.external ? '_blank' : undefined}
-								rel={segment.external ? 'noopener noreferrer' : undefined}>{segment.text}</a
-							>
-							<!-- eslint-enable svelte/no-navigation-without-resolve -->
+							{#if segment.external}
+								<a
+									class="sj-link"
+									href={segment.href}
+									target="_blank"
+									rel="external noopener noreferrer">{segment.text}</a
+								>
+							{:else}
+								<a class="sj-link" href={segment.href}>{segment.text}</a>
+							{/if}
 						{:else}
 							{segment.text}
 						{/if}

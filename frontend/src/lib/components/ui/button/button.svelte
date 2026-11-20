@@ -1,5 +1,7 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils';
+	import type { ResolvedPathname } from '$app/types';
+	import type { ExternalHref } from '$lib/resolveHref';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
@@ -32,13 +34,19 @@
 	export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 	export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
 
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes & HTMLAnchorAttributes> & {
+	export type ButtonProps = WithElementRef<
+		HTMLButtonAttributes & Omit<HTMLAnchorAttributes, 'href'>
+	> & {
 		variant?: ButtonVariant;
 		size?: ButtonSize;
+		/** An app route from `resolve()`, or an external link (a full `http(s)` URL or an inspect API path). */
+		href?: ResolvedPathname | ExternalHref;
 	};
 </script>
 
 <script lang="ts">
+	import { isExternalHref } from '$lib/resolveHref';
+
 	let {
 		ref = $bindable(null),
 		class: className,
@@ -54,8 +62,26 @@
 	const isShaped = $derived(variant !== 'ghost');
 </script>
 
-{#if href}
-	<!-- eslint-disable svelte/no-navigation-without-resolve -- A generic primitive accepts caller-resolved routes and external URLs. -->
+{#if href && isExternalHref(href)}
+	<a
+		href={disabled ? undefined : href}
+		bind:this={ref}
+		data-slot="button"
+		data-variant={variant}
+		data-size={size}
+		data-motion="hover press"
+		data-augmented-ui={isShaped ? 'tr-clip bl-clip border' : undefined}
+		class={cn(buttonVariants({ variant, size }), className)}
+		aria-disabled={disabled}
+		role={disabled ? 'link' : undefined}
+		tabindex={disabled ? -1 : undefined}
+		rel="external noopener noreferrer"
+		{...restProps}
+		data-button-root=""
+	>
+		{@render children?.()}
+	</a>
+{:else if href}
 	<a
 		href={disabled ? undefined : href}
 		bind:this={ref}
@@ -73,7 +99,6 @@
 	>
 		{@render children?.()}
 	</a>
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
 	<button
 		bind:this={ref}

@@ -12,10 +12,12 @@
 
 	function pick(value: string) {
 		if (value === tab) return;
-		const base = resolve('/sessions/labelling');
-		void goto(value === 'sessions' ? `${base}?for=sessions` : base, {
-			reset: false
-		});
+		void goto(
+			value === 'sessions'
+				? resolve('/sessions/labelling?for=sessions')
+				: resolve('/sessions/labelling'),
+			{ reset: false }
+		);
 	}
 </script>
 

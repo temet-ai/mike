@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 	import type { CacheBreak } from '$lib/api/cacheBreaks';
 	import { shortSessionId } from '$lib/format';
 	import { formatClockLabel } from '$lib/time';
@@ -34,13 +35,13 @@
 		{ key: 'requests', label: 'Requests' }
 	]);
 
-	function requestHref(sessionId: string, requestId: number): string {
+	function requestHref(sessionId: string, requestId: number): ResolvedPathname {
 		return resolve(
 			`sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as `sessions/${string}/requests/${string}`
 		);
 	}
 
-	function sessionHref(sessionId: string): string {
+	function sessionHref(sessionId: string): ResolvedPathname {
 		return resolve(`sessions/${encodeURIComponent(sessionId)}` as `sessions/${string}`);
 	}
 </script>

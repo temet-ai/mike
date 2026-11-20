@@ -13,7 +13,6 @@
 	let { row, modelBreakdown }: Props = $props();
 </script>
 
-<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- row.href is a pre-built internal pathname from $lib/prompts/catalogueRow.ts's PromptCatalogueRowViewModel (typed `string`, outside this sweep's file set); narrowing it to a resolve()-compatible literal type belongs to that file. -->
 <a
 	href={row.href}
 	class="catalogue-row group flex flex-wrap items-center gap-3 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-bg)] px-3 py-2.5 outline-none transition-colors hover:border-[var(--interactive-active-border)] hover:bg-[var(--surface-2)] focus-visible:ring-1 focus-visible:ring-[var(--interactive-active-border)]"

@@ -356,7 +356,7 @@
 <Story name="AllThemes" tags={['design-exploration']}>
 	{#snippet template()}
 		<div class="flex flex-wrap gap-6 p-4">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme} class="rounded-lg bg-background p-2">
 					<p class="text-foreground mb-2 text-xs font-medium">{theme}</p>
 					<Dialog.Root open>
@@ -389,7 +389,7 @@
 >
 	{#snippet template()}
 		<div class="flex flex-wrap gap-6 p-4">
-			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme}
+			{#each ['forge', 'glacier', 'void', 'phosphor', 'crimson'] as theme (theme)}
 				<div data-theme={theme} class="rounded-lg bg-background p-2">
 					<p class="text-foreground mb-2 text-xs font-medium">{theme}</p>
 					<Dialog.Root open>
@@ -413,7 +413,7 @@
 <Story
 	name="ControlledOpen"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		controlledOpenSpy.mockClear();
 		const canvas = within(document.body);
 		const dialog = canvas.getByRole('dialog');
@@ -535,7 +535,7 @@
 <Story
 	name="EscKeyDismisses"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		escKeyDismissesSpy.mockClear();
 		const canvas = within(document.body);
 		const dialogBefore = canvas.getByRole('dialog');
@@ -569,7 +569,7 @@
 <Story
 	name="OverlayClickDismisses"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const overlay = document.querySelector('[data-slot="dialog-overlay"]');
 		await expect(
 			overlay,
@@ -612,7 +612,7 @@
 <Story
 	name="CloseButtonDismisses"
 	tags={['interactive']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		closeButtonDismissesSpy.mockClear();
 		const canvas = within(document.body);
 		const dialogBefore = canvas.getByRole('dialog');
@@ -647,7 +647,7 @@
 <Story
 	name="AccessibilityAttributes"
 	tags={['data-driven']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const canvas = within(document.body);
 
 		const dialog = canvas.getByRole('dialog');
@@ -755,7 +755,7 @@
 <Story
 	name="ChildrenSnippetRenders"
 	tags={['data-driven']}
-	play={async ({ canvasElement }) => {
+	play={async () => {
 		const overlay = document.querySelector('[data-slot="dialog-overlay"]');
 		await expect(
 			overlay,

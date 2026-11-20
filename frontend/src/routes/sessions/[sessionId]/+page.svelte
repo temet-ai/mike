@@ -1,4 +1,6 @@
 <script lang="ts">
+		import type { ResolvedPathname } from '$app/types';
+	import { resolvedPathWithSearch } from '$lib/resolveHref';
 	import { getContext, onMount, untrack, type Component } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -311,14 +313,15 @@
 
 	function flowUrlWith(
 		overrides: Partial<Record<'flowActor' | 'flowActivity' | 'flowAt', string | null>>
-	): string {
+	): ResolvedPathname {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- throwaway value built and read in one expression; not state
 		const params = new URLSearchParams(page.url.search);
 		for (const [key, value] of Object.entries(overrides)) {
 			if (value === null) params.delete(key);
 			else if (value !== undefined) params.set(key, value);
 		}
 		const query = params.toString();
-		return query ? `${page.url.pathname}?${query}` : page.url.pathname;
+		return resolvedPathWithSearch(page.url.pathname, query ? `?${query}` : '');
 	}
 
 	function syncFlowUrl(
@@ -326,7 +329,6 @@
 	): void {
 		const target = flowUrlWith(overrides);
 		if (target === page.url.pathname + page.url.search) return;
-		// eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own already-resolved pathname + a modified query string, matching RequestDrawer's identical `?drawer=` sync
 		void goto(target, { replace: true, reset: false });
 	}
 
@@ -365,10 +367,7 @@
 	}
 
 	function handleFlowCollapse(id: string): void {
-		const next = new Set(flowCollapsedIds);
-		if (next.has(id)) next.delete(id);
-		else next.add(id);
-		flowCollapsedIds = next;
+		flowCollapsedIds = new Set(flowCollapsedIds.has(id) ? [...flowCollapsedIds].filter((v) => v !== id) : [...flowCollapsedIds, id]);
 	}
 
 	function handleFlowBrush(range: FlowBounds | null): void {

@@ -60,7 +60,9 @@ async function waitForServerReady(url, { timeoutMs = 30_000 } = {}) {
 		try {
 			const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
 			if (res.ok || res.status < 500) return true;
-		} catch {}
+		} catch {
+			// The server is not up yet; try again.
+		}
 		await new Promise((r) => setTimeout(r, 300));
 	}
 	return false;
