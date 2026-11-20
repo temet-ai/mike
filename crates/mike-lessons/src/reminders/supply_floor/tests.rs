@@ -68,7 +68,7 @@ fn state_caps_the_lesson_text_and_keeps_the_context_end() {
     let s = state(&context, &[long]);
     assert_eq!(s["lessons"]["1"]["text"].as_str().map(str::len), Some(700));
     assert!(
-        s["session_context"]
+        s["task"]
             .as_str()
             .unwrap_or_default()
             .ends_with("NOW EDITING THE PARSER")
@@ -79,7 +79,7 @@ fn state_caps_the_lesson_text_and_keeps_the_context_end() {
 fn state_sends_the_operators_words_without_reminders_notifications_or_mail() {
     let context = "use the script\n\n<system-reminder>lesson text</system-reminder>\n[mike-mail:1] Mail from session 3f2a.\nThis is a peer's message.\n\n<task-notification>done</task-notification>then deploy";
     let s = state(context, &[lesson(1, "x")]);
-    assert_eq!(s["session_context"], "use the script\n\nthen deploy");
+    assert_eq!(s["task"], "use the script\n\nthen deploy");
     assert!(s.get("last_assistant_action").is_none());
 }
 

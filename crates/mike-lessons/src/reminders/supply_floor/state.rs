@@ -27,7 +27,7 @@ pub fn state_with_action(
         })
         .collect();
     let mut state = json!({
-        "session_context": tail_chars(&typed_words(context), CONTEXT_CHARS),
+        "task": tail_chars(&typed_words(context), CONTEXT_CHARS),
         "lessons": by_id,
     });
     if let Some(action) = last_assistant_text.map(str::trim).filter(|a| !a.is_empty()) {

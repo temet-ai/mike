@@ -5,7 +5,7 @@ use crate::llm::decisions::Question;
 use crate::llm::decisions::point::noul;
 
 pub const POINT: &str = "lesson_supply";
-pub const QUESTION_SET: &str = "lesson_supply_v1";
+pub const QUESTION_SET: &str = "lesson_supply_v2";
 
 pub fn key(lesson_id: i64) -> String {
     format!("lesson_{lesson_id}")
@@ -20,10 +20,10 @@ pub fn questions(lessons: &[Candidate<'_>]) -> BTreeMap<String, Question> {
                 key(id),
                 noul(
                     &format!(
-                        "Given session_context, would the assistant do something different next if it read the lesson at lessons.{id}, compared with not reading it?"
+                        "Does following the lesson at `lessons.{id}` keep the assistant's work in line with the task the operator set in `task`?"
                     ),
-                    "The lesson bears on what the assistant is about to do and would change its next step.",
-                    "The lesson is about something else, or the assistant would do the same thing without it.",
+                    "The lesson is about the kind of work `task` asks for, and following it keeps that work on track, e.g. a deploy lesson when the task is to deploy, or a test rule when the task changes the code it covers.",
+                    "The lesson is about other work than `task`: another tool, machine, project or job, or work the task does not ask for.",
                 ),
             )
         })

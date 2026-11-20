@@ -60,7 +60,16 @@ pub async fn post_for_prompt(
     let Ok(session) = Uuid::parse_str(&request.session) else {
         return Err(StatusCode::BAD_REQUEST);
     };
-    let lessons = lessons(&state, &request);
+    let mut lessons = lessons(&state, &request);
+    lessons.lessons = above_floor(&state, &request, lessons.lessons).await;
+    if lessons.arm == CLIENT_ROUTE {
+        record_given(
+            &state,
+            &state.lesson_cache.load(),
+            &request.session,
+            &lessons.lessons,
+        );
+    }
     let card = if request.card {
         card(&state, session, &request).await
     } else {
@@ -78,6 +87,43 @@ pub async fn post_for_prompt(
         memory_keeper_hash: card.as_ref().map(|block| block.hash.clone()),
         memory_keeper: card.map(|block| block.text),
     }))
+}
+
+async fn above_floor(
+    state: &AppState,
+    request: &ForPromptRequest,
+    chosen: Vec<DeliveredLesson>,
+) -> Vec<DeliveredLesson> {
+    use crate::reminders::supply_floor::{self, Candidate, Context};
+    let session = request.session.as_str();
+    let chosen: Vec<DeliveredLesson> = chosen
+        .into_iter()
+        .filter(|l| !supply_floor::is_held(session, l.id))
+        .collect();
+    let Some(decider) = state
+        .decider(supply_floor::POINT)
+        .map(crate::llm::decisions::point::Decider::inline)
+    else {
+        return chosen;
+    };
+    let asked: Vec<Candidate<'_>> = chosen
+        .iter()
+        .map(|l| Candidate {
+            id: l.id,
+            kind: &l.kind,
+            text: &l.text,
+        })
+        .collect();
+    let context = Context {
+        session,
+        request_id: 0,
+        text: &request.prompt,
+    };
+    let kept = supply_floor::apply(&decider, &context, &asked).await;
+    chosen
+        .into_iter()
+        .filter(|l| kept.contains(&l.id))
+        .collect()
 }
 
 async fn card(state: &AppState, session: Uuid, request: &ForPromptRequest) -> Option<Block> {
@@ -129,7 +175,6 @@ fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
         limit: settings.max_lessons_to_inject,
         content_only: toggles.recall_injector,
     });
-    record_given(state, &snapshot, session, &lessons);
     Lessons {
         arm: CLIENT_ROUTE,
         lessons,
