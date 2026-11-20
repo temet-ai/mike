@@ -396,6 +396,11 @@ if [[ "${RELEASE}" -eq 1 ]]; then
     info "Release build requested (--release)"
 fi
 
+# Install the pinned Rust toolchain before the first cargo call.
+# shellcheck source=lib/rust-toolchain.sh
+source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "${PROJECT_ROOT}" || exit 1
+
 MIKE_BUILD_IDENTITY=git cargo build ${BUILD_FLAG} --all </dev/null
 ok "Rust workspace built"
 

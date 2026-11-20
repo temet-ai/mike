@@ -178,6 +178,10 @@ unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy NO_PROXY
 if ! command -v cargo >/dev/null 2>&1 && [[ -x "${HOME}/.cargo/bin/cargo" ]]; then
     export PATH="${HOME}/.cargo/bin:${PATH}"
 fi
+# Install the pinned Rust toolchain before the first cargo call.
+# shellcheck source=lib/rust-toolchain.sh
+source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "${PROJECT_ROOT}" || exit 1
 
 # ── arg parsing ──────────────────────────────────────────────────────────────
 # Release by default: a debug proxy spends most of its CPU on debug-only checks

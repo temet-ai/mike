@@ -30,6 +30,11 @@ fi
 source "${PROJECT_ROOT}/scripts/lib/managed-service.sh"
 refuse_while_service_runs "start-and-monitor.sh"
 
+# Install the pinned Rust toolchain before the first cargo call.
+# shellcheck source=lib/rust-toolchain.sh
+source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "${PROJECT_ROOT}" || exit 1
+
 # ── 1. build ──────────────────────────────────────────────────────────────────
 echo "==> Building mike ${RELEASE_FLAG:+(release)}"
 MIKE_BUILD_IDENTITY=git cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml

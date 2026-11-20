@@ -113,6 +113,11 @@ else
   die "need Node $node_version: install it with mise or nvm (nvm install $node_version)"
 fi
 export PATH="$node_bin:$HOME/.cargo/bin:$PATH"
+# The pinned Rust toolchain of the commit being built (this directory is its worktree),
+# installed with this checkout's helper because an older commit may not have one.
+# shellcheck source=lib/rust-toolchain.sh
+source "$script_dir/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "$PWD" || die "the pinned Rust toolchain is not installed"
 [ "$(pnpm --version)" = "$pnpm_version" ] || die "need pnpm $pnpm_version on PATH, found $(pnpm --version)"
 
 toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"

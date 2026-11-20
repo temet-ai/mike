@@ -59,6 +59,10 @@ MIKE_PORT="${MIKE_LISTEN_ADDR##*:}" \
 INSPECT_PORT="${MIKE_INSPECT_ADDR##*:}" \
     "${SCRIPT_DIR}/debug-stack-deps.sh"
 
+# Install the pinned Rust toolchain before the first cargo call.
+# shellcheck source=lib/rust-toolchain.sh
+source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "${PROJECT_ROOT}" || exit 1
 echo
 echo "==> Building mike (debugging profile — full debug info)"
 MIKE_BUILD_IDENTITY=git cargo build --profile debugging --bin mike

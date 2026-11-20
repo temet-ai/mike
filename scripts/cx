@@ -51,6 +51,9 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo_root/target}"
 # present, installing them if missing, then inject them via `cargo --config`.
 # shellcheck disable=SC1091
 source "$script_dir/lib/preflight-toolchain.sh"
+# Install the pinned Rust toolchain before anything runs rustc or cargo (the mbx path
+# below never calls ensure_build_toolchain).
+ensure_pinned_rust_toolchain "$repo_root" || exit 1
 
 # check, clippy, test, nextest and build run through mbx by default when mbx is
 # installed, into target/mbx-<session> (select_build_cache in preflight-toolchain.sh),

@@ -1,4 +1,4 @@
-.PHONY: test-area rc-protocol-record rc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity doc-animations doc-recordings help
+.PHONY: rust-toolchain test-area rc-protocol-record rc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity doc-animations doc-recordings help
 
 INSTALL_DIR     ?= $(HOME)/.local/bin
 CARGO_TARGET_DIR ?= $(CURDIR)/target
@@ -14,6 +14,13 @@ bootstrap:
 ## instead of failing cryptically. Set MIKE_SKIP_TOOLCHAIN_BOOTSTRAP=1 to skip.
 preflight:
 	@./scripts/lib/preflight-toolchain.sh
+
+## Internal: install the Rust toolchain pinned by rust-toolchain.toml (no-op when present).
+## For the targets that call cargo directly instead of through scripts/cx.
+rust-toolchain:
+	@./scripts/lib/rust-toolchain.sh
+
+fmt fmt-check deny: | rust-toolchain
 
 # Every compile/link path self-heals the toolchain first (order-only prereq so
 # it never forces a rebuild). See scripts/lib/preflight-toolchain.sh.

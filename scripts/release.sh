@@ -25,4 +25,10 @@ HELP
         exit 0
         ;;
 esac
+# The pinned Rust toolchain is installed before the preparer's first cargo call.
+if [[ "${1:-}" != --verify && -f "${SCRIPT_DIR}/lib/rust-toolchain.sh" ]]; then
+    # shellcheck source=lib/rust-toolchain.sh
+    source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+    ensure_pinned_rust_toolchain "$(cd "${SCRIPT_DIR}/.." && pwd)" || exit 1
+fi
 exec python3 "${SCRIPT_DIR}/release/prepare.py" "$@"

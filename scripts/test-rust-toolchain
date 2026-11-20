@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# test-rust-toolchain — checks ensure_pinned_rust_toolchain (scripts/lib/rust-toolchain.sh)
+# without a network or a real toolchain. A fake rustup on PATH records every call:
+# `show active-toolchain` answers from FAKE_PRESENT, `toolchain install` is logged with the
+# directory it ran in. Cases: toolchain present (no install), missing (one install, from
+# the root holding rust-toolchain.toml, with --no-self-update), install fails, no
+# rust-toolchain.toml, rustup absent with and without a cargo on PATH, and a root that
+# is a git worktree of another checkout.
+#
+# USAGE
+#   scripts/test-rust-toolchain
+#
+# EXIT CODE
+#   0 when no case FAILs. A case missing a prerequisite (git) prints NOT RUN and is never
+#   counted as a pass. The last line is RUST-TOOLCHAIN: PASS or FAIL.
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+skip() { notrun=$((notrun+1)); echo "NOT RUN: $1"; }
+
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT
+mkdir -p "$T/bin" "$T/tools" "$T/repo"
+printf '[toolchain]\nchannel = "1.0.0"\n' >"$T/repo/rust-toolchain.toml"
+
+cat >"$T/bin/rustup" <<'FAKE'
+#!/bin/sh
+case "$1 $2" in
+  "show active-toolchain") echo "show auto=${RUSTUP_AUTO_INSTALL:-}" >>"$FAKE_LOG"
+                           [ "${FAKE_PRESENT:-0}" = 1 ] ;;
+  "toolchain install") echo "install in=$PWD args=$*" >>"$FAKE_LOG"
+                       [ "${FAKE_INSTALL_FAILS:-0}" != 1 ] ;;
+  *) echo "unexpected: $*" >>"$FAKE_LOG"; exit 2 ;;
+esac
+FAKE
+printf '#!/bin/sh\nexit 0\n' >"$T/bin/cargo"
+chmod +x "$T/bin/rustup" "$T/bin/cargo"
+# The helper needs dirname only when it is given no root.
+ln -s "$(command -v dirname)" "$T/tools/dirname"
+
+# run <PATH> <root> [VAR=value...]: runs the helper; prints "rc=<n>" after the log.
+run() {
+  local path="$1" dir="$2"; shift 2
+  : >"$T/log"
+  env -i PATH="$path" FAKE_LOG="$T/log" "$@" /bin/bash -c '
+    source "$1/scripts/lib/rust-toolchain.sh"; ensure_pinned_rust_toolchain ${2:+"$2"}' _ "$root" "$dir" \
+    >"$T/out" 2>"$T/err"
+  echo "rc=$?"
+}
+installs() { grep -c '^install' "$T/log"; }
+with_rustup="$T/bin:$T/tools"
+
+eq "present: returns 0" rc=0 "$(run "$with_rustup" "$T/repo" FAKE_PRESENT=1)"
+eq "present: rustup install is not called" 0 "$(installs)"
+eq "present: the check runs with RUSTUP_AUTO_INSTALL=0 (no hidden install)" "show auto=0" "$(head -1 "$T/log")"
+
+eq "missing: returns 0" rc=0 "$(run "$with_rustup" "$T/repo" FAKE_PRESENT=0)"
+eq "missing: rustup install is called once" 1 "$(installs)"
+grep -q "^install in=$(cd "$T/repo" && pwd -P) args=toolchain install --no-self-update --no-update$" "$T/log" \
+  && ok "missing: install runs in the directory holding rust-toolchain.toml, with no toolchain named" \
+  || bad "missing: install runs in the root, with no toolchain named" "$(cat "$T/log")"
+
+eq "install fails: returns 1" rc=1 "$(run "$with_rustup" "$T/repo" FAKE_PRESENT=0 FAKE_INSTALL_FAILS=1)"
+grep -q 'rustup toolchain install. failed' "$T/err" && ok "install fails: says so on stderr" || bad "install fails: says so on stderr" "$(cat "$T/err")"
+
+mkdir "$T/plain"
+eq "no rust-toolchain.toml: returns 0" rc=0 "$(run "$with_rustup" "$T/plain" FAKE_PRESENT=0)"
+eq "no rust-toolchain.toml: rustup is not called" 0 "$(wc -l <"$T/log" | tr -d ' ')"
+
+mkdir -p "$T/cargo-only"; cp "$T/bin/cargo" "$T/cargo-only/cargo"
+eq "no rustup, a distro cargo: returns 0" rc=0 "$(run "$T/cargo-only:$T/tools" "$T/repo")"
+eq "no rustup, a distro cargo: says nothing" "" "$(cat "$T/err")"
+
+mkdir -p "$T/empty"
+eq "no rustup, no cargo: returns 1" rc=1 "$(run "$T/empty:$T/tools" "$T/repo")"
+grep -q 'rustup.rs' "$T/err" && ok "no rustup, no cargo: names where to get rustup" || bad "no rustup, no cargo: names where to get rustup" "$(cat "$T/err")"
+
+# No root given: the checkout the helper belongs to, which has the real rust-toolchain.toml.
+eq "default root: returns 0" rc=0 "$(run "$with_rustup" "" FAKE_PRESENT=0)"
+grep -q "^install in=$(cd "$root" && pwd -P) " "$T/log" && ok "default root: installs from the helper's own checkout" || bad "default root: installs from the helper's own checkout" "$(cat "$T/log")"
+
+# A worktree has its own rust-toolchain.toml; the install must run there.
+if command -v git >/dev/null 2>&1; then
+  git -C "$T/repo" init -q 2>/dev/null && git -C "$T/repo" add . && \
+    git -C "$T/repo" -c user.email=t@t -c user.name=t commit -qm t && \
+    git -C "$T/repo" worktree add -q "$T/wt" HEAD 2>/dev/null
+  if [[ -f "$T/wt/rust-toolchain.toml" ]]; then
+    run "$with_rustup" "$T/wt" FAKE_PRESENT=0 >/dev/null
+    grep -q "^install in=$(cd "$T/wt" && pwd -P) " "$T/log" && ok "worktree: install runs in the worktree" || bad "worktree: install runs in the worktree" "$(cat "$T/log")"
+  else skip "worktree: git worktree add failed"; fi
+else skip "worktree: git not installed"; fi
+
+echo "passed=$pass failed=$fail not-run=$notrun"
+if (( fail == 0 )); then echo "RUST-TOOLCHAIN: PASS"; else echo "RUST-TOOLCHAIN: FAIL"; exit 1; fi

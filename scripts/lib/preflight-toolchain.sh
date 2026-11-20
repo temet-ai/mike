@@ -37,8 +37,14 @@ _expected_lld_path() {
   fi
 }
 
+# The pinned Rust toolchain (rust-toolchain.toml) is installed by ensure_pinned_rust_toolchain.
+# shellcheck source=rust-toolchain.sh
+source "$(dirname "${BASH_SOURCE[0]}")/rust-toolchain.sh"
+
 ensure_build_toolchain() {
   local need=()
+
+  ensure_pinned_rust_toolchain || return 1
 
   # sccache is opt-in (CX_SCCACHE=1, see compute_accelerator_cargo_args), so only
   # that case and `make bootstrap` (--all) require it; a machine without it builds.

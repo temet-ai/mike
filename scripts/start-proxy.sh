@@ -113,6 +113,10 @@ export MIKE_SPA_ENABLED=0
 if ! command -v cargo >/dev/null 2>&1 && [[ -x "${HOME}/.cargo/bin/cargo" ]]; then
     export PATH="${HOME}/.cargo/bin:${PATH}"
 fi
+# Install the pinned Rust toolchain before the first cargo call.
+# shellcheck source=lib/rust-toolchain.sh
+source "${SCRIPT_DIR}/lib/rust-toolchain.sh"
+ensure_pinned_rust_toolchain "${PROJECT_ROOT}" || exit 1
 
 # Release by default: a debug proxy spends most of its CPU on debug-only checks
 # while hashing and serialising multi-megabyte request bodies.

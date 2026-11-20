@@ -18,6 +18,7 @@ target="${1:?target}" cargo_target="${2:?cargo target}" path_config="${3:?path c
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=preflight-toolchain.sh
 source "$root/scripts/lib/preflight-toolchain.sh"
+ensure_pinned_rust_toolchain "$root" || exit 1
 # shellcheck source=heavy-build.sh
 source "$root/scripts/lib/heavy-build.sh"
 
