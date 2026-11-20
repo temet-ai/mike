@@ -8,7 +8,7 @@
 # commit in ~/.local/state/mike/arm-deploy/wanted and runs scripts/deploy-arm-local in the
 # systemd user unit mike-arm-deploy, which builds natively in its one build worktree and
 # installs the build on deus and infra. While a build runs, the newest commit asked for is
-# built next. Follow it with: ssh deus journalctl --user -u mike-arm-deploy -f
+# built next. Follow it with: ssh deus tail -f .local/state/mike/arm-deploy/deploy.log
 set -euo pipefail
 
 die() { echo "deploy-infra: $*" >&2; exit 1; }
@@ -45,7 +45,8 @@ git fetch -q origin
 git checkout -q --detach "$sha"
 systemd-run --user --quiet --collect --unit mike-arm-deploy \
   --setenv=PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin" \
+  --property=StandardOutput="append:$state/deploy.log" --property=StandardError="append:$state/deploy.log" \
   "$HOME/$repo/scripts/deploy-arm-local"
 echo "==> $(hostname) is building ${sha:0:9}"
 REMOTE
-echo "==> Follow it with: ssh $builder journalctl --user -u mike-arm-deploy -f"
+echo "==> Follow it with: ssh $builder tail -f .local/state/mike/arm-deploy/deploy.log"
