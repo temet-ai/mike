@@ -35,7 +35,7 @@ hex = "0.4"
 rcgen = { version = "0.14", default-features = false, features = ["pem", "ring", "x509-parser"] }
 # OS trust roots for proxy-forward's direct-to-Anthropic TLS leg.
 rustls-native-certs = "0.8"
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "query", "form", "stream", "json", "charset", "http2", "system-proxy"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json", "charset", "http2", "system-proxy"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -26,10 +26,6 @@ impl UpstreamClients {
         extra_direct_roots: &[rustls_pki_types::CertificateDer<'static>],
         pinned_sni: Option<&str>,
     ) -> Result<Self, ForwardError> {
-        // reqwest brings aws-lc-rs into the build beside ring, so rustls can no
-        // longer pick a provider from crate features alone.
-        let _ = rustls::crypto::ring::default_provider().install_default();
-
         let routed: RoutedClient = Client::builder(TokioExecutor::new()).build_http();
 
         let native = rustls_native_certs::load_native_certs();
