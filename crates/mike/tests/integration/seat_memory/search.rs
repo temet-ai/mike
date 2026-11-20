@@ -2,7 +2,7 @@ use mike::store::persistence::PersistHandle;
 use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
-use mike::store::persistence::seat_memory::SeatMemoryRefresh;
+use mike::store::persistence::seat_memory::{SeatMemoryMarks, SeatMemoryRefresh};
 use mike::store::test_support::{TestDb, TestDbHandle};
 use serde_json::Value;
 
@@ -175,17 +175,32 @@ async fn stored_items(fx: &Indexed, project_id: i64) -> anyhow::Result<i64> {
     )
 }
 
+async fn marks_as_of_now(
+    pool: &sqlx::PgPool,
+    marks: SeatMemoryMarks,
+) -> anyhow::Result<SeatMemoryMarks> {
+    let now = sqlx::query_scalar("SELECT clock_timestamp()")
+        .fetch_one(pool)
+        .await?;
+    Ok(SeatMemoryMarks {
+        turn_closed: now,
+        ..marks
+    })
+}
+
 #[tokio::test]
-async fn seat_memory_refresh_since_marks_recomputes_only_changed_projects() -> anyhow::Result<()> {
+async fn seat_memory_refresh_since_marks_recomputes_only_changed_runs() -> anyhow::Result<()> {
     let Some(fx) = indexed().await? else {
         return Ok(());
     };
     let launch = fx.handle.launch();
-    let quiet = launch
-        .refresh_seat_memory_items(Some(fx.swept.marks))
-        .await?;
+    let marks = marks_as_of_now(fx.handle.pool(), fx.swept.marks).await?;
+    let quiet = launch.refresh_seat_memory_items(Some(marks)).await?;
     assert_eq!((quiet.items, quiet.written, quiet.removed), (0, 0, 0));
-    assert_eq!(quiet.marks, fx.swept.marks);
+    assert_eq!(
+        (quiet.marks.launch, quiet.marks.fleet_event),
+        (marks.launch, marks.fleet_event)
+    );
     let own = stored_items(&fx, fx.scenario.project_id).await?;
     let other = stored_items(&fx, fx.scenario.other_project_id).await?;
     assert!(own > 0 && other > 0);
@@ -198,9 +213,9 @@ async fn seat_memory_refresh_since_marks_recomputes_only_changed_projects() -> a
         &serde_json::json!({}),
     )
     .await?;
-    let scoped = launch.refresh_seat_memory_items(Some(quiet.marks)).await?;
-    assert_eq!(scoped.items, own);
-    assert_eq!(scoped.removed, 0);
+    let scoped = launch.refresh_seat_memory_items(Some(marks)).await?;
+    assert!(scoped.items > 0 && scoped.items <= own);
+    assert_eq!((scoped.written, scoped.removed), (0, 0));
     assert!(scoped.marks.fleet_event > quiet.marks.fleet_event);
     assert_eq!(
         stored_items(&fx, fx.scenario.other_project_id).await?,
@@ -210,8 +225,8 @@ async fn seat_memory_refresh_since_marks_recomputes_only_changed_projects() -> a
 }
 
 #[tokio::test]
-async fn seat_memory_refresh_since_marks_leaves_mail_to_the_sweep_and_skips_ungated_events()
--> anyhow::Result<()> {
+async fn seat_memory_refresh_since_marks_picks_up_mail_to_a_gated_seat_only() -> anyhow::Result<()>
+{
     let Some(fx) = indexed().await? else {
         return Ok(());
     };
@@ -227,8 +242,9 @@ async fn seat_memory_refresh_since_marks_leaves_mail_to_the_sweep_and_skips_unga
     };
     super::fixture::launch(pool, &ungated, &spec).await?;
     let quiet = launch
-        .refresh_seat_memory_items(Some(fx.swept.marks))
+        .refresh_seat_memory_items(Some(marks_as_of_now(pool, fx.swept.marks).await?))
         .await?;
+    let quiet_marks = marks_as_of_now(pool, quiet.marks).await?;
     super::fixture::mail_turn(
         pool,
         fx.scenario.project_id,
@@ -240,10 +256,10 @@ async fn seat_memory_refresh_since_marks_leaves_mail_to_the_sweep_and_skips_unga
     let stale = serde_json::json!({});
     let kind = "seat_heartbeat_stale";
     super::fixture::event(pool, &ungated_run, None, Some("T9"), kind, &stale).await?;
-    let skipped = launch.refresh_seat_memory_items(Some(quiet.marks)).await?;
+    let skipped = launch.refresh_seat_memory_items(Some(quiet_marks)).await?;
     assert_eq!((skipped.items, skipped.written, skipped.removed), (0, 0, 0));
-    assert!(skipped.marks.message > quiet.marks.message);
     assert!(skipped.marks.fleet_event > quiet.marks.fleet_event);
+    let skipped_marks = marks_as_of_now(pool, skipped.marks).await?;
     super::fixture::mail_turn(
         pool,
         fx.scenario.project_id,
@@ -253,12 +269,12 @@ async fn seat_memory_refresh_since_marks_leaves_mail_to_the_sweep_and_skips_unga
     )
     .await?;
     let gated = launch
-        .refresh_seat_memory_items(Some(skipped.marks))
+        .refresh_seat_memory_items(Some(skipped_marks))
         .await?;
-    assert_eq!((gated.items, gated.written, gated.removed), (0, 0, 0));
-    assert!(gated.marks.message > skipped.marks.message);
+    assert!(gated.written >= 1);
+    assert_eq!(gated.removed, 0);
     let swept = launch.refresh_seat_memory_items(None).await?;
-    assert!(swept.written >= 1);
+    assert_eq!((swept.written, swept.removed), (0, 0));
     finish(fx).await
 }
 

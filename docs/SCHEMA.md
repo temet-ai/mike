@@ -3065,6 +3065,10 @@ every project with seat launches, kept so knowledge search reads the seat tier t
 the function costs about 140 ms for the busiest project, over the read budget. Written only by
 `seat_memory/refresh.sql` (the `seat_memory_index` worker), which inserts new rows, updates
 changed ones and deletes rows the function no longer returns; unchanged rows are not written.
+A refresh recomputes only the seat sessions with a newer launch, fleet event, closed turn or
+built turn fact, together with every session of their runs, through `memory.seat_memory(uuid[])`
+(about 2k blocks for a tick, against about 160k for a whole project); the worker runs one at
+least every 30 minutes and a full recompute of every seat session once a day.
 Read only by `search.sql` (kind `seat`). The rules for what enters the seat tier live in the
 function, not here.
 
@@ -3211,7 +3215,9 @@ on insert.
 | `session_class_rule` | `TEXT NOT NULL` | which rule of `session-class-v1` fired |
 
 **Indexes:** the primary key; `idx_turn_facts_session` on `(session_id, operator_turn_id)`;
-`idx_turn_facts_pending` on `(session_id)` WHERE `next_state = 'pending'`.
+`idx_turn_facts_pending` on `(session_id)` WHERE `next_state = 'pending'`; `idx_turn_facts_built_at` on
+`(built_at) INCLUDE (session_id)` (`20261120120001`), the sessions whose turn facts the seat-memory refresh
+has not seen yet.
 
 The migration also extends `feature_toggles_key_check` with `dossier_builder` (default off, switched on after deploy; local derivation only)
 and inserts its `config.feature_toggles` row with `operator_set = false`.
@@ -5899,6 +5905,11 @@ included item, each labelled with `author` (`coordinator`, `seat`, `peer`, `suba
 operator said. A function and not a view because every read is for one project: the seat set is narrowed to the
 project first, and a view over all projects could not push a project filter below its window functions (about
 530 ms per read against a 50 ms budget; the function takes about 47 ms for the largest project).
+
+`memory.seat_memory(p_session_uuids uuid[])` (`20261120120000_seat_memory_by_session.sql`) holds the body
+and narrows the seat set to the given launched sessions; the project form passes the project's launched
+sessions to it, so both return the same rows. Pass every session of a run together: brief dedupe, Stop-hook
+feedback collapse and verdicts are per run.
 
 | Column | Type | Purpose |
 |---|---|---|
