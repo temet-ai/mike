@@ -38,6 +38,7 @@ fn stage_order_matches_documented_pipeline_sequence() {
             "shell_output_compression",
             "proxy_tools",
             "context_focus_question",
+            "proxy_tool_thread",
         ]
     );
 }

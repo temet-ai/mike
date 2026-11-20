@@ -3,6 +3,7 @@ use serde_json::Value;
 use super::assemble::assemble_message_json;
 use super::rehydrate;
 use super::{PersistError, PersistHandle};
+use crate::store::thread_links::{FollowupAnswer, MAX_FOLLOWUPS};
 
 pub struct ConversationStep {
     pub predecessor: Option<i64>,
@@ -62,6 +63,20 @@ impl PersistHandle {
         }))
     }
 
+    pub async fn followup_answer(&self, previous: &str) -> Result<FollowupAnswer, PersistError> {
+        let row: Option<(i32, Option<String>)> = sqlx::query_as(FOLLOWUP_END) // grader-allow: literal with binds; no .sqlx entry is prepared on infra
+            .bind(previous)
+            .bind(i32::try_from(MAX_FOLLOWUPS).unwrap_or(i32::MAX))
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(match row {
+            None => FollowupAnswer::NotHeld,
+            Some((0, _)) => FollowupAnswer::NotFollowedUp,
+            Some((_, Some(id))) if !id.is_empty() => FollowupAnswer::EndsAt(id),
+            Some(_) => FollowupAnswer::Unanswered,
+        })
+    }
+
     async fn predecessor_is_linked(&self, request_id: i64) -> Result<bool, PersistError> {
         let linked: Option<bool> = sqlx::query_scalar(PREDECESSOR_IS_LINKED) // grader-allow: literal with a bind; no .sqlx entry is prepared on infra
             .bind(request_id)
@@ -70,6 +85,25 @@ impl PersistHandle {
         Ok(linked.unwrap_or(false))
     }
 }
+
+const FOLLOWUP_END: &str = "WITH RECURSIVE walk AS (
+        (SELECT r.id, r.correction_request_id, 0 AS depth
+           FROM responses.responses rr
+           JOIN requests.requests r ON r.id = rr.request_id
+          WHERE rr.upstream_message_id = $1
+          ORDER BY rr.request_id DESC
+          LIMIT 1)
+        UNION ALL
+        SELECT r.id, r.correction_request_id, w.depth + 1
+          FROM walk w
+          JOIN requests.requests r ON r.id = w.correction_request_id
+         WHERE w.depth < $2
+    )
+    SELECT w.depth, rr.upstream_message_id
+      FROM walk w
+      LEFT JOIN responses.responses rr ON rr.request_id = w.id
+     ORDER BY w.depth DESC
+     LIMIT 1";
 
 const PREDECESSOR_IS_LINKED: &str = "SELECT pr.code IN ('thread_link', 'thread_restart')
        FROM requests.requests r

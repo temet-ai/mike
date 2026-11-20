@@ -217,7 +217,7 @@ pub fn is_session_own_lane(ctx: &StageContext<'_>) -> bool {
     ) && !ctx.has_agent_id
 }
 
-pub const STAGE_ORDER: [&str; 20] = [
+pub const STAGE_ORDER: [&str; 21] = [
     "filter",
     "reminder_on_token",
     "lazy_sections",
@@ -238,6 +238,7 @@ pub const STAGE_ORDER: [&str; 20] = [
     "shell_output_compression",
     "proxy_tools",
     "context_focus_question",
+    "proxy_tool_thread",
 ];
 
 pub fn registry(lessons: &dyn LessonHooks) -> Vec<Box<dyn RequestStage>> {
@@ -279,6 +280,7 @@ pub fn stages_after_steerer() -> Vec<Box<dyn RequestStage>> {
         Box::new(crate::compress::shell_stage::ShellOutputCompressionStage),
         Box::new(crate::proxy_tools::stage::ProxyToolsStage),
         Box::new(crate::context_focus::stage::ContextFocusStage),
+        Box::new(crate::proxy_tools::thread_stage::ProxyToolThreadStage),
     ]
 }
 
