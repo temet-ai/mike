@@ -66,6 +66,22 @@ fn intake_criteria_gives_one_criterion_per_stored_row_with_the_operators_words()
 }
 
 #[test]
+fn intake_criteria_drops_a_stored_heading_row() {
+    let map = intake_map(&[
+        (
+            "Acceptance criteria for this session, from the operator's words",
+            None,
+        ),
+        ("What must hold:", None),
+        ("The panel is reachable.", Some("no direct URL")),
+    ]);
+    assert_eq!(
+        intake_criteria(&map),
+        vec![with_words("The panel is reachable.", "no direct URL")]
+    );
+}
+
+#[test]
 fn thread_criteria_keeps_list_items_or_every_plain_line() {
     let headed = thread_criteria("Acceptance criteria:\n- It ships.\n- It is proven.");
     assert_eq!(

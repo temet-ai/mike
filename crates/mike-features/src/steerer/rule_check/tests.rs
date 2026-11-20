@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde_json::json;
 
 use super::compose::compose;
-use super::questions::{key, questions, requires_key};
+use super::questions::{applies_key, key, questions, requires_key};
 use super::rules::{Rule, TurnTools, cut_at_whitespace, parse_rules, relevant};
 use super::state::{TurnInput, state};
 use crate::llm::decisions::point::Asked;
@@ -17,21 +17,24 @@ fn rule(source: &str, text: &str, scope: &[&str]) -> Rule {
     }
 }
 
-fn answered(ps: &[f64]) -> Asked {
+fn noul(p: f64) -> Answer {
+    Answer::Noul {
+        noul: p,
+        confidence: None,
+    }
+}
+
+fn answered_with(ps: &[f64], applies: f64) -> Asked {
     Asked::answered(
         ps.iter()
             .enumerate()
-            .map(|(i, p)| {
-                (
-                    key(i),
-                    Answer::Noul {
-                        noul: *p,
-                        confidence: None,
-                    },
-                )
-            })
+            .flat_map(|(i, p)| [(key(i), noul(*p)), (applies_key(i), noul(applies))])
             .collect::<BTreeMap<_, _>>(),
     )
+}
+
+fn answered(ps: &[f64]) -> Asked {
+    answered_with(ps, 0.95)
 }
 
 #[test]
@@ -186,14 +189,14 @@ fn compose_confident_violation_names_the_rule() {
 
 #[test]
 fn compose_below_the_warn_bar_is_not_a_violation() {
-    let outcome = compose(&answered(&[0.1, 0.79]), 2);
+    let outcome = compose(&answered(&[0.1, 0.89]), 2);
     assert_eq!(outcome.map(|o| (o.violated, o.held)), Some((false, false)));
 }
 
 #[test]
 fn compose_band_warns_at_the_top_holds_at_the_bottom_and_neither_between() {
     let band = |p: f64| compose(&answered(&[p]), 1).map(|o| (o.violated, o.held));
-    assert_eq!(band(0.8), Some((true, false)));
+    assert_eq!(band(0.9), Some((true, false)));
     assert_eq!(band(0.5), Some((false, false)));
     assert_eq!(band(0.31), Some((false, false)));
     assert_eq!(band(0.3), Some((false, true)));
@@ -202,19 +205,46 @@ fn compose_band_warns_at_the_top_holds_at_the_bottom_and_neither_between() {
 
 #[test]
 fn compose_takes_the_likelier_of_the_forbids_and_requires_answers() {
-    let noul = |p: f64| Answer::Noul {
-        noul: p,
-        confidence: None,
-    };
     let asked = Asked::answered(BTreeMap::from([
         (key(0), noul(0.1)),
-        (requires_key(0), noul(0.85)),
+        (applies_key(0), noul(0.9)),
+        (requires_key(0), noul(0.95)),
     ]));
     let outcome = compose(&asked, 1);
     assert_eq!(
         outcome.map(|o| (o.probability, o.violated)),
-        Some((0.85, true))
+        Some((0.95, true))
     );
+}
+
+#[test]
+fn compose_rule_about_work_the_turn_did_not_do_is_no_violation() {
+    let outcome = compose(&answered_with(&[0.97], 0.4), 1);
+    assert_eq!(outcome.map(|o| (o.violated, o.held)), Some((false, true)));
+}
+
+#[test]
+fn questions_ask_a_commit_obligation_only_when_the_turn_committed() {
+    let a = rule(
+        "AGENTS.md",
+        "Before you commit, gitleaks must report no leaks.",
+        &[],
+    );
+    assert!(!questions(&[&a], false).contains_key("rule_0_requires"));
+    assert!(questions(&[&a], true).contains_key("rule_0_requires"));
+}
+
+#[test]
+fn turn_tools_count_written_paths_and_commits_only() {
+    let read = json!({"file_path": "/repo/a.rs"});
+    let edit = json!({"file_path": "/elsewhere/b.rs"});
+    let commit = json!({"command": "cd /repo && git commit -m x"});
+    let tools = TurnTools::from_calls([("Read", &read), ("Edit", &edit), ("Bash", &commit)]);
+    assert_eq!(tools.paths, vec!["/elsewhere/b.rs".to_owned()]);
+    assert!(tools.committed);
+    assert!(tools.writes_only_outside("/repo"));
+    assert!(!tools.writes_only_outside("/elsewhere"));
+    assert!(!TurnTools::default().writes_only_outside("/repo"));
 }
 
 #[test]
@@ -260,8 +290,9 @@ fn instructions_of(asked: &BTreeMap<String, Question>, name: &str) -> String {
 #[test]
 fn questions_ask_only_the_forbids_side_for_a_rule_that_is_not_an_obligation() {
     let a = rule("AGENTS.md", "Never do the first thing at all.", &[]);
-    let asked = questions(&[&a]);
-    assert_eq!(asked.len(), 1);
+    let asked = questions(&[&a], false);
+    assert_eq!(asked.len(), 2);
+    assert!(asked.contains_key("rule_0_applies"));
     assert_eq!(
         instructions_of(&asked, "rule_0"),
         "Does a call in `tool_calls` or a path in `files_written` do what `rules.rule_0` forbids?"
@@ -272,8 +303,8 @@ fn questions_ask_only_the_forbids_side_for_a_rule_that_is_not_an_obligation() {
 fn questions_add_the_leaves_out_question_for_an_obligation_only() {
     let a = rule("AGENTS.md", "Never do the first thing at all.", &[]);
     let b = rule("CLAUDE.md", "Always do the second thing here.", &[]);
-    let asked = questions(&[&a, &b]);
-    assert_eq!(asked.len(), 3);
+    let asked = questions(&[&a, &b], false);
+    assert_eq!(asked.len(), 5);
     assert!(asked.contains_key("rule_1_requires"));
     assert!(!asked.contains_key("rule_0_requires"));
     assert_eq!(

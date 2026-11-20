@@ -126,7 +126,7 @@ pub fn thread_criteria(block: &str) -> Vec<Criterion> {
 pub fn intake_criteria(map: &AcceptanceCriteriaMap) -> Vec<Criterion> {
     map.criteria
         .iter()
-        .filter(|row| !row.criterion.trim().is_empty())
+        .filter(|row| !row.criterion.trim().is_empty() && !is_heading(&row.criterion))
         .map(|row| Criterion {
             text: row.criterion.trim().to_owned(),
             inferred: row.provenance != "operator",

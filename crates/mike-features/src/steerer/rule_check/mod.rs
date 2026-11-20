@@ -10,7 +10,7 @@ use serde_json::json;
 
 use crate::llm::decisions::point::{Asked, Decider};
 use crate::llm::decisions::record::DecisionSubject;
-pub use compose::{HOLD_AT, Outcome, WARN_AT, compose};
+pub use compose::{APPLIES_AT, HOLD_AT, Outcome, WARN_AT, compose};
 pub use questions::{POINT, QUESTION_SET};
 pub use rules::{Rule, TurnTools};
 pub use state::TurnInput;
@@ -36,9 +36,9 @@ pub async fn check<'a>(
         .ask(
             QUESTION_SET,
             state::state(input, picked),
-            questions::questions(picked),
+            questions::questions(picked, input.tools.committed),
             subject,
-            json!({ "warn_at": WARN_AT, "hold_at": HOLD_AT, "rules_per_turn": RULES_PER_TURN }),
+            json!({ "warn_at": WARN_AT, "hold_at": HOLD_AT, "applies_at": APPLIES_AT, "rules_per_turn": RULES_PER_TURN }),
         )
         .await;
     match compose(&asked, picked.len()) {
