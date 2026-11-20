@@ -80,6 +80,17 @@ impl PersistHandle {
         machine: Uuid,
         cwd: &str,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
+        self.bind_session_to_local_root_within(session, machine, cwd, None)
+            .await
+    }
+
+    pub async fn bind_session_to_local_root_within(
+        &self,
+        session: Uuid,
+        machine: Uuid,
+        cwd: &str,
+        floor: Option<&str>,
+    ) -> Result<Option<ProjectIdentity>, PersistError> {
         let location = sqlx::query_scalar!(
             "SELECT l.location_uuid
              FROM sessions.sessions s
@@ -89,11 +100,14 @@ impl PersistHandle {
                AND s.project_resolution <> 'operator'
                AND (rtrim(l.root_path, '/') = rtrim($3, '/')
                     OR starts_with($3, rtrim(l.root_path, '/') || '/'))
+               AND ($4::text IS NULL
+                    OR length(rtrim(l.root_path, '/')) >= length(rtrim($4::text, '/')))
              ORDER BY length(l.root_path) DESC, l.location_uuid
              LIMIT 1",
             session,
             machine,
             cwd,
+            floor,
         )
         .fetch_optional(self.pool())
         .await?;

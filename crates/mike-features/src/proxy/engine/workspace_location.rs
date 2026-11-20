@@ -1,4 +1,5 @@
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use std::path::Path;
 use std::sync::Arc;
 
 use uuid::Uuid;
@@ -8,6 +9,7 @@ use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
 use crate::store::persistence::workspace::RegisteredWorkspaceSession;
+use crate::workspace::git_repo::repo_identity;
 
 pub async fn bind_host_location(
     state: &AppState,
@@ -19,12 +21,22 @@ pub async fn bind_host_location(
     let Some(machine) = state.host_machine_uuid.get().copied() else {
         return;
     };
-    let bound = match persist
-        .knowledge()
-        .bind_session_to_local_root(session, machine, cwd)
+    let repo_root = repo_identity(Path::new(cwd))
+        .map(|identity| identity.main_root.to_string_lossy().into_owned());
+    let knowledge = persist.knowledge();
+    let bound = match knowledge
+        .bind_session_to_local_root_within(session, machine, cwd, repo_root.as_deref())
         .await
     {
-        Ok(None) => super::workspace_repo::bind_by_repo(persist, session, machine, cwd).await,
+        Ok(None) => match super::workspace_repo::bind_by_repo(persist, session, machine, cwd).await
+        {
+            Ok(None) if repo_root.is_some() => {
+                knowledge
+                    .bind_session_to_local_root(session, machine, cwd)
+                    .await
+            }
+            other => other,
+        },
         other => other,
     };
     match bound {

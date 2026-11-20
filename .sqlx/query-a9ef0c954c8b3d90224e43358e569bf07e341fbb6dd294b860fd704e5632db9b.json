@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.location_uuid\n             FROM sessions.sessions s\n             JOIN projects.locations l ON l.machine_uuid = $2\n             WHERE s.session_uuid = $1\n               AND s.location_uuid IS NULL\n               AND s.project_resolution <> 'operator'\n               AND (rtrim(l.root_path, '/') = rtrim($3, '/')\n                    OR starts_with($3, rtrim(l.root_path, '/') || '/'))\n               AND ($4::text IS NULL\n                    OR length(rtrim(l.root_path, '/')) >= length(rtrim($4::text, '/')))\n             ORDER BY length(l.root_path) DESC, l.location_uuid\n             LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a9ef0c954c8b3d90224e43358e569bf07e341fbb6dd294b860fd704e5632db9b"
+}
