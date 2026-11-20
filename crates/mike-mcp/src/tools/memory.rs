@@ -161,12 +161,13 @@ fn record_lesson_tool() -> Tool {
                     "description": "One durable rule a future session can act on: the rule in the \
                                     imperative, then the trigger that makes it apply, then what to do. \
                                     Keep the evidence that makes it checkable (a command, a path, a \
-                                    measured value) and drop the rest. No run narration, no dated recap \
-                                    of a session, and no \"this supersedes the earlier version\" prose \
+                                    limit) and drop the rest. No run narration, no date, no tally from \
+                                    one run, no first person, and no \"this supersedes the earlier version\" prose \
                                     (pass `supersedes` instead). Stored verbatim. A text over 500 \
                                     characters (the `lessons.shape.max_chars` setting), opening with a \
-                                    status word such as \"Satisfied\" or \"Left unmet\", or naming a \
-                                    session uuid or commit sha as its subject is accepted and reported \
+                                    status word such as \"Satisfied\" or \"Left unmet\", naming a \
+                                    session uuid or commit sha as its subject, or carrying a \
+                                    calendar date is accepted and reported \
                                     in the result's `shape` field. While the lesson proposer is on it \
                                     is also held at the raw stage and not injected until it is \
                                     rewritten as a rule."

@@ -22,6 +22,7 @@ const SHA_WINDOW_CHARS: usize = 80;
 const SHA_MIN_LEN: usize = 7;
 const SHA_MAX_LEN: usize = 40;
 const UUID_LEN: usize = 36;
+const DATE_LEN: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -99,6 +100,26 @@ fn status_finding(text: &str, topic: Option<&str>) -> Option<String> {
     opening_status_word(text)
         .or_else(|| session_uuid_subject(text))
         .or_else(|| commit_sha_subject(text))
+        .or_else(|| calendar_date(text))
+}
+
+fn is_calendar_date(token: &str) -> bool {
+    token.len() == DATE_LEN
+        && token.char_indices().all(|(i, c)| match i {
+            4 | 7 => c == '-',
+            _ => c.is_ascii_digit(),
+        })
+}
+
+fn calendar_date(text: &str) -> Option<String> {
+    tokens_with_position(text, |c| c.is_ascii_alphanumeric() || c == '-')
+        .into_iter()
+        .find(|(_, token)| is_calendar_date(token))
+        .map(|(position, token)| {
+            format!(
+                "the text carries the date {token} at character {position}, which records when something happened and goes stale instead of stating a rule"
+            )
+        })
 }
 
 pub fn opens_with_status_word(text: &str) -> bool {
@@ -276,6 +297,29 @@ mod tests {
             "Keep functions under one hundred lines. ".repeat(3)
         );
         assert_eq!(shape_of(&late, None), Shape::Rule);
+    }
+
+    #[test]
+    fn calendar_date_anywhere_is_flagged_with_its_position() {
+        let found = assess(
+            "Never let a spawned session drive the phone. On 2026-11-14 push-wake opened the app.",
+            None,
+            DEFAULT_MAX_CHARS,
+        );
+        assert_eq!(found.shape, Shape::Status);
+        assert!(found.detail.contains("2026-11-14"), "{}", found.detail);
+        assert!(found.detail.contains("character 48"), "{}", found.detail);
+    }
+
+    #[test]
+    fn date_inside_a_longer_name_is_not_a_calendar_date() {
+        assert_eq!(
+            shape_of(
+                "Send the compact-2026-01-12 beta header and migration 20260623000002 unchanged.",
+                None
+            ),
+            Shape::Rule
+        );
     }
 
     #[test]

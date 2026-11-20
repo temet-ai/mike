@@ -20,6 +20,7 @@ so the operator sees the conflict. Do not name a file that does not bear on the 
 Return JSON matching the schema exactly:
 - `rule`: the lesson text in the operator's own terms, or an empty string when nothing
   generalises. Lead with the rule itself, stated as an instruction.
+  Leave out the date, the incident and any count from this one turn: they go stale.
 - `kind`: `correction` (a mistake made and fixed), `convention` (a standing way of working),
   `warning` (a trap or a past incident), or `preference` (how the operator wants this done).
 - `generalises`: true only when `rule` is non-empty and would apply to a different task.
