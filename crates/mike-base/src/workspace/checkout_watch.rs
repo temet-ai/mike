@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::store::persistence::location_lifecycle::{CheckoutMarks, CheckoutRow};
 use crate::store::persistence::location_move::LocationMove;
 use crate::store::persistence::{PersistError, PersistHandle};
-use crate::workspace::git_repo::{RepoIdentity, repo_identity};
+use crate::workspace::git_repo::{RepoIdentity, off_request_threads, repo_identity};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct Seen {
@@ -50,7 +50,14 @@ pub async fn watch_checkouts(
     machine: Uuid,
 ) -> Result<Vec<LocationMove>, PersistError> {
     let rows = persist.checkout_rows(machine).await?;
-    let seen: Vec<Seen> = rows.iter().map(Seen::of).collect();
+    let reading = rows.clone();
+    let Some(seen) = off_request_threads("checkout presence", move || {
+        reading.iter().map(Seen::of).collect::<Vec<Seen>>()
+    })
+    .await
+    else {
+        return Ok(Vec::new());
+    };
     persist
         .record_checkout_marks(machine, &marks(&rows, &seen))
         .await?;

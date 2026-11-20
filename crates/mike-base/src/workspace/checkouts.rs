@@ -3,7 +3,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::store::persistence::{PersistError, PersistHandle};
-use crate::workspace::git_repo::{RepoIdentity, repo_identity};
+use crate::workspace::git_repo::{RepoIdentity, repo_identity_bounded};
 
 pub async fn project_for_repo(
     persist: &PersistHandle,
@@ -57,7 +57,7 @@ pub async fn place_folder(
     machine_name: &str,
     path: &str,
 ) -> Result<Option<i64>, PersistError> {
-    let Some(identity) = repo_identity(Path::new(path)) else {
+    let Some(identity) = repo_identity_bounded(Path::new(path)).await else {
         return persist.project_id_enclosing(machine, path).await;
     };
     let Some(project) = project_or_new(persist, machine, &identity).await? else {
@@ -79,7 +79,7 @@ pub async fn record_origins(
 ) -> Result<Vec<crate::store::persistence::location_move::LocationMove>, PersistError> {
     for location in persist.locations_on_machine(machine).await? {
         let root = Path::new(location.root_path.trim_end_matches('/'));
-        let Some(identity) = repo_identity(root) else {
+        let Some(identity) = repo_identity_bounded(root).await else {
             continue;
         };
         if identity.checkout_root != root {

@@ -11,7 +11,7 @@ use crate::launch::fleet::commit::{owner_of, ownership};
 use crate::launch::fleet::seated::Seated;
 use crate::launch::seat_fact::is_fleet_seat;
 use crate::store::persistence::PersistHandle;
-use crate::workspace::git_repo::repo_identity;
+use crate::workspace::git_repo::repo_identity_bounded;
 
 pub struct FleetSeat {
     pub definition: FleetDefinition,
@@ -77,7 +77,7 @@ pub async fn resolve(
         Some(identity) => seat_of(persist, identity.uuid).await?,
         None => None,
     };
-    let checkout = checkout_of(query, identity.as_ref(), fleet.as_ref())?;
+    let checkout = checkout_of(query, identity.as_ref(), fleet.as_ref()).await?;
     Ok(Resolved {
         identity,
         checkout,
@@ -114,7 +114,7 @@ async fn seat_of(
     }))
 }
 
-fn checkout_of(
+async fn checkout_of(
     query: &ChangesQuery,
     identity: Option<&SessionIdentity>,
     fleet: Option<&FleetSeat>,
@@ -131,8 +131,11 @@ fn checkout_of(
         return Ok(named.trim_end_matches('/').to_owned());
     }
     let cwd = identity.and_then(|i| i.cwd.as_deref());
-    cwd.and_then(|dir| repo_identity(Path::new(dir)))
-        .map(|repo| repo.checkout_root.to_string_lossy().into_owned())
+    let repo = match cwd {
+        Some(dir) => repo_identity_bounded(Path::new(dir)).await,
+        None => None,
+    };
+    repo.map(|repo| repo.checkout_root.to_string_lossy().into_owned())
         .ok_or_else(|| {
             ChangesError::Invalid(format!(
                 "no checkout: pass `checkout`, or ask from a session whose working folder is inside a git repository (this session's working folder: {:?})",

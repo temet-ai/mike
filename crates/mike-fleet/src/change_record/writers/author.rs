@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::error::WriterError;
 use crate::launch::seat_fact::is_fleet_seat;
 use crate::store::persistence::PersistHandle;
-use crate::workspace::git_repo::repo_identity;
+use crate::workspace::git_repo::repo_identity_bounded;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Author {
@@ -37,7 +37,7 @@ pub async fn author_of(
     let Some(cwd) = identity.cwd.as_deref() else {
         return Ok(None);
     };
-    let Some(repo) = repo_identity(Path::new(cwd)) else {
+    let Some(repo) = repo_identity_bounded(Path::new(cwd)).await else {
         return Ok(None);
     };
     let fleet = if is_fleet_seat(persist, session).await {
