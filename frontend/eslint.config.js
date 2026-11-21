@@ -23,12 +23,7 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				parser: ts.parser,
-				// Type information lets svelte/no-navigation-without-resolve accept any
-				// value typed `ResolvedPathname` (what resolve() returns), not only a
-				// literal resolve() call.
-				projectService: true,
-				extraFileExtensions: ['.svelte']
+				parser: ts.parser
 			}
 		}
 	},
@@ -53,7 +48,12 @@ export default defineConfig(
 	{
 		files: ['**/*.svelte'],
 		rules: {
-			'svelte/valid-compile': ['error', { ignoreWarnings: true }]
+			'svelte/valid-compile': ['error', { ignoreWarnings: true }],
+			// Off: the SPA sets no `paths.base`, so resolve() returns its input, and
+			// the rule needs type-aware linting (a 6m40s run) to accept a resolved
+			// link passed through a prop. Turn it on if the UI is ever served under
+			// a sub-path.
+			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
 	{
