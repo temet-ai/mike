@@ -1,7 +1,7 @@
 use crate::test_db::TestDb;
 use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
-use mike::mailbox_reaper::close_reaped_launches;
+use mike::mailbox_reaper::close_gone_launches;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::launch::NewLaunch;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
@@ -289,7 +289,7 @@ async fn reaped_session_launch_is_closed_and_live_session_launch_stays_open() ->
     let live_launch = open_launch(&handle, scenario.live_session).await?;
 
     sweep_once(&handle, &boot_id).await;
-    close_reaped_launches(&handle).await;
+    close_gone_launches(&handle).await;
 
     assert_eq!(
         launch_close(&handle, dead_launch).await?,

@@ -66,7 +66,7 @@ async fn run_reaper_loop(
     }
 }
 
-const LAPSED_LEASE_GRACE: chrono::Duration = chrono::Duration::hours(24);
+pub const LAPSED_LEASE_GRACE: chrono::Duration = chrono::Duration::hours(24);
 
 pub async fn sweep_once(persist: &PersistHandle, boot_id: &str) {
     let mut dead = dead_candidate_ids(persist, boot_id).await;

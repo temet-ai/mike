@@ -8,8 +8,9 @@ use crate::store::persistence::PersistHandle;
 
 const REAP_INTERVAL: Duration = Duration::from_secs(300);
 
-pub async fn close_reaped_launches(persist: &PersistHandle) {
-    match persist.launch().close_reaped_launches().await {
+pub async fn close_gone_launches(persist: &PersistHandle) {
+    let quiet_since = chrono::Utc::now() - crate::workspace_reaper::LAPSED_LEASE_GRACE;
+    match persist.launch().close_gone_launches(quiet_since).await {
         Ok(0) => {}
         Ok(closed) => log_closed(closed),
         Err(error) => log_close_failed(&error),
@@ -17,11 +18,14 @@ pub async fn close_reaped_launches(persist: &PersistHandle) {
 }
 
 fn log_closed(closed: u64) {
-    tracing::info!(closed, "mailbox_reaper: closed launches of reaped sessions");
+    tracing::info!(
+        closed,
+        "mailbox_reaper: closed launches whose session is gone"
+    );
 }
 
 fn log_close_failed(error: &crate::store::persistence::PersistError) {
-    tracing::warn!(%error, "mailbox_reaper: could not close launches of reaped sessions");
+    tracing::warn!(%error, "mailbox_reaper: could not close launches whose session is gone");
 }
 
 pub fn spawn_mailbox_reaper(state: &BaseState) {
@@ -45,7 +49,7 @@ pub fn spawn_mailbox_reaper(state: &BaseState) {
                     break;
                 }
                 _ = ticker.tick() => {
-                    close_reaped_launches(&persist).await;
+                    close_gone_launches(&persist).await;
                     let notice_cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
                     if let Err(err) = persist.launch().tell_inactive_senders(notice_cutoff).await {
                         tracing::warn!(error = %err, "mailbox_reaper: could not notify waiting senders");
