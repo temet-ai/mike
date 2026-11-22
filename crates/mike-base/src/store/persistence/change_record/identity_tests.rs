@@ -91,3 +91,42 @@ async fn a_display_name_change_sends_the_sessions_notice() -> anyhow::Result<()>
     assert_eq!(payload["session_id"], a.to_string());
     db.cleanup().await
 }
+
+async fn next_notice(
+    listener: &mut sqlx::postgres::PgListener,
+) -> anyhow::Result<serde_json::Value> {
+    let note = tokio::time::timeout(std::time::Duration::from_secs(5), listener.recv()).await??;
+    Ok(serde_json::from_str(note.payload())?)
+}
+
+#[tokio::test]
+async fn a_deleted_session_sends_its_notice_and_leaves_the_memo() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let project = seed_project(handle.pool(), "/test/identity-delete").await?;
+    let (a, b) = (Uuid::new_v4(), Uuid::new_v4());
+    seed_two_sessions(handle.pool(), &a.to_string(), &b.to_string(), project).await?;
+    let feed = fed(&handle);
+    assert!(handle.session_identity_by_uuid(a).await?.is_some());
+
+    let mut listener = sqlx::postgres::PgListener::connect(&db.database_url).await?;
+    listener.listen("proxy.row_changed").await?;
+    sqlx::query("DELETE FROM sessions.sessions WHERE session_uuid = $1")
+        .bind(a)
+        .execute(handle.pool())
+        .await?;
+    let payload = next_notice(&mut listener).await?;
+    assert_eq!(payload["table"], "sessions");
+    assert_eq!(payload["op"], "DELETE");
+    assert_eq!(payload["session_id"], a.to_string());
+
+    feed.record(RowChangedTable::Sessions, Some(&a.to_string()));
+    assert_eq!(
+        handle.session_identity_by_uuid(a).await?,
+        None,
+        "the deleted session is gone"
+    );
+    db.cleanup().await
+}
