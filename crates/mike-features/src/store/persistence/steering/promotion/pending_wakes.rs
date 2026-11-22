@@ -2,6 +2,10 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use super::super::super::PersistError;
+use crate::store::models::RowChangedTable;
+
+const NO_PENDING_WAKES: &str = "steering.no_pending_wakes";
+const INTERVENTIONS: &[RowChangedTable] = &[RowChangedTable::Interventions];
 
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct DueWakeRow {
@@ -83,17 +87,24 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
     }
 
     pub async fn disable_all_pending_wakes(self) -> Result<Vec<i64>, PersistError> {
-        crate::metrics::time_db("disable_all_pending_wakes", async move {
-            Ok(sqlx::query_scalar!(
+        if self.is_fresh(NO_PENDING_WAKES, INTERVENTIONS, Utc::now()) {
+            return Ok(Vec::new());
+        }
+        let ticket = self.fresh_ticket();
+        let disabled = crate::metrics::time_db("disable_all_pending_wakes", async move {
+            sqlx::query_scalar!(
                 r#"UPDATE steering.interventions
                       SET wake_state = 'disabled', wake_resolved_at = now(), expires_at = now()
                     WHERE wake_state = 'pending'
                    RETURNING id AS "id!""#,
             )
             .fetch_all(&self.pool)
-            .await?)
+            .await
+            .map_err(PersistError::from)
         })
-        .await
+        .await?;
+        self.mark_fresh(NO_PENDING_WAKES, ticket, None);
+        Ok(disabled)
     }
 
     pub async fn disable_pending_for_question(
@@ -240,3 +251,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         .await
     }
 }
+
+#[cfg(test)]
+#[path = "pending_wakes_tests.rs"]
+mod pending_wakes_tests;
