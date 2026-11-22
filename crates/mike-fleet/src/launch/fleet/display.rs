@@ -3,6 +3,7 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+
 use super::definition::FleetDefinition;
 use super::here;
 use super::shutdown::{self, RUNNING, STOPPING};
@@ -39,7 +40,6 @@ struct Seen {
     blocked: BTreeMap<String, usize>,
     over: BTreeMap<String, Vec<String>>,
     quota: BTreeMap<String, Vec<String>>,
-    live: Option<String>,
 }
 
 /// One pass over this machine's running and stopping fleets. Returns whether
@@ -67,31 +67,18 @@ async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) -> bo
     for row in &running {
         super::gate_queue::queue(state, persist, row).await;
     }
-    let mut assembled = Vec::new();
-    for row in &running {
-        if let Ok(status) = assemble(state, row).await {
-            assembled.push((row, status));
-        }
-    }
-    publish_live(&assembled, seen).await;
     let Some(backend) = backend else {
         return busy;
     };
-    for (row, status) in &assembled {
-        run_registered_steps(state, persist, row, status).await;
-        show(backend.as_ref(), persist, row, status).await;
-        announce(backend.as_ref(), row, status, seen).await;
+    for row in &running {
+        let Ok(status) = assemble(state, row).await else {
+            continue;
+        };
+        run_registered_steps(state, persist, row, &status).await;
+        show(backend.as_ref(), persist, row, &status).await;
+        announce(backend.as_ref(), row, &status, seen).await;
     }
     busy
-}
-
-async fn publish_live(assembled: &[(&FleetRow, FleetStatus)], seen: &mut Seen) {
-    let Some(dir) = super::live_file::dir() else {
-        return;
-    };
-    let pairs: Vec<(&FleetRow, &FleetStatus)> = assembled.iter().map(|(r, s)| (*r, s)).collect();
-    let live = super::live_file::Live::of(&pairs);
-    super::live_file::write_if_changed(&dir, &live, &mut seen.live).await;
 }
 
 async fn run_registered_steps(
