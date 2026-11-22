@@ -71,6 +71,14 @@ pub fn spawn_injected_replay_store(state: &BaseState, registry: Arc<InjectedBloc
             }
         }
         loop {
+            let replayed = registry.take_replayed_lanes();
+            if let Err(err) = persist
+                .proxy()
+                .keep_injected_replay_records(machine, &replayed)
+                .await
+            {
+                tracing::warn!(error = %err, "injected replay: could not keep the records of lanes in use");
+            }
             if let Err(err) = persist
                 .proxy()
                 .expire_injected_replay_records(machine)

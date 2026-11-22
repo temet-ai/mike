@@ -208,3 +208,26 @@ fn restore_from_stored_fields_replays_like_the_original_after_a_restart() {
     assert_eq!(report.replayed_indices, vec![0]);
     assert_eq!(got, expected);
 }
+
+#[test]
+fn take_replayed_lanes_names_each_lane_that_replayed_once() {
+    let registry = InjectedBlockRegistry::default();
+    let first = first_turn();
+    assert!(registry.record(LANE, &first, &inject(&first)));
+    assert!(registry.take_replayed_lanes().is_empty(), "recording is not replaying");
+
+    let _ = replayed(&registry, LANE, &second_turn());
+    let _ = replayed(&registry, LANE, &second_turn());
+    assert_eq!(registry.take_replayed_lanes(), vec![LANE.to_owned()]);
+    assert!(registry.take_replayed_lanes().is_empty(), "drained");
+}
+
+#[test]
+fn take_replayed_lanes_skips_a_lane_whose_blocks_are_gone() {
+    let registry = InjectedBlockRegistry::default();
+    let first = first_turn();
+    assert!(registry.record(LANE, &first, &inject(&first)));
+    let compacted = br#"{"model":"m","system":[{"type":"text","text":"s"}],"messages":[{"role":"user","content":[{"type":"text","text":"summary"}]}]}"#;
+    let _ = registry.replay(LANE, compacted);
+    assert!(registry.take_replayed_lanes().is_empty());
+}

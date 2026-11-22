@@ -53,6 +53,30 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
         .await
     }
 
+    pub async fn keep_injected_replay_records(
+        self,
+        machine_uuid: Uuid,
+        lanes: &[String],
+    ) -> Result<u64, PersistError> {
+        if lanes.is_empty() {
+            return Ok(0);
+        }
+        crate::metrics::time_db("keep_injected_replay_records", async move {
+            let done = sqlx::query!(
+                "UPDATE overrides.injected_replay_records
+                    SET recorded_at = now()
+                  WHERE machine_uuid = $1
+                    AND lane = ANY($2)",
+                machine_uuid,
+                lanes,
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(done.rows_affected())
+        })
+        .await
+    }
+
     pub async fn expire_injected_replay_records(
         self,
         machine_uuid: Uuid,

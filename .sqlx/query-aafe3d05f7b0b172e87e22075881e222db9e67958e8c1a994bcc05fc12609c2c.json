@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE overrides.injected_replay_records\n                    SET recorded_at = now()\n                  WHERE machine_uuid = $1\n                    AND lane = ANY($2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aafe3d05f7b0b172e87e22075881e222db9e67958e8c1a994bcc05fc12609c2c"
+}

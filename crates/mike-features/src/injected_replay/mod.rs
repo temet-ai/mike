@@ -3,7 +3,7 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Mutex;
 
 use bytes::Bytes;
@@ -48,6 +48,7 @@ impl LaneRecords {
 pub struct InjectedBlockRegistry {
     lanes: DashMap<String, LaneRecords>,
     order: Mutex<VecDeque<String>>,
+    replayed: Mutex<HashSet<String>>,
     capacity: usize,
 }
 
@@ -62,6 +63,7 @@ impl InjectedBlockRegistry {
         Self {
             lanes: DashMap::new(),
             order: Mutex::new(VecDeque::new()),
+            replayed: Mutex::new(HashSet::new()),
             capacity: capacity.max(1),
         }
     }
@@ -73,7 +75,15 @@ impl InjectedBlockRegistry {
             held: entry.by_identity.len(),
             replayed_indices: spliced.message_indices,
         };
+        drop(entry);
+        if !report.replayed_indices.is_empty() {
+            lock(&self.replayed).insert(lane.to_owned());
+        }
         Some((Bytes::from(spliced.body), report))
+    }
+
+    pub fn take_replayed_lanes(&self) -> Vec<String> {
+        lock(&self.replayed).drain().collect()
     }
 
     pub fn record(&self, lane: &str, original: &[u8], injected: &[u8]) -> bool {
@@ -98,10 +108,7 @@ impl InjectedBlockRegistry {
     }
 
     fn track_lane(&self, lane: &str) {
-        let mut order = match self.order.lock() {
-            Ok(o) => o,
-            Err(poisoned) => poisoned.into_inner(),
-        };
+        let mut order = lock(&self.order);
         order.retain(|l| l != lane);
         order.push_back(lane.to_string());
         while order.len() > self.capacity {
@@ -115,6 +122,12 @@ impl InjectedBlockRegistry {
     pub fn records_in(&self, lane: &str) -> usize {
         self.lanes.get(lane).map_or(0, |r| r.by_identity.len())
     }
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 pub fn lane_key(signals: &RequestSignals) -> String {
