@@ -132,6 +132,11 @@ pub fn shaped_connect_options(
         ("lock_timeout", "5s"),
         ("jit", "off"),
         ("plan_cache_mode", "force_custom_plan"),
+        // A commit returns once its WAL is written, not flushed: the writer
+        // flushes within ~3x wal_writer_delay. A Postgres or OS crash can lose
+        // that last fraction of a second of mike's writes, never corrupt them.
+        // Migrations keep durable commits on their own connection.
+        ("synchronous_commit", "off"),
     ];
     if shape.read_only {
         settings.push(("default_transaction_read_only", "on"));
@@ -258,6 +263,11 @@ mod tests {
             lock_timeout == "5s" || lock_timeout == "5000ms",
             "lock_timeout reported as {lock_timeout:?} — expected 5s/5000ms"
         );
+
+        let sync: String = sqlx::query_scalar("SELECT current_setting('synchronous_commit')")
+            .fetch_one(&pool)
+            .await?;
+        assert_eq!(sync, "off", "pool commits do not wait for the WAL flush");
 
         pool.close().await;
         db.cleanup().await?;
