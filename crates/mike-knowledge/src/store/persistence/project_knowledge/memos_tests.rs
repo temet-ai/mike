@@ -4,7 +4,9 @@ use std::time::Duration;
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::memos::{COVERAGE_LIFETIME, NEAREST_FIRST_LIFETIME, NO_PROJECT_LIFETIME};
+use super::memos::{
+    COVERAGE_LIFETIME, KIND_HEALTH_LIFETIME, NEAREST_FIRST_LIFETIME, NO_PROJECT_LIFETIME,
+};
 use super::{KnowledgeEmbeddingSource, ModelKeys};
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db, seed_project};
 use crate::store::persistence::{PersistHandle, SENTINEL_PROJECT_PATH};
@@ -277,5 +279,22 @@ async fn no_project_knowledge_project_that_is_missing_is_not_remembered() -> any
         fx.handle.knowledge().knowledge_memos().counts_fetched().2,
         2
     );
+    fx.db.cleanup().await
+}
+
+#[tokio::test]
+async fn knowledge_kinds_for_health_inside_the_lifetime_reads_once_then_again_after_it()
+-> anyhow::Result<()> {
+    let fx = fixture().await?;
+    let memos = fx.handle.knowledge().knowledge_memos();
+
+    let first = fx.handle.knowledge().knowledge_kinds_for_health().await?;
+    let second = fx.handle.knowledge().knowledge_kinds_for_health().await?;
+    assert_eq!(first.len(), second.len());
+    assert_eq!(memos.kind_health.fetched(), 1);
+
+    memos.kind_health.advance(KIND_HEALTH_LIFETIME);
+    fx.handle.knowledge().knowledge_kinds_for_health().await?;
+    assert_eq!(memos.kind_health.fetched(), 2);
     fx.db.cleanup().await
 }

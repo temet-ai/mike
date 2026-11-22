@@ -6,10 +6,11 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use serde_json::Value;
 
-use super::{ModelKeys, ProjectIdentity};
+use super::{KnowledgeKindRow, ModelKeys, ProjectIdentity};
 use crate::store::persistence::{PersistError, SENTINEL_PROJECT_PATH};
 
 pub const COVERAGE_LIFETIME: Duration = Duration::from_secs(60);
+pub const KIND_HEALTH_LIFETIME: Duration = Duration::from_secs(60);
 pub const NEAREST_FIRST_LIFETIME: Duration = Duration::from_secs(10 * 60);
 pub const NO_PROJECT_LIFETIME: Duration = Duration::from_secs(10 * 60);
 
@@ -89,6 +90,7 @@ pub struct KnowledgeMemos {
     pub nearest_first: Remembered<ModelKey, bool>,
     pub coverage: Remembered<ModelKey, Value>,
     pub no_project: Remembered<(), ProjectIdentity>,
+    pub kind_health: Remembered<(), Vec<KnowledgeKindRow>>,
 }
 
 impl Default for KnowledgeMemos {
@@ -97,6 +99,7 @@ impl Default for KnowledgeMemos {
             nearest_first: Remembered::new(NEAREST_FIRST_LIFETIME),
             coverage: Remembered::new(COVERAGE_LIFETIME),
             no_project: Remembered::new(NO_PROJECT_LIFETIME),
+            kind_health: Remembered::new(KIND_HEALTH_LIFETIME),
         }
     }
 }
@@ -112,6 +115,13 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
             .get_or_fetch((project_id, keys.current().to_owned()), || {
                 self.knowledge_embedding_health(Some(project_id), keys)
             })
+            .await
+    }
+
+    pub async fn knowledge_kinds_for_health(self) -> Result<Vec<KnowledgeKindRow>, PersistError> {
+        self.knowledge_memos()
+            .kind_health
+            .get_or_fetch((), || self.list_knowledge_kinds())
             .await
     }
 

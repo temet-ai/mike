@@ -33,7 +33,7 @@ pub async fn embedding_capability(state: &KnowledgeState) -> CapabilityRow {
         Ok(counts) => {
             let sweep = fresh_report(&model, chrono::Utc::now());
             apply_coverage(&mut row, counts, sweep.as_deref());
-            if let Ok(kinds) = handle.knowledge().list_knowledge_kinds().await {
+            if let Ok(kinds) = handle.knowledge().knowledge_kinds_for_health().await {
                 apply_kind_problems(&mut row, &kinds);
             }
         }
