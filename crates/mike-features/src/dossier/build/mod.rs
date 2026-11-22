@@ -71,7 +71,6 @@ pub struct BuildPlan {
     pub rows: Vec<TurnFactsRow>,
     pub unchanged_turn_ids: Vec<i64>,
     pub opened_by: Vec<OpenedByRow>,
-    pub pending_classifications: u64,
     pub would_insert: u64,
     pub would_update: u64,
     pub skipped_stale: u64,
@@ -87,11 +86,6 @@ pub async fn plan_sessions(
     if session_ids.is_empty() {
         return Ok(plan);
     }
-    let pending = persist
-        .dossier()
-        .load_prompts_needing_classification(session_ids, CLASSIFIER_VERSION)
-        .await?;
-    plan.pending_classifications = pending.len() as u64;
     let mut loaded = load_step::load_batch(persist, session_ids, now).await?;
     if let Some(env) = &cfg.decisions {
         crate::dossier::probe_point::fill(

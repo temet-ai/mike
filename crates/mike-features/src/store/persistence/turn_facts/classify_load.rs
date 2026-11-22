@@ -1,4 +1,5 @@
-use crate::store::persistence::PersistError;
+use super::classify_memo::ClassifiedSessionsMemo;
+use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptToClassify {
@@ -25,6 +26,30 @@ impl crate::store::persistence::dossier_repo::DossierDb<'_> {
         if session_ids.is_empty() {
             return Ok(Vec::new());
         }
+        let memo = self.memo::<ClassifiedSessionsMemo>();
+        let persist: &PersistHandle = &self;
+        let Some(unchecked) = memo
+            .unchecked(persist, session_ids, classifier_version)
+            .await?
+        else {
+            return self.prompts_pending(session_ids, classifier_version).await;
+        };
+        if unchecked.session_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let pending = self
+            .prompts_pending(&unchecked.session_ids, classifier_version)
+            .await?;
+        let pending_sessions: Vec<i64> = pending.iter().map(|p| p.session_id).collect();
+        unchecked.remember_classified(&pending_sessions, classifier_version);
+        Ok(pending)
+    }
+
+    async fn prompts_pending(
+        self,
+        session_ids: &[i64],
+        classifier_version: &str,
+    ) -> Result<Vec<PromptToClassify>, PersistError> {
         crate::metrics::time_db("load_prompts_needing_classification", async move {
             Ok(sqlx::query_as!(
                 PromptToClassify,

@@ -2,6 +2,7 @@ pub mod backfill;
 pub mod candidates;
 pub mod checks_load;
 pub mod classify_load;
+mod classify_memo;
 pub mod load;
 pub mod text_facts;
 pub mod write;
