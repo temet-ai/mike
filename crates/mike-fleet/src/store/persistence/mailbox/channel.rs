@@ -1,6 +1,19 @@
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistError;
+use crate::store::persistence::feed_memo::{Memo, Scope};
 
 use super::types::ClaimedChannelMessageRow;
+
+struct EmptyChannelMemo(Memo<bool>);
+
+impl Default for EmptyChannelMemo {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[],
+            per_session: &[RowChangedTable::MailboxMessages],
+        }))
+    }
+}
 
 impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn claim_channel_messages(
@@ -13,6 +26,31 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     }
 
     pub async fn claim_channel_messages_honouring(
+        self,
+        to_session_uuid: uuid::Uuid,
+        limit: i64,
+        honour_held: bool,
+    ) -> Result<Vec<ClaimedChannelMessageRow>, PersistError> {
+        let empty = self.memo::<EmptyChannelMemo>();
+        let memo = self.feed_memos.bound(&empty.0);
+        if memo
+            .as_ref()
+            .and_then(|memo| memo.get(to_session_uuid))
+            .is_some_and(|held| !held || honour_held)
+        {
+            return Ok(Vec::new());
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let claimed = self
+            .claim_channel_rows(to_session_uuid, limit, honour_held)
+            .await?;
+        if let (Some(memo), Some(ticket), true) = (memo, ticket, claimed.is_empty()) {
+            memo.remember(to_session_uuid, ticket, honour_held);
+        }
+        Ok(claimed)
+    }
+
+    async fn claim_channel_rows(
         self,
         to_session_uuid: uuid::Uuid,
         limit: i64,

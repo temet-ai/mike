@@ -1,7 +1,6 @@
 use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::time::Duration;
 
-use tokio::time::{MissedTickBehavior, interval};
 use uuid::Uuid;
 
 use super::claude::ClaudeRecipient;
@@ -11,9 +10,17 @@ use super::mailbox_link::{mailbox_state, mirror_codex_mail};
 use super::store::{self, Mail};
 use super::{Recipient, Runtime, Stage};
 use crate::base_state::BaseState;
+use crate::change_feed::{ChangeFeed, Generation};
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
+const IDLE_BACKSTOP: Duration = Duration::from_secs(120);
+const WATCHED: [RowChangedTable; 3] = [
+    RowChangedTable::MailboxMessages,
+    RowChangedTable::Sessions,
+    RowChangedTable::LaunchLaunches,
+];
 const MIRROR_BATCH: i64 = 200;
 const DELIVER_BATCH: i64 = 100;
 
@@ -23,36 +30,45 @@ pub fn spawn_mail_outbox(state: &BaseState) {
         return;
     };
     let shutdown = state.shutdown();
+    let feed = state.change_feed.clone();
     state.tracker.spawn(async move {
-        let mut ticker = interval(SWEEP_INTERVAL);
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
+            let since = feed.generation();
+            let busy = match sweep(&persist).await {
+                Ok(busy) => busy,
+                Err(error) => {
+                    tracing::warn!(error = %error, "mail_outbox: sweep failed");
+                    true
+                }
+            };
             tokio::select! {
                 biased;
-                _ = shutdown.cancelled() => break,
-                _ = ticker.tick() => {
-                    if let Err(error) = sweep(&persist).await {
-                        tracing::warn!(error = %error, "mail_outbox: sweep failed");
-                    }
-                }
+                () = shutdown.cancelled() => break,
+                () = wait_for_mail(&feed, busy, since) => {}
             }
         }
     });
 }
 
-pub async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)>, PersistError> {
+async fn wait_for_mail(feed: &ChangeFeed, busy: bool, since: Generation) {
+    if busy || !feed.is_fed() {
+        tokio::time::sleep(SWEEP_INTERVAL).await;
+    } else {
+        feed.wait_for_change(&WATCHED, since, IDLE_BACKSTOP).await;
+    }
+}
+
+pub async fn sweep(persist: &PersistHandle) -> Result<bool, PersistError> {
     let pool = persist.pool();
-    mirror_codex_mail(pool, MIRROR_BATCH).await?;
-    persist.runtime().reconcile_runtime_mail_outbox().await?;
-    let mut outcomes = Vec::new();
+    let mirrored = mirror_codex_mail(pool, MIRROR_BATCH).await?;
+    let reconciled = persist.runtime().reconcile_runtime_mail_outbox().await?;
+    let open = store::open_messages(pool, DELIVER_BATCH).await?;
     let mut queue_jobs = tokio::task::JoinSet::new();
-    for message in store::open_messages(pool, DELIVER_BATCH).await? {
-        if let Some(outcome) = settle_message(persist, message, &mut queue_jobs).await? {
-            outcomes.push((message, outcome));
-        }
+    for message in &open {
+        settle_message(persist, *message, &mut queue_jobs).await?;
     }
     drain_queue_jobs(&mut queue_jobs).await;
-    Ok(outcomes)
+    Ok(mirrored > 0 || reconciled > 0 || !open.is_empty())
 }
 
 async fn settle_message(
@@ -166,3 +182,7 @@ async fn recipient_for(persist: &PersistHandle, mail: &Mail) -> Option<Box<dyn R
         }
     }
 }
+
+#[cfg(test)]
+#[path = "worker_wait_tests.rs"]
+mod wait_tests;

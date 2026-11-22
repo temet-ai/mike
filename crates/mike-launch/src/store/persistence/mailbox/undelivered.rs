@@ -1,6 +1,19 @@
 use sqlx::{Executor, Postgres};
 
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistError;
+use crate::store::persistence::feed_memo::{Memo, Scope};
+
+struct NothingToReviveMemo(Memo<()>);
+
+impl Default for NothingToReviveMemo {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[],
+            per_session: &[RowChangedTable::MailboxMessages],
+        }))
+    }
+}
 
 pub async fn tell_listed_senders<'e>(
     executor: impl Executor<'e, Database = Postgres>,
@@ -57,6 +70,26 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     }
 
     pub async fn revive_undelivered_mail(
+        self,
+        to_session_uuid: uuid::Uuid,
+    ) -> Result<Vec<uuid::Uuid>, PersistError> {
+        let nothing = self.memo::<NothingToReviveMemo>();
+        let memo = self.feed_memos.bound(&nothing.0);
+        if memo
+            .as_ref()
+            .is_some_and(|memo| memo.get(to_session_uuid).is_some())
+        {
+            return Ok(Vec::new());
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let revived = self.revive_dead_letters(to_session_uuid).await?;
+        if let (Some(memo), Some(ticket), true) = (memo, ticket, revived.is_empty()) {
+            memo.remember(to_session_uuid, ticket, ());
+        }
+        Ok(revived)
+    }
+
+    async fn revive_dead_letters(
         self,
         to_session_uuid: uuid::Uuid,
     ) -> Result<Vec<uuid::Uuid>, PersistError> {
