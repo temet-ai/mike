@@ -171,7 +171,11 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
             StatusCode::REQUEST_TIMEOUT,
             INSPECT_TIMEOUT,
         ))
-        .route_layer(from_fn(crate::api::route_counter::count));
+        .route_layer(from_fn(crate::api::route_counter::count))
+        .route_layer(from_fn_with_state(
+            state.clone(),
+            crate::api::handlers::reads_after_sends,
+        ));
     let waited = knowledge::register_waited(fleets::register_waited(Router::new()));
     let waited_for = waited
         .route_layer(TimeoutLayer::with_status_code(

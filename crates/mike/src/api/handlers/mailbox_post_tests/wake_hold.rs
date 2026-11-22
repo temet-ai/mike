@@ -46,8 +46,29 @@ async fn send_all(f: &Fleet, from: Option<Uuid>, to: Uuid) -> anyhow::Result<()>
     for subject in SUBJECTS {
         let (status, body) = f.env.send(from, &to.to_string(), subject).await;
         assert_eq!(status, StatusCode::CREATED, "{subject:?}: {body}");
+        let message = body["message_uuid"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("no message_uuid: {body}"))?;
+        queued(f, Uuid::parse_str(message)?).await?;
     }
     Ok(())
+}
+
+async fn queued(f: &Fleet, message: Uuid) -> anyhow::Result<()> {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    while tokio::time::Instant::now() < deadline {
+        let found: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM mailbox.messages WHERE message_uuid = $1)",
+        )
+        .bind(message)
+        .fetch_one(f.env.persist.pool())
+        .await?;
+        if found {
+            return Ok(());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    anyhow::bail!("message {message} was never queued")
 }
 
 async fn setup(pick: &str, status: u16, on: bool) -> anyhow::Result<Option<(Fleet, MockServer)>> {

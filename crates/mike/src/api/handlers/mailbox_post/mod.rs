@@ -8,6 +8,9 @@ mod hold;
 mod legacy_send;
 mod threaded_send;
 mod validation;
+mod writer;
+
+pub(crate) use writer::reads_after_sends;
 
 use audit::record_failed_send;
 use validation::validate_send_request;
@@ -49,7 +52,6 @@ pub(crate) async fn post_session_message(
     };
 
     let parsed = validate_send_request(handle, to_session_uuid, &body).await?;
-
     refuse_closed_fleet_seat(handle, parsed.from_session_uuid, to_session_uuid, true).await?;
 
     let liveness = liveness_for_gate(handle, to_session_uuid).await;
@@ -72,12 +74,39 @@ pub(crate) async fn post_session_message(
         ));
     }
 
+    writer::accept(
+        &state,
+        handle,
+        writer::Job {
+            to_session_uuid,
+            message_uuid: uuid::Uuid::new_v4(),
+            liveness,
+            parsed,
+            body,
+        },
+    )
+    .await
+}
+
+async fn deliver_send(
+    state: &AppState,
+    handle: &crate::store::persistence::PersistHandle,
+    job: &writer::Job,
+) -> Result<Response, Response> {
+    let writer::Job {
+        to_session_uuid,
+        message_uuid,
+        liveness,
+        parsed,
+        body,
+    } = job;
+    let (to_session_uuid, liveness) = (*to_session_uuid, *liveness);
     let ctx = SendContext {
         to_session_uuid,
         from_session_uuid: parsed.from_session_uuid,
-        message_uuid: uuid::Uuid::new_v4(),
+        message_uuid: *message_uuid,
         liveness,
-        body: &body,
+        body,
     };
 
     let facts = mail_facts(&ctx);
@@ -85,7 +114,7 @@ pub(crate) async fn post_session_message(
     let sent = if parsed.threading_requested {
         threaded_send::send(
             handle,
-            &state,
+            state,
             ctx,
             threaded_send::ThreadingParams {
                 thread_id_param: parsed.thread_id_param,
@@ -97,11 +126,11 @@ pub(crate) async fn post_session_message(
         )
         .await
     } else {
-        legacy_send::send(handle, &state, ctx).await
+        legacy_send::send(handle, state, ctx).await
     };
     if sent.is_ok() {
         if let Some(reply) = reply {
-            spawn_reply_link(&state, handle, reply);
+            spawn_reply_link(state, handle, reply);
         }
         crate::change_record::writers::spawn_mail_event(
             &state.tracker(),
