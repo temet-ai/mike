@@ -42,6 +42,7 @@ pub mod definition;
 pub mod diagnostics;
 pub mod discovery;
 pub mod display;
+pub mod live_file;
 pub mod environment;
 pub mod events;
 pub mod floor;
