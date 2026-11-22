@@ -329,6 +329,7 @@ impl PersistHandle {
                         disposition,
                         human_prompt: req.human_prompt.clone(),
                         is_streaming: req.is_streaming,
+                        subagent: req.turn_origin == "subagent",
                     };
                     turn_lifecycle::apply_operator_turn_lifecycle(
                         &mut tx,

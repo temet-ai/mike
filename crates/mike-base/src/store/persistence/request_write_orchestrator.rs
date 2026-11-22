@@ -49,7 +49,12 @@ impl PersistHandle {
                 tool_results: inserted_results,
                 agent_instance_id,
             } = self
-                .write_dependent_rows_or_keep_request(&mut tx, req, session_db_id, request_db_id)
+                .write_dependent_rows_or_keep_request(
+                    &mut tx,
+                    req,
+                    (session_db_id, request_db_id),
+                    row_inserted,
+                )
                 .await?;
 
             if row_inserted {
@@ -76,8 +81,12 @@ impl PersistHandle {
             } else {
                 Vec::new()
             };
-            self.reconcile_after_commit(request_db_id, &dispatch_wire_ids)
-                .await;
+            self.reconcile_after_commit(
+                request_db_id,
+                &dispatch_wire_ids,
+                req.turn_origin == "subagent",
+            )
+            .await;
 
             if is_new_session {
                 self.set_up_new_session(&req.session_id).await;
@@ -113,8 +122,8 @@ impl PersistHandle {
         &self,
         req: &InterceptedRequest,
     ) -> Result<(), PersistError> {
-        let tool_uses = req.capture_writes.tool_use_failed
-            || req.tool_calls.iter().any(|call| !call.complete);
+        let tool_uses =
+            req.capture_writes.tool_use_failed || req.tool_calls.iter().any(|call| !call.complete);
         let subagent = req.turn_origin == "subagent";
         if !tool_uses && !subagent && req.failed_stream_blocks.is_empty() {
             return Ok(());
@@ -150,7 +159,7 @@ impl PersistHandle {
                 tx.commit().await?;
             }
             if subagent {
-                self.reconcile_after_commit(request_db_id, &[]).await;
+                self.reconcile_after_commit(request_db_id, &[], true).await;
             }
             Ok(())
         })
@@ -176,12 +185,17 @@ impl PersistHandle {
         &self,
         tx: &mut sqlx::PgConnection,
         req: &InterceptedRequest,
-        session_db_id: i64,
-        request_db_id: i64,
+        (session_db_id, request_db_id): (i64, i64),
+        fresh_row: bool,
     ) -> Result<DependentRows, PersistError> {
         let mut savepoint = sqlx::Acquire::begin(&mut *tx).await?;
         let written = self
-            .write_request_dependent_rows(&mut savepoint, req, session_db_id, request_db_id)
+            .write_request_dependent_rows(
+                &mut savepoint,
+                req,
+                (session_db_id, request_db_id),
+                fresh_row,
+            )
             .await;
         let error = match written {
             Ok(results) => {
@@ -213,8 +227,8 @@ impl PersistHandle {
         &self,
         tx: &mut sqlx::PgConnection,
         req: &InterceptedRequest,
-        session_db_id: i64,
-        request_db_id: i64,
+        (session_db_id, request_db_id): (i64, i64),
+        fresh_row: bool,
     ) -> Result<DependentRows, PersistError> {
         super::request_write_aux::write_system_prompt_and_firing_rules(
             &mut *tx,
@@ -242,6 +256,7 @@ impl PersistHandle {
             agent_instance_id,
             session_db_id,
             request_db_id,
+            fresh_row,
         )
         .await?;
         super::request_write_tool_io::write_tool_uses_and_dispatches(
@@ -276,13 +291,26 @@ impl PersistHandle {
         })
     }
 
-    async fn reconcile_after_commit(&self, request_db_id: i64, wire_ids: &[String]) {
+    /// Links dispatch results to their parents and, for a subagent request,
+    /// stamps the operator turn it inherits. Turn inheritance only ever
+    /// matches a request whose origin is `subagent`, so others skip it.
+    async fn reconcile_after_commit(
+        &self,
+        request_db_id: i64,
+        wire_ids: &[String],
+        subagent: bool,
+    ) {
+        if wire_ids.is_empty() && !subagent {
+            return;
+        }
         let result: Result<(), PersistError> = async {
             let mut tx = self.pool.begin().await?;
             if !wire_ids.is_empty() {
                 super::turn_lifecycle::reconcile_dispatch_results(&mut tx, wire_ids).await?;
             }
-            super::turn_lifecycle::attribute_inherited_requests(&mut tx, request_db_id).await?;
+            if subagent {
+                super::turn_lifecycle::attribute_inherited_requests(&mut tx, request_db_id).await?;
+            }
             tx.commit().await?;
             Ok(())
         }

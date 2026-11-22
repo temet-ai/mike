@@ -23,10 +23,12 @@ pub const RELIABLE_SIDECAR_ORIGINS: &[&str] = &[
     "agent_label_sidecar",
 ];
 
-pub use canonicalize::{CanonicalMessage, canonicalise_body_messages, write_request_messages};
+pub use canonicalize::{
+    CanonicalMessage, canonicalise_body_messages, insert_request_messages, write_request_messages,
+};
 pub use canonicalize::{hex_lowercase, invariant};
 pub use delta::{DeltaRow, SentPatch};
-pub use delta::{compute_delta, write_request_deltas};
+pub use delta::{compute_delta, insert_request_deltas, write_request_deltas};
 #[cfg(any(test, feature = "test-seams"))]
 pub use envelope_patch::compute_envelope_patch;
 pub use envelope_patch::whole_body_envelope_patch;

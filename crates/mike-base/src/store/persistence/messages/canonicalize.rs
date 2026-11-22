@@ -262,7 +262,20 @@ pub async fn write_request_messages(
     if already_bridged.is_some() {
         return Ok(());
     }
+    insert_request_messages(conn, request_id, canonical, carry_forward).await
+}
 
+/// Writes a request's message bridge without checking for an earlier one: for a
+/// request row inserted in the same transaction, which cannot have one yet.
+pub async fn insert_request_messages(
+    conn: &mut PgConnection,
+    request_id: i64,
+    canonical: &[CanonicalMessage],
+    carry_forward: &HashMap<String, i64>,
+) -> Result<(), PersistError> {
+    if canonical.is_empty() {
+        return Ok(());
+    }
     let new = collect_new_message_bodies(canonical, carry_forward)?;
 
     let mut new_ids: HashMap<String, i64> = HashMap::with_capacity(new.shas.len());

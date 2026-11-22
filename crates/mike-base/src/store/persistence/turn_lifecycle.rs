@@ -34,6 +34,8 @@ pub struct TurnLifecycleCtx {
     pub disposition: TurnDisposition,
     pub human_prompt: String,
     pub is_streaming: bool,
+    /// The request's origin is `subagent`, the only origin that inherits a turn.
+    pub subagent: bool,
 }
 
 pub fn opened_by_code(disposition: TurnDisposition) -> Option<&'static str> {
@@ -220,15 +222,28 @@ async fn write_nonstreaming_response(
     Ok(())
 }
 
+/// Refreshes the turn a subagent request inherited; says whether it had one.
+async fn materialize_inherited_turn(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    request_db_id: i64,
+) -> Result<bool, PersistError> {
+    let Some(turn_id) = inherited_request_turn(tx, request_db_id).await? else {
+        return Ok(false);
+    };
+    materialize_turn_aggregates(tx, turn_id).await?;
+    Ok(true)
+}
+
 pub async fn apply_operator_turn_lifecycle(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     ctx: &TurnLifecycleCtx,
     response_body: Option<&[u8]>,
 ) -> Result<Option<i64>, PersistError> {
-    attribute_inherited_requests(tx, ctx.request_db_id).await?;
+    if ctx.subagent {
+        attribute_inherited_requests(tx, ctx.request_db_id).await?;
+    }
     write_nonstreaming_response(tx, ctx, response_body).await?;
-    if let Some(turn_id) = inherited_request_turn(tx, ctx.request_db_id).await? {
-        materialize_turn_aggregates(tx, turn_id).await?;
+    if ctx.subagent && materialize_inherited_turn(tx, ctx.request_db_id).await? {
         return Ok(None);
     }
     let open_turn_id = sqlx::query_scalar!(

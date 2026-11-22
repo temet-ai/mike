@@ -171,7 +171,25 @@ pub async fn write_request_deltas(
             .await?;
         }
     }
+    insert_request_deltas(
+        conn,
+        request_id,
+        predecessor_request_id,
+        session_db_id,
+        rows,
+    )
+    .await
+}
 
+/// Writes a request's delta rows without reading what is stored: for a request
+/// row inserted in the same transaction, which has none yet.
+pub async fn insert_request_deltas(
+    conn: &mut PgConnection,
+    request_id: i64,
+    predecessor_request_id: Option<i64>,
+    session_db_id: i64,
+    rows: &[DeltaRow],
+) -> Result<(), PersistError> {
     if rows.is_empty() {
         return Ok(());
     }

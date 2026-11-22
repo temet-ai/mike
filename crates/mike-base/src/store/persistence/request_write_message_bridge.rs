@@ -205,6 +205,7 @@ pub async fn write_message_dedup_bridge(
     agent_instance_id: Option<i64>,
     session_db_id: i64,
     request_db_id: i64,
+    fresh_row: bool,
 ) -> Result<(), PersistError> {
     let Some(body_bytes) = req.request_body.as_ref() else {
         return Ok(());
@@ -241,9 +242,9 @@ pub async fn write_message_dedup_bridge(
     )
     .await?;
 
-    messages::write_request_messages(
+    write_bridge_messages(
         &mut *tx,
-        request_db_id,
+        (request_db_id, fresh_row),
         &canonical,
         &predecessor.carry_forward,
     )
@@ -265,13 +266,55 @@ pub async fn write_message_dedup_bridge(
         .await?;
     }
 
-    messages::write_request_deltas(
+    write_bridge_deltas(
         &mut *tx,
-        request_db_id,
+        (request_db_id, fresh_row),
         predecessor_request_id,
         session_db_id,
         delta_rows,
     )
-    .await?;
-    Ok(())
+    .await
+}
+
+/// A request row inserted in this transaction has no bridge rows yet, so its
+/// writes skip the read for earlier ones.
+async fn write_bridge_messages(
+    tx: &mut sqlx::PgConnection,
+    (request_db_id, fresh_row): (i64, bool),
+    canonical: &[messages::CanonicalMessage],
+    carry_forward: &std::collections::HashMap<String, i64>,
+) -> Result<(), PersistError> {
+    if fresh_row {
+        messages::insert_request_messages(tx, request_db_id, canonical, carry_forward).await
+    } else {
+        messages::write_request_messages(tx, request_db_id, canonical, carry_forward).await
+    }
+}
+
+async fn write_bridge_deltas(
+    tx: &mut sqlx::PgConnection,
+    (request_db_id, fresh_row): (i64, bool),
+    predecessor_request_id: Option<i64>,
+    session_db_id: i64,
+    rows: &[messages::DeltaRow],
+) -> Result<(), PersistError> {
+    if fresh_row {
+        messages::insert_request_deltas(
+            tx,
+            request_db_id,
+            predecessor_request_id,
+            session_db_id,
+            rows,
+        )
+        .await
+    } else {
+        messages::write_request_deltas(
+            tx,
+            request_db_id,
+            predecessor_request_id,
+            session_db_id,
+            rows,
+        )
+        .await
+    }
 }
