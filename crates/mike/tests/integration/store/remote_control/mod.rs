@@ -22,3 +22,5 @@ mod steerer_push_release;
 mod streaming;
 #[path = "support.rs"]
 pub(crate) mod support;
+#[path = "heartbeat_lease.rs"]
+mod heartbeat_lease;

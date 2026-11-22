@@ -424,10 +424,13 @@ impl PersistHandle {
             .fetch_optional(&self.pool)
             .await?;
             match row {
-                Some(r) => Ok(RenewedHeartbeat {
-                    session_id: r.session_id,
-                    lease_expires_at,
-                }),
+                Some(r) => {
+                    self.note_lease(r.session_id, lease_expires_at);
+                    Ok(RenewedHeartbeat {
+                        session_id: r.session_id,
+                        lease_expires_at,
+                    })
+                }
                 None => Err(PersistError::RegistrationNotFound(session_uuid)),
             }
         })

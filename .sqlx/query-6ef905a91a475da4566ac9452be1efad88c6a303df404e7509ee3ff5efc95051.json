@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n    SELECT r.session_id, r.lease_expires_at\n      FROM workspace.session_registrations r\n      JOIN remote_control.channels c ON c.session_id = r.session_id\n     WHERE c.cse_id = $1\n       AND r.released_at IS NULL\n), renewed AS (\n    UPDATE workspace.session_registrations r\n       SET lease_expires_at = now() + make_interval(mins => $2::int)\n      FROM target t\n     WHERE r.session_id = t.session_id\n       AND r.released_at IS NULL\n       AND t.lease_expires_at < now() + make_interval(mins => $3::int)\n RETURNING r.session_id, r.lease_expires_at\n)\nSELECT t.session_id AS \"session_id!\",\n       COALESCE(n.lease_expires_at, t.lease_expires_at) AS \"lease_expires_at!\"\n  FROM target t\n  LEFT JOIN renewed n ON n.session_id = t.session_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lease_expires_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "6ef905a91a475da4566ac9452be1efad88c6a303df404e7509ee3ff5efc95051"
+}

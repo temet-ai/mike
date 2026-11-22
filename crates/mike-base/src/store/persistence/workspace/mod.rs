@@ -46,6 +46,28 @@ pub struct RenewedHeartbeat {
     pub lease_expires_at: DateTime<Utc>,
 }
 
+const KNOWN_LEASES_CAPACITY: usize = 20_000;
+
+/// Lease expiries this process wrote or read, by session row id. A session
+/// heartbeat renews its lease about once a minute; a Remote Control
+/// heartbeat reads this to see that the lease needs nothing from it.
+#[derive(Default)]
+struct KnownLeases(dashmap::DashMap<i64, DateTime<Utc>>);
+
+impl super::PersistHandle {
+    pub fn note_lease(&self, session_id: i64, expires_at: DateTime<Utc>) {
+        let known = self.memo::<KnownLeases>();
+        if known.0.len() >= KNOWN_LEASES_CAPACITY {
+            known.0.clear();
+        }
+        known.0.insert(session_id, expires_at);
+    }
+
+    pub fn known_lease(&self, session_id: i64) -> Option<DateTime<Utc>> {
+        self.memo::<KnownLeases>().0.get(&session_id).map(|at| *at)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CoordinationEventRow {
     pub id: i64,

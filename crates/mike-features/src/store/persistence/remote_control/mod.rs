@@ -6,16 +6,20 @@ pub const PATH_HEARTBEAT: &str = "/worker/heartbeat";
 pub const PATH_DELIVERY: &str = "/worker/events/delivery";
 pub const PATH_STREAM: &str = "/worker/events/stream";
 const RENEW_WHEN_UNDER_MINUTES: i32 = 10;
-/// A renewal leaves at least `RENEW_WHEN_UNDER_MINUTES` on the lease, so a
-/// channel's heartbeats within the next five minutes can renew nothing.
-const RENEW_AGAIN_AFTER: std::time::Duration = std::time::Duration::from_secs(
-    (super::workspace::HEARTBEAT_LEASE_MINUTES as u64 - RENEW_WHEN_UNDER_MINUTES as u64) * 60,
-);
+/// How long a channel with no open registration waits before asking again.
+const NO_REGISTRATION_RETRY: std::time::Duration = std::time::Duration::from_secs(300);
 const LEASE_RENEWALS_CAPACITY: usize = 10_000;
 
-/// When each channel's heartbeat next needs to try renewing its session's lease.
+/// What each channel's heartbeat learned last time it asked: the session row
+/// it renews, or, when it has no open registration, when to ask again.
 #[derive(Default)]
-struct LeaseRenewals(dashmap::DashMap<String, std::time::Instant>);
+struct LeaseRenewals(dashmap::DashMap<String, ChannelLease>);
+
+#[derive(Clone, Copy)]
+enum ChannelLease {
+    Session(i64),
+    Unregistered(std::time::Instant),
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RemoteControlSignals<'a> {
@@ -131,15 +135,10 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 
     async fn renew_lease_on_heartbeat(self, cse_id: &str) {
-        let due = self.memo::<LeaseRenewals>();
-        let now = std::time::Instant::now();
-        if due.0.get(cse_id).is_some_and(|next| now < *next) {
+        let renewals = self.memo::<LeaseRenewals>();
+        if !self.lease_needs_heartbeat(&renewals, cse_id) {
             return;
         }
-        if due.0.len() >= LEASE_RENEWALS_CAPACITY {
-            due.0.clear();
-        }
-        due.0.insert(cse_id.to_owned(), now + RENEW_AGAIN_AFTER);
         let renewed = crate::metrics::time_db("remote_control_renew_lease_on_heartbeat", async {
             sqlx::query_file!(
                 "src/store/persistence/remote_control/renew_lease_on_heartbeat.sql",
@@ -147,12 +146,41 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 i32::try_from(super::workspace::HEARTBEAT_LEASE_MINUTES).unwrap_or(i32::MAX),
                 RENEW_WHEN_UNDER_MINUTES,
             )
-            .execute(&self.pool)
+            .fetch_all(&self.pool)
             .await
         })
         .await;
-        if let Err(error) = renewed {
-            tracing::warn!(%error, cse_id, "a heartbeat could not renew its session's roster lease");
+        let rows = match renewed {
+            Ok(rows) => rows,
+            Err(error) => {
+                tracing::warn!(%error, cse_id, "a heartbeat could not renew its session's roster lease");
+                return;
+            }
+        };
+        if renewals.0.len() >= LEASE_RENEWALS_CAPACITY {
+            renewals.0.clear();
+        }
+        let learned = match rows.first() {
+            Some(row) => {
+                self.note_lease(row.session_id, row.lease_expires_at);
+                ChannelLease::Session(row.session_id)
+            }
+            None => ChannelLease::Unregistered(std::time::Instant::now() + NO_REGISTRATION_RETRY),
+        };
+        renewals.0.insert(cse_id.to_owned(), learned);
+    }
+
+    /// False while the lease this process last saw for the channel's session
+    /// still has more than `RENEW_WHEN_UNDER_MINUTES` left: the statement
+    /// would renew nothing. A lease renewed elsewhere only moves later, so a
+    /// stale value costs one statement, which returns the current expiry.
+    fn lease_needs_heartbeat(&self, renewals: &LeaseRenewals, cse_id: &str) -> bool {
+        match renewals.0.get(cse_id).map(|entry| *entry) {
+            None => true,
+            Some(ChannelLease::Unregistered(retry_at)) => std::time::Instant::now() >= retry_at,
+            Some(ChannelLease::Session(session_id)) => self.known_lease(session_id).is_none_or(|at| {
+                at < Utc::now() + chrono::Duration::minutes(i64::from(RENEW_WHEN_UNDER_MINUTES))
+            }),
         }
     }
 
