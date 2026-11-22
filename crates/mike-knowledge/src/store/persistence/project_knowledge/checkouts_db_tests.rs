@@ -17,6 +17,17 @@ fn git(dir: &Path, args: &[&str]) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A folder mike does not treat as scratch, for repos that must make a project.
+/// The crate folder serves unless the checkout itself sits in a scratch place
+/// (a worktree under a session's scratchpad), and then the home folder does.
+fn non_scratch_parent() -> PathBuf {
+    let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    if !crate::workspace::checkouts::is_scratch(&format!("{}/", crate_dir.display())) {
+        return crate_dir;
+    }
+    std::env::var_os("HOME").map_or(crate_dir, PathBuf::from)
+}
+
 fn repo(parent: &Path, name: &str) -> anyhow::Result<PathBuf> {
     let path = fs::canonicalize(parent)?.join(name);
     fs::create_dir_all(path.join("src"))?;
@@ -126,7 +137,7 @@ async fn a_repository_no_project_holds_gets_one_project_across_machines() -> any
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let (mac, omit) = (Uuid::new_v4(), Uuid::new_v4());
-    let tmp = tempfile::tempdir_in(env!("CARGO_MANIFEST_DIR"))?;
+    let tmp = tempfile::tempdir_in(non_scratch_parent())?;
     let here = repo(tmp.path(), "here")?;
     let there = repo(tmp.path(), "there")?;
 
