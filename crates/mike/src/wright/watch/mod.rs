@@ -33,6 +33,8 @@ mod fixtures_tests;
 #[cfg(test)]
 mod forks_tests;
 #[cfg(test)]
+mod idle_polls_tests;
+#[cfg(test)]
 mod logs_collect_tests;
 #[cfg(test)]
 mod logs_tests;
