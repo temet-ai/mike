@@ -1,14 +1,13 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use axum::Json;
-use axum::extract::{Request, State};
-use axum::http::{Method, StatusCode};
-use axum::middleware::Next;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
+use super::read_wait::{Mark, Pending};
 use super::validation::ParsedSend;
 use crate::api::handlers::{PostSessionMessageBody, PostSessionMessageResponse, tail_for_sender};
 use crate::state::AppState;
@@ -17,7 +16,6 @@ use crate::store::persistence::PersistHandle;
 const ANSWER_BUDGET: Duration = Duration::from_millis(100);
 const RETRIES: u32 = 3;
 const FIRST_RETRY: Duration = Duration::from_secs(1);
-const READ_WAIT: Duration = Duration::from_secs(2);
 
 pub(super) struct Job {
     pub(super) to_session_uuid: uuid::Uuid,
@@ -32,43 +30,14 @@ struct Queued {
     handle: PersistHandle,
     job: Job,
     reply: oneshot::Sender<Result<Response, Response>>,
+    mark: Arc<Mark>,
 }
 
+#[derive(Default)]
 struct SendWriter {
     queue: OnceLock<mpsc::UnboundedSender<Queued>>,
-    pending: watch::Sender<usize>,
+    pending: Arc<Pending>,
 }
-
-impl Default for SendWriter {
-    fn default() -> Self {
-        Self {
-            queue: OnceLock::new(),
-            pending: watch::Sender::new(0),
-        }
-    }
-}
-
-pub(crate) async fn reads_after_sends(
-    State(state): State<AppState>,
-    request: Request,
-    next: Next,
-) -> Response {
-    if let Some(handle) = state.persist()
-        && !is_send(&request)
-    {
-        let mut pending = handle.memo::<SendWriter>().pending.subscribe();
-        let _ = tokio::time::timeout(READ_WAIT, pending.wait_for(|n| *n == 0)).await;
-    }
-    next.run(request).await
-}
-
-fn is_send(request: &Request) -> bool {
-    let path = request.uri().path();
-    request.method() == Method::POST
-        && path.starts_with("/api/sessions/")
-        && path.ends_with("/message")
-}
-
 pub(super) async fn accept(
     state: &AppState,
     handle: &PersistHandle,
@@ -79,17 +48,18 @@ pub(super) async fn accept(
     let from = job.parsed.from_session_uuid;
     let message_uuid = job.message_uuid;
     let liveness = job.liveness;
+    let writer = handle.memo::<SendWriter>();
+    let keys = [Some(to), from, job.parsed.thread_id_param];
+    let mark = Mark::new(writer.pending.clone(), keys.into_iter().flatten().collect());
     let queued = Queued {
         state: state.clone(),
         handle: handle.clone(),
         job,
         reply,
+        mark,
     };
-    let writer = handle.memo::<SendWriter>();
-    writer.pending.send_modify(|n| *n += 1);
     if let Err(mpsc::error::SendError(queued)) = queue(state, &writer).send(queued) {
-        writer.pending.send_modify(|n| *n -= 1);
-        return super::deliver_send(state, handle, &queued.job).await;
+        return super::deliver_send(state, handle, &queued.job, &|| {}).await;
     }
     match tokio::time::timeout(ANSWER_BUDGET, answer).await {
         Ok(Ok(answered)) => answered,
@@ -97,24 +67,22 @@ pub(super) async fn accept(
     }
 }
 
-fn queue(state: &AppState, writer: &std::sync::Arc<SendWriter>) -> mpsc::UnboundedSender<Queued> {
+pub(super) fn pending(handle: &PersistHandle) -> Arc<Pending> {
+    handle.memo::<SendWriter>().pending.clone()
+}
+
+fn queue(state: &AppState, writer: &SendWriter) -> mpsc::UnboundedSender<Queued> {
     writer
         .queue
         .get_or_init(|| {
             let (tx, rx) = mpsc::unbounded_channel();
-            state
-                .tracker()
-                .spawn(run(rx, writer.clone(), state.base.shutdown()));
+            state.tracker().spawn(run(rx, state.base.shutdown()));
             tx
         })
         .clone()
 }
 
-async fn run(
-    mut rx: mpsc::UnboundedReceiver<Queued>,
-    writer: std::sync::Arc<SendWriter>,
-    shutdown: CancellationToken,
-) {
+async fn run(mut rx: mpsc::UnboundedReceiver<Queued>, shutdown: CancellationToken) {
     loop {
         let next = tokio::select! {
             biased;
@@ -122,17 +90,13 @@ async fn run(
             () = shutdown.cancelled() => None,
         };
         match next {
-            Some(queued) => {
-                settle(queued).await;
-                writer.pending.send_modify(|n| *n -= 1);
-            }
+            Some(queued) => settle(queued).await,
             None => break,
         }
     }
     rx.close();
     while let Ok(queued) = rx.try_recv() {
         settle(queued).await;
-        writer.pending.send_modify(|n| *n -= 1);
     }
 }
 
@@ -142,11 +106,13 @@ async fn settle(queued: Queued) {
         handle,
         job,
         reply,
+        mark,
     } = queued;
+    let queued = || mark.release();
     let mut reply = Some(reply);
     let mut wait = FIRST_RETRY;
     for attempt in 0..=RETRIES {
-        let result = super::deliver_send(&state, &handle, &job).await;
+        let result = super::deliver_send(&state, &handle, &job, &queued).await;
         let status = match &result {
             Ok(response) | Err(response) => response.status(),
         };

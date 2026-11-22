@@ -6,11 +6,12 @@ use crate::store::persistence::proxy_repo::ProxyPersist as _;
 mod audit;
 mod hold;
 mod legacy_send;
+mod read_wait;
 mod threaded_send;
 mod validation;
 mod writer;
 
-pub(crate) use writer::reads_after_sends;
+pub(crate) use read_wait::reads_after_sends;
 
 use audit::record_failed_send;
 use validation::validate_send_request;
@@ -21,6 +22,7 @@ struct SendContext<'a> {
     message_uuid: uuid::Uuid,
     liveness: Option<crate::workspace::Liveness>,
     body: &'a PostSessionMessageBody,
+    queued: &'a (dyn Fn() + Send + Sync),
 }
 
 pub(crate) async fn post_session_message(
@@ -92,6 +94,7 @@ async fn deliver_send(
     state: &AppState,
     handle: &crate::store::persistence::PersistHandle,
     job: &writer::Job,
+    queued: &(dyn Fn() + Send + Sync),
 ) -> Result<Response, Response> {
     let writer::Job {
         to_session_uuid,
@@ -107,6 +110,7 @@ async fn deliver_send(
         message_uuid: *message_uuid,
         liveness,
         body,
+        queued,
     };
 
     let facts = mail_facts(&ctx);

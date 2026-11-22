@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages\n                    SET held_until_turn = false\n                  WHERE message_uuid = $1\n                    AND held_until_turn",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "74dc4c2161afd7208d6f2e902d15dae0c2814e69456dc296d6459246add29a6c"
+}

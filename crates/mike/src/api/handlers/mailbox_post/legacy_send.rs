@@ -11,7 +11,7 @@ use crate::state::AppState;
 use crate::store::persistence::mailbox::ThreadedMessageInsert;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-use super::hold::hold_directed;
+use super::hold::{Hold, hold_candidate_for, settle_hold};
 use super::{SendContext, record_failed_send};
 
 pub(super) async fn send(
@@ -19,9 +19,11 @@ pub(super) async fn send(
     state: &AppState,
     ctx: SendContext<'_>,
 ) -> Result<Response, Response> {
-    let held = hold_directed(handle, state, &ctx, None).await;
-    match insert(handle, &ctx, held).await {
+    let hold = hold_candidate_for(handle, state, &ctx, None).await;
+    match insert(handle, &ctx, Hold::provisional(hold.as_ref())).await {
         Ok(Some((from_session_uuid, queued_at))) => {
+            (ctx.queued)();
+            let held = settle_hold(handle, &ctx, hold).await;
             Ok(queued_response(handle, state, &ctx, (from_session_uuid, queued_at), held).await)
         }
         Ok(None) => Err(unqueued(handle, &ctx).await),

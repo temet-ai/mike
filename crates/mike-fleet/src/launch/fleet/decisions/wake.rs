@@ -146,25 +146,50 @@ pub async fn hold_with(
     decisions: Option<&FleetDecisions>,
     mail: &Mail<'_>,
 ) -> bool {
-    let Some(from) = mail.from else {
-        return false;
-    };
+    match hold_candidate_with(persist, decisions, mail).await {
+        Some(candidate) => candidate.decide(persist, mail).await,
+        None => false,
+    }
+}
+
+pub struct HoldCandidate {
+    decider: Decider,
+    seat: SeatContext,
+}
+
+impl HoldCandidate {
+    pub fn applies(&self) -> bool {
+        self.decider.applies()
+    }
+
+    pub async fn decide(&self, persist: &PersistHandle, mail: &Mail<'_>) -> bool {
+        judge(&self.decider, &self.seat, mail, persist).await
+    }
+}
+
+pub async fn hold_candidate(state: &BaseState, mail: &Mail<'_>) -> Option<HoldCandidate> {
+    let persist = state.persist()?;
+    hold_candidate_with(persist, FleetDecisions::from_state(state).as_ref(), mail).await
+}
+
+pub async fn hold_candidate_with(
+    persist: &PersistHandle,
+    decisions: Option<&FleetDecisions>,
+    mail: &Mail<'_>,
+) -> Option<HoldCandidate> {
+    let from = mail.from?;
     if crate::mailbox_served::mailbox_served(&mail.to.to_string()) {
-        return false;
+        return None;
     }
-    let Some(seat) = seat_context(persist, mail.to).await else {
-        return false;
-    };
+    let seat = seat_context(persist, mail.to).await?;
     if from_fleet_control(&seat.def, from) || seat.mode == Mode::Off {
-        return false;
+        return None;
     }
-    let Some(decider) = decisions.and_then(|d| d.decider(Point::WakeCheck, seat.mode)) else {
-        return false;
-    };
+    let decider = decisions.and_then(|d| d.decider(Point::WakeCheck, seat.mode))?;
     if answers_own_message(persist, mail).await {
-        return false;
+        return None;
     }
-    judge(&decider, &seat, mail, persist).await
+    Some(HoldCandidate { decider, seat })
 }
 
 async fn judge(

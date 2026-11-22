@@ -11,7 +11,7 @@ use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::mailbox::ThreadResolution;
 
-use super::hold::hold_directed;
+use super::hold::{Hold, hold_candidate_for, settle_hold};
 use super::{SendContext, record_failed_send};
 
 pub(super) struct ThreadingParams<'a> {
@@ -39,7 +39,7 @@ pub(super) async fn send(
         created_by_session_id,
     )
     .await?;
-    let held = hold_directed(handle, state, &ctx, in_reply_to_id).await;
+    let hold = hold_candidate_for(handle, state, &ctx, in_reply_to_id).await;
     let queued_at = insert_threaded_message_or_fail(
         handle,
         &ctx,
@@ -48,10 +48,12 @@ pub(super) async fn send(
             thread_id,
             created_by_session_id,
             in_reply_to_id,
-            held,
+            held: Hold::provisional(hold.as_ref()),
         },
     )
     .await?;
+    (ctx.queued)();
+    let held = settle_hold(handle, &ctx, hold).await;
     attach_tags(handle, &ctx, thread_id, thread_uuid).await;
     Ok(queued_response(
         handle,

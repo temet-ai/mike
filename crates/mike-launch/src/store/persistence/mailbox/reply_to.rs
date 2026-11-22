@@ -43,4 +43,23 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         })
         .await
     }
+
+    pub async fn release_held_message(
+        self,
+        message_uuid: uuid::Uuid,
+    ) -> Result<bool, PersistError> {
+        crate::metrics::time_db("mailbox_release_held_message", async move {
+            let done = sqlx::query!(
+                "UPDATE mailbox.messages
+                    SET held_until_turn = false
+                  WHERE message_uuid = $1
+                    AND held_until_turn",
+                message_uuid,
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(done.rows_affected() > 0)
+        })
+        .await
+    }
 }
