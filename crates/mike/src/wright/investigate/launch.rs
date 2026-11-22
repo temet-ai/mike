@@ -11,7 +11,7 @@ use super::context::{EngineerContext, Program};
 use super::home::{self, HomeInputs, RunDir};
 use super::relay::{RelayServer, RelayTargets};
 use super::sandbox::{self, SandboxPlan, WorkAccess};
-use super::{RunMode, RunRequest, slot};
+use super::{RunMode, RunRequest, login, slot};
 
 pub(crate) struct Launched {
     pub(crate) child: Child,
@@ -163,6 +163,12 @@ pub(crate) async fn launch(
     std::fs::write(start.dir.input.join("brief.txt"), &req.brief)
         .map_err(|e| format!("cannot write the brief: {e}"))?;
     let work = workspace(ctx, &req.mode).await?;
+    login::renew_if_short(
+        &ctx.paths.binaries.claude,
+        &ctx.paths.credentials,
+        start.deadline,
+    )
+    .await;
     let work_dir = work.0.clone();
     let plan = plan(ctx, req, start, work)?;
     let relay = relay(ctx, start)?;

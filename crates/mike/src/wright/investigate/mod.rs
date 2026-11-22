@@ -15,6 +15,7 @@ pub(crate) mod finding;
 mod finish;
 pub(crate) mod home;
 mod launch;
+mod login;
 pub(crate) mod process;
 pub(crate) mod reconcile;
 mod record;
@@ -35,6 +36,8 @@ mod brief_tests;
 mod context_tests;
 #[cfg(test)]
 mod finding_tests;
+#[cfg(test)]
+mod login_tests;
 #[cfg(test)]
 mod reconcile_tests;
 #[cfg(test)]

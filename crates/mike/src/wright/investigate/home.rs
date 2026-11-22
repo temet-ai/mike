@@ -97,6 +97,15 @@ fn expires_at(oauth: &Value) -> Option<DateTime<Utc>> {
         .and_then(DateTime::<Utc>::from_timestamp_millis)
 }
 
+pub(crate) fn login_is_short(raw: &[u8], deadline: DateTime<Utc>) -> bool {
+    serde_json::from_slice::<Value>(raw)
+        .ok()
+        .and_then(|parsed| parsed.get("claudeAiOauth").and_then(expires_at))
+        .is_some_and(|expiry| {
+            expiry < deadline + chrono::Duration::seconds(CREDENTIALS_MARGIN_SECONDS)
+        })
+}
+
 pub(crate) fn claude_credentials(raw: &[u8], deadline: DateTime<Utc>) -> Result<Value, String> {
     let parsed: Value = serde_json::from_slice(raw).map_err(|e| {
         format!(
@@ -113,7 +122,7 @@ pub(crate) fn claude_credentials(raw: &[u8], deadline: DateTime<Utc>) -> Result<
         let needed = deadline + chrono::Duration::seconds(CREDENTIALS_MARGIN_SECONDS);
         if expiry < needed {
             return Err(format!(
-                "the Claude login expires at {expiry}, before the run's deadline {deadline} plus {CREDENTIALS_MARGIN_SECONDS} s; it is refreshed by the next interactive session"
+                "the Claude login expires at {expiry}, before the run's deadline {deadline} plus {CREDENTIALS_MARGIN_SECONDS} s; Wright asked Claude Code to renew it and it stayed short; run `claude` on this machine and log in"
             ));
         }
     }
