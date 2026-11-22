@@ -4322,6 +4322,11 @@ not hold the lease skips the role's tick and logs it at debug level. A proxy wit
 identity file runs every role unleased. A claim result is remembered for 30 seconds, so an
 event-driven worker does not write a row per event.
 
+**Usage limit:** while this machine's Claude calls are held back after a usage-limit refusal
+(`llm::claude::limit::GATE`), it neither claims nor renews the lease of a model role
+(`holds_llm_role`), so the lease lapses and a machine whose account still has allowance takes the
+role over.
+
 **Read path:** `GET /api/capabilities` row `llm_worker_lease` lists the roles this machine holds and
 the roles another machine holds, with that machine's uuid and heartbeat age.
 

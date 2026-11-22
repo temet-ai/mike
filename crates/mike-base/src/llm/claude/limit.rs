@@ -41,6 +41,13 @@ impl LimitGate {
         }
     }
 
+    pub fn holding(&self, now: Instant) -> bool {
+        self.hold
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some_and(|h| now < h.until)
+    }
+
     pub fn limited(&self, now: Instant) -> Duration {
         let mut hold = self.hold.lock().unwrap_or_else(PoisonError::into_inner);
         let wait = hold
@@ -81,6 +88,20 @@ mod tests {
             r#"{"type":"result","is_error":false,"result":"ok"}"#
         ));
         assert!(!usage_limited("not json"));
+    }
+
+    #[test]
+    fn holding_limited_gate_is_true_until_the_wait_ends_or_a_call_answers() {
+        let gate = LimitGate::new();
+        let start = Instant::now();
+        assert!(!gate.holding(start));
+        let wait = gate.limited(start);
+        assert!(gate.holding(start));
+        assert!(gate.holding(start + wait - Duration::from_secs(1)));
+        assert!(!gate.holding(start + wait));
+        gate.limited(start);
+        gate.answered();
+        assert!(!gate.holding(start));
     }
 
     #[test]

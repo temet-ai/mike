@@ -174,6 +174,13 @@ impl PersistHandle {
         let Some(name) = role.as_db_value() else {
             return true;
         };
+        if crate::llm::claude::limit::GATE.holding(Instant::now()) {
+            tracing::debug!(
+                role = name,
+                "llm worker lease: this machine's Claude usage limit is reached; leaving the lease for another machine"
+            );
+            return false;
+        }
         self.holds_worker_role(name, loop_interval).await
     }
 
