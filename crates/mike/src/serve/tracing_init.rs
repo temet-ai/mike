@@ -35,8 +35,18 @@ pub(crate) fn set_log_level(level: &str) {
     }
 }
 
+/// The `notify` crate logs a WARN for every watch the kernel already dropped when a
+/// watched directory is deleted (a worktree removed under the change-record watcher):
+/// a normal event, not a problem, so only its errors are kept.
+const QUIET_TARGETS: &str = "notify::inotify=error";
+
+fn directives(level: &str) -> String {
+    format!("{level},{QUIET_TARGETS}")
+}
+
 fn reload_filter(handle: &FilterHandle, level: &str) -> Result<(), String> {
-    let filter = tracing_subscriber::EnvFilter::try_new(level).map_err(|e| e.to_string())?;
+    let filter =
+        tracing_subscriber::EnvFilter::try_new(directives(level)).map_err(|e| e.to_string())?;
     handle.reload(filter).map_err(|e| e.to_string())
 }
 
@@ -47,7 +57,8 @@ fn log_level_reload_failed(error: &str, level: &str) {
 fn build_filter_layer(config: &ProxyConfig) -> FilterLayer {
     let from_env = tracing_subscriber::EnvFilter::try_from_default_env();
     let rust_log_set = from_env.is_ok();
-    let filter = from_env.unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&config.log_level));
+    let filter = from_env
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(directives(&config.log_level)));
     let (layer, handle) = tracing_subscriber::reload::Layer::new(filter);
     if !rust_log_set {
         let _already_installed = FILTER_HANDLE.set(handle);
@@ -215,4 +226,15 @@ fn log_otel_shutdown_failed(message: &str) {
 
 fn log_otel_shutdown_ok() {
     info!("OpenTelemetry provider shut down");
+}
+
+#[cfg(test)]
+mod quiet_targets_tests {
+    use super::directives;
+
+    #[test]
+    fn a_level_keeps_notify_inotify_at_error() {
+        assert_eq!(directives("info"), "info,notify::inotify=error");
+        assert!(tracing_subscriber::EnvFilter::try_new(directives("debug")).is_ok());
+    }
 }
