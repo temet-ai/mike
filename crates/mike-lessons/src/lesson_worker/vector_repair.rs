@@ -3,12 +3,18 @@ use std::time::{Duration, Instant};
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
+
+const NOTHING_TO_REPAIR: &str = "lessons.no_vector_repairs";
+const LESSONS: &[RowChangedTable] = &[RowChangedTable::Lessons];
+const REPAIR_BACKSTOP: chrono::Duration = chrono::Duration::seconds(3_600);
 
 pub struct EmbeddingWork {
     pub consolidation: CircuitBreaker,
     repair_breaker: CircuitBreaker,
     after_id: i64,
+    settled_model: Option<String>,
 }
 
 impl EmbeddingWork {
@@ -17,14 +23,20 @@ impl EmbeddingWork {
             consolidation: breaker(),
             repair_breaker: breaker(),
             after_id: 0,
+            settled_model: None,
         }
     }
 
-    pub async fn repair(&mut self, persist: &PersistHandle, embedding: &EmbeddingService) {
-        if !embedding.is_available() || self.repair_breaker.should_skip(Instant::now()) {
-            return;
+    fn settled(&self, persist: &PersistHandle, model: &str) -> bool {
+        self.settled_model.as_deref() == Some(model)
+            && persist.is_fresh(NOTHING_TO_REPAIR, LESSONS, chrono::Utc::now())
+    }
+
+    async fn discover(&mut self, persist: &PersistHandle, model: String) -> Vec<(i64, String)> {
+        if self.settled(persist, &model) {
+            return Vec::new();
         }
-        let model = embedding.model_name();
+        let ticket = persist.fresh_ticket();
         let rows = match persist
             .lessons()
             .pending_lesson_vector_repairs(&model, self.after_id, 16)
@@ -33,13 +45,28 @@ impl EmbeddingWork {
             Ok(rows) => rows,
             Err(error) => {
                 tracing::warn!(%error, "lesson vector repair discovery failed");
-                return;
+                return Vec::new();
             }
         };
         if rows.is_empty() {
+            if self.after_id == 0 {
+                persist.mark_fresh(
+                    NOTHING_TO_REPAIR,
+                    ticket,
+                    Some(chrono::Utc::now() + REPAIR_BACKSTOP),
+                );
+                self.settled_model = Some(model);
+            }
             self.after_id = 0;
+        }
+        rows
+    }
+
+    pub async fn repair(&mut self, persist: &PersistHandle, embedding: &EmbeddingService) {
+        if !embedding.is_available() || self.repair_breaker.should_skip(Instant::now()) {
             return;
         }
+        let rows = self.discover(persist, embedding.model_name()).await;
         let started = Instant::now();
         for (id, text) in rows {
             if started.elapsed() >= Duration::from_secs(10) || !embedding.is_available() {

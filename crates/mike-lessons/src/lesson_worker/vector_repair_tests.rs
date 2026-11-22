@@ -1,5 +1,7 @@
 use super::vector_repair::EmbeddingWork;
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
+use crate::change_feed::ChangeFeed;
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::lessons::NewLessonWrite;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::{PersistHandle, test_support};
@@ -24,12 +26,37 @@ async fn seed(handle: &PersistHandle, project: i64, text: &str) -> anyhow::Resul
 }
 
 fn service(server: &MockServer) -> EmbeddingService {
+    service_with(server, "repair-model")
+}
+
+fn service_with(server: &MockServer, model: &str) -> EmbeddingService {
     EmbeddingService::new(&EmbeddingConfig {
         enabled: true,
         url: server.uri(),
-        model: "repair-model".to_owned(),
+        model: model.to_owned(),
         chunk_max_chars: 1500,
     })
+}
+
+fn fed(handle: &PersistHandle) -> ChangeFeed {
+    let feed = ChangeFeed::new();
+    let (_tx, rx) = tokio::sync::broadcast::channel(4);
+    crate::change_feed::spawn_change_feed(
+        &feed,
+        Some(handle),
+        rx,
+        tokio_util::sync::CancellationToken::new(),
+        &tokio_util::task::TaskTracker::new(),
+    );
+    feed
+}
+
+async fn embedding_calls(server: &MockServer) -> anyhow::Result<usize> {
+    Ok(server
+        .received_requests()
+        .await
+        .ok_or_else(|| anyhow::anyhow!("request capture unavailable"))?
+        .len())
 }
 
 async fn respond(server: &MockServer, status: u16) {
@@ -219,6 +246,77 @@ async fn vector_repair_excludes_expired_archived_and_unapproved_lessons() -> any
             .iter()
             .any(|lesson| lesson.id == raw)
     );
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn vector_repair_after_finding_none_stays_quiet_until_lessons_change() -> anyhow::Result<()> {
+    let Some(db) = test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let feed = fed(&handle);
+    let project = test_support::seed_project(handle.pool(), "vector-repair-quiet").await?;
+    let server = MockServer::start().await;
+    respond(&server, 200).await;
+    let mut work = EmbeddingWork::new();
+    work.repair(&handle, &service(&server)).await;
+    let id = seed(
+        &handle,
+        project,
+        "Lesson promoted where the feed did not hear it",
+    )
+    .await?;
+    handle
+        .lessons()
+        .promote_lesson_to_daily(id, &vec![0.5; 768], "old-model")
+        .await?;
+    work.repair(&handle, &service(&server)).await;
+    feed.record(RowChangedTable::Requests, None);
+    work.repair(&handle, &service(&server)).await;
+    assert_eq!(
+        embedding_calls(&server).await?,
+        0,
+        "no lesson change reached the feed"
+    );
+    feed.record(RowChangedTable::Lessons, None);
+    work.repair(&handle, &service(&server)).await;
+    assert_eq!(embedding_calls(&server).await?, 1);
+    assert!(
+        handle
+            .lessons()
+            .pending_lesson_vector_repairs("repair-model", 0, 16)
+            .await?
+            .is_empty()
+    );
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn vector_repair_after_finding_none_runs_again_when_the_embedder_changes()
+-> anyhow::Result<()> {
+    let Some(db) = test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let _feed = fed(&handle);
+    let project = test_support::seed_project(handle.pool(), "vector-repair-model").await?;
+    let id = seed(&handle, project, "Lesson embedded by the embedder in use").await?;
+    handle
+        .lessons()
+        .promote_lesson_to_daily(id, &vec![0.5; 768], "repair-model")
+        .await?;
+    let server = MockServer::start().await;
+    respond(&server, 200).await;
+    let mut work = EmbeddingWork::new();
+    work.repair(&handle, &service(&server)).await;
+    work.repair(&handle, &service(&server)).await;
+    assert_eq!(embedding_calls(&server).await?, 0);
+    work.repair(&handle, &service_with(&server, "next-model"))
+        .await;
+    assert_eq!(embedding_calls(&server).await?, 1);
     db.cleanup().await?;
     Ok(())
 }
