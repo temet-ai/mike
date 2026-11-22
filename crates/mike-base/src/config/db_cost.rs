@@ -35,7 +35,7 @@ impl Default for DbCostConfig {
             read_budget_ms: 50.0,
             periodic_budget_ms: 500.0,
             hot_above_calls_per_sec: 1.0,
-            periodic_below_calls_per_sec: 1.0 / 60.0,
+            periodic_below_calls_per_sec: 1.0 / 45.0,
             budget_floor_db_secs_per_hour: 10.0,
             statement_alarm_db_secs_per_hour: 300.0,
             total_alarm_db_secs_per_hour: 900.0,
@@ -58,6 +58,14 @@ mod tests {
         assert!(cfg.periodic_below_calls_per_sec < cfg.hot_above_calls_per_sec);
         assert!(cfg.statement_alarm_db_secs_per_hour <= cfg.total_alarm_db_secs_per_hour);
         assert!(cfg.top_statements > 0);
+    }
+
+    #[test]
+    fn defaults_count_a_job_that_runs_once_a_minute_as_periodic() {
+        let cfg = DbCostConfig::default();
+        let a_little_over_once_a_minute = 26.0 / 1500.0;
+        assert!(a_little_over_once_a_minute < cfg.periodic_below_calls_per_sec);
+        assert!(1.0 / 30.0 > cfg.periodic_below_calls_per_sec);
     }
 
     #[test]
