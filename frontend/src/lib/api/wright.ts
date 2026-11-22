@@ -54,7 +54,7 @@ export interface ProblemDetail {
 	next_episode_offset: number | null;
 }
 
-export type RemedyKind = 'tidy' | 'setting' | 'notice';
+export type RemedyKind = 'setting' | 'notice';
 
 export interface WrightRemedy {
 	name: string;

@@ -178,7 +178,7 @@ export function healthyProblems(): WrightProblem[] {
 export function actionFixture(over: Partial<WrightAction> = {}): WrightAction {
 	return {
 		id: 41,
-		remedy: 'notify_undelivered_sender',
+		remedy: 'tell_undelivered_senders',
 		problem_id: 703,
 		state: 'verified',
 		by: 'wright',
@@ -194,18 +194,18 @@ export function actions(): WrightAction[] {
 	return [
 		actionFixture({
 			id: 43,
-			remedy: 'close_orphan_launch',
+			remedy: 'tell_undelivered_senders',
 			problem_id: 707,
 			state: 'applied',
 			verified_at: null,
 			can_undo: true,
 			created_at: ago(12),
-			effect: { launch: 'l-9f21', closed: true }
+			effect: { notified: 'coordinator-e74ba661', messages: 1 }
 		}),
 		actionFixture({ id: 41 }),
 		actionFixture({
 			id: 38,
-			remedy: 'close_orphan_launch',
+			remedy: 'tell_undelivered_senders',
 			problem_id: 72,
 			state: 'ineffective',
 			can_undo: false,
@@ -219,26 +219,13 @@ export function actions(): WrightAction[] {
 export function remedies(): WrightRemedy[] {
 	return [
 		{
-			name: 'notify_undelivered_sender',
+			name: 'tell_undelivered_senders',
 			kind: 'notice',
-			action: 'notify_undelivered_sender',
+			action: 'tell_undelivered_senders',
 			check_name: 'undelivered_mail',
 			enabled: true,
 			daily_limit: 5,
 			max_resources: 3,
-			paused_at: null,
-			pause_reason: null,
-			actions_today: 1,
-			ineffective_runs: 0
-		},
-		{
-			name: 'close_orphan_launch',
-			kind: 'tidy',
-			action: 'close_orphan_launch',
-			check_name: 'session_tool_errors',
-			enabled: true,
-			daily_limit: 10,
-			max_resources: 5,
 			paused_at: ago(30),
 			pause_reason: 'Paused at your request until the fleet closes.',
 			actions_today: 2,
@@ -277,7 +264,7 @@ export function messages(): WrightMessage[] {
 		messageFixture({
 			id: 3,
 			created_at: ago(8),
-			body: 'Leave the launch fixer alone until the fleet closes.'
+			body: 'Leave the sender notices alone until the fleet closes.'
 		}),
 		messageFixture({
 			id: 4,
@@ -287,7 +274,7 @@ export function messages(): WrightMessage[] {
 			body: 'Paused. It stays off until the fleet closes.',
 			steer: {
 				id: 9,
-				change: { type: 'pause_remedy', name: 'close_orphan_launch', until: 'the fleet closes' },
+				change: { type: 'pause_remedy', name: 'tell_undelivered_senders', until: 'the fleet closes' },
 				applied_at: ago(7),
 				undone_at: null,
 				can_undo: true,

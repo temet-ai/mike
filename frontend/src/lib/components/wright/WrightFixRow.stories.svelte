@@ -10,10 +10,8 @@
 		tags: ['autodocs']
 	});
 
-	const [notify, tidy] = remedies() as [
-		ReturnType<typeof remedies>[number],
-		ReturnType<typeof remedies>[number]
-	];
+	const [paused] = remedies() as [ReturnType<typeof remedies>[number]];
+	const active = { ...paused, paused_at: null, pause_reason: null };
 	const ACTIONS = [actionFixture({ id: 1 }), actionFixture({ id: 2 })];
 </script>
 
@@ -32,8 +30,8 @@
 			class="edge"
 			style="list-style: none; margin: 0; padding: 0; max-inline-size: 44rem; --edge-surface: var(--surface-card);"
 		>
-			<WrightFixRow remedy={notify} actions={ACTIONS} />
-			<WrightFixRow remedy={tidy} actions={[]} />
+			<WrightFixRow remedy={active} actions={ACTIONS} />
+			<WrightFixRow remedy={paused} actions={[]} />
 		</ul>
 	{/snippet}
 </Story>

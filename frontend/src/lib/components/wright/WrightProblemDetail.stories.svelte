@@ -25,7 +25,7 @@
 			'https://github.com/temet-ai/mike/commit/afc42e23c4d1'
 		);
 		await expect(canvas.getByText(/Run 3: Finished/)).toBeVisible();
-		await expect(canvas.getByRole('button', { name: /^Undo: Close orphan launch/ })).toBeEnabled();
+		await expect(canvas.getByRole('button', { name: /^Undo: Tell undelivered senders/ })).toBeEnabled();
 	}}
 >
 	{#snippet template()}

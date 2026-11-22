@@ -15,10 +15,10 @@
 <Story
 	name="Default"
 	play={async ({ canvas }) => {
-		await expect(canvas.getByText('Paused: Close orphan launch')).toBeVisible();
+		await expect(canvas.getByText('Paused: Tell undelivered senders')).toBeVisible();
 		await expect(canvas.getByText('Until the fleet closes')).toBeVisible();
 		await userEvent.click(
-			canvas.getByRole('button', { name: 'Undo: Paused: Close orphan launch' })
+			canvas.getByRole('button', { name: 'Undo: Paused: Tell undelivered senders' })
 		);
 		await expect(onUndo).toHaveBeenCalledOnce();
 		await expect(canvas.getByText('Limit changed: Daily starts')).toBeVisible();
@@ -31,7 +31,7 @@
 			style="display: flex; flex-direction: column; gap: 8px; padding: 16px; max-inline-size: 40rem; background: var(--surface-card);"
 		>
 			<WrightChangeCard
-				change={{ type: 'pause_remedy', name: 'close_orphan_launch', until: 'the fleet closes' }}
+				change={{ type: 'pause_remedy', name: 'tell_undelivered_senders', until: 'the fleet closes' }}
 				undo="ready"
 				{onUndo}
 			/>

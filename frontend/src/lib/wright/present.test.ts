@@ -67,9 +67,9 @@ describe('problem links', () => {
 
 describe('fix verdict', () => {
 	const remedy: WrightRemedy = {
-		name: 'close_orphan_launch',
-		kind: 'tidy',
-		action: 'close_orphan_launch',
+		name: 'tell_undelivered_senders',
+		kind: 'notice',
+		action: 'tell_undelivered_senders',
 		check_name: 'x',
 		enabled: true,
 		daily_limit: 5,
@@ -128,10 +128,10 @@ describe('repair steps', () => {
 describe('steers and evidence refs', () => {
 	it('describes the closed set of steers', () => {
 		expect(
-			describeSteer({ type: 'pause_remedy', name: 'close_orphan_launch', until: 'tomorrow' })
+			describeSteer({ type: 'pause_remedy', name: 'tell_undelivered_senders', until: 'tomorrow' })
 		).toMatchObject({
 			icon: 'pause',
-			title: 'Paused: Close orphan launch',
+			title: 'Paused: Tell undelivered senders',
 			detail: 'Until tomorrow'
 		});
 		expect(describeSteer({ type: 'surprise' }).icon).toBe('other');

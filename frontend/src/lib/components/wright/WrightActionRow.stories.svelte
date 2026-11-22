@@ -23,7 +23,7 @@
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(
-			canvas.getByRole('button', { name: /^Undo: Close orphan launch, action 43/ })
+			canvas.getByRole('button', { name: /^Undo: Tell undelivered senders, action 43/ })
 		);
 		await expect(onUndo).toHaveBeenCalledWith(43);
 		await expect(canvas.getAllByRole('alert')[0]).toHaveTextContent(
@@ -44,7 +44,7 @@
 			<WrightActionRow
 				action={actionFixture({
 					id: 43,
-					remedy: 'close_orphan_launch',
+					remedy: 'tell_undelivered_senders',
 					state: 'applied',
 					can_undo: true,
 					verified_at: null
@@ -55,7 +55,7 @@
 			<WrightActionRow
 				action={actionFixture({
 					id: 44,
-					remedy: 'close_orphan_launch',
+					remedy: 'tell_undelivered_senders',
 					state: 'applied',
 					can_undo: true,
 					verified_at: null

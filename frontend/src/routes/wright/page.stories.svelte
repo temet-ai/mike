@@ -85,11 +85,11 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 		await userEvent.click(earlier);
 
 		await expect(
-			canvas.getAllByText('Close orphan launch', { selector: '.action__text' }).length
+			canvas.getAllByText('Tell undelivered senders', { selector: '.action__text' }).length
 		).toBeGreaterThanOrEqual(2);
 		await userEvent.click(canvas.getByRole('button', { name: /Known fixes/ }));
 		await expect(
-			await canvas.findByText('Notify undelivered sender', { selector: '.fix__title' })
+			await canvas.findByText('Tell undelivered senders', { selector: '.fix__title' })
 		).toBeVisible();
 		await expect(canvas.getAllByText('Paused').length).toBeGreaterThan(0);
 		await userEvent.click(canvas.getByRole('button', { name: /Known fixes/ }));
@@ -184,7 +184,7 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 	loaders={[setup({ ...normalScenario(), undo: 'conflict' }, true)]}
 	play={async ({ canvas }) => {
 		const undo = await canvas.findByRole('button', {
-			name: /^Undo: Close orphan launch, action 43/
+			name: /^Undo: Tell undelivered senders, action 43/
 		});
 		await userEvent.click(undo);
 		await waitFor(() =>
@@ -204,7 +204,7 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 		await expect(canvas.getByRole('textbox', { name: 'Message Wright' })).toBeDisabled();
 		await expect(canvas.getByRole('button', { name: 'Send' })).toBeDisabled();
 		await expect(await canvas.findByRole('button', { name: /^Undo: Paused/ })).toBeDisabled();
-		await expect(canvas.getByText('Paused: Close orphan launch')).toBeVisible();
+		await expect(canvas.getByText('Paused: Tell undelivered senders')).toBeVisible();
 	}}
 />
 
