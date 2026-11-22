@@ -148,20 +148,7 @@ async fn dispatch_routed(
     ctx: &DispatchCtx<'_>,
     is_event_stream: bool,
 ) -> Response<ResponseBody> {
-    let first = legs::send_routed(&buffered, ctx.clients, ctx.upstream_authority).await;
-    let sent = match first {
-        Err(RoutedFailure::Replayable(msg)) => {
-            ctx.health.set(HealthState::Down);
-            tracing::info!(reason = %msg, "routed leg unusable pre-send; holding the request while mike comes back");
-            if ctx.health.wait_up(ctx.cutover_grace).await {
-                legs::send_routed(&buffered, ctx.clients, ctx.upstream_authority).await
-            } else {
-                Err(RoutedFailure::Replayable(msg))
-            }
-        }
-        other => other,
-    };
-    match sent {
+    match send_routed_through_cutover(&buffered, ctx).await {
         Ok(resp) => resp,
         Err(RoutedFailure::Replayable(msg)) if is_event_stream => {
             event_stream_replay_skipped(ctx, &msg)
@@ -170,6 +157,26 @@ async fn dispatch_routed(
             retry_direct_after_replayable_failure(&buffered, ctx, &msg).await
         }
         Err(RoutedFailure::AfterSend(msg)) => mark_down_after_send_failure(ctx, &msg),
+    }
+}
+
+/// Sends on the routed leg. A send that fails before anything went out marks the
+/// leg Down, waits for it to come back within the cutover grace, and tries once
+/// more, so a request that arrives while mike restarts is still captured.
+async fn send_routed_through_cutover(
+    buffered: &Request<Bytes>,
+    ctx: &DispatchCtx<'_>,
+) -> Result<Response<ResponseBody>, RoutedFailure> {
+    let first = legs::send_routed(buffered, ctx.clients, ctx.upstream_authority).await;
+    let Err(RoutedFailure::Replayable(msg)) = first else {
+        return first;
+    };
+    ctx.health.set(HealthState::Down);
+    tracing::info!(reason = %msg, "routed leg unusable pre-send; holding the request while mike comes back");
+    if ctx.health.wait_up(ctx.cutover_grace).await {
+        legs::send_routed(buffered, ctx.clients, ctx.upstream_authority).await
+    } else {
+        Err(RoutedFailure::Replayable(msg))
     }
 }
 
