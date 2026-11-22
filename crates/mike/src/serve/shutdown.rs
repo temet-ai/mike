@@ -49,7 +49,12 @@ async fn race_serve_against_drain_deadline(
             proxy_shutdown.cancelled().await;
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         });
-    let inspect_serve = axum::serve(targets.inspect_listener, targets.inspect_app)
+    let inspect_serve = axum::serve(
+        targets.inspect_listener,
+        targets
+            .inspect_app
+            .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
         .with_graceful_shutdown(async move {
             inspect_shutdown.cancelled().await;
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;

@@ -8,7 +8,7 @@ use axum::middleware::{Next, from_fn};
 use axum::routing::get;
 use tower::ServiceExt as _;
 
-use super::{Labels, client_of, labels};
+use super::{Labels, client_of, first_in_the_hour, labels};
 
 fn agent(value: &str) -> anyhow::Result<HeaderMap> {
     let mut headers = HeaderMap::new();
@@ -59,4 +59,16 @@ async fn labels_in_a_route_layer_name_the_route_pattern_not_the_path() -> anyhow
         }]
     );
     Ok(())
+}
+
+#[test]
+fn first_in_the_hour_names_a_connection_once_per_route_and_method() {
+    let mut seen = std::collections::HashMap::new();
+    let now = std::time::Instant::now();
+    let key = |port: u16| ("/api/fleets".to_owned(), "GET".to_owned(), port);
+    assert!(first_in_the_hour(&mut seen, key(5100), now));
+    assert!(!first_in_the_hour(&mut seen, key(5100), now));
+    assert!(first_in_the_hour(&mut seen, key(5101), now));
+    let later = now + std::time::Duration::from_secs(3601);
+    assert!(first_in_the_hour(&mut seen, key(5100), later));
 }
