@@ -89,6 +89,8 @@ impl Worker {
         }
         if current.code_findings {
             self.poster.post(&self.persist, &roots).await;
+        } else {
+            self.poster.mark_stale();
         }
         self.poster.record_delivered(&self.persist).await;
         self.settle().await;
@@ -100,9 +102,7 @@ impl Worker {
         }
         self.settled = Some(Instant::now());
         log_settled(self.persist.fleet().settle_code_findings().await);
-        if let Err(err) = self.persist.fleet().record_code_finding_replies().await {
-            log_replies_failed(&err);
-        }
+        self.poster.record_replies(&self.persist).await;
     }
 
     async fn cursor(&mut self, root: &str) -> Option<i64> {
@@ -155,6 +155,7 @@ impl Worker {
             if !self.record(&git, rules.clone(), root, &change).await {
                 return last;
             }
+            self.poster.mark_stale();
             last = change.id;
         }
         if self.supersede(root, &mut deleted).await {
@@ -230,6 +231,3 @@ fn log_settle_failed(err: &crate::store::persistence::PersistError) {
     tracing::warn!(error = %err, "code findings: outcomes could not be settled");
 }
 
-fn log_replies_failed(err: &crate::store::persistence::PersistError) {
-    tracing::warn!(error = %err, "code findings: replies could not be recorded");
-}

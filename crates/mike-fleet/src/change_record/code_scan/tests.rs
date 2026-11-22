@@ -116,6 +116,28 @@ fn findings_wait_below_an_unnamed_change_and_are_posted_once() {
     assert!(notes.take(session, 10).is_empty());
 }
 
+#[test]
+fn poster_reads_findings_only_after_a_scan_or_while_a_change_is_unnamed() {
+    let notes = std::sync::Arc::new(mike_base::code_notes::CodeNotes::default());
+    let mut poster = Poster::new(notes);
+    let session = uuid::Uuid::new_v4();
+    assert!(poster.stale(), "a new poster reads once");
+    poster.hand_over(vec![ready(3, session)], None);
+    assert!(!poster.stale(), "nothing new to read until a scan");
+    poster.mark_stale();
+    assert!(poster.stale());
+    poster.hand_over(Vec::new(), Some(4));
+    assert!(poster.stale(), "an unnamed change keeps it reading");
+    poster.hand_over(Vec::new(), None);
+    assert!(!poster.stale());
+}
+
+#[test]
+fn poster_starts_waiting_for_replies_left_by_the_last_run() {
+    let notes = std::sync::Arc::new(mike_base::code_notes::CodeNotes::default());
+    assert!(Poster::new(notes).awaiting_replies());
+}
+
 const NO_PRINTLN: &str = "id: no-println\nlanguage: rust\nseverity: warning\nrule:\n  pattern: println!($$$)\nmessage: Use tracing.\n";
 
 #[tokio::test]

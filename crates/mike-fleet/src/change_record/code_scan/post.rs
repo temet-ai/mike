@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use mike_base::code_notes::{CodeNote, CodeNotes};
 
@@ -8,11 +9,15 @@ use crate::store::persistence::change_record::code_scan::ReadyFinding;
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 const DELIVERED_SEVERITIES: [&str; 2] = ["warning", "error"];
+const REPLY_WAIT: Duration = Duration::from_secs(61);
+const REPLY_BATCH: u64 = 100;
 
 pub struct Poster {
     notes: Arc<CodeNotes>,
     cursor: i64,
     posted: HashSet<i64>,
+    stale: bool,
+    last_delivery: Option<Instant>,
 }
 
 impl Poster {
@@ -21,11 +26,25 @@ impl Poster {
             notes,
             cursor: 0,
             posted: HashSet::new(),
+            stale: true,
+            last_delivery: Instant::now().checked_sub(REPLY_WAIT),
         }
     }
 
+    pub fn mark_stale(&mut self) {
+        self.stale = true;
+    }
+
+    pub fn stale(&self) -> bool {
+        self.stale
+    }
+
+    pub fn awaiting_replies(&self) -> bool {
+        self.last_delivery.is_some()
+    }
+
     pub async fn post(&mut self, persist: &PersistHandle, roots: &[String]) {
-        if roots.is_empty() {
+        if roots.is_empty() || !self.stale {
             return;
         }
         let severities: Vec<String> = DELIVERED_SEVERITIES
@@ -51,6 +70,7 @@ impl Poster {
     }
 
     pub fn hand_over(&mut self, rows: Vec<ReadyFinding>, unnamed_floor: Option<i64>) {
+        self.stale = unnamed_floor.is_some();
         let newest = rows.iter().map(|r| r.id).max().unwrap_or(self.cursor);
         for row in rows {
             if self.posted.insert(row.id) {
@@ -65,17 +85,38 @@ impl Poster {
         self.posted.retain(|id| *id > cursor);
     }
 
-    pub async fn record_delivered(&self, persist: &PersistHandle) {
+    pub async fn record_delivered(&mut self, persist: &PersistHandle) {
         let delivered = self.notes.drain_delivered();
         if delivered.is_empty() {
             return;
         }
-        if let Err(err) = persist
+        match persist
             .fleet()
             .mark_code_findings_delivered(&delivered)
             .await
         {
-            tracing::warn!(error = %err, count = delivered.len(), "code findings: delivery could not be recorded");
+            Ok(_) if delivered.iter().any(|d| d.request_id.is_some()) => {
+                self.last_delivery = Some(Instant::now());
+            }
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(error = %err, count = delivered.len(), "code findings: delivery could not be recorded");
+            }
+        }
+    }
+
+    pub async fn record_replies(&mut self, persist: &PersistHandle) {
+        let Some(last) = self.last_delivery else {
+            return;
+        };
+        match persist.fleet().record_code_finding_replies().await {
+            Ok(recorded) if recorded < REPLY_BATCH && last.elapsed() > REPLY_WAIT => {
+                self.last_delivery = None;
+            }
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(error = %err, "code findings: replies could not be recorded");
+            }
         }
     }
 }
