@@ -129,6 +129,10 @@ async fn measured_regression_goes_back_to_the_engineer_as_a_round_with_the_outpu
     let jobs = bench.ctx.engineer.jobs();
     assert_eq!(jobs.len(), 2);
     assert!(jobs[1].brief.contains("round 2"));
+    assert!(
+        jobs[0].brief.contains(super::attempt::SQL_BRIEF),
+        "a repair brief tells the repairer to compose SQL through views"
+    );
     let refusal = jobs[1]
         .inputs
         .iter()
