@@ -10,7 +10,7 @@ use super::{KnowledgeKindRow, ModelKeys, ProjectIdentity};
 use crate::store::persistence::{PersistError, SENTINEL_PROJECT_PATH};
 
 pub const COVERAGE_LIFETIME: Duration = Duration::from_secs(60);
-pub const KIND_HEALTH_LIFETIME: Duration = Duration::from_secs(60);
+pub const KIND_HEALTH_LIFETIME: Duration = Duration::from_secs(5 * 60);
 pub const NEAREST_FIRST_LIFETIME: Duration = Duration::from_secs(10 * 60);
 pub const NO_PROJECT_LIFETIME: Duration = Duration::from_secs(10 * 60);
 
