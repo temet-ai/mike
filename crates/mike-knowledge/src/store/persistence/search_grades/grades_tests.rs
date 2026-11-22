@@ -201,3 +201,26 @@ async fn insert_search_tuning_runs_writes_every_row_and_marks_the_window_tuned()
     assert_eq!(rows, vec![(true, 31), (false, 31)]);
     fixture.cleanup().await
 }
+
+#[tokio::test]
+async fn a_tuning_pass_counts_as_the_last_rerank_pass() -> anyhow::Result<()> {
+    let fixture = Fixture::boot(1).await?;
+    let ran_at = Utc::now() + Duration::days(500);
+    let key = format!("search.ranking.trace_{}", fixture.session);
+    fixture
+        .handle
+        .knowledge()
+        .insert_search_tuning_runs(TuningOutcome::Changed, &[run(&key, true)], 3, ran_at)
+        .await?;
+    let newest = fixture
+        .handle
+        .knowledge()
+        .newest_rerank_pass_trace_at()
+        .await?;
+    assert_eq!(
+        newest.map(|at| at.timestamp()),
+        Some(ran_at.timestamp()),
+        "a tuning pass with no graded search still marks the worker as having run"
+    );
+    Ok(())
+}

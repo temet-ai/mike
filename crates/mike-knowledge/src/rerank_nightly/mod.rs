@@ -82,7 +82,7 @@ pub fn spawn_rerank_nightly(state: &KnowledgeState) {
     let shutdown = state.shutdown();
     let tracker = state.tracker();
     tracker.spawn(async move {
-        let newest = persist.knowledge().newest_search_grade_at().await;
+        let newest = persist.knowledge().newest_rerank_pass_trace_at().await;
         memory_workers::seed(RERANK_NIGHTLY, newest.ok().flatten());
         let mut ticker = interval(TICK_INTERVAL);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);

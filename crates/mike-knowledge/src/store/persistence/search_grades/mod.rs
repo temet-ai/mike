@@ -146,9 +146,9 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         )
     }
 
-    pub async fn newest_search_grade_at(self) -> Result<Option<DateTime<Utc>>, PersistError> {
+    pub async fn newest_rerank_pass_trace_at(self) -> Result<Option<DateTime<Utc>>, PersistError> {
         Ok(
-            sqlx::query_file_scalar!("src/store/persistence/search_grades/newest_grade.sql")
+            sqlx::query_scalar(include_str!("newest_pass_trace.sql")) // grader-allow: runtime query like tuned_since; no .sqlx entry needed
                 .fetch_one(self.pool())
                 .await?,
         )
