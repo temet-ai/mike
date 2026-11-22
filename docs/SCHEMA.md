@@ -4059,6 +4059,8 @@ Seeded rows: `duplicate`(1) `expired`(2) `trimmed`(3) `superseded`(4) `operator`
 
 ### `memory.semantic_items`
 
+`trg_semantic_anchors_row_changed` (`20261120167210_semantic_anchors_row_changed.sql`) publishes `{table: "semantic_anchors", id, session_id: null, op}` on `proxy.row_changed` for each inserted row with `kind = 'anchor'` (written by `mike semantic anchors import` and by the worker's anchor carry). The semantic worker waits for it before it asks again for anchors to carry to its current embedder; turn and directive items stay silent.
+
 | Column | Definition |
 |---|---|
 | `id` | bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY |
@@ -6910,11 +6912,12 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_runtime_threads_row_changed` | `runtime.threads` | AFTER INSERT; `20261120166900` | `proxy.row_changed`, table `runtime_threads` |
 | `trg_steerers_row_changed`, `trg_steerers_row_changed_update` | `steering.steerers` | AFTER INSERT OR DELETE; AFTER UPDATE when the row changed; `20261120167100` | `proxy.row_changed`, table `steerers` |
 | `trg_dossier_directives_row_changed` | `memory.dossier_entries` | AFTER INSERT when `kind = 'directive'`; `20261120167200` | `proxy.row_changed`, table `dossier_directives` |
+| `trg_semantic_anchors_row_changed` | `memory.semantic_items` | AFTER INSERT when `kind = 'anchor'`; `20261120167210` | `proxy.row_changed`, table `semantic_anchors` |
 | `trg_workspace_questions_row_changed`, `trg_workspace_questions_row_changed_update` | `workspace.questions` | AFTER INSERT; AFTER UPDATE when the row changed; `20261120166992` | `proxy.row_changed`, table `workspace_questions`, `session_id` the recipient's uuid |
 | `trg_wright_repairs_row_changed`, `trg_wright_repairs_row_changed_update` | `wright.repairs` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_repairs` |
 | `trg_wright_followups_row_changed`, `trg_wright_followups_row_changed_update` | `wright.followups` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_followups` |
 
-This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads` and `dossier_directives`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
+This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads` and `dossier_directives`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
 
 ### Fill triggers (retired in the migration squash)
 

@@ -29,6 +29,7 @@ pub enum RowChangedTable {
     RuntimeThreads,
     Steerers,
     DossierDirectives,
+    SemanticAnchors,
     WorkspaceQuestions,
     WrightRepairs,
     WrightFollowups,

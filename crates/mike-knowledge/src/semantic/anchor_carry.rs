@@ -29,18 +29,24 @@ pub fn carried(source: &AnchorSource, embedder: &EmbedderRow, embedding: Vec<f32
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Carried {
+    pub found: usize,
+    pub written: u64,
+}
+
 pub async fn carry_anchors(
     persist: &PersistHandle,
     embedding: &EmbeddingService,
     embedder: &EmbedderRow,
     allow_remote: bool,
-) -> Result<u64, SemanticError> {
+) -> Result<Carried, SemanticError> {
     let sources = persist
         .knowledge()
         .anchors_missing_from(&embedder.embedder_key, CARRY_BATCH)
         .await?;
     if sources.is_empty() {
-        return Ok(0);
+        return Ok(Carried::default());
     }
     let texts: Vec<String> = sources.iter().map(|s| s.text.clone()).collect();
     let (_, vectors) = embed_checked(embedding, &texts, allow_remote).await?;
@@ -49,7 +55,11 @@ pub async fn carry_anchors(
         .zip(vectors)
         .map(|(source, vector)| carried(source, embedder, vector))
         .collect();
-    Ok(persist.knowledge().insert_semantic_items(&items).await?)
+    let written = persist.knowledge().insert_semantic_items(&items).await?;
+    Ok(Carried {
+        found: sources.len(),
+        written,
+    })
 }
 
 #[cfg(test)]

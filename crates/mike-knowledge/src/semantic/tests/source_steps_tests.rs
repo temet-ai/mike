@@ -110,3 +110,36 @@ fn directives_run_every_tick_without_a_change_feed() {
     let mut steps = settled_empty(&feed, SourceStep::Directives, now);
     assert!(!steps.nothing_new(SourceStep::Directives, &feed, KEY, now));
 }
+
+#[tokio::test]
+async fn anchors_found_empty_wait_until_an_anchor_is_written() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Anchors, now);
+    assert!(steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now));
+    fed.feed.record(RowChangedTable::DossierDirectives, None);
+    assert!(
+        steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now),
+        "a new directive does not wake the anchor step"
+    );
+    fed.feed.record(RowChangedTable::SemanticAnchors, None);
+    assert!(!steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now));
+}
+
+#[tokio::test]
+async fn anchors_found_empty_run_again_when_the_embedder_changes() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Anchors, now);
+    assert!(steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now));
+    assert!(!steps.nothing_new(SourceStep::Anchors, &fed.feed, "embedder-b", now));
+}
+
+#[tokio::test]
+async fn anchor_and_directive_steps_keep_separate_marks() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Anchors, now);
+    assert!(!steps.nothing_new(SourceStep::Directives, &fed.feed, KEY, now));
+    assert!(steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now));
+}

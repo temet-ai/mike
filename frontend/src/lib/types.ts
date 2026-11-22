@@ -1141,6 +1141,7 @@ export type RowChangedTable =
 	| 'runtime_threads'
 	| 'steerers'
 	| 'dossier_directives'
+	| 'semantic_anchors'
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups';

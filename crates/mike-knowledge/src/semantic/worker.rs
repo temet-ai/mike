@@ -14,7 +14,7 @@ use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 
-use super::anchor_carry::carry_anchors;
+use super::anchor_carry::{Carried, carry_anchors};
 use super::builder::{BuildReport, Builder};
 use super::config::SemanticConfig;
 use super::drift_job::DriftRun;
@@ -82,11 +82,11 @@ fn log_failed(e: &SemanticError) {
     tracing::warn!(error = %e, "semantic: tick failed");
 }
 
-fn log_carried(embedder: &str, carried: Result<u64, SemanticError>) {
+fn log_carried(embedder: &str, carried: &Result<Carried, SemanticError>) {
     match carried {
-        Ok(0) => {}
-        Ok(carried) => log_carry_count(embedder, carried),
-        Err(e) => log_carry_error(&e),
+        Ok(Carried { written: 0, .. }) => {}
+        Ok(carried) => log_carry_count(embedder, carried.written),
+        Err(e) => log_carry_error(e),
     }
 }
 
@@ -161,7 +161,14 @@ impl SemanticWorker {
         Ok(floors_due(has_floors, last_computed, last_attempt))
     }
 
-    async fn carry(&self, cfg: &SemanticConfig, embedder: &EmbedderRow) {
+    async fn carry(&self, cfg: &SemanticConfig, embedder: &EmbedderRow, sources: &mut SourceSteps) {
+        let feed = &self.base.change_feed;
+        let key = &embedder.embedder_key;
+        let now = Instant::now();
+        if sources.nothing_new(SourceStep::Anchors, feed, key, now) {
+            return;
+        }
+        let ticket = SourceSteps::ticket(feed);
         let carried = carry_anchors(
             &self.persist,
             &self.embedding,
@@ -169,7 +176,10 @@ impl SemanticWorker {
             cfg.allow_remote_embedding,
         )
         .await;
-        log_carried(&embedder.embedder_key, carried);
+        if let Ok(Carried { found, .. }) = carried {
+            sources.settle(SourceStep::Anchors, ticket, key, found, now);
+        }
+        log_carried(key, &carried);
     }
 
     async fn directives(
@@ -194,6 +204,7 @@ impl SemanticWorker {
         cfg: &SemanticConfig,
         embedder: &EmbedderRow,
         report: &mut TickReport,
+        sources: &mut SourceSteps,
     ) -> Result<(), SemanticError> {
         let status = self.handle.load().status.clone();
         let weekly_due = older_than(status.last_weekly_run, 24 * 7);
@@ -212,7 +223,7 @@ impl SemanticWorker {
             };
             report.floors_written = run.compute_all().await?.len();
         }
-        self.carry(cfg, embedder).await;
+        self.carry(cfg, embedder, sources).await;
         let env = self.base.decision_env();
         report.tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref())
             .await?
@@ -279,7 +290,8 @@ impl SemanticWorker {
             directives: self.directives(&builder, &mut state.sources).await?,
             ..TickReport::default()
         };
-        self.periodic(&cfg, &embedder, &mut report).await?;
+        self.periodic(&cfg, &embedder, &mut report, &mut state.sources)
+            .await?;
         Ok(report)
     }
 

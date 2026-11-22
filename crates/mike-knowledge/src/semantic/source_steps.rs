@@ -8,12 +8,14 @@ pub const SOURCE_BACKSTOP: Duration = Duration::from_secs(3_600);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceStep {
     Directives,
+    Anchors,
 }
 
 impl SourceStep {
     fn watched(self) -> &'static [RowChangedTable] {
         match self {
             Self::Directives => &[RowChangedTable::DossierDirectives],
+            Self::Anchors => &[RowChangedTable::SemanticAnchors],
         }
     }
 }
@@ -31,12 +33,14 @@ struct EmptyMark {
 #[derive(Debug, Default)]
 pub struct SourceSteps {
     directives: Option<EmptyMark>,
+    anchors: Option<EmptyMark>,
 }
 
 impl SourceSteps {
     fn slot(&mut self, step: SourceStep) -> &mut Option<EmptyMark> {
         match step {
             SourceStep::Directives => &mut self.directives,
+            SourceStep::Anchors => &mut self.anchors,
         }
     }
 
