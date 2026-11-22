@@ -206,10 +206,9 @@ when no such token is present — which is the case unless you installed a hook 
 **The steerer drain is not gated by the `steerer` toggle.** The drain runs on primary and
 first-primary turns, including queued mailbox deliveries.
 The `steerer` toggle still gates steerer-origin reminders, along with enrolment and freshness
-checks; it does not disable an explicitly queued mailbox message. A same-request LLM judge
-can run when an OpenRouter key is
-present *and* a steerer is enrolled for the session, independent of the toggle. With no key and
-no enrolments — the default — neither happens.
+checks; it does not disable an explicitly queued mailbox message. The drain itself makes no
+model call: steerers are judged in the background, and a verdict that fires is queued for the
+next drain.
 
 **Out-of-band delivery bypasses the request body.** When a session has a live Remote Control
 channel, a queued reminder can be pushed into that stream as a synthetic user turn instead of
