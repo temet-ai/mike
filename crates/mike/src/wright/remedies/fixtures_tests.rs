@@ -20,6 +20,13 @@ use crate::store::persistence::wright::remedies::{ActionFilter, ActionRow, Remed
 use crate::wright::watch::{WatchContext, run_check};
 use crate::wright::{CheckOutcome, CheckRun, Finding};
 
+pub(super) struct StuckMail {
+    pub(super) recipient: Uuid,
+    pub(super) to: i64,
+    pub(super) sender: i64,
+    pub(super) messages: Vec<Uuid>,
+}
+
 pub(super) struct Env {
     pub(super) db: TestDbHandle,
     pub(super) owners: Owners,
@@ -158,37 +165,16 @@ impl Env {
         .await?)
     }
 
-    pub(super) async fn orphan_launch(&self, run_id: Option<&str>) -> anyhow::Result<(i64, Uuid)> {
-        let uuid = Uuid::new_v4();
-        let session = self.session(uuid, "2 hours").await?;
+    pub(super) async fn fleet_seat(&self, seat: Uuid, run_id: &str) -> anyhow::Result<()> {
         sqlx::query(
-            "INSERT INTO workspace.session_registrations
-                 (session_id, project_id, cwd, lease_expires_at, released_at, reaped_at)
-             VALUES ($1, $2, '/wright/remedies', now() - interval '1 hour',
-                     now() - interval '1 hour', now() - interval '1 hour')",
+            "INSERT INTO launch.launches (session_uuid, backend, folder, run_id, seat, opened)
+             VALUES ($1, 'none', '/wright/remedies', $2, 'worker-1', true)",
         )
-        .bind(session)
-        .bind(self.project)
+        .bind(seat)
+        .bind(run_id)
         .execute(self.pool())
         .await?;
-        if let Some(run) = run_id {
-            sqlx::query(
-                "INSERT INTO launch.runs (run_id, backend) VALUES ($1, 'none') ON CONFLICT DO NOTHING",
-            )
-            .bind(run)
-            .execute(self.pool())
-            .await?;
-        }
-        let launch: i64 = sqlx::query_scalar(
-            "INSERT INTO launch.launches (session_uuid, backend, folder, run_id, seat, opened, created_at)
-             VALUES ($1, 'none', '/wright/remedies', $2, 'worker-1', true, now() - interval '3 hours')
-             RETURNING id",
-        )
-        .bind(uuid)
-        .bind(run_id)
-        .fetch_one(self.pool())
-        .await?;
-        Ok((launch, uuid))
+        Ok(())
     }
 
     pub(super) async fn running_fleet(
@@ -227,6 +213,39 @@ impl Env {
         .bind(from)
         .fetch_one(self.pool())
         .await?)
+    }
+
+    pub(super) async fn stuck_mail(&self, messages: usize) -> anyhow::Result<StuckMail> {
+        let recipient = Uuid::new_v4();
+        let to = self.session(recipient, "1 minute").await?;
+        let sender = self.session(Uuid::new_v4(), "1 minute").await?;
+        let mut queued = Vec::with_capacity(messages);
+        for _ in 0..messages {
+            queued.push(self.mail(to, Some(sender)).await?);
+        }
+        Ok(StuckMail {
+            recipient,
+            to,
+            sender,
+            messages: queued,
+        })
+    }
+
+    pub(super) async fn notices_to(&self, sender: i64) -> anyhow::Result<i64> {
+        Ok(sqlx::query_scalar(
+            "SELECT count(*) FROM mailbox.messages WHERE to_session_id = $1 AND from_session_id IS NULL",
+        )
+        .bind(sender)
+        .fetch_one(self.pool())
+        .await?)
+    }
+
+    pub(super) async fn read_all(&self, to: i64) -> anyhow::Result<()> {
+        sqlx::query("UPDATE mailbox.messages SET consumed_at = now() WHERE to_session_id = $1")
+            .bind(to)
+            .execute(self.pool())
+            .await?;
+        Ok(())
     }
 
     pub(super) async fn watch(&self, check: &str) -> anyhow::Result<RecordedRun> {
@@ -356,18 +375,5 @@ impl Env {
             })
             .await?;
         Ok(created.rule.id)
-    }
-
-    pub(super) async fn launch_closed(&self, id: i64) -> anyhow::Result<Option<String>> {
-        let launch = self
-            .owners
-            .persist
-            .web()
-            .wright_launch_state(id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("no launch {id}"))?;
-        Ok(launch
-            .closed_at
-            .map(|_| launch.close_reason.unwrap_or_default()))
     }
 }

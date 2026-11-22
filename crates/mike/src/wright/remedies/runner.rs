@@ -74,7 +74,7 @@ async fn act(
     action: Action,
     id: i64,
 ) -> Result<Value, Halt> {
-    let effect = match dispatch::seat(owners, item, action).await? {
+    let effect = match dispatch::seat(item, action)? {
         Some(seat) => match fleet::running(owners, seat).await? {
             Some(running) => fleet::tell(owners, item, id, &running, seat).await?,
             None => apply_owned(owners, item, action, id).await?,

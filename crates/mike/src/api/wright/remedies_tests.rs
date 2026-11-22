@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use serde_json::{Value, json};
+use uuid::Uuid;
 
 use super::remedies::{
     ActionsQuery, PatchRemedyBody, list_actions, list_remedies, patch_remedy, undo_action,
@@ -83,7 +84,7 @@ async fn the_seeded_remedies_are_listed_with_their_limits() -> anyhow::Result<()
         .as_array()
         .map(|all| all.iter().filter_map(|r| r["name"].as_str()).collect())
         .unwrap_or_default();
-    assert_eq!(names, ["close_orphan_launches", "tell_undelivered_senders"]);
+    assert_eq!(names, ["tell_undelivered_senders"]);
     let first = &body["remedies"][0];
     for field in [
         "kind",
@@ -108,7 +109,7 @@ async fn a_patch_outside_the_range_names_the_value() -> anyhow::Result<()> {
     let response = answer(
         patch_remedy(
             State(env.state.clone()),
-            Path("close_orphan_launches".to_owned()),
+            Path("tell_undelivered_senders".to_owned()),
             patch(json!({"daily_limit": 0}))?,
         )
         .await,
@@ -166,19 +167,19 @@ async fn enabling_a_paused_remedy_resumes_it_and_records_the_change() -> anyhow:
     env.cleanup().await
 }
 
-async fn closed_launch_action(env: &Env) -> anyhow::Result<i64> {
+async fn sender_notice_action(env: &Env) -> anyhow::Result<i64> {
     let handle = env.handle()?;
     let recorded = handle
         .web()
         .record_wright_run(&CheckRun {
-            check: "orphan_launches",
+            check: "undelivered_mail",
             source: "capture_db",
             cadence: "regular",
             started_at: Utc::now(),
             outcome: &CheckOutcome::Complete(vec![Finding {
-                scope: "launch".to_owned(),
-                resource: "424242".to_owned(),
-                evidence: json!({"launch_id": 424_242}),
+                scope: "mail".to_owned(),
+                resource: Uuid::new_v4().to_string(),
+                evidence: json!({"undelivered": 3}),
             }]),
             machine: None,
         })
@@ -187,8 +188,8 @@ async fn closed_launch_action(env: &Env) -> anyhow::Result<i64> {
     let due = handle.web().due_wright_actions(10).await?;
     let item = due
         .iter()
-        .find(|d| d.remedy == "close_orphan_launches")
-        .ok_or_else(|| anyhow::anyhow!("no due close"))?;
+        .find(|d| d.remedy == "tell_undelivered_senders")
+        .ok_or_else(|| anyhow::anyhow!("no due notice"))?;
     handle
         .web()
         .claim_wright_action(&item.remedy, item.problem_id, item.episode_id)
@@ -197,9 +198,9 @@ async fn closed_launch_action(env: &Env) -> anyhow::Result<i64> {
 }
 
 #[tokio::test]
-async fn actions_page_by_id_and_a_claimed_close_cannot_be_undone() -> anyhow::Result<()> {
+async fn actions_page_by_id_and_a_claimed_notice_cannot_be_undone() -> anyhow::Result<()> {
     let env = Env::boot().await?;
-    let id = closed_launch_action(&env).await?;
+    let id = sender_notice_action(&env).await?;
     let query = ActionsQuery {
         problem_id: None,
         limit: Some(1),

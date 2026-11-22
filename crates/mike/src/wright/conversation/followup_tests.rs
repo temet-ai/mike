@@ -7,13 +7,13 @@ use super::fakes_tests::{Db, FakeEngine, FakeSteers};
 use super::job::Processed;
 use super::worker::tick;
 
-const CHECK: &str = "orphan_launches";
+const CHECK: &str = "undelivered_mail";
 const ISSUE_URL: &str = concat!("https:", "/", "/example.test/issues/694");
 
 async fn problem(db: &Db) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar(
         "INSERT INTO wright.problems (check_name, source, scope, resource, state)
-         VALUES ($1, 'capture_db', 'launch', $2, 'open') RETURNING id",
+         VALUES ($1, 'capture_db', 'mail', $2, 'open') RETURNING id",
     )
     .bind(CHECK)
     .bind(Uuid::new_v4().to_string())
@@ -26,7 +26,7 @@ async fn handed_off_followup(db: &Db) -> anyhow::Result<(i64, Uuid)> {
     let id = sqlx::query_scalar(
         "INSERT INTO wright.followups (kind, check_name, title, body, state, issue_number, issue_url,
                                        filed_at, handed_off_at, fixer_session, fixer_machine)
-         VALUES ('root_cause', $1, 'why launches die', 'body', 'handed_off', 694,
+         VALUES ('root_cause', $1, 'why mail waits', 'body', 'handed_off', 694,
                  $3, now(), now(), $2, 'omit')
          RETURNING id",
     )

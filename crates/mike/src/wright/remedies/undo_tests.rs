@@ -157,16 +157,17 @@ async fn a_filter_rule_edited_since_refuses_its_undo() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn a_closed_launch_has_no_undo_and_is_left_as_it_is() -> anyhow::Result<()> {
+async fn a_sender_notice_has_no_undo_and_is_left_as_it_is() -> anyhow::Result<()> {
     let env = Env::boot().await?;
-    env.only("close_orphan_launches").await?;
-    env.orphan_launch(None).await?;
-    env.watch("orphan_launches").await?;
+    env.only("tell_undelivered_senders").await?;
+    let stuck = env.stuck_mail(3).await?;
+    env.watch("undelivered_mail").await?;
     pass(&env.owners).await?;
-    let row = env.actions("close_orphan_launches").await?.remove(0);
+    let row = env.actions("tell_undelivered_senders").await?.remove(0);
+    assert_eq!(row.state, "verified");
     assert!(!can_undo(&row));
     let Err(UndoError::Conflict(reason)) = undo(&env.owners, row.id).await else {
-        anyhow::bail!("a launch close has no undo");
+        anyhow::bail!("a sender notice has no undo");
     };
     assert!(reason.contains("cannot be undone"));
     let after = env
@@ -177,6 +178,7 @@ async fn a_closed_launch_has_no_undo_and_is_left_as_it_is() -> anyhow::Result<()
         .await?
         .ok_or_else(|| anyhow::anyhow!("action vanished"))?;
     assert_eq!(after.state, "verified");
+    assert_eq!(env.notices_to(stuck.sender).await?, 3);
     env.cleanup().await
 }
 

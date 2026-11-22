@@ -154,13 +154,13 @@ fn root_cause_brief_asks_why_the_check_keeps_failing_and_carries_the_title_as_da
         followup_id: 9,
         problem_id: 17,
         episode_id: 23,
-        check_name: "orphan_launches".to_owned(),
+        check_name: "undelivered_mail".to_owned(),
         title: HOSTILE.to_owned(),
     };
     let problem = problem("get_session");
     let episode = episode(json!({}));
     let brief = root_cause_brief(&problem, &episode, &[], &pick);
-    assert!(brief.contains("`orphan_launches` keeps failing"));
+    assert!(brief.contains("`undelivered_mail` keeps failing"));
     assert!(brief.contains("find why the check keeps failing"));
     assert!(brief.contains("not this one instance"));
     assert!(brief.contains("Follow-up 9"));

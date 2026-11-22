@@ -13,7 +13,6 @@ use crate::state::AppState;
 pub(crate) mod dispatch;
 pub(crate) mod filter_rule;
 pub(crate) mod fleet;
-pub(crate) mod launch;
 pub(crate) mod mail;
 pub(crate) mod owners;
 pub(crate) mod runner;
@@ -45,15 +44,13 @@ pub(crate) const TURN_OFF_AFTER_INEFFECTIVE: i32 = 3;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Action {
-    CloseOrphanLaunch,
     NotifyUndeliveredSender,
     SetSetting,
     DisableFilterRule,
 }
 
 impl Action {
-    pub(crate) const ALL: [Action; 4] = [
-        Action::CloseOrphanLaunch,
+    pub(crate) const ALL: [Action; 3] = [
         Action::NotifyUndeliveredSender,
         Action::SetSetting,
         Action::DisableFilterRule,
@@ -61,7 +58,6 @@ impl Action {
 
     pub(crate) fn code(self) -> &'static str {
         match self {
-            Action::CloseOrphanLaunch => "close_orphan_launch",
             Action::NotifyUndeliveredSender => "notify_undelivered_sender",
             Action::SetSetting => "set_setting",
             Action::DisableFilterRule => "disable_filter_rule",

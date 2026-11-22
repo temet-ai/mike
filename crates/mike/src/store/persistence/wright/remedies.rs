@@ -6,8 +6,6 @@ use crate::store::persistence::PersistError;
 
 mod reads;
 
-pub(crate) use reads::LaunchState;
-
 const LIST_REMEDIES: &str = include_str!("sql/remedies_list.sql");
 const PATCH_REMEDY: &str = include_str!("sql/remedy_patch.sql");
 const DUE: &str = include_str!("sql/remedy_due.sql");

@@ -15,7 +15,7 @@ use crate::store::persistence::wright::{
 };
 use crate::store::persistence::{PersistError, PersistHandle};
 
-pub(super) const CHECK: &str = "orphan_launches";
+pub(super) const CHECK: &str = "undelivered_mail";
 pub(super) const REPO: &str = "temet-ai/mike";
 pub(super) const QUIET_PROBE: &str = "0.10 0.20 0.30 1/200 999\n8\n";
 pub(super) const BUSY_PROBE: &str = "12.50 9.00 8.00 9/200 999\n8\n";
@@ -169,7 +169,7 @@ impl Env {
         let (problem, finding): (i64, i64) = sqlx::query_as(
             "WITH p AS (
                  INSERT INTO wright.problems (check_name, source, scope, resource, state)
-                 VALUES ($1, 'capture_db', 'launch', gen_random_uuid()::text, 'open') RETURNING id
+                 VALUES ($1, 'capture_db', 'mail', gen_random_uuid()::text, 'open') RETURNING id
              ), e AS (
                  INSERT INTO wright.episodes (problem_id, opened_by_run, last_seen_run, evidence)
                  SELECT id, $2, $2, '{}'::jsonb FROM p RETURNING id, problem_id

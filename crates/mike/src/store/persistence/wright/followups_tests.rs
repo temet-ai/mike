@@ -5,8 +5,8 @@ use super::{Fixer, FollowupLimitsPatch, NewFollowup};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 
-const CHECK: &str = "orphan_launches";
-const REMEDY: &str = "close_orphan_launches";
+const CHECK: &str = "undelivered_mail";
+const REMEDY: &str = "tell_undelivered_senders";
 
 struct Env {
     db: TestDbHandle,
@@ -33,7 +33,7 @@ impl Env {
     async fn problem(&self, check: &str, open_episode: bool) -> anyhow::Result<(i64, i64)> {
         let problem: i64 = sqlx::query_scalar(
             "INSERT INTO wright.problems (check_name, source, scope, resource, state)
-             VALUES ($1, 'capture_db', 'launch', $2, 'open') RETURNING id",
+             VALUES ($1, 'capture_db', 'mail', $2, 'open') RETURNING id",
         )
         .bind(check)
         .bind(Uuid::new_v4().to_string())
@@ -102,7 +102,7 @@ impl Env {
         Ok(sqlx::query_as(
             "WITH p AS (
                  INSERT INTO wright.problems (check_name, source, scope, resource, state)
-                 SELECT $1, 'capture_db', 'launch', gen_random_uuid()::text, 'open'
+                 SELECT $1, 'capture_db', 'mail', gen_random_uuid()::text, 'open'
                    FROM generate_series(1, $2::int)
                  RETURNING id
              ), e AS (
