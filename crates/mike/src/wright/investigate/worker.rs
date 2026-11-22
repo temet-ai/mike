@@ -37,19 +37,24 @@ fn log_spawned() {
 async fn run(state: AppState) {
     let shutdown = state.shutdown();
     let mut last_unavailable: Option<String> = None;
+    let mut reconcile_due = true;
     loop {
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
             () = tokio::time::sleep(TICK) => {}
         }
-        if !pass_once(&state, &mut last_unavailable).await {
+        if !pass_once(&state, &mut last_unavailable, &mut reconcile_due).await {
             return;
         }
     }
 }
 
-async fn pass_once(state: &AppState, last_unavailable: &mut Option<String>) -> bool {
+async fn pass_once(
+    state: &AppState,
+    last_unavailable: &mut Option<String>,
+    reconcile_due: &mut bool,
+) -> bool {
     if !state.feature_toggle_overlay.load().wright {
         return true;
     }
@@ -65,7 +70,9 @@ async fn pass_once(state: &AppState, last_unavailable: &mut Option<String>) -> b
     };
     *last_unavailable = None;
     if persist.holds_worker_role(LEASE_ROLE, TICK).await {
-        tick(&ctx).await;
+        tick(&ctx, reconcile_due).await;
+    } else {
+        *reconcile_due = true;
     }
     true
 }
@@ -262,11 +269,25 @@ async fn next_root_cause(ctx: &EngineerContext) -> Option<RunRequest> {
     }
 }
 
-pub(crate) async fn tick(ctx: &EngineerContext) -> Option<RunOutcome> {
-    if let Err(e) = reconcile::reconcile(&ctx.persist, &ctx.machine).await {
-        log_reconcile_failed(&e);
-        return None;
+pub(crate) async fn tick(
+    ctx: &EngineerContext,
+    reconcile_due: &mut bool,
+) -> Option<RunOutcome> {
+    if *reconcile_due {
+        match reconcile::settle(&ctx.persist, &ctx.machine).await {
+            Ok(settled) => *reconcile_due = settled.kept > 0,
+            Err(e) => {
+                log_reconcile_failed(&e);
+                return None;
+            }
+        }
     }
+    let outcome = pick_and_run(ctx).await;
+    *reconcile_due |= outcome.is_some();
+    outcome
+}
+
+async fn pick_and_run(ctx: &EngineerContext) -> Option<RunOutcome> {
     if repair_waiting(ctx).await || backing_off(ctx).await {
         return None;
     }

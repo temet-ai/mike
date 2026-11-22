@@ -3,7 +3,7 @@ use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use super::context::{Machine, Program};
-use super::reconcile::{GRACE, Liveness, Verdict, judge, reconcile};
+use super::reconcile::{GRACE, Liveness, Verdict, judge, reconcile, settle};
 use super::test_support::{HOST, Rig};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{Inserted, LiveRun, NewInvestigation};
@@ -162,5 +162,26 @@ async fn investigate_live_row_of_another_machine_blocks_a_start() -> anyhow::Res
         insert(persist, HOST, 1).await?,
         Inserted::Started { .. }
     ));
+    rig.cleanup().await
+}
+
+#[tokio::test]
+async fn settle_counts_live_rows_it_keeps_so_the_worker_watches_them() -> anyhow::Result<()> {
+    let rig = Rig::boot(Program::Claude).await?;
+    let persist = &rig.ctx.persist;
+    assert_eq!(settle(persist, &me()).await?.kept, 0);
+    let Inserted::Started { id, .. } = insert(persist, "other-host", 4242).await? else {
+        anyhow::bail!("the first start was refused");
+    };
+    let kept = settle(persist, &me()).await?;
+    assert_eq!((kept.done.len(), kept.kept), (0, 1));
+    sqlx::query(
+        "UPDATE wright.investigations SET deadline_at = now() - interval '1 hour' WHERE id = $1",
+    )
+    .bind(id)
+    .execute(persist.pool())
+    .await?;
+    let ended = settle(persist, &me()).await?;
+    assert_eq!((ended.done, ended.kept), (vec![id], 0));
     rig.cleanup().await
 }

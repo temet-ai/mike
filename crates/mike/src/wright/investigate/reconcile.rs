@@ -102,6 +102,15 @@ pub(crate) async fn reconcile(
     persist: &PersistHandle,
     me: &Machine,
 ) -> Result<Vec<i64>, PersistError> {
+    Ok(settle(persist, me).await?.done)
+}
+
+pub(crate) struct Settled {
+    pub(crate) done: Vec<i64>,
+    pub(crate) kept: usize,
+}
+
+pub(crate) async fn settle(persist: &PersistHandle, me: &Machine) -> Result<Settled, PersistError> {
     let live = persist.web().live_wright_runs().await?;
     let now = Utc::now();
     let checks = Liveness {
@@ -121,8 +130,9 @@ pub(crate) async fn reconcile(
         }
         ids.push(row.id);
     }
+    let kept = live.len() - ids.len();
     if ids.is_empty() {
-        return Ok(ids);
+        return Ok(Settled { done: ids, kept });
     }
     let done = persist.web().reconcile_wright_runs(&ids, &reasons).await?;
     for id in &done {
@@ -131,5 +141,5 @@ pub(crate) async fn reconcile(
             "wright: reconciled an engineer run that did not record its end"
         );
     }
-    Ok(done)
+    Ok(Settled { done, kept })
 }

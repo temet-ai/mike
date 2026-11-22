@@ -211,7 +211,7 @@ async fn investigate_tick_records_one_finding_per_open_episode() -> anyhow::Resu
     let rig = Rig::boot(script(FINDING_SCRIPT)).await?;
     let persist = rig.ctx.persist.clone();
     open_problem(&persist, "stream aborted").await?;
-    let outcome = worker::tick(&rig.ctx)
+    let outcome = worker::tick(&rig.ctx, &mut true)
         .await
         .ok_or_else(|| anyhow::anyhow!("no run started"))?;
     let finding_id = outcome
@@ -224,7 +224,7 @@ async fn investigate_tick_records_one_finding_per_open_episode() -> anyhow::Resu
         .ok_or_else(|| anyhow::anyhow!("finding gone"))?;
     assert!(!finding.cause_established);
     assert!(finding.problem_id.is_some() && finding.episode_id.is_some());
-    assert!(worker::tick(&rig.ctx).await.is_none());
+    assert!(worker::tick(&rig.ctx, &mut true).await.is_none());
     open_problem(&persist, "second problem").await?;
     sqlx::query(
         "INSERT INTO wright.investigations (mode, problem_id, episode_id, session_uuid, state, host, deadline_at, ended_at, end_reason)
@@ -235,7 +235,7 @@ async fn investigate_tick_records_one_finding_per_open_episode() -> anyhow::Resu
     .bind(i32::try_from(worker::MAX_ATTEMPTS_PER_EPISODE)?)
     .execute(persist.pool())
     .await?;
-    assert!(worker::tick(&rig.ctx).await.is_none());
+    assert!(worker::tick(&rig.ctx, &mut true).await.is_none());
     rig.cleanup().await
 }
 
@@ -266,7 +266,7 @@ async fn investigate_tick_records_every_followup_and_links_a_root_cause_run_to_i
         .open_root_cause_followup("request_failures", "close_stream", 12, 7)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no root-cause follow-up opened"))?;
-    let outcome = worker::tick(&rig.ctx)
+    let outcome = worker::tick(&rig.ctx, &mut true)
         .await
         .ok_or_else(|| anyhow::anyhow!("no run started"))?;
     let finding_id = outcome
@@ -291,6 +291,19 @@ async fn investigate_tick_records_every_followup_and_links_a_root_cause_run_to_i
         .find(|row| row.id == root)
         .ok_or_else(|| anyhow::anyhow!("root-cause follow-up gone"))?;
     assert_eq!(linked.findings, vec![finding_id]);
-    assert!(worker::tick(&rig.ctx).await.is_none());
+    assert!(worker::tick(&rig.ctx, &mut true).await.is_none());
+    rig.cleanup().await
+}
+
+#[tokio::test]
+async fn tick_with_no_live_run_stops_reconciling_until_a_run() -> anyhow::Result<()> {
+    let rig = Rig::boot(script("true")).await?;
+    let mut reconcile_due = true;
+    assert!(
+        worker::tick(&rig.ctx, &mut reconcile_due)
+            .await
+            .is_none()
+    );
+    assert!(!reconcile_due);
     rig.cleanup().await
 }
