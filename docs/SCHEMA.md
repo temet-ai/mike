@@ -351,6 +351,8 @@ are rejected. Existing Claude sessions do not need a namespace backfill.
 
 ### `runtime.threads`
 
+`trg_runtime_threads_row_changed` (`20261120166900_runtime_threads_row_changed.sql`) publishes `{table: "runtime_threads", id: provider_thread_id, session_id, op}` on `proxy.row_changed` for each new row. The mail outbox worker waits for it while no Codex thread is bound: the outbox carries only mail to or from a Codex session, and a binding is written once per Codex thread.
+
 | Column | Definition / purpose |
 |---|---|
 | `session_id` | BIGINT PRIMARY KEY; FK to `sessions.sessions(id)`, ON DELETE CASCADE |
@@ -1877,6 +1879,8 @@ a split between runs.
 
 ### `eval.rejudge_runs`
 
+Every insert, update and delete publishes `proxy.row_changed` (table `rejudge_runs`, `20261120166400`), so both judge workers look for an active run again only after a run row changed.
+
 The D9 history re-judge: `bundle_id`, `window_since`, `window_until`, `daily_call_cap`, `status` (`queued`, `running`, `done`, `cancelled`), `estimated_calls`, `estimated_usd`, `created_by`, and timestamps. A unique partial index allows one queued or running run. Progress and cost are read from `memory.turn_verdicts` at request time.
 
 Columns added by the judgement-context migrations (definition as migrated):
@@ -1938,7 +1942,7 @@ Seeded rows: `prompt`(1) `assistant`(2).
 ### `memory.lessons`
 
 Operator/agent-authored memory entries scoped to a project. Pulled by `recall_project_context`. `kind_id`,
-`stage_id`, `source_id`, `archived_reason_id` are FK lookups. `request_id` is a real FK ON DELETE SET NULL.
+`stage_id`, `source_id`, `archived_reason_id` are FK lookups. `request_id` is a real FK ON DELETE SET NULL. Inserts and deletes publish `proxy.row_changed` (table `lessons`), and an update publishes only when `stage_id`, `embedded_at`, `project_id` or `source_id` changed, because usage-count updates change nothing the lesson worker filters on (`20261120166400_learning_row_changed.sql`; `memory.lesson_shape_findings` publishes to the same table).
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -4678,6 +4682,8 @@ Columns added by the judgement-context migrations (definition as migrated):
 
 ### `steering.guard_thresholds`
 
+Every insert, update and delete publishes `proxy.row_changed` (table `guard_thresholds`, `20261120166400`); the cross-session worker re-reads the thresholds in force only after it, since rows change only when a threshold pass writes them.
+
 Added in migration `20260925000800_guard_thresholds.sql` (JC18). Append-only history of calibrated guard thresholds, one row per (steerer, question, scope, project) per `eval.rollups` generation: the label basis, the question and threshold modes, the labelled count, the bar, floor, ceiling and static threshold, the candidate, the threshold in force after the row, the `decision` (`applied`, `shadow_only`, `held_hysteresis`, `held_cooldown`, `held_wake_floor`, `insufficient`, `mode_off`) and every bin used in `detail`. The threshold in force is the latest `applied` row per key. `20260925000801_change_log_calibration.sql` widens `config.change_log` with `guard_threshold` and `directive_decision` subjects and the `calibration` via, and lets `steer_calibration` rates carry `metric = 'precision'` (JC18's candidate bins).
 
 Columns added by the judgement-context migrations (definition as migrated):
@@ -4849,7 +4855,7 @@ sends and SET NULL if the sending session is deleted.
 | `consumed_at` | `TIMESTAMPTZ NULL` | Stamped by `POST /api/sessions/{id}/messages/{uuid}/ack` — explicit recipient acknowledgment; stops redelivery |
 | `dead_lettered_at` | `TIMESTAMPTZ NULL` | Stamped when `delivery_attempts` reaches `mailbox_redelivery_max_attempts` without an ack — stops redelivery |
 | `delivery_attempts` | `INT NOT NULL DEFAULT 0` | Count of successful envelope injections (first send + every redelivery) |
-| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114190000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn |
+| `held_until_turn` | `BOOLEAN NOT NULL DEFAULT false` | Added by `20261114190000_fleet_decisions.sql`. The fleet wake check judged that the message need not wake its seat; the channel claim skips it while the check is on, the drain delivers it with the seat's next turn. Lifting the hold (true to false, `release_held_mail`, or one message by `release_held_message` when the wake check answers `wake`) publishes `proxy.row_changed`, as does releasing a claim (`claimed_at` back to NULL, `unclaim_message`), since `20261120166100`: the channel claim and the dead-letter revive remember per recipient that they found nothing until the mailbox changes. Setting `claimed_at` publishes nothing |
 
 **Indexes:**
 - `idx_mailbox_messages_from_session`: `from_session_id WHERE NOT NULL` (BTree partial) — reply pointer queries
@@ -5635,8 +5641,8 @@ brief is the one thing a launched session was told that a captured transcript ca
 | `stderr_truncated` | `BOOLEAN NOT NULL DEFAULT FALSE` | Whether more than 64 KiB was cut |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
 | `opened_at` / `closed_at` | `TIMESTAMPTZ NULL` each | |
-| `close_reason` | `TEXT NULL` | |
-| `close_process_exited` | `BOOLEAN NULL` | Whether the claude process had exited by the time the surface was closed. NULL when the backend could not tell |
+| `close_reason` | `TEXT NULL` | Why the row was closed. The launch reaper's `close_gone_launches` writes `session ended` (the session's registration was released after the launch was created), `process reaped` (the workspace reaper released it), `never started` (the launch never opened), `session never reached mike` (it opened but the session has no row, registration or request) or `session went quiet` (it opened and the session has no open registration and no activity in a day). Other closers write their own text |
+| `close_process_exited` | `BOOLEAN NULL` | Whether the claude process had exited by the time the surface was closed. NULL when the backend could not tell. `close_gone_launches` sets it true when the registration was released or the launch never opened, and leaves it NULL for an opened launch with no registration |
 | `identity` | `JSONB NULL` | Added in `20260920000003_launch_identity.sql`. Spawn-time identity handoff for the preassigned `session_uuid`: `{"name", "role", "instructions", "goal", "next_steps"}`, every key optional. Read once by workspace registration and applied to `sessions.session_goals`, never re-applied over a value the session has since declared for itself. One JSONB column rather than four text columns on an already forty-column table because nothing sorts, groups or searches launches by these — the only lookup is "the launch row for this session_uuid", already served by `idx_launch_launches_session_uuid` |
 
 **Indexes:**
@@ -6650,8 +6656,16 @@ restart. About fifteen rows a day per machine; no retention sweep.
 
 Added in migration `20261112090000_wright_checks.sql` (temet-ai/mike#72). One row per Wright check;
 the watch worker loads the enabled rows due for each pass (`PersistHandle::enabled_wright_checks`).
-Seeded with eleven checks. `GET/POST /api/wright/checks`, `PATCH/DELETE /api/wright/checks/{name}`
+Seeded with eleven checks; later migrations add and change rows. `GET/POST /api/wright/checks`, `PATCH/DELETE /api/wright/checks/{name}`
 and the `wright_checks` MCP tool read and write it while mike runs.
+
+Changes to the seeded set since then:
+
+- `20261120166500_wright_waste_checks.sql` adds `idle_polls` (a statement run often by a role in `params.roles` that changes or returns almost no rows per call), `steering_work_without_reader` (steerer LLM calls made after their steerer was disabled or deleted, and acceptance-criteria writer calls made while no verifier is enabled) and `stale_launches` (open launches the launch reaper should have closed). It deletes the check `orphan_launches` and its remedy `close_orphan_launches` with every row that referred to them (investigations, follow-ups, inbox entries, the remedy's actions and changes, the check's runs, problems, episodes and causes), and narrows the `wright.remedies` CHECK constraints to the kinds `setting` and `notice` and the actions `notify_undelivered_sender`, `set_setting` and `disable_filter_rule`.
+- `20261120166950_wright_checks_heal_unchanged_evidence.sql`: `slow_queries` (new param `stale_grace_minutes`) and `idle_polls` leave a statement unflagged, so its problem heals, when nothing has called it since its evidence, and do not reopen a closed problem from evidence that has not changed.
+- `20261120166960_wright_checks_report_current_problems.sql`: `steering_work_without_reader` and `wright_engineer_runs` report only while the last wasted call or failed run is within `params.recent_minutes`, not for the whole lookback.
+- `20261120166965_idle_polls_one_hour_window.sql` shortens `idle_polls`' window so a statement fixed early in it does not stay flagged on its old rate.
+- `20261120166800_wright_repair_22_superseded.sql` drops repair 22 and closes the two problems it served, because its target statement was replaced.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -6881,8 +6895,16 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_sessions_row_changed` | `sessions.sessions` | AFTER UPDATE | `proxy.row_changed` |
 | `trg_filter_rules_row_changed` | `rules.rules` | AFTER INSERT OR UPDATE OR DELETE | `proxy.row_changed` |
 | `trg_prompt_compositions_row_changed` | `overrides.overrides` | AFTER INSERT OR UPDATE OR DELETE | `proxy.row_changed` |
+| `trg_mailbox_messages_row_changed_update` | `mailbox.messages` | AFTER UPDATE, when a listed column changed, a hold is lifted (`held_until_turn` true to false) or a claim is released (`claimed_at` set to NULL); `20261120166100` | `proxy.row_changed` |
+| `trg_lessons_row_changed` | `memory.lessons` | AFTER INSERT OR DELETE; `20261120166400` | `proxy.row_changed`, table `lessons` |
+| `trg_lessons_row_changed_update` | `memory.lessons` | AFTER UPDATE, only when `stage_id`, `embedded_at`, `project_id` or `source_id` changed | `proxy.row_changed`, table `lessons` |
+| `trg_lesson_shape_findings_row_changed`, `trg_lesson_shape_findings_row_changed_update` | `memory.lesson_shape_findings` | AFTER INSERT OR DELETE; AFTER UPDATE only when `resolution` or `lesson_id` changed | `proxy.row_changed`, table `lessons` |
+| `trg_rejudge_runs_row_changed`, `trg_rejudge_runs_row_changed_update` | `eval.rejudge_runs` | AFTER INSERT OR DELETE; AFTER UPDATE when the row changed | `proxy.row_changed`, table `rejudge_runs` |
+| `trg_guard_thresholds_row_changed`, `trg_guard_thresholds_row_changed_update` | `steering.guard_thresholds` | AFTER INSERT OR DELETE; AFTER UPDATE when the row changed | `proxy.row_changed`, table `guard_thresholds` |
+| `trg_wright_reply_jobs_row_changed` | `wright.reply_jobs` | AFTER INSERT; `20261120166600` | `proxy.row_changed`, table `wright_reply_jobs` |
+| `trg_runtime_threads_row_changed` | `runtime.threads` | AFTER INSERT; `20261120166900` | `proxy.row_changed`, table `runtime_threads` |
 
-There is no `trg_lessons_row_changed` in the current schema.
+This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`) publish `session_id` NULL, except `runtime_threads`, which publishes the owning session's uuid; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
 
 ### Fill triggers (retired in the migration squash)
 
