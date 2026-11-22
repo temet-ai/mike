@@ -6,6 +6,16 @@ pub const PATH_HEARTBEAT: &str = "/worker/heartbeat";
 pub const PATH_DELIVERY: &str = "/worker/events/delivery";
 pub const PATH_STREAM: &str = "/worker/events/stream";
 const RENEW_WHEN_UNDER_MINUTES: i32 = 10;
+/// A renewal leaves at least `RENEW_WHEN_UNDER_MINUTES` on the lease, so a
+/// channel's heartbeats within the next five minutes can renew nothing.
+const RENEW_AGAIN_AFTER: std::time::Duration = std::time::Duration::from_secs(
+    (super::workspace::HEARTBEAT_LEASE_MINUTES as u64 - RENEW_WHEN_UNDER_MINUTES as u64) * 60,
+);
+const LEASE_RENEWALS_CAPACITY: usize = 10_000;
+
+/// When each channel's heartbeat next needs to try renewing its session's lease.
+#[derive(Default)]
+struct LeaseRenewals(dashmap::DashMap<String, std::time::Instant>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RemoteControlSignals<'a> {
@@ -121,6 +131,15 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     }
 
     async fn renew_lease_on_heartbeat(self, cse_id: &str) {
+        let due = self.memo::<LeaseRenewals>();
+        let now = std::time::Instant::now();
+        if due.0.get(cse_id).is_some_and(|next| now < *next) {
+            return;
+        }
+        if due.0.len() >= LEASE_RENEWALS_CAPACITY {
+            due.0.clear();
+        }
+        due.0.insert(cse_id.to_owned(), now + RENEW_AGAIN_AFTER);
         let renewed = crate::metrics::time_db("remote_control_renew_lease_on_heartbeat", async {
             sqlx::query_file!(
                 "src/store/persistence/remote_control/renew_lease_on_heartbeat.sql",

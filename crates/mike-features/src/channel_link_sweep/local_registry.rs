@@ -1,4 +1,5 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -61,19 +62,59 @@ async fn running_channels(folder: PathBuf) -> Vec<RunningChannel> {
         .unwrap_or_default()
 }
 
+/// Channels this process has seen linked to their session. A session file
+/// names the same pair on every tick, so a linked pair is not asked again
+/// while its file stays.
+#[derive(Default)]
+struct LinkedChannels(std::sync::Mutex<HashSet<(String, Uuid)>>);
+
+fn linked_pairs(persist: &PersistHandle) -> std::sync::Arc<LinkedChannels> {
+    persist.memo::<LinkedChannels>()
+}
+
+fn still_running(known: &LinkedChannels, running: &[RunningChannel]) -> Vec<(String, Uuid)> {
+    let current: HashSet<(String, Uuid)> = running
+        .iter()
+        .map(|channel| (channel.cse_id.clone(), channel.session_uuid))
+        .collect();
+    let mut linked = known.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    linked.retain(|pair| current.contains(pair));
+    current
+        .into_iter()
+        .filter(|pair| !linked.contains(pair))
+        .collect()
+}
+
+fn remember(known: &LinkedChannels, pair: (String, Uuid)) {
+    known
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(pair);
+}
+
 pub async fn link_running_sessions(persist: &PersistHandle) -> usize {
     let Some(home) = crate::knowledge_scan::claude_home() else {
         return 0;
     };
+    let running = running_channels(home.join(REGISTRY_FOLDER)).await;
+    let known = linked_pairs(persist);
+    let unlinked = still_running(&known, &running);
     let mut linked = 0;
-    for channel in running_channels(home.join(REGISTRY_FOLDER)).await {
+    for channel in running
+        .iter()
+        .filter(|channel| unlinked.contains(&(channel.cse_id.clone(), channel.session_uuid)))
+    {
         match persist
             .launch()
             .link_channel_to_session(&channel.cse_id, channel.session_uuid, &channel.cwd)
             .await
         {
-            Ok(LinkOutcome::Linked) => linked += 1,
-            Ok(LinkOutcome::AlreadyLinked | LinkOutcome::NoChannel) => {}
+            Ok(outcome @ (LinkOutcome::Linked | LinkOutcome::AlreadyLinked)) => {
+                linked += usize::from(outcome == LinkOutcome::Linked);
+                remember(&known, (channel.cse_id.clone(), channel.session_uuid));
+            }
+            Ok(LinkOutcome::NoChannel) => {}
             Err(e) => {
                 tracing::warn!(
                     cse_id = %channel.cse_id,
@@ -121,6 +162,33 @@ mod tests {
     fn parse_entry_with_a_foreign_bridge_id_gives_nothing() {
         assert_eq!(parse_entry(entry("cse_01AbC").as_bytes()), None);
         assert_eq!(parse_entry(entry("session_01/../x").as_bytes()), None);
+    }
+
+    fn running(cse_id: &str, session: Uuid) -> RunningChannel {
+        RunningChannel {
+            cse_id: cse_id.to_owned(),
+            session_uuid: session,
+            cwd: "/work".to_owned(),
+        }
+    }
+
+    #[test]
+    fn still_running_skips_linked_pairs_and_forgets_gone_ones() -> anyhow::Result<()> {
+        let session = Uuid::parse_str(SESSION)?;
+        let known = LinkedChannels::default();
+        remember(&known, ("cse_linked".to_owned(), session));
+        remember(&known, ("cse_gone".to_owned(), session));
+
+        let ask = still_running(
+            &known,
+            &[running("cse_linked", session), running("cse_new", session)],
+        );
+
+        assert_eq!(ask, vec![("cse_new".to_owned(), session)]);
+        let kept = known.0.lock().map_err(|_| anyhow::anyhow!("poisoned"))?;
+        assert!(kept.contains(&("cse_linked".to_owned(), session)));
+        assert!(!kept.contains(&("cse_gone".to_owned(), session)));
+        Ok(())
     }
 
     #[test]
