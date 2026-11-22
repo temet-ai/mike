@@ -26,7 +26,7 @@ async fn refused_gate_gets_two_rounds_then_reverts_the_blamed_fix_and_lands_the_
     let [first, second, third] = three_batched(&bench).await?;
     let id = close_the_day(&bench).await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(id, BatchEnd::Landed)]);
     let batch = bench.batches().await?.remove(0);
     assert_eq!(batch.state, batch_states::LANDED, "{:?}", batch.reason);
@@ -83,7 +83,7 @@ async fn unattributable_failure_makes_the_batch_refused_and_tells_the_operator()
     let [first, _, third] = three_batched(&bench).await?;
     let id = close_the_day(&bench).await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(id, BatchEnd::Held)]);
     let batch = bench.batches().await?.remove(0);
     assert_eq!(batch.state, batch_states::REFUSED);
@@ -108,7 +108,7 @@ async fn unattributable_failure_makes_the_batch_refused_and_tells_the_operator()
     assert_eq!(mail.len(), 1, "{mail:?}");
     assert!(mail[0].contains("refused") && mail[0].contains(&format!("batch {id}")));
 
-    let again = tick(&bench.ctx, true).await?;
+    let again = tick(&bench.ctx, true, true).await?;
     assert!(
         again.batches.is_empty(),
         "a refused batch is not tried again"
@@ -130,7 +130,7 @@ async fn a_round_that_edits_the_gate_is_refused_and_the_blamed_fix_is_reverted()
     three_batched(&bench).await?;
     close_the_day(&bench).await?;
 
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let batch = bench.batches().await?.remove(0);
     assert_eq!(batch.state, batch_states::LANDED, "{:?}", batch.reason);
     assert_eq!(batch.rounds, 0, "a refused round edit does not count");
@@ -148,10 +148,10 @@ async fn a_written_gate_log_does_not_make_a_failing_gate_pass() -> anyhow::Resul
     ]);
     let bench = Bench::boot(engineer).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let id = close_the_day(&bench).await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(id, BatchEnd::Held)]);
     let batch = bench.batches().await?.remove(0);
     assert_eq!(batch.state, batch_states::FAILED);
@@ -179,12 +179,12 @@ async fn shutdown_while_gating_leaves_the_batch_gating_and_a_restart_lands_it() 
         .then(&[("src/c.txt", "BROKEN 0\n")]);
     let bench = Bench::boot(engineer).await?;
     bench.defects(&["src/calc.sh", "src/c.txt"]).await?;
-    tick(&bench.ctx, true).await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let id = close_the_day(&bench).await?;
     bench.ctx.shutdown.cancel();
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(id, BatchEnd::Interrupted)]);
     let batch = bench.batches().await?.remove(0);
     assert_eq!(batch.state, batch_states::GATING, "{:?}", batch.reason);
@@ -196,7 +196,7 @@ async fn shutdown_while_gating_leaves_the_batch_gating_and_a_restart_lands_it() 
     );
 
     let restarted = bench.restarted(WritesFiles::new(&[]).then(&[("src/c.txt", "fixed\n")]));
-    let report = tick(&restarted, true).await?;
+    let report = tick(&restarted, true, true).await?;
     assert_eq!(report.batches, vec![(id, BatchEnd::Landed)]);
     let landed = bench.batches().await?.remove(0);
     assert_eq!(landed.state, batch_states::LANDED, "{:?}", landed.reason);

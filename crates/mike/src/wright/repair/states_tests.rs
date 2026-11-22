@@ -17,7 +17,7 @@ async fn state_of(bench: &Bench, finding: i64) -> anyhow::Result<String> {
 async fn land_the_day(bench: &Bench) -> anyhow::Result<()> {
     let batch = bench.only_batch().await?;
     bench.backdate(batch.id).await?;
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
     Ok(())
 }
@@ -30,7 +30,7 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
     let resource = bench.problem_state(problem).await?.resource;
     let base = bench.scratch.remote_main()?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(
         report.attempted.map(|(_, end)| end),
         Some(AttemptEnd::Batched)
@@ -47,14 +47,14 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
 
     bench.problems(&[]).await?;
     assert_eq!(bench.problem_state(problem).await?.state, "healthy");
-    tick(&bench.ctx, false).await?;
+    tick(&bench.ctx, false, true).await?;
     assert_eq!(
         state_of(&bench, finding).await?,
         states::LANDED,
         "no live build, no deployed"
     );
     bench.ctx.live.set(Some(base));
-    tick(&bench.ctx, false).await?;
+    tick(&bench.ctx, false, true).await?;
     assert_eq!(
         state_of(&bench, finding).await?,
         states::LANDED,
@@ -63,7 +63,7 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
 
     let live = bench.scratch.move_main("docs/after.md")?;
     bench.ctx.live.set(Some(live));
-    let report = tick(&bench.ctx, false).await?;
+    let report = tick(&bench.ctx, false, true).await?;
     assert_eq!(report.deployed, vec![landed.id]);
     assert!(
         report.healthy.is_empty(),
@@ -72,7 +72,7 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
     assert_eq!(state_of(&bench, finding).await?, states::DEPLOYED);
 
     bench.problems(&[resource.as_str()]).await?;
-    tick(&bench.ctx, false).await?;
+    tick(&bench.ctx, false, true).await?;
     assert_eq!(
         state_of(&bench, finding).await?,
         states::DEPLOYED,
@@ -80,7 +80,7 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
     );
 
     bench.problems(&[]).await?;
-    let report = tick(&bench.ctx, false).await?;
+    let report = tick(&bench.ctx, false, true).await?;
     assert_eq!(report.healthy, vec![landed.id]);
     let healthy = bench.repair_of(finding).await?;
     let problem_row = bench.problem_state(problem).await?;
@@ -214,7 +214,7 @@ async fn batch_interrupted_after_its_merge_is_recorded_landed_without_a_new_gate
 -> anyhow::Result<()> {
     let bench = Bench::boot(fix()).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     land_the_day(&bench).await?;
     let landed = bench.repair_of(finding).await?;
     let batch = bench.batches().await?.remove(0);
@@ -227,7 +227,7 @@ async fn batch_interrupted_after_its_merge_is_recorded_landed_without_a_new_gate
         .execute(bench.ctx.persist.pool())
         .await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
     let settled = bench.repair_of(finding).await?;
     assert_eq!(settled.state, states::LANDED);
@@ -251,7 +251,7 @@ async fn batch_interrupted_after_its_merge_is_recorded_landed_without_a_new_gate
 async fn repair_that_lands_posts_a_landed_event_to_its_checks_inbox() -> anyhow::Result<()> {
     let bench = Bench::boot(fix()).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     land_the_day(&bench).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::LANDED, "reason: {:?}", repair.reason);

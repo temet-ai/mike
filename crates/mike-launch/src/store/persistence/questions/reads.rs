@@ -1,7 +1,20 @@
 use uuid::Uuid;
 
 use super::types::QuestionRow;
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistError;
+use crate::store::persistence::feed_memo::{Memo, Scope};
+
+struct NoOpenQuestions(Memo<()>);
+
+impl Default for NoOpenQuestions {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[],
+            per_session: &[RowChangedTable::WorkspaceQuestions],
+        }))
+    }
+}
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn question_by_uuid(
@@ -22,6 +35,23 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     }
 
     pub async fn open_questions_for(self, session: Uuid) -> Result<Vec<QuestionRow>, PersistError> {
+        let none = self.memo::<NoOpenQuestions>();
+        let memo = self
+            .feed_memos
+            .fed_feed()
+            .and(self.feed_memos.bound(&none.0));
+        if memo.as_ref().and_then(|memo| memo.get(session)).is_some() {
+            return Ok(Vec::new());
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let rows = self.read_open_questions(session).await?;
+        if let (Some(memo), Some(ticket), true) = (memo, ticket, rows.is_empty()) {
+            memo.remember(session, ticket, ());
+        }
+        Ok(rows)
+    }
+
+    async fn read_open_questions(self, session: Uuid) -> Result<Vec<QuestionRow>, PersistError> {
         crate::metrics::time_db("questions_open_for_session", async move {
             let rows = sqlx::query_file_as!(
                 QuestionRow,

@@ -86,7 +86,7 @@ async fn sql_fix_with_perf_entries_commits_the_measurement_block_and_snapshots()
     let engineer = WritesFiles::new(&sql_files()).ending(with_perf());
     let bench = Bench::boot(engineer).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::BATCHED, "{:?}", repair.reason);
     assert_eq!(
@@ -123,7 +123,7 @@ async fn measured_regression_goes_back_to_the_engineer_as_a_round_with_the_outpu
         exits.push_back(1);
     }
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::BATCHED, "{:?}", repair.reason);
     let jobs = bench.ctx.engineer.jobs();
@@ -168,7 +168,7 @@ async fn measurement_that_cannot_run_refuses_the_fix_with_the_reason() -> anyhow
     }
     let (_, finding) = bench.defect().await?;
     let head = bench.scratch.remote_main()?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::GATE_FAILED);
     let reason = repair.reason.unwrap_or_default();
@@ -184,7 +184,7 @@ async fn sql_change_without_perf_entries_is_refused_with_the_instruction() -> an
     let engineer = WritesFiles::new(&[(QUERY_FILE, QUERY_CODE)]);
     let bench = Bench::boot(engineer).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::GATE_FAILED);
     let reason = repair.reason.unwrap_or_default();
@@ -234,7 +234,7 @@ async fn batch_round_that_changes_sql_is_measured_or_refused() -> anyhow::Result
 async fn fix_that_touches_no_sql_runs_no_measurement() -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[("src/calc.sh", FIXED)])).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::BATCHED, "{:?}", repair.reason);
     assert!(bench.ctx.runner.perf_runs().is_empty());

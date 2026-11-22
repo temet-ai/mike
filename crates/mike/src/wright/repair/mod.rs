@@ -7,8 +7,10 @@ use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+use crate::change_feed::{ChangeFeed, Generation};
 use crate::feature_toggles::FeatureToggles;
 use crate::state::AppState;
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) mod attempt;
@@ -122,6 +124,7 @@ pub(crate) struct TickReport {
     pub(crate) batches: Vec<(i64, BatchEnd)>,
     pub(crate) deployed: Vec<i64>,
     pub(crate) healthy: Vec<i64>,
+    pub(crate) following: bool,
 }
 
 async fn is_fix_host<R, E, B>(ctx: &RepairContext<R, E, B>) -> Result<bool, PersistError> {
@@ -161,6 +164,7 @@ where
 pub(crate) async fn tick<R, E, B>(
     ctx: &RepairContext<R, E, B>,
     claims_open: bool,
+    follow_due: bool,
 ) -> Result<TickReport, PersistError>
 where
     R: CommandRunner,
@@ -171,10 +175,31 @@ where
     if is_fix_host(ctx).await? {
         host_work(ctx, claims_open, &mut report).await?;
     }
-    let followed = follow::follow(ctx).await?;
-    report.deployed = followed.deployed;
-    report.healthy = followed.healthy;
+    if follow_due || report.attempted.is_some() || !report.batches.is_empty() {
+        let followed = follow::follow(ctx).await?;
+        report.deployed = followed.deployed;
+        report.healthy = followed.healthy;
+        report.following = followed.pending;
+    }
     Ok(report)
+}
+
+#[derive(Default)]
+struct FollowGate {
+    quiet_since: Option<Generation>,
+}
+
+impl FollowGate {
+    fn due(&self, feed: Option<&ChangeFeed>) -> bool {
+        let Some(since) = self.quiet_since else {
+            return true;
+        };
+        feed.is_none_or(|feed| feed.changed_since(&[RowChangedTable::WrightRepairs], since))
+    }
+
+    fn note(&mut self, feed: Option<&ChangeFeed>, before: Option<Generation>, report: &TickReport) {
+        self.quiet_since = before.filter(|_| feed.is_some() && !report.following);
+    }
 }
 
 struct Backoff {
@@ -262,6 +287,7 @@ struct Worker {
     ctx: Option<LiveContext>,
     recovered: bool,
     backoff: Backoff,
+    gate: FollowGate,
 }
 
 impl Worker {
@@ -278,7 +304,7 @@ impl Worker {
                 return;
             }
         }
-        run_tick(ctx, &mut self.backoff).await;
+        run_tick(ctx, &mut self.backoff, &mut self.gate).await;
     }
 }
 
@@ -295,9 +321,15 @@ async fn recovered(ctx: &LiveContext) -> bool {
     }
 }
 
-async fn run_tick(ctx: &LiveContext, backoff: &mut Backoff) {
-    match tick(ctx, backoff.open(Instant::now())).await {
+async fn run_tick(ctx: &LiveContext, backoff: &mut Backoff, gate: &mut FollowGate) {
+    let feed = ctx.persist.feed_memos.fed_feed();
+    let before = feed.map(ChangeFeed::generation);
+    let due = gate.due(feed);
+    match tick(ctx, backoff.open(Instant::now()), due).await {
         Ok(report) => {
+            if due {
+                gate.note(feed, before, &report);
+            }
             backoff.note(report.attempted.map(|(_, end)| end), Instant::now());
             log_tick(&report);
         }
@@ -367,6 +399,7 @@ pub fn spawn_wright_repair_worker(state: &AppState) {
         ctx: None,
         recovered: false,
         backoff: Backoff::new(),
+        gate: FollowGate::default(),
     };
     let toggles = state.feature_toggle_overlay.clone();
     state.tracker.spawn(run(worker, toggles, state.shutdown()));
@@ -375,3 +408,7 @@ pub fn spawn_wright_repair_worker(state: &AppState) {
         "wright repair: worker spawned; it idles while the wright toggle is off"
     );
 }
+
+#[cfg(test)]
+#[path = "follow_gate_tests.rs"]
+mod follow_gate_tests;

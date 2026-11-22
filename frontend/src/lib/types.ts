@@ -1138,7 +1138,10 @@ export type RowChangedTable =
 	| 'rejudge_runs'
 	| 'guard_thresholds'
 	| 'wright_reply_jobs'
-	| 'runtime_threads';
+	| 'runtime_threads'
+	| 'workspace_questions'
+	| 'wright_repairs'
+	| 'wright_followups';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

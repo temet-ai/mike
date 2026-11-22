@@ -5,17 +5,17 @@ use super::{Fixer, FollowupLimitsPatch, NewFollowup};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 
-const CHECK: &str = "undelivered_mail";
+pub(super) const CHECK: &str = "undelivered_mail";
 const REMEDY: &str = "tell_undelivered_senders";
 
-struct Env {
-    db: TestDbHandle,
-    persist: PersistHandle,
+pub(super) struct Env {
+    pub(super) db: TestDbHandle,
+    pub(super) persist: PersistHandle,
     run: i64,
 }
 
 impl Env {
-    async fn boot() -> anyhow::Result<Self> {
+    pub(super) async fn boot() -> anyhow::Result<Self> {
         let db = acquire_ephemeral_db()
             .await?
             .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
@@ -30,7 +30,11 @@ impl Env {
         Ok(Self { db, persist, run })
     }
 
-    async fn problem(&self, check: &str, open_episode: bool) -> anyhow::Result<(i64, i64)> {
+    pub(super) async fn problem(
+        &self,
+        check: &str,
+        open_episode: bool,
+    ) -> anyhow::Result<(i64, i64)> {
         let problem: i64 = sqlx::query_scalar(
             "INSERT INTO wright.problems (check_name, source, scope, resource, state)
              VALUES ($1, 'capture_db', 'mail', $2, 'open') RETURNING id",
@@ -51,7 +55,7 @@ impl Env {
         Ok((problem, episode))
     }
 
-    async fn finding(&self, problem: i64, episode: i64) -> anyhow::Result<i64> {
+    pub(super) async fn finding(&self, problem: i64, episode: i64) -> anyhow::Result<i64> {
         Ok(sqlx::query_scalar(
             "WITH run AS (
                  INSERT INTO wright.investigations (mode, problem_id, episode_id, session_uuid, state,
@@ -72,11 +76,16 @@ impl Env {
         .await?)
     }
 
-    async fn record(&self, kind: &str, part: Option<&str>, finding: i64) -> anyhow::Result<i64> {
+    pub(super) async fn record(
+        &self,
+        kind: &str,
+        part: Option<&str>,
+        finding: i64,
+    ) -> anyhow::Result<i64> {
         self.record_same(kind, part, finding, None).await
     }
 
-    async fn record_same(
+    pub(super) async fn record_same(
         &self,
         kind: &str,
         part: Option<&str>,
@@ -98,7 +107,7 @@ impl Env {
             .await?)
     }
 
-    async fn verified_actions(&self, count: i32) -> anyhow::Result<(i64, i64)> {
+    pub(super) async fn verified_actions(&self, count: i32) -> anyhow::Result<(i64, i64)> {
         Ok(sqlx::query_as(
             "WITH p AS (
                  INSERT INTO wright.problems (check_name, source, scope, resource, state)
@@ -123,7 +132,7 @@ impl Env {
         .await?)
     }
 
-    async fn state_of(&self, id: i64) -> anyhow::Result<(String, i32)> {
+    pub(super) async fn state_of(&self, id: i64) -> anyhow::Result<(String, i32)> {
         Ok(
             sqlx::query_as("SELECT state, attempts FROM wright.followups WHERE id = $1")
                 .bind(id)
@@ -132,7 +141,7 @@ impl Env {
         )
     }
 
-    async fn file(&self, id: i64) -> anyhow::Result<()> {
+    pub(super) async fn file(&self, id: i64) -> anyhow::Result<()> {
         assert!(
             self.persist
                 .web()
@@ -142,7 +151,7 @@ impl Env {
         Ok(())
     }
 
-    async fn hand_off(&self, id: i64) -> anyhow::Result<()> {
+    pub(super) async fn hand_off(&self, id: i64) -> anyhow::Result<()> {
         assert!(
             self.persist
                 .web()

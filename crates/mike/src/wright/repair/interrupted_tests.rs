@@ -51,7 +51,7 @@ async fn shutdown_during_a_failed_engineer_run_leaves_the_repair_editing() -> an
     let (_, finding) = bench.defect().await?;
     bench.ctx.shutdown.cancel();
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(matches!(report.attempted, Some((_, AttemptEnd::Ended))));
     assert_eq!(bench.repair_of(finding).await?.state, states::EDITING);
     assert_eq!(
@@ -78,14 +78,14 @@ async fn recovery_leaves_batched_fixes_alone_and_resets_only_the_interrupted_fix
         anyhow::bail!("expected two findings");
     };
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(
         report.attempted.map(|(_, end)| end),
         Some(AttemptEnd::Batched)
     );
     let head = sh(&bench.batch_dir(), &["rev-parse", "HEAD"])?;
     bench.ctx.shutdown.cancel();
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(matches!(report.attempted, Some((_, AttemptEnd::Ended))));
     assert_eq!(bench.repair_of(second).await?.state, states::EDITING);
     assert_eq!(
@@ -133,7 +133,7 @@ async fn repair_interrupted_while_editing_is_settled_and_the_finding_is_repaired
     assert!(interrupted_flag(&bench, first.id).await?);
     assert_eq!(sh(&bench.batch_dir(), &["status", "--porcelain"])?, "");
 
-    let again = tick(&bench.ctx, true).await?;
+    let again = tick(&bench.ctx, true, true).await?;
     assert!(
         matches!(again.attempted, Some((_, AttemptEnd::Batched))),
         "{again:?}"

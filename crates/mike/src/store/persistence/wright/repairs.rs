@@ -10,7 +10,7 @@ const ADVANCE: &str = include_str!("sql/repairs_advance.sql");
 const UNCLAIM: &str = include_str!("sql/repairs_unclaim.sql");
 const WAITING: &str = include_str!("sql/repairs_waiting.sql");
 const FAILED_RUNS: &str = include_str!("sql/repairs_failed_runs.sql");
-const LANDED: &str = include_str!("sql/repairs_landed.sql");
+const FOLLOWING: &str = include_str!("sql/repairs_following.sql");
 const MARK_DEPLOYED: &str = include_str!("sql/repairs_mark_deployed.sql");
 const MARK_HEALTHY: &str = include_str!("sql/repairs_mark_healthy.sql");
 const LIST: &str = include_str!("sql/repairs_list.sql");
@@ -151,12 +151,11 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         Ok(sqlx::query_scalar(WAITING).fetch_one(self.pool()).await?)
     }
 
-    pub(crate) async fn landed_wright_repairs(self) -> Result<Vec<(i64, String)>, PersistError> {
-        Ok(
-            sqlx::query_as(LANDED) // grader-allow: Wright's store runs its include_str! SQL at runtime (build plan, temet-ai/mike#71); no .sqlx entry
-                .fetch_all(self.pool())
-                .await?,
-        )
+    pub(crate) async fn following_wright_repairs(self) -> Result<Following, PersistError> {
+        let rows: Vec<(i64, Option<String>, String)> = sqlx::query_as(FOLLOWING) // grader-allow: Wright's store runs its include_str! SQL at runtime (build plan, temet-ai/mike#71); no .sqlx entry
+            .fetch_all(self.pool())
+            .await?;
+        Ok(Following::of(rows))
     }
 
     pub(crate) async fn mark_wright_repairs_deployed(
@@ -208,5 +207,25 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
                 .fetch_all(self.pool())
                 .await?,
         )
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Following {
+    pub(crate) landed: Vec<(i64, String)>,
+    pub(crate) deployed: usize,
+}
+
+impl Following {
+    fn of(rows: Vec<(i64, Option<String>, String)>) -> Self {
+        let mut following = Self::default();
+        for (id, merge, state) in rows {
+            match (state.as_str(), merge) {
+                ("landed", Some(merge)) => following.landed.push((id, merge)),
+                ("deployed", _) => following.deployed += 1,
+                _ => {}
+            }
+        }
+        following
     }
 }

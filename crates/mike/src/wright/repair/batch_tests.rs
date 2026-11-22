@@ -28,7 +28,7 @@ async fn second_fix_of_the_day_reuses_the_worktree_and_is_checked_only_against_i
         anyhow::bail!("expected two findings");
     };
 
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let one = bench.repair_of(first).await?;
     assert_eq!(one.state, states::BATCHED, "{:?}", one.reason);
     let dir = bench.batch_dir();
@@ -37,7 +37,7 @@ async fn second_fix_of_the_day_reuses_the_worktree_and_is_checked_only_against_i
         one.commit_sha.clone().unwrap_or_default()
     );
 
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let two = bench.repair_of(second).await?;
     assert_eq!(two.state, states::BATCHED, "{:?}", two.reason);
     assert_eq!(
@@ -68,7 +68,7 @@ async fn repair_touching_a_crate_runs_one_cargo_check_for_it() -> anyhow::Result
     )]))
     .await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     assert_eq!(bench.repair_of(finding).await?.state, states::BATCHED);
     assert_eq!(
         bench.ctx.runner.cx_runs(),
@@ -86,12 +86,12 @@ async fn batch_closes_at_the_utc_day_boundary_before_any_claim() -> anyhow::Resu
     )
     .await?;
     let (_, first) = bench.defect_in("src/calc.sh").await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let yesterday = bench.only_batch().await?;
     bench.backdate(yesterday.id).await?;
     let (_, second) = bench.defect_in("src/b.txt").await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(yesterday.id, BatchEnd::Landed)]);
     assert_eq!(
         report.attempted.map(|(_, end)| end),
@@ -128,7 +128,7 @@ async fn empty_batch_at_the_day_boundary_is_removed_without_a_gate() -> anyhow::
         .batch_dir(empty.day.pred_opt().unwrap_or(empty.day));
     assert!(old_dir.exists());
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(report.batches.is_empty());
     assert!(!old_dir.exists(), "the empty batch's worktree is removed");
     let ids: Vec<i64> = bench.batches().await?.iter().map(|b| b.id).collect();
@@ -142,13 +142,13 @@ async fn empty_batch_at_the_day_boundary_is_removed_without_a_gate() -> anyhow::
 async fn batch_waits_for_a_live_fixer_and_no_claim_starts_meanwhile() -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[("src/calc.sh", FIXED)])).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let yesterday = bench.only_batch().await?;
     bench.backdate(yesterday.id).await?;
     let followup = bench.handed_off_followup(41).await?;
     let (_, waiting) = bench.defect_in("src/b.txt").await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(report.batches.is_empty());
     assert_eq!(
         report.attempted, None,
@@ -168,7 +168,7 @@ async fn batch_waits_for_a_live_fixer_and_no_claim_starts_meanwhile() -> anyhow:
         .web()
         .mark_wright_followup_closed(followup, "dropped", "the issue was closed as not planned")
         .await?;
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(yesterday.id, BatchEnd::Landed)]);
     assert_eq!(bench.repair_of(finding).await?.state, states::LANDED);
     bench.cleanup().await
@@ -185,13 +185,13 @@ async fn conflicting_fix_is_dropped_at_the_rebase_and_the_rest_lands() -> anyhow
     let [kept, conflicted] = bench.defects(&["src/calc.sh", "README.md"]).await?[..] else {
         anyhow::bail!("expected two findings");
     };
-    tick(&bench.ctx, true).await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let batch = bench.only_batch().await?;
     bench.scratch.move_main("README.md")?;
     bench.backdate(batch.id).await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
     let dropped = bench.repair_of(conflicted).await?;
     assert_eq!(dropped.state, states::DROPPED);
@@ -214,7 +214,7 @@ async fn fix_already_merged_into_main_by_another_branch_lands_instead_of_droppin
 -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[("src/calc.sh", FIXED)])).await?;
     let (_, finding) = bench.defect().await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let batch = bench.only_batch().await?;
     sh(
         &bench.batch_dir(),
@@ -222,7 +222,7 @@ async fn fix_already_merged_into_main_by_another_branch_lands_instead_of_droppin
     )?;
     bench.backdate(batch.id).await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::LANDED, "{:?}", repair.reason);
@@ -241,13 +241,13 @@ async fn operator_can_close_a_batch_that_holds_a_fix() -> anyhow::Result<()> {
         web.close_wright_fix_batch_now(empty.id).await?.is_none(),
         "a batch with no fix does not close early"
     );
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let closed = web.close_wright_fix_batch_now(empty.id).await?;
     assert_eq!(
         closed.map(|b| b.state),
         Some(batch_states::CLOSED.to_owned())
     );
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(empty.id, BatchEnd::Landed)]);
     assert_eq!(bench.repair_of(finding).await?.state, states::LANDED);
     bench.cleanup().await

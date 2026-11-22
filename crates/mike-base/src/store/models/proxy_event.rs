@@ -27,6 +27,9 @@ pub enum RowChangedTable {
     GuardThresholds,
     WrightReplyJobs,
     RuntimeThreads,
+    WorkspaceQuestions,
+    WrightRepairs,
+    WrightFollowups,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

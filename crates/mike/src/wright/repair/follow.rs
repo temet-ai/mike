@@ -6,12 +6,13 @@ use super::runner::{Cmd, CommandRunner, Program, output};
 use super::worktree::{self, fetch_main};
 use super::{RepairContext, states};
 use crate::store::persistence::PersistError;
-use crate::store::persistence::wright::{RepairRow, RepairUpdate};
+use crate::store::persistence::wright::{Following, RepairRow, RepairUpdate};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Followed {
     pub(crate) deployed: Vec<i64>,
     pub(crate) healthy: Vec<i64>,
+    pub(crate) pending: bool,
 }
 
 async fn contains<R: CommandRunner>(
@@ -28,12 +29,14 @@ async fn contains<R: CommandRunner>(
     output(runner, &cmd).await.is_ok_and(|out| out.ok())
 }
 
-async fn deployed<R, E, B>(ctx: &RepairContext<R, E, B>) -> Result<Vec<i64>, PersistError>
+async fn deployed<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+    landed: Vec<(i64, String)>,
+) -> Result<Vec<i64>, PersistError>
 where
     R: CommandRunner,
     B: LiveBuild,
 {
-    let landed = ctx.persist.web().landed_wright_repairs().await?;
     let Some(live) = ctx.live.commit() else {
         return Ok(Vec::new());
     };
@@ -63,9 +66,21 @@ where
     R: CommandRunner,
     B: LiveBuild,
 {
-    let deployed = deployed(ctx).await?;
-    let healthy = ctx.persist.web().mark_wright_repairs_healthy().await?;
-    Ok(Followed { deployed, healthy })
+    let Following { landed, deployed } = ctx.persist.web().following_wright_repairs().await?;
+    let deployed_before = deployed;
+    let landed_count = landed.len();
+    let deployed = self::deployed(ctx, landed).await?;
+    let healthy = if deployed_before > 0 || !deployed.is_empty() {
+        ctx.persist.web().mark_wright_repairs_healthy().await?
+    } else {
+        Vec::new()
+    };
+    let pending = landed_count > deployed.len() || deployed_before + deployed.len() > healthy.len();
+    Ok(Followed {
+        deployed,
+        healthy,
+        pending,
+    })
 }
 
 async fn reset_edits<R, E, B>(ctx: &RepairContext<R, E, B>, row: &RepairRow)

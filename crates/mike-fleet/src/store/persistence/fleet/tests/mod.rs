@@ -11,6 +11,8 @@ pub mod events;
 #[cfg(test)]
 pub mod for_session;
 #[cfg(test)]
+pub mod in_states_memo;
+#[cfg(test)]
 pub mod notes;
 #[cfg(test)]
 pub mod run_record;

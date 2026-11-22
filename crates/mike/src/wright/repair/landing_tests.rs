@@ -22,7 +22,7 @@ pub(super) async fn three_batched(bench: &Bench) -> anyhow::Result<[i64; 3]> {
     {
         let (_, finding) = bench.defect_in(part).await?;
         *slot = finding;
-        let report = tick(&bench.ctx, true).await?;
+        let report = tick(&bench.ctx, true, true).await?;
         assert_eq!(
             report.attempted.map(|(_, end)| end),
             Some(AttemptEnd::Batched),
@@ -97,7 +97,7 @@ async fn three_fixes_of_a_day_land_through_one_gate_and_one_pull_request() -> an
     assert!(bench.batch_dir().exists());
 
     bench.backdate(batch.id).await?;
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.batches, vec![(batch.id, BatchEnd::Landed)]);
 
     let landed = bench
@@ -192,7 +192,7 @@ async fn batch_regates_on_a_new_branch_when_main_moves_after_the_gate() -> anyho
         *moves = 1;
     }
 
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let landed = bench
         .ctx
         .persist
@@ -250,7 +250,7 @@ async fn batch_leaves_other_sessions_worktrees_untouched() -> anyhow::Result<()>
     three_batched(&bench).await?;
     let batch = bench.only_batch().await?;
     bench.backdate(batch.id).await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
 
     assert_eq!(
         std::fs::read_to_string(peer.join("src/calc.sh"))?,
@@ -271,7 +271,7 @@ async fn repair_does_not_start_in_a_path_that_is_not_the_days_worktree() -> anyh
     std::fs::write(taken.join("notes.txt"), "mine\n")?;
     let (_, finding) = bench.defect().await?;
 
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert_eq!(report.attempted, None);
     let repairs: i64 =
         sqlx::query_scalar("SELECT count(*) FROM wright.repairs WHERE finding_id = $1")

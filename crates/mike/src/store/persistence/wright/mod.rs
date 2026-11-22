@@ -20,6 +20,8 @@ mod triage;
 #[cfg(test)]
 mod followups_tests;
 #[cfg(test)]
+mod followups_memo_tests;
+#[cfg(test)]
 mod triage_tests;
 
 pub(crate) use fix_batches::{BatchFix, BatchUpdate, FixBatchRow};
@@ -32,7 +34,7 @@ pub(crate) use investigations::{
 };
 pub(crate) use log_lines::{LogLineRow, NewLogLine};
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
-pub(crate) use repairs::{ClaimedRepair, RepairFilter, RepairRow, RepairUpdate};
+pub(crate) use repairs::{ClaimedRepair, Following, RepairFilter, RepairRow, RepairUpdate};
 pub(crate) use triage::{Merged, RecurringCause, WaitingCause};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

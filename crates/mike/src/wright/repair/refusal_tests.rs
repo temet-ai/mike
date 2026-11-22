@@ -8,7 +8,7 @@ async fn ended(engineer: WritesFiles) -> anyhow::Result<(Bench, i64, RepairRow)>
     let bench = Bench::boot(engineer).await?;
     let (_, finding) = bench.defect().await?;
     let main_before = bench.scratch.remote_main()?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(
         bench.scratch.remote_main()?,
@@ -101,7 +101,7 @@ async fn repair_whose_crate_check_fails_is_taken_off_the_branch() -> anyhow::Res
     }
     let (_, finding) = bench.defect().await?;
     let head = bench.scratch.remote_main()?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::GATE_FAILED);
     assert!(
@@ -142,7 +142,7 @@ async fn repair_whose_engineer_run_fails_again_is_refused_with_the_reason() -> a
     .await?;
     let (problem, finding) = bench.defect().await?;
     failed_repair_runs(&bench, problem, 2).await?;
-    tick(&bench.ctx, true).await?;
+    tick(&bench.ctx, true, true).await?;
     let repair = bench.repair_of(finding).await?;
     assert_eq!(repair.state, states::REFUSED);
     assert!(
@@ -178,7 +178,7 @@ async fn repair_whose_first_engineer_run_fails_is_released_and_tried_again() -> 
     .await?;
     let (problem, finding) = bench.defect().await?;
     failed_repair_runs(&bench, problem, 1).await?;
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(matches!(
         report.attempted,
         Some((_, AttemptEnd::NotStarted))
@@ -202,7 +202,7 @@ async fn repair_whose_engineer_run_cannot_start_leaves_no_trace_and_retries() ->
     }))
     .await?;
     let (_, finding) = bench.defect().await?;
-    let report = tick(&bench.ctx, true).await?;
+    let report = tick(&bench.ctx, true, true).await?;
     assert!(matches!(
         report.attempted,
         Some((_, AttemptEnd::NotStarted))
@@ -212,7 +212,7 @@ async fn repair_whose_engineer_run_cannot_start_leaves_no_trace_and_retries() ->
         0,
         "a run that never started is not an attempt"
     );
-    let again = tick(&bench.ctx, true).await?;
+    let again = tick(&bench.ctx, true, true).await?;
     assert!(
         matches!(again.attempted, Some((_, AttemptEnd::NotStarted))),
         "the finding is claimed again later"

@@ -4,7 +4,20 @@ use sqlx::types::Json;
 use uuid::Uuid;
 
 use super::followups::{FollowupRow, with_links};
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistError;
+use crate::store::persistence::feed_memo::{Memo, Scope};
+
+struct NoLiveHandoffs(Memo<()>);
+
+impl Default for NoLiveHandoffs {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[RowChangedTable::WrightFollowups],
+            per_session: &[],
+        }))
+    }
+}
 
 const TO_FILE: &str = include_str!("sql/followups/to_file.sql");
 const FILED_TODAY: &str = include_str!("sql/followups/filed_today.sql");
@@ -117,6 +130,27 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
     }
 
     pub(crate) async fn live_wright_handoffs(self) -> Result<Vec<FollowupRow>, PersistError> {
+        let none = self.memo::<NoLiveHandoffs>();
+        let memo = self
+            .feed_memos
+            .fed_feed()
+            .and(self.feed_memos.bound(&none.0));
+        if memo
+            .as_ref()
+            .and_then(|memo| memo.get(Uuid::nil()))
+            .is_some()
+        {
+            return Ok(Vec::new());
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let rows = self.read_live_wright_handoffs().await?;
+        if let (Some(memo), Some(ticket), true) = (memo, ticket, rows.is_empty()) {
+            memo.remember(Uuid::nil(), ticket, ());
+        }
+        Ok(rows)
+    }
+
+    async fn read_live_wright_handoffs(self) -> Result<Vec<FollowupRow>, PersistError> {
         Ok(
             sqlx::query_as(LIVE_HANDOFFS) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .fetch_all(self.pool())
