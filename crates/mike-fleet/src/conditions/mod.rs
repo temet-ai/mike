@@ -6,3 +6,6 @@ pub mod words_prompt;
 pub mod worker;
 
 pub use worker::spawn_conditions_worker;
+
+#[cfg(test)]
+mod worker_tests;

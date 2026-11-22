@@ -1,6 +1,8 @@
+use std::sync::LazyLock;
 use std::time::Duration;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use super::decide::{Decision, decide};
@@ -14,12 +16,25 @@ use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 const PASS_GAP: Duration = Duration::from_secs(10);
 const IDLE_WAIT: Duration = Duration::from_secs(60);
+const NONE_ARMED_WAIT: Duration = Duration::from_secs(600);
 const WATCHED: [RowChangedTable; 4] = [
     RowChangedTable::Requests,
     RowChangedTable::Sessions,
     RowChangedTable::MailboxMessages,
     RowChangedTable::LaunchFleets,
 ];
+
+static ARMED: LazyLock<Notify> = LazyLock::new(Notify::new);
+
+pub fn armed() {
+    ARMED.notify_one();
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Wait {
+    Watch,
+    Until(Option<DateTime<Utc>>),
+}
 
 pub fn spawn_conditions_worker(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -36,26 +51,66 @@ async fn run(state: BaseState, persist: PersistHandle, shutdown: CancellationTok
     let feed = state.change_feed.clone();
     loop {
         let since = feed.generation();
-        if state.feature_toggle_overlay.load().conditions {
-            pass(&state, &persist).await;
-        }
-        tokio::select! {
-            biased;
-            () = shutdown.cancelled() => break,
-            () = tokio::time::sleep(PASS_GAP) => {}
-        }
-        tokio::select! {
-            biased;
-            () = shutdown.cancelled() => break,
-            _ = feed.wait_for_change(&WATCHED, since, IDLE_WAIT) => {}
+        let wait = if state.feature_toggle_overlay.load().conditions {
+            pass(&state, &persist).await
+        } else {
+            Wait::Watch
+        };
+        let carry_on = match wait {
+            Wait::Watch => watch(&feed, since, &shutdown).await,
+            Wait::Until(at) => sleep_until_armed(at, &shutdown).await,
+        };
+        if !carry_on {
+            break;
         }
     }
 }
 
-async fn pass(state: &BaseState, persist: &PersistHandle) {
+async fn watch(
+    feed: &crate::change_feed::ChangeFeed,
+    since: crate::change_feed::Generation,
+    shutdown: &CancellationToken,
+) -> bool {
+    tokio::select! {
+        biased;
+        () = shutdown.cancelled() => return false,
+        () = tokio::time::sleep(PASS_GAP) => {}
+    }
+    tokio::select! {
+        biased;
+        () = shutdown.cancelled() => false,
+        _ = feed.wait_for_change(&WATCHED, since, IDLE_WAIT) => true,
+    }
+}
+
+async fn sleep_until_armed(at: Option<DateTime<Utc>>, shutdown: &CancellationToken) -> bool {
+    tokio::select! {
+        biased;
+        () = shutdown.cancelled() => false,
+        () = ARMED.notified() => true,
+        () = tokio::time::sleep(until(at, Utc::now())) => true,
+    }
+}
+
+pub fn until(at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> Duration {
+    at.map_or(NONE_ARMED_WAIT, |at| {
+        (at - now)
+            .to_std()
+            .unwrap_or(Duration::ZERO)
+            .min(NONE_ARMED_WAIT)
+    })
+}
+
+async fn pass(state: &BaseState, persist: &PersistHandle) -> Wait {
     let Some(machine) = state.resolve_host_machine_uuid().await else {
-        return;
+        return Wait::Watch;
     };
+    match persist.fleet().next_armed_condition_at(machine).await {
+        Ok(None) => return Wait::Until(None),
+        Ok(Some(at)) if at > Utc::now() => return Wait::Until(Some(at)),
+        Ok(Some(_)) => {}
+        Err(error) => warn_failed("reading armed conditions", &error.to_string(), None),
+    }
     let due = persist.fleet().due_conditions(machine).await;
     let rows = due.unwrap_or_else(|error| {
         warn_failed("reading due conditions", &error.to_string(), None);
@@ -64,6 +119,7 @@ async fn pass(state: &BaseState, persist: &PersistHandle) {
     for row in rows {
         settle(state, persist, &row).await;
     }
+    Wait::Watch
 }
 
 async fn settle(state: &BaseState, persist: &PersistHandle, row: &ConditionRow) {

@@ -236,7 +236,10 @@ pub async fn post_condition(
         Err(error) => return condition_error_response(error),
     };
     match persist.fleet().insert_condition(&new).await {
-        Ok(row) => (StatusCode::CREATED, Json(row)).into_response(),
+        Ok(row) => {
+            crate::conditions::worker::armed();
+            (StatusCode::CREATED, Json(row)).into_response()
+        }
         Err(error) => condition_error_response(error),
     }
 }

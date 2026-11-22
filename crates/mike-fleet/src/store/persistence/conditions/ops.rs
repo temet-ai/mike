@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -79,6 +80,19 @@ impl FleetDb<'_> {
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    pub async fn next_armed_condition_at(
+        self,
+        machine_uuid: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, ConditionError> {
+        let at = sqlx::query_file_scalar!(
+            "src/store/persistence/conditions/sql/next_armed.sql",
+            machine_uuid
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(at)
     }
 
     pub async fn mark_condition_fired(

@@ -1,6 +1,7 @@
 mod backoff;
 mod crud;
 mod holds;
+mod next_armed;
 mod presence;
 mod spec;
 mod sql_condition;
