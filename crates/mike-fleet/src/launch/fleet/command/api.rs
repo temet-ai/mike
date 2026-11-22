@@ -34,7 +34,7 @@ impl Api {
     pub fn new(addr: &str) -> Self {
         Self {
             addr: addr.to_string(),
-            client: reqwest::Client::new(),
+            client: mike_base::http_client::client("command-api"),
         }
     }
 

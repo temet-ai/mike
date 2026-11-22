@@ -39,7 +39,7 @@ pub(super) fn trimmed(base: &str) -> &str {
 }
 
 pub(super) async fn rerank_once(base: &str) -> Result<Reply, String> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("rerank-check")
         .timeout(RERANK_WAIT)
         .build()
         .map_err(|e| e.to_string())?;

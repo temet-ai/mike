@@ -3,6 +3,7 @@ pub mod analysis;
 pub mod anthropic_cli;
 pub mod base_state;
 pub mod cache_scope;
+pub mod http_client;
 pub mod change_feed;
 pub mod change_log;
 pub mod circuit_breaker;

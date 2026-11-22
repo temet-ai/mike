@@ -42,6 +42,7 @@ mod work_threads;
 mod workspace;
 mod wright_checks;
 
+const USER_AGENT: &str = concat!("mike-mcp/", env!("CARGO_PKG_VERSION"));
 use serde_json::Value;
 
 pub(crate) use session_notes::{ProjectNotesQuery, SessionNotesQuery, WriteSessionNote};
@@ -188,7 +189,10 @@ impl InspectClient {
     pub(crate) fn with_max_response_bytes(base_url: String, max_response_bytes: u64) -> Self {
         Self {
             base_url,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .user_agent(USER_AGENT)
+                .build()
+                .unwrap_or_default(),
             max_response_bytes,
         }
     }

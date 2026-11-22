@@ -25,7 +25,7 @@ struct TagModel {
 }
 
 pub(super) async fn ollama_models(base: &str) -> Option<Vec<String>> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("embeddings-check")
         .timeout(PROBE_WAIT)
         .build()
         .ok()?;

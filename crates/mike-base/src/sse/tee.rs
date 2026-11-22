@@ -92,7 +92,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let resp = reqwest::Client::new()
+        let resp = crate::http_client::client("tee")
             .get(format!("{}/sse", server.uri()))
             .send()
             .await?;

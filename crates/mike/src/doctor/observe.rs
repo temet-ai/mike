@@ -131,7 +131,7 @@ pub(crate) struct InspectView {
 
 impl InspectView {
     pub(crate) async fn fetch(addr: &str) -> Self {
-        let Ok(client) = reqwest::Client::builder().timeout(HTTP_TIMEOUT).build() else {
+        let Ok(client) = mike_base::http_client::builder("observe").timeout(HTTP_TIMEOUT).build() else {
             return Self {
                 health: None,
                 capabilities: None,

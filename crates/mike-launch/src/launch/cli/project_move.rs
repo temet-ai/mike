@@ -62,7 +62,7 @@ async fn move_location(inspect_addr: &str, request: MoveArgs) -> anyhow::Result<
         .map(|identity| identity.machine_uuid);
     let body = request_body(&request, local_machine)?;
     let url = format!("http://{inspect_addr}/api/projects/locations/move");
-    let response = reqwest::Client::new()
+    let response = mike_base::http_client::client("project-move")
         .post(&url)
         .json(&body)
         .send()

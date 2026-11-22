@@ -82,7 +82,7 @@ fn report_location(session: Uuid, root: &Path, outcome: LocationOutcome) -> Opti
 
 async fn post_registration(inspect_addr: &str, session: Uuid, body: &serde_json::Value) {
     let url = format!("http://{inspect_addr}/api/workspace/register");
-    match reqwest::Client::new().post(&url).json(body).send().await {
+    match mike_base::http_client::client("registration").post(&url).json(body).send().await {
         Ok(response) if response.status().is_success() => {}
         Ok(response) => {
             let status = response.status();

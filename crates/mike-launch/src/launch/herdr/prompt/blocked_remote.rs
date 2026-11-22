@@ -39,7 +39,7 @@ pub fn dialog_named_by(answer: &BlockedDialogAnswer) -> Option<String> {
 }
 
 async fn fetch(base: &str, screen: &str) -> Result<BlockedDialogAnswer, String> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("blocked-remote")
         .timeout(TIMEOUT)
         .no_proxy()
         .build()

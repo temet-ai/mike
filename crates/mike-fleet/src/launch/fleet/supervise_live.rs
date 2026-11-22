@@ -77,7 +77,7 @@ impl Live<'_> {
     async fn wake(&self, session: Uuid) -> Result<(), String> {
         let addr = &self.state.config.inspect_listen_addr;
         let url = format!("http://{addr}/api/launches/{session}/brief");
-        let response = reqwest::Client::new()
+        let response = mike_base::http_client::client("supervise-live")
             .post(&url)
             .send()
             .await

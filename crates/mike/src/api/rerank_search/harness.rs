@@ -35,7 +35,7 @@ impl Harness {
         let server = tokio::spawn(async move { axum::serve(listener, router).await });
         Ok(Self {
             base,
-            client: reqwest::Client::new(),
+            client: mike_base::http_client::client("harness"),
             state,
             handle,
             reranker: MockServer::start().await,

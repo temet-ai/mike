@@ -8,7 +8,7 @@ const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 
 async fn fetch(address: &str, allow_remote: bool) -> Option<serde_json::Value> {
     let endpoint = crate::config::endpoint::http_url(address, allow_remote).ok()?;
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("health")
         .timeout(HEALTH_TIMEOUT)
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())

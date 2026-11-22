@@ -165,7 +165,7 @@ pub(super) async fn daemon(config: &ProxyConfig) -> Check {
             "Selected inspect listener is not a valid supported local endpoint; no request was sent.",
         );
     };
-    let Ok(client) = reqwest::Client::builder()
+    let Ok(client) = mike_base::http_client::builder("probes")
         .timeout(Duration::from_secs(2))
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
@@ -235,7 +235,7 @@ pub(super) async fn code_scan(config: &ProxyConfig) -> Check {
 
 async fn fetch_code_scan(config: &ProxyConfig) -> Option<super::code_scan::CodeScanFacts> {
     let endpoint = crate::config::endpoint::inspect_url(config).ok()?;
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("probes")
         .timeout(Duration::from_secs(2))
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())

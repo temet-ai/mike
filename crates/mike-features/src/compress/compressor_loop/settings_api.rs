@@ -28,7 +28,7 @@ pub(super) struct InspectApi {
 
 impl InspectApi {
     pub(super) fn new(base: &str) -> Result<Self> {
-        let client = reqwest::Client::builder()
+        let client = mike_base::http_client::builder("settings-api")
             .build()
             .context("could not build the inspect API client")?;
         Ok(Self {

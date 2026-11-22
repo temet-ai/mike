@@ -35,7 +35,7 @@ pub fn build_retention_policy(config: &ProxyConfig) -> RetentionPolicy {
 }
 
 pub fn build_http_client() -> anyhow::Result<reqwest::Client> {
-    reqwest::Client::builder()
+    mike_base::http_client::builder("construction-pipeline")
         .no_proxy()
         .pool_max_idle_per_host(10)
         .pool_idle_timeout(std::time::Duration::from_secs(90))

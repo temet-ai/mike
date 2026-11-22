@@ -90,7 +90,7 @@ async fn push_over_remote_control(inspect_addr: Option<&str>, session: Uuid) -> 
         return false;
     };
     let url = format!("http://{addr}/api/launches/{session}/brief");
-    let response = match reqwest::Client::new().post(&url).send().await {
+    let response = match mike_base::http_client::client("brief-delivery").post(&url).send().await {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => {
             eprintln!(

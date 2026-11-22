@@ -98,7 +98,7 @@ fn backend_chosen(id: BackendId) -> Check {
 
 async fn fetch_settings_body(inspect_addr: &str) -> Result<serde_json::Value, String> {
     let url = format!("http://{inspect_addr}/api/settings");
-    let response = reqwest::Client::new()
+    let response = mike_base::http_client::client("doctor")
         .get(&url)
         .timeout(std::time::Duration::from_secs(5))
         .send()

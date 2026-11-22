@@ -46,7 +46,7 @@ impl std::fmt::Debug for EmbeddingService {
 
 impl EmbeddingService {
     pub fn new(config: &EmbeddingConfig) -> Self {
-        let client = reqwest::Client::new();
+        let client = crate::http_client::client("embeddings");
 
         Self {
             inner: Arc::new(Inner {

@@ -226,10 +226,10 @@ struct ErrorBody {
 
 impl ApiClient {
     pub fn new(config: &crate::config::ProxyConfig) -> Self {
-        let http = reqwest::Client::builder()
+        let http = mike_base::http_client::builder("client")
             .timeout(REQUEST_TIMEOUT)
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+            .unwrap_or_else(|_| mike_base::http_client::client("client"));
         Self {
             http,
             inspect_base: format!("http://{}/api", config.inspect_listen_addr),

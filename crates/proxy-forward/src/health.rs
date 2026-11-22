@@ -73,6 +73,8 @@ impl Default for ProxyHealth {
     }
 }
 
+const PROBE_USER_AGENT: &str = concat!("proxy-forward/", env!("CARGO_PKG_VERSION"), " health");
+
 pub async fn run_prober(
     health: ProxyHealth,
     health_url: String,
@@ -183,6 +185,7 @@ fn build_health_get(uri: hyper::Uri, health_url: &str) -> Option<Request<Empty<B
         .method("GET")
         .uri(uri)
         .header(hyper::header::HOST, host_header_for(health_url))
+        .header(hyper::header::USER_AGENT, PROBE_USER_AGENT)
         .body(Empty::<Bytes>::new())
     {
         Ok(r) => Some(r),

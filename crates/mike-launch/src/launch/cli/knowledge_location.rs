@@ -102,7 +102,7 @@ async fn load_identity(state_dir: Option<&Path>) -> Result<MachineIdentity, Mach
 
 async fn post_location(inspect_addr: &str, body: &Value) -> LocationOutcome {
     let url = format!("http://{inspect_addr}/api/knowledge/locations");
-    let response = match reqwest::Client::new().post(&url).json(body).send().await {
+    let response = match mike_base::http_client::client("knowledge-location").post(&url).json(body).send().await {
         Ok(response) => response,
         Err(error) => return LocationOutcome::Unavailable(format!("{url}: {error}")),
     };

@@ -112,7 +112,7 @@ pub(crate) async fn fetch(endpoint: &TetherEndpoint, session: Uuid) -> Reconcile
             "tether's operator token was not found, so mike cannot read its reconciliation",
         );
     };
-    let Ok(client) = reqwest::Client::builder().timeout(TIMEOUT).build() else {
+    let Ok(client) = mike_base::http_client::builder("session-reconcile").timeout(TIMEOUT).build() else {
         return ReconcileAnswer::unavailable("mike could not build an HTTP client for tether");
     };
     let url = format!(

@@ -72,7 +72,7 @@ impl Paths {
 }
 
 pub(super) async fn download(url: &str, sha256: &str, dest: &Path) -> Result<(), String> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("rerank-install")
         .timeout(DOWNLOAD_WAIT)
         .build()
         .map_err(|e| e.to_string())?;

@@ -97,7 +97,7 @@ impl OpenRouterClient {
         timeout: Option<Duration>,
         limiter: Arc<CallLimiter>,
     ) -> Result<Self, LlmError> {
-        let http = reqwest::Client::builder()
+        let http = crate::http_client::builder("openrouter")
             .build()
             .map_err(|e| LlmError::Transport(e.to_string()))?;
 

@@ -5,7 +5,7 @@ use std::time::Duration;
 pub const SIDECAR_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub async fn sidecar_reachable(url: &str) -> Result<u16, String> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("sidecar")
         .timeout(SIDECAR_PROBE_TIMEOUT)
         .no_proxy()
         .build()

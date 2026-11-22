@@ -7,7 +7,7 @@ use std::time::Duration;
 pub const LIVE_PROBE_DEADLINE: Duration = Duration::from_millis(300);
 pub const CAPABILITY_PROBE_DEADLINE: Duration = Duration::from_secs(2);
 
-static PROBE_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
+static PROBE_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| mike_base::http_client::client("health-probe"));
 
 #[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]

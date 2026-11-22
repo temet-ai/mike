@@ -84,7 +84,7 @@ impl RerankService {
             inner: Arc::new(Inner {
                 config: RwLock::new(config),
                 ranking: RwLock::new(RankingConfig::default()),
-                client: reqwest::Client::new(),
+                client: crate::http_client::client("rerank"),
                 runtime: Mutex::new(Runtime::new()),
                 turn: tokio::sync::Mutex::new(()),
                 health_timeout,

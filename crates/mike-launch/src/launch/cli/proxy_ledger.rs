@@ -34,7 +34,7 @@ fn keep(row: &LaunchRow, filter: &LaunchListFilter) -> bool {
 
 impl ProxyLedger {
     pub async fn connect(addr: &str) -> Result<(Self, LedgerHello), String> {
-        let client = reqwest::Client::builder()
+        let client = mike_base::http_client::builder("proxy-ledger")
             .timeout(REQUEST_TIMEOUT)
             .no_proxy()
             .build()

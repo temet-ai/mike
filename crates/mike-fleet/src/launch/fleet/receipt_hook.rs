@@ -189,7 +189,7 @@ fn fetch_receipts(addr: &str, slug: &str, command: &str) -> Result<Vec<Receipt>,
         .build()
         .map_err(|error| error.to_string())?;
     runtime.block_on(async {
-        let response = reqwest::Client::new()
+        let response = mike_base::http_client::client("receipt-hook")
             .get(url)
             .timeout(HTTP_TIMEOUT)
             .send()

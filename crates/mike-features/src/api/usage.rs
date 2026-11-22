@@ -378,7 +378,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = mike_base::http_client::client("usage");
         let response = fetch_from_openrouter(&client, &server.uri(), "sk-test", None).await?;
 
         assert!(response.configured);
@@ -420,7 +420,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = mike_base::http_client::client("usage");
         let result = fetch_from_openrouter(&client, &server.uri(), "sk-test", None).await;
         assert!(result.is_err(), "expected an Err for a non-403 failure");
         Ok(())

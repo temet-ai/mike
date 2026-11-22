@@ -244,7 +244,7 @@ fn loopback_url(addr: &str) -> String {
 }
 
 pub(crate) fn upstream(proxy_addr: &str, inspect_addr: &str) -> Result<Upstream, String> {
-    let client = reqwest::Client::builder()
+    let client = mike_base::http_client::builder("context")
         .no_proxy()
         .connect_timeout(Duration::from_secs(10))
         .build()
