@@ -74,6 +74,10 @@ impl PersistHandle {
         )
         .execute(&mut *tx)
         .await?;
+        if marks.classified.is_empty() {
+            tx.commit().await?;
+            return Ok(());
+        }
         sqlx::query!(
             "UPDATE projects.locations l SET parent_location_uuid = p.location_uuid
                FROM unnest($2::uuid[], $3::text[]) AS m(location_uuid, main_root)

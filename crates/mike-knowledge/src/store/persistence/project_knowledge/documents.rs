@@ -95,20 +95,37 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         {
             return Err(invalid("Source name and root path must not be empty"));
         }
-        let locations: Vec<Uuid> = inputs.iter().map(|input| input.location_uuid).collect();
-        let names: Vec<String> = inputs.iter().map(|input| input.name.clone()).collect();
-        let roots: Vec<String> = inputs.iter().map(|input| input.root_path.clone()).collect();
+        let all = SourceColumns {
+            owners: inputs.iter().map(|input| input.location_uuid).collect(),
+            names: inputs.iter().map(|input| input.name.clone()).collect(),
+            roots: inputs.iter().map(|input| input.root_path.clone()).collect(),
+        };
+        let mut registered = self.upsert_location_sources(&all).await?;
+        let moved = unmatched(&registered);
+        if moved.is_empty() {
+            return Ok(registered);
+        }
+        let retry = all.pick(&moved);
         sqlx::query!(
             "UPDATE memory.knowledge_sources s SET root_path = x.root_path
                FROM unnest($1::uuid[], $2::text[], $3::text[]) AS x(location_uuid, name, root_path)
               WHERE s.location_uuid = x.location_uuid AND s.name = x.name
                 AND s.root_path <> x.root_path",
-            &locations,
-            &names,
-            &roots
+            &retry.owners,
+            &retry.names,
+            &retry.roots
         )
         .execute(self.pool())
         .await?;
+        let again = self.upsert_location_sources(&retry).await?;
+        refill(&mut registered, &moved, again);
+        Ok(registered)
+    }
+
+    async fn upsert_location_sources(
+        self,
+        columns: &SourceColumns,
+    ) -> Result<Vec<Option<RegisteredSource>>, PersistError> {
         let rows = sqlx::query!(
             r#"WITH input AS (
                    SELECT x.ord, x.location_uuid, x.name, x.root_path
@@ -124,25 +141,17 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                  FROM input i
                  JOIN inserted n ON n.location_uuid = i.location_uuid AND n.name = i.name
                                 AND n.root_path = i.root_path"#,
-            &locations,
-            &names,
-            &roots
+            &columns.owners,
+            &columns.names,
+            &columns.roots
         )
         .fetch_all(self.pool())
         .await?;
-        let mut registered: Vec<Option<RegisteredSource>> =
-            std::iter::repeat_with(|| None).take(inputs.len()).collect();
-        for row in rows {
-            let slot = usize::try_from(row.ord - 1)
-                .ok()
-                .and_then(|index| registered.get_mut(index))
-                .ok_or_else(|| invalid("Source registration answered an unknown position"))?;
-            *slot = Some(RegisteredSource {
-                source_uuid: row.source_uuid,
-                generation: row.generation,
-            });
-        }
-        Ok(registered)
+        slots(
+            columns.names.len(),
+            rows.into_iter()
+                .map(|row| (row.ord, row.source_uuid, row.generation)),
+        )
     }
 
     pub async fn register_machine_knowledge_sources(
@@ -155,20 +164,37 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         {
             return Err(invalid("Source name and root path must not be empty"));
         }
-        let machines: Vec<Uuid> = inputs.iter().map(|input| input.machine_uuid).collect();
-        let names: Vec<String> = inputs.iter().map(|input| input.name.clone()).collect();
-        let roots: Vec<String> = inputs.iter().map(|input| input.root_path.clone()).collect();
+        let all = SourceColumns {
+            owners: inputs.iter().map(|input| input.machine_uuid).collect(),
+            names: inputs.iter().map(|input| input.name.clone()).collect(),
+            roots: inputs.iter().map(|input| input.root_path.clone()).collect(),
+        };
+        let mut registered = self.upsert_machine_sources(&all).await?;
+        let moved = unmatched(&registered);
+        if moved.is_empty() {
+            return Ok(registered);
+        }
+        let retry = all.pick(&moved);
         sqlx::query!(
             "UPDATE memory.knowledge_sources s SET root_path = x.root_path
                FROM unnest($1::uuid[], $2::text[], $3::text[]) AS x(machine_uuid, name, root_path)
               WHERE s.machine_uuid = x.machine_uuid AND s.name = x.name
                 AND s.root_path <> x.root_path",
-            &machines,
-            &names,
-            &roots
+            &retry.owners,
+            &retry.names,
+            &retry.roots
         )
         .execute(self.pool())
         .await?;
+        let again = self.upsert_machine_sources(&retry).await?;
+        refill(&mut registered, &moved, again);
+        Ok(registered)
+    }
+
+    async fn upsert_machine_sources(
+        self,
+        columns: &SourceColumns,
+    ) -> Result<Vec<Option<RegisteredSource>>, PersistError> {
         let rows = sqlx::query!(
             r#"WITH input AS (
                    SELECT x.ord, x.machine_uuid, x.name, x.root_path
@@ -198,25 +224,17 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
                  FROM input i
                  JOIN registered n ON n.machine_uuid = i.machine_uuid AND n.name = i.name
                                 AND n.root_path = i.root_path"#,
-            &machines,
-            &names,
-            &roots
+            &columns.owners,
+            &columns.names,
+            &columns.roots
         )
         .fetch_all(self.pool())
         .await?;
-        let mut registered: Vec<Option<RegisteredSource>> =
-            std::iter::repeat_with(|| None).take(inputs.len()).collect();
-        for row in rows {
-            let slot = usize::try_from(row.ord - 1)
-                .ok()
-                .and_then(|index| registered.get_mut(index))
-                .ok_or_else(|| invalid("Source registration answered an unknown position"))?;
-            *slot = Some(RegisteredSource {
-                source_uuid: row.source_uuid,
-                generation: row.generation,
-            });
-        }
-        Ok(registered)
+        slots(
+            columns.names.len(),
+            rows.into_iter()
+                .map(|row| (row.ord, row.source_uuid, row.generation)),
+        )
     }
 
     pub async fn ingest_knowledge_scan(
@@ -292,4 +310,61 @@ async fn complete_scan(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+/// Source registrations as parallel columns; `owners` holds location or
+/// machine uuids. A registration whose stored root differs comes back
+/// unmatched, and only those get their root moved and are registered again.
+struct SourceColumns {
+    owners: Vec<Uuid>,
+    names: Vec<String>,
+    roots: Vec<String>,
+}
+
+impl SourceColumns {
+    fn pick(&self, indexes: &[usize]) -> SourceColumns {
+        SourceColumns {
+            owners: indexes.iter().map(|&i| self.owners[i]).collect(),
+            names: indexes.iter().map(|&i| self.names[i].clone()).collect(),
+            roots: indexes.iter().map(|&i| self.roots[i].clone()).collect(),
+        }
+    }
+}
+
+fn unmatched(registered: &[Option<RegisteredSource>]) -> Vec<usize> {
+    registered
+        .iter()
+        .enumerate()
+        .filter(|(_, slot)| slot.is_none())
+        .map(|(index, _)| index)
+        .collect()
+}
+
+fn refill(
+    registered: &mut [Option<RegisteredSource>],
+    indexes: &[usize],
+    again: Vec<Option<RegisteredSource>>,
+) {
+    for (&index, slot) in indexes.iter().zip(again) {
+        registered[index] = slot;
+    }
+}
+
+fn slots(
+    len: usize,
+    rows: impl Iterator<Item = (i64, Uuid, i64)>,
+) -> Result<Vec<Option<RegisteredSource>>, PersistError> {
+    let mut registered: Vec<Option<RegisteredSource>> =
+        std::iter::repeat_with(|| None).take(len).collect();
+    for (ord, source_uuid, generation) in rows {
+        let slot = usize::try_from(ord - 1)
+            .ok()
+            .and_then(|index| registered.get_mut(index))
+            .ok_or_else(|| invalid("Source registration answered an unknown position"))?;
+        *slot = Some(RegisteredSource {
+            source_uuid,
+            generation,
+        });
+    }
+    Ok(registered)
 }

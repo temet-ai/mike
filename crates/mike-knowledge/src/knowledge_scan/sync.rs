@@ -41,6 +41,7 @@ impl ScanReport {
 #[derive(Debug, Default)]
 pub struct ScanMemo {
     submitted: HashMap<(Uuid, String), (i64, String)>,
+    missing_reported: Vec<(Uuid, String, PathBuf)>,
 }
 
 impl ScanMemo {
@@ -238,7 +239,16 @@ async fn record_missing_roots(
     missing: &[(Uuid, Spec)],
     memo: &mut ScanMemo,
 ) -> Result<usize, PersistError> {
+    let mut reported: Vec<(Uuid, String, PathBuf)> = missing
+        .iter()
+        .map(|(location, spec)| (*location, spec.name.clone(), spec.root.clone()))
+        .collect();
+    reported.sort();
+    if reported == memo.missing_reported {
+        return Ok(0);
+    }
     if missing.is_empty() {
+        memo.missing_reported = reported;
         return Ok(0);
     }
     for (location, spec) in missing {
@@ -257,6 +267,7 @@ async fn record_missing_roots(
         .knowledge()
         .record_knowledge_roots_missing(&source_inputs(missing.iter()))
         .await?;
+    memo.missing_reported = reported;
     Ok(usize::try_from(recorded).unwrap_or(usize::MAX))
 }
 

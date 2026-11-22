@@ -78,7 +78,9 @@ pub async fn record_origins(
     machine: Uuid,
 ) -> Result<Vec<crate::store::persistence::location_move::LocationMove>, PersistError> {
     for location in persist.locations_on_machine(machine).await? {
-        if let Some(origin) = own_origin(&location.root_path).await {
+        if let Some(origin) = own_origin(&location.root_path).await
+            && location.origin_url.as_deref() != Some(origin.as_str())
+        {
             persist
                 .set_location_origin(location.location_uuid, &origin)
                 .await?;

@@ -207,7 +207,7 @@ impl PersistHandle {
     ) -> Result<Vec<MachineLocation>, PersistError> {
         Ok(sqlx::query_as!(
             MachineLocation,
-            "SELECT location_uuid, root_path FROM projects.locations
+            "SELECT location_uuid, root_path, origin_url FROM projects.locations
               WHERE machine_uuid = $1 ORDER BY root_path",
             machine
         )
@@ -220,6 +220,7 @@ impl PersistHandle {
 pub struct MachineLocation {
     pub location_uuid: Uuid,
     pub root_path: String,
+    pub origin_url: Option<String>,
 }
 
 pub async fn upsert_location(

@@ -75,10 +75,20 @@ pub(super) fn marks(rows: &[CheckoutRow], seen: &[Seen]) -> CheckoutMarks {
         if let Some(identity) = &seen.identity {
             let main_root = (identity.main_root != identity.checkout_root)
                 .then(|| identity.main_root.to_string_lossy().into_owned());
-            marks.classify(row.location_uuid, main_root);
+            if parent_in(rows, row, main_root.as_deref()) != row.parent_location_uuid {
+                marks.classify(row.location_uuid, main_root);
+            }
         }
     }
     marks
+}
+
+fn parent_in(rows: &[CheckoutRow], row: &CheckoutRow, main_root: Option<&str>) -> Option<Uuid> {
+    let main_root = main_root?;
+    rows.iter()
+        .find(|other| other.root_path.trim_end_matches('/') == main_root)
+        .map(|other| other.location_uuid)
+        .filter(|parent| *parent != row.location_uuid)
 }
 
 pub(super) fn automatic_moves(rows: &[CheckoutRow], seen: &[Seen]) -> Vec<(Uuid, String)> {
@@ -147,3 +157,7 @@ fn contains(outer: &CheckoutRow, inner: &CheckoutRow) -> bool {
 #[cfg(test)]
 #[path = "checkout_watch_db_tests.rs"]
 mod db_tests;
+
+#[cfg(test)]
+#[path = "checkout_watch_tests.rs"]
+mod tests;
