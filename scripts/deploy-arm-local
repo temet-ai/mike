@@ -13,8 +13,8 @@
 # it to each host (default infra:projects/mike) and installs it there. Last it installs it
 # on ha, Home Assistant's SSH add-on, with scripts/deploy-ha (--ha <ssh host>, or --ha ""
 # to leave ha out); ha is optional, so an unreachable or failed ha never stops the deploy.
-# A commit asked for while a build runs is built next; the commits asked for in between are
-# skipped.
+# A commit asked for while a build runs is built next, even when that build fails; the
+# commits asked for in between are skipped.
 #
 # Its output goes to $state/deploy.log; follow it with: tail -f ~/.local/state/mike/arm-deploy/deploy.log
 set -euo pipefail
@@ -66,9 +66,16 @@ deploy_one() {
   echo "==> Deployed $short to $(hostname) and $hosts in $((SECONDS - started))s"
 }
 
+# A build that fails is not retried, but a commit asked for while it ran still is: the loop
+# ends only when the wanted commit is deployed or is the one that just failed.
+failed=""
 while :; do
   wanted="$(cat "$state/wanted" 2>/dev/null || true)"
   [ -n "$wanted" ] || die "no commit in $state/wanted"
   [ "$wanted" != "$(cat "$state/deployed" 2>/dev/null || true)" ] || break
-  deploy_one "$wanted"
+  [ "$wanted" != "$failed" ] || die "${wanted:0:9} failed; nothing newer was asked for"
+  if ! (deploy_one "$wanted"); then
+    echo "==> ${wanted:0:9} failed; building the newest commit asked for, if any"
+    failed="$wanted"
+  fi
 done
