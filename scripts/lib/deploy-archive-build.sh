@@ -10,7 +10,8 @@
 # did not change. mike compiles with the fixed mbx identity and is then stamped with HEAD
 # (scripts/lib/stamp_build_identity.py, built_at from SOURCE_DATE_EPOCH). mike-mcp has no
 # stamp slot and depends on no workspace crate, so it compiles with the commit's identity:
-# only that one small crate recompiles per commit. Writes <build dir>/<target>/dist/mike and
+# only that one small crate recompiles per commit. A mike whose embedded migrations differ from
+# the source's files is refused (scripts/lib/migration-guard.sh). Writes <build dir>/<target>/dist/mike and
 # mike-mcp as new files, never hard links into the store.
 set -euo pipefail
 
@@ -21,6 +22,8 @@ source "$root/scripts/lib/preflight-toolchain.sh"
 ensure_pinned_rust_toolchain "$root" || exit 1
 # shellcheck source=heavy-build.sh
 source "$root/scripts/lib/heavy-build.sh"
+# shellcheck source=migration-guard.sh
+source "$root/scripts/lib/migration-guard.sh"
 
 epoch="${SOURCE_DATE_EPOCH:?the release preparer sets SOURCE_DATE_EPOCH}"
 # build_identity.rs reruns on SOURCE_DATE_EPOCH, so leaving it set would change the key of
@@ -58,3 +61,9 @@ for name in mike mike-mcp; do
   chmod 755 "$dest/$name"
 done
 echo "==> Stamped mike: $(SOURCE_DATE_EPOCH="$epoch" python3 "$root/scripts/lib/stamp_build_identity.py" "$dest/mike" --repo "$root")"
+# A cross-built mike runs here under qemu-aarch64 (build-local-release sets QEMU_LD_PREFIX).
+if ! migration_versions_in_dir "$root/$MIGRATION_GUARD_DIR" | migration_guard "$dest/mike"; then
+  echo "deploy-archive-build: $dest/mike does not embed $root/$MIGRATION_GUARD_DIR; refusing the build" >&2
+  exit 1
+fi
+echo "==> mike embeds the migrations of its source"

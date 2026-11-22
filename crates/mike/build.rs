@@ -2,9 +2,13 @@ use std::path::PathBuf;
 
 #[path = "../build_identity.rs"]
 mod build_identity;
+#[path = "src/migrations_digest.rs"]
+mod migrations_digest;
+
+const MIGRATIONS_DIR: &str = "../mike-base/src/store/persistence/migrations";
 
 fn main() {
-    println!("cargo:rerun-if-changed=../mike-base/src/store/persistence/migrations");
+    emit_migrations_digest();
 
     println!("cargo::rustc-check-cfg=cfg(has_spa_build)");
     println!("cargo::rustc-check-cfg=cfg(mike_build_stamp)");
@@ -23,4 +27,12 @@ fn main() {
     }
 
     build_identity::emit_build_identity(&manifest_dir);
+}
+
+fn emit_migrations_digest() {
+    println!("cargo:rerun-if-changed={MIGRATIONS_DIR}");
+    match migrations_digest::digest_dir(std::path::Path::new(MIGRATIONS_DIR)) {
+        Ok(digest) => println!("cargo::rustc-env=MIKE_MIGRATIONS_DIGEST={digest}"),
+        Err(err) => panic!("cannot read the migrations in {MIGRATIONS_DIR}: {err}"),
+    }
 }

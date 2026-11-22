@@ -75,6 +75,24 @@ and checks without a cutover; `MIKE_DEPLOY_BUILD_CACHE=cargo` returns to plain c
 
 `scripts/test-cx-build-cache` checks this without building anything.
 
+## 23 November 2026: a deploy shipped a binary without its newest migration
+
+Commit f39a107ea added one migration file. The deploy restored crate `mike` from the store
+(`1 hits, 1 misses`), the binary reported the right commit, and it embedded the migrations of the
+commit before. `sqlx::migrate!` reads the folder itself; on stable Rust it cannot tell rustc it
+did, so rustc's dep-info lists only the files it `include_str!`s, and a new file changes no
+input mbx keys the crate on. Plain cargo was not affected: `rerun-if-changed` on the folder
+reruns the build script, and cargo then recompiles the crate. `crates/mike/build.rs` now hashes every file in the folder, by
+name and bytes (`crates/mike/src/migrations_digest.rs`), and passes it to the compile as
+`MIKE_MIGRATIONS_DIGEST`; `crates/mike/src/embedded_migrations.rs`, which holds the
+`migrate!`, reads it with `env!`, so the digest is an input of the crate's key.
+
+`mike --list-embedded-migrations` prints the digest and the embedded versions, and
+`scripts/lib/migration-guard.sh` compares them with the source's files. `deploy-proxy.sh`
+refuses a staged binary that differs and rebuilds when the live binary reports HEAD but not
+HEAD's migrations; `deploy-archive-build.sh` and `deploy-release-build` refuse such a build
+before anything is installed. `scripts/test-migration-guard` checks the guard.
+
 ## Infra deploy builds
 
 infra (aarch64) never builds Rust; deus builds the ARM64 deploy. `scripts/deploy-infra

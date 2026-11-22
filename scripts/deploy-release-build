@@ -143,6 +143,23 @@ fi
 mkdir "$work/tools"
 git -C "$REPO" archive "$sha" scripts | tar -x -C "$work/tools"
 installer="$work/tools/scripts/install-release"
+
+# A build cache once restored a mike without its newest migration, and the deploy shipped it.
+# Before anything is installed, the archived mike must embed the commit's migration files.
+# A commit from before the guard existed is not checked.
+# The guard is read from the commit's own scripts: this script may run from a temporary copy.
+if [ -f "$work/tools/scripts/lib/migration-guard.sh" ]; then
+  # shellcheck source=lib/migration-guard.sh
+  source "$work/tools/scripts/lib/migration-guard.sh"
+  mkdir "$work/peek"
+  tar -xzf "$work/candidate/mike-v"*"-$target.tar.gz" -C "$work/peek" mike
+  migration_versions_at_commit "$REPO" "$sha" | migration_guard "$work/peek/mike" || {
+    echo "deploy-release-build: the archived mike of $short does not embed its migrations; nothing was installed" >&2
+    exit 1
+  }
+  echo "==> The archived mike embeds the migrations of $short"
+fi
+
 install_args=(--candidate "$work/candidate")
 # Successive commits of main share a version; a deploy installs the next one
 # over the last. Installers older than the flag still refuse a changed build.

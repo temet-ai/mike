@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Checks scripts/lib/migration-guard.sh without a build, a server or a database: which versions
+# it reads from a migrations folder and from a commit, when it accepts a binary's embedded set and
+# what it says when it refuses one, and that every deploy path runs it. Fake binaries are shell
+# scripts in a mktemp -d folder.
+#
+# Usage: scripts/test-migration-guard     Exit: 0 = no FAIL.
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+has() { if [[ "$3" == *"$2"* ]]; then ok "$1"; else bad "$1" "wanted [$2] in [$3]"; fi; }
+
+# shellcheck source=lib/migration-guard.sh
+source "$root/scripts/lib/migration-guard.sh"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/mg.XXXXXX")"
+trap 'rm -rf "$scratch"' EXIT
+
+# ── reading the source's versions ────────────────────────────────────────────
+dir="$scratch/repo/$MIGRATION_GUARD_DIR"
+mkdir -p "$dir/nested"
+for name in 20260101000000_first.sql 20260102000000_second.sql 20260103000000_third.up.sql \
+    20260103000000_third.down.sql README.md notes.txt; do
+    : >"$dir/$name"
+done
+: >"$dir/nested/20260109000000_ignored.sql"
+nl=$'\n'
+want="20260101000000${nl}20260102000000${nl}20260103000000"
+eq "folder: up migrations by version, down, non-sql and nested files left out" "$want" "$(migration_versions_in_dir "$dir")"
+migration_versions_in_dir "$scratch/absent" >/dev/null 2>&1
+eq "folder: a missing folder fails" 1 "$?"
+
+git -C "$scratch/repo" init -q
+git -C "$scratch/repo" add -A
+git -C "$scratch/repo" -c user.name=t -c user.email=t@t commit -qm one
+sha="$(git -C "$scratch/repo" rev-parse HEAD)"
+eq "commit: the same versions as the folder" "$want" "$(migration_versions_at_commit "$scratch/repo" "$sha")"
+: >"$dir/20260104000000_uncommitted.sql"
+eq "commit: an uncommitted file is not read" "$want" "$(migration_versions_at_commit "$scratch/repo" "$sha")"
+mkdir -p "$scratch/empty"
+git -C "$scratch/empty" init -q
+git -C "$scratch/empty" -c user.name=t -c user.email=t@t commit -q --allow-empty -m none
+migration_versions_at_commit "$scratch/empty" HEAD >/dev/null 2>&1
+eq "commit: a commit without the folder fails" 1 "$?"
+
+# ── migration_guard ──────────────────────────────────────────────────────────
+fake() {
+    local path="$scratch/$1"
+    printf '#!/bin/sh\n[ "$1" = --list-embedded-migrations ] || exit 2\n%s\n' "$2" >"$path"
+    chmod +x "$path"
+    printf '%s' "$path"
+}
+three="$(fake three "printf '# digest 0123456789abcdef\n20260102000000\n20260101000000\n20260103000000\n'")"
+two="$(fake two "printf '# digest 0123456789abcdef\n20260101000000\n20260102000000\n'")"
+four="$(fake four "printf '# digest 0\n20260101000000\n20260102000000\n20260103000000\n20260105000000\n'")"
+old="$(fake old "echo 'error: unexpected argument' >&2; exit 2")"
+silent="$(fake silent "exit 0")"
+
+guard() { local out; out="$(printf '%s\n' "$1" | migration_guard "$2" 2>&1)"; echo "$?|$out"; }
+eq "same set, any order: accepted" "0|" "$(guard "$want" "$three")"
+result="$(guard "$want" "$two")"
+has "a migration missing from the binary: refused" "1|" "$result"
+has "the refusal names the missing version" "missing from the binary: 20260103000000" "$result"
+result="$(guard "$want" "$four")"
+has "a migration only in the binary: refused" "1|" "$result"
+has "the refusal names the extra version" "in the binary but not in the source: 20260105000000" "$result"
+many="$(fake many "printf '# digest 0\n'; seq 1 25")"
+has "a long difference is cut to ten versions and a count" "1 10 11 12 13 14 15 16 17 18 ... (25 in all)" "$(guard "$want" "$many")"
+has "a binary without --list-embedded-migrations: refused" "1|migration-guard: $old cannot list" "$(guard "$want" "$old")"
+has "a binary that lists nothing: refused" "1|migration-guard: $silent cannot list" "$(guard "$want" "$silent")"
+has "no source versions: refused" "1|migration-guard: no migration files" "$(guard "" "$three")"
+has "a missing binary: refused" "1|" "$(guard "$want" "$scratch/absent")"
+has "commit piped into the guard: accepted" "0|" \
+    "$(printf '%s\n' "$(migration_versions_at_commit "$scratch/repo" "$sha")" | migration_guard "$three" 2>&1; echo "$?|")"
+
+# ── every deploy path runs the guard ─────────────────────────────────────────
+for script in scripts/deploy-proxy.sh scripts/lib/deploy-archive-build.sh scripts/deploy-release-build; do
+    text="$(cat "$root/$script")"
+    has "$script sources the guard" "lib/migration-guard.sh" "$text"
+    has "$script runs the guard" "| migration_guard " "$text"
+done
+skip_block="$(sed -n '/BUILD_NEEDED="false"$/,/^fi$/p' "$root/scripts/deploy-proxy.sh")"
+has "deploy-proxy.sh: the same-commit skip checks the live binary" 'migration_guard "${LIVE_BIN}"' "$skip_block"
+has "deploy-proxy.sh: a failed check rebuilds" 'BUILD_NEEDED="true"' "$skip_block"
+staged="$(sed -n '/EXPECTED_MIGRATIONS=/,/refusing it/p' "$root/scripts/deploy-proxy.sh")"
+has "deploy-proxy.sh: the staged binary is checked" 'migration_guard "${STAGED_BIN}"' "$staged"
+cutover_line="$(grep -n 'migration_guard "${STAGED_BIN}"' "$root/scripts/deploy-proxy.sh" | head -1 | cut -d: -f1)"
+config_line="$(grep -n 'print-config --shell' "$root/scripts/deploy-proxy.sh" | head -1 | cut -d: -f1)"
+if [[ -n "$cutover_line" && -n "$config_line" && "$cutover_line" -lt "$config_line" ]]; then
+    ok "deploy-proxy.sh: the staged binary is checked before it is run for config, smoke or cutover"
+else
+    bad "deploy-proxy.sh: the staged binary is checked before it is run for config, smoke or cutover" \
+        "guard at line ${cutover_line:-none}, print-config at ${config_line:-none}"
+fi
+
+echo
+echo "test-migration-guard: $pass passed, $fail failed"
+[[ "$fail" -eq 0 ]]

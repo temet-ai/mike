@@ -78,14 +78,15 @@
 # THE BUILD — cached, at the lowest priority, and only when HEAD is not already live.
 # ----------------------------------------------------------------------------------
 # When the live binary was deployed from HEAD with the same profile (.deploy/mike.deployed.commit
-# and .deploy/mike.deployed.profile) and reports HEAD on --build-info, there is nothing to
-# build: the live binary is staged as it is, and the smart-skip below leaves the proxy alone
+# and .deploy/mike.deployed.profile), reports HEAD on --build-info and embeds HEAD's migration
+# files (scripts/lib/migration-guard.sh), there is nothing to build: the live binary is staged as it is, and the smart-skip below leaves the proxy alone
 # (--force still cuts over to it, which re-cuts a degraded proxy). Otherwise the commit HEAD
 # named when the deploy started is checked out in .claude/worktrees/deploy (uncommitted edits
 # in this checkout are not deployed) and mike is built there through the mbx cache into <target>/mbx-deploy under
 # `nice -n 19 ionice -c 3`: every crate compiles with a fixed identity, so units that did not
 # change restore from the store, and scripts/lib/stamp_build_identity.py then writes the commit
-# into the staged copy. A staged binary whose --build-info does not report HEAD is refused before
+# into the staged copy. A staged binary whose --build-info does not report HEAD, or whose
+# --list-embedded-migrations differs from the build tree's migration files, is refused before
 # anything touches the live proxy. Without mbx (or with MIKE_DEPLOY_BUILD_CACHE=cargo) it is
 # plain cargo with MIKE_BUILD_IDENTITY=git into <target>/deploy-cargo. The main checkout's
 # frontend/build is linked into the worktree, so the UI stays embedded without a frontend
@@ -492,6 +493,8 @@ source "${SCRIPT_DIR}/lib/preflight-toolchain.sh"
 source "${SCRIPT_DIR}/lib/deploy-build.sh"
 # shellcheck source=lib/heavy-build.sh
 source "${SCRIPT_DIR}/lib/heavy-build.sh"
+# shellcheck source=lib/migration-guard.sh
+source "${SCRIPT_DIR}/lib/migration-guard.sh"
 
 # Under the installed service the live binary is the file the service runs, not the record.
 LIVE_BIN="${DEPLOYED_BIN}"
@@ -509,6 +512,12 @@ if [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" ]] \
         "$(cat "${DEPLOY_DIR}/mike.deployed.profile" 2>/dev/null || true)" \
         "$(deploy_build_info_sha "${LIVE_BIN}")"; then
     BUILD_NEEDED="false"
+    # The commit stamp says nothing about what was compiled: a cache that restored a stale
+    # crate mike still carries HEAD's stamp. Rebuild when the live binary's migrations differ.
+    if ! migration_versions_at_commit "${PROJECT_ROOT}" "${HEAD_SHA}" | migration_guard "${LIVE_BIN}"; then
+        echo "==> The live mike reports HEAD ${HEAD_SHA:0:12} but not its migrations — rebuilding"
+        BUILD_NEEDED="true"
+    fi
 fi
 
 LOW_PRIORITY=()
@@ -589,6 +598,17 @@ if [[ -n "${HEAD_SHA}" && "${STAGED_SHA}" != "${HEAD_SHA}" ]]; then
     echo "==> The staged binary reports build ${STAGED_SHA:-nothing}, not HEAD ${HEAD_SHA} — refusing it. The live proxy was not touched." >&2
     exit 1
 fi
+
+if [[ "${BUILD_TREE}" != "${PROJECT_ROOT}" || -z "${HEAD_SHA}" ]]; then
+    EXPECTED_MIGRATIONS="$(migration_versions_in_dir "${BUILD_TREE}/${MIGRATION_GUARD_DIR}")"
+else
+    EXPECTED_MIGRATIONS="$(migration_versions_at_commit "${PROJECT_ROOT}" "${HEAD_SHA}")"
+fi
+if ! printf '%s\n' "${EXPECTED_MIGRATIONS}" | migration_guard "${STAGED_BIN}"; then
+    echo "==> The staged binary's embedded migrations differ from the migration files of the source it was built from — refusing it. The live proxy was not touched." >&2
+    exit 1
+fi
+echo "==> The staged binary embeds the $(printf '%s\n' "${EXPECTED_MIGRATIONS}" | grep -c .) migrations of its source"
 
 if [[ "${BUILD_ONLY}" == "true" ]]; then
     echo "==> --build-only: ${STAGED_BIN} reports ${STAGED_SHA}; no migrate-check, smoke or cutover."

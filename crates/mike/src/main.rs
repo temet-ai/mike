@@ -6,7 +6,10 @@ use mike::config::CliOverrides;
 
 #[path = "../../build_info.rs"]
 mod build_info;
+mod embedded_migrations;
 mod fleet_invocation;
+#[cfg(test)]
+mod migrations_digest;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -29,6 +32,10 @@ fn main() -> anyhow::Result<()> {
         println!("{}", mike::cli::version_line());
         return Ok(());
     }
+    if embedded_migrations::list_requested(&arguments) {
+        embedded_migrations::print_listing();
+        return Ok(());
+    }
     if build_info::requested(arguments.into_iter()) {
         build_info::print();
         return Ok(());
@@ -47,8 +54,8 @@ fn main() -> anyhow::Result<()> {
     mike::launch::cli::fleet_settings::install();
     mike::feature_settings::install();
     mike::store::persistence::migrations::install(
-        sqlx::migrate!("../mike-base/src/store/persistence/migrations"),
-        sqlx::migrate!("../mike-base/src/store/persistence/migrations"),
+        embedded_migrations::migrator(),
+        embedded_migrations::migrator(),
     );
     let cli = Cli::parse();
     mike::user_config::observe_selected(cli.overrides.config.as_deref())?;
