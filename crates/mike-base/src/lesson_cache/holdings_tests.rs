@@ -79,3 +79,11 @@ fn note_declared_is_new_once_and_separate_from_the_lesson_route() {
     holdings.restore_declared(vec!["s2".to_owned()]);
     assert!(holdings.is_declared("s2"));
 }
+
+#[test]
+fn note_unreachable_is_new_once_per_session() {
+    let holdings = SessionHoldings::default();
+    assert!(holdings.note_unreachable("s1"));
+    assert!(!holdings.note_unreachable("s1"));
+    assert!(holdings.note_unreachable("s2"));
+}

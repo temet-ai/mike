@@ -11,6 +11,7 @@ const SESSION_CAPACITY: usize = 16_384;
 pub struct SessionHoldings {
     clients: RwLock<HashSet<String>>,
     declared: RwLock<HashSet<String>>,
+    unreachable: RwLock<HashSet<String>>,
     held: RwLock<HashMap<String, HashMap<i64, i32>>>,
 }
 
@@ -36,6 +37,10 @@ impl SessionHoldings {
 
     pub fn is_declared(&self, session: &str) -> bool {
         contains(&self.declared, session)
+    }
+
+    pub fn note_unreachable(&self, session: &str) -> bool {
+        insert_bounded(&self.unreachable, session)
     }
 
     pub fn restore_declared(&self, sessions: Vec<String>) {

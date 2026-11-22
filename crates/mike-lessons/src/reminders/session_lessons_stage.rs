@@ -108,17 +108,16 @@ impl RequestStage for SessionLessonsStage {
             );
             return;
         }
+        let holdings = ctx.lesson_snapshot.relevance.holdings();
         if ctx.state.feature_toggle_overlay.load().mod_lesson_delivery
-            && ctx
-                .lesson_snapshot
-                .relevance
-                .holdings()
-                .is_declared(ctx.session_id)
+            && holdings.is_declared(ctx.session_id)
         {
-            tracing::warn!(
-                session_id = %ctx.session_id,
-                "lessons: the session's client declared lessons but never reached /api/lessons/for-prompt"
-            );
+            if holdings.note_unreachable(ctx.session_id) {
+                tracing::warn!(
+                    session_id = %ctx.session_id,
+                    "lessons: the session's client declared lessons but never reached /api/lessons/for-prompt"
+                );
+            }
             body.record_unchanged(
                 "session_lessons",
                 "session_lessons",
