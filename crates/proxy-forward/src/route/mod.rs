@@ -31,6 +31,8 @@ pub struct DispatchCtx<'a> {
     pub direct_target: Option<&'a str>,
     pub max_body_bytes: usize,
     pub tracker: &'a TaskTracker,
+    /// See `health::CUTOVER_GRACE`.
+    pub cutover_grace: std::time::Duration,
 }
 
 pub async fn dispatch(req: Request<Incoming>, ctx: DispatchCtx<'_>) -> Response<ResponseBody> {
@@ -52,15 +54,15 @@ pub async fn dispatch(req: Request<Incoming>, ctx: DispatchCtx<'_>) -> Response<
 
     let path = req.uri().path().to_string();
     let is_event_stream = is_event_stream_request(&req);
-    let health_up = ctx.health.is_up();
-    let leg = leg_for(health_up, &path, is_event_stream);
-    log_route_decision(leg, &path, is_event_stream, health_up);
 
     let buffered = match buffer_request(req, ctx.max_body_bytes).await {
         Ok(b) => b,
         Err(resp) => return resp,
     };
 
+    let health_up = is_versioned_api_path(&path) && ctx.health.wait_up(ctx.cutover_grace).await;
+    let leg = leg_for(health_up, &path, is_event_stream);
+    log_route_decision(leg, &path, is_event_stream, health_up);
     dispatch_on_leg(leg, buffered, &ctx, is_event_stream).await
 }
 
@@ -146,7 +148,20 @@ async fn dispatch_routed(
     ctx: &DispatchCtx<'_>,
     is_event_stream: bool,
 ) -> Response<ResponseBody> {
-    match legs::send_routed(&buffered, ctx.clients, ctx.upstream_authority).await {
+    let first = legs::send_routed(&buffered, ctx.clients, ctx.upstream_authority).await;
+    let sent = match first {
+        Err(RoutedFailure::Replayable(msg)) => {
+            ctx.health.set(HealthState::Down);
+            tracing::info!(reason = %msg, "routed leg unusable pre-send; holding the request while mike comes back");
+            if ctx.health.wait_up(ctx.cutover_grace).await {
+                legs::send_routed(&buffered, ctx.clients, ctx.upstream_authority).await
+            } else {
+                Err(RoutedFailure::Replayable(msg))
+            }
+        }
+        other => other,
+    };
+    match sent {
         Ok(resp) => resp,
         Err(RoutedFailure::Replayable(msg)) if is_event_stream => {
             event_stream_replay_skipped(ctx, &msg)
@@ -272,6 +287,7 @@ mod tests {
             direct_target: None,
             max_body_bytes: 1024,
             tracker: &tracker,
+            cutover_grace: std::time::Duration::ZERO,
         };
 
         let buffered = Request::builder()

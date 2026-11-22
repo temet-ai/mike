@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
-use std::time::Duration;
+use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use http_body_util::{BodyExt, Empty};
 use hyper::Request;
@@ -13,6 +14,11 @@ use tokio_util::sync::CancellationToken;
 pub const DOWN_AFTER_CONSECUTIVE_FAILURES: u32 = 2;
 pub const HANDLER_WORST_CASE: Duration = Duration::from_secs(4);
 pub const MIN_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long into an outage a captured-path request waits for mike instead
+/// of going past it. A deploy stops mike, drains for up to 10 s and starts
+/// the new one, so a younger outage is a cutover that is about to end; an
+/// older one is a real outage, and requests bypass at once as before.
+pub const CUTOVER_GRACE: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -36,6 +42,8 @@ impl HealthState {
 pub struct ProxyHealth {
     state: Arc<AtomicU8>,
     bypassed: Arc<AtomicU64>,
+    not_up_since: Arc<Mutex<Instant>>,
+    came_up: Arc<tokio::sync::Notify>,
 }
 
 impl ProxyHealth {
@@ -43,6 +51,27 @@ impl ProxyHealth {
         Self {
             state: Arc::new(AtomicU8::new(HealthState::Unknown as u8)),
             bypassed: Arc::new(AtomicU64::new(0)),
+            not_up_since: Arc::new(Mutex::new(Instant::now())),
+            came_up: Arc::new(tokio::sync::Notify::new()),
+        }
+    }
+
+    /// Waits for the routed leg to come up while the outage is younger than
+    /// `grace`. True when it is up; false at once for an older outage.
+    pub async fn wait_up(&self, grace: Duration) -> bool {
+        let deadline = *self
+            .not_up_since
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            + grace;
+        loop {
+            let came_up = self.came_up.notified();
+            if self.is_up() {
+                return true;
+            }
+            if tokio::time::timeout_at(deadline.into(), came_up).await.is_err() {
+                return self.is_up();
+            }
         }
     }
 
@@ -59,7 +88,18 @@ impl ProxyHealth {
     }
 
     pub fn set(&self, s: HealthState) {
-        self.state.store(s as u8, Ordering::Release);
+        let prev = HealthState::from_u8(self.state.swap(s as u8, Ordering::AcqRel));
+        match (prev, s) {
+            (HealthState::Up, HealthState::Up) => {}
+            (_, HealthState::Up) => self.came_up.notify_waiters(),
+            (HealthState::Up, _) => {
+                *self
+                    .not_up_since
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = Instant::now();
+            }
+            _ => {}
+        }
     }
 
     pub fn is_up(&self) -> bool {

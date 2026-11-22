@@ -56,6 +56,7 @@ where
                 direct_target: direct_target.as_deref(),
                 max_body_bytes,
                 tracker: &tracker,
+                cutover_grace: crate::health::CUTOVER_GRACE,
             };
             let resp = crate::route::dispatch(req, ctx).await;
             Ok::<_, std::convert::Infallible>(resp)

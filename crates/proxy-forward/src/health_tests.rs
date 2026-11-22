@@ -264,3 +264,36 @@ fn probe_timeout_is_raised_above_handler_worst_case() {
         Duration::from_secs(9)
     );
 }
+
+#[tokio::test]
+async fn wait_up_holds_a_young_outage_until_the_leg_comes_up() {
+    let health = ProxyHealth::unknown();
+    health.set(HealthState::Up);
+    health.set(HealthState::Down);
+    let waiter = health.clone();
+    let waiting = tokio::spawn(async move { waiter.wait_up(Duration::from_secs(5)).await });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    health.set(HealthState::Up);
+    assert!(matches!(waiting.await, Ok(true)));
+}
+
+#[tokio::test]
+async fn wait_up_gives_up_on_an_outage_older_than_the_grace() {
+    let health = ProxyHealth::unknown();
+    health.set(HealthState::Up);
+    health.set(HealthState::Down);
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    let started = std::time::Instant::now();
+    assert!(!health.wait_up(Duration::from_millis(10)).await);
+    assert!(started.elapsed() < Duration::from_millis(20));
+}
+
+#[tokio::test]
+async fn a_repeated_down_does_not_restart_the_outage_clock() {
+    let health = ProxyHealth::unknown();
+    health.set(HealthState::Up);
+    health.set(HealthState::Down);
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    health.set(HealthState::Down);
+    assert!(!health.wait_up(Duration::from_millis(10)).await);
+}
