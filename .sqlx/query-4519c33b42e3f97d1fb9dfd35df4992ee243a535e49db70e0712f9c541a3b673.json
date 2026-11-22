@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_id,\n                          CASE WHEN boot_id = $1 THEN pid END AS pid,\n                          lease_expires_at < $2 AS \"lapsed!\"\n                     FROM workspace.session_registrations\n                    WHERE released_at IS NULL\n                      AND ((pid IS NOT NULL AND boot_id = $1) OR lease_expires_at < $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "pid",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "lapsed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "4519c33b42e3f97d1fb9dfd35df4992ee243a535e49db70e0712f9c541a3b673"
+}

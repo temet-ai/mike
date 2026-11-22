@@ -5,15 +5,18 @@ impl PersistHandle {
     pub async fn fetch_reap_candidates(
         &self,
         current_boot_id: &str,
+        lapsed_before: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<ReapCandidate>, PersistError> {
         crate::metrics::time_db("workspace_fetch_reap_candidates", async move {
             let rows = sqlx::query!(
-                r#"SELECT session_id, pid AS "pid!"
+                r#"SELECT session_id,
+                          CASE WHEN boot_id = $1 THEN pid END AS pid,
+                          lease_expires_at < $2 AS "lapsed!"
                      FROM workspace.session_registrations
                     WHERE released_at IS NULL
-                      AND pid IS NOT NULL
-                      AND boot_id = $1"#,
+                      AND ((pid IS NOT NULL AND boot_id = $1) OR lease_expires_at < $2)"#,
                 current_boot_id,
+                lapsed_before,
             )
             .fetch_all(&self.pool)
             .await?;
@@ -22,27 +25,9 @@ impl PersistHandle {
                 .map(|r| ReapCandidate {
                     session_id: r.session_id,
                     pid: r.pid,
+                    lapsed: r.lapsed,
                 })
                 .collect())
-        })
-        .await
-    }
-
-    pub async fn fetch_lapsed_registration_ids(
-        &self,
-        lapsed_before: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Vec<i64>, PersistError> {
-        crate::metrics::time_db("workspace_fetch_lapsed_registrations", async move {
-            let ids = sqlx::query_scalar!(
-                r#"SELECT session_id
-                     FROM workspace.session_registrations
-                    WHERE released_at IS NULL
-                      AND lease_expires_at < $1"#,
-                lapsed_before,
-            )
-            .fetch_all(&self.pool)
-            .await?;
-            Ok(ids)
         })
         .await
     }

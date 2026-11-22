@@ -94,7 +94,10 @@ pub struct WorkspaceRosterRow {
 #[derive(Debug, Clone, Copy)]
 pub struct ReapCandidate {
     pub session_id: i64,
-    pub pid: i32,
+    /// Set when the registration was started on this boot and names a process.
+    pub pid: Option<i32>,
+    /// The lease lapsed more than the grace period ago.
+    pub lapsed: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -69,40 +69,30 @@ async fn run_reaper_loop(
 pub const LAPSED_LEASE_GRACE: chrono::Duration = chrono::Duration::hours(24);
 
 pub async fn sweep_once(persist: &PersistHandle, boot_id: &str) {
-    let mut dead = dead_candidate_ids(persist, boot_id).await;
-    dead.extend(lapsed_registration_ids(persist).await);
-    dead.sort_unstable();
-    dead.dedup();
+    let dead = dead_candidate_ids(persist, boot_id).await;
     if dead.is_empty() {
         return;
     }
     reap_and_log(persist, &dead).await;
 }
 
-async fn lapsed_registration_ids(persist: &PersistHandle) -> Vec<i64> {
-    let lapsed_before = chrono::Utc::now() - LAPSED_LEASE_GRACE;
-    match persist.fetch_lapsed_registration_ids(lapsed_before).await {
-        Ok(ids) => ids,
-        Err(e) => {
-            tracing::warn!(error = %e, "workspace_reaper: fetch_lapsed_registration_ids failed");
-            Vec::new()
-        }
-    }
-}
-
 async fn dead_candidate_ids(persist: &PersistHandle, boot_id: &str) -> Vec<i64> {
-    let candidates = match persist.fetch_reap_candidates(boot_id).await {
+    let lapsed_before = chrono::Utc::now() - LAPSED_LEASE_GRACE;
+    let candidates = match persist.fetch_reap_candidates(boot_id, lapsed_before).await {
         Ok(c) => c,
         Err(e) => {
             tracing::warn!(error = %e, "workspace_reaper: fetch_reap_candidates failed");
             return Vec::new();
         }
     };
-    candidates
+    let mut dead: Vec<i64> = candidates
         .into_iter()
-        .filter(|c| !is_process_alive(c.pid))
+        .filter(|c| c.lapsed || c.pid.is_some_and(|pid| !is_process_alive(pid)))
         .map(|c| c.session_id)
-        .collect()
+        .collect();
+    dead.sort_unstable();
+    dead.dedup();
+    dead
 }
 
 async fn reap_and_log(persist: &PersistHandle, dead: &[i64]) {
