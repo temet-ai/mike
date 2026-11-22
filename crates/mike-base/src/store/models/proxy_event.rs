@@ -27,6 +27,7 @@ pub enum RowChangedTable {
     GuardThresholds,
     WrightReplyJobs,
     RuntimeThreads,
+    Steerers,
     WorkspaceQuestions,
     WrightRepairs,
     WrightFollowups,

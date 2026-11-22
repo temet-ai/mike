@@ -1139,6 +1139,7 @@ export type RowChangedTable =
 	| 'guard_thresholds'
 	| 'wright_reply_jobs'
 	| 'runtime_threads'
+	| 'steerers'
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups';

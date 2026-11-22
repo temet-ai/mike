@@ -1,6 +1,7 @@
 pub mod labels;
 pub mod metrics;
 pub mod replay;
+mod steerer_row;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -35,19 +36,6 @@ pub struct ChannelReachRow {
 }
 
 impl crate::store::persistence::steerer_repo::SteererDb<'_> {
-    pub async fn guard_steerer(self) -> Result<Option<GuardSteererRow>, PersistError> {
-        crate::metrics::time_db("guard_steerer", async move {
-            Ok(sqlx::query_as!(
-                GuardSteererRow,
-                "SELECT id, enabled, config FROM steering.steerers
-                  WHERE name = 'turn-guard' AND deleted_at IS NULL ORDER BY id LIMIT 1",
-            )
-            .fetch_optional(&self.pool)
-            .await?)
-        })
-        .await
-    }
-
     pub async fn steerer_config(
         self,
         steerer_id: i64,
