@@ -66,12 +66,29 @@ deploy_one() {
   echo "==> Deployed $short to $(hostname) and $hosts in $((SECONDS - started))s"
 }
 
+# Build the newest main rather than the commit asked for when that commit is an ancestor of
+# it: omit applies migrations as soon as it deploys, so a 35-minute build of an older commit
+# would be refused for a migration it lacks.
+newest_main() {
+  local asked="$1" latest
+  git -C "$script_dir/.." fetch -q origin 2>/dev/null || { echo "$asked"; return; }
+  latest="$(git -C "$script_dir/.." rev-parse origin/main 2>/dev/null)" || { echo "$asked"; return; }
+  if [ "$latest" != "$asked" ] && git -C "$script_dir/.." merge-base --is-ancestor "$asked" "$latest"; then
+    echo "==> ${asked:0:9} is behind main; building ${latest:0:9}" >&2
+    echo "$latest" > "$state/wanted"
+    echo "$latest"
+  else
+    echo "$asked"
+  fi
+}
+
 # A build that fails is not retried, but a commit asked for while it ran still is: the loop
 # ends only when the wanted commit is deployed or is the one that just failed.
 failed=""
 while :; do
   wanted="$(cat "$state/wanted" 2>/dev/null || true)"
   [ -n "$wanted" ] || die "no commit in $state/wanted"
+  wanted="$(newest_main "$wanted")"
   [ "$wanted" != "$(cat "$state/deployed" 2>/dev/null || true)" ] || break
   [ "$wanted" != "$failed" ] || die "${wanted:0:9} failed; nothing newer was asked for"
   if ! (deploy_one "$wanted"); then
