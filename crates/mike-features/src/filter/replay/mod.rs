@@ -1,3 +1,6 @@
+mod cache_control;
+#[cfg(test)]
+mod cache_control_tests;
 #[cfg(test)]
 mod tests;
 
@@ -60,8 +63,12 @@ fn protected_prefix(blocks: &[&RawValue]) -> Option<usize> {
 }
 
 fn locate_mutable_region(raw: &[u8]) -> Option<MutableRegion> {
+    mutable_blocks(raw).map(|(region, _)| region)
+}
+
+fn mutable_blocks(raw: &[u8]) -> Option<(MutableRegion, Vec<&RawValue>)> {
     let top: HashMap<&str, &RawValue> = serde_json::from_slice(raw).ok()?;
-    let system = top.get("system")?;
+    let system: &RawValue = top.get("system")?;
     let blocks: Vec<&RawValue> = serde_json::from_str(system.get()).ok()?;
     let last = blocks.len().checked_sub(1)?;
 
@@ -81,11 +88,14 @@ fn locate_mutable_region(raw: &[u8]) -> Option<MutableRegion> {
         Some(b) => (span(blocks[b]).1, span(blocks[last]).1),
         None => (span(blocks[0]).0, span(blocks[last]).1),
     };
-    Some(MutableRegion {
+    let first_mutable = boundary.map_or(0, |b| b + 1);
+    let mutable = blocks.get(first_mutable..).unwrap_or_default().to_vec();
+    let region = MutableRegion {
         start,
         end,
         boundary,
-    })
+    };
+    Some((region, mutable))
 }
 
 pub fn carries_session_system(raw: &[u8]) -> bool {
@@ -110,6 +120,7 @@ pub fn ruleset_fingerprint(cfg: &super::FilterConfig, project_path: &str) -> u64
 pub struct SystemReplay {
     source: Vec<u8>,
     replacement: Vec<u8>,
+    controls: Option<cache_control::ControlMap>,
     firing_rule_ids: Vec<i64>,
     fingerprint: u64,
 }
@@ -121,8 +132,8 @@ impl SystemReplay {
         firing_rule_ids: &[i64],
         fingerprint: u64,
     ) -> Option<Self> {
-        let o = locate_mutable_region(original)?;
-        let f = locate_mutable_region(filtered)?;
+        let (o, source_blocks) = mutable_blocks(original)?;
+        let (f, replacement_blocks) = mutable_blocks(filtered)?;
         if o.boundary != f.boundary {
             return None;
         }
@@ -131,9 +142,16 @@ impl SystemReplay {
         if source == replacement {
             return None;
         }
+        let controls = cache_control::ControlMap::capture(
+            &source_blocks,
+            filtered,
+            f.start,
+            &replacement_blocks,
+        );
         Some(Self {
             source,
             replacement,
+            controls,
             firing_rule_ids: firing_rule_ids.to_vec(),
             fingerprint,
         })
@@ -148,13 +166,21 @@ impl SystemReplay {
     }
 
     pub fn apply(&self, raw: &[u8]) -> Option<Bytes> {
-        let region = locate_mutable_region(raw)?;
-        if raw.get(region.start..region.end)? != self.source.as_slice() {
-            return None;
-        }
-        let mut out = Vec::with_capacity(raw.len() - self.source.len() + self.replacement.len());
+        let (region, blocks) = mutable_blocks(raw)?;
+        let incoming = raw.get(region.start..region.end)?;
+        let retargeted;
+        let replacement = if incoming == self.source.as_slice() {
+            self.replacement.as_slice()
+        } else {
+            retargeted = self
+                .controls
+                .as_ref()?
+                .retarget(&self.replacement, raw, &blocks)?;
+            retargeted.as_slice()
+        };
+        let mut out = Vec::with_capacity(raw.len() - incoming.len() + replacement.len());
         out.extend_from_slice(&raw[..region.start]);
-        out.extend_from_slice(&self.replacement);
+        out.extend_from_slice(replacement);
         out.extend_from_slice(&raw[region.end..]);
         Some(Bytes::from(out))
     }

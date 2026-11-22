@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM overrides.injected_replay_records\n                  WHERE machine_uuid = $1\n                    AND recorded_at <= now() - interval '1 hour'\n              RETURNING lane, message_identity",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lane",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.injected_replay_records",
+            "name": "lane"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_identity",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.injected_replay_records",
+            "name": "message_identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5be9d104bf7d1b6a52ad138ae0603645af5a474963ce52f8262278e7f57877cf"
+}

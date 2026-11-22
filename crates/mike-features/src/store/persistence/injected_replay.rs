@@ -8,6 +8,11 @@ pub struct StoredReplayRecord {
     pub tail: Vec<u8>,
 }
 
+pub struct ExpiredReplayRecord {
+    pub lane: String,
+    pub message_identity: i64,
+}
+
 impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn insert_injected_replay_record(
         self,
@@ -80,17 +85,19 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
     pub async fn expire_injected_replay_records(
         self,
         machine_uuid: Uuid,
-    ) -> Result<u64, PersistError> {
+    ) -> Result<Vec<ExpiredReplayRecord>, PersistError> {
         crate::metrics::time_db("expire_injected_replay_records", async move {
-            let done = sqlx::query!(
+            let rows = sqlx::query_as!(
+                ExpiredReplayRecord,
                 "DELETE FROM overrides.injected_replay_records
                   WHERE machine_uuid = $1
-                    AND recorded_at <= now() - interval '1 hour'",
+                    AND recorded_at <= now() - interval '1 hour'
+              RETURNING lane, message_identity",
                 machine_uuid,
             )
-            .execute(&self.pool)
+            .fetch_all(&self.pool)
             .await?;
-            Ok(done.rows_affected())
+            Ok(rows)
         })
         .await
     }

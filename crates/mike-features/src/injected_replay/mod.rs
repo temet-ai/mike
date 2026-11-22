@@ -31,6 +31,12 @@ struct LaneRecords {
 }
 
 impl LaneRecords {
+    fn remove(&mut self, identity: u64) {
+        if self.by_identity.remove(&identity).is_some() {
+            self.order.retain(|i| *i != identity);
+        }
+    }
+
     fn insert(&mut self, record: InjectedBlocks) {
         let identity = record.identity;
         if self.by_identity.insert(identity, record).is_none() {
@@ -48,7 +54,7 @@ impl LaneRecords {
 pub struct InjectedBlockRegistry {
     lanes: DashMap<String, LaneRecords>,
     order: Mutex<VecDeque<String>>,
-    replayed: Mutex<HashSet<String>>,
+    in_use: Mutex<HashSet<String>>,
     capacity: usize,
 }
 
@@ -63,7 +69,7 @@ impl InjectedBlockRegistry {
         Self {
             lanes: DashMap::new(),
             order: Mutex::new(VecDeque::new()),
-            replayed: Mutex::new(HashSet::new()),
+            in_use: Mutex::new(HashSet::new()),
             capacity: capacity.max(1),
         }
     }
@@ -76,14 +82,37 @@ impl InjectedBlockRegistry {
             replayed_indices: spliced.message_indices,
         };
         drop(entry);
-        if !report.replayed_indices.is_empty() {
-            lock(&self.replayed).insert(lane.to_owned());
+        if spliced.continuation || !report.replayed_indices.is_empty() {
+            lock(&self.in_use).insert(lane.to_owned());
         }
         Some((Bytes::from(spliced.body), report))
     }
 
-    pub fn take_replayed_lanes(&self) -> Vec<String> {
-        lock(&self.replayed).drain().collect()
+    pub fn take_lanes_in_use(&self) -> Vec<String> {
+        lock(&self.in_use).drain().collect()
+    }
+
+    pub fn mark_in_use(&self, lanes: Vec<String>) {
+        lock(&self.in_use).extend(lanes);
+    }
+
+    pub fn forget(&self, expired: &[(String, u64)]) {
+        let mut emptied = Vec::new();
+        for (lane, identity) in expired {
+            let Some(mut records) = self.lanes.get_mut(lane) else {
+                continue;
+            };
+            records.remove(*identity);
+            if records.by_identity.is_empty() {
+                emptied.push(lane.clone());
+            }
+        }
+        for lane in emptied {
+            self.lanes.remove_if(&lane, |_, r| r.by_identity.is_empty());
+            if !self.lanes.contains_key(&lane) {
+                lock(&self.order).retain(|l| l != &lane);
+            }
+        }
     }
 
     pub fn record(&self, lane: &str, original: &[u8], injected: &[u8]) -> bool {

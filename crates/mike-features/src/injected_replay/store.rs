@@ -1,8 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use uuid::Uuid;
+
 use crate::base_state::BaseState;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
+use crate::store::persistence::{PersistError, PersistHandle};
 
 use super::InjectedBlockRegistry;
 use super::splice::InjectedBlocks;
@@ -41,6 +44,75 @@ pub fn persist(state: &BaseState, lane: &str, record: &InjectedBlocks) {
     });
 }
 
+pub async fn restore_stored(
+    persist: &PersistHandle,
+    machine: Uuid,
+    registry: &InjectedBlockRegistry,
+) -> Result<usize, PersistError> {
+    let rows = persist
+        .proxy()
+        .live_injected_replay_records(machine)
+        .await?;
+    let loaded = rows.len();
+    for row in rows {
+        if let Some(record) =
+            InjectedBlocks::restored(loaded_identity(row.message_identity), row.tail)
+        {
+            registry.restore(&row.lane, record);
+        }
+    }
+    Ok(loaded)
+}
+
+pub async fn keep_lanes_in_use(
+    persist: &PersistHandle,
+    machine: Uuid,
+    registry: &InjectedBlockRegistry,
+) -> Result<u64, PersistError> {
+    let lanes = registry.take_lanes_in_use();
+    let kept = persist
+        .proxy()
+        .keep_injected_replay_records(machine, &lanes)
+        .await;
+    if kept.is_err() {
+        registry.mark_in_use(lanes);
+    }
+    kept
+}
+
+pub async fn expire_unused(
+    persist: &PersistHandle,
+    machine: Uuid,
+    registry: &InjectedBlockRegistry,
+) -> Result<usize, PersistError> {
+    let expired: Vec<(String, u64)> = persist
+        .proxy()
+        .expire_injected_replay_records(machine)
+        .await?
+        .into_iter()
+        .map(|row| (row.lane, loaded_identity(row.message_identity)))
+        .collect();
+    registry.forget(&expired);
+    Ok(expired.len())
+}
+
+fn warn_keep_failed(err: &PersistError) {
+    tracing::warn!(error = %err, "injected replay: could not keep the records of lanes in use, so none expire this round");
+}
+
+fn warn_expire_failed(err: &PersistError) {
+    tracing::warn!(error = %err, "injected replay: could not expire old records");
+}
+
+pub async fn sweep(persist: &PersistHandle, machine: Uuid, registry: &InjectedBlockRegistry) {
+    if let Err(err) = keep_lanes_in_use(persist, machine, registry).await {
+        return warn_keep_failed(&err);
+    }
+    if let Err(err) = expire_unused(persist, machine, registry).await {
+        warn_expire_failed(&err);
+    }
+}
+
 pub fn spawn_injected_replay_store(state: &BaseState, registry: Arc<InjectedBlockRegistry>) {
     let state = state.clone();
     let shutdown = state.shutdown();
@@ -54,16 +126,8 @@ pub fn spawn_injected_replay_store(state: &BaseState, registry: Arc<InjectedBloc
             );
             return;
         };
-        match persist.proxy().live_injected_replay_records(machine).await {
-            Ok(rows) => {
-                let loaded = rows.len();
-                for row in rows {
-                    if let Some(record) =
-                        InjectedBlocks::restored(loaded_identity(row.message_identity), row.tail)
-                    {
-                        registry.restore(&row.lane, record);
-                    }
-                }
+        match restore_stored(&persist, machine, &registry).await {
+            Ok(loaded) => {
                 tracing::info!(loaded, "injected replay: restored the last hour's records");
             }
             Err(err) => {
@@ -71,28 +135,23 @@ pub fn spawn_injected_replay_store(state: &BaseState, registry: Arc<InjectedBloc
             }
         }
         loop {
-            let replayed = registry.take_replayed_lanes();
-            if let Err(err) = persist
-                .proxy()
-                .keep_injected_replay_records(machine, &replayed)
-                .await
-            {
-                tracing::warn!(error = %err, "injected replay: could not keep the records of lanes in use");
-            }
-            if let Err(err) = persist
-                .proxy()
-                .expire_injected_replay_records(machine)
-                .await
-            {
-                tracing::warn!(error = %err, "injected replay: could not expire old records");
-            }
+            sweep(&persist, machine, &registry).await;
             tokio::select! {
-                () = shutdown.cancelled() => return,
+                () = shutdown.cancelled() => {
+                    if let Err(err) = keep_lanes_in_use(&persist, machine, &registry).await {
+                        warn_keep_failed(&err);
+                    }
+                    return;
+                }
                 () = tokio::time::sleep(EXPIRE_EVERY) => {}
             }
         }
     });
 }
+
+#[cfg(test)]
+#[path = "store_db_tests.rs"]
+mod store_db_tests;
 
 #[cfg(test)]
 mod tests {

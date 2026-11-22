@@ -30,12 +30,30 @@ impl InjectedBlocks {
 pub struct Spliced {
     pub body: Vec<u8>,
     pub message_indices: Vec<usize>,
+    pub continuation: bool,
 }
 
 #[derive(Deserialize)]
 struct MessagesShape<'a> {
     #[serde(borrow, default)]
     messages: Vec<&'a RawValue>,
+    #[serde(borrow, default)]
+    thread: Option<&'a RawValue>,
+}
+
+#[derive(Deserialize)]
+struct ThreadShape<'a> {
+    #[serde(borrow, default, rename = "type")]
+    kind: Option<Cow<'a, str>>,
+}
+
+impl MessagesShape<'_> {
+    fn is_continuation(&self) -> bool {
+        self.thread
+            .and_then(|t| serde_json::from_str::<ThreadShape<'_>>(t.get()).ok())
+            .and_then(|t| t.kind)
+            .is_some_and(|k| k == "continue")
+    }
 }
 
 #[derive(Deserialize)]
@@ -52,10 +70,12 @@ struct ContentLen<'a> {
     items: Vec<&'a RawValue>,
 }
 
+fn shape(body: &[u8]) -> Option<MessagesShape<'_>> {
+    serde_json::from_slice::<MessagesShape<'_>>(body).ok()
+}
+
 fn messages(body: &[u8]) -> Option<Vec<&RawValue>> {
-    serde_json::from_slice::<MessagesShape<'_>>(body)
-        .ok()
-        .map(|m| m.messages)
+    shape(body).map(|m| m.messages)
 }
 
 fn span_in(body: &[u8], inner: &str) -> Option<(usize, usize)> {
@@ -166,9 +186,13 @@ struct Edit<'r> {
     tail: &'r [u8],
 }
 
-fn plan_edits<'r>(body: &[u8], records: &'r HashMap<u64, InjectedBlocks>) -> Option<Vec<Edit<'r>>> {
+fn plan_edits<'r>(
+    body: &[u8],
+    messages: Vec<&RawValue>,
+    records: &'r HashMap<u64, InjectedBlocks>,
+) -> Vec<Edit<'r>> {
     let mut last_match: HashMap<u64, Edit<'r>> = HashMap::new();
-    for (index, message) in messages(body)?.into_iter().enumerate() {
+    for (index, message) in messages.into_iter().enumerate() {
         if !is_user(message) {
             continue;
         }
@@ -188,13 +212,17 @@ fn plan_edits<'r>(body: &[u8], records: &'r HashMap<u64, InjectedBlocks>) -> Opt
     }
     let mut edits: Vec<Edit<'r>> = last_match.into_values().collect();
     edits.sort_by_key(|e| e.start);
-    Some(edits)
+    edits
 }
 
 pub fn splice_all(body: &[u8], records: &HashMap<u64, InjectedBlocks>) -> Option<Spliced> {
-    let mut out = Spliced::default();
+    let parsed = shape(body)?;
+    let mut out = Spliced {
+        continuation: parsed.is_continuation(),
+        ..Spliced::default()
+    };
     let mut cursor = 0;
-    for edit in plan_edits(body, records)? {
+    for edit in plan_edits(body, parsed.messages, records) {
         let Some(rebuilt) = with_tail(&body[edit.start..edit.end], edit.tail) else {
             continue;
         };

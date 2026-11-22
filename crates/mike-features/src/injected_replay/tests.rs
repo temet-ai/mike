@@ -210,24 +210,68 @@ fn restore_from_stored_fields_replays_like_the_original_after_a_restart() {
 }
 
 #[test]
-fn take_replayed_lanes_names_each_lane_that_replayed_once() {
+fn take_lanes_in_use_names_each_lane_that_replayed_once() {
     let registry = InjectedBlockRegistry::default();
     let first = first_turn();
     assert!(registry.record(LANE, &first, &inject(&first)));
-    assert!(registry.take_replayed_lanes().is_empty(), "recording is not replaying");
+    assert!(
+        registry.take_lanes_in_use().is_empty(),
+        "recording is not replaying"
+    );
 
     let _ = replayed(&registry, LANE, &second_turn());
     let _ = replayed(&registry, LANE, &second_turn());
-    assert_eq!(registry.take_replayed_lanes(), vec![LANE.to_owned()]);
-    assert!(registry.take_replayed_lanes().is_empty(), "drained");
+    assert_eq!(registry.take_lanes_in_use(), vec![LANE.to_owned()]);
+    assert!(registry.take_lanes_in_use().is_empty(), "drained");
 }
 
 #[test]
-fn take_replayed_lanes_skips_a_lane_whose_blocks_are_gone() {
+fn take_lanes_in_use_skips_a_full_request_whose_blocks_are_gone() {
     let registry = InjectedBlockRegistry::default();
     let first = first_turn();
     assert!(registry.record(LANE, &first, &inject(&first)));
     let compacted = br#"{"model":"m","system":[{"type":"text","text":"s"}],"messages":[{"role":"user","content":[{"type":"text","text":"summary"}]}]}"#;
     let _ = registry.replay(LANE, compacted);
-    assert!(registry.take_replayed_lanes().is_empty());
+    assert!(registry.take_lanes_in_use().is_empty());
+}
+
+#[test]
+fn take_lanes_in_use_names_a_lane_that_only_sent_continuations() {
+    let registry = InjectedBlockRegistry::default();
+    let first = first_turn();
+    assert!(registry.record(LANE, &first, &inject(&first)));
+
+    let _ = registry.replay(LANE, &continuation("more work"));
+
+    assert_eq!(registry.take_lanes_in_use(), vec![LANE.to_owned()]);
+}
+
+#[test]
+fn forget_expired_record_drops_it_and_the_emptied_lane() {
+    let registry = InjectedBlockRegistry::default();
+    let first = first_turn();
+    let Some(captured) = registry.capture(LANE, &first, &inject(&first)) else {
+        panic!("the injected block is captured");
+    };
+
+    registry.forget(&[(LANE.to_owned(), captured.identity)]);
+
+    assert_eq!(registry.records_in(LANE), 0);
+    assert!(
+        registry.replay(LANE, &second_turn()).is_none(),
+        "the lane is gone"
+    );
+}
+
+#[test]
+fn forget_another_lanes_record_keeps_this_lane() {
+    let registry = InjectedBlockRegistry::default();
+    let first = first_turn();
+    let Some(captured) = registry.capture(LANE, &first, &inject(&first)) else {
+        panic!("the injected block is captured");
+    };
+
+    registry.forget(&[("session-b:primary".to_owned(), captured.identity)]);
+
+    assert_eq!(registry.records_in(LANE), 1);
 }
