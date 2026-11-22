@@ -8,6 +8,7 @@ use super::{FleetDecisions, text};
 use crate::base_state::BaseState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::seated::Seated;
+use crate::launch::seat_fact::is_fleet_seat;
 use crate::llm::decisions::Question;
 use crate::llm::decisions::point::{Asked, Decider, choice};
 use crate::llm::decisions::record::DecisionSubject;
@@ -89,6 +90,9 @@ pub fn compose(asked: &Asked) -> (bool, f64) {
 }
 
 pub async fn seat_context(persist: &PersistHandle, to: Uuid) -> Option<SeatContext> {
+    if !is_fleet_seat(persist, to).await {
+        return None;
+    }
     let row = persist.fleet().find_fleet_for_session(to).await.ok()??;
     if row.state != "running" {
         return None;
