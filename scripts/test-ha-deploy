@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Checks the ha deploy without ha: the outcome and version decisions of scripts/deploy-ha
+# (scripts/lib/ha-deploy.sh), that deploy-ha skips an unreachable ha with exit 0, and
+# scripts/ha-swap itself against a fake bin directory whose "daemons" are cats renamed to
+# <bin>/mike serve and <bin>/mike forward serve, blocked reading a fifo: the swap, the rollback, and that a process
+# whose command line is a bare "mike serve" survives both.
+#
+# Usage: scripts/test-ha-deploy     Exit: 0 = no FAIL. A case missing a prerequisite prints
+# NOT RUN and is never counted as a pass.
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+skip() { notrun=$((notrun+1)); echo "NOT RUN: $1"; }
+
+# shellcheck source=lib/ha-deploy.sh
+source "$root/scripts/lib/ha-deploy.sh"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/ha-deploy.XXXXXX")"
+pids="$scratch/pids"
+: >"$pids"
+cleanup() {
+  local p
+  while read -r p; do kill -9 "$p" 2>/dev/null; done <"$pids"
+  rm -rf "$scratch"
+}
+trap cleanup EXIT
+
+# ── ha_swap_outcome ──────────────────────────────────────────────────────────
+eq "empty log: pending" PENDING "$(printf '' | ha_swap_outcome)"
+eq "progress only: pending" PENDING "$(printf 'ha-swap: new build: x\n' | ha_swap_outcome)"
+eq "OK last: OK" OK "$(printf 'ha-swap: up\nOK\n' | ha_swap_outcome)"
+eq "OK then blank lines: OK" OK "$(printf 'ha-swap: up\nOK\n\n\n' | ha_swap_outcome)"
+eq "ROLLBACK last: ROLLBACK" ROLLBACK "$(printf 'ha-swap: restoring\nROLLBACK\n' | ha_swap_outcome)"
+eq "FAILED last: FAILED" FAILED "$(printf 'ha-swap: missing\nFAILED\n' | ha_swap_outcome)"
+eq "OK inside a line: pending" PENDING "$(printf 'ha-swap: OK so far\n' | ha_swap_outcome)"
+
+# ── ha_version_matches ───────────────────────────────────────────────────────
+sha=3fa9034518d11c6d2e0842cc94282d03939b923f
+v="mike 0.1.0-alpha.5 (3fa90345, built 2026-11-22T12:36:25Z)"
+m() { if ha_version_matches "$@"; then echo yes; else echo no; fi; }
+eq "version of the commit matches" yes "$(m "$v" "$sha")"
+eq "version of another commit does not" no "$(m "$v" 25058cb31aaaaaaa)"
+eq "no version does not" no "$(m "" "$sha")"
+eq "a short commit does not" no "$(m "$v" 3fa9)"
+
+# ── deploy-ha: unreachable ha is skipped, exit 0 ─────────────────────────────
+mkdir -p "$scratch/build"
+out="$("$root/scripts/deploy-ha" "$scratch/build" "$sha" --host nonexistent.invalid 2>&1)"
+eq "unreachable ha exits 0" 0 "$?"
+case "$out" in *"does not answer over ssh; skipped"*) ok "unreachable ha says it was skipped" ;;
+  *) bad "unreachable ha says it was skipped" "$out" ;; esac
+"$root/scripts/deploy-ha" "$scratch/build" >/dev/null 2>&1
+eq "missing commit argument exits 2" 2 "$?"
+
+# ── ha-swap ──────────────────────────────────────────────────────────────────
+missing=""
+for tool in python3 curl pgrep pkill mkfifo; do command -v "$tool" >/dev/null || missing="$missing $tool"; done
+if [[ -n "$missing" ]]; then
+  skip "ha-swap cases (missing:$missing)"
+else
+  free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'; }
+  # A process whose whole command line is "$1": a cat started under that argv[0], with no
+  # arguments, reading a fifo nobody writes (opened read-write, so the open never blocks).
+  fifo="$scratch/fifo"
+  mkfifo "$fifo"
+  fake_daemon() { (exec -a "$1" cat <>"$fifo") >/dev/null 2>&1 & echo $! >>"$pids"; echo $!; }
+
+  # setup <case>: a bin dir with old binaries, a bundle with new ones, a fake ha-services.
+  setup() {
+    local c="$scratch/$1"
+    mkdir -p "$c/bin" "$c/bundle"
+    for x in mike mike-mcp; do
+      printf '#!/bin/sh\necho "%s old"\n' "$x" >"$c/bin/$x"
+      printf '#!/bin/sh\necho "%s new"\n' "$x" >"$c/bundle/$x"
+      chmod +x "$c/bin/$x" "$c/bundle/$x"
+    done
+    # Starts each daemon unless it runs, as ha's ha-services does.
+    cat >"$c/bin/ha-services" <<EOF
+#!/usr/bin/env bash
+for cmd in "$c/bin/mike serve" "$c/bin/mike forward serve"; do
+  pgrep -f "^\$cmd\\\$" >/dev/null || { (exec -a "\$cmd" cat <>"$fifo") >/dev/null 2>&1 & echo \$! >>"$pids"; }
+done
+EOF
+    chmod +x "$c/bin/ha-services"
+    echo "$c"
+  }
+  swap() { HA_SWAP_BIN="$1/bin" HA_SWAP_URL="$2" HA_SWAP_WAIT="${3:-10}" HA_SWAP_STOP_WAIT=5 \
+    "$root/scripts/ha-swap" "$1/bundle" >"$1/swap.log" 2>&1; }
+
+  # A process that is someone else's "mike serve": no path, so no anchored pattern matches it.
+  decoy="$(fake_daemon "mike serve")"
+
+  # Case: the new build comes up.
+  c="$(setup up)"
+  old_serve="$(fake_daemon "$c/bin/mike serve")"
+  fake_daemon "$c/bin/mike forward serve" >/dev/null
+  port="$(free_port)"
+  python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
+  echo $! >>"$pids"
+  for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
+  swap "$c" "http://127.0.0.1:$port/"
+  eq "up: exit 0" 0 "$?"
+  eq "up: log ends OK" OK "$(ha_swap_outcome <"$c/swap.log")"
+  eq "up: new mike installed" "mike new" "$("$c/bin/mike")"
+  eq "up: new mike-mcp installed" "mike-mcp new" "$("$c/bin/mike-mcp")"
+  eq "up: old mike kept in the backup" "mike old" "$("$c/bin/.mike-backup/mike")"
+  if kill -0 "$old_serve" 2>/dev/null; then bad "up: the old mike serve was stopped"; else ok "up: the old mike serve was stopped"; fi
+  if pgrep -f "^$c/bin/mike serve\$" >/dev/null && pgrep -f "^$c/bin/mike forward serve\$" >/dev/null; then
+    ok "up: both daemons run again"; else bad "up: both daemons run again"; fi
+
+  # Case: the sidecar never answers, so it rolls back.
+  c="$(setup down)"
+  fake_daemon "$c/bin/mike serve" >/dev/null
+  swap "$c" "http://127.0.0.1:$(free_port)/" 2
+  eq "down: exit 1" 1 "$?"
+  eq "down: log ends ROLLBACK" ROLLBACK "$(ha_swap_outcome <"$c/swap.log")"
+  eq "down: old mike restored" "mike old" "$("$c/bin/mike")"
+  eq "down: old mike-mcp restored" "mike-mcp old" "$("$c/bin/mike-mcp")"
+
+  # Case: the bundle has no mike-mcp, so nothing is touched.
+  c="$(setup missing)"
+  rm "$c/bundle/mike-mcp"
+  swap "$c" "http://127.0.0.1:1/"
+  eq "missing: exit 1" 1 "$?"
+  eq "missing: log ends FAILED" FAILED "$(ha_swap_outcome <"$c/swap.log")"
+  eq "missing: old mike untouched" "mike old" "$("$c/bin/mike")"
+
+  if kill -0 "$decoy" 2>/dev/null; then ok "a bare 'mike serve' outside the bin dir survives"
+  else bad "a bare 'mike serve' outside the bin dir survives"; fi
+fi
+
+echo "test-ha-deploy: $pass passed, $fail failed, $notrun not run"
+[[ $fail -eq 0 ]]

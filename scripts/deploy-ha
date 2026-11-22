@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Install one ARM64 build on ha, Home Assistant's SSH add-on (mike machine core-ssh).
+#
+#   scripts/deploy-ha <build-dir> <commit> [--host <ssh host>]
+#
+# scripts/deploy-arm-local runs this on deus after deus and infra are installed; <build-dir>
+# is the release bundle build-local-release wrote (manifest and tarballs). ha is Alpine
+# (musl), so this copies the bundle to ha:/data/home/mike-update/<commit>/, checks and
+# unpacks it, points mike and mike-mcp at the glibc in /data/glibc with patchelf, and runs
+# the build's read-only migrate-check against ha's database. Only when that passes does it
+# start scripts/ha-swap there, detached, and wait for its outcome, which it prints last:
+# "==> ha: OK" or "==> ha: ROLLBACK". ha is optional: when it does not answer, this says so
+# and exits 0. Any other failure exits 1, with ha still on its previous build. deus reaches
+# ha through `Host ha` in its ~/.ssh/config (root@192.168.68.123, key id_ed25519_temet).
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ha-deploy.sh
+source "$script_dir/lib/ha-deploy.sh"
+
+host=ha
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --host) host="${2:?--host needs an ssh host}"; shift 2 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 2 ] || { echo "deploy-ha: needs <build-dir> <commit>; see --help" >&2; exit 2; }
+built="${args[0]}" sha="${args[1]}"
+short="${sha:0:9}"
+updates=/data/home/mike-update
+bin=/data/home/.local/bin
+dest="$updates/$short"
+poll_seconds=300
+
+ssh_ha() { ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=10 "$host" "$@"; }
+fail() { echo "==> ha: $*; ha keeps its previous build"; exit 1; }
+
+if ! ssh_ha true 2>/dev/null; then
+  echo "==> ha: $host does not answer over ssh; skipped, deus and infra run $short"
+  exit 0
+fi
+[ -f "$built/manifest-aarch64-unknown-linux-gnu.json" ] || fail "$built holds no aarch64 build"
+
+echo "==> ha: copying $short to $host:$dest"
+ssh_ha "mkdir -p '$dest'" || fail "could not create $dest"
+scp -q -o BatchMode=yes -o ConnectTimeout=10 "$built"/* "$host:$dest/" || fail "copying the bundle failed"
+scp -q -o BatchMode=yes -o ConnectTimeout=10 "$script_dir/ha-swap" "$host:$dest/ha-swap" || fail "copying ha-swap failed"
+
+echo "==> ha: checking, unpacking and patching $short for /data/glibc"
+ssh_ha sh -s -- "$dest" <<'REMOTE' || fail "preparing the bundle failed"
+set -e
+cd "$1"
+sha256sum -c *.sha256
+for t in *.tar.gz; do tar xzf "$t"; done
+for x in mike mike-mcp; do
+  patchelf --set-interpreter /data/glibc/ld-linux-aarch64.so.1 --set-rpath /data/glibc "$x"
+done
+chmod +x ha-swap
+REMOTE
+version="$(ssh_ha "'$dest/mike' --version")" || fail "the patched mike does not run"
+ha_version_matches "$version" "$sha" || fail "the patched mike reports $version, not $short"
+
+# mike serve applies the build's migrations to the database ha's mike uses. As on deus and
+# infra (scripts/deploy-release-build), a blocked assessment stops here, before any swap.
+echo "==> ha: pre-migration assessment (read-only) against ha's database"
+ssh_ha "env HOME=/data/home '$dest/mike' migrate-check" ||
+  fail "migration assessment failed; not swapped"
+
+echo "==> ha: swapping in $short (detached; it finishes if this connection drops)"
+ssh_ha "cd '$dest' && rm -f swap.log && { setsid ./ha-swap '$dest' >swap.log 2>&1 </dev/null & }" ||
+  fail "could not start ha-swap"
+
+outcome=PENDING log=""
+started=$SECONDS
+while [ $((SECONDS - started)) -lt "$poll_seconds" ]; do
+  sleep 5
+  # A dropped connection is retried: ha-swap carries on without us.
+  log="$(ssh_ha "cat '$dest/swap.log'" 2>/dev/null)" || continue
+  outcome="$(ha_swap_outcome <<<"$log")"
+  [ "$outcome" = PENDING ] || break
+done
+# shellcheck disable=SC2001 # indents every line of the log
+[ -z "$log" ] || sed 's/^/    /' <<<"$log"
+
+case "$outcome" in
+  OK)
+    now="$(ssh_ha "'$bin/mike' --version" 2>/dev/null || true)"
+    ha_version_matches "$now" "$sha" || fail "ha-swap said OK but $bin/mike reports ${now:-nothing}"
+    # Keep the three newest bundles; each is about 200 MB.
+    ssh_ha "cd '$updates' && ls -1t | tail -n +4 | while read -r d; do rm -rf \"./\$d\"; done" || true
+    echo "==> ha: OK, runs $now"
+    ;;
+  ROLLBACK) echo "==> ha: ROLLBACK, $short did not come up; see $host:$dest/swap.log"; exit 1 ;;
+  FAILED) fail "ha-swap swapped nothing; see $host:$dest/swap.log" ;;
+  *) echo "==> ha: no outcome from ha-swap after ${poll_seconds}s; see $host:$dest/swap.log"; exit 1 ;;
+esac

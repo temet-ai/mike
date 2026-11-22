@@ -1,0 +1,87 @@
+#!/bin/sh
+# Swap ha's mike and mike-mcp for a new build and restart ha's services; roll back to the
+# previous binaries when the services do not come up. Runs on ha (Home Assistant's SSH
+# add-on: Alpine, BusyBox, no systemd), so it is POSIX sh.
+#
+#   ha-swap <bundle-dir>
+#
+# <bundle-dir> holds the new mike and mike-mcp, already unpacked and patched to load
+# /data/glibc (scripts/deploy-ha does that). scripts/deploy-ha starts this detached with
+# setsid, so it finishes when the ssh connection drops, and reads its log. The last line of
+# the log is the outcome: OK, ROLLBACK (the previous build is back) or FAILED (nothing was
+# swapped).
+#
+# The daemons are stopped by their whole command line, anchored to the full binary path:
+# other things on ha may run a `mike`. ha-services (in the same bin directory) starts them.
+# HA_SWAP_BIN, HA_SWAP_URL, HA_SWAP_WAIT and HA_SWAP_STOP_WAIT exist for scripts/test-ha-deploy.
+set -u
+
+dir="${1:?usage: ha-swap <bundle-dir>}"
+BIN="${HA_SWAP_BIN:-/data/home/.local/bin}"
+URL="${HA_SWAP_URL:-http://127.0.0.1:9987/}"
+WAIT="${HA_SWAP_WAIT:-40}"
+STOP_WAIT="${HA_SWAP_STOP_WAIT:-30}"
+BACKUP="$BIN/.mike-backup"
+SERVE="^$BIN/mike serve\$"
+FORWARD="^$BIN/mike forward serve\$"
+EITHER="^$BIN/mike (forward )?serve\$"
+
+say() { echo "ha-swap: $*"; }
+
+# install <from-dir>: put its mike and mike-mcp in place, each by an atomic rename.
+install() {
+  for x in mike mike-mcp; do
+    cp -p "$1/$x" "$BIN/.$x.new" && mv -f "$BIN/.$x.new" "$BIN/$x" || return 1
+  done
+}
+
+stop_mike() {
+  pkill -f "$FORWARD"; pkill -f "$SERVE"
+  i=0
+  while pgrep -f "$EITHER" >/dev/null && [ "$i" -lt "$STOP_WAIT" ]; do sleep 1; i=$((i + 1)); done
+  pkill -9 -f "$EITHER"
+  return 0
+}
+
+# up: both daemons run and the :9987 sidecar answers, within $WAIT seconds.
+up() {
+  i=0
+  while [ "$i" -lt "$WAIT" ]; do
+    if pgrep -f "$SERVE" >/dev/null && pgrep -f "$FORWARD" >/dev/null &&
+      curl -s --max-time 2 -o /dev/null "$URL"; then
+      return 0
+    fi
+    sleep 1; i=$((i + 1))
+  done
+  return 1
+}
+
+restart() { stop_mike; "$BIN/ha-services" start; up; }
+
+for x in mike mike-mcp; do
+  [ -x "$dir/$x" ] || { say "$dir/$x is missing or not executable; nothing swapped"; echo FAILED; exit 1; }
+done
+say "new build: $("$dir/mike" --version 2>&1)"
+say "old build: $("$BIN/mike" --version 2>&1)"
+
+rm -rf "$BACKUP.tmp"
+if ! { mkdir -p "$BACKUP.tmp" && cp -p "$BIN/mike" "$BIN/mike-mcp" "$BACKUP.tmp/"; }; then
+  say "could not back up $BIN/mike and mike-mcp; nothing swapped"; echo FAILED; exit 1
+fi
+rm -rf "$BACKUP" && mv "$BACKUP.tmp" "$BACKUP"
+
+if install "$dir" && restart; then
+  say "mike serve, mike forward serve and $URL are up on the new build"
+  echo OK
+  exit 0
+fi
+
+say "the new build did not come up within ${WAIT}s; restoring $BACKUP"
+install "$BACKUP" || say "restoring the backup failed; $BIN may hold a partial swap"
+if restart; then
+  say "the previous build runs again: $("$BIN/mike" --version 2>&1)"
+else
+  say "the services are still down after the rollback; see ~/.local/state/ha-services/"
+fi
+echo ROLLBACK
+exit 1

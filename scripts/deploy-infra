@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Deploy one commit to the ARM64 Linux machines (deus and infra): deus builds it and
-# installs it on both, and this returns as soon as the build is queued.
+# Deploy one commit to the ARM64 Linux machines (deus, infra and ha): deus builds it and
+# installs it on all three, and this returns as soon as the build is queued.
 #
 #   scripts/deploy-infra [--sha <commit>] [--builder <ssh host>] [--repo <checkout on the builder>]
 #
 # The commit defaults to origin/main. Nothing compiles on this machine: deus records the
 # commit in ~/.local/state/mike/arm-deploy/wanted and runs scripts/deploy-arm-local in the
 # systemd user unit mike-arm-deploy, which builds natively in its one build worktree and
-# installs the build on deus and infra. While a build runs, the newest commit asked for is
-# built next. Follow it with: ssh deus tail -f .local/state/mike/arm-deploy/deploy.log
+# installs the build on deus, infra and ha (Home Assistant's SSH add-on, via
+# scripts/deploy-ha; skipped when ha does not answer). While a build runs, the newest
+# commit asked for is built next. Follow it with: ssh deus tail -f .local/state/mike/arm-deploy/deploy.log
 set -euo pipefail
 
 die() { echo "deploy-infra: $*" >&2; exit 1; }
@@ -19,8 +20,8 @@ while [ $# -gt 0 ]; do
     --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
     --builder) builder="${2:?--builder needs an ssh host}"; shift 2 ;;
     --repo) repo="${2:?--repo needs the checkout on the builder}"; shift 2 ;;
-    --host) echo "deploy-infra: --host is no longer needed; deus builds and deploys deus and infra" >&2; shift 2 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    --host) echo "deploy-infra: --host is no longer needed; deus builds and deploys deus, infra and ha" >&2; shift 2 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) die "unknown argument $1; see --help" ;;
   esac
 done

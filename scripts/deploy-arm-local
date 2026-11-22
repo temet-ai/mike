@@ -2,7 +2,7 @@
 # Build the wanted commit for ARM64 Linux on this machine (deus) and install it here and on
 # the other ARM64 hosts.
 #
-#   scripts/deploy-arm-local [--hosts "<host>:<checkout> ..."]
+#   scripts/deploy-arm-local [--hosts "<host>:<checkout> ..."] [--ha <ssh host>]
 #
 # scripts/deploy-infra on omit writes the commit to $state/wanted and starts this in the
 # systemd user unit mike-arm-deploy, then returns; nobody waits on it. It builds with
@@ -10,8 +10,11 @@
 # build worktree (.claude/worktrees/deploy-aarch64-unknown-linux-gnu, which keeps its
 # target directory, so a commit rebuilds only what it changed) on every processor at the
 # lowest priority, installs it here with scripts/deploy-release-build --local, then copies
-# it to each host (default infra:projects/mike) and installs it there. A commit asked for
-# while a build runs is built next; the commits asked for in between are skipped.
+# it to each host (default infra:projects/mike) and installs it there. Last it installs it
+# on ha, Home Assistant's SSH add-on, with scripts/deploy-ha (--ha <ssh host>, or --ha ""
+# to leave ha out); ha is optional, so an unreachable or failed ha never stops the deploy.
+# A commit asked for while a build runs is built next; the commits asked for in between are
+# skipped.
 #
 # Its output goes to $state/deploy.log; follow it with: tail -f ~/.local/state/mike/arm-deploy/deploy.log
 set -euo pipefail
@@ -21,10 +24,12 @@ die() { echo "deploy-arm-local: $*" >&2; exit 1; }
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 target=aarch64-unknown-linux-gnu
 hosts="infra:projects/mike"
+ha=ha
 while [ $# -gt 0 ]; do
   case "$1" in
     --hosts) hosts="${2:?--hosts needs host:checkout pairs}"; shift 2 ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    --ha) ha="${2?--ha needs an ssh host, or \"\" to leave ha out}"; shift 2 ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) die "unknown argument $1; see --help" ;;
   esac
 done
@@ -55,6 +60,9 @@ deploy_one() {
     echo "==> Deployed $short to $host"
   done
   echo "$sha" > "$state/deployed"
+  if [ -n "$ha" ]; then
+    "$script_dir/deploy-ha" "$built" "$sha" --host "$ha" || echo "==> ha was not updated to $short; deus and infra run it"
+  fi
   echo "==> Deployed $short to $(hostname) and $hosts in $((SECONDS - started))s"
 }
 

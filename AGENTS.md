@@ -66,7 +66,7 @@ run as systemd user units `mike-stack-*` (templates in
 
 **Shipping a change.** Commit, push to `main`, then deploy every machine at once: `git -C /mnt/data/projects/temet/temet-proxy pull -q --ff-only origin main && /mnt/data/projects/temet/temet-proxy/scripts/start-proxy.sh` on omit (the main checkout, never a worktree),
 `ssh mac 'cd ~/projects/temet/mike && git pull -q --ff-only origin main && ./scripts/deploy-proxy.sh --release'`,
-and `scripts/deploy-infra` (deus builds and installs deus and infra). There are no git hooks. Clippy and every test
+and `scripts/deploy-infra` (deus builds and installs deus, infra and ha). There are no git hooks. Clippy and every test
 tier run nightly on main on omit (`scripts/nightly-tests`).
 
 **Rust structural limits** (graded nightly by `scripts/lint-rust`): files ≤ 500 lines,

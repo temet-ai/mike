@@ -289,7 +289,11 @@ into `target/local-deploys/`. `scripts/deploy-infra [--sha <commit>]`, run on om
 writes the commit to deus's `~/.local/state/mike/arm-deploy/wanted`, starts
 `scripts/deploy-arm-local` in deus's systemd user unit `mike-arm-deploy` and returns.
 deus builds the ARM64 archive natively that way on all four of its processors, installs
-it on deus, then copies it to infra and installs it there. A commit asked for during a
+it on deus, then copies it to infra and installs it there, then to ha (Home Assistant's
+SSH add-on, Alpine) with `scripts/deploy-ha`: it patches the binaries to load `/data/glibc`,
+runs the build's `migrate-check` there, and swaps them in with `scripts/ha-swap`, detached,
+rolling back when the services do not come up. An unreachable ha is logged and skipped. A
+commit asked for during a
 build is built next, and the ones in between are skipped
 ([`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md#infra-deploy-builds)).
 
