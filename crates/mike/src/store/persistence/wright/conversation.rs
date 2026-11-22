@@ -11,6 +11,7 @@ const BY_CLIENT_MSG: &str = include_str!("sql/conversation/by_client_msg.sql");
 const MESSAGE_EXISTS: &str = include_str!("sql/conversation/message_exists.sql");
 const LIST: &str = include_str!("sql/conversation/list.sql");
 const PENDING_REPLY: &str = include_str!("sql/conversation/pending_reply.sql");
+const NEXT_DUE: &str = include_str!("sql/conversation/next_due.sql");
 const CLAIM_JOB: &str = include_str!("sql/conversation/claim_job.sql");
 const RENEW_LEASE: &str = include_str!("sql/conversation/renew_lease.sql");
 const RECENT: &str = include_str!("sql/conversation/recent.sql");
@@ -145,6 +146,12 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
 
     pub(crate) async fn wright_reply_pending(self) -> Result<bool, PersistError> {
         Ok(sqlx::query_scalar(PENDING_REPLY)
+            .fetch_one(self.pool())
+            .await?)
+    }
+
+    pub(crate) async fn wright_reply_next_due(self) -> Result<Option<DateTime<Utc>>, PersistError> {
+        Ok(sqlx::query_scalar(NEXT_DUE)
             .fetch_one(self.pool())
             .await?)
     }

@@ -1136,7 +1136,8 @@ export type RowChangedTable =
 	| 'launch_fleets'
 	| 'lessons'
 	| 'rejudge_runs'
-	| 'guard_thresholds';
+	| 'guard_thresholds'
+	| 'wright_reply_jobs';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

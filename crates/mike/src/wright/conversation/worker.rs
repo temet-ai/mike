@@ -1,8 +1,10 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::Path;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
+use chrono::{DateTime, Utc};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
@@ -10,13 +12,18 @@ use super::engineer::EngineerAnswers;
 use super::job::{self, Processed};
 use super::steer_apply::Steers;
 use super::{Conversation, notice, steering, token};
+use crate::change_feed::ChangeFeed;
 use crate::feature_toggles::FeatureToggles;
+use crate::store::models::RowChangedTable;
 use crate::state::AppState;
 use crate::store::persistence::PersistError;
 
 const LEASE_ROLE: &str = "wright_conversation";
 pub(crate) const TOGGLE_POLL: Duration = Duration::from_secs(15);
 pub(crate) const IDLE_POLL: Duration = Duration::from_secs(5);
+const BACKSTOP: Duration = Duration::from_secs(600);
+const MIN_WAIT: Duration = Duration::from_secs(1);
+const WATCHED: [RowChangedTable; 1] = [RowChangedTable::WrightReplyJobs];
 
 static WAKE: LazyLock<Notify> = LazyLock::new(Notify::new);
 
@@ -63,7 +70,10 @@ pub fn spawn_conversation_worker(state: &AppState) {
         persist,
     };
     let toggles = state.feature_toggle_overlay.clone();
-    state.tracker.spawn(run(convo, toggles, state.shutdown()));
+    let feed = state.change_feed.clone();
+    state
+        .tracker
+        .spawn(run(convo, feed, toggles, state.shutdown()));
     tracing::info!("wright: conversation worker spawned");
 }
 
@@ -86,41 +96,76 @@ pub(crate) async fn tick(convo: &Conversation) -> Result<Tick, PersistError> {
     })
 }
 
-async fn step(convo: &Conversation) -> Duration {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Next {
+    Now,
+    Poll,
+    Until(Option<DateTime<Utc>>),
+}
+
+async fn step(convo: &Conversation) -> Next {
     if !convo.engine.available().await
         || !convo.persist.holds_worker_role(LEASE_ROLE, IDLE_POLL).await
     {
-        return IDLE_POLL;
+        return waiting_elsewhere(convo).await;
     }
     match tick(convo).await {
         Ok(Tick {
             processed: Processed::Idle,
             ..
-        }) => IDLE_POLL,
-        Ok(_) => Duration::ZERO,
-        Err(e) => {
-            tracing::warn!(error = %e, "wright: a conversation pass failed");
-            IDLE_POLL
-        }
+        }) => match convo.persist.web().wright_reply_next_due().await {
+            Ok(due) => Next::Until(due),
+            Err(e) => failed(&e),
+        },
+        Ok(_) => Next::Now,
+        Err(e) => failed(&e),
     }
+}
+
+async fn waiting_elsewhere(convo: &Conversation) -> Next {
+    match convo.persist.web().wright_reply_pending().await {
+        Ok(true) => Next::Poll,
+        Ok(false) => Next::Until(None),
+        Err(e) => failed(&e),
+    }
+}
+
+fn failed(e: &PersistError) -> Next {
+    tracing::warn!(error = %e, "wright: a conversation pass failed");
+    Next::Poll
+}
+
+pub(crate) fn idle_wait(next: Next, fed: bool, now: DateTime<Utc>) -> Duration {
+    let wait = match next {
+        Next::Now => return Duration::ZERO,
+        Next::Poll => return IDLE_POLL,
+        Next::Until(None) => BACKSTOP,
+        Next::Until(Some(due)) => (due - now)
+            .to_std()
+            .unwrap_or(Duration::ZERO)
+            .clamp(MIN_WAIT, BACKSTOP),
+    };
+    if fed { wait } else { wait.min(IDLE_POLL) }
 }
 
 async fn run(
     convo: Conversation,
+    feed: ChangeFeed,
     toggles: Arc<ArcSwap<FeatureToggles>>,
     shutdown: CancellationToken,
 ) {
     loop {
+        let since = feed.generation();
         let wait = if toggles.load().wright {
-            step(&convo).await
+            idle_wait(step(&convo).await, feed.is_fed(), Utc::now())
         } else {
             TOGGLE_POLL
         };
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
-            () = tokio::time::sleep(wait) => {}
             () = WAKE.notified() => {}
+            _ = feed.wait_for_change(&WATCHED, since, wait) => {}
         }
     }
 }

@@ -25,6 +25,7 @@ pub enum RowChangedTable {
     Lessons,
     RejudgeRuns,
     GuardThresholds,
+    WrightReplyJobs,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

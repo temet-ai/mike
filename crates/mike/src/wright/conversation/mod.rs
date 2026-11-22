@@ -26,6 +26,8 @@ mod job_tests;
 #[cfg(test)]
 mod steer_tests;
 #[cfg(test)]
+mod worker_tests;
+#[cfg(test)]
 mod token_tests;
 
 pub use worker::spawn_conversation_worker;
