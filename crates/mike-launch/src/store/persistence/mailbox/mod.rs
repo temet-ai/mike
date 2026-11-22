@@ -2,6 +2,7 @@ pub mod carried;
 pub mod closed_rejection;
 pub mod delivery;
 pub mod redelivery;
+pub mod reply_attach;
 pub mod reload;
 pub mod reply_to;
 pub mod session_reads;

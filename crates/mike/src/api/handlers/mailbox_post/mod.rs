@@ -1,5 +1,6 @@
 use super::*;
 use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 mod audit;
@@ -47,7 +48,7 @@ pub(crate) async fn post_session_message(
         resolve_mailbox_recipient(handle, &to_session_id).await?
     };
 
-    let parsed = validated_and_linked(&state, handle, to_session_uuid, &body).await?;
+    let parsed = validate_send_request(handle, to_session_uuid, &body).await?;
 
     refuse_closed_fleet_seat(handle, parsed.from_session_uuid, to_session_uuid, true).await?;
 
@@ -80,6 +81,7 @@ pub(crate) async fn post_session_message(
     };
 
     let facts = mail_facts(&ctx);
+    let reply = unthreaded_reply(&parsed, &ctx);
     let sent = if parsed.threading_requested {
         threaded_send::send(
             handle,
@@ -98,6 +100,9 @@ pub(crate) async fn post_session_message(
         legacy_send::send(handle, &state, ctx).await
     };
     if sent.is_ok() {
+        if let Some(reply) = reply {
+            spawn_reply_link(&state, handle, reply);
+        }
         crate::change_record::writers::spawn_mail_event(
             &state.tracker(),
             handle.clone(),
@@ -108,36 +113,50 @@ pub(crate) async fn post_session_message(
     sent
 }
 
-async fn validated_and_linked(
-    state: &AppState,
-    handle: &crate::store::persistence::PersistHandle,
+struct UnthreadedReply {
+    message: uuid::Uuid,
+    from: uuid::Uuid,
     to: uuid::Uuid,
-    body: &PostSessionMessageBody,
-) -> Result<validation::ParsedSend, Response> {
-    let mut parsed = validate_send_request(handle, to, body).await?;
-    link_unthreaded_reply(state, &mut parsed, to, body).await;
-    Ok(parsed)
+    body: String,
 }
 
-async fn link_unthreaded_reply(
+fn unthreaded_reply(
+    parsed: &validation::ParsedSend,
+    ctx: &SendContext<'_>,
+) -> Option<UnthreadedReply> {
+    if parsed.threading_requested {
+        return None;
+    }
+    Some(UnthreadedReply {
+        message: ctx.message_uuid,
+        from: parsed.from_session_uuid?,
+        to: ctx.to_session_uuid,
+        body: ctx.body.message.clone(),
+    })
+}
+
+fn spawn_reply_link(
     state: &AppState,
-    parsed: &mut validation::ParsedSend,
-    to: uuid::Uuid,
-    body: &PostSessionMessageBody,
+    handle: &crate::store::persistence::PersistHandle,
+    reply: UnthreadedReply,
 ) {
-    if parsed.in_reply_to_param.is_some() || parsed.thread_id_param.is_some() {
-        return;
-    }
-    let Some(from) = parsed.from_session_uuid else {
-        return;
-    };
-    let target =
-        crate::api::mail_reply_link::reply_target_on_send(&state.base, from, to, &body.message)
-            .await;
-    if let Some(id) = target {
-        parsed.in_reply_to_param = Some(id);
-        parsed.threading_requested = true;
-    }
+    let base = state.base.clone();
+    let handle = handle.clone();
+    state.tracker().spawn(async move {
+        let Some(parent) =
+            crate::api::mail_reply_link::reply_target_on_send(&base, reply.from, reply.to, &reply.body)
+                .await
+        else {
+            return;
+        };
+        if let Err(e) = handle
+            .launch()
+            .attach_reply(reply.message, parent, reply.to, reply.from)
+            .await
+        {
+            tracing::warn!(error = %e, message_uuid = %reply.message, "post_session_message: linking the reply to its parent failed");
+        }
+    });
 }
 
 async fn refuse_closed_fleet_seat(
