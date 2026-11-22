@@ -1140,6 +1140,7 @@ export type RowChangedTable =
 	| 'wright_reply_jobs'
 	| 'runtime_threads'
 	| 'steerers'
+	| 'dossier_directives'
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups';

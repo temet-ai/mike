@@ -25,6 +25,12 @@ pub struct BuildReport {
     pub egress_blocked: bool,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DirectiveBuild {
+    pub found: usize,
+    pub embedded: u64,
+}
+
 pub struct Builder<'a> {
     pub persist: &'a PersistHandle,
     pub embedding: &'a EmbeddingService,
@@ -161,7 +167,7 @@ impl Builder<'_> {
         self.build_turns(&turns).await
     }
 
-    pub async fn build_directives(&self, limit: i64) -> Result<u64, SemanticError> {
+    pub async fn build_directives(&self, limit: i64) -> Result<DirectiveBuild, SemanticError> {
         let rows = self
             .persist
             .knowledge()
@@ -171,11 +177,15 @@ impl Builder<'_> {
             .iter()
             .filter_map(|d| directive_item(d, self.embedder))
             .collect();
-        match self.embed_and_insert(planned).await {
-            Ok(n) => Ok(n),
-            Err(SemanticError::EgressBlocked) => Ok(0),
-            Err(e) => Err(e),
-        }
+        let embedded = match self.embed_and_insert(planned).await {
+            Ok(n) => n,
+            Err(SemanticError::EgressBlocked) => 0,
+            Err(e) => return Err(e),
+        };
+        Ok(DirectiveBuild {
+            found: rows.len(),
+            embedded,
+        })
     }
 
     pub async fn ensure_turn_items(&self, turn_id: i64) -> Result<BuildReport, SemanticError> {

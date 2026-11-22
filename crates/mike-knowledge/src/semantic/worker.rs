@@ -20,6 +20,7 @@ use super::config::SemanticConfig;
 use super::drift_job::DriftRun;
 use super::floors_job::FloorRun;
 use super::knowledge_state::DriftAlarms;
+use super::source_steps::{SourceStep, SourceSteps};
 use super::tag_job::{group_weekly, tag_tick};
 use super::{SemanticError, SemanticHandle, check};
 
@@ -43,6 +44,7 @@ pub struct LoopState {
     last_check: Option<DateTime<Utc>>,
     cursor: i64,
     breaker_was_open: bool,
+    sources: SourceSteps,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -170,6 +172,23 @@ impl SemanticWorker {
         log_carried(&embedder.embedder_key, carried);
     }
 
+    async fn directives(
+        &self,
+        builder: &Builder<'_>,
+        sources: &mut SourceSteps,
+    ) -> Result<u64, SemanticError> {
+        let feed = &self.base.change_feed;
+        let key = &builder.embedder.embedder_key;
+        let now = Instant::now();
+        if sources.nothing_new(SourceStep::Directives, feed, key, now) {
+            return Ok(0);
+        }
+        let ticket = SourceSteps::ticket(feed);
+        let built = builder.build_directives(DIRECTIVE_BATCH).await?;
+        sources.settle(SourceStep::Directives, ticket, key, built.found, now);
+        Ok(built.embedded)
+    }
+
     async fn periodic(
         &self,
         cfg: &SemanticConfig,
@@ -257,7 +276,7 @@ impl SemanticWorker {
             }
             .to_owned(),
             build,
-            directives: builder.build_directives(DIRECTIVE_BATCH).await?,
+            directives: self.directives(&builder, &mut state.sources).await?,
             ..TickReport::default()
         };
         self.periodic(&cfg, &embedder, &mut report).await?;

@@ -203,7 +203,7 @@ async fn backfill(c: &SemanticCli, args: &BackfillArgs) -> Result<()> {
         }
     }
     if args.execute {
-        total.directives = builder.build_directives(10_000).await?;
+        total.directives = builder.build_directives(10_000).await?.embedded;
     }
     print(
         &serde_json::json!({ "embedder_key": embedder.embedder_key, "dry_run": !args.execute, "report": total }),

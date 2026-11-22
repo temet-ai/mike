@@ -28,6 +28,7 @@ pub enum RowChangedTable {
     WrightReplyJobs,
     RuntimeThreads,
     Steerers,
+    DossierDirectives,
     WorkspaceQuestions,
     WrightRepairs,
     WrightFollowups,
