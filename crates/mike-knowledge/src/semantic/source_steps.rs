@@ -9,6 +9,7 @@ pub const SOURCE_BACKSTOP: Duration = Duration::from_secs(3_600);
 pub enum SourceStep {
     Directives,
     Anchors,
+    Corrections,
 }
 
 impl SourceStep {
@@ -16,6 +17,7 @@ impl SourceStep {
         match self {
             Self::Directives => &[RowChangedTable::DossierDirectives],
             Self::Anchors => &[RowChangedTable::SemanticAnchors],
+            Self::Corrections => &[RowChangedTable::CorrectionQualifications],
         }
     }
 }
@@ -34,6 +36,7 @@ struct EmptyMark {
 pub struct SourceSteps {
     directives: Option<EmptyMark>,
     anchors: Option<EmptyMark>,
+    corrections: Option<EmptyMark>,
 }
 
 impl SourceSteps {
@@ -41,7 +44,12 @@ impl SourceSteps {
         match step {
             SourceStep::Directives => &mut self.directives,
             SourceStep::Anchors => &mut self.anchors,
+            SourceStep::Corrections => &mut self.corrections,
         }
+    }
+
+    pub fn forget(&mut self, step: SourceStep) {
+        *self.slot(step) = None;
     }
 
     pub fn ticket(feed: &ChangeFeed) -> SourceTicket {
@@ -89,3 +97,7 @@ mod tests;
 #[cfg(test)]
 #[path = "tests/source_notify_tests.rs"]
 mod notify_tests;
+
+#[cfg(test)]
+#[path = "tests/correction_notify_tests.rs"]
+mod correction_notify_tests;

@@ -3142,6 +3142,8 @@ only; the topics are in the embedded text and in the item body, not in the text 
 
 ### `memory.turn_verdicts`
 
+`trg_turn_verdicts_correction_qualifications_row_changed` (`20261120167500_correction_qualifications_row_changed.sql`) publishes `{table: "correction_qualifications", id: "memory.turn_verdicts:<id>", session_id: null, op}` on `proxy.row_changed` for each inserted live, projected verdict whose `reaction` is `corrected` (a few an hour); the semantic worker's correction tagger waits for it.
+
 Every judgement of an operator turn, append-only: code inserts and reads, never updates or deletes; rows go only when their turn or session is deleted (FK cascade). `mode` is `live` (the production judge), `shadow` (a candidate on a sample, never projected) or `eval` (an offline eval run item). `projected = true` marks the live verdict whose insert also wrote `operator_turns.outcome_id`, in the same statement. A row has one of two shapes: `reaction` and `delivery` (two-axis rubrics) or `legacy_label` (the r3 rubric). `rubric_version` is the effective version: the rubric id, or `<id>+<sha12>` when the prompt in force differs from the built-in text. `input_text` is the exact user message sent, whole; `generation_id`, `cost_usd`, the token counts and `latency_ms` come from the call itself. `bundle_id` may be NULL only on live rows. `failure_tags` and `severity` are NULL unless the rubric asks for them. Indexes: `(operator_turn_id, mode, bundle_id)`, `(session_id, created_at DESC)`, `(bundle_id, mode, created_at)`; `generation_id` is deliberately not indexed.
 
 Columns added by the judgement-context migrations (definition as migrated):
@@ -6426,6 +6428,8 @@ Migrations `20260925000000_llm_calls_role_eval.sql` (the `llm.calls.role` CHECK 
 
 ### `eval.labels`
 
+`trg_eval_labels_correction_qualifications_row_changed` (`20261120167500_correction_qualifications_row_changed.sql`) publishes `{table: "correction_qualifications", id: "eval.labels:<newest id>", session_id: null, op}` on `proxy.row_changed` once for each INSERT statement that wrote at least one `subject_kind = 'turn'`, `axis = 'reaction'`, `label = 'corrected'` row (a statement-level trigger over the new rows, so a bulk import notifies once). The semantic worker's correction tagger waits for it, or for the matching verdict notice on `memory.turn_verdicts`, before it asks again for corrections without a pattern assignment.
+
 | Column | Definition |
 |---|---|
 | `id` | bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY |
@@ -6913,11 +6917,13 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_steerers_row_changed`, `trg_steerers_row_changed_update` | `steering.steerers` | AFTER INSERT OR DELETE; AFTER UPDATE when the row changed; `20261120167100` | `proxy.row_changed`, table `steerers` |
 | `trg_dossier_directives_row_changed` | `memory.dossier_entries` | AFTER INSERT when `kind = 'directive'`; `20261120167200` | `proxy.row_changed`, table `dossier_directives` |
 | `trg_semantic_anchors_row_changed` | `memory.semantic_items` | AFTER INSERT when `kind = 'anchor'`; `20261120167210` | `proxy.row_changed`, table `semantic_anchors` |
+| `trg_eval_labels_correction_qualifications_row_changed` | `eval.labels` | AFTER INSERT, once per statement that inserted a turn `reaction` label `corrected`; `20261120167500` | `proxy.row_changed`, table `correction_qualifications` |
+| `trg_turn_verdicts_correction_qualifications_row_changed` | `memory.turn_verdicts` | AFTER INSERT when `mode = 'live'`, `projected` and `reaction = 'corrected'`; `20261120167500` | `proxy.row_changed`, table `correction_qualifications` |
 | `trg_workspace_questions_row_changed`, `trg_workspace_questions_row_changed_update` | `workspace.questions` | AFTER INSERT; AFTER UPDATE when the row changed; `20261120166992` | `proxy.row_changed`, table `workspace_questions`, `session_id` the recipient's uuid |
 | `trg_wright_repairs_row_changed`, `trg_wright_repairs_row_changed_update` | `wright.repairs` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_repairs` |
 | `trg_wright_followups_row_changed`, `trg_wright_followups_row_changed_update` | `wright.followups` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_followups` |
 
-This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads` and `dossier_directives`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
+This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `correction_qualifications`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads` and `dossier_directives`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
 
 ### Fill triggers (retired in the migration squash)
 

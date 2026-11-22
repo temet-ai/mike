@@ -1142,6 +1142,7 @@ export type RowChangedTable =
 	| 'steerers'
 	| 'dossier_directives'
 	| 'semantic_anchors'
+	| 'correction_qualifications'
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups';

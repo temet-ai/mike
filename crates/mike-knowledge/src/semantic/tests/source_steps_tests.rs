@@ -143,3 +143,56 @@ async fn anchor_and_directive_steps_keep_separate_marks() {
     assert!(!steps.nothing_new(SourceStep::Directives, &fed.feed, KEY, now));
     assert!(steps.nothing_new(SourceStep::Anchors, &fed.feed, KEY, now));
 }
+
+#[tokio::test]
+async fn corrections_found_empty_wait_until_a_turn_is_qualified_as_corrected() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Corrections, now);
+    assert!(steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, now));
+    fed.feed.record(RowChangedTable::Requests, Some("s"));
+    fed.feed.record(RowChangedTable::SemanticAnchors, None);
+    assert!(
+        steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, now),
+        "a request or an anchor does not wake the tagger"
+    );
+    fed.feed
+        .record(RowChangedTable::CorrectionQualifications, None);
+    assert!(!steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, now));
+}
+
+#[tokio::test]
+async fn corrections_found_empty_run_again_after_the_worker_builds_turn_items() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Corrections, now);
+    assert!(steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, now));
+    steps.forget(SourceStep::Corrections);
+    assert!(!steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, now));
+}
+
+#[tokio::test]
+async fn corrections_found_empty_run_again_after_the_backstop_or_an_embedder_change() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Corrections, now);
+    assert!(!steps.nothing_new(SourceStep::Corrections, &fed.feed, "embedder-b", now));
+    let later = now + SOURCE_BACKSTOP;
+    assert!(!steps.nothing_new(SourceStep::Corrections, &fed.feed, KEY, later));
+}
+
+#[tokio::test]
+async fn forgetting_corrections_keeps_the_other_marks() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Directives, now);
+    steps.settle(
+        SourceStep::Corrections,
+        SourceSteps::ticket(&fed.feed),
+        KEY,
+        0,
+        now,
+    );
+    steps.forget(SourceStep::Corrections);
+    assert!(steps.nothing_new(SourceStep::Directives, &fed.feed, KEY, now));
+}

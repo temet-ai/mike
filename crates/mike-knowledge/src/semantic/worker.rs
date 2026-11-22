@@ -199,6 +199,37 @@ impl SemanticWorker {
         Ok(built.embedded)
     }
 
+    async fn tag(
+        &self,
+        cfg: &SemanticConfig,
+        embedder: &EmbedderRow,
+        built: bool,
+        sources: &mut SourceSteps,
+    ) -> Result<u64, SemanticError> {
+        let feed = &self.base.change_feed;
+        let key = &embedder.embedder_key;
+        let now = Instant::now();
+        if built {
+            sources.forget(SourceStep::Corrections);
+        }
+        if sources.nothing_new(SourceStep::Corrections, feed, key, now) {
+            return Ok(0);
+        }
+        let ticket = SourceSteps::ticket(feed);
+        let env = self.base.decision_env();
+        let tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref()).await?;
+        if !tagged.no_floor {
+            sources.settle(
+                SourceStep::Corrections,
+                ticket,
+                key,
+                tagged.corrections,
+                now,
+            );
+        }
+        Ok(tagged.written)
+    }
+
     async fn periodic(
         &self,
         cfg: &SemanticConfig,
@@ -224,10 +255,8 @@ impl SemanticWorker {
             report.floors_written = run.compute_all().await?.len();
         }
         self.carry(cfg, embedder, sources).await;
-        let env = self.base.decision_env();
-        report.tagged = tag_tick(&self.persist, cfg, embedder, env.as_ref())
-            .await?
-            .written;
+        let built = report.build.copied > 0 || report.build.embedded > 0;
+        report.tagged = self.tag(cfg, embedder, built, sources).await?;
         if older_than(status.last_daily_run, 24) {
             let run = DriftRun {
                 persist: &self.persist,
