@@ -66,3 +66,28 @@ async fn a_renewal_that_cannot_start_leaves_the_short_login_to_be_reported() -> 
     assert!(error.contains("log in"), "{error}");
     Ok(())
 }
+
+#[test]
+fn short_for_names_the_expiry_only_when_it_falls_before_the_deadline() -> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
+    let credentials = root.path().join(".credentials.json");
+    let expiry = Utc::now() + Duration::hours(2);
+    std::fs::write(
+        &credentials,
+        serde_json::json!({"claudeAiOauth": {"accessToken": "t", "expiresAt": expiry.timestamp_millis()}}).to_string(),
+    )?;
+    assert!(login::short_for(&credentials, Utc::now() + Duration::minutes(30)).is_none());
+    assert!(login::short_for(&credentials, Utc::now() + Duration::hours(3)).is_some());
+    assert!(login::short_for(&root.path().join("missing"), Utc::now()).is_none());
+    Ok(())
+}
+
+#[test]
+fn gate_renews_at_most_every_half_hour() {
+    let now = std::time::Instant::now();
+    let fresh = login::Gate { last_renew: None };
+    assert!(fresh.renew_due(now));
+    let tried = login::Gate { last_renew: Some(now) };
+    assert!(!tried.renew_due(now + std::time::Duration::from_secs(60)));
+    assert!(tried.renew_due(now + login::RENEW_EVERY));
+}

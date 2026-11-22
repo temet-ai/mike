@@ -1,6 +1,8 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::time::Duration;
 
+use chrono::Utc;
+
 use super::brief::{
     EVIDENCE_INPUT, SAME_CAUSE_NOTE, evidence, investigate_brief, root_cause_brief,
 };
@@ -38,13 +40,14 @@ async fn run(state: AppState) {
     let shutdown = state.shutdown();
     let mut last_unavailable: Option<String> = None;
     let mut reconcile_due = true;
+    let mut gate = super::login::Gate { last_renew: None };
     loop {
         tokio::select! {
             biased;
             () = shutdown.cancelled() => return,
             () = tokio::time::sleep(TICK) => {}
         }
-        if !pass_once(&state, &mut last_unavailable, &mut reconcile_due).await {
+        if !pass_once(&state, &mut last_unavailable, &mut reconcile_due, &mut gate).await {
             return;
         }
     }
@@ -54,6 +57,7 @@ async fn pass_once(
     state: &AppState,
     last_unavailable: &mut Option<String>,
     reconcile_due: &mut bool,
+    gate: &mut super::login::Gate,
 ) -> bool {
     if !state.feature_toggle_overlay.load().wright {
         return true;
@@ -68,6 +72,11 @@ async fn pass_once(
             return true;
         }
     };
+    if let Some(reason) = login_refusal(&ctx, gate).await {
+        note_unavailable(last_unavailable, reason);
+        *reconcile_due = true;
+        return true;
+    }
     *last_unavailable = None;
     if persist.holds_worker_role(LEASE_ROLE, TICK).await {
         tick(&ctx, reconcile_due).await;
@@ -75,6 +84,18 @@ async fn pass_once(
         *reconcile_due = true;
     }
     true
+}
+
+async fn login_refusal(ctx: &EngineerContext, gate: &mut super::login::Gate) -> Option<String> {
+    let horizon = Utc::now() + chrono::Duration::days(1);
+    super::login::short_for(&ctx.paths.credentials, horizon)?;
+    let wall = match ctx.persist.web().wright_engineer_limits().await {
+        Ok(limits) => i64::from(limits.wall_seconds),
+        Err(_) => return None,
+    };
+    let deadline = Utc::now() + chrono::Duration::seconds(wall);
+    gate.refusal(&ctx.paths.binaries.claude, &ctx.paths.credentials, deadline)
+        .await
 }
 
 fn note_unavailable(last_unavailable: &mut Option<String>, reason: String) {

@@ -97,6 +97,12 @@ fn expires_at(oauth: &Value) -> Option<DateTime<Utc>> {
         .and_then(DateTime::<Utc>::from_timestamp_millis)
 }
 
+pub(crate) fn login_expiry(raw: &[u8]) -> Option<DateTime<Utc>> {
+    serde_json::from_slice::<Value>(raw)
+        .ok()
+        .and_then(|parsed| parsed.get("claudeAiOauth").and_then(expires_at))
+}
+
 pub(crate) fn login_is_short(raw: &[u8], deadline: DateTime<Utc>) -> bool {
     serde_json::from_slice::<Value>(raw)
         .ok()

@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::process::Stdio;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 
@@ -39,4 +39,39 @@ pub(crate) async fn renew_if_short(claude: &Path, credentials: &Path, deadline: 
         still_short,
         "wright: the Claude login expires before the run ends; asked Claude Code to renew it"
     );
+}
+
+pub(crate) const RENEW_EVERY: Duration = Duration::from_secs(1800);
+
+pub(crate) struct Gate {
+    pub(crate) last_renew: Option<Instant>,
+}
+
+pub(crate) fn short_for(credentials: &Path, deadline: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    let raw = std::fs::read(credentials).ok()?;
+    home::login_expiry(&raw).filter(|_| home::login_is_short(&raw, deadline))
+}
+
+impl Gate {
+    pub(crate) fn renew_due(&self, now: Instant) -> bool {
+        self.last_renew
+            .is_none_or(|at| now.duration_since(at) >= RENEW_EVERY)
+    }
+
+    pub(crate) async fn refusal(
+        &mut self,
+        claude: &Path,
+        credentials: &Path,
+        deadline: DateTime<Utc>,
+    ) -> Option<String> {
+        short_for(credentials, deadline)?;
+        if self.renew_due(Instant::now()) {
+            self.last_renew = Some(Instant::now());
+            renew_if_short(claude, credentials, deadline).await;
+        }
+        let expiry = short_for(credentials, deadline)?;
+        Some(format!(
+            "the Claude login on this machine expires at {expiry}, before a run started now could end; Wright leaves the engineer to another machine until someone runs `claude` here and logs in"
+        ))
+    }
 }
