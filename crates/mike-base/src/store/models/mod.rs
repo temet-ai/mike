@@ -13,7 +13,7 @@ pub mod thread_link;
 pub mod tool_result;
 
 pub use diagnostics::{Diagnostic, DiagnosticCategory};
-pub use intercepted_request::InterceptedRequest;
+pub use intercepted_request::{CaptureWrites, InterceptedRequest};
 pub use proxy_event::MemoryTickPayload;
 pub use proxy_event::{ProxyEvent, ResyncReason, RowChangedOp, RowChangedTable};
 pub use reminder::{ReminderSource, SELF_IDENTITY_ID_LINE, SELF_IDENTITY_MARKER, SystemReminder};

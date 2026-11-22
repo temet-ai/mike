@@ -181,6 +181,7 @@ async fn from_parts_and_body_brief_wins_primary_first_after_a_quota_probe() -> a
             agent_instance_id: None,
             claude_code_agent_id: None,
             thread: None,
+            capture_writes: Default::default(),
         });
     }
 

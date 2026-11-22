@@ -9,6 +9,7 @@ use super::persistence::{self, IdMode, PersistHandle, capture_retry};
 struct StubOutcome {
     id: RequestId,
     agent_instance_id: Option<i64>,
+    written: bool,
 }
 
 impl RequestStore {
@@ -27,13 +28,14 @@ impl RequestStore {
         };
         let outcome = Self::insert_stub_with_retry(store, &persist, req, is_new_session).await;
         req.id = outcome.id;
+        req.capture_writes.stub_row = outcome.written;
         req.agent_instance_id = req.agent_instance_id.or(outcome.agent_instance_id);
         outcome.id
     }
 
     pub async fn insert_request_stub_to_db(
         store: &Arc<RwLock<RequestStore>>,
-        req: &InterceptedRequest,
+        req: &mut InterceptedRequest,
         is_new_session: bool,
     ) -> RequestId {
         let persist = {
@@ -43,9 +45,10 @@ impl RequestStore {
                 None => return req.id,
             }
         };
-        Self::insert_stub_with_retry(store, &persist, req, is_new_session)
-            .await
-            .id
+        let outcome = Self::insert_stub_with_retry(store, &persist, req, is_new_session).await;
+        req.id = outcome.id;
+        req.capture_writes.stub_row = outcome.written;
+        outcome.id
     }
 
     async fn insert_stub_with_retry(
@@ -66,6 +69,7 @@ impl RequestStore {
                     return StubOutcome {
                         id: RequestId::from_raw(outcome.id as u64),
                         agent_instance_id: outcome.agent_instance_id,
+                        written: true,
                     };
                 }
                 Err(persistence::PersistError::Database(sqlx::Error::RowNotFound))
@@ -82,6 +86,7 @@ impl RequestStore {
                     return StubOutcome {
                         id: Self::stub_insert_failed(req, &e),
                         agent_instance_id: None,
+                        written: false,
                     };
                 }
             }

@@ -127,7 +127,7 @@ async fn first_write_timing_out_on_a_session_lock_is_recorded_after_the_answer()
         br#"{"messages":[{"role":"user","content":"late"}]}"#,
     ));
     req.status = RequestStatus::Pending;
-    let id = RequestStore::insert_request_stub_to_db(&store, &req, false).await;
+    let id = RequestStore::insert_request_stub_to_db(&store, &mut req, false).await;
     assert!(
         crate::store::models::is_fallback(id.as_u64()),
         "the first write must fail on the held lock"

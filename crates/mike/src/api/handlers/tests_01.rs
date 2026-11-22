@@ -130,6 +130,7 @@ pub(crate) fn sample_request() -> InterceptedRequest {
         agent_instance_id: None,
         claude_code_agent_id: None,
         thread: None,
+        capture_writes: Default::default(),
     }
 }
 

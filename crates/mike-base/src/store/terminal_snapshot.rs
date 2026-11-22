@@ -63,6 +63,17 @@ impl RequestStore {
     }
 
     async fn ensure_stub_row(ctx: &SnapshotContext, request_id: RequestId) -> bool {
+        if ctx.req.capture_writes.stub_row {
+            if let Err(e) = ctx.persist.write_terminal_backstop(&ctx.req).await {
+                tracing::warn!(
+                    request_id = %request_id,
+                    session_id = %ctx.req.session_id,
+                    error = %e,
+                    "the terminal retry of failed live writes failed; the snapshot still runs"
+                );
+            }
+            return true;
+        }
         match ctx
             .persist
             .insert_request_initial(&ctx.req, true, IdMode::Ensure)
@@ -196,3 +207,7 @@ impl RequestStore {
         });
     }
 }
+
+#[cfg(test)]
+#[path = "terminal_snapshot_tests.rs"]
+mod tests;

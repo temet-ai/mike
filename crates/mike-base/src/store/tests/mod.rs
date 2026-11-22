@@ -93,5 +93,6 @@ pub fn make_test_request_with_timestamp(
         agent_instance_id: None,
         claude_code_agent_id: None,
         thread: None,
+        capture_writes: Default::default(),
     }
 }

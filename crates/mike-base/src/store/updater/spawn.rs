@@ -147,7 +147,7 @@ async fn write_completed_tool_call(
     blocks
         .write_tool_use_block(&ctx.block_target, &tc.tool_id)
         .await;
-    write_tool_use_row(
+    let mut written = write_tool_use_row(
         ctx.block_target.persist,
         ctx.request_id_i64,
         ctx.request_created_at,
@@ -158,7 +158,14 @@ async fn write_completed_tool_call(
     if tc.name == "Agent" {
         let subagent_name = extract_subagent_type(&tc.input_json)
             .unwrap_or_else(|| DEFAULT_SUBAGENT_TYPE.to_string());
-        write_agent_dispatch_row(ctx.block_target.persist, &tc.tool_id, &subagent_name).await;
+        written &=
+            write_agent_dispatch_row(ctx.block_target.persist, &tc.tool_id, &subagent_name).await;
+    }
+    if !written {
+        let mut s = ctx.block_target.store.write().await;
+        s.update(&ctx.block_target.request_id, |req| {
+            req.capture_writes.tool_use_failed = true;
+        });
     }
 }
 

@@ -108,6 +108,19 @@ pub struct InterceptedRequest {
 
     #[serde(skip)]
     pub thread: Option<ThreadLink>,
+
+    #[serde(skip)]
+    pub capture_writes: CaptureWrites,
+}
+
+/// What the capture path has already written for this request, so the
+/// terminal write only repeats what is missing.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CaptureWrites {
+    /// The phase-1 stub row committed under this request's id.
+    pub stub_row: bool,
+    /// A live tool-use or agent-dispatch insert failed during the stream.
+    pub tool_use_failed: bool,
 }
 
 #[cfg(test)]

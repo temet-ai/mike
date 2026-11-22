@@ -68,8 +68,7 @@ pub async fn run_proxy_tool_loop(
     );
 
     let followup_request_id =
-        RequestStore::insert_request_stub_to_db(&state.store, &minimal, false).await;
-    minimal.id = followup_request_id;
+        RequestStore::insert_request_stub_to_db(&state.store, &mut minimal, false).await;
     {
         let mut store = state.store.write().await;
         store.insert(minimal);

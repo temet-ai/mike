@@ -308,6 +308,10 @@ fn build_intercepted_request(
         agent_instance_id: row.agent_instance_id,
         claude_code_agent_id: row.claude_code_agent_id,
         thread: None,
+        capture_writes: crate::store::models::CaptureWrites {
+            stub_row: true,
+            tool_use_failed: false,
+        },
         system_prompt: decoded.system_prompt,
     })
 }

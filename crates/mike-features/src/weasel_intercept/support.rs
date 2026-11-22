@@ -115,6 +115,7 @@ pub fn make_correction_intercepted_request(
         agent_instance_id: lane.agent_instance_id,
         claude_code_agent_id: lane.claude_code_agent_id,
         thread: None,
+        capture_writes: Default::default(),
     }
 }
 

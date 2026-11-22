@@ -24,6 +24,7 @@ impl PersistHandle {
             }
             let req = super::text_sanitize::request_with_clean_text(req);
             let req = req.as_ref();
+            let is_new_session = is_new_session && !self.session_set_up(&req.session_id);
             let prep = RequestEnvelopePrep::compute(req)?;
             let session_epoch = self.session_epoch();
             let mut tx = self.pool.begin().await?;
@@ -78,16 +79,8 @@ impl PersistHandle {
             self.reconcile_after_commit(request_db_id, &dispatch_wire_ids)
                 .await;
 
-            if is_new_session
-                && let Ok(session_uuid) = req.session_id.parse::<uuid::Uuid>()
-                && let Some(hook) = self.new_session_hook()
-                && let Err(e) = hook.on_new_session(self, session_uuid).await
-            {
-                tracing::warn!(
-                    session_id = %req.session_id,
-                    error = %e,
-                    "insert_request_initial: auto-enrol failed (best-effort)"
-                );
+            if is_new_session {
+                self.set_up_new_session(&req.session_id).await;
             }
 
             if row_inserted {
@@ -111,6 +104,72 @@ impl PersistHandle {
             })
         })
         .await
+    }
+
+    /// The terminal write for a request whose stub row committed: repeats only
+    /// the live writes that did not land (tool uses, stream blocks) and the
+    /// subagent turn attribution, instead of the whole initial insert.
+    pub async fn write_terminal_backstop(
+        &self,
+        req: &InterceptedRequest,
+    ) -> Result<(), PersistError> {
+        let tool_uses = req.capture_writes.tool_use_failed
+            || req.tool_calls.iter().any(|call| !call.complete);
+        let subagent = req.turn_origin == "subagent";
+        if !tool_uses && !subagent && req.failed_stream_blocks.is_empty() {
+            return Ok(());
+        }
+        crate::metrics::time_db("write_terminal_backstop", async move {
+            let request_db_id = req.id.as_u64() as i64;
+            if tool_uses || !req.failed_stream_blocks.is_empty() {
+                let Ok(session_uuid) = req.session_id.parse::<uuid::Uuid>() else {
+                    return Ok(());
+                };
+                let Some(session_db_id) = self.session_row_id(session_uuid).await? else {
+                    return Ok(());
+                };
+                let req = super::text_sanitize::request_with_clean_text(req);
+                let req = req.as_ref();
+                let mut tx = self.pool.begin().await?;
+                if tool_uses {
+                    super::request_write_tool_io::write_tool_uses_and_dispatches(
+                        &mut tx,
+                        req,
+                        request_db_id,
+                        session_db_id,
+                    )
+                    .await?;
+                }
+                super::request_write_tool_io::retry_failed_stream_blocks(
+                    &mut tx,
+                    req,
+                    request_db_id,
+                    session_db_id,
+                )
+                .await?;
+                tx.commit().await?;
+            }
+            if subagent {
+                self.reconcile_after_commit(request_db_id, &[]).await;
+            }
+            Ok(())
+        })
+        .await
+    }
+
+    async fn set_up_new_session(&self, session_id: &str) {
+        let hooked = match (session_id.parse::<uuid::Uuid>(), self.new_session_hook()) {
+            (Ok(session_uuid), Some(hook)) => hook.on_new_session(self, session_uuid).await,
+            _ => Ok(()),
+        };
+        match hooked {
+            Ok(()) => self.mark_session_set_up(session_id),
+            Err(e) => tracing::warn!(
+                session_id = %session_id,
+                error = %e,
+                "insert_request_initial: auto-enrol failed (best-effort)"
+            ),
+        }
     }
 
     async fn write_dependent_rows_or_keep_request(

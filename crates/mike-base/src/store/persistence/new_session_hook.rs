@@ -28,3 +28,31 @@ impl PersistHandle {
         self.memo::<NewSessionHookSlot>().0.get().cloned()
     }
 }
+
+const SET_UP_CAPACITY: usize = 50_000;
+
+#[derive(Default)]
+struct SessionsSetUp(dashmap::DashSet<Uuid>);
+
+impl PersistHandle {
+    /// Whether this process already stamped the session's machine and ran the
+    /// new-session hook for it. The capture store forgets a session once its
+    /// in-flight requests finish, so without this every request of a
+    /// sequential session would count as new.
+    pub fn session_set_up(&self, session_id: &str) -> bool {
+        session_id
+            .parse::<Uuid>()
+            .is_ok_and(|uuid| self.memo::<SessionsSetUp>().0.contains(&uuid))
+    }
+
+    pub fn mark_session_set_up(&self, session_id: &str) {
+        let Ok(uuid) = session_id.parse::<Uuid>() else {
+            return;
+        };
+        let set = self.memo::<SessionsSetUp>();
+        if set.0.len() >= SET_UP_CAPACITY {
+            set.0.clear();
+        }
+        set.0.insert(uuid);
+    }
+}

@@ -13,19 +13,23 @@ pub async fn write_tool_use_row(
     request_created_at: chrono::DateTime<chrono::Utc>,
     ord: i32,
     tc: &crate::types::ToolCall,
-) {
+) -> bool {
     let Some(p) = persist.as_ref() else {
-        return;
+        return true;
     };
-    if let Err(e) = p
+    match p
         .insert_tool_use_row(request_id, request_created_at, ord, tc)
         .await
     {
-        tracing::warn!(
-            tool_id = %tc.tool_id,
-            error = %e,
-            "tool_use DB insert failed; Phase 11 crash-recovery will retry at terminal"
-        );
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(
+                tool_id = %tc.tool_id,
+                error = %e,
+                "tool_use DB insert failed; the terminal write retries it"
+            );
+            false
+        }
     }
 }
 
@@ -44,16 +48,20 @@ pub async fn write_agent_dispatch_row(
     persist: &Option<PersistHandle>,
     tool_use_id: &str,
     agent_name: &str,
-) {
+) -> bool {
     let Some(p) = persist.as_ref() else {
-        return;
+        return true;
     };
-    if let Err(e) = p.insert_agent_dispatch_row(tool_use_id, agent_name).await {
-        tracing::warn!(
-            tool_use_id = %tool_use_id,
-            error = %e,
-            "agent_dispatch DB insert failed; Phase 11 crash-recovery will retry at terminal"
-        );
+    match p.insert_agent_dispatch_row(tool_use_id, agent_name).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(
+                tool_use_id = %tool_use_id,
+                error = %e,
+                "agent_dispatch DB insert failed; the terminal write retries it"
+            );
+            false
+        }
     }
 }
 

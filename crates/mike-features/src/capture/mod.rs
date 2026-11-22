@@ -92,6 +92,7 @@ pub fn build_intercepted_request(inputs: InterceptedRequestInputs) -> Intercepte
         agent_instance_id: None,
         claude_code_agent_id: inputs.claude_code_agent_id,
         thread: None,
+        capture_writes: Default::default(),
     }
 }
 

@@ -81,8 +81,7 @@ pub async fn run_weasel_correction(
     );
 
     let correction_request_id =
-        RequestStore::insert_request_stub_to_db(&state.store, &minimal, false).await;
-    minimal.id = correction_request_id;
+        RequestStore::insert_request_stub_to_db(&state.store, &mut minimal, false).await;
 
     {
         let mut store = state.store.write().await;
