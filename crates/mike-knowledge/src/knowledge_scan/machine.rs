@@ -95,7 +95,11 @@ pub(super) async fn record_missing(
     missing: &[Spec],
     memo: &mut ScanMemo,
 ) -> Result<usize, PersistError> {
-    if missing.is_empty() {
+    let now: Vec<_> = missing
+        .iter()
+        .map(|spec| (spec.name.clone(), spec.root.clone()))
+        .collect();
+    if !memo.note_machine_missing(now) || missing.is_empty() {
         return Ok(0);
     }
     for spec in missing {

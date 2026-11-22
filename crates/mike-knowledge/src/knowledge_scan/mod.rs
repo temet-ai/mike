@@ -18,6 +18,8 @@ pub mod machine_tests;
 pub mod scan_test_support;
 #[cfg(test)]
 pub mod sync_db_tests;
+#[cfg(test)]
+mod sync_restart_db_tests;
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -60,30 +62,37 @@ async fn run(persist: PersistHandle, claude_home: PathBuf, shutdown: Cancellatio
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut memo = ScanMemo::default();
     let mut legacy_merged = false;
+    let mut machine_recorded = false;
     loop {
         tokio::select! {
             biased;
             _ = shutdown.cancelled() => return,
             _ = interval.tick() => {
-                tick(&persist, &claude_home, &mut memo, &mut legacy_merged).await;
+                let once = OnceSteps { legacy_merged: &mut legacy_merged, machine_recorded: &mut machine_recorded };
+                tick(&persist, &claude_home, &mut memo, once).await;
             }
         }
     }
+}
+
+/// Steps a scan does once per process: each flag turns true when its step succeeds.
+/// The machine row is never removed while this machine runs, so recording it on
+/// every tick only repeated an insert that did nothing.
+struct OnceSteps<'a> {
+    legacy_merged: &'a mut bool,
+    machine_recorded: &'a mut bool,
 }
 
 async fn tick(
     persist: &PersistHandle,
     claude_home: &std::path::Path,
     memo: &mut ScanMemo,
-    legacy_merged: &mut bool,
+    once: OnceSteps<'_>,
 ) {
     let Some(identity) = load_machine().await else {
         return;
     };
-    if !*legacy_merged {
-        *legacy_merged = crate::machine_identity::merge_legacy_at_startup(persist, &identity).await;
-    }
-    record_machine(persist, &identity).await;
+    once_steps(persist, &identity, once).await;
     match scan_machine(persist, identity.machine_uuid, claude_home, memo).await {
         Ok(report) => log_report(&report),
         Err(error) => tracing::warn!(%error, "knowledge_scan: cycle failed"),
@@ -91,15 +100,33 @@ async fn tick(
     record_origins(persist, identity.machine_uuid).await;
 }
 
+async fn once_steps(
+    persist: &PersistHandle,
+    identity: &crate::machine_identity::MachineIdentity,
+    once: OnceSteps<'_>,
+) {
+    if !*once.legacy_merged {
+        *once.legacy_merged =
+            crate::machine_identity::merge_legacy_at_startup(persist, identity).await;
+    }
+    if !*once.machine_recorded {
+        *once.machine_recorded = record_machine(persist, identity).await;
+    }
+}
+
 async fn record_machine(
     persist: &PersistHandle,
     identity: &crate::machine_identity::MachineIdentity,
-) {
-    if let Err(error) = persist
+) -> bool {
+    match persist
         .ensure_machine(identity.machine_uuid, &identity.machine_name)
         .await
     {
-        tracing::warn!(%error, "knowledge_scan: recording this machine failed");
+        Ok(()) => true,
+        Err(error) => {
+            tracing::warn!(%error, "knowledge_scan: recording this machine failed");
+            false
+        }
     }
 }
 

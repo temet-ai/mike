@@ -290,6 +290,51 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     }
 }
 
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    /// Records the fingerprint of the document set an ingest produced at
+    /// `generation`, so a later scan of the same set can skip the ingest.
+    pub async fn record_scan_fingerprint(
+        self,
+        source: Uuid,
+        generation: i64,
+        fingerprint: &str,
+    ) -> Result<(), PersistError> {
+        sqlx::query!(
+            "UPDATE memory.knowledge_sources
+                SET scan_fingerprint = $3, scan_fingerprint_generation = $2
+              WHERE source_uuid = $1 AND generation = $2",
+            source,
+            generation,
+            fingerprint
+        )
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    /// Whether the source's last recorded ingest, at `generation`, had this
+    /// fingerprint.
+    pub async fn scan_fingerprint_matches(
+        self,
+        source: Uuid,
+        generation: i64,
+        fingerprint: &str,
+    ) -> Result<bool, PersistError> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                 SELECT 1 FROM memory.knowledge_sources
+                  WHERE source_uuid = $1
+                    AND scan_fingerprint_generation = $2
+                    AND scan_fingerprint = $3) AS "matches!""#,
+            source,
+            generation,
+            fingerprint
+        )
+        .fetch_one(self.pool())
+        .await?)
+    }
+}
+
 async fn complete_scan(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     source: Uuid,

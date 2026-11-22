@@ -42,11 +42,23 @@ impl ScanReport {
 pub struct ScanMemo {
     submitted: HashMap<(Uuid, String), (i64, String)>,
     missing_reported: Vec<(Uuid, String, PathBuf)>,
+    machine_missing_reported: Vec<(String, PathBuf)>,
 }
 
 impl ScanMemo {
     pub(super) fn forget(&mut self, owner: Uuid, name: &str) {
         self.submitted.remove(&(owner, name.to_owned()));
+    }
+
+    /// Records the machine sources whose roots are missing now. Returns false when
+    /// that set is the one already reported, so the report is not sent again.
+    pub(super) fn note_machine_missing(&mut self, mut missing: Vec<(String, PathBuf)>) -> bool {
+        missing.sort();
+        if missing == self.machine_missing_reported {
+            return false;
+        }
+        self.machine_missing_reported = missing;
+        true
     }
 }
 
@@ -348,6 +360,14 @@ async fn sync_source(
     if memo.submitted.get(&key) == Some(&(generation, print.clone())) {
         return Ok(false);
     }
+    if persist
+        .knowledge()
+        .scan_fingerprint_matches(source_uuid, generation, &print)
+        .await?
+    {
+        memo.submitted.insert(key, (generation, print));
+        return Ok(false);
+    }
     let result = persist
         .knowledge()
         .ingest_knowledge_scan(
@@ -362,6 +382,10 @@ async fn sync_source(
         .get("generation")
         .and_then(Value::as_i64)
         .unwrap_or(generation + 1);
+    persist
+        .knowledge()
+        .record_scan_fingerprint(source_uuid, next, &print)
+        .await?;
     memo.submitted.insert(key, (next, print));
     Ok(true)
 }
@@ -370,7 +394,7 @@ async fn sync_source(
 mod tests {
     use super::{builtin_specs, encode_project_dir};
     use crate::knowledge_scan::files::SourceKind;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn builtin_specs_include_a_checkout_instructions_source_limited_to_the_named_paths() {
@@ -392,6 +416,19 @@ mod tests {
                 ]
             ))
         );
+    }
+
+    #[test]
+    fn missing_machine_roots_are_reported_only_when_the_set_changes() {
+        let mut memo = super::ScanMemo::default();
+        let gone = || vec![("skills".to_owned(), PathBuf::from("/h/.claude/skills"))];
+        assert!(memo.note_machine_missing(gone()), "first sighting reports");
+        assert!(
+            !memo.note_machine_missing(gone()),
+            "the same set is not reported again"
+        );
+        assert!(memo.note_machine_missing(Vec::new()), "the root came back");
+        assert!(memo.note_machine_missing(gone()), "and went away again");
     }
 
     #[test]
