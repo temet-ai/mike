@@ -125,6 +125,12 @@ fn is_panic(line: &LogLine) -> bool {
     line.message.contains("panicked")
 }
 
+/// sqlx's slow-statement lines are left to the `slow_queries` check, which names each slow
+/// query once by its pg_stat_statements queryid.
+fn is_slow_statement(line: &LogLine) -> bool {
+    line.target == "sqlx::query" && line.message.starts_with("slow statement:")
+}
+
 pub(crate) fn group_lines<'a>(
     lines: &'a [LogLine],
     now: DateTime<Utc>,
@@ -134,7 +140,7 @@ pub(crate) fn group_lines<'a>(
     let mut grouped: Groups<'a> = BTreeMap::new();
     for line in lines
         .iter()
-        .filter(|l| l.level == params.level && l.at >= since)
+        .filter(|l| l.level == params.level && l.at >= since && !is_slow_statement(l))
     {
         grouped
             .entry((line.target.clone(), shape(&line.message)))

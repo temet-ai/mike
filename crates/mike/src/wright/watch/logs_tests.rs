@@ -136,6 +136,20 @@ async fn findings_with_an_error_repeated_three_times_in_the_hour_is_one_finding(
 }
 
 #[tokio::test]
+async fn findings_with_sqlx_slow_statement_lines_leaves_them_to_slow_queries() {
+    let now = Utc::now();
+    let slow = "slow statement: execution time exceeded alert threshold: SELECT id FROM requests";
+    let mut lines: Vec<LogLine> = (0..3)
+        .map(|n| parsed(now - Duration::minutes(n), "WARN", "sqlx::query", slow))
+        .collect();
+    lines.extend((0..3).map(|n| parsed(now - Duration::minutes(n), "WARN", "mike::capture", slow)));
+    let params = params(json!({"level": "WARN", "repeats": 3, "window_minutes": 60}));
+    let findings = findings_with(None, &lines, now, &params).await;
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].resource.starts_with("mike::capture: "));
+}
+
+#[tokio::test]
 async fn findings_with_a_single_panic_line_is_a_finding() {
     let now = Utc::now();
     let lines = [parsed(
