@@ -36,7 +36,7 @@ async fn launch_migration_applied_twice_converges() -> anyhow::Result<()> {
 
     let tables: Vec<String> = sqlx::query_scalar(
         "SELECT table_name::text FROM information_schema.tables \
-         WHERE table_schema = 'launch' ORDER BY 1",
+         WHERE table_schema = 'launch' AND table_type = 'BASE TABLE' ORDER BY 1",
     )
     .fetch_all(handle.pool())
     .await?;
