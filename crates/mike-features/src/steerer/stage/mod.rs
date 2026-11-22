@@ -181,7 +181,7 @@ async fn run_same_request_judge(
     human_prompt: &str,
     bk: &mut InjectBookkeeping<'_>,
 ) -> Option<SystemReminder> {
-    let reminder = judge::judge_turn_close_before_drain(state, session_id, human_prompt).await?;
+    let reminder = judge_within_wait(state, session_id, human_prompt).await?;
     if crate::reminders::inject::inject_system_reminder(&reminder, bk) {
         return Some(reminder);
     }
@@ -204,4 +204,57 @@ fn mailbox_skip_count(pending: &[SystemReminder], max_per_turn: usize) -> usize 
         .filter(|r| matches!(r.source, ReminderSource::SessionMailbox { .. }))
         .count();
     mailbox_total.saturating_sub(max_per_turn)
+}
+
+/// How long the operator's request waits for the turn-close judge. The judge
+/// takes seconds on a CLI-backed model; past this wait it finishes in the
+/// background and its reminder is queued for the session's next drain, so the
+/// verdict is kept and the request goes upstream without the delay.
+const SAME_REQUEST_WAIT: std::time::Duration = std::time::Duration::from_millis(1500);
+
+async fn judge_within_wait(
+    state: &AppState,
+    session_id: &str,
+    human_prompt: &str,
+) -> Option<SystemReminder> {
+    if !judge::wants_judge(human_prompt) {
+        return None;
+    }
+    let task_state = state.clone();
+    let (sid, prompt) = (session_id.to_owned(), human_prompt.to_owned());
+    let judged = async move { judge::judge_turn_close_before_drain(&task_state, &sid, &prompt).await };
+    let store = std::sync::Arc::clone(&state.store);
+    let sid = session_id.to_owned();
+    within_wait_or_later(&state.tracker, SAME_REQUEST_WAIT, judged, move |reminder| async move {
+        store.write().await.enqueue_reminder(&sid, reminder);
+    })
+    .await
+}
+
+/// Runs `work` as its own task and returns its value if it is ready within
+/// `wait`. Otherwise the task keeps running and `later` receives its value.
+pub(crate) async fn within_wait_or_later<T, W, L, LF>(
+    tracker: &tokio_util::task::TaskTracker,
+    wait: std::time::Duration,
+    work: W,
+    later: L,
+) -> Option<T>
+where
+    T: Send + 'static,
+    W: std::future::Future<Output = Option<T>> + Send + 'static,
+    L: FnOnce(T) -> LF + Send + 'static,
+    LF: std::future::Future<Output = ()> + Send,
+{
+    let mut handle = crate::observability::spans::spawn_tracked(tracker, work);
+    match tokio::time::timeout(wait, &mut handle).await {
+        Ok(joined) => joined.ok().flatten(),
+        Err(_) => {
+            crate::observability::spans::spawn_tracked(tracker, async move {
+                if let Ok(Some(value)) = handle.await {
+                    later(value).await;
+                }
+            });
+            None
+        }
+    }
 }

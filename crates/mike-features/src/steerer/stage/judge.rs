@@ -8,12 +8,16 @@ use crate::store::models::SystemReminder;
 use crate::store::persistence::PersistHandle;
 use crate::wire::machine_text;
 
+pub fn wants_judge(human_prompt: &str) -> bool {
+    !human_prompt.is_empty() && machine_text::classify(human_prompt).is_none()
+}
+
 pub async fn judge_turn_close_before_drain(
     state: &AppState,
     session_id: &str,
     human_prompt: &str,
 ) -> Option<SystemReminder> {
-    if human_prompt.is_empty() || machine_text::classify(human_prompt).is_some() {
+    if !wants_judge(human_prompt) {
         return None;
     }
     let persist = state.persist.as_ref()?;
