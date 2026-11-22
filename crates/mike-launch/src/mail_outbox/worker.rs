@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::claude::ClaudeRecipient;
 use super::codex::{CodexRecipient, LiveSeat};
 use super::deliver::{Outcome, deliver};
-use super::mailbox_link::{mailbox_state, mirror_codex_mail};
+use super::mailbox_link::{codex_bound, mailbox_state, mirror_codex_mail};
 use super::store::{self, Mail};
 use super::{Recipient, Runtime, Stage};
 use crate::base_state::BaseState;
@@ -16,11 +16,11 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
 const IDLE_BACKSTOP: Duration = Duration::from_secs(120);
-const WATCHED: [RowChangedTable; 3] = [
+const WATCHED: [RowChangedTable; 2] = [
     RowChangedTable::MailboxMessages,
-    RowChangedTable::Sessions,
-    RowChangedTable::LaunchLaunches,
+    RowChangedTable::RuntimeThreads,
 ];
+const UNBOUND_WATCHED: [RowChangedTable; 1] = [RowChangedTable::RuntimeThreads];
 const MIRROR_BATCH: i64 = 200;
 const DELIVER_BATCH: i64 = 100;
 
@@ -32,29 +32,84 @@ pub fn spawn_mail_outbox(state: &BaseState) {
     let shutdown = state.shutdown();
     let feed = state.change_feed.clone();
     state.tracker.spawn(async move {
+        let mut bindings = Bindings::default();
         loop {
             let since = feed.generation();
-            let busy = match sweep(&persist).await {
-                Ok(busy) => busy,
-                Err(error) => {
-                    tracing::warn!(error = %error, "mail_outbox: sweep failed");
-                    true
-                }
-            };
+            let wait = pass(&persist, &feed, &mut bindings, since).await;
             tokio::select! {
                 biased;
                 () = shutdown.cancelled() => break,
-                () = wait_for_mail(&feed, busy, since) => {}
+                () = wait_for_mail(&feed, wait, since) => {}
             }
         }
     });
 }
 
-async fn wait_for_mail(feed: &ChangeFeed, busy: bool, since: Generation) {
-    if busy || !feed.is_fed() {
-        tokio::time::sleep(SWEEP_INTERVAL).await;
-    } else {
-        feed.wait_for_change(&WATCHED, since, IDLE_BACKSTOP).await;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Wait {
+    Interval,
+    Change(&'static [RowChangedTable]),
+}
+
+async fn pass(
+    persist: &PersistHandle,
+    feed: &ChangeFeed,
+    bindings: &mut Bindings,
+    since: Generation,
+) -> Wait {
+    match bindings.bound(persist, feed, since).await {
+        Ok(true) => after_sweep(sweep(persist).await),
+        Ok(false) => Wait::Change(&UNBOUND_WATCHED),
+        Err(error) => {
+            tracing::warn!(error = %error, "mail_outbox: reading Codex bindings failed");
+            Wait::Interval
+        }
+    }
+}
+
+fn after_sweep(swept: Result<bool, PersistError>) -> Wait {
+    match swept {
+        Ok(false) => Wait::Change(&WATCHED),
+        Ok(true) => Wait::Interval,
+        Err(error) => {
+            tracing::warn!(error = %error, "mail_outbox: sweep failed");
+            Wait::Interval
+        }
+    }
+}
+
+#[derive(Default)]
+struct Bindings {
+    bound: Option<bool>,
+    checked: Generation,
+}
+
+impl Bindings {
+    async fn bound(
+        &mut self,
+        persist: &PersistHandle,
+        feed: &ChangeFeed,
+        since: Generation,
+    ) -> Result<bool, sqlx::Error> {
+        if let Some(bound) = self.bound
+            && feed.is_fed()
+            && !feed.changed_since(&UNBOUND_WATCHED, self.checked)
+        {
+            return Ok(bound);
+        }
+        let bound = codex_bound(persist.pool()).await?;
+        self.bound = Some(bound);
+        self.checked = since;
+        Ok(bound)
+    }
+}
+
+async fn wait_for_mail(feed: &ChangeFeed, wait: Wait, since: Generation) {
+    match wait {
+        Wait::Change(tables) if feed.is_fed() => {
+            feed.wait_for_change(tables, since, IDLE_BACKSTOP).await;
+        }
+        Wait::Interval | Wait::Change(_) => tokio::time::sleep(SWEEP_INTERVAL).await,
     }
 }
 

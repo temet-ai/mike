@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n               SELECT 1 FROM runtime.threads t\n               JOIN runtime.namespaces n ON n.id = t.namespace_id\n              WHERE n.runtime_kind = 'codex'\n           ) AS \"bound!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bound!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "730455e7bd2029812abf955f29139b2492fb17aebde507a0d6caaeab4e4684a6"
+}

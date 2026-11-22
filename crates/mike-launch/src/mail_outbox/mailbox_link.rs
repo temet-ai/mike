@@ -66,6 +66,18 @@ pub async fn mirror_codex_mail(pool: &PgPool, limit: i64) -> Result<u64, sqlx::E
     Ok(u64::try_from(written).unwrap_or_default())
 }
 
+pub async fn codex_bound(pool: &PgPool) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"SELECT EXISTS (
+               SELECT 1 FROM runtime.threads t
+               JOIN runtime.namespaces n ON n.id = t.namespace_id
+              WHERE n.runtime_kind = 'codex'
+           ) AS "bound!""#
+    )
+    .fetch_one(pool)
+    .await
+}
+
 pub async fn mailbox_state(
     pool: &PgPool,
     message: Uuid,

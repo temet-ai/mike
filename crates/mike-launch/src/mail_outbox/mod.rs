@@ -146,6 +146,8 @@ pub trait Recipient: Send + Sync {
 }
 
 #[cfg(test)]
+pub mod binding_tests;
+#[cfg(test)]
 pub mod codex_tests;
 #[cfg(test)]
 pub mod deliver_tests;

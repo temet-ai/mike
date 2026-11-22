@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::wait_for_mail;
+use super::{UNBOUND_WATCHED, WATCHED, Wait, wait_for_mail};
 use crate::change_feed::{ChangeFeed, Generation};
 use crate::store::models::RowChangedTable;
 
@@ -17,16 +17,16 @@ fn fed_feed() -> ChangeFeed {
     feed
 }
 
-async fn finishes(feed: &ChangeFeed, busy: bool, since: Generation) -> bool {
-    tokio::time::timeout(Duration::from_millis(300), wait_for_mail(feed, busy, since))
+async fn finishes(feed: &ChangeFeed, wait: Wait, since: Generation) -> bool {
+    tokio::time::timeout(Duration::from_millis(300), wait_for_mail(feed, wait, since))
         .await
         .is_ok()
 }
 
-async fn ticks_on_the_interval(feed: &ChangeFeed, busy: bool) -> bool {
+async fn ticks_on_the_interval(feed: &ChangeFeed, wait: Wait) -> bool {
     let started = tokio::time::Instant::now();
     let within = super::SWEEP_INTERVAL + Duration::from_secs(1);
-    tokio::time::timeout(within, wait_for_mail(feed, busy, feed.generation()))
+    tokio::time::timeout(within, wait_for_mail(feed, wait, feed.generation()))
         .await
         .is_ok()
         && started.elapsed() >= super::SWEEP_INTERVAL
@@ -34,22 +34,22 @@ async fn ticks_on_the_interval(feed: &ChangeFeed, busy: bool) -> bool {
 
 #[tokio::test]
 async fn outbox_wait_while_busy_returns_after_the_sweep_interval() {
-    assert!(ticks_on_the_interval(&fed_feed(), true).await);
+    assert!(ticks_on_the_interval(&fed_feed(), Wait::Interval).await);
 }
 
 #[tokio::test]
 async fn outbox_wait_while_idle_and_nothing_changes_keeps_waiting() {
     let feed = fed_feed();
-    assert!(!finishes(&feed, false, feed.generation()).await);
+    assert!(!finishes(&feed, Wait::Change(&WATCHED), feed.generation()).await);
 }
 
 #[tokio::test]
 async fn outbox_wait_while_idle_and_mail_changes_returns() {
-    for table in super::WATCHED {
+    for table in WATCHED {
         let feed = fed_feed();
         let since = feed.generation();
         feed.record(table, Some("recipient"));
-        assert!(finishes(&feed, false, since).await, "{table:?}");
+        assert!(finishes(&feed, Wait::Change(&WATCHED), since).await, "{table:?}");
     }
 }
 
@@ -57,11 +57,33 @@ async fn outbox_wait_while_idle_and_mail_changes_returns() {
 async fn outbox_wait_while_idle_and_an_unrelated_table_changes_keeps_waiting() {
     let feed = fed_feed();
     let since = feed.generation();
-    feed.record(RowChangedTable::Requests, Some("recipient"));
-    assert!(!finishes(&feed, false, since).await);
+    for table in [
+        RowChangedTable::Requests,
+        RowChangedTable::Sessions,
+        RowChangedTable::LaunchLaunches,
+    ] {
+        feed.record(table, Some("recipient"));
+    }
+    assert!(!finishes(&feed, Wait::Change(&WATCHED), since).await);
+}
+
+#[tokio::test]
+async fn outbox_wait_without_codex_bindings_ignores_mail() {
+    let feed = fed_feed();
+    let since = feed.generation();
+    feed.record(RowChangedTable::MailboxMessages, Some("recipient"));
+    assert!(!finishes(&feed, Wait::Change(&UNBOUND_WATCHED), since).await);
+}
+
+#[tokio::test]
+async fn outbox_wait_without_codex_bindings_returns_when_one_is_bound() {
+    let feed = fed_feed();
+    let since = feed.generation();
+    feed.record(RowChangedTable::RuntimeThreads, Some("codex"));
+    assert!(finishes(&feed, Wait::Change(&UNBOUND_WATCHED), since).await);
 }
 
 #[tokio::test]
 async fn outbox_wait_without_a_change_feed_returns_after_the_sweep_interval() {
-    assert!(ticks_on_the_interval(&ChangeFeed::default(), false).await);
+    assert!(ticks_on_the_interval(&ChangeFeed::default(), Wait::Change(&WATCHED)).await);
 }
