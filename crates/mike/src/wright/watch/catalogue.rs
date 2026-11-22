@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{bounded, forks, logs};
+use super::{bounded, counters, forks, logs};
 use crate::store::persistence::wright::{CheckRow, RecordedRun};
 use crate::store::persistence::{PersistError, PersistHandle};
 use crate::wright::definition::parse_probe;
@@ -26,6 +26,9 @@ async fn run_probe(check: &CheckRow, ctx: &WatchContext) -> Result<Vec<Finding>,
                 .query
                 .as_deref()
                 .ok_or_else(|| format!("{}: a sql check has no query", check.name))?;
+            if check.name == counters::CHECK {
+                counters::save(pool, &check.params).await?;
+            }
             bounded::findings(pool, &check.name, query, &check.params).await
         }
         Probe::Logs => logs::check(&ctx.persist, Utc::now(), &check.params).await,

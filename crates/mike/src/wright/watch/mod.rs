@@ -18,6 +18,7 @@ use crate::wright::{Cadence, CheckOutcome};
 
 pub(crate) mod bounded;
 pub(crate) mod catalogue;
+pub(crate) mod counters;
 pub(crate) mod forks;
 pub(crate) mod logs;
 pub(crate) mod logs_collect;
