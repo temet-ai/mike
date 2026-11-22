@@ -157,15 +157,6 @@ async fn settle_attention(
     Ok(())
 }
 
-async fn setting_text(pool: &PgPool, key: &str) -> Result<Option<String>, PersistError> {
-    let value: Option<serde_json::Value> =
-        sqlx::query_scalar("SELECT value FROM config.settings WHERE key = $1")
-            .bind(key)
-            .fetch_optional(pool)
-            .await?;
-    Ok(value.and_then(|v| v.as_str().map(str::to_string)))
-}
-
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn record_work_item_attentions(
         self,
@@ -221,6 +212,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     }
 
     pub async fn setting_text(self, key: &str) -> Result<Option<String>, PersistError> {
-        setting_text(&self.pool, key).await
+        let value = self.setting_value(key).await?;
+        Ok(value.and_then(|v| v.as_str().map(str::to_string)))
     }
 }

@@ -82,6 +82,9 @@ async fn reload_loop(signal: Arc<Notify>, targets: ReloadTargets, shutdown: Canc
 }
 
 async fn reload_once(targets: &ReloadTargets) {
+    if let Some(persist) = &targets.persist {
+        persist.settings_changed();
+    }
     reload_toggles(targets.toggles.as_deref()).await;
     reload_settings(targets.settings.as_deref()).await;
     reload_steerers(targets.steerers.as_deref()).await;

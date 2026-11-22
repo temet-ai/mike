@@ -91,6 +91,7 @@ pub mod session_prompt_repair;
 pub mod session_request_reads;
 pub mod session_titles;
 pub mod settings;
+mod settings_memo;
 pub mod startup_health;
 pub mod system_prompt_backfill;
 #[cfg(any(test, feature = "test-seams"))]

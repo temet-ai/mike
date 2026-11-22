@@ -228,18 +228,4 @@ impl PersistHandle {
         })
         .await
     }
-
-    pub async fn setting_value(
-        &self,
-        key: &str,
-    ) -> Result<Option<serde_json::Value>, PersistError> {
-        crate::metrics::time_db("setting_value", async move {
-            let value =
-                sqlx::query_scalar!("SELECT value FROM config.settings WHERE key = $1", key)
-                    .fetch_optional(&self.pool)
-                    .await?;
-            Ok(value)
-        })
-        .await
-    }
 }
