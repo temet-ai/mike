@@ -28,6 +28,9 @@ use crate::store::persistence::change_record::code_scan::PendingChange;
 const TICK: Duration = Duration::from_secs(3);
 const BATCH: i64 = 200;
 const SETTLE_EVERY: Duration = Duration::from_secs(30);
+/// How long a checkout goes without reading new changes when this process
+/// wrote none: events another process wrote for it are seen within this.
+const PENDING_BACKSTOP: Duration = Duration::from_secs(600);
 
 pub fn spawn_code_scanner(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -50,6 +53,7 @@ pub fn spawn_code_scanner(state: &BaseState) {
         project: ProjectRules::new(rules),
         toggles: state.feature_toggle_overlay.clone(),
         cursors: HashMap::new(),
+        read_at: HashMap::new(),
         settled: None,
         poster: Poster::new(state.code_notes.clone()),
     };
@@ -62,6 +66,7 @@ struct Worker {
     project: ProjectRules,
     toggles: Arc<ArcSwap<FeatureToggles>>,
     cursors: HashMap<String, i64>,
+    read_at: HashMap<String, Instant>,
     poster: Poster,
     settled: Option<Instant>,
 }
@@ -81,6 +86,7 @@ impl Worker {
         let current = self.toggles.load();
         if !(current.change_record && current.code_scan) {
             self.cursors.clear();
+            self.read_at.clear();
             return;
         }
         let roots = watched_roots();
@@ -118,10 +124,29 @@ impl Worker {
         }
     }
 
+    /// Whether new changes can be waiting past `cursor`: one this process wrote,
+    /// a first read since the start, or the backstop.
+    fn may_have_pending(&self, root: &str, cursor: i64) -> bool {
+        let written = self
+            .persist
+            .fleet()
+            .newest_written_change_event(root)
+            .is_some_and(|newest| newest > cursor);
+        let stale = self
+            .read_at
+            .get(root)
+            .is_none_or(|at| at.elapsed() >= PENDING_BACKSTOP);
+        written || stale
+    }
+
     async fn scan_checkout(&mut self, root: &str) {
         let Some(cursor) = self.cursor(root).await else {
             return;
         };
+        if !self.may_have_pending(root, cursor) {
+            return;
+        }
+        self.read_at.insert(root.to_string(), Instant::now());
         let pending = match self
             .persist
             .fleet()
@@ -230,4 +255,3 @@ fn log_outcomes(settled: crate::store::persistence::change_record::code_scan::Se
 fn log_settle_failed(err: &crate::store::persistence::PersistError) {
     tracing::warn!(error = %err, "code findings: outcomes could not be settled");
 }
-
