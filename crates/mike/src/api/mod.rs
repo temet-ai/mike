@@ -11,6 +11,7 @@ pub(crate) mod learning_loop;
 pub mod manifest;
 pub(crate) mod proposer_pass;
 pub(crate) mod request_span;
+pub(crate) mod route_counter;
 pub mod rerank_search;
 pub(crate) mod scheduled_job_run;
 pub(crate) mod session_context;

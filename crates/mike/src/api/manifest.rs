@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::http::{HeaderName, Method, StatusCode, header};
-use axum::middleware::from_fn_with_state;
+use axum::middleware::{from_fn, from_fn_with_state};
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::request_id::{PropagateRequestIdLayer, SetRequestIdLayer};
@@ -166,15 +166,19 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = session_recall::register(router);
     let router = session_agent_context::register(router);
     let router = websocket::register(router);
-    let answered_at_once = router.route_layer(TimeoutLayer::with_status_code(
-        StatusCode::REQUEST_TIMEOUT,
-        INSPECT_TIMEOUT,
-    ));
+    let answered_at_once = router
+        .route_layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            INSPECT_TIMEOUT,
+        ))
+        .route_layer(from_fn(crate::api::route_counter::count));
     let waited = knowledge::register_waited(fleets::register_waited(Router::new()));
-    let waited_for = waited.route_layer(TimeoutLayer::with_status_code(
-        StatusCode::REQUEST_TIMEOUT,
-        WAITED_TIMEOUT,
-    ));
+    let waited_for = waited
+        .route_layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            WAITED_TIMEOUT,
+        ))
+        .route_layer(from_fn(crate::api::route_counter::count));
 
     answered_at_once
         .merge(waited_for)
