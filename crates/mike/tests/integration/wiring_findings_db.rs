@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use mike::steerer::structural::wiring::{Finding, PassOutcome};
-use mike::steerer::structural::wiring_store::{StoredFinding, apply, list_findings};
+use mike::steerer::structural::wiring_store::{StoredFinding, Tally, apply, list_findings};
 
 use crate::test_db::TestDb;
 
@@ -90,6 +90,90 @@ async fn resolved_finding_older_than_the_window_is_not_listed() -> anyhow::Resul
 
     let rows = list_findings(&pool, Utc::now() - Duration::days(7)).await?;
     assert!(rows.is_empty());
+
+    db.cleanup().await?;
+    Ok(())
+}
+
+fn finding(kind: &'static str, subject: &str) -> Finding {
+    Finding {
+        check_kind: kind,
+        subject: subject.to_owned(),
+        figure_value: 1.0,
+        figure_text: "found".to_owned(),
+    }
+}
+
+fn open_subjects(rows: &[StoredFinding]) -> Vec<(String, String)> {
+    let mut open: Vec<(String, String)> = rows
+        .iter()
+        .filter(|row| row.resolved_at.is_none())
+        .map(|row| (row.check_kind.clone(), row.subject.clone()))
+        .collect();
+    open.sort();
+    open
+}
+
+#[tokio::test]
+async fn pass_resolves_only_the_checked_kinds_subjects_that_stopped_failing() -> anyhow::Result<()>
+{
+    let Some(factory) = TestDb::bootstrap().await? else {
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let pool = sqlx::PgPool::connect(&db.database_url).await?;
+    let other = "job_not_succeeding";
+
+    let opened = apply(
+        &pool,
+        &PassOutcome {
+            checked: vec![KIND, other],
+            findings: vec![finding(KIND, "a"), finding(KIND, "b"), finding(other, "a")],
+            failed: Vec::new(),
+        },
+    )
+    .await?;
+    assert_eq!(
+        opened,
+        Tally {
+            upserted: 3,
+            resolved: 0
+        }
+    );
+
+    let still = apply(
+        &pool,
+        &PassOutcome {
+            checked: vec![KIND],
+            findings: vec![finding(KIND, "b")],
+            failed: Vec::new(),
+        },
+    )
+    .await?;
+    assert_eq!(still.upserted, 1);
+    assert_eq!(still.resolved, 1);
+    let rows = list_findings(&pool, Utc::now() - Duration::days(1)).await?;
+    assert_eq!(
+        open_subjects(&rows),
+        vec![
+            (other.to_owned(), "a".to_owned()),
+            (KIND.to_owned(), "b".to_owned()),
+        ]
+    );
+
+    let cleared = apply(
+        &pool,
+        &PassOutcome {
+            checked: vec![KIND, other],
+            findings: Vec::new(),
+            failed: Vec::new(),
+        },
+    )
+    .await?;
+    assert_eq!(cleared.upserted, 0);
+    assert_eq!(cleared.resolved, 2);
+    let rows = list_findings(&pool, Utc::now() - Duration::days(1)).await?;
+    assert!(open_subjects(&rows).is_empty());
 
     db.cleanup().await?;
     Ok(())

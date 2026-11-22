@@ -4736,7 +4736,7 @@ Added in migration `20261014150000_threshold_pass_runs.sql`. One row per `eval.r
 
 ### `steering.wiring_findings`
 
-Added in migration `20261114220000_steering_wiring_findings.sql` (temet-ai/mike#225). One row per feature the liveness checks found wired but doing nothing, keyed by `(check_kind, subject)`. The row stays open (`resolved_at` NULL) with its figure refreshed on every pass until a check finds the subject healthy; a subject that fails again reopens its row with a new `first_seen`. `figure_changed_at` moves only when `figure_value` moves.
+Added in migration `20261114220000_steering_wiring_findings.sql` (temet-ai/mike#225). One row per feature the liveness checks found wired but doing nothing, keyed by `(check_kind, subject)`. The row stays open (`resolved_at` NULL) with its figure refreshed on every pass until a check finds the subject healthy; a subject that fails again reopens its row with a new `first_seen`. `figure_changed_at` moves only when `figure_value` moves. A pass writes its findings and resolves the checked kinds' other open rows in one statement.
 
 | Column | Definition |
 |---|---|

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use super::wiring::{Finding, PassOutcome};
+use super::wiring::PassOutcome;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Tally {
@@ -24,24 +24,15 @@ pub struct StoredFinding {
 }
 
 pub async fn apply(pool: &PgPool, outcome: &PassOutcome) -> Result<Tally, sqlx::Error> {
-    let upserted = upsert_all(pool, &outcome.findings).await?;
-    let mut resolved = 0;
-    for kind in &outcome.checked {
-        let subjects: Vec<String> = outcome
-            .findings
-            .iter()
-            .filter(|finding| finding.check_kind == *kind)
-            .map(|finding| finding.subject.clone())
-            .collect();
-        resolved += resolve_missing(pool, kind, &subjects).await?;
+    if outcome.checked.is_empty() {
+        return Ok(Tally::default());
     }
-    Ok(Tally { upserted, resolved })
-}
-
-async fn upsert_all(pool: &PgPool, findings: &[Finding]) -> Result<u64, sqlx::Error> {
-    if findings.is_empty() {
-        return Ok(0);
-    }
+    let findings = &outcome.findings;
+    let checked: Vec<String> = outcome
+        .checked
+        .iter()
+        .map(|kind| (*kind).to_owned())
+        .collect();
     let kinds: Vec<String> = findings
         .iter()
         .map(|finding| finding.check_kind.to_owned())
@@ -58,50 +49,48 @@ async fn upsert_all(pool: &PgPool, findings: &[Finding]) -> Result<u64, sqlx::Er
         .iter()
         .map(|finding| finding.figure_text.clone())
         .collect();
-    let done = sqlx::query!(
+    let row = sqlx::query!(
         r#"
-        INSERT INTO steering.wiring_findings (check_kind, subject, figure_value, figure_text)
-        SELECT * FROM UNNEST($1::text[], $2::text[], $3::float8[], $4::text[])
-        ON CONFLICT (check_kind, subject) DO UPDATE
-           SET first_seen = CASE WHEN steering.wiring_findings.resolved_at IS NULL
-                                 THEN steering.wiring_findings.first_seen ELSE now() END,
-               figure_changed_at = CASE WHEN steering.wiring_findings.resolved_at IS NULL
-                                         AND steering.wiring_findings.figure_value = EXCLUDED.figure_value
-                                        THEN steering.wiring_findings.figure_changed_at ELSE now() END,
-               figure_value = EXCLUDED.figure_value,
-               figure_text = EXCLUDED.figure_text,
-               last_seen = now(),
-               resolved_at = NULL
+        WITH upserted AS (
+            INSERT INTO steering.wiring_findings (check_kind, subject, figure_value, figure_text)
+            SELECT * FROM UNNEST($1::text[], $2::text[], $3::float8[], $4::text[])
+            ON CONFLICT (check_kind, subject) DO UPDATE
+               SET first_seen = CASE WHEN steering.wiring_findings.resolved_at IS NULL
+                                     THEN steering.wiring_findings.first_seen ELSE now() END,
+                   figure_changed_at = CASE WHEN steering.wiring_findings.resolved_at IS NULL
+                                             AND steering.wiring_findings.figure_value = EXCLUDED.figure_value
+                                            THEN steering.wiring_findings.figure_changed_at ELSE now() END,
+                   figure_value = EXCLUDED.figure_value,
+                   figure_text = EXCLUDED.figure_text,
+                   last_seen = now(),
+                   resolved_at = NULL
+            RETURNING 1
+        ),
+        resolved AS (
+            UPDATE steering.wiring_findings w
+               SET resolved_at = now()
+             WHERE w.resolved_at IS NULL
+               AND w.check_kind = ANY($5::text[])
+               AND NOT EXISTS (
+                   SELECT 1 FROM UNNEST($1::text[], $2::text[]) AS f(check_kind, subject)
+                    WHERE f.check_kind = w.check_kind AND f.subject = w.subject)
+            RETURNING 1
+        )
+        SELECT (SELECT count(*) FROM upserted) AS "upserted!",
+               (SELECT count(*) FROM resolved) AS "resolved!"
         "#,
         &kinds,
         &subjects,
         &figures,
-        &texts
+        &texts,
+        &checked
     )
-    .execute(pool)
+    .fetch_one(pool)
     .await?;
-    Ok(done.rows_affected())
-}
-
-async fn resolve_missing(
-    pool: &PgPool,
-    check_kind: &str,
-    still_failing: &[String],
-) -> Result<u64, sqlx::Error> {
-    let done = sqlx::query!(
-        r#"
-        UPDATE steering.wiring_findings
-           SET resolved_at = now()
-         WHERE check_kind = $1
-           AND resolved_at IS NULL
-           AND NOT (subject = ANY($2::text[]))
-        "#,
-        check_kind,
-        still_failing
-    )
-    .execute(pool)
-    .await?;
-    Ok(done.rows_affected())
+    Ok(Tally {
+        upserted: u64::try_from(row.upserted).unwrap_or_default(),
+        resolved: u64::try_from(row.resolved).unwrap_or_default(),
+    })
 }
 
 pub async fn list_findings(
