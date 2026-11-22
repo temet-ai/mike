@@ -1,4 +1,3 @@
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 #[cfg(test)]
 mod tests;
 
@@ -12,7 +11,7 @@ use tracing::warn;
 
 use super::context::{EvalInputs, EvalTarget, FleetCtx, SteererSelection};
 use super::input_budget::{CAPPED_ACTION_LIST_HEADING, CAPPED_ASK_HEADING, VerifierInputBudget};
-use super::steerer_eval::{Abstention, LlmCallOutcome, run_steerer_loop};
+use super::steerer_eval::{LlmCallOutcome, run_steerer_loop};
 use super::verifier_judge::VerifierJudgeContext;
 use crate::config::steerer::SteererConfig;
 use crate::llm::OpenRouterClient;
@@ -21,8 +20,6 @@ use crate::steerer::verdict::{SteererVerdict, steerer_verdict_schema};
 use crate::store::RequestStore;
 use crate::store::models::SystemReminder;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::steering::EnrolmentRow;
-use crate::wire::machine_text;
 
 pub struct JudgeDeps<'a> {
     pub persist: &'a PersistHandle,
@@ -37,95 +34,6 @@ pub struct JudgeTurnCloseNowOutcome {
     pub fired: Option<(uuid::Uuid, SystemReminder)>,
     pub llm_call_failed: bool,
     pub llm_call_refused: bool,
-}
-
-fn not_judged(reason: Abstention) -> JudgeTurnCloseNowOutcome {
-    tracing::debug!(abstention = reason.code(), "turn-close judge: not judged");
-    JudgeTurnCloseNowOutcome {
-        fired: None,
-        llm_call_failed: false,
-        llm_call_refused: false,
-    }
-}
-
-pub async fn judge_turn_close_now(
-    deps: JudgeDeps<'_>,
-    session_id: &str,
-    open_turn_id: i64,
-    live_text: String,
-    stripped_human_prompt: &str,
-    trigger_request_id: Option<i64>,
-) -> JudgeTurnCloseNowOutcome {
-    let JudgeDeps {
-        persist,
-        steerer_registry,
-        llm,
-        key_slot,
-        config,
-        settings,
-    } = deps;
-
-    if machine_text::classify(stripped_human_prompt).is_some() {
-        return not_judged(Abstention::MachineText);
-    }
-
-    let Ok(session_uuid) = session_id.parse::<uuid::Uuid>() else {
-        return not_judged(Abstention::InvalidSessionId);
-    };
-    let registry = steerer_registry.load_full();
-    let Ok(enrolments) = persist
-        .steerer()
-        .list_active_enrolments_for_session(session_uuid)
-        .await
-        .inspect_err(|e| {
-            warn!(
-                session_id,
-                open_turn_id,
-                error = %e,
-                "judge_turn_close_now: enrolment lookup failed — skipping"
-            );
-        })
-    else {
-        return not_judged(Abstention::EnrolmentLookupFailed);
-    };
-    let enrolled_map: HashMap<i64, EnrolmentRow> =
-        enrolments.into_iter().map(|e| (e.steerer_id, e)).collect();
-    let steerers_to_evaluate: Vec<&crate::steerer::registry::Steerer> = registry
-        .enabled()
-        .filter(|s| s.trigger_point == "turn_closed" && enrolled_map.contains_key(&s.id))
-        .collect();
-    if steerers_to_evaluate.is_empty() {
-        return not_judged(Abstention::NoTurnClosedSteerer);
-    }
-
-    let eval_inputs = EvalInputs {
-        eval_text: live_text,
-        last_user_message: stripped_human_prompt.to_owned(),
-        trigger_point: "turn_closed",
-        turn_origin: "primary".to_string(),
-        judged_turn_id: Some(open_turn_id),
-        evaluation_turn_id: Some(open_turn_id),
-        ..Default::default()
-    };
-
-    let ctx = turn_close_fleet_ctx(&JudgeDeps {
-        persist,
-        steerer_registry,
-        llm,
-        key_slot,
-        config,
-        settings,
-    });
-    let target = EvalTarget {
-        raw_id: open_turn_id as u64,
-        trigger_request_id,
-        session_id: session_id.to_owned(),
-    };
-    let selection = SteererSelection {
-        steerers: steerers_to_evaluate,
-        enrolment_by_steerer_id: Some(enrolled_map),
-    };
-    run_turn_close_window(&ctx, &target, &eval_inputs, &selection).await
 }
 
 pub fn turn_close_fleet_ctx(deps: &JudgeDeps<'_>) -> FleetCtx {

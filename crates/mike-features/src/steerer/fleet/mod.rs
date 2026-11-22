@@ -18,7 +18,7 @@ pub use bundle_probe::steerer_input_probe;
 pub use context::FleetArgs;
 pub use idle_judge::judge_idle_turn;
 pub use input_budget::VerifierInputBudget;
-pub use judge::{JudgeDeps, JudgeTurnCloseNowOutcome, judge_turn_close_now};
+pub use judge::{JudgeDeps, JudgeTurnCloseNowOutcome};
 pub use replay::{
     FileSink, ItemReport, RecordedCall, ReplayItem, ReplayMode, ReplaySteerer, load_replay_steerer,
     parity_recorded, replay_client, replay_items,

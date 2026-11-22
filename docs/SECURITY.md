@@ -179,9 +179,7 @@ On a default install an OpenRouter key is the single gate all the LLM rows share
 default model is an OpenRouter model: with no key set, none of them can send anything, whatever
 their toggles say. A job that you set to a `claude/` or `codex/` model does not need the key; it
 sends its text through the local Claude Code or Codex login instead, so choosing such a model is
-choosing to send that job's text to Anthropic or OpenAI. One path is worth knowing about because it does not
-follow the `steerer` toggle — a same-request judge fires when a key is present *and* a steerer
-is enrolled for the session. Setting no key keeps that shut too.
+choosing to send that job's text to Anthropic or OpenAI.
 
 `llm.calls` in the capture database records the full outbound body of each LLM call, so it is
 also the audit record of exactly what was sent.

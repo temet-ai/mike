@@ -31,7 +31,6 @@ async fn drain_once(state: &AppState) -> TransformationManifest {
         state,
         SESSION,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

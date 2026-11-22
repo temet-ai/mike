@@ -152,7 +152,7 @@ Where each gate lives — some stages answer `enabled()` from the resolved sessi
 | `reminders` | `reminders` toggle and session own lane | off |
 | `change_record_tail` | `change_record_tail` toggle, session own lane, not a tool loop; declines for a session whose client serves it (`change_record_tail_served_by_client`) and for template seats | off |
 | `git_read_hint` | `change_record` toggle and session own lane; declines for a session whose client serves it (`git_read_hint_served_by_client`) and for template seats | off |
-| `steerer` | drain runs on Primary/PrimaryFirst; same-request judge and reminder producers have their own gates; delivery checks source policy, staleness and mailbox claims | autonomous steering off; explicit mailbox delivery does not require it |
+| `steerer` | drain runs on Primary/PrimaryFirst; reminder producers have their own gates; delivery checks source policy, staleness and mailbox claims | autonomous steering off; explicit mailbox delivery does not require it |
 | `repeated_notices` | `repeated_notices` toggle and session own lane | off |
 | `read_dedup` | `compression_dedup.enabled`, read inside `apply` | off — measures only, forwards byte-identical |
 | `file_read_compression` | `file_read_compression` toggle | off — and shadow-mode even when on: `apply` computes a reduction and logs it, never rewriting the forwarded body |
@@ -161,7 +161,7 @@ Where each gate lives — some stages answer `enabled()` from the resolved sessi
 | `context_focus_question` | `context_focus_question` toggle; declines for sidecar calls that do not resend the session's tool list (`context_focus_sidecar_call`) | off |
 | composer | `composition_enabled` boot config | off |
 
-“Session own lane” means Primary/PrimaryFirst with no `x-claude-code-agent-id` (`pipeline::is_session_own_lane`). The drain may await `judge_turn_close_before_drain` on a genuine human prompt, bounded by `steerer.request_timeout_secs`; steering is not exclusively background work. Eligible reminder producers may also use Remote Control delivery and leave the body unchanged.
+“Session own lane” means Primary/PrimaryFirst with no `x-claude-code-agent-id` (`pipeline::is_session_own_lane`). The drain makes no model call: steerers are judged in the background (at `response`, `user_prompt` and `turn_end`), and a verdict that fires is queued and delivered by the next drain. Eligible reminder producers may also use Remote Control delivery and leave the body unchanged.
 
 How each one rewrites, when it does fire:
 

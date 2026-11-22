@@ -276,7 +276,33 @@ fn criteria_decider(
     )
 }
 
+/// Whether the session is enrolled in an enabled verifier, the only steerer
+/// that reads acceptance criteria. The registry check runs first, from
+/// memory, so with no verifier enabled no query runs at all.
+async fn criteria_have_a_reader(ctx: &FleetCtx, ph: &PersistHandle, session_uuid: Uuid) -> bool {
+    let verifiers = ctx.steerer_registry.load().enabled_ids_of_kind(VERIFIER_KIND);
+    if verifiers.is_empty() {
+        return false;
+    }
+    match ph
+        .steerer()
+        .list_active_enrolments_for_session(session_uuid)
+        .await
+    {
+        Ok(enrolments) => enrolments.iter().any(|e| verifiers.contains(&e.steerer_id)),
+        Err(e) => {
+            debug!(session_id = %session_uuid, error = %e, "intake criteria: enrolment lookup failed — no call");
+            false
+        }
+    }
+}
+
+const VERIFIER_KIND: &str = "verifier";
+
 pub async fn reauthor_intake_criteria(ctx: &FleetCtx, ph: &PersistHandle, session_uuid: Uuid) {
+    if !criteria_have_a_reader(ctx, ph, session_uuid).await {
+        return;
+    }
     let Some(session_db_id) = ph
         .resolve_session_db_id(&session_uuid.to_string())
         .await

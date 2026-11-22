@@ -129,6 +129,17 @@ impl SteererRegistry {
     pub fn enabled(&self) -> impl Iterator<Item = &Steerer> {
         self.steerers.iter().filter(|s| s.enabled)
     }
+
+    /// Whether any enabled steerer fires at `trigger_point`. Read from
+    /// memory, so callers check it before any database work for a session.
+    pub fn has_enabled_trigger(&self, trigger_point: &str) -> bool {
+        self.enabled().any(|s| s.trigger_point == trigger_point)
+    }
+
+    /// The ids of the enabled steerers of `kind`.
+    pub fn enabled_ids_of_kind(&self, kind: &str) -> Vec<i64> {
+        self.enabled().filter(|s| s.kind == kind).map(|s| s.id).collect()
+    }
 }
 
 #[cfg(test)]
@@ -243,5 +254,35 @@ mod tests {
         let registry = SteererRegistry::default();
         assert_eq!(registry.steerers.len(), 0);
         assert_eq!(registry.enabled().count(), 0);
+    }
+
+    fn steerer(id: i64, enabled: bool, kind: &str, trigger_point: &str) -> SteererRow {
+        SteererRow {
+            kind: kind.to_string(),
+            trigger_point: trigger_point.to_string(),
+            ..make_row(id, enabled, serde_json::json!({}))
+        }
+    }
+
+    #[test]
+    fn a_disabled_verifier_has_no_criteria_reader() {
+        let registry = SteererRegistry::from_rows(vec![
+            steerer(1, false, "verifier", "turn_end"),
+            steerer(2, true, "refocus", "response"),
+        ]);
+        assert!(registry.enabled_ids_of_kind("verifier").is_empty());
+        assert!(registry.has_enabled_trigger("response"));
+        assert!(!registry.has_enabled_trigger("turn_end"));
+    }
+
+    #[test]
+    fn an_enabled_verifier_is_found_by_kind() {
+        let registry = SteererRegistry::from_rows(vec![
+            steerer(1, true, "verifier", "turn_end"),
+            steerer(2, true, "verifier", "response"),
+            steerer(3, false, "verifier", "turn_end"),
+        ]);
+        assert_eq!(registry.enabled_ids_of_kind("verifier"), vec![1, 2]);
+        assert!(registry.has_enabled_trigger("turn_end"));
     }
 }

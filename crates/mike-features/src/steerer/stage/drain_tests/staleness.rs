@@ -44,7 +44,6 @@ async fn drain_expired_ttl_steerer_reminder_dropped_and_stamped() -> anyhow::Res
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -109,7 +108,6 @@ async fn drain_superseded_steerer_reminder_dropped_and_stamped() -> anyhow::Resu
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -181,7 +179,6 @@ async fn drain_mailbox_reminder_unaffected_by_steerer_expiry_logic() -> anyhow::
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -239,7 +236,6 @@ async fn drain_steerer_reminder_pushed_within_grace_window_is_deferred() -> anyh
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -304,7 +300,6 @@ async fn drain_steerer_reminder_pushed_past_grace_window_falls_through_to_delive
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

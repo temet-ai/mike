@@ -46,7 +46,6 @@ async fn run_drain(state: &crate::state::AppState, session_uuid: &str) -> Vec<Sy
         state,
         session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

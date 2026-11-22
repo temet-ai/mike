@@ -45,7 +45,6 @@ async fn drained(
         state,
         session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

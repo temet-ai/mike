@@ -111,7 +111,6 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
             state,
             session_id,
             turn_origin,
-            &signals.human_prompt,
             &mut bk,
             &mut manifest,
         )

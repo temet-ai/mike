@@ -1,5 +1,4 @@
 pub mod client_served;
-pub mod judge;
 pub mod recap;
 pub mod reminder_dispatch;
 pub mod unqueued_mail;
@@ -21,7 +20,6 @@ pub async fn drain(
     state: &AppState,
     session_id: &str,
     turn_origin: &TurnOrigin,
-    human_prompt: &str,
     bk: &mut InjectBookkeeping<'_>,
     manifest: &mut ManifestBuilder,
 ) -> Vec<SystemReminder> {
@@ -30,10 +28,6 @@ pub async fn drain(
     }
 
     let mut injected_list: Vec<SystemReminder> = Vec::new();
-
-    if let Some(reminder) = run_same_request_judge(state, session_id, human_prompt, bk).await {
-        injected_list.push(reminder);
-    }
 
     if recap::is_away_recap_call(bk.post_filter_body.as_ref()) {
         return injected_list;
@@ -175,29 +169,6 @@ fn nothing_injected_reason(pending: usize, gate_suppressed: &[&'static str]) -> 
     }
 }
 
-async fn run_same_request_judge(
-    state: &AppState,
-    session_id: &str,
-    human_prompt: &str,
-    bk: &mut InjectBookkeeping<'_>,
-) -> Option<SystemReminder> {
-    let reminder = judge_within_wait(state, session_id, human_prompt).await?;
-    if crate::reminders::inject::inject_system_reminder(&reminder, bk) {
-        return Some(reminder);
-    }
-    tracing::warn!(
-        session_id = %session_id,
-        source = ?reminder.source,
-        "same-request steerer fire failed to inject — enqueued for the next drain"
-    );
-    state
-        .store
-        .write()
-        .await
-        .enqueue_reminder(session_id, reminder);
-    None
-}
-
 fn mailbox_skip_count(pending: &[SystemReminder], max_per_turn: usize) -> usize {
     let mailbox_total = pending
         .iter()
@@ -206,55 +177,3 @@ fn mailbox_skip_count(pending: &[SystemReminder], max_per_turn: usize) -> usize 
     mailbox_total.saturating_sub(max_per_turn)
 }
 
-/// How long the operator's request waits for the turn-close judge. The judge
-/// takes seconds on a CLI-backed model; past this wait it finishes in the
-/// background and its reminder is queued for the session's next drain, so the
-/// verdict is kept and the request goes upstream without the delay.
-const SAME_REQUEST_WAIT: std::time::Duration = std::time::Duration::from_millis(1500);
-
-async fn judge_within_wait(
-    state: &AppState,
-    session_id: &str,
-    human_prompt: &str,
-) -> Option<SystemReminder> {
-    if !judge::wants_judge(human_prompt) {
-        return None;
-    }
-    let task_state = state.clone();
-    let (sid, prompt) = (session_id.to_owned(), human_prompt.to_owned());
-    let judged = async move { judge::judge_turn_close_before_drain(&task_state, &sid, &prompt).await };
-    let store = std::sync::Arc::clone(&state.store);
-    let sid = session_id.to_owned();
-    within_wait_or_later(&state.tracker, SAME_REQUEST_WAIT, judged, move |reminder| async move {
-        store.write().await.enqueue_reminder(&sid, reminder);
-    })
-    .await
-}
-
-/// Runs `work` as its own task and returns its value if it is ready within
-/// `wait`. Otherwise the task keeps running and `later` receives its value.
-pub(crate) async fn within_wait_or_later<T, W, L, LF>(
-    tracker: &tokio_util::task::TaskTracker,
-    wait: std::time::Duration,
-    work: W,
-    later: L,
-) -> Option<T>
-where
-    T: Send + 'static,
-    W: std::future::Future<Output = Option<T>> + Send + 'static,
-    L: FnOnce(T) -> LF + Send + 'static,
-    LF: std::future::Future<Output = ()> + Send,
-{
-    let mut handle = crate::observability::spans::spawn_tracked(tracker, work);
-    match tokio::time::timeout(wait, &mut handle).await {
-        Ok(joined) => joined.ok().flatten(),
-        Err(_) => {
-            crate::observability::spans::spawn_tracked(tracker, async move {
-                if let Ok(Some(value)) = handle.await {
-                    later(value).await;
-                }
-            });
-            None
-        }
-    }
-}

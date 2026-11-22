@@ -49,7 +49,6 @@ async fn reminder_dispatch_mailbox_recap_call_is_not_attached_and_stays_queued()
         &state,
         &session,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

@@ -52,7 +52,6 @@ async fn drain_channel_wake_turn_does_not_supersede_still_delivers() -> anyhow::
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -115,7 +114,6 @@ async fn drain_monitor_sidecar_turn_does_not_supersede_still_delivers() -> anyho
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
@@ -171,7 +169,6 @@ async fn drain_fresh_mid_turn_steerer_reminder_still_delivers() -> anyhow::Resul
         &state,
         &session_uuid,
         &TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )

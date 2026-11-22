@@ -38,7 +38,6 @@ pub async fn drain_primary_turn(
         state,
         session,
         &crate::extract::request::TurnOrigin::Primary,
-        "",
         &mut bk,
         &mut manifest,
     )
