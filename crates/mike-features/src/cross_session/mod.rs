@@ -57,7 +57,7 @@ impl CrossSessionWorker {
         last_rollup: &mut Option<i64>,
     ) -> Result<TickReport, crate::store::persistence::PersistError> {
         let before = current();
-        let fresh = CrossSessionSnapshot::load_now(&self.persist).await?;
+        let fresh = CrossSessionSnapshot::load_after(&self.persist, &before).await?;
         let rollup = fresh.rollup.map(|r| r.id);
         let mut report = TickReport {
             rollup_id: rollup,

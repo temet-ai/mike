@@ -96,6 +96,7 @@ impl<V: Clone> Bound<'_, V> {
 struct Inner {
     feed: OnceLock<ChangeFeed>,
     briefs: Memo<()>,
+    fresh: super::fresh_marks::FreshMarks,
 }
 
 #[derive(Clone)]
@@ -109,6 +110,7 @@ impl Default for FeedMemos {
             inner: Arc::new(Inner {
                 feed: OnceLock::new(),
                 briefs: Memo::new(BRIEFS),
+                fresh: super::fresh_marks::FreshMarks::default(),
             }),
         }
     }
@@ -130,6 +132,14 @@ impl FeedMemos {
 
     pub fn briefs(&self) -> Option<Bound<'_, ()>> {
         self.bound(&self.inner.briefs)
+    }
+
+    pub fn fed_feed(&self) -> Option<&ChangeFeed> {
+        self.inner.feed.get().filter(|feed| feed.is_fed())
+    }
+
+    pub(super) fn fresh(&self) -> &super::fresh_marks::FreshMarks {
+        &self.inner.fresh
     }
 
     pub fn forget_briefs(&self) {

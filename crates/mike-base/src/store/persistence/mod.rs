@@ -18,6 +18,7 @@ pub mod dispatch_instances_tests;
 pub mod error;
 pub mod feature_toggles;
 pub mod feed_memo;
+pub mod fresh_marks;
 pub mod file_writes;
 pub mod flow_capture_admission;
 pub mod id_cache;

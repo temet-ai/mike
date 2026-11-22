@@ -22,6 +22,9 @@ pub enum RowChangedTable {
     SessionEmbeddings,
     LaunchLaunches,
     LaunchFleets,
+    Lessons,
+    RejudgeRuns,
+    GuardThresholds,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

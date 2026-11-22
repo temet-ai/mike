@@ -4,7 +4,11 @@ use serde::Serialize;
 
 use crate::features_settings::cross_session::CrossSessionSettings;
 use crate::store::persistence::cross_session::{CalibrationRateRow, RollupRef, ThresholdRow};
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::{PersistError, PersistHandle};
+
+const THRESHOLDS_LOADED: &str = "cross_session.thresholds";
+const GUARD_THRESHOLDS: &[RowChangedTable] = &[RowChangedTable::GuardThresholds];
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct CrossSessionSnapshot {
@@ -34,7 +38,17 @@ impl CrossSessionSnapshot {
                 .filter(|(k, _)| CrossSessionSettings::is_ours(k))
                 .map(|(k, v)| (k.as_str(), v)),
         );
-        Self::load_with(persist, Utc::now(), settings).await
+        Self::load_with(persist, Utc::now(), settings, None).await
+    }
+
+    pub async fn load_after(persist: &PersistHandle, previous: &Self) -> Result<Self, PersistError> {
+        let rows = persist.fetch_settings().await?;
+        let settings = CrossSessionSettings::from_rows(
+            rows.iter()
+                .filter(|(k, _)| CrossSessionSettings::is_ours(k))
+                .map(|(k, v)| (k.as_str(), v)),
+        );
+        Self::load_with(persist, Utc::now(), settings, Some(previous)).await
     }
 
     pub async fn load_as_of(
@@ -49,28 +63,23 @@ impl CrossSessionSnapshot {
                 .filter(|e| CrossSessionSettings::is_ours(&e.subject_key))
                 .filter_map(|e| e.value.as_ref().map(|v| (e.subject_key.as_str(), v))),
         );
-        Self::load_with(persist, as_of, settings).await
+        Self::load_with(persist, as_of, settings, None).await
     }
 
     async fn load_with(
         persist: &PersistHandle,
         as_of: DateTime<Utc>,
         settings: CrossSessionSettings,
+        previous: Option<&Self>,
     ) -> Result<Self, PersistError> {
         let guard = persist.steerer().guard_steerer().await?.map(|g| g.id);
         let rollup = persist.steerer().rollup_as_of(as_of).await?;
-        let (rows, thresholds) = match (rollup, guard) {
-            (Some(r), Some(g)) => (
-                persist.steerer().fetch_calibration_rows(r.id, g).await?,
-                persist.steerer().thresholds_in_force(g, as_of).await?,
-            ),
-            (None, Some(g)) => (
-                Vec::new(),
-                persist.steerer().thresholds_in_force(g, as_of).await?,
-            ),
-            _ => (Vec::new(), Vec::new()),
+        let rows = match (rollup, guard) {
+            (Some(r), Some(g)) => persist.steerer().fetch_calibration_rows(r.id, g).await?,
+            _ => Vec::new(),
         };
-        let fire_thresholds = persist.steerer().fire_thresholds_in_force(as_of).await?;
+        let (thresholds, fire_thresholds) =
+            load_thresholds(persist, as_of, guard, previous).await?;
         Ok(Self {
             as_of: Some(as_of),
             guard_steerer_id: guard,
@@ -122,4 +131,31 @@ impl CrossSessionSnapshot {
             })
             .collect()
     }
+}
+
+async fn load_thresholds(
+    persist: &PersistHandle,
+    as_of: DateTime<Utc>,
+    guard: Option<i64>,
+    previous: Option<&CrossSessionSnapshot>,
+) -> Result<(Vec<ThresholdRow>, Vec<ThresholdRow>), PersistError> {
+    if let Some(previous) = previous
+        && previous.guard_steerer_id == guard
+        && persist.is_fresh(THRESHOLDS_LOADED, GUARD_THRESHOLDS, as_of)
+    {
+        return Ok((
+            previous.thresholds.clone(),
+            previous.fire_thresholds.clone(),
+        ));
+    }
+    let ticket = persist.fresh_ticket();
+    let thresholds = match guard {
+        Some(g) => persist.steerer().thresholds_in_force(g, as_of).await?,
+        None => Vec::new(),
+    };
+    let fire_thresholds = persist.steerer().fire_thresholds_in_force(as_of).await?;
+    if previous.is_some() {
+        persist.mark_fresh(THRESHOLDS_LOADED, ticket, None);
+    }
+    Ok((thresholds, fire_thresholds))
 }

@@ -9,6 +9,11 @@ use crate::store::persistence::operator_turns::projection::OUTCOME_PROJECTION_VE
 
 pub use progress::{RejudgeProgress, RejudgeWindow};
 
+use crate::store::models::RowChangedTable;
+
+const NO_ACTIVE_RUN: &str = "eval.no_active_rejudge_run";
+const REJUDGE_RUNS: &[RowChangedTable] = &[RowChangedTable::RejudgeRuns];
+
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
 pub struct RejudgeRunRow {
     pub id: i64,
@@ -104,21 +109,32 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
                 .await?;
             }
             tx.commit().await?;
+            self.forget_fresh(NO_ACTIVE_RUN);
             Ok(id)
         })
         .await
     }
 
     pub async fn active_rejudge_run(self) -> Result<Option<RejudgeRunRow>, PersistError> {
-        crate::metrics::time_db("active_rejudge_run", async move {
-            Ok(sqlx::query_file_as!(
-                RejudgeRunRow,
-                "src/store/persistence/eval_rejudge/run_active.sql",
+        if self.is_fresh(NO_ACTIVE_RUN, REJUDGE_RUNS, Utc::now()) {
+            return Ok(None);
+        }
+        let ticket = self.fresh_ticket();
+        let run = crate::metrics::time_db("active_rejudge_run", async move {
+            Ok::<_, PersistError>(
+                sqlx::query_file_as!(
+                    RejudgeRunRow,
+                    "src/store/persistence/eval_rejudge/run_active.sql",
+                )
+                .fetch_optional(&self.pool)
+                .await?,
             )
-            .fetch_optional(&self.pool)
-            .await?)
         })
-        .await
+        .await?;
+        if run.is_none() {
+            self.mark_fresh(NO_ACTIVE_RUN, ticket, None);
+        }
+        Ok(run)
     }
 
     pub async fn list_rejudge_runs(self) -> Result<Vec<RejudgeRunRow>, PersistError> {

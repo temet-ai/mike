@@ -1133,7 +1133,10 @@ export type RowChangedTable =
 	| 'llm_calls'
 	| 'session_embeddings'
 	| 'launch_launches'
-	| 'launch_fleets';
+	| 'launch_fleets'
+	| 'lessons'
+	| 'rejudge_runs'
+	| 'guard_thresholds';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 
