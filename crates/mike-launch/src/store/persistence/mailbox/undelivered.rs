@@ -50,6 +50,25 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
+    pub async fn earliest_undelivered(
+        self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PersistError> {
+        crate::metrics::time_db("mailbox_earliest_undelivered", async move {
+            Ok(sqlx::query_scalar!(
+                r#"SELECT min(m.queued_at) AS earliest
+                     FROM mailbox.messages m
+                    WHERE m.to_session_id IS NOT NULL
+                      AND m.sent_request_id IS NULL
+                      AND m.channel_delivered_at IS NULL
+                      AND m.consumed_at IS NULL
+                      AND m.dead_lettered_at IS NULL"#
+            )
+            .fetch_one(self.background_pool())
+            .await?)
+        })
+        .await
+    }
+
     pub async fn tell_inactive_senders(
         self,
         cutoff: chrono::DateTime<chrono::Utc>,

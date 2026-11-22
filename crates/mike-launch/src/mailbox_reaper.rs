@@ -10,6 +10,9 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::gone_closure::GoneSweep;
 
 const REAP_INTERVAL: Duration = Duration::from_secs(300);
+const CHANGE_WAIT: Duration = Duration::from_secs(3600);
+const NOTICE_DELAY: chrono::Duration = chrono::Duration::minutes(5);
+const MAIL: [RowChangedTable; 1] = [RowChangedTable::MailboxMessages];
 
 /// How long gone-closure goes without looking when nothing says a launch can
 /// close: a registration released on another machine is caught within this.
@@ -96,11 +99,13 @@ pub fn spawn_mailbox_reaper(state: &BaseState) {
     let state = state.clone();
     let shutdown = state.shutdown();
     let tracker = state.tracker.clone();
+    let feed = state.change_feed.clone();
 
     tracker.spawn(async move {
         let mut gone = GoneGate::default();
         let mut ticker = interval(REAP_INTERVAL);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let mut due = MailDue::default();
         loop {
             tokio::select! {
                 biased;
@@ -109,30 +114,12 @@ pub fn spawn_mailbox_reaper(state: &BaseState) {
                     tracing::debug!("mailbox_reaper: shutdown signalled, exiting");
                     break;
                 }
+                () = due.next_change(&feed) => {}
                 _ = ticker.tick() => {
-                    sweep_if_due(&persist, &state.change_feed, &mut gone).await;
-                    let notice_cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
-                    if let Err(err) = persist.launch().tell_inactive_senders(notice_cutoff).await {
-                        tracing::warn!(error = %err, "mailbox_reaper: could not notify waiting senders");
-                    }
-                    let ttl_minutes = state.config().mailbox_delivery_ttl_minutes;
-                    let cutoff = chrono::Utc::now() - chrono::Duration::minutes(ttl_minutes);
-                    let activity_cutoff = cutoff;
-                    match persist
-                        .launch().dead_letter_expired_undelivered(cutoff, activity_cutoff)
-                        .await
-                    {
-                        Ok(outcome) if outcome.dead_lettered > 0 => {
-                            tracing::info!(
-                                dead_lettered = outcome.dead_lettered,
-                                ttl_minutes,
-                                "mailbox_reaper: dead-lettered stranded messages"
-                            );
-                        }
-                        Ok(_) => {}
-                        Err(e) => {
-                            tracing::warn!(error = %e, "mailbox_reaper: sweep failed");
-                        }
+                    sweep_if_due(&persist, &feed, &mut gone).await;
+                    if due.is_due(&feed, chrono::Utc::now()) {
+                        due.checked(&feed);
+                        sweep_mail(&state, &persist, &mut due).await;
                     }
                 }
             }
@@ -144,3 +131,108 @@ pub fn spawn_mailbox_reaper(state: &BaseState) {
         "mailbox_reaper: spawned"
     );
 }
+
+async fn sweep_mail(state: &BaseState, persist: &PersistHandle, due: &mut MailDue) {
+    let earliest = match persist.launch().earliest_undelivered().await {
+        Ok(earliest) => earliest,
+        Err(error) => {
+            log_unread(&error);
+            due.unknown();
+            return;
+        }
+    };
+    due.found(earliest);
+    let now = chrono::Utc::now();
+    let notice_cutoff = now - NOTICE_DELAY;
+    if !older_than(earliest, notice_cutoff) {
+        return;
+    }
+    if let Err(error) = persist.launch().tell_inactive_senders(notice_cutoff).await {
+        log_notice_failed(&error);
+    }
+    let ttl_minutes = state.config().mailbox_delivery_ttl_minutes;
+    let cutoff = now - chrono::Duration::minutes(ttl_minutes);
+    if older_than(earliest, cutoff) {
+        let reaped = persist
+            .launch()
+            .dead_letter_expired_undelivered(cutoff, cutoff)
+            .await;
+        log_reaped(reaped.map(|outcome| outcome.dead_lettered), ttl_minutes);
+    }
+}
+
+fn older_than(
+    earliest: Option<chrono::DateTime<chrono::Utc>>,
+    cutoff: chrono::DateTime<chrono::Utc>,
+) -> bool {
+    earliest.is_some_and(|at| at < cutoff)
+}
+
+fn log_unread(error: &crate::store::persistence::PersistError) {
+    tracing::warn!(%error, "mailbox_reaper: could not read undelivered mail");
+}
+
+fn log_notice_failed(error: &crate::store::persistence::PersistError) {
+    tracing::warn!(%error, "mailbox_reaper: could not notify waiting senders");
+}
+
+fn log_reaped(reaped: Result<i64, crate::store::persistence::PersistError>, ttl_minutes: i64) {
+    match reaped {
+        Ok(0) => {}
+        Ok(dead_lettered) => log_dead_lettered(dead_lettered, ttl_minutes),
+        Err(e) => tracing::warn!(error = %e, "mailbox_reaper: sweep failed"),
+    }
+}
+
+fn log_dead_lettered(dead_lettered: i64, ttl_minutes: i64) {
+    tracing::info!(
+        dead_lettered,
+        ttl_minutes,
+        "mailbox_reaper: dead-lettered stranded messages"
+    );
+}
+
+#[derive(Debug, Default)]
+struct MailDue {
+    known: bool,
+    earliest: Option<chrono::DateTime<chrono::Utc>>,
+    first_change: Option<chrono::DateTime<chrono::Utc>>,
+    since: Generation,
+}
+
+impl MailDue {
+    async fn next_change(&mut self, feed: &ChangeFeed) {
+        if self.first_change.is_some() || !feed.is_fed() {
+            return std::future::pending().await;
+        }
+        feed.wait_for_change(&MAIL, self.since, CHANGE_WAIT).await;
+        if feed.changed_since(&MAIL, self.since) {
+            self.first_change = Some(chrono::Utc::now());
+        }
+    }
+
+    fn is_due(&self, feed: &ChangeFeed, now: chrono::DateTime<chrono::Utc>) -> bool {
+        let ripe = |at: Option<chrono::DateTime<chrono::Utc>>| {
+            at.is_some_and(|at| at + NOTICE_DELAY <= now)
+        };
+        !self.known || !feed.is_fed() || ripe(self.earliest) || ripe(self.first_change)
+    }
+
+    fn checked(&mut self, feed: &ChangeFeed) {
+        self.since = feed.generation();
+        self.first_change = None;
+    }
+
+    fn found(&mut self, earliest: Option<chrono::DateTime<chrono::Utc>>) {
+        self.known = true;
+        self.earliest = earliest;
+    }
+
+    fn unknown(&mut self) {
+        self.known = false;
+    }
+}
+
+#[cfg(test)]
+#[path = "mailbox_reaper_tests.rs"]
+mod tests;
