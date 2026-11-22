@@ -266,6 +266,8 @@ pub(crate) const FIND_TEXT_CORPUS_TIMEOUT_SECS: u64 = 25;
 pub(crate) const FIND_TEXT_CORPUS_CANDIDATE_CAP: i64 = 200;
 pub(crate) const FIND_TEXT_CORPUS_DEFAULT_DAYS: i64 = 1;
 
+pub(crate) const FIND_TEXT_CORPUS_SPAN_DAYS: i64 = 2;
+
 pub(crate) const FIND_TEXT_SESSION_PAGE_REQUESTS: usize = 60;
 
 pub(crate) const FIND_TEXT_SESSION_MESSAGE_WINDOW_REQUESTS: usize = 50;

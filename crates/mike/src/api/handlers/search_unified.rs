@@ -135,10 +135,11 @@ async fn find_text_unscoped_corpus(
         chrono::Utc::now() - chrono::Duration::days(FIND_TEXT_CORPUS_DEFAULT_DAYS)
     });
     let to = window.effective_to.unwrap_or_else(chrono::Utc::now);
+    let span = corpus_span(from, to, params.cursor);
 
     let (full_count, all_matches, own_skipped) = tokio::time::timeout(
         std::time::Duration::from_secs(FIND_TEXT_CORPUS_TIMEOUT_SECS),
-        scan_corpus_candidates(handle, match_params, from, to),
+        scan_corpus_candidates(handle, match_params, span.lower, span.upper),
     )
     .await
     .map_err(|_| {
@@ -150,23 +151,60 @@ async fn find_text_unscoped_corpus(
     })??;
 
     let truncated = all_matches.len() < full_count as usize;
-    let window_note = if window.defaulted || window.windowed || all_matches.is_empty() {
-        Some(window.widen_hint.clone())
-    } else {
-        None
+    let window_note = match span.next_cursor {
+        Some(cursor) => Some(format!(
+            "searched responses from {} to {}; older ones back to {} are not searched yet: \
+             call again with cursor={cursor} to continue",
+            span.lower.to_rfc3339(),
+            span.upper.to_rfc3339(),
+            from.to_rfc3339(),
+        )),
+        None if window.defaulted || window.windowed || all_matches.is_empty() => {
+            Some(window.widen_hint.clone())
+        }
+        None => None,
     };
 
     Ok(Json(FindTextUnifiedResponse {
         needle: params.needle.clone(),
         case_sensitive: params.case_sensitive,
         context_bytes,
-        full_match_count: Some(full_count),
+        full_match_count: span.next_cursor.is_none().then_some(full_count),
         matches_truncated: truncated,
         matches: all_matches,
         window_note,
+        next_cursor: span.next_cursor,
+        has_more: span.next_cursor.is_some(),
+        scan_complete: Some(span.next_cursor.is_none()),
         own_search_matches_skipped: Some(own_skipped),
         ..Default::default()
     }))
+}
+
+pub(crate) struct CorpusSpan {
+    pub(crate) lower: chrono::DateTime<chrono::Utc>,
+    pub(crate) upper: chrono::DateTime<chrono::Utc>,
+    pub(crate) next_cursor: Option<u64>,
+}
+
+pub(crate) fn corpus_span(
+    from: chrono::DateTime<chrono::Utc>,
+    to: chrono::DateTime<chrono::Utc>,
+    cursor: Option<u64>,
+) -> CorpusSpan {
+    let resumed = cursor
+        .and_then(|secs| i64::try_from(secs).ok())
+        .and_then(|secs| chrono::DateTime::from_timestamp(secs, 0));
+    let upper = resumed.map_or(to, |at| at.min(to));
+    let lower = (upper - chrono::Duration::days(FIND_TEXT_CORPUS_SPAN_DAYS)).max(from);
+    let next_cursor = (lower > from)
+        .then(|| u64::try_from(lower.timestamp()).ok())
+        .flatten();
+    CorpusSpan {
+        lower,
+        upper,
+        next_cursor,
+    }
 }
 
 async fn scan_corpus_candidates(
@@ -351,3 +389,7 @@ pub(crate) async fn find_text_scoped_request(
         ..Default::default()
     }))
 }
+
+#[cfg(test)]
+#[path = "search_unified_span_tests.rs"]
+mod search_unified_span_tests;

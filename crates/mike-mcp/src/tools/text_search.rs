@@ -129,7 +129,7 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
             json!({
                 "type": "integer",
                 "minimum": 0,
-                "description": "Session scope only: resume scanning after this request id. Pass the previous answer's `next_cursor` when it came back with matches and `has_more` true; an empty incomplete scan is continued for you, or returned as an error that names the cursor."
+                "description": "Resume a scan: in a session, after this request id; with no id, at this unix time, before which the search goes on. Pass the previous answer's `next_cursor` when it came back with matches and `has_more` true; an empty incomplete scan is continued for you, or returned as an error that names the cursor."
             }),
         ),
     ]
@@ -153,7 +153,8 @@ fn find_text_tool() -> Tool {
              `reminder_matches_skipped` and `own_search_matches_skipped`. whole_bodies=true scans every \
              request body in full instead (`positions` \"body\"). source=response and request_sent always \
              scan bodies. `request_id` scans that one request. With neither id the search reads response \
-             bodies (one-day default window, widen with date_from and date_to); asking for source=request \
+             bodies (one-day default window, widen with date_from and date_to; each call reads at most two \
+             days, newest first, and reports the rest like a session scan); asking for source=request \
              without an id is an error. A session scan covers the whole session in one call or reports \
              `scan_complete` false with `requests_scanned`, `requests_total`, `has_more` and `next_cursor` \
              (pass it back as `cursor`). An empty `matches` always means the whole scope was scanned: an \
