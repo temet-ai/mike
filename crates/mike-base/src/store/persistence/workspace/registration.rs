@@ -365,6 +365,7 @@ impl PersistHandle {
             )
             .execute(&mut *tx)
             .await?;
+            self.note_registration_released();
 
             let closed_turn_id: Option<i64> = sqlx::query_scalar!(
                 "UPDATE memory.operator_turns
@@ -377,6 +378,7 @@ impl PersistHandle {
             .fetch_optional(&mut *tx)
             .await?;
             if let Some(turn_id) = closed_turn_id {
+                self.note_turn_embed_owed();
                 crate::store::persistence::turn_lifecycle::materialize_turn_aggregates(
                     &mut tx, turn_id,
                 )

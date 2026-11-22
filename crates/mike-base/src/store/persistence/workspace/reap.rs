@@ -65,6 +65,9 @@ impl PersistHandle {
             )
             .fetch_one(&self.pool)
             .await?;
+            if row.count > 0 {
+                self.note_registration_released();
+            }
             Ok(ReapOutcome { reaped: row.count })
         })
         .await

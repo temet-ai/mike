@@ -39,6 +39,7 @@ impl PersistHandle {
              FROM sessions.sessions s WHERE s.id = r.session_id AND s.session_uuid = $1 AND r.released_at IS NULL",
             session
         ).execute(self.pool()).await?;
+        self.note_registration_released();
         Ok(())
     }
 

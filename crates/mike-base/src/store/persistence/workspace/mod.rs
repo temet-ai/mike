@@ -68,6 +68,27 @@ impl super::PersistHandle {
     }
 }
 
+/// Set when this process releases a workspace registration (session end, reap,
+/// runtime end). Launch gone-closure reads it to look again at once: a release
+/// is what lets a launch whose session was registered close.
+#[derive(Default)]
+struct RegistrationsReleased(std::sync::atomic::AtomicBool);
+
+impl super::PersistHandle {
+    pub fn note_registration_released(&self) {
+        self.memo::<RegistrationsReleased>()
+            .0
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// Clears the mark and says whether a release happened since the last call.
+    pub fn take_registration_released(&self) -> bool {
+        self.memo::<RegistrationsReleased>()
+            .0
+            .swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CoordinationEventRow {
     pub id: i64,

@@ -115,7 +115,14 @@ async fn close_gone_launches_session_ended_closes_as_session_ended() -> anyhow::
     let id = launch(&f.handle, Some(session), true).await?;
     f.handle.end_workspace_registration(session, None).await?;
 
-    assert_eq!(f.handle.launch().close_gone_launches(day_ago()).await?, 1);
+    assert_eq!(
+        f.handle
+            .launch()
+            .close_gone_launches(day_ago())
+            .await?
+            .closed,
+        1
+    );
 
     assert_eq!(
         closure(&f.handle, id).await?,
@@ -153,7 +160,14 @@ async fn close_gone_launches_live_session_stays_open() -> anyhow::Result<()> {
     register(&f.handle, session).await?;
     let id = launch(&f.handle, Some(session), true).await?;
 
-    assert_eq!(f.handle.launch().close_gone_launches(after_now()).await?, 0);
+    assert_eq!(
+        f.handle
+            .launch()
+            .close_gone_launches(after_now())
+            .await?
+            .closed,
+        0
+    );
 
     assert_eq!(closure(&f.handle, id).await?, open());
     f.db.cleanup().await
@@ -262,11 +276,44 @@ async fn close_gone_launches_already_closed_launch_keeps_its_reason() -> anyhow:
         .record_launch_closed(id, "seat retired", Some(true))
         .await?;
 
-    assert_eq!(f.handle.launch().close_gone_launches(after_now()).await?, 0);
+    assert_eq!(
+        f.handle
+            .launch()
+            .close_gone_launches(after_now())
+            .await?
+            .closed,
+        0
+    );
 
     assert_eq!(
         closure(&f.handle, id).await?,
         closed("seat retired", Some(true))
+    );
+    f.db.cleanup().await
+}
+
+#[tokio::test]
+async fn close_gone_launches_reports_when_time_can_next_close_a_launch() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let session = Uuid::new_v4();
+    register(&f.handle, session).await?;
+    launch(&f.handle, Some(session), true).await?;
+    let held = f.handle.launch().close_gone_launches(day_ago()).await?;
+    assert_eq!(
+        held.next_due, None,
+        "a launch held by a live registration waits for its release, not the clock"
+    );
+
+    launch(&f.handle, None, false).await?;
+    let sweep = f.handle.launch().close_gone_launches(day_ago()).await?;
+    let Some(next) = sweep.next_due else {
+        anyhow::bail!("an unregistered launch closes once quiet, so it has a next time");
+    };
+    assert!(
+        next > Utc::now() + Duration::hours(23),
+        "it is due a grace after it was created"
     );
     f.db.cleanup().await
 }
