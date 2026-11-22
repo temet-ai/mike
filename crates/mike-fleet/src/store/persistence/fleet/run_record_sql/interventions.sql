@@ -1,9 +1,7 @@
 WITH seats AS (
-    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at
-      FROM launch.launches l
-      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid
-     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'
-     ORDER BY s.id, l.created_at, l.id
+    SELECT rs.seat, rs.session_id AS sid, rs.launched_at
+      FROM launch.run_seats rs
+     WHERE rs.run_id = $1
 )
 SELECT (SELECT coalesce(array_agg(coalesce(t.user_prompt, '')), '{}')
           FROM memory.operator_turns t

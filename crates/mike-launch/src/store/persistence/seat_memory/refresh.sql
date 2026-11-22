@@ -1,43 +1,13 @@
--- Refreshes memory.seat_memory_items from memory.seat_memory(uuid[]).
--- $1, $2: the highest launch and fleet event ids the previous refresh saw; $3: its time mark.
--- A seat session with a newer launch or fleet event, or a turn closed or a turn fact built
--- after $3, is recomputed together with every session of its runs, and only those sessions'
--- items are pruned. Mail reaches a seat as a channel turn, so its turn scopes it. The time mark
--- handed back is a minute before this statement's start, so a turn whose transaction commits
--- after this snapshot is still seen next time. All three NULL recomputes every seat session
--- (the worker's daily sweep). The marks to pass next time come back in the last three columns.
-WITH touched AS (
-    SELECT l.session_uuid FROM launch.launches l WHERE l.id > $1::bigint
-    UNION
-    SELECT e.session_uuid FROM launch.fleet_events e
-     WHERE e.id > $2::bigint AND e.session_uuid IS NOT NULL
-    UNION
-    SELECT l.session_uuid FROM launch.launches l
-     WHERE l.run_id IN (SELECT e.run_id FROM launch.fleet_events e WHERE e.id > $2::bigint)
-    UNION
-    SELECT s.session_uuid
-      FROM sessions.sessions s
-     WHERE s.id IN (SELECT ot.session_id FROM memory.operator_turns ot
-                     WHERE ot.closed_at > $3::timestamptz
-                    UNION ALL
-                    SELECT tf.session_id FROM memory.turn_facts tf
-                     WHERE tf.built_at > $3::timestamptz)
-), candidates AS (
-    SELECT l.session_uuid
-      FROM launch.launches l
-     WHERE l.session_uuid IN (SELECT t.session_uuid FROM touched t)
-    UNION
-    SELECT r2.session_uuid
-      FROM launch.launches r
-      JOIN launch.launches r2 ON r2.run_id = r.run_id
-     WHERE r.session_uuid IN (SELECT t.session_uuid FROM touched t)
-    UNION
-    SELECT l.session_uuid FROM launch.launches l WHERE $1::bigint IS NULL
-), seat_sessions AS MATERIALIZED (
-    SELECT c.session_uuid
-      FROM candidates c
-     WHERE EXISTS (SELECT 1 FROM sessions.sessions s
-                    WHERE s.session_uuid = c.session_uuid AND s.project_id IS NOT NULL)
+-- Refreshes memory.seat_memory_items from memory.seat_memory(uuid[]) for the seat sessions
+-- memory.seat_sessions_touched($1, $2, $3) returns: $1, $2 are the highest launch and fleet
+-- event ids the previous refresh saw, $3 its time mark. Only those sessions' items are pruned.
+-- The time mark handed back is a minute before this statement's start, so a turn whose
+-- transaction commits after this snapshot is still seen next time. All three NULL recomputes
+-- every seat session (the worker's daily sweep). The marks to pass next time come back in the
+-- last three columns.
+WITH seat_sessions AS MATERIALIZED (
+    SELECT t.session_uuid
+      FROM memory.seat_sessions_touched($1::bigint, $2::bigint, $3::timestamptz) t
 ), fresh AS MATERIALIZED (
     SELECT DISTINCT ON (sm.project_id, sm.item_kind, sm.source_ref, sm.session_uuid) sm.*
       FROM (SELECT array_agg(k.session_uuid) AS sessions FROM seat_sessions k) keys

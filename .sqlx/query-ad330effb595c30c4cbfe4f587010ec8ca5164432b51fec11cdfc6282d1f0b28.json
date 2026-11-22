@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT rs.seat, rs.session_id AS sid, rs.launched_at, rs.kind\n      FROM launch.run_seats rs\n     WHERE rs.run_id = $1\n)\nSELECT s.kind AS \"kind!\",\n       count(*) AS \"requests!\",\n       coalesce(sum(p.input_tokens), 0)::bigint AS \"input_tokens!\",\n       coalesce(sum(p.output_tokens), 0)::bigint AS \"output_tokens!\",\n       coalesce(sum(p.cache_read_input_tokens), 0)::bigint AS \"cache_read_tokens!\",\n       coalesce(sum(p.cache_creation_input_tokens), 0)::bigint AS \"cache_write_tokens!\"\n  FROM seats s\n  JOIN requests.requests q ON q.session_id = s.sid AND q.created_at >= s.launched_at\n  JOIN responses.responses p ON p.request_id = q.id\n GROUP BY s.kind\n ORDER BY s.kind\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.run_seats",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "output_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "cache_read_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "cache_write_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ad330effb595c30c4cbfe4f587010ec8ca5164432b51fec11cdfc6282d1f0b28"
+}

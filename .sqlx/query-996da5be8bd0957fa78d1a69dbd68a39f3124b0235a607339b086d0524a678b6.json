@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT rs.seat, rs.session_id AS sid, rs.launched_at\n      FROM launch.run_seats rs\n     WHERE rs.run_id = $1\n)\nSELECT (SELECT coalesce(array_agg(coalesce(t.user_prompt, '')), '{}')\n          FROM memory.operator_turns t\n          JOIN seats s ON s.sid = t.session_id AND t.created_at >= s.launched_at\n         WHERE t.opened_by = 'operator') AS \"operator_prompts!\",\n       (SELECT coalesce(array_agg(DISTINCT l.seat), '{}')\n          FROM launch.launches l\n         WHERE l.run_id = $1 AND l.seat IS NOT NULL) AS \"seat_names!\",\n       (SELECT count(*) FROM workspace.session_notes n\n          JOIN seats s ON s.sid = n.session_id\n         WHERE n.kind = 'note' AND n.status IN ('operator', 'answered')) AS \"operator_answers!\",\n       (SELECT count(*) FROM workspace.session_notes n\n          JOIN seats s ON s.sid = n.session_id\n         WHERE n.kind = 'report') AS \"reports_filed!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_prompts!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "seat_names!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_answers!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "reports_filed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "996da5be8bd0957fa78d1a69dbd68a39f3124b0235a607339b086d0524a678b6"
+}

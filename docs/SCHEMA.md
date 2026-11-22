@@ -3069,7 +3069,8 @@ the function costs about 140 ms for the busiest project, over the read budget. W
 `seat_memory/refresh.sql` (the `seat_memory_index` worker), which inserts new rows, updates
 changed ones and deletes rows the function no longer returns; unchanged rows are not written.
 A refresh recomputes only the seat sessions with a newer launch, fleet event, closed turn or
-built turn fact, together with every session of their runs, through `memory.seat_memory(uuid[])`
+built turn fact, together with every session of their runs (the sessions
+`memory.seat_sessions_touched` returns for the previous refresh's marks), through `memory.seat_memory(uuid[])`
 (about 2k blocks for a tick, against about 160k for a whole project); the worker runs one at
 least every 30 minutes and a full recompute of every seat session once a day.
 Read only by `search.sql` (kind `seat`). The rules for what enters the seat tier live in the
@@ -5653,6 +5654,10 @@ brief is the one thing a launched session was told that a captured transcript ca
 
 Added in `20261006110000_fleet_told_ledger.sql`. mike's once-only record of the notices it sends a run by itself: one row per `(run_id, what)` (the primary key), with `told_at`. The fleet tick reads it before it mails, so a restart does not send a notice again.
 
+### `launch.run_seats` (view)
+
+Added in `20261120166700_run_seats_and_seat_sessions_touched.sql`. A fleet run's seats: one row per `(run_id, session)`, from the session's first seat launch in the run (`DISTINCT ON (run_id, session)` ordered by `created_at, id`; `status` launches and launches without a seat are not seats). Columns: `run_id`, `session_id` (`sessions.sessions.id`), `session_uuid`, `seat`, `kind` (`coordinator`, `observer`, `acceptance`, `template`, `reference` or `worker`, from the seat name) and `launched_at`. Readers filter on `run_id`, which the planner pushes below the `DISTINCT ON` into `idx_launch_launches_run_created`. Read by the run record's seat, mail, report, token, cargo-repeat and intervention statements (`fleet/run_record_sql/`).
+
 ### `launch.run_records`
 
 Added in `20261006100000_fleet_run_records.sql`. One row per fleet, written once when the run closes by `launch::fleet::run_record::close_record` from set-based queries over `launch.launches`, `requests.requests`, `requests.tools`, `tools.uses` and `mailbox.messages`. `fleet_uuid` and `run_id` are unique, with FKs to `launch.fleets` and `launch.runs` (ON DELETE CASCADE); `project_id` references `projects.projects` (SET NULL) and is indexed. The measures are typed columns (`working_minutes`, `waiting_minutes`, `first_commit_median_minutes`, `report_to_verdict_median_minutes`, `worker_git_reads`, `git_reads_per_100_calls`, `cargo_commands`, `cargo_repeats_across_seats`, `questions_asked`, `questions_answered`, `forks`, `forks_waited`, and the counts beside them). `seats`, `mail_by_pair`, `tools_offered` and `tools_used` are JSONB display documents read whole by `GET /api/fleets/{fleet}/record`; nothing filters on them. `measure_version` names the queries.
@@ -5903,6 +5908,10 @@ notice is retried, and `told_sql/recorded_introductions.sql` filters repeats alr
 - `idx_introductions_run`: `(run_id, told_at)` (BTree)
 
 ---
+
+### `memory.seat_sessions_touched(p_launch_after bigint, p_event_after bigint, p_turn_after timestamptz)`
+
+Added in `20261120166700_run_seats_and_seat_sessions_touched.sql`. A read-only SQL function returning `session_uuid`: the launched sessions with a project whose seat memory may have changed since a refresh's marks. A session counts when it has a launch above `p_launch_after`, a fleet event above `p_event_after` (its own or its run's), or a turn closed or a turn fact built after `p_turn_after`; every session of a counted session's runs counts with it. A NULL `p_launch_after` returns every launched session with a project. A function and not a view because the marks reach inside each arm of the change feed; it is a single `SELECT`, so the planner inlines it. Read by `seat_memory/refresh.sql`, which passes the result to `memory.seat_memory(uuid[])`.
 
 ### `memory.seat_memory(p_project_id bigint)`
 
