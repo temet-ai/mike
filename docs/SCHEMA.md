@@ -205,6 +205,8 @@ free-text field has no equality/range predicate use.
 
 **Trigger:** `trg_sessions_row_changed` — AFTER UPDATE; NOTIFY `proxy.row_changed`
 
+**Trigger:** `trg_session_overviews_row_changed` — AFTER UPDATE OF `overview_generated_at` when it changed; NOTIFY `proxy.row_changed`, table `session_embedding_sources` (`20261120167510`). The session vector sweep waits for it; it does not wait on `trg_sessions_row_changed`, which also fires on status changes.
+
 ---
 
 Columns added by the judgement-context migrations (definition as migrated):
@@ -2593,6 +2595,8 @@ instead of aggregating every chunk on each pass. The statement-level trigger
 `trg_operator_turn_chunks_mark_session` on `memory.operator_turn_chunks` inserts or advances it for every
 chunk writer; it never moves backwards. `session_chunk_centroid` reports this value as the newest chunk
 time, so the sweep records exactly what the staleness rule compares against.
+
+`trg_session_chunk_marks_row_changed` (`20261120167510_session_embedding_sources_row_changed.sql`) publishes `{table: "session_embedding_sources", id: <session id>, session_id: <session uuid>, op}` on `proxy.row_changed` when a mark is inserted or advanced (once per embedded turn; an upsert that would move it backwards updates nothing and stays silent). With `trg_session_overviews_row_changed` it is the notice the session vector sweep waits for after a pass that found no session owing a vector.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -6919,11 +6923,13 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_semantic_anchors_row_changed` | `memory.semantic_items` | AFTER INSERT when `kind = 'anchor'`; `20261120167210` | `proxy.row_changed`, table `semantic_anchors` |
 | `trg_eval_labels_correction_qualifications_row_changed` | `eval.labels` | AFTER INSERT, once per statement that inserted a turn `reaction` label `corrected`; `20261120167500` | `proxy.row_changed`, table `correction_qualifications` |
 | `trg_turn_verdicts_correction_qualifications_row_changed` | `memory.turn_verdicts` | AFTER INSERT when `mode = 'live'`, `projected` and `reaction = 'corrected'`; `20261120167500` | `proxy.row_changed`, table `correction_qualifications` |
+| `trg_session_chunk_marks_row_changed` | `memory.session_chunk_marks` | AFTER INSERT OR UPDATE OF `chunks_embedded_at`; `20261120167510` | `proxy.row_changed`, table `session_embedding_sources`, `session_id` the session's uuid |
+| `trg_session_overviews_row_changed` | `sessions.sessions` | AFTER UPDATE OF `overview_generated_at` when it changed; `20261120167510` | `proxy.row_changed`, table `session_embedding_sources`, `session_id` the session's uuid |
 | `trg_workspace_questions_row_changed`, `trg_workspace_questions_row_changed_update` | `workspace.questions` | AFTER INSERT; AFTER UPDATE when the row changed; `20261120166992` | `proxy.row_changed`, table `workspace_questions`, `session_id` the recipient's uuid |
 | `trg_wright_repairs_row_changed`, `trg_wright_repairs_row_changed_update` | `wright.repairs` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_repairs` |
 | `trg_wright_followups_row_changed`, `trg_wright_followups_row_changed_update` | `wright.followups` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_followups` |
 
-This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `correction_qualifications`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads` and `dossier_directives`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
+This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `correction_qualifications`, `session_embedding_sources`, `workspace_questions`, `wright_repairs`, `wright_followups`) publish `session_id` NULL, except `runtime_threads`, `dossier_directives` and `session_embedding_sources`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
 
 ### Fill triggers (retired in the migration squash)
 

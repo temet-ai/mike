@@ -31,6 +31,7 @@ pub enum RowChangedTable {
     DossierDirectives,
     SemanticAnchors,
     CorrectionQualifications,
+    SessionEmbeddingSources,
     WorkspaceQuestions,
     WrightRepairs,
     WrightFollowups,

@@ -13,6 +13,7 @@ pub mod knowledge;
 pub mod knowledge_key;
 pub mod knowledge_report;
 pub mod knowledge_settings;
+mod vector_gate;
 pub mod vectors;
 
 pub use vectors::SessionVectorSweepOutcome;
@@ -343,7 +344,7 @@ async fn refresh_vectors_and_log(
     embedding: &EmbeddingService,
     breaker: &mut CircuitBreaker,
 ) {
-    match vectors::refresh_session_vectors(persist, embedding).await {
+    match vector_gate::refresh_session_vectors_when_owed(persist, embedding).await {
         Ok(outcome) => {
             breaker.record(!outcome.any_call_failed, Instant::now());
             if outcome.overview_written > 0

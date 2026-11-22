@@ -1143,6 +1143,7 @@ export type RowChangedTable =
 	| 'dossier_directives'
 	| 'semantic_anchors'
 	| 'correction_qualifications'
+	| 'session_embedding_sources'
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups';

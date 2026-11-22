@@ -135,6 +135,12 @@ pub struct SessionVectorSweepOutcome {
     pub any_call_failed: bool,
 }
 
+impl SessionVectorSweepOutcome {
+    pub(super) fn written(&self) -> usize {
+        self.overview_written + self.centroid_written
+    }
+}
+
 pub async fn refresh_session_vectors(
     persist: &PersistHandle,
     embedding_service: &EmbeddingService,
@@ -142,6 +148,17 @@ pub async fn refresh_session_vectors(
     if !embedding_service.is_available() {
         return Ok(SessionVectorSweepOutcome::default());
     }
+    let (_, mut outcome) = refresh_owed_session_vectors(persist, embedding_service).await?;
+    if let Some(projects) = refresh_project_centroids(persist).await {
+        outcome.projects_refreshed = projects;
+    }
+    Ok(outcome)
+}
+
+pub(super) async fn refresh_owed_session_vectors(
+    persist: &PersistHandle,
+    embedding_service: &EmbeddingService,
+) -> Result<(usize, SessionVectorSweepOutcome), PersistError> {
     const BATCH: i64 = 64;
 
     let candidates = persist
@@ -176,13 +193,17 @@ pub async fn refresh_session_vectors(
             }
         }
     }
+    Ok((candidates.len(), outcome))
+}
 
+pub(super) async fn refresh_project_centroids(persist: &PersistHandle) -> Option<usize> {
     match persist.knowledge().refresh_project_centroids().await {
-        Ok(n) => outcome.projects_refreshed = n,
-        Err(e) => log_refresh_project_centroids_failed(&e),
+        Ok(n) => Some(n),
+        Err(e) => {
+            log_refresh_project_centroids_failed(&e);
+            None
+        }
     }
-
-    Ok(outcome)
 }
 
 fn log_session_vector_refresh_failed(session_id: Uuid, e: &PersistError) {
