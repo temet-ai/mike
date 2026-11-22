@@ -1,7 +1,36 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use super::PendingEmbeddingRow;
 use crate::store::persistence::{PersistError, PersistHandle};
 
+/// Whether this process may have left a closed turn unembedded since the embed
+/// drain last looked. A turn closed through a request's terminal write is embedded
+/// right away; this is set when that did not happen (no embedding service, the
+/// semaphore was full, the call failed) and when a turn closes another way (an
+/// aborted request, a session end, the idle reap). Starts true so the first drain
+/// after a start looks.
+struct TurnEmbedsOwed(AtomicBool);
+
+impl Default for TurnEmbedsOwed {
+    fn default() -> Self {
+        Self(AtomicBool::new(true))
+    }
+}
+
 impl PersistHandle {
+    pub fn note_turn_embed_owed(&self) {
+        self.memo::<TurnEmbedsOwed>()
+            .0
+            .store(true, Ordering::Release);
+    }
+
+    /// Clears the flag and says whether it was set.
+    pub fn take_turn_embed_owed(&self) -> bool {
+        self.memo::<TurnEmbedsOwed>()
+            .0
+            .swap(false, Ordering::AcqRel)
+    }
+
     pub async fn get_turn_for_embedding(
         &self,
         turn_id: i64,

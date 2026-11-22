@@ -13,6 +13,7 @@ pub async fn embed_turn(
     turn_id: i64,
 ) -> Result<(), PersistError> {
     if !embedding_service.is_available() {
+        handle.note_turn_embed_owed();
         return Ok(());
     }
     let Some(row) = handle.get_turn_for_embedding(turn_id).await? else {
@@ -20,11 +21,20 @@ pub async fn embed_turn(
     };
     let has_text =
         !row.user_prompt.trim().is_empty() || !row.final_assistant_text.trim().is_empty();
-    let outcome = embed_and_write_chunks(handle, embedding_service, vec![row]).await?;
-    if outcome.written > 0 || !has_text {
-        handle.mark_turns_embedded(&[turn_id]).await?;
+    let outcome = embed_and_write_chunks(handle, embedding_service, vec![row]).await;
+    match outcome {
+        Ok(outcome) if outcome.written > 0 || !has_text => {
+            handle.mark_turns_embedded(&[turn_id]).await
+        }
+        Ok(_) => {
+            handle.note_turn_embed_owed();
+            Ok(())
+        }
+        Err(error) => {
+            handle.note_turn_embed_owed();
+            Err(error)
+        }
     }
-    Ok(())
 }
 
 pub struct EmbedWriteOutcome {

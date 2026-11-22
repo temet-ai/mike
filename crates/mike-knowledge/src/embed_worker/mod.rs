@@ -19,6 +19,8 @@ pub use vectors::SessionVectorSweepOutcome;
 pub use vectors::refresh_session_embedding;
 
 #[cfg(test)]
+mod drain_gate_tests;
+#[cfg(test)]
 pub mod knowledge_counts_tests;
 #[cfg(test)]
 pub mod knowledge_floor_tests;
@@ -29,11 +31,11 @@ pub mod knowledge_key_tests;
 #[cfg(test)]
 mod knowledge_lease_tests;
 #[cfg(test)]
+mod knowledge_reconcile_tests;
+#[cfg(test)]
 pub mod knowledge_report_tests;
 #[cfg(test)]
 pub mod knowledge_session_tests;
-#[cfg(test)]
-mod knowledge_reconcile_tests;
 #[cfg(test)]
 pub mod knowledge_tests;
 #[cfg(test)]
@@ -85,6 +87,11 @@ const IDLE_BATCHES: usize = 8;
 
 const BACKFILL_INTERVAL: Duration = Duration::from_secs(300);
 
+/// How long the turn drain goes without looking when this process owes no
+/// embedding. Turns another machine closed and failed to embed are picked up
+/// within this, and that machine's own drain usually gets them first.
+const DRAIN_BACKSTOP: Duration = Duration::from_secs(600);
+
 const CIRCUIT_BREAKER_THRESHOLD: u32 = 3;
 
 const CIRCUIT_BREAKER_COOLDOWN_BASE: Duration = Duration::from_secs(300);
@@ -119,6 +126,7 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
     turns.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut breaker = new_breaker();
     let mut requeued_for: Option<String> = None;
+    let mut drain_gate = DrainGate::default();
 
     loop {
         tokio::select! {
@@ -135,9 +143,33 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
 
             _ = turns.tick() => {
                 requeue_on_model_change(&persist, &embedding, &mut requeued_for).await;
-                drain_catchup(&persist, &embedding, &mut breaker, &shutdown).await;
+                if drain_gate.should_drain(&persist, Instant::now()) {
+                    drain_catchup(&persist, &embedding, &mut breaker, &shutdown).await;
+                }
             }
         }
+    }
+}
+
+/// Decides whether a turn tick runs the drain. The drain's queue only grows when
+/// this process noted an owed embedding, or when another machine left one; the
+/// first is a flag and the second waits for the backstop.
+#[derive(Debug, Default)]
+pub struct DrainGate {
+    last: Option<Instant>,
+}
+
+impl DrainGate {
+    pub fn should_drain(&mut self, persist: &PersistHandle, now: Instant) -> bool {
+        let owed = persist.take_turn_embed_owed();
+        let due = self
+            .last
+            .is_none_or(|last| now.duration_since(last) >= DRAIN_BACKSTOP);
+        if owed || due {
+            self.last = Some(now);
+            return true;
+        }
+        false
     }
 }
 
@@ -160,6 +192,7 @@ pub async fn requeue_on_model_change(
         Ok(turns) => {
             log_requeued(turns, &model);
             requeue_turns_without_chunks(persist).await;
+            persist.note_turn_embed_owed();
             *requeued_for = Some(model);
         }
         Err(error) => log_requeue_failed(&error),
@@ -237,7 +270,10 @@ async fn reap_idle_turns(persist: &PersistHandle) {
         .reap_idle_open_turns(IDLE_TURN_THRESHOLD, chrono::Utc::now())
         .await
     {
-        Ok(reaped) if !reaped.is_empty() => log_reaped(reaped.len()),
+        Ok(reaped) if !reaped.is_empty() => {
+            persist.note_turn_embed_owed();
+            log_reaped(reaped.len());
+        }
         Ok(_) => {}
         Err(e) => log_reap_failed(&e),
     }
@@ -277,6 +313,7 @@ async fn embed_pending_turns(
             outcome.written
         }
         Err(e) => {
+            persist.note_turn_embed_owed();
             log_embed_sweep_failed(&e);
             0
         }
@@ -384,6 +421,9 @@ async fn drain_catchup(
         if written == 0 || breaker.should_skip(Instant::now()) {
             break;
         }
+    }
+    if total > 0 || breaker.should_skip(Instant::now()) {
+        persist.note_turn_embed_owed();
     }
     total
 }

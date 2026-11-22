@@ -238,6 +238,7 @@ impl PersistHandle {
     pub async fn close_aborted_request(&self, request_id: u64) -> Result<(), PersistError> {
         crate::metrics::time_db("close_aborted_request", async move {
             let id = request_id as i64;
+            self.note_turn_embed_owed();
             let mut tx = self.pool.begin().await?;
 
             let facts = load_aborted_request_facts(&mut tx, id).await?;

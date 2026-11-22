@@ -164,9 +164,11 @@ impl RequestStore {
 
     fn spawn_embed_for_closed_turn(ctx: &SnapshotContext, turn_id: i64) {
         let Some((service, permits)) = ctx.embedding.clone() else {
+            ctx.persist.note_turn_embed_owed();
             return;
         };
         if !service.is_available() {
+            ctx.persist.note_turn_embed_owed();
             return;
         }
         match permits.try_acquire_owned() {
@@ -186,6 +188,7 @@ impl RequestStore {
                 });
             }
             Err(_) => {
+                ctx.persist.note_turn_embed_owed();
                 tracing::debug!(
                     session_id = %ctx.req.session_id,
                     turn_id,
