@@ -69,7 +69,7 @@ describe('fix verdict', () => {
 	const remedy: WrightRemedy = {
 		name: 'tell_undelivered_senders',
 		kind: 'notice',
-		action: 'tell_undelivered_senders',
+		action: 'notify_undelivered_sender',
 		check_name: 'x',
 		enabled: true,
 		daily_limit: 5,

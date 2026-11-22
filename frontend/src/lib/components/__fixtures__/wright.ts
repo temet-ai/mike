@@ -221,7 +221,7 @@ export function remedies(): WrightRemedy[] {
 		{
 			name: 'tell_undelivered_senders',
 			kind: 'notice',
-			action: 'tell_undelivered_senders',
+			action: 'notify_undelivered_sender',
 			check_name: 'undelivered_mail',
 			enabled: true,
 			daily_limit: 5,
