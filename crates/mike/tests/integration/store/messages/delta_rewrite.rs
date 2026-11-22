@@ -60,5 +60,13 @@ async fn write_request_deltas_leaves_identical_rows_alone() -> anyhow::Result<()
         1,
         "a different set of rows still replaces the old one"
     );
+
+    let mut tx = pool.begin().await?;
+    write_request_deltas(&mut tx, req_id, None, session_fk, &[]).await?;
+    tx.commit().await?;
+    assert!(
+        row_versions(&pool, req_id).await?.is_empty(),
+        "writing no rows clears the stored ones"
+    );
     Ok(())
 }

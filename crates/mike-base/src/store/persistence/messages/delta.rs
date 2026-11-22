@@ -3,6 +3,7 @@ use sqlx::PgConnection;
 use crate::store::persistence::PersistError;
 
 use super::canonicalize::CanonicalMessage;
+use super::delta_same::StoredDeltas;
 
 pub struct DeltaRow {
     pub change_kind: &'static str,
@@ -150,23 +151,26 @@ pub async fn write_request_deltas(
     session_db_id: i64,
     rows: &[DeltaRow],
 ) -> Result<(), PersistError> {
-    if super::delta_same::deltas_unchanged(
+    let stored = super::delta_same::stored_deltas(
         &mut *conn,
         request_id,
         predecessor_request_id,
         session_db_id,
         rows,
     )
-    .await?
-    {
-        return Ok(());
-    }
-    sqlx::query!(
-        "DELETE FROM requests.deltas WHERE request_id = $1",
-        request_id
-    )
-    .execute(&mut *conn)
     .await?;
+    match stored {
+        StoredDeltas::Same => return Ok(()),
+        StoredDeltas::None => {}
+        StoredDeltas::Different => {
+            sqlx::query!(
+                "DELETE FROM requests.deltas WHERE request_id = $1",
+                request_id
+            )
+            .execute(&mut *conn)
+            .await?;
+        }
+    }
 
     if rows.is_empty() {
         return Ok(());

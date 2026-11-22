@@ -30,13 +30,24 @@ fn keys(rows: &[DeltaRow]) -> Vec<Key> {
     keys
 }
 
-pub async fn deltas_unchanged(
+/// What a request already has stored, against the delta rows about to be written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StoredDeltas {
+    /// No rows yet: write without clearing.
+    None,
+    /// The same rows: nothing to write.
+    Same,
+    /// Other rows: clear them, then write.
+    Different,
+}
+
+pub async fn stored_deltas(
     conn: &mut PgConnection,
     request_id: i64,
     predecessor_request_id: Option<i64>,
     session_db_id: i64,
     rows: &[DeltaRow],
-) -> Result<bool, PersistError> {
+) -> Result<StoredDeltas, PersistError> {
     let stored = sqlx::query!(
         r#"SELECT dck.code AS "kind!", d.ord AS "ord!", drr.code AS "reason?",
                   d.sent_patch_start, d.sent_patch_end, d.sent_patch_bytes,
@@ -49,14 +60,21 @@ pub async fn deltas_unchanged(
     )
     .fetch_all(&mut *conn)
     .await?;
+    if stored.is_empty() {
+        return Ok(if rows.is_empty() {
+            StoredDeltas::Same
+        } else {
+            StoredDeltas::None
+        });
+    }
     if stored.len() != rows.len() {
-        return Ok(false);
+        return Ok(StoredDeltas::Different);
     }
     let same_links = stored.iter().all(|s| {
         s.predecessor_request_id == predecessor_request_id && s.session_id == session_db_id
     });
     if !same_links {
-        return Ok(false);
+        return Ok(StoredDeltas::Different);
     }
     let mut existing: Vec<Key> = stored
         .into_iter()
@@ -72,5 +90,9 @@ pub async fn deltas_unchanged(
         })
         .collect();
     existing.sort();
-    Ok(existing == keys(rows))
+    Ok(if existing == keys(rows) {
+        StoredDeltas::Same
+    } else {
+        StoredDeltas::Different
+    })
 }

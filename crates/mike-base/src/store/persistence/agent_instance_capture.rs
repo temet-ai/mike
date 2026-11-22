@@ -16,13 +16,39 @@ pub async fn attribute_inline_agent_instance(
         return Ok(req.agent_instance_id);
     }
     let instance = match linked_instance(req) {
-        Some(instance_id) => Some(instance_id),
+        Some(instance_id) => Some(Instance::claimed(instance_id)),
         None => find_or_create_instance(tx, req, session_db_id, request_db_id).await?,
     };
-    if let Some(instance_id) = instance {
-        bind_request_to_instance(tx, request_db_id, instance_id).await?;
+    if let Some(instance) = instance {
+        bind_request_to_instance(tx, request_db_id, instance).await?;
     }
-    Ok(instance)
+    Ok(instance.map(|i| i.id))
+}
+
+/// An agent instance a subagent request belongs to. `maybe_unclaimed` is set only
+/// when the instance may still lack its first request, so the claim UPDATE runs
+/// only then: an instance found through its first request, created with one, or
+/// continued from a predecessor request already has it.
+#[derive(Debug, Clone, Copy)]
+struct Instance {
+    id: i64,
+    maybe_unclaimed: bool,
+}
+
+impl Instance {
+    fn claimed(id: i64) -> Self {
+        Self {
+            id,
+            maybe_unclaimed: false,
+        }
+    }
+
+    fn maybe_unclaimed(id: i64) -> Self {
+        Self {
+            id,
+            maybe_unclaimed: true,
+        }
+    }
 }
 
 fn linked_instance(req: &InterceptedRequest) -> Option<i64> {
@@ -37,7 +63,7 @@ async fn find_or_create_instance(
     req: &InterceptedRequest,
     session_db_id: i64,
     request_db_id: i64,
-) -> Result<Option<i64>, PersistError> {
+) -> Result<Option<Instance>, PersistError> {
     let persona = req
         .subagent_persona
         .as_deref()
@@ -49,7 +75,9 @@ async fn find_or_create_instance(
     let Some(agent_id) = agent_id else {
         return match (persona, req.turn_origin.as_str()) {
             (Some(persona), "subagent") => {
-                latest_instance_for_persona(tx, session_db_id, persona).await
+                Ok(latest_instance_for_persona(tx, session_db_id, persona)
+                    .await?
+                    .map(Instance::maybe_unclaimed))
             }
             _ => Ok(None),
         };
@@ -58,17 +86,17 @@ async fn find_or_create_instance(
     if let Some(instance_id) =
         instance_for_agent_run(tx, session_db_id, agent_id, &req.turn_origin).await?
     {
-        return Ok(Some(instance_id));
+        return Ok(Some(Instance::claimed(instance_id)));
     }
     if let Some(persona) = persona
         && let Some(instance_id) =
             unclaimed_instance_for_persona(tx, session_db_id, persona).await?
     {
-        return Ok(Some(instance_id));
+        return Ok(Some(Instance::maybe_unclaimed(instance_id)));
     }
     create_instance(tx, session_db_id, persona, request_db_id)
         .await
-        .map(Some)
+        .map(|id| Some(Instance::claimed(id)))
 }
 
 async fn instance_for_agent_run(
@@ -159,7 +187,7 @@ async fn latest_instance_for_persona(
 async fn bind_request_to_instance(
     tx: &mut sqlx::PgConnection,
     request_db_id: i64,
-    instance_id: i64,
+    instance: Instance,
 ) -> Result<(), PersistError> {
     sqlx::query!(
         "UPDATE requests.requests
@@ -167,11 +195,13 @@ async fn bind_request_to_instance(
           WHERE id = $1
             AND agent_instance_id IS NULL",
         request_db_id,
-        instance_id,
+        instance.id,
     )
     .execute(&mut *tx)
     .await?;
-
+    if !instance.maybe_unclaimed {
+        return Ok(());
+    }
     sqlx::query!(
         "UPDATE agents.instances
             SET first_request_id = $2,
@@ -181,7 +211,7 @@ async fn bind_request_to_instance(
                 )
           WHERE id = $1
             AND first_request_id IS NULL",
-        instance_id,
+        instance.id,
         request_db_id,
     )
     .execute(&mut *tx)
