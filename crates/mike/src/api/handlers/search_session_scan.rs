@@ -46,6 +46,7 @@ pub(super) struct ScanAcc {
     pub(super) reminder_skipped: u64,
     pub(super) own_skipped: u64,
     pub(super) own_calls: OwnSearchCalls,
+    pub(super) unseeded: Vec<i64>,
 }
 
 impl ScanAcc {

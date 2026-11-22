@@ -8,7 +8,7 @@ pub(super) async fn scan_message_window(
     acc: &mut ScanAcc,
 ) -> Result<(), FindTextFailure> {
     let params = ctx.params;
-    seed_own_search_calls(ctx, window, acc).await?;
+    acc.unseeded.extend_from_slice(window);
     let messages = ctx
         .handle
         .find_first_appearance_messages(
@@ -22,22 +22,36 @@ pub(super) async fn scan_message_window(
             tracing::warn!(error = %e, session_id = %ctx.session_id, "find_text: message window query failed");
             find_text_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
         })?;
+    let matched = messages.iter().any(|message| {
+        !crate::web_base::body_search::match_offsets(
+            &message.text,
+            params.needle,
+            params.case_sensitive,
+        )
+        .is_empty()
+    });
+    if matched {
+        seed_own_search_calls(ctx, acc).await?;
+    }
     for message in messages {
         absorb_message(ctx, &message, acc);
     }
     Ok(())
 }
 
+/// Seeds the session's own search calls from every window scanned since the
+/// last seed, only once a window has text to judge: a call's result can
+/// appear in a later window than the call.
 async fn seed_own_search_calls(
     ctx: &ScanCtx<'_>,
-    window: &[i64],
     acc: &mut ScanAcc,
 ) -> Result<(), FindTextFailure> {
     let params = ctx.params;
+    let window = std::mem::take(&mut acc.unseeded);
     let ids = ctx
         .handle
         .find_own_search_tool_use_ids(
-            window,
+            &window,
             params.needle,
             params.case_sensitive,
             &search_tool_suffixes(),
