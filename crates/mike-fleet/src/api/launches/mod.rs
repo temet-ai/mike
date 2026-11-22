@@ -191,6 +191,7 @@ pub async fn list_launches(
     };
     let filter = LaunchListFilter {
         run_id: query.run,
+        run_id_prefix: None,
         open_only: false,
         backend: None,
         limit: LaunchListFilter::DEFAULT_LIMIT,

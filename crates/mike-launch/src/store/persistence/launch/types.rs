@@ -144,6 +144,8 @@ pub enum LinkOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchListFilter {
     pub run_id: Option<String>,
+    /// Only launches whose run id starts with this text.
+    pub run_id_prefix: Option<String>,
     pub open_only: bool,
     pub backend: Option<String>,
     pub limit: i64,
@@ -157,6 +159,7 @@ impl Default for LaunchListFilter {
     fn default() -> Self {
         Self {
             run_id: None,
+            run_id_prefix: None,
             open_only: false,
             backend: None,
             limit: Self::DEFAULT_LIMIT,

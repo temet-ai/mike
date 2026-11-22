@@ -3,7 +3,6 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use tokio::time::{MissedTickBehavior, interval};
 
 use super::definition::FleetDefinition;
 use super::retrospective::{Job, Phase, save};
@@ -15,6 +14,7 @@ use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const POLL_SECONDS: i64 = 20;
+const POLL: Duration = Duration::from_secs(20);
 const LEASE_SECONDS: i64 = 180;
 const MAX_ATTEMPTS: u32 = 3;
 
@@ -24,38 +24,39 @@ pub fn spawn(state: &BaseState) {
     };
     let state = state.clone();
     state.tracker.clone().spawn(async move {
-        let shutdown = state.shutdown();
-        let mut ticker = interval(Duration::from_secs(20));
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let mut breaker = CircuitBreaker::new(3, Duration::from_secs(60), Duration::from_secs(900));
         loop {
-            tokio::select! {
-                biased;
-                _ = shutdown.cancelled() => break,
-                _ = ticker.tick() => tick(&state, &persist, &mut breaker).await,
+            let since = state.change_feed.generation();
+            let busy = tick(&state, &persist, &mut breaker).await;
+            if !super::idle::pause(&state, busy, POLL, since).await {
+                break;
             }
         }
     });
 }
 
-async fn tick(state: &BaseState, persist: &PersistHandle, breaker: &mut CircuitBreaker) {
-    super::rule_audit::close_finished(state, persist).await;
+/// One pass over open rule audits and pending retrospectives. Returns whether
+/// any was found, so the loop keeps ticking only while there is work.
+async fn tick(state: &BaseState, persist: &PersistHandle, breaker: &mut CircuitBreaker) -> bool {
+    let audits_open = super::rule_audit::close_finished(state, persist).await;
     if breaker.should_skip(Instant::now()) {
-        return;
+        return true;
     }
     let rows = match persist.fleet().pending_fleet_retrospectives().await {
         Ok(rows) => rows,
         Err(err) => {
             tracing::warn!(error = %err, "fleet retrospective queue could not be read");
-            return;
+            return true;
         }
     };
+    let busy = audits_open || !rows.is_empty();
     for row in rows {
         if breaker.should_skip(Instant::now()) {
             break;
         }
         process_owned(state, persist, &row, breaker).await;
     }
+    busy
 }
 
 async fn process_owned(
@@ -268,6 +269,7 @@ async fn write_blocker(
         .launch()
         .list_launches(&LaunchListFilter {
             run_id: Some(job.source_run.clone()),
+            run_id_prefix: None,
             open_only: false,
             backend: None,
             limit: i64::MAX,

@@ -245,11 +245,14 @@ fn shot_of(launch: &LaunchRow, status: Option<(Option<String>, DateTime<Utc>)>) 
     })
 }
 
-pub async fn close_finished(state: &BaseState, persist: &PersistHandle) {
+/// Closes finished one-shot rule audits. Returns whether any audit launch is
+/// still open (or the launches could not be read).
+pub async fn close_finished(state: &BaseState, persist: &PersistHandle) -> bool {
     let launches = match persist
         .launch()
         .list_launches(&LaunchListFilter {
             run_id: None,
+            run_id_prefix: Some(RUN_PREFIX.to_owned()),
             open_only: true,
             backend: None,
             limit: i64::MAX,
@@ -259,7 +262,7 @@ pub async fn close_finished(state: &BaseState, persist: &PersistHandle) {
         Ok(rows) => rows,
         Err(err) => {
             tracing::warn!(error = %err, "fleet: could not list open launches for the one-shot close");
-            return;
+            return true;
         }
     };
     let audits: Vec<&LaunchRow> = launches
@@ -271,6 +274,9 @@ pub async fn close_finished(state: &BaseState, persist: &PersistHandle) {
                     .is_some_and(|r| r.starts_with(RUN_PREFIX))
         })
         .collect();
+    if audits.is_empty() {
+        return false;
+    }
     let ids: Vec<Uuid> = audits.iter().filter_map(|l| l.session_uuid).collect();
     let summaries = persist
         .launch()
@@ -296,6 +302,7 @@ pub async fn close_finished(state: &BaseState, persist: &PersistHandle) {
         run: "",
     };
     close_idle(&live, &shots, Utc::now()).await;
+    true
 }
 
 #[cfg(test)]

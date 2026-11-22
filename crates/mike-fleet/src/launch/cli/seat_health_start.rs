@@ -86,6 +86,7 @@ pub async fn replaced(state: &BaseState, relaunch: &Relaunch, session: Uuid) -> 
         .launch()
         .list_launches(&LaunchListFilter {
             run_id: Some(run.to_string()),
+            run_id_prefix: None,
             open_only: false,
             backend: None,
             limit: LaunchListFilter::DEFAULT_LIMIT,

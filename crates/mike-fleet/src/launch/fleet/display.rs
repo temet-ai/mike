@@ -3,7 +3,6 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use tokio::time::{MissedTickBehavior, interval};
 
 use super::definition::FleetDefinition;
 use super::here;
@@ -23,16 +22,13 @@ pub fn spawn_fleet_display(state: &BaseState) {
         return;
     };
     let state = state.clone();
-    let shutdown = state.shutdown();
     state.tracker.clone().spawn(async move {
-        let mut ticker = interval(INTERVAL);
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let mut seen = Seen::default();
         loop {
-            tokio::select! {
-                biased;
-                _ = shutdown.cancelled() => break,
-                _ = ticker.tick() => tick(&state, &persist, &mut seen).await,
+            let since = state.change_feed.generation();
+            let busy = tick(&state, &persist, &mut seen).await;
+            if !super::idle::pause(&state, busy, INTERVAL, since).await {
+                break;
             }
         }
     });
@@ -46,15 +42,18 @@ struct Seen {
     quota: BTreeMap<String, Vec<String>>,
 }
 
-async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) {
+/// One pass over this machine's running and stopping fleets. Returns whether
+/// there was any, so the loop ticks only while a fleet is live.
+async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) -> bool {
     let Ok(fleets) = persist
         .fleet()
         .list_fleets_in_states(&[RUNNING, STOPPING])
         .await
     else {
-        return;
+        return true;
     };
     let fleets = here::on_this_machine(fleets, here::checkout_present);
+    let busy = !fleets.is_empty();
     let backend = state
         .config()
         .launch
@@ -69,7 +68,7 @@ async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) {
         super::gate_queue::queue(state, persist, row).await;
     }
     let Some(backend) = backend else {
-        return;
+        return busy;
     };
     for row in &running {
         let Ok(status) = assemble(state, row).await else {
@@ -79,6 +78,7 @@ async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) {
         show(backend.as_ref(), persist, row, &status).await;
         announce(backend.as_ref(), row, &status, seen).await;
     }
+    busy
 }
 
 async fn run_registered_steps(

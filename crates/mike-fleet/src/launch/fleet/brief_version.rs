@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use tokio::time::{MissedTickBehavior, interval};
 use uuid::Uuid;
 
 use super::definition::FleetDefinition;
@@ -280,33 +279,34 @@ async fn mail_refreshes(persist: &PersistHandle, run: &str, due: Vec<(String, Re
     }
 }
 
-async fn tick(persist: &PersistHandle) {
+/// Refreshes the briefs of this machine's running fleets. Returns whether
+/// there was any, so the loop ticks only while a fleet runs.
+async fn tick(persist: &PersistHandle) -> bool {
     let Ok(fleets) = persist
         .fleet()
         .list_fleets_in_states(&[super::shutdown::RUNNING])
         .await
     else {
-        return;
+        return true;
     };
     let fleets = super::here::on_this_machine(fleets, super::here::checkout_present);
     for row in &fleets {
         refresh(persist, row).await;
     }
+    !fleets.is_empty()
 }
 
 pub fn spawn_brief_refresh(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };
-    let shutdown = state.shutdown();
+    let state = state.clone();
     state.tracker.clone().spawn(async move {
-        let mut ticker = interval(INTERVAL);
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
-            tokio::select! {
-                biased;
-                _ = shutdown.cancelled() => break,
-                _ = ticker.tick() => tick(&persist).await,
+            let since = state.change_feed.generation();
+            let busy = tick(&persist).await;
+            if !super::idle::pause(&state, busy, INTERVAL, since).await {
+                break;
             }
         }
     });

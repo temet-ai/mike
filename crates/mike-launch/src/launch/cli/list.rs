@@ -72,6 +72,7 @@ pub async fn execute(runner: &Runner<'_>, run: Option<&str>) -> Result<Vec<ListR
     let surfaces = runner.backend.list().await?;
     let filter = LaunchListFilter {
         run_id: run.map(str::to_string),
+        run_id_prefix: None,
         open_only: true,
         backend: Some(runner.backend.id().as_str().to_string()),
         limit: LaunchListFilter::DEFAULT_LIMIT,

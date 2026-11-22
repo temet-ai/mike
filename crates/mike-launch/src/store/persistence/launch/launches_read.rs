@@ -11,6 +11,14 @@ fn list_launches_builder(filter: &LaunchListFilter) -> QueryBuilder<Postgres> {
         builder.push(keyword).push("l.run_id = ").push_bind(run_id);
         keyword = " AND ";
     }
+    if let Some(prefix) = &filter.run_id_prefix {
+        builder
+            .push(keyword)
+            .push("starts_with(l.run_id, ")
+            .push_bind(prefix)
+            .push(")");
+        keyword = " AND ";
+    }
     if filter.open_only {
         builder.push(keyword).push("l.closed_at IS NULL");
         keyword = " AND ";
@@ -106,5 +114,24 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             Ok(seen)
         })
         .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_run_id_prefix_filters_in_sql() {
+        let filter = LaunchListFilter {
+            run_id_prefix: Some("rule-audit-".to_owned()),
+            open_only: true,
+            ..LaunchListFilter::default()
+        };
+        let sql = list_launches_builder(&filter).sql().as_str().to_owned();
+        assert!(
+            sql.contains(" WHERE starts_with(l.run_id, $1) AND l.closed_at IS NULL"),
+            "{sql}"
+        );
     }
 }
