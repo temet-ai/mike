@@ -114,7 +114,7 @@ async fn deliver_send(
     };
 
     let facts = mail_facts(&ctx);
-    let reply = unthreaded_reply(&parsed, &ctx);
+    let reply = unthreaded_reply(parsed, &ctx);
     let sent = if parsed.threading_requested {
         threaded_send::send(
             handle,

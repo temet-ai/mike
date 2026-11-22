@@ -27,34 +27,32 @@ pub(super) async fn send(
             Ok(queued_response(handle, state, &ctx, (from_session_uuid, queued_at), held).await)
         }
         Ok(None) => Err(unqueued(handle, &ctx).await),
-        Err(crate::store::persistence::PersistError::DataInvariant(msg)) => {
-            record_failed_send(handle, None, ctx.to_session_uuid, "from_session_not_found").await;
-            Err(mailbox_error(
-                StatusCode::NOT_FOUND,
-                "from_session_not_found",
-                msg,
-            ))
-        }
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                to_session_uuid = %ctx.to_session_uuid,
-                "post_session_message: DB insert failed"
-            );
-            record_failed_send(
-                handle,
-                ctx.from_session_uuid,
-                ctx.to_session_uuid,
-                "database_error",
-            )
-            .await;
-            Err(mailbox_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "database_error",
-                "failed to queue mailbox message".to_string(),
-            ))
-        }
+        Err(e) => Err(insert_failed(handle, &ctx, e).await),
     }
+}
+
+async fn insert_failed(handle: &PersistHandle, ctx: &SendContext<'_>, e: PersistError) -> Response {
+    if let PersistError::DataInvariant(msg) = e {
+        record_failed_send(handle, None, ctx.to_session_uuid, "from_session_not_found").await;
+        return mailbox_error(StatusCode::NOT_FOUND, "from_session_not_found", msg);
+    }
+    tracing::warn!(
+        error = %e,
+        to_session_uuid = %ctx.to_session_uuid,
+        "post_session_message: DB insert failed"
+    );
+    record_failed_send(
+        handle,
+        ctx.from_session_uuid,
+        ctx.to_session_uuid,
+        "database_error",
+    )
+    .await;
+    mailbox_error(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "database_error",
+        "failed to queue mailbox message".to_string(),
+    )
 }
 
 type Queued = (Option<uuid::Uuid>, chrono::DateTime<chrono::Utc>);

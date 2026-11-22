@@ -54,11 +54,12 @@ pub(super) async fn settle_hold(
             &mail(ctx, hold.in_reply_to_id, hold.sender_label.as_deref()),
         )
         .await;
-    if provisional && !held {
-        if let Err(e) = handle.launch().release_held_message(ctx.message_uuid).await {
-            tracing::warn!(error = %e, message_uuid = %ctx.message_uuid, "post_session_message: releasing a provisionally held message failed");
-            return true;
-        }
+    if provisional
+        && !held
+        && let Err(e) = handle.launch().release_held_message(ctx.message_uuid).await
+    {
+        tracing::warn!(error = %e, message_uuid = %ctx.message_uuid, "post_session_message: releasing a provisionally held message failed");
+        return true;
     }
     held
 }
