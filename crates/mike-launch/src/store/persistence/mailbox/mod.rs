@@ -5,6 +5,7 @@ pub mod redelivery;
 pub mod reply_attach;
 pub mod reload;
 pub mod reply_to;
+pub mod session_mail_memo;
 pub mod session_reads;
 pub mod tags;
 pub mod team_comms;

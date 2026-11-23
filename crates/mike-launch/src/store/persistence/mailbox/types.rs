@@ -115,7 +115,7 @@ pub struct RedeliveryOutcome {
     pub attempted: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StoredMessageRow {
     pub message_uuid: uuid::Uuid,
     pub to_session_uuid: uuid::Uuid,

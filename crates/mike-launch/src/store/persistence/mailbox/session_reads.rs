@@ -21,8 +21,9 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     outbox: Vec::new(),
                 });
             };
-            let inbox = self.fetch_inbox_messages(session_id).await?;
-            let outbox = self.fetch_outbox_messages(session_id).await?;
+            let mail = self.session_mail(session_uuid, session_id).await?;
+            let inbox = mail.inbox.clone();
+            let outbox = mail.outbox.clone();
             let mut recipients: Vec<i64> = inbox
                 .iter()
                 .chain(&outbox)
@@ -52,7 +53,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
-    async fn fetch_inbox_messages(
+    pub(super) async fn fetch_inbox_messages(
         self,
         recipient_id: i64,
     ) -> Result<Vec<StoredMessageRow>, PersistError> {
@@ -97,7 +98,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await?)
     }
 
-    async fn fetch_outbox_messages(
+    pub(super) async fn fetch_outbox_messages(
         self,
         sender_id: i64,
     ) -> Result<Vec<StoredMessageRow>, PersistError> {

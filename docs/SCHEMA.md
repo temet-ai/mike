@@ -6910,7 +6910,7 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_sessions_row_changed` | `sessions.sessions` | AFTER UPDATE | `proxy.row_changed` |
 | `trg_filter_rules_row_changed` | `rules.rules` | AFTER INSERT OR UPDATE OR DELETE | `proxy.row_changed` |
 | `trg_prompt_compositions_row_changed` | `overrides.overrides` | AFTER INSERT OR UPDATE OR DELETE | `proxy.row_changed` |
-| `trg_mailbox_messages_row_changed_update` | `mailbox.messages` | AFTER UPDATE, when a listed column changed, a hold is lifted (`held_until_turn` true to false) or a claim is released (`claimed_at` set to NULL); `20261120166100` | `proxy.row_changed` |
+| `trg_mailbox_messages_row_changed_update` | `mailbox.messages` | AFTER UPDATE, when a listed column changed, a hold is lifted (`held_until_turn` true to false) or a claim is released (`claimed_at` set to NULL); `20261120166100`. Each change sends one notice naming the recipient and, when the sender is another session, one naming the sender (`20261120167800`) | `proxy.row_changed` |
 | `trg_lessons_row_changed` | `memory.lessons` | AFTER INSERT OR DELETE; `20261120166400` | `proxy.row_changed`, table `lessons` |
 | `trg_lessons_row_changed_update` | `memory.lessons` | AFTER UPDATE, only when `stage_id`, `embedded_at`, `project_id` or `source_id` changed | `proxy.row_changed`, table `lessons` |
 | `trg_lesson_shape_findings_row_changed`, `trg_lesson_shape_findings_row_changed_update` | `memory.lesson_shape_findings` | AFTER INSERT OR DELETE; AFTER UPDATE only when `resolution` or `lesson_id` changed | `proxy.row_changed`, table `lessons` |
