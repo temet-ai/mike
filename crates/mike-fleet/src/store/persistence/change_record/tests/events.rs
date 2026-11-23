@@ -229,3 +229,32 @@ async fn update_change_author_names_session_kind_and_merges_detail() -> anyhow::
     f.db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn only_an_event_the_code_scan_reads_moves_its_newest_written_mark() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let project_id = project(f.handle.pool()).await?;
+    let edit = event(project_id, ChangeKind::Edit, &["src/a.rs"]);
+    let ids = f.handle.fleet().insert_change_events(&[edit]).await?;
+    let edited = ids.first().copied();
+    let others = [
+        event(project_id, ChangeKind::Commit, &["src/a.rs"]),
+        event(project_id, ChangeKind::Note, &[]),
+        event(project_id, ChangeKind::Edit, &["src/a.rs", "src/b.rs"]),
+    ];
+    f.handle.fleet().insert_change_events(&others).await?;
+    assert_eq!(
+        f.handle.fleet().newest_written_change_event(CHECKOUT),
+        edited
+    );
+    let shell = event(project_id, ChangeKind::ShellChange, &["src/b.rs"]);
+    let ids = f.handle.fleet().insert_change_events(&[shell]).await?;
+    assert_eq!(
+        f.handle.fleet().newest_written_change_event(CHECKOUT),
+        ids.first().copied()
+    );
+    f.db.cleanup().await?;
+    Ok(())
+}

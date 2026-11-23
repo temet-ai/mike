@@ -66,6 +66,12 @@ pub struct NewChangeEvent {
     pub after_sha: Option<String>,
 }
 
+impl NewChangeEvent {
+    pub fn scanned_by_code_scan(&self) -> bool {
+        matches!(self.kind, ChangeKind::Edit | ChangeKind::ShellChange) && self.paths.len() == 1
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChangeEvent {
     pub id: i64,

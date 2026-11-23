@@ -104,7 +104,10 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         }
         let project_ids: Vec<i64> = events.iter().map(|e| e.project_id).collect();
         let checkouts: Vec<String> = events.iter().map(|e| e.checkout.clone()).collect();
-        let noted = checkouts.clone();
+        let scannable: Vec<Option<String>> = events
+            .iter()
+            .map(|e| e.scanned_by_code_scan().then(|| e.checkout.clone()))
+            .collect();
         let ats: Vec<DateTime<Utc>> = events.iter().map(|e| e.at).collect();
         let kinds: Vec<String> = events.iter().map(|e| e.kind.as_str().to_owned()).collect();
         let sessions: Vec<Option<i64>> = events.iter().map(|e| e.session_id).collect();
@@ -137,7 +140,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             .fetch_all(&self.pool)
             .await?;
             self.memo::<super::open_memo::OpenChangesMemo>().revise();
-            self.note_change_events(&noted, &rows);
+            self.note_change_events(&scannable, &rows);
             Ok(rows)
         })
         .await
