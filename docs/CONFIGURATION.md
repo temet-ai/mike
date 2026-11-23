@@ -523,7 +523,7 @@ The `dossier_builder` toggle (off by default; switched on after deploy; applies 
 |---|---|---|---|
 | `dossier.flush_interval_ms` | `2000` | 250-60000 | Wait after a turn closes before its session is built, so a burst of closes is one batch |
 | `dossier.batch_sessions` | `25` | 1-500 | Most sessions built in one batch |
-| `dossier.backstop_interval_secs` | `60` | 10-3600 | How often the backstop looks for closes that sent no event, and for pending, stale or older-builder facts |
+| `dossier.backstop_interval_secs` | `600` | 10-600 | The longest the backstop waits before looking for closes that sent no event, and for pending, stale or older-builder facts; it also looks once the sessions it built have had time to settle |
 | `dossier.backstop_lookback_hours` | `48` | 1-720 | How far back, by turn creation time, the backstop looks |
 | `dossier.session_settle_minutes` | `30` | 5-1440 | Quiet time before a turn with no next genuine message is recorded as `none_session_settled` |
 | `dossier.entries.enabled` | `true` | bool | Derive the operator's standing directives and the assistant's promises and waits into `memory.dossier_entries` from captured prompts and the work registry. Local only |

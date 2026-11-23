@@ -11,13 +11,14 @@ use tokio::time::{Instant, sleep_until};
 use tokio_util::sync::CancellationToken;
 
 use super::build::{BUILDER_VERSION, BuildConfig, BuildReport, build_sessions};
+use super::settle_check::SettleCheck;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
 use crate::features_settings::meta_dossier::{
     BACKSTOP_INTERVAL_SECS_KEY, BACKSTOP_LOOKBACK_HOURS_KEY, BATCH_SESSIONS_KEY,
     DEFAULT_BACKSTOP_INTERVAL_SECS, DEFAULT_BACKSTOP_LOOKBACK_HOURS, DEFAULT_BATCH_SESSIONS,
     DEFAULT_FLUSH_INTERVAL_MS, DEFAULT_SESSION_SETTLE_MINUTES, FLUSH_INTERVAL_MS_KEY,
-    SESSION_SETTLE_MINUTES_KEY,
+    MAX_BACKSTOP_INTERVAL_SECS, SESSION_SETTLE_MINUTES_KEY,
 };
 use crate::state::AppState;
 use crate::store::models::ProxyEvent;
@@ -60,6 +61,7 @@ struct BuilderLoop {
     pending_turns: HashSet<i64>,
     flush_at: Option<Instant>,
     backstop_at: Instant,
+    settle_check: SettleCheck,
 }
 
 impl BuilderLoop {
@@ -77,6 +79,7 @@ impl BuilderLoop {
             pending_turns: HashSet::new(),
             flush_at: None,
             backstop_at,
+            settle_check: SettleCheck::default(),
         }
     }
 
@@ -93,8 +96,14 @@ impl BuilderLoop {
     }
 
     fn next_deadline(&self) -> Instant {
-        self.flush_at
-            .map_or(self.backstop_at, |flush| flush.min(self.backstop_at))
+        [self.flush_at, self.settle_check.due()]
+            .into_iter()
+            .flatten()
+            .fold(self.backstop_at, Instant::min)
+    }
+
+    fn settle(&self) -> Duration {
+        self.runtime.settle.to_std().unwrap_or_default()
     }
 
     async fn run_due(&mut self) {
@@ -103,7 +112,8 @@ impl BuilderLoop {
             self.flush_at = None;
             self.flush().await;
         }
-        if self.backstop_at <= now {
+        let settled = self.settle_check.take_due(now, self.settle());
+        if settled || self.backstop_at <= now {
             self.backstop().await;
             self.backstop_at = Instant::now() + self.runtime.backstop_interval;
         }
@@ -115,7 +125,10 @@ impl BuilderLoop {
             return;
         }
         match self.deps.persist.dossier().sessions_for_turns(&turns).await {
-            Ok(sessions) => self.build_in_batches(&sessions).await,
+            Ok(sessions) => {
+                self.build_in_batches(&sessions).await;
+                self.settle_check.note_build(Instant::now(), self.settle());
+            }
             Err(e) => tracing::warn!(error = %e, "dossier builder: session lookup failed"),
         }
     }
@@ -337,7 +350,7 @@ impl DossierRuntime {
         DossierRuntime {
             flush_interval: millis(flush_ms),
             batch_sessions: batch,
-            backstop_interval: seconds(backstop_secs),
+            backstop_interval: seconds(backstop_secs.min(MAX_BACKSTOP_INTERVAL_SECS)),
             lookback: chrono::Duration::hours(lookback_hours),
             settle: chrono::Duration::minutes(settle_minutes),
         }

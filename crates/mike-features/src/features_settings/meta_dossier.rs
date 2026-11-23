@@ -9,7 +9,8 @@ pub const ENTRIES_ENABLED_KEY: &str = "dossier.entries.enabled";
 
 pub const DEFAULT_FLUSH_INTERVAL_MS: i64 = 2_000;
 pub const DEFAULT_BATCH_SESSIONS: i64 = 25;
-pub const DEFAULT_BACKSTOP_INTERVAL_SECS: i64 = 60;
+pub const DEFAULT_BACKSTOP_INTERVAL_SECS: i64 = 600;
+pub const MAX_BACKSTOP_INTERVAL_SECS: i64 = 600;
 pub const DEFAULT_BACKSTOP_LOOKBACK_HOURS: i64 = 48;
 pub const DEFAULT_SESSION_SETTLE_MINUTES: i64 = 30;
 
@@ -65,12 +66,13 @@ pub fn entries() -> Vec<SettingMeta> {
         IntSetting {
             key: BACKSTOP_INTERVAL_SECS_KEY,
             label: "Dossier backstop interval (s)",
-            description: "How often the dossier builder looks for turns that closed without an \
-                event (idle reaps, aborts, a lagged event bus), for turn facts that are \
-                pending, stale or built by an older builder, and builds those sessions.",
+            description: "The longest the dossier builder goes without looking for turns that \
+                closed without an event (idle reaps, aborts, a lagged event bus), for turn \
+                facts that are pending, stale or built by an older builder. It also looks once \
+                a session it built has had time to settle.",
             default: DEFAULT_BACKSTOP_INTERVAL_SECS,
             min: 10,
-            max: 3_600,
+            max: MAX_BACKSTOP_INTERVAL_SECS,
         },
         IntSetting {
             key: BACKSTOP_LOOKBACK_HOURS_KEY,

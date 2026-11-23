@@ -4,6 +4,7 @@ pub mod directive_point;
 pub mod entries;
 pub mod probe_point;
 pub mod render;
+pub mod settle_check;
 pub mod steering_facts;
 pub mod view;
 pub mod worker;
