@@ -1,12 +1,8 @@
-use std::collections::HashMap;
-
-use chrono::{DateTime, Utc};
-
 use crate::store::persistence::PersistError;
 
 use super::types::{
     ContextItem, MailboxForSessionWithActivity, MailboxMessageRow, MailboxMessageWithActivity,
-    ReceiptEvidenceRow, RecipientActivity, StoredMessageRow,
+    ReceiptEvidenceRow, StoredMessageRow,
 };
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
@@ -24,24 +20,25 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             let mail = self.session_mail(session_uuid, session_id).await?;
             let inbox = mail.inbox.clone();
             let outbox = mail.outbox.clone();
-            let mut recipients: Vec<i64> = inbox
+            let mut recipients: Vec<(uuid::Uuid, i64)> = inbox
                 .iter()
                 .chain(&outbox)
-                .map(|message| message.to_session_id)
+                .filter(|message| message.awaiting_delivery())
+                .map(|message| (message.to_session_uuid, message.to_session_id))
                 .collect();
             recipients.sort_unstable();
             recipients.dedup();
-            let last_request = self.latest_request_at_many(&recipients).await?;
-            let last_eligible = self.latest_eligible_turn_at_many(&recipients).await?;
+            let activity = self.recipient_activity(&recipients).await?;
             let attach = |messages: Vec<StoredMessageRow>| -> Vec<MailboxMessageWithActivity> {
                 messages
                     .into_iter()
                     .map(|message| {
-                        let recipient = message.to_session_id;
-                        message.with_activity(
-                            last_request.get(&recipient).copied(),
-                            last_eligible.get(&recipient).copied(),
-                        )
+                        let seen = message
+                            .awaiting_delivery()
+                            .then(|| activity.get(&message.to_session_id).copied())
+                            .flatten()
+                            .unwrap_or_default();
+                        message.with_activity(seen.last_request_at, seen.last_eligible_turn_at)
                     })
                     .collect()
             };
@@ -141,56 +138,6 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         )
         .fetch_all(&self.pool)
         .await?)
-    }
-
-    async fn latest_eligible_turn_at_many(
-        self,
-        session_db_ids: &[i64],
-    ) -> Result<HashMap<i64, DateTime<Utc>>, PersistError> {
-        if session_db_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let rows = sqlx::query!(
-            r#"SELECT s.id AS "session_id!", l.created_at AS "created_at!"
-                 FROM unnest($1::bigint[]) AS s(id)
-                CROSS JOIN LATERAL (
-                      SELECT r.created_at
-                        FROM requests.requests r
-                        JOIN requests.turn_origins ro ON ro.id = r.turn_origin_id
-                       WHERE r.session_id = s.id
-                         AND ro.code IN ('primary', 'primary_first')
-                       ORDER BY r.created_at DESC
-                       LIMIT 1
-                ) l"#,
-            session_db_ids,
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| (r.session_id, r.created_at))
-            .collect())
-    }
-
-    pub async fn fetch_recipient_activity(
-        self,
-        to_session_uuid: uuid::Uuid,
-    ) -> Result<Option<RecipientActivity>, PersistError> {
-        crate::metrics::time_db("mailbox_fetch_recipient_activity", async move {
-            let Some(session_id) = self.session_row_id(to_session_uuid).await? else {
-                return Ok(None);
-            };
-            let last_request_at = self.latest_request_at(session_id).await?;
-            let last_eligible_turn_at = self
-                .latest_eligible_turn_at_many(&[session_id])
-                .await?
-                .remove(&session_id);
-            Ok(Some(RecipientActivity {
-                last_request_at,
-                last_eligible_turn_at,
-            }))
-        })
-        .await
     }
 
     pub async fn fetch_message_for_recipient(

@@ -136,6 +136,13 @@ pub struct StoredMessageRow {
 }
 
 impl StoredMessageRow {
+    pub fn awaiting_delivery(&self) -> bool {
+        self.sent_at.is_none()
+            && self.channel_delivered_at.is_none()
+            && self.consumed_at.is_none()
+            && self.dead_lettered_at.is_none()
+    }
+
     pub fn with_activity(
         self,
         recipient_last_request_at: Option<DateTime<Utc>>,
@@ -173,7 +180,7 @@ pub struct MailboxMessageWithActivity {
     pub context_items: Vec<ContextItem>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecipientActivity {
     pub last_request_at: Option<DateTime<Utc>>,
     pub last_eligible_turn_at: Option<DateTime<Utc>>,

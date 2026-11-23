@@ -4,6 +4,7 @@ pub mod delivery;
 pub mod redelivery;
 pub mod reply_attach;
 pub mod reload;
+pub mod recipient_activity;
 pub mod reply_to;
 pub mod session_mail_memo;
 pub mod session_reads;
