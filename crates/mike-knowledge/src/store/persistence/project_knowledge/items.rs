@@ -173,8 +173,11 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         chunks: Value,
     ) -> Result<(), PersistError> {
         let mut tx = self.pool().begin().await?;
-        let state_id = upsert_embedding_state(&mut tx, source, model, hash).await?;
+        let (state_id, hash_changed) = upsert_embedding_state(&mut tx, source, model, hash).await?;
         replace_embedding_chunks(&mut tx, state_id, chunks).await?;
+        if hash_changed {
+            queue_item_for_consolidation(&mut tx, source.item_id).await?;
+        }
         mark_item_embedded(&mut tx, source, model).await?;
         tx.commit().await?;
         self.forget_knowledge_coverage();
@@ -234,8 +237,8 @@ async fn upsert_embedding_state(
     source: &KnowledgeEmbeddingSource,
     model: &str,
     hash: &str,
-) -> Result<i64, PersistError> {
-    Ok(sqlx::query_scalar!(
+) -> Result<(i64, bool), PersistError> {
+    let row = sqlx::query!(
         "INSERT INTO memory.knowledge_embedding_state
              (item_id, source_kind, source_id, reference, project_id, model_key, completed_at,
               name, label, search_tsv, source_hash)
@@ -250,7 +253,7 @@ async fn upsert_embedding_state(
              model_key = EXCLUDED.model_key, completed_at = now(), attempts = 0, last_error = NULL,
              name = EXCLUDED.name, label = EXCLUDED.label, search_tsv = EXCLUDED.search_tsv,
              source_hash = EXCLUDED.source_hash
-         RETURNING id",
+         RETURNING id, old.source_hash IS DISTINCT FROM new.source_hash AS \"hash_changed!\"",
         source.item_id,
         &source.source_kind,
         source.source_id,
@@ -264,7 +267,18 @@ async fn upsert_embedding_state(
         hash
     )
     .fetch_one(&mut **tx)
-    .await?)
+    .await?;
+    Ok((row.id, row.hash_changed))
+}
+
+async fn queue_item_for_consolidation(tx: &mut Tx<'_>, item_id: i64) -> Result<(), PersistError> {
+    sqlx::query!(
+        "SELECT memory.queue_knowledge_consolidation(ARRAY[$1::bigint])",
+        item_id
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(())
 }
 
 async fn replace_embedding_chunks(

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.knowledge_subjects WHERE members = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "fb172ca7c2b3b96f3c830c569c31e0aebe7cc2128982e629e967c46eb18c8a8b"
+}

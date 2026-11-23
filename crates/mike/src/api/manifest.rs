@@ -27,6 +27,7 @@ mod evaluations;
 mod filters;
 mod improvement;
 mod knowledge;
+mod knowledge_consolidation;
 mod launches;
 mod learning_loop;
 mod lesson_delivery;
@@ -80,6 +81,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         fleets::ROUTES,
         conditions::ROUTES,
         changes::ROUTES,
+        knowledge_consolidation::ROUTES,
         lesson_delivery::ROUTES,
         supplied_items::ROUTES,
         session_proxy_tools::ROUTES,
@@ -137,6 +139,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = fleets::register(router);
     let router = conditions::register(router);
     let router = changes::register(router);
+    let router = knowledge_consolidation::register(router);
     let router = lesson_delivery::register(router);
     let router = supplied_items::register(router);
     let router = session_proxy_tools::register(router);
@@ -385,6 +388,7 @@ mod tests {
             "scheduled_jobs",
             "db_cost",
             "memory_keeper",
+            "knowledge_consolidation",
             "prompt_cache",
             "thread_protocol",
             "thread_delta_correction",

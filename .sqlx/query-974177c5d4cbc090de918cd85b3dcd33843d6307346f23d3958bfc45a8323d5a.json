@@ -1,0 +1,262 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id AS \"id!\", d.run_id AS \"run_id!\", d.project_id AS \"project_id?\", d.subject_id AS \"subject_id?\",\n       k.title AS \"subject_title?\", d.statement_id AS \"statement_id?\", d.item_id AS \"item_id?\",\n       d.carrier_reference AS \"carrier_reference!\", d.verdict AS \"verdict!\",\n       d.counterpart_statement_id AS \"counterpart_statement_id?\", d.counterpart_reference AS \"counterpart_reference?\",\n       d.text_before AS \"text_before!\", d.text_after AS \"text_after?\", d.reason AS \"reason!\",\n       d.evidence AS \"evidence!\", d.model AS \"model!\", d.application AS \"application!\",\n       d.applied_at AS \"applied_at?\", d.error AS \"error?\", d.created_at AS \"created_at!\"\n  FROM memory.knowledge_consolidation_decisions d\n  LEFT JOIN memory.knowledge_subjects k ON k.id = d.subject_id\n WHERE (d.project_id = $1 OR d.project_id IS NULL)\n   AND ($2::bigint IS NULL OR d.subject_id = $2)\n   AND ($3::timestamptz IS NULL OR (d.created_at, d.id) < ($3, $4))\n   AND ($6::text[] IS NULL OR d.verdict = ANY($6))\n   AND (NOT $7::boolean OR (\n        d.verdict = 'conflict_open' AND d.application <> 'undone'\n        AND EXISTS (SELECT 1 FROM memory.knowledge_statements a\n                     WHERE a.id = d.statement_id AND a.state = 'current')\n        AND EXISTS (SELECT 1 FROM memory.knowledge_statements b\n                     WHERE b.id = d.counterpart_statement_id AND b.state = 'current')\n        AND NOT EXISTS (\n            SELECT 1 FROM memory.knowledge_consolidation_decisions x\n             WHERE x.verdict = 'conflict_open' AND x.id > d.id\n               AND LEAST(x.statement_id, x.counterpart_statement_id)\n                   = LEAST(d.statement_id, d.counterpart_statement_id)\n               AND GREATEST(x.statement_id, x.counterpart_statement_id)\n                   = GREATEST(d.statement_id, d.counterpart_statement_id))))\n ORDER BY d.created_at DESC, d.id DESC\n LIMIT $5\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "subject_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "subject_title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "statement_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "statement_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "item_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "carrier_reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "carrier_reference"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "verdict!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "verdict"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "counterpart_statement_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "counterpart_statement_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "counterpart_reference?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "counterpart_reference"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "text_before!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "text_before"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "text_after?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "text_after"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "reason!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "evidence!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "application!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "application"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "applied_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "applied_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "error?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "TextArray",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "974177c5d4cbc090de918cd85b3dcd33843d6307346f23d3958bfc45a8323d5a"
+}

@@ -15,6 +15,8 @@ fn knowledge_settings_registered_meta_lists_every_moved_key() {
     for key in [
         super::meta_semantic::ALLOW_REMOTE_EMBEDDING,
         super::meta_knowledge_embedding::INTERVAL_SECS,
+        super::meta_knowledge_consolidation::INTERVAL_SECS,
+        super::meta_knowledge_consolidation::EDIT_FILES,
         crate::search_ranking::KEY_KIND_WEIGHTS,
     ] {
         assert_eq!(

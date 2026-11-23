@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM memory.knowledge_statements WHERE subject_id = $1 AND item_id IS NOT NULL ORDER BY stated_at, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aadce980f843c52b3cdc73f90910a66e4a96d1cf6ebc4f9d0522bd9e56518e6d"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH base AS (\n    SELECT COALESCE(max(s.ordinal) + 1, 0) AS next\n      FROM memory.knowledge_statements s WHERE s.item_id = $1\n)\nINSERT INTO memory.knowledge_statements\n    (item_id, ordinal, text, passage_start, passage_end, embedding, model_key, stated_at, split_hash)\nSELECT $1, base.next + (e.n - 1)::integer, e.v ->> 'text',\n       (e.v ->> 'passage_start')::integer, (e.v ->> 'passage_end')::integer,\n       (e.v ->> 'embedding')::public.vector, $3::text, $4::timestamptz, $2::text\n  FROM base, jsonb_array_elements($5::jsonb) WITH ORDINALITY e(v, n)\nRETURNING id AS \"id!\", ordinal AS \"ordinal!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "ordinal!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "ordinal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "caab0317196108ad521f2391a8989f985ba9f0cd1cfa7dcf6978f072fdac109f"
+}

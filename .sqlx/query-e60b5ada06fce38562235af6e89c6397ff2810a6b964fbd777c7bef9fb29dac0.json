@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS \"statement_id!\", s.item_id AS \"item_id!\", s.ordinal AS \"ordinal!\", s.text AS \"text!\",\n       s.passage_start AS \"passage_start?\", s.passage_end AS \"passage_end?\",\n       e.reference AS \"carrier_reference!\", i.kind AS \"kind!\", a.source_name AS \"source_name?\",\n       s.stated_at AS \"stated_at!\"\n  FROM memory.knowledge_statements s\n  JOIN memory.knowledge_items i ON i.id = s.item_id\n  JOIN memory.knowledge_embedding_state e ON e.item_id = s.item_id AND e.reference IS NOT NULL\n  LEFT JOIN memory.knowledge_artifact_identity_v a ON i.kind = 'artifact' AND a.revision_id = i.source_id\n WHERE s.subject_id = $1 AND s.state = 'current'\n ORDER BY s.stated_at, s.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "statement_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ordinal!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "passage_start?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "passage_start"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "passage_end?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "passage_end"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "carrier_reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "reference"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_artifact_identity_v",
+            "name": "source_name"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "stated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "stated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "e60b5ada06fce38562235af6e89c6397ff2810a6b964fbd777c7bef9fb29dac0"
+}

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT outcome AS \"outcome!\", statement_id AS \"statement_id?\", range_start AS \"range_start?\", range_end AS \"range_end?\"\n  FROM memory.rehome_document_statements($1, $2, $3)\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "outcome!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "statement_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "range_start?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "range_end?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "feceb0e61b7c363e854880528b35c8e26da260b0f6976d4bb2d0bd33c1c04f6c"
+}

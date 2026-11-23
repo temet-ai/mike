@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT memory.refresh_knowledge_subjects($1::bigint[]),\n                memory.mark_knowledge_subjects_changed($1::bigint[], $2::timestamptz)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "refresh_knowledge_subjects",
+        "type_info": "Void",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "mark_knowledge_subjects_changed",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "47d303c187a1653eed441356f0ec851d9d7e95afdc2759f4a2f724948b42e0ba"
+}

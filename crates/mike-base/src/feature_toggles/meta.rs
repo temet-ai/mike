@@ -126,6 +126,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
+        key: "knowledge_consolidation",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "launch_brief",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,

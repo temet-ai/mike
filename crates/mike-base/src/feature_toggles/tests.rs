@@ -284,6 +284,7 @@ fn toggle_meta_covers_all_keys() {
             "harvester",
             "judge_lessons",
             "judge_worker",
+            "knowledge_consolidation",
             "launch_brief",
             "lesson_worker",
             "mailbox_redelivery",

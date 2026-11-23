@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT n.id AS \"subject_id!\", n.similarity AS \"similarity!\"\n  FROM memory.knowledge_subjects me\n  CROSS JOIN LATERAL (\n       SELECT o.id, (1 - (o.centre <=> me.centre))::float8 AS similarity\n         FROM memory.knowledge_subjects o\n        WHERE o.id <> me.id AND o.members > 0 AND o.project_id IS NOT DISTINCT FROM me.project_id\n        ORDER BY o.centre <=> me.centre\n        LIMIT $2) n\n WHERE me.id = $1\n ORDER BY n.similarity DESC, n.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "bcfe7ec277304e1045e9bf0965d95b831075568c4c3b3de3ca3b6499658fb8d9"
+}

@@ -1392,6 +1392,71 @@ Key properties:
 
 No characters are dropped. Used by the embed worker before batching across turns.
 
+### Knowledge consolidation
+
+Everything the knowledge sweep indexes can be compared with everything else it indexes. The worker takes a lesson, a memory file, a rule, an agent, a skill or an instruction file after the embed sweep has saved it, splits it into single statements, groups the statements of all carriers by meaning, has one model judge each group, and applies the result: a repeated lesson is retired, lessons that add to each other become one, a statement repeated in a file is removed from the file or proposed for removal. Every judgement is a recorded decision that can be undone. How to read the result and what an operator can do is in [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md#consolidation); the tables are in [`SCHEMA.md`](SCHEMA.md#knowledge-consolidation). Design: `mike-artifacts/design/2026-11-20-knowledge-consolidation.md`.
+
+**Where it runs.** `crates/mike-lessons/src/knowledge_consolidation/`, spawned by `spawn_knowledge_consolidation` in `serve/workers.rs` directly after the memory keeper. The toggle `knowledge_consolidation` (global, immediate, default off) is re-read every 2 s while it is off and between passes while it is on. A pass runs every `knowledge_consolidation.interval_secs` and reloads all settings first. The store half is `crates/mike-knowledge/src/store/persistence/consolidation/`; the lesson half (retire, restore, change text) is `crates/mike-lessons/src/store/persistence/lessons/knowledge_consolidation.rs`.
+
+**Its place after the embed sweep.** The sweep (`embed_worker/knowledge.rs`) saves an item's chunks in `save_knowledge_embeddings`. When the stored `source_hash` changed in that save, the same transaction calls `memory.queue_knowledge_consolidation`, which sets `memory.knowledge_items.consolidate_at`. `memory.share_twin_embeddings` sets it too when it serves a twin. The migration queued every active lesson and every current file of the six guidance sources once. The worker claims only items that are embedded (`NOT needs_embedding`) and due, `FOR UPDATE SKIP LOCKED`, and clears `consolidate_at` only if it still holds the value it claimed, so a change during processing queues the item again.
+
+| Step | File | What it does |
+|---|---|---|
+| Claim | `items.rs` | Takes up to `items_per_tick` due items. A twin item that is not the canonical one (lowest item id of the group, `memory.knowledge_twin_canonical`) is only cleared. |
+| Statements | `items.rs`, `passage.rs` | A lesson is one statement (an archived or retired lesson has none: its statements go `gone`). A file of the sources `claude-memory`, `skills`, `rules`, `agents`, `agent-memory` or `instructions` is split by a model, in sections of up to 40,000 characters cut at a heading or blank line (one call per section); each returned passage is located in its section with whitespace collapsed and its offsets in the file stored. A split in which fewer than 60% of the passages are found, or that fails, goes to the next side-call model; a split that returns no statements is accepted for a file under 300 characters or from the last model. A file already split at its current source hash is not split again; a changed file is split afresh and its earlier statements are marked `gone` (`replace_item_statements`). |
+| Evidence | `items.rs` | A correction, unmet ask, learning, answered question, session note or thread entry is not split. Its first 12 chunks are compared with the nearest statement; a match at similarity 0.60 or more marks that statement's subject changed. |
+| Embed and group | `group.rs` | Statements are embedded with the knowledge index's model key (768 dimensions). Each joins the subject of its nearest current statement in scope (its project, plus machine-wide statements) when that statement is at least the project's grouping similarity away, otherwise it starts a subject. A subject's centre is the mean of its members' vectors. Every join marks the subject changed and sets `judge_after` to now plus `settle_secs`. |
+| Judge | `subjects.rs`, `context.rs`, `answer.rs` | Takes up to `subjects_per_tick` subjects with `changed_at` set and `judge_after` passed, within `max_judgements_per_day` (counted from UTC midnight). A subject of one statement with no neighbour at 0.55 and no evidence at 0.60 is skipped without a model call. Otherwise one call sees the members, their ten nearest statements outside the subject at 0.45 or more (NEARBY) and the six nearest evidence chunks (corrections, unmet asks, learnings, answered questions, notes, thread entries, mail, mail threads, session overviews), with the operator's own words marked. Code validates the answer against the ids it sent. |
+| Decide | `decide.rs` | Code, not the model, turns the answer into actions (below). |
+| Merge check | `merge.rs` | A proposed lesson merge is accepted only when every lesson in it is active, none is retired by another action, the merged text is not longer than the lessons together, and a second call lists no instruction the merged text lacks. |
+| Apply | `execute.rs`, `apply.rs`, `files.rs` | Retires lessons, merges lessons, removes or proposes the removal of file passages, records one decision per judged statement, regroups statements the judge placed elsewhere. |
+| Measure | `measure.rs` | After a pass that judged at least one subject, writes one `memory.knowledge_consolidation_measures` row per project touched, moves that project's grouping similarity, and deletes subjects left with no members. |
+
+**What the decision step does with the answer.** A statement the judge calls `covered` by another is retired (a lesson) or removed from its file (a file statement), with verdict `covered`, only if the coverer reaches at least the sessions the covered statement reaches (`reach.rs`). A coverer reaches a lesson's sessions when it is a lesson of the same project, an always-loaded file (`CLAUDE.md` or `AGENTS.md` in a checkout, a checkout `.claude/rules` file or a machine `rules` file with no `paths:` frontmatter) that is machine-wide or of the same project, or a `claude-memory` file of the same project; it reaches a file statement's sessions when it is in the same file or an always-loaded file of the same reach. Agent definitions, skills and `agent-memory` never count as a coverer. A statement whose coverer fails that test, is itself retired, lost a conflict or is no longer current is recorded as `kept` with the coverer as counterpart and the reason. A chain of coverers resolves to its last link; a cycle resolves to the oldest statement. Two statements that conflict are settled by `decide_conflict`: the operator's typed words (a correction, unmet ask or answered question) dated after both statements, when the judge names the statement they support; otherwise the statement stated more than one day later; otherwise a hand-written file over a lesson. The loser gets verdict `superseded`. A conflict between a machine-wide statement and a project statement is never settled by these rules, and neither is a conflict whose winner was itself covered by another statement; both are recorded as `conflict_open` and nothing changes. A statement that adds a detail to another is recorded as `kept` with the other as counterpart. A statement the judge says is about another subject is recorded as `misgrouped`, leaves the subject and is grouped again, excluding the subject it left. NEARBY statements the judge relates to a member join the subject.
+
+**Settings and toggle.** All in `knowledge_settings/meta_knowledge_consolidation.rs`, group "Knowledge consolidation" on `/settings/workers`; the settings apply on the next pass.
+
+| Key | Default | Range | Meaning |
+|---|---|---|---|
+| toggle `knowledge_consolidation` | off | | Off because file text leaves the machine (below) |
+| `knowledge_consolidation.interval_secs` | 60 | 10 to 3,600 | Rest between passes |
+| `knowledge_consolidation.items_per_tick` | 8 | 1 to 64 | Items claimed per pass; each file is one split call |
+| `knowledge_consolidation.subjects_per_tick` | 4 | 1 to 32 | Subjects judged per pass |
+| `knowledge_consolidation.settle_secs` | 120 | 0 to 86,400 | Quiet time before a changed subject is judged |
+| `knowledge_consolidation.max_judgements_per_day` | 400 | 0 to 100,000 | Judge calls per UTC day |
+| `knowledge_consolidation.model` | blank (`claude/sonnet`) | text, 256 characters | The judge's model |
+| `knowledge_consolidation.grouping_similarity` | 0.70 | 0.5 to 0.95 | Starting value for a project with no measure yet |
+| `knowledge_consolidation.edit_files` | off | | Write removals into files on this machine |
+
+**Model calls and what leaves the machine.** Which provider a call reaches follows the model string, so what leaves the machine is what that model's provider receives. The calls are attributed to the `JudgeWorker` role (judge) and the `SideCall` role (split and merge check).
+
+| Call | Model | Sends |
+|---|---|---|
+| Split (`llm.rs`, `prompts/split.txt`) | The `side_call_models` list, one model at a time, each as its own single-model chain; no model buildable means no pass | The file's text, one section of up to 40,000 characters per call |
+| Judge (`prompts/judge.txt`) | `knowledge_consolidation.model`, else `claude/sonnet`; 240 s timeout; built from the steerer's OpenRouter base URL and key | The subject's statements and their nearest outside statements with carrier and date, and up to six evidence excerpts of 700 characters |
+| Merge check (`CHECK_SYSTEM` in `llm.rs`) | The `side_call_models` list as one fallback chain | The lessons' texts and the merged text |
+| Embedding | The knowledge index's embedder, with a 30 s timeout | Each statement's text |
+
+The embedder is local by default; a remote one (`allow_remote`) receives the statements. With the embedding service off the worker records "the embedding service is disabled" and does nothing.
+
+**Leader lease and the per-machine file pass.** One machine consolidates per database: `persist.holds_worker_role("knowledge_consolidation", interval)` is checked after the circuit breaker, so a machine whose models fail does not hold it. A machine without the lease reports Inert on `/api/capabilities`. Files are different, because a statement lives in a file on a particular machine. When the leader judges a subject with `edit_files` on, it edits the copies of the file on its own machine (the file itself and byte-identical twins registered to it); with `edit_files` off, or when it holds no copy, the decision is `proposed`. At the start of every pass, leader or not, a machine with `edit_files` on applies up to 50 `proposed` decisions that name a file it holds (`apply_proposed_on_machine`, `proposed_on_machine.sql`), but only files that exist once per machine: a `claude-memory` file or a file of a machine source (`rules`, `agents`, `skills`, `agent-memory` under the Claude home). A file in a git checkout is applied only by the operator through `POST .../apply` on the machine that holds it. A proposal whose statement has since gone (the file was split again) is closed as `none` with a note. An edit is written only when the bytes at the recorded offsets still equal the passage, through a temp file and rename; a mismatch marks the statement's subject changed so it is judged again. It removes the whole line when the passage is a list item or a line of its own, and stores the removed text with 48 bytes of context in the decision's `evidence`, which is what undo reinserts.
+
+**Failure handling.** Failures are transient or permanent (`llm.rs`): a schema error or an HTTP 400, 404 or 422 is permanent. A deferred item or subject waits 60 s, doubling to an hour; a permanent failure waits six hours. Three transient failures open a circuit breaker (30 s cooldown, up to 10 min) that stops the pass. `finish_run` marks the run `completed`, `partial` or `failed`.
+
+**Capability row.** `knowledge_consolidation` on `/api/capabilities` (`knowledge_consolidation/health.rs`): Off (no persistence or toggle off), Inert (toggle on but the worker has not started, or another machine holds the lease), Degraded (newest error, with what is waiting) or Active (files waiting to be split, lessons and session items waiting to be read, subjects waiting to be judged).
+
+**Inspect routes** (`api/manifest/knowledge_consolidation.rs`, handlers in `crates/mike-lessons/src/api/knowledge_consolidation.rs`; all `Coverage::Exempt`, because the `/memory` page is their reader and a session asks ask-kit instead):
+
+| Route | Does |
+|---|---|
+| `GET /api/knowledge/consolidation/subjects` | A project's subjects (`project` required; `limit`, `offset`) |
+| `GET /api/knowledge/consolidation/subjects/{id}` | One subject's statements with carrier and state |
+| `GET /api/knowledge/consolidation/decisions` | Decisions, newest first (`project` required; `subject`, `verdict` comma list, `open`, `before`, `limit`) |
+| `GET /api/knowledge/consolidation/measures` | A project's measures (`project` required; `since`, `limit`) |
+| `POST /api/knowledge/consolidation/decisions/{id}/settle` | Keep one side of an open conflict (`keep_statement_id`) |
+| `POST /api/knowledge/consolidation/decisions/{id}/undo` | Undo an applied decision |
+| `POST /api/knowledge/consolidation/decisions/{id}/apply` | Write a proposed or failed file edit on this machine |
+
 ### Reranker server (on demand, one machine serves the others)
 
 A second external process, set up by `mike setup rerank` on a Linux machine with an NVIDIA

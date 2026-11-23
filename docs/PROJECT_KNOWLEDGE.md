@@ -2,7 +2,7 @@
 title: Portable projects and project knowledge
 status: active
 created: 2026-09-20
-updated: 2026-11-15
+updated: 2026-11-20
 summary: Link checkouts on multiple machines, synchronize original documents and lessons, and retrieve project evidence through Mike MCP.
 ---
 
@@ -136,20 +136,28 @@ beside the source.
 
 ## Claude Code memory files and project skills
 
-The proxy indexes two further sources itself, with no collector run and no
-`.mike/knowledge.json` entry. A background worker (`knowledge_scan/`)
+The proxy indexes Claude Code's own guidance files itself, with no collector run
+and no `.mike/knowledge.json` entry. A background worker (`knowledge_scan/`)
 wakes every two minutes, reads this machine's identity from
 `$XDG_STATE_HOME/mike/machine.json`, and takes every `projects.locations` row
-carrying that `machine_uuid`. For each location it looks for two directories on
-the local disk:
+carrying that `machine_uuid`. For each location it looks for three places on
+the local disk (`<claude home>` is `$CLAUDE_CONFIG_DIR`, else `~/.claude`):
 
-| Source name | Directory | Files indexed |
+| Source name | Where | Files indexed |
 |---|---|---|
-| `claude-memory` | `<claude home>/projects/<root path with every non-alphanumeric character replaced by "-">/memory/` (`<claude home>` is `$CLAUDE_CONFIG_DIR`, else `~/.claude`) | every `.md` file below it except `MEMORY.md`, the index that repeats the others' descriptions |
+| `claude-memory` | `<claude home>/projects/<root path with every non-alphanumeric character replaced by "-">/memory/` | every `.md` file below it except `MEMORY.md`, the index that repeats the others' descriptions |
 | `skills` | `<location root>/.claude/skills/` | `<skill>/SKILL.md`, one level down |
+| `instructions` | the checkout itself | `CLAUDE.md`, `AGENTS.md`, `.claude/rules` and `.claude/agents` only |
+
+The same pass registers four sources that belong to the machine and to no project
+(`knowledge_scan/machine.rs`): `agents` (`<claude home>/agents/`), `rules`
+(`<claude home>/rules/` and `<claude home>/CLAUDE.md`), `skills`
+(`<claude home>/skills/`) and `agent-memory` (`<claude home>/agent-memory/`).
+In the `instructions`, `rules` and `agents` sources a file whose text starts with
+`<!-- mike-learning-generated:v1 -->` is left out.
 
 A directory that does not exist is skipped, so a location without memory or
-skills costs two directory lookups per cycle. A directory that exists is
+skills costs a few directory lookups per cycle. A directory that exists is
 registered as a knowledge source for that location and scanned completely each
 cycle: full UTF-8 text, a content hash, and the frontmatter kept in the revision
 metadata (`name`, `description`, nested `metadata.type`). The revision `kind` is
@@ -164,9 +172,11 @@ cycle: the failure is recorded in the source's health row and the earlier index
 stays. Each machine therefore indexes its own files; a second machine with the
 same project registers separate sources under its own locations.
 
-Search results carry `source_kind` `memory` or `skill` for these documents, and
-`search_project_knowledge` accepts `kind: "memory"` or `"skill"` as a filter
-(`kind: "artifact"` now means the other collected Markdown). The reference stays
+Search results carry `source_kind` `memory` or `skill` for the memory and skill
+documents, and `search_project_knowledge` accepts `kind: "memory"` or `"skill"` as
+a filter (`kind: "artifact"` now means the other collected Markdown). A document of
+the `instructions`, `rules` and `agents` sources has the default revision kind
+`instruction` unless its frontmatter sets `kind` or `type`. The reference stays
 `artifact:<revision>` and is read with `read_project_knowledge`. The existing
 embedding worker embeds the new documents with the other artifacts.
 
@@ -184,10 +194,14 @@ data. When a document already states the rule, the proposer leaves the rule empt
 and names the document in its reason; when the correction contradicts one, it
 still writes the rule and names the document so the operator sees the conflict.
 
-The rules and agent definitions of the project (`.claude/rules/*.md` and `.claude/agents/*.md`
-in a checkout this machine has registered for the project) are shown the same way, up to two,
-chosen by how many of the lesson's longer words the file contains (at least 40%); they are read
-from disk on each lookup and are not in the knowledge index or in search.
+The query above looks only at the sources `claude-memory` and `skills` (the project's
+own, and the machine's `skills`). The rules and agent definitions of the project
+(`.claude/rules/*.md` and `.claude/agents/*.md` in the first checkout this machine has
+registered for the project that has any) take a second path, `file_guidance.rs`: they are read
+from disk on each lookup and shown the same way, up to two, chosen by how many of the
+lesson's longer words the file contains (at least 40%). They are also in the knowledge index
+(the `instructions`, `rules` and `agents` sources above), so search finds them and
+consolidation compares them; the proposer does not read them from there.
 
 `memory.lesson_proposal_guidance` records, per correction and document shown, the
 document, its similarity and `cited`, which is true when the proposer's reason
@@ -208,12 +222,92 @@ FROM memory.knowledge_documents d
 JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
 JOIN projects.locations l ON l.location_uuid = s.location_uuid
 JOIN projects.projects p ON p.id = l.project_id
-WHERE s.name IN ('claude-memory', 'skills') AND d.deleted_at IS NULL
+WHERE s.name IN ('claude-memory', 'skills', 'instructions') AND d.deleted_at IS NULL
 GROUP BY 1, 2 ORDER BY 1, 2;
 ```
 
-The scanned text is the operator's own notes and skills; it reaches an outside
-model only through the lesson proposer, which is off unless `judge_lessons` is on.
+The scanned text is the operator's own notes, skills, rules and agents; it reaches an
+outside model only through the lesson proposer, which is off unless `judge_lessons` is on,
+and through knowledge consolidation, which is off unless `knowledge_consolidation` is on.
+
+## Consolidation
+
+Switch on `knowledge_consolidation` (off by default, at `/settings/workers`) and mike compares what each of your lessons, memory files, rules, agents, skills and instruction files says with all the others, one instruction at a time. A lesson that repeats a line in a memory file is retired as covered. Lessons that add to each other are merged into one. Two instructions that cannot both be followed are settled by fixed rules, or shown to you when no rule applies. Nothing is deleted: each change is a recorded decision with the text before it, and an applied decision can be undone. File text goes to a model while this runs, so read "What leaves the machine" in [`ARCHITECTURE.md`](ARCHITECTURE.md#knowledge-consolidation) before you turn it on. The mechanism, the calls and the lease are described there; this section is what you see and can do.
+
+### What happens to an item
+
+1. The embed sweep saves an item whose text changed and queues it. Items that were already indexed when the feature shipped were queued once by the migration, so the first passes cover the existing store under the per-pass budget (`items_per_tick`).
+2. **Statements.** A lesson is one statement. A file is split by a model into statements, each with the exact passage it came from; the worker checks that the passage is in the file and records where. A file that is byte-identical in several checkouts of one project (or on one machine) is split once, for the copy with the lowest item id.
+3. **Subjects.** Each statement is embedded and joins the subject of its nearest statement when that statement is similar enough, or starts a subject of its own. A subject holds statements from any carriers: a lesson and two lines of a memory file can share one. Statements from machine-wide sources (`rules`, `agents`, `agent-memory` and the machine's `skills`) are compared with every project's statements; each project's own statements are compared with that project's and the machine's.
+4. **Judgement.** Once a subject has been quiet for `settle_secs`, one model call reads all its statements, the ten nearest statements outside it and the nearest things you and sessions wrote (corrections, unmet asks, answered questions, notes, thread entries, learnings, mail and session overviews, with your own typed words marked). Code checks the answer against what was sent and decides what to do. A subject of one statement with nothing near it is not sent to the model.
+
+### What a decision can be
+
+| Verdict | Meaning | What changes |
+|---|---|---|
+| `kept` | The statement gives an instruction no other gives, adds a detail to another statement, or was found covered by a statement that does not reach as many sessions | Nothing; the relation is recorded |
+| `covered` | Another statement gives the same instruction at least as completely | The lesson is retired, or the passage is removed from the file |
+| `superseded` | It conflicts with another statement and a rule settled it | Same as `covered`, for the losing side |
+| `merged` | Its lesson was folded into an older lesson | The lesson is retired and the surviving lesson's text changes |
+| `tightened` | A statement said in far more words than needed (at least 200 characters, rewritten to at most 75% of that), or the surviving lesson of a merge, with its new text | The lesson's text, or the passage in the file; kept only when a second check finds no instruction lost |
+| `corrected` | A correction, unmet ask or answered question you typed after the statement contradicts it | The statement is rewritten to say what you now want: the lesson's text, or the passage in the file |
+| `misgrouped` | It is about a different subject | It leaves the subject and is grouped again |
+| `conflict_open` | It conflicts with another statement and no rule settles it | Nothing; it waits for you |
+
+A statement counts as covered only when the covering statement reaches at least as many sessions. A lesson is reached by a lesson of the same project, by an always-loaded file (`CLAUDE.md` or `AGENTS.md`, or a rules file with no `paths:` frontmatter) that is machine-wide or of the same project, or by a memory file of the same project. A file statement is reached by the same file or by an always-loaded file of the same reach. An agent definition, a skill or an agent-memory file never covers anything, because it is not loaded into every session; a statement it would cover stays, with the reason recorded.
+
+The rules for a conflict, in order: the statement your typed words support, when those words are newer than both statements; the statement stated more than one day later; a hand-written file over a lesson. A conflict between a machine-wide statement and a project statement is never settled by these rules and stays open. A merge of lessons is kept only when the merged text is no longer than the lessons together and a second check finds no instruction missing; otherwise the lessons stay as they are. The subject's own concise text and title are stored on the subject; they are not written back to any carrier.
+
+### What is applied to lessons and to files
+
+A retired lesson keeps its row: `retired_kind` is `consolidated`, the reason and, when a lesson replaced it, `retired_by_lesson_id` are set, and it stops being served. A merge changes the text of the oldest lesson of the group.
+
+A file is edited by removing the repeated or losing passage, or, for a correction or a tightening, by replacing the passage with the new text. By default (`knowledge_consolidation.edit_files` off) the exact passage is recorded as a decision with application `proposed` and no file is touched. With the setting on, the machine that judges removes the passage from its own copies of the file, only after checking that the bytes at the recorded place still equal the passage; a file that changed since is left alone, the decision is `failed` with the reason, and the subject is judged again. The whole line goes when the passage is a list item or a line of its own. A file that exists once per machine (a memory file, or a file under the Claude home such as `~/.claude/rules`) that another machine proposed is edited by the machine that holds it, on its next pass. A file in a git checkout waits for you: apply it from the decision (`POST .../decisions/{id}/apply`) on the machine that has the checkout. A proposal whose statement has since gone because the file changed is closed as `none`, with "the file changed before the edit was made" added to its reason. A file in a git checkout is changed only by the machine that judged it, in the working tree and uncommitted; the change reaches other machines through git.
+
+### When a file changes
+
+A new version of a file does not start over. Its statements stay where they are: the worker finds each old passage in the new text and keeps the statement, its subject and its decisions, with the new position. A statement whose passage is gone becomes `gone`, and only its subject is judged again. Only text no statement covers, at least 80 characters outside headings and frontmatter, goes to the model. A file mike itself edited comes back this way with no new statements. A long file is split in sections on heading boundaries, so every part is read. Statements left without a file for 30 minutes are marked `gone`.
+
+### Undo
+
+`POST /api/knowledge/consolidation/decisions/{id}/undo` reverses an `applied` decision from what it stored: a retired lesson is restored (only while it is still retired as consolidated), a merged lesson's text goes back to `text_before`, a corrected or tightened lesson gets its earlier text back, and a removed or replaced passage is put back where it was when the text around it is unchanged. The statement returns to `current` and the decision becomes `undone`. A merge is several decisions, each undone on its own. `POST .../decisions/{id}/settle` takes a `conflict_open` decision and the id of the statement to keep; the other is retired or removed like a `superseded` one, in a new decision from the model `operator`.
+
+### Measures
+
+After a pass that judged anything, one row per project (and one for the machine-wide statements) is written to `memory.knowledge_consolidation_measures`:
+
+| Measure | What it says |
+|---|---|
+| `statements_current` | Statements in force |
+| `subjects`, `subjects_shared` | Subjects, and those whose statements come from more than one item |
+| `conflicts_open` | Pairs still waiting for you |
+| `guidance_chars` | Characters of current statement text; the number that should fall |
+| `misgrouped_share` | Share of this run's decisions that were `misgrouped` |
+| `split_subject_share` | Share of covered statements whose coverer was found among the nearby statements, outside the subject |
+| `grouping_distance` | The grouping similarity in effect (despite the column name it is a cosine similarity, 0.62 to 0.80) |
+
+The grouping similarity is how close a statement must be to a subject to join it. A project starts at `knowledge_consolidation.grouping_similarity` (0.70). After each run it moves by 0.01: up (stricter) when more than 15% of judged members did not belong to their subject, down (looser) when more than 30% of covered statements were found outside it; when both hold, the error further over its limit wins. It stays between 0.62 and 0.80, and the latest row is the project's value.
+
+### Routes and settings
+
+| Route | Does |
+|---|---|
+| `GET /api/knowledge/consolidation/subjects?project=` | Subjects of a project |
+| `GET /api/knowledge/consolidation/subjects/{id}` | One subject with every statement, its carrier and state |
+| `GET /api/knowledge/consolidation/decisions?project=` | Decisions, newest first; filter by `subject`, `verdict`, `open=true` for open conflicts |
+| `GET /api/knowledge/consolidation/measures?project=` | The measures over time |
+
+`project` is a project id, uuid, path or name. The settings, with their defaults and ranges, are in the table in [`ARCHITECTURE.md`](ARCHITECTURE.md#knowledge-consolidation): `interval_secs` 60, `items_per_tick` 8, `subjects_per_tick` 4, `settle_secs` 120, `max_judgements_per_day` 400, `model` (blank: `claude/sonnet`), `grouping_similarity` 0.70 and `edit_files` off. The `knowledge_consolidation` row of `/api/capabilities` says whether the worker is off, waiting for another machine's lease, failing, or active, and how much is waiting.
+
+### Seeing it on /memory
+
+The Consolidation section of `/memory` (`ConsolidationSection.svelte` in `frontend/src/lib/components/memory/consolidation/`; anchor `#consolidation`; `routes/memory/+page.svelte` does not mount it yet, and `/memory/subjects/{id}` has no route yet) is built for the project chosen in its selector. From the top it shows:
+
+- the worker's status: off (with a button to `/settings/workers`), waiting for another machine's lease, failing with the newest error, or active with what is waiting;
+- open conflicts, each with a button to keep one of the two statements (`settle`);
+- the measures over 7 days, 30 days or all runs;
+- recent changes, filterable by verdict (by default the verdicts that changed something), each with the text before and after, the reason, the evidence the judge read and an Undo or Apply button where the decision allows it;
+- the project's subjects, each linking to `/memory/subjects/{id}?project=`, which lists every statement of the subject with its carrier and state.
 
 ## Knowledge kinds
 

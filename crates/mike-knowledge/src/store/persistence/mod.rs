@@ -1,4 +1,5 @@
 pub use mike_launch::store::persistence::*;
+pub mod consolidation;
 pub mod knowledge_repo;
 #[cfg(test)]
 pub mod opened_by_readers_tests;

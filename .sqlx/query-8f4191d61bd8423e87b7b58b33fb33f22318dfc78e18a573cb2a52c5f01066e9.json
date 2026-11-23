@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_items SET consolidate_at = NULL\n              WHERE id = $1 AND consolidate_at <= $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f4191d61bd8423e87b7b58b33fb33f22318dfc78e18a573cb2a52c5f01066e9"
+}

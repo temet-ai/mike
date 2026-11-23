@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # morning-report — starts the morning session after the nightly run (ExecStopPost of
-# mike-dev-nightly-tests.service). The session checks the nightly tests, Wright, the four
-# machines and overnight sessions, fixes what is stuck, and within 30 minutes writes a short
-# report in its pane, which Dawid reads in the Claude app over Remote Control.
+# mike-dev-nightly-tests.service). scripts/morning-facts collects the nightly result, the
+# four machines, Wright and the overnight sessions; the session writes a short report from
+# them in its first reply, which Dawid reads in the Claude app over Remote Control, and
+# then fixes what is stuck.
 # Brief: scripts/morning-report.md.
 set -uo pipefail
 
@@ -12,7 +13,17 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 set -a
 [[ -f "$root/.env" ]] && . "$root/.env"
 set +a
+# The facts are collected here, in seconds and with no model, so the session starts with
+# them and writes the report in its first reply.
+prompt="$root/.deploy/morning-prompt.md"
+{
+  cat "$root/scripts/morning-report.md"
+  echo
+  echo "---"
+  echo
+  "$root/scripts/morning-facts" 2>&1
+} > "$prompt"
 exec mike spawn open "$root" \
   --session-name morning-report \
-  --goal "Morning report: on screen within 30 minutes, stuck things fixed" \
-  --prompt-file "$root/scripts/morning-report.md"
+  --goal "Morning report: written at once from the collected facts, stuck things fixed" \
+  --prompt-file "$prompt"

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT memory.mark_knowledge_subjects_changed($1::bigint[], $2::timestamptz) AS \"marked!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "marked!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f4d0cdaf8e8c066c05d846caed973da12db7e60b09f924cc6633e6139e397d88"
+}

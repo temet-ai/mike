@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources SET last_heartbeat_at = now()\n             WHERE source_uuid = ANY($1)\n               AND (last_heartbeat_at IS NULL OR last_heartbeat_at < now() - interval '5 minutes')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f09bcaf1660a9c3319b5c059ef9e6d660b98f0eca7ac991ea9eb1a8b25fd94e"
+}

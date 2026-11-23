@@ -28,6 +28,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::memory_keeper::worker::spawn_memory_keeper(state);
 
+    crate::knowledge_consolidation::spawn_knowledge_consolidation(state);
+
     crate::steerer::spawn_steerer_fleet(state);
 
     crate::steerer::structural::spawn_wiring_liveness(

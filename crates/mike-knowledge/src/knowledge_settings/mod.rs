@@ -1,3 +1,4 @@
+pub mod meta_knowledge_consolidation;
 pub mod meta_knowledge_embedding;
 pub mod meta_search_ranking;
 pub mod meta_semantic;
@@ -23,6 +24,7 @@ pub fn register() {
 fn entries() -> Vec<SettingMeta> {
     let mut entries = meta_semantic::entries();
     entries.extend(meta_knowledge_embedding::entries());
+    entries.extend(meta_knowledge_consolidation::entries());
     entries.extend(meta_search_ranking::entries());
     entries
 }

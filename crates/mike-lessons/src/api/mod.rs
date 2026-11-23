@@ -1,5 +1,7 @@
 pub use mike_features::api::*;
 pub mod handlers;
+pub mod knowledge_consolidation;
+pub mod knowledge_consolidation_dto;
 pub mod lesson_delivery;
 pub mod memory_audit;
 pub mod proposals;

@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS \"statement_id!\", s.subject_id AS \"subject_id?\", s.item_id AS \"item_id!\",\n       (1 - (s.embedding <=> $2::text::public.vector))::float8 AS \"similarity!\"\n  FROM memory.knowledge_statements s\n  JOIN memory.knowledge_items i ON i.id = s.item_id\n WHERE s.state = 'current' AND (i.project_id = $1 OR i.project_id IS NULL) AND s.id <> ALL($3::bigint[])\n ORDER BY s.embedding <=> $2::text::public.vector\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "statement_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "6d45be361cf39ae1c2501a696988106af44b839100a3d0685d54013c78e09ad0"
+}

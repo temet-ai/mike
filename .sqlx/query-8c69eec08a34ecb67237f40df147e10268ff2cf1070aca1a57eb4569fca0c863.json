@@ -1,0 +1,130 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n    SELECT i.id, i.kind, i.source_id, i.project_id, i.consolidate_at, i.changed_at,\n           e.reference, e.source_hash\n      FROM memory.knowledge_items i\n      JOIN memory.knowledge_embedding_state e ON e.item_id = i.id AND e.reference IS NOT NULL\n     WHERE i.consolidate_at IS NOT NULL AND i.consolidate_at <= now() AND NOT i.needs_embedding\n     ORDER BY i.consolidate_at, i.id\n     LIMIT $1\n       FOR UPDATE OF i SKIP LOCKED\n), canon AS (\n    SELECT c.item_id, c.canonical_item_id\n      FROM memory.knowledge_twin_canonical(ARRAY(SELECT d.id FROM due d)) c\n)\nSELECT d.id AS \"item_id!\", d.kind AS \"kind!\", a.source_name AS \"source_name?\", d.project_id AS \"project_id?\",\n       d.reference AS \"reference!\",\n       CASE d.kind WHEN 'lesson' THEN l.text WHEN 'artifact' THEN r.body END AS \"body?\",\n       COALESCE(d.source_hash, r.content_hash, l.text_md5, d.changed_at::text) AS \"source_hash!\",\n       COALESCE(c.canonical_item_id, d.id) AS \"canonical_item_id!\",\n       d.consolidate_at AS \"consolidate_at!\",\n       COALESCE(l.created_at, r.observed_at, d.changed_at) AS \"stated_at!\",\n       CASE d.kind\n            WHEN 'lesson' THEN l.archived_at IS NULL AND l.retired_at IS NULL\n            WHEN 'artifact' THEN COALESCE(a.current, false)\n            ELSE true END AS \"active!\",\n       (d.kind = 'artifact' AND EXISTS (\n            SELECT 1 FROM memory.knowledge_statements x\n             WHERE x.document_uuid = r.document_uuid AND x.item_id IS NULL AND x.state <> 'gone')) AS \"detached_statements!\"\n  FROM due d\n  LEFT JOIN canon c ON c.item_id = d.id\n  LEFT JOIN memory.lessons l ON d.kind = 'lesson' AND l.id = d.source_id\n  LEFT JOIN memory.knowledge_revisions r ON d.kind = 'artifact' AND r.id = d.source_id\n  LEFT JOIN memory.knowledge_artifact_identity_v a ON d.kind = 'artifact' AND a.revision_id = d.source_id\n ORDER BY d.consolidate_at, d.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "source_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_artifact_identity_v",
+            "name": "source_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "reference"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "body?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "source_hash!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "canonical_item_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "consolidate_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "consolidate_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "stated_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "active!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "detached_statements!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      null,
+      null,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8c69eec08a34ecb67237f40df147e10268ff2cf1070aca1a57eb4569fca0c863"
+}

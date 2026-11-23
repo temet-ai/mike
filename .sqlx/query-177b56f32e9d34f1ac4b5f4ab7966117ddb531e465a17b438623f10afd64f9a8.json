@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id AS \"id!\"\n  FROM memory.knowledge_consolidation_decisions d\n  LEFT JOIN memory.knowledge_items i ON i.id = d.item_id\n  LEFT JOIN memory.knowledge_statements st ON st.id = d.statement_id\n WHERE d.application = 'proposed' AND d.carrier_reference LIKE 'artifact:%'\n   AND (d.item_id IS NULL OR d.statement_id IS NULL OR st.state = 'gone'\n        OR EXISTS (\n            SELECT 1\n              FROM memory.knowledge_artifact_twins(ARRAY[i.source_id]) t\n              JOIN memory.knowledge_items ti ON ti.id = t.twin_item_id\n              JOIN memory.knowledge_revisions r ON r.id = ti.source_id\n              JOIN memory.knowledge_documents dd ON dd.document_uuid = r.document_uuid\n              JOIN memory.knowledge_sources s ON s.source_uuid = dd.source_uuid\n              LEFT JOIN projects.locations loc ON loc.location_uuid = s.location_uuid\n             WHERE COALESCE(s.machine_uuid, loc.machine_uuid) = $1))\n ORDER BY d.id\n LIMIT $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "177b56f32e9d34f1ac4b5f4ab7966117ddb531e465a17b438623f10afd64f9a8"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT memory.queue_knowledge_consolidation(ARRAY[$1::bigint])",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "queue_knowledge_consolidation",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "08881447734244173daf90a3bcd494ec1e7ff1373c9b3e77dd16c7de108cd01e"
+}

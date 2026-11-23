@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_consolidation_decisions\n                SET application = 'none', error = NULL, reason = reason || ' (' || $2 || ')'\n              WHERE id = $1 AND application IN ('proposed', 'failed')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8d25556508d26360d94fcdd5a6b8157a1867c2477eec548344ad81d51b5464e4"
+}

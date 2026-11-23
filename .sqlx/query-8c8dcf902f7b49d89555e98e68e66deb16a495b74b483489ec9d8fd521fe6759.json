@@ -1,0 +1,236 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS \"statement_id!\", s.item_id AS \"item_id!\", s.ordinal AS \"ordinal!\", s.text AS \"text!\",\n       s.passage_start AS \"passage_start?\", s.passage_end AS \"passage_end?\",\n       COALESCE(e.reference, '') AS \"carrier_reference!\", i.kind AS \"kind!\", a.source_name AS \"source_name?\",\n       i.source_id AS \"source_id!\", i.project_id AS \"project_id?\", s.stated_at AS \"stated_at!\",\n       s.subject_id AS \"subject_id?\", s.state AS \"state!\", a.relative_path AS \"relative_path?\", a.scope AS \"scope?\",\n       left(r.body, 600) AS \"head?\",\n       s.resolved_by_statement_id AS \"resolved_by_statement_id?\",\n       CASE WHEN s.passage_start IS NOT NULL AND r.body IS NOT NULL THEN\n            convert_from(substring(convert_to(r.body, 'UTF8') FROM s.passage_start + 1\n                                   FOR s.passage_end - s.passage_start), 'UTF8') END AS \"passage?\",\n       CASE WHEN i.kind = 'lesson' THEN l.archived_at IS NULL AND l.retired_at IS NULL END AS \"lesson_active?\"\n  FROM memory.knowledge_statements s\n  JOIN memory.knowledge_items i ON i.id = s.item_id\n  LEFT JOIN memory.knowledge_embedding_state e ON e.item_id = s.item_id\n  LEFT JOIN memory.knowledge_artifact_identity_v a ON i.kind = 'artifact' AND a.revision_id = i.source_id\n  LEFT JOIN memory.knowledge_revisions r ON i.kind = 'artifact' AND r.id = i.source_id\n  LEFT JOIN memory.lessons l ON i.kind = 'lesson' AND l.id = i.source_id\n WHERE s.id = ANY($1::bigint[])\n ORDER BY s.stated_at, s.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "statement_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ordinal!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "passage_start?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "passage_start"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "passage_end?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "passage_end"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "carrier_reference!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_artifact_identity_v",
+            "name": "source_name"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "source_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "stated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "stated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "subject_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "state!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "relative_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_artifact_identity_v",
+            "name": "relative_path"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "scope?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_artifact_identity_v",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "head?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "resolved_by_statement_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_statements",
+            "name": "resolved_by_statement_id"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "passage?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 19,
+        "name": "lesson_active?",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      null,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "8c8dcf902f7b49d89555e98e68e66deb16a495b74b483489ec9d8fd521fe6759"
+}

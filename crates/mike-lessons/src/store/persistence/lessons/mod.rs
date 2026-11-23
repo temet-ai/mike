@@ -3,6 +3,9 @@ pub mod detail;
 pub mod discovery;
 pub mod harvest_runs;
 pub mod injectable;
+pub mod knowledge_consolidation;
+#[cfg(test)]
+pub mod knowledge_consolidation_tests;
 pub mod maintenance_budget;
 #[cfg(test)]
 pub mod maintenance_budget_tests;

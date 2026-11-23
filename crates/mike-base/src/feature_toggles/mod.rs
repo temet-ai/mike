@@ -116,6 +116,9 @@ pub struct FeatureToggles {
     pub memory_keeper: bool,
 
     #[serde(default)]
+    pub knowledge_consolidation: bool,
+
+    #[serde(default)]
     pub seat_memory_index: bool,
 
     #[serde(default)]
@@ -197,6 +200,7 @@ impl Default for FeatureToggles {
             code_findings_push: true,
             context_focus_question: false,
             memory_keeper: false,
+            knowledge_consolidation: false,
             seat_memory_index: false,
             wright: false,
             client_serves_self_identity: true,
@@ -292,6 +296,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "lesson_worker" => Some(toggles.lesson_worker),
         "mailbox_redelivery" => Some(toggles.mailbox_redelivery),
         "memory_keeper" => Some(toggles.memory_keeper),
+        "knowledge_consolidation" => Some(toggles.knowledge_consolidation),
         "seat_memory_index" => Some(toggles.seat_memory_index),
         "wright" => Some(toggles.wright),
         "mod_lesson_delivery" => Some(toggles.mod_lesson_delivery),
@@ -366,6 +371,7 @@ pub fn set_toggle_enabled(
         "lesson_worker" => updated.lesson_worker = enabled,
         "mailbox_redelivery" => updated.mailbox_redelivery = enabled,
         "memory_keeper" => updated.memory_keeper = enabled,
+        "knowledge_consolidation" => updated.knowledge_consolidation = enabled,
         "seat_memory_index" => updated.seat_memory_index = enabled,
         "wright" => updated.wright = enabled,
         "mod_lesson_delivery" => updated.mod_lesson_delivery = enabled,

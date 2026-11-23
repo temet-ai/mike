@@ -70,7 +70,7 @@
 	const appliesNote = $derived(applies ? toggleAppliesNote(applies) : null);
 </script>
 
-<div data-reveal>
+<div data-reveal id="worker-{name}">
 	<SectionCard
 		title={label}
 		{description}

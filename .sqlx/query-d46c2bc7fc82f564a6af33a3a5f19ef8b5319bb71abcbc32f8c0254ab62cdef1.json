@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons\n                SET retired_at = now(), retired_kind = 'consolidated', retired_reason = $2,\n                    retired_by_lesson_id = $3\n              WHERE id = $1 AND retired_at IS NULL AND archived_at IS NULL\n                AND $3::bigint IS DISTINCT FROM id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d46c2bc7fc82f564a6af33a3a5f19ef8b5319bb71abcbc32f8c0254ab62cdef1"
+}

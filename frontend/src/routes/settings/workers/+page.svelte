@@ -5,6 +5,8 @@
 	import { resolve } from '$app/paths';
 	import { onApiCacheUpdate } from '$lib/stores/cache/apiCache.svelte';
 	import WorkerCard from '$lib/components/settings/WorkerCard.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { ArrowRight } from '@lucide/svelte';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
 	import SyncStatusPanel from '$lib/components/settings/SyncStatusPanel.svelte';
 	import EvalAlarmList from '$lib/components/settings/EvalAlarmList.svelte';
@@ -281,6 +283,35 @@
 		error={rowError['harvester'] ?? null}
 		accent="info"
 	/>
+
+	{#if featureByKey.has('knowledge_consolidation')}
+		<WorkerCard
+			name="knowledge_consolidation"
+			label="Knowledge consolidation"
+			description="Compares every lesson, memory file, rule, agent, skill and instruction file statement by statement, retires what is covered, merges lessons that add to each other and settles contradictions. File text goes to the consolidation model."
+			applies={appliesFor('knowledge_consolidation')}
+			enabled={featureEnabled('knowledge_consolidation')}
+			onToggle={(v) => void handleFeatureToggle('knowledge_consolidation', v)}
+			error={rowError['knowledge_consolidation'] ?? null}
+			accent="info"
+		>
+			{@render cfg([
+				'knowledge_consolidation.interval_secs',
+				'knowledge_consolidation.items_per_tick',
+				'knowledge_consolidation.subjects_per_tick',
+				'knowledge_consolidation.settle_secs',
+				'knowledge_consolidation.max_judgements_per_day',
+				'knowledge_consolidation.model',
+				'knowledge_consolidation.grouping_similarity',
+				'knowledge_consolidation.edit_files'
+			])}
+			<div>
+				<Button variant="ghost" size="sm" href="/memory#consolidation">
+					What it changed <ArrowRight data-icon="inline-end" aria-hidden="true" />
+				</Button>
+			</div>
+		</WorkerCard>
+	{/if}
 
 	<WorkerCard
 		name="retention_sweep"

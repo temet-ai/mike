@@ -30,6 +30,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
         toggles.memory_keeper,
         &crate::memory_keeper::health::snapshot(),
     );
+    let knowledge_consolidation = knowledge_consolidation_capability(&state, toggles.knowledge_consolidation).await;
     let prompt_cache = crate::cache_breaks::health::capability(&state).await;
     let thread_protocol = crate::cache_breaks::thread_protocol::capability(&state).await;
     let thread_delta_correction =
@@ -51,11 +52,35 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
             scheduled_jobs,
             db_cost,
             memory_keeper,
+            knowledge_consolidation,
             prompt_cache,
             thread_protocol,
             thread_delta_correction,
         ],
     })
+}
+
+async fn knowledge_consolidation_capability(state: &AppState, enabled: bool) -> CapabilityRow {
+    use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+    let waiting = match state.persist() {
+        Some(persist) if enabled => persist
+            .knowledge()
+            .consolidation_backlog()
+            .await
+            .ok()
+            .map(|b| crate::knowledge_consolidation::health::Waiting {
+                files: b.files,
+                other_items: b.items - b.files,
+                subjects: b.subjects,
+            }),
+        _ => None,
+    };
+    crate::knowledge_consolidation::health::capability_row(
+        state.persist().is_some(),
+        enabled,
+        &crate::knowledge_consolidation::health::snapshot(),
+        waiting,
+    )
 }
 
 async fn steering_capability(state: &AppState, enabled: bool) -> CapabilityRow {

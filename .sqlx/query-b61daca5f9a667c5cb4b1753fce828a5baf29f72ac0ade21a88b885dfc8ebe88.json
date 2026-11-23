@@ -1,0 +1,139 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cur_stmts AS (\n    SELECT s.id, s.item_id, s.subject_id, s.text\n      FROM memory.knowledge_statements s\n      JOIN memory.knowledge_items i ON i.id = s.item_id\n     WHERE s.state = 'current' AND i.project_id IS NOT DISTINCT FROM $2::bigint\n), scoped AS (\n    SELECT k.id FROM memory.knowledge_subjects k\n     WHERE k.members > 0 AND k.project_id IS NOT DISTINCT FROM $2::bigint\n), shared AS (\n    SELECT c.subject_id FROM cur_stmts c WHERE c.subject_id IS NOT NULL\n     GROUP BY c.subject_id HAVING count(DISTINCT c.item_id) > 1\n), open_conflicts AS (\n    SELECT count(DISTINCT (LEAST(d.statement_id, d.counterpart_statement_id),\n                           GREATEST(d.statement_id, d.counterpart_statement_id))) AS n\n      FROM memory.knowledge_consolidation_decisions d\n      JOIN cur_stmts a ON a.id = d.statement_id\n      JOIN cur_stmts b ON b.id = d.counterpart_statement_id\n     WHERE d.verdict = 'conflict_open' AND d.application <> 'undone'\n), judged AS (\n    SELECT count(*) AS total, count(*) FILTER (WHERE d.verdict = 'misgrouped') AS misgrouped\n      FROM memory.knowledge_consolidation_decisions d\n     WHERE d.run_id = $1 AND d.project_id IS NOT DISTINCT FROM $2::bigint\n)\nINSERT INTO memory.knowledge_consolidation_measures\n    (run_id, project_id, statements_current, subjects, subjects_shared, conflicts_open, guidance_chars,\n     misgrouped_share, split_subject_share, grouping_distance)\nSELECT $1, $2::bigint, (SELECT count(*) FROM cur_stmts), (SELECT count(*) FROM scoped),\n       (SELECT count(*) FROM shared), (SELECT n FROM open_conflicts),\n       (SELECT COALESCE(sum(char_length(c.text)), 0) FROM cur_stmts c),\n       CASE WHEN j.total = 0 THEN 0 ELSE j.misgrouped::real / j.total END,\n       $3::real, $4::real\n  FROM judged j\nRETURNING id, measured_at, statements_current, subjects, subjects_shared, conflicts_open, guidance_chars,\n          misgrouped_share, split_subject_share, grouping_distance\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "measured_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "measured_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "statements_current",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "statements_current"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "subjects",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "subjects"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "subjects_shared",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "subjects_shared"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "conflicts_open",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "conflicts_open"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "guidance_chars",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "guidance_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "misgrouped_share",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "misgrouped_share"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "split_subject_share",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "split_subject_share"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "grouping_distance",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "grouping_distance"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Float4",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b61daca5f9a667c5cb4b1753fce828a5baf29f72ac0ade21a88b885dfc8ebe88"
+}

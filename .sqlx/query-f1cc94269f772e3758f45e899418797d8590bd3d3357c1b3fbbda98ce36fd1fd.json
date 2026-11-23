@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_statements SET split_hash = $2 WHERE item_id = $1 AND state <> 'gone'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f1cc94269f772e3758f45e899418797d8590bd3d3357c1b3fbbda98ce36fd1fd"
+}

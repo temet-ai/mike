@@ -1,0 +1,145 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT k.id AS \"id!\", k.project_id AS \"project_id?\", k.title AS \"title!\", k.text AS \"text!\", k.members AS \"members!\",\n       COALESCE(c.carriers, 0)::integer AS \"carriers!\", k.changed_at AS \"changed_at?\", k.judged_at AS \"judged_at?\",\n       d.created_at AS \"newest_decision_at?\", d.verdict AS \"newest_verdict?\", d.reason AS \"newest_reason?\"\n  FROM memory.knowledge_subjects k\n  LEFT JOIN LATERAL (\n       SELECT count(DISTINCT s.item_id) AS carriers\n         FROM memory.knowledge_statements s WHERE s.subject_id = k.id AND s.state = 'current') c ON true\n  LEFT JOIN LATERAL (\n       SELECT x.created_at, x.verdict, x.reason\n         FROM memory.knowledge_consolidation_decisions x\n        WHERE x.subject_id = k.id\n        ORDER BY x.created_at DESC, x.id DESC LIMIT 1) d ON true\n WHERE k.members > 0 AND (k.project_id = $1 OR k.project_id IS NULL)\n ORDER BY (k.changed_at IS NULL), k.judged_at DESC NULLS LAST, k.id\n LIMIT $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "members!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "members"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "carriers!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "changed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "changed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "judged_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_subjects",
+            "name": "judged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "newest_decision_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "newest_verdict?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "verdict"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "newest_reason?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_decisions",
+            "name": "reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      null,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "52fd01c1bfb6b94cb644de91b4e74ec17c66656436c81d237cb8739337a08f48"
+}

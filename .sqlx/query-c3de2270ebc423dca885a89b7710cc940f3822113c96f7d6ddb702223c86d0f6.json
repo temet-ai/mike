@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH nearest AS MATERIALIZED (\n    SELECT e.reference, e.source_kind, e.source_id, e.item_id, c.body,\n           c.embedding <=> $2::text::public.vector AS distance\n      FROM memory.knowledge_embedding_chunks c\n      JOIN memory.knowledge_embedding_state e ON e.id = c.state_id\n     WHERE e.project_id = $1 AND e.completed_at IS NOT NULL AND e.reference IS NOT NULL\n       AND e.source_kind IN ('correction', 'unmet_ask', 'learning', 'question_answer', 'note',\n                             'thread_entry', 'mail', 'thread', 'session')\n     ORDER BY c.embedding <=> $2::text::public.vector\n     LIMIT $3\n)\nSELECT n.reference AS \"reference!\", n.source_kind AS \"kind!\", n.body AS \"body!\",\n       (1 - n.distance)::float8 AS \"similarity!\",\n       COALESCE(tv.created_at, sk.generated_at, q.settled_at, q.created_at, sn.created_at, tl.created_at,\n                COALESCE(m.sent_at, m.queued_at), th.last_message_at,\n                COALESCE(ss.overview_generated_at, ss.last_seen), i.changed_at) AS \"dated_at!\"\n  FROM nearest n\n  JOIN memory.knowledge_items i ON i.id = n.item_id\n  LEFT JOIN memory.turn_verdicts tv ON n.source_kind IN ('correction', 'unmet_ask') AND tv.id = n.source_id\n  LEFT JOIN sessions.sessions ss ON n.source_kind IN ('learning', 'session') AND ss.id = n.source_id\n  LEFT JOIN memory.session_knowledge sk ON n.source_kind = 'learning' AND sk.session_id = ss.session_uuid\n  LEFT JOIN workspace.questions q ON n.source_kind = 'question_answer' AND q.id = n.source_id\n  LEFT JOIN workspace.session_notes sn ON n.source_kind = 'note' AND sn.id = n.source_id\n  LEFT JOIN work.thread_log tl ON n.source_kind = 'thread_entry' AND tl.id = n.source_id\n  LEFT JOIN mailbox.messages m ON n.source_kind = 'mail' AND m.id = n.source_id\n  LEFT JOIN mailbox.threads th ON n.source_kind = 'thread' AND th.id = n.source_id\n ORDER BY n.distance, n.reference\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "reference"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "source_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_chunks",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "dated_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "c3de2270ebc423dca885a89b7710cc940f3822113c96f7d6ddb702223c86d0f6"
+}

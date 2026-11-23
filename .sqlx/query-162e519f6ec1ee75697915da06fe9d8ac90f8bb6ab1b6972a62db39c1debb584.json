@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id AS \"item_id!\", tw.twin_item_id AS \"twin_item_id!\", e.reference AS \"reference!\"\n                 FROM memory.knowledge_items i\n                 JOIN memory.knowledge_artifact_twins(ARRAY(\n                          SELECT x.source_id FROM memory.knowledge_items x\n                           WHERE x.id = ANY($1) AND x.kind = 'artifact')) tw\n                   ON tw.revision_id = i.source_id\n                 JOIN memory.knowledge_embedding_state e ON e.item_id = tw.twin_item_id AND e.reference IS NOT NULL\n                WHERE i.id = ANY($1) AND i.kind = 'artifact'\n                ORDER BY i.id, tw.twin_item_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "twin_item_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_state",
+            "name": "reference"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true
+    ]
+  },
+  "hash": "162e519f6ec1ee75697915da06fe9d8ac90f8bb6ab1b6972a62db39c1debb584"
+}

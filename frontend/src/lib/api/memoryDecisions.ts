@@ -3,8 +3,6 @@ import { cachedGet, invalidateApiCache } from '$lib/stores/cache/apiCache.svelte
 import type { LessonDto } from '$lib/types';
 
 export type RunKind = 'session' | 'nightly' | 'gc';
-export type RunTrigger = 'schedule' | 'startup_catchup' | 'manual';
-export type RunStatus = 'running' | 'completed' | 'partial' | 'failed';
 export type ActionKind =
 	| 'promoted_to_daily'
 	| 'promoted_to_long_term'
@@ -16,18 +14,6 @@ export type ActionKind =
 export type ActionOutcome = 'applied' | 'failed' | 'skipped';
 export type DecidedBy = 'embedding_distance' | 'rank_order' | 'expiry';
 export type InjectionLane = 'primary' | 'subagent';
-
-export interface ConsolidationRun {
-	id: number;
-	uuid: string;
-	kind: RunKind;
-	trigger: RunTrigger;
-	status: RunStatus;
-	started_at: string;
-	finished_at: string | null;
-	error: string | null;
-	action_count: number;
-}
 
 export interface RunnerUp {
 	lesson_id: number;
@@ -106,27 +92,6 @@ export interface Paged<T> {
 	offset: number;
 }
 
-export interface ConsolidationRunsFilters {
-	kind?: RunKind;
-	status?: RunStatus;
-	project?: string;
-	session?: string;
-	file?: string;
-	limit?: number;
-	offset?: number;
-	[key: string]: string | number | undefined;
-}
-
-export interface MemoryDecisionsFilters {
-	project?: string;
-	session?: string;
-	file?: string;
-	action_kind?: ActionKind;
-	limit?: number;
-	offset?: number;
-	[key: string]: string | number | undefined;
-}
-
 function toQuery(params: Record<string, string | number | undefined>): string {
 	const search = new URLSearchParams();
 	for (const [key, value] of Object.entries(params)) {
@@ -135,45 +100,6 @@ function toQuery(params: Record<string, string | number | undefined>): string {
 	}
 	const qs = search.toString();
 	return qs ? `?${qs}` : '';
-}
-
-export async function getConsolidationRuns(
-	filters: ConsolidationRunsFilters = {}
-): Promise<Paged<ConsolidationRun>> {
-	const path = `/api/memory/consolidation/runs${toQuery(filters)}`;
-	return cachedGet(path, async () => {
-		const res = await fetch(path, { headers: { accept: 'application/json' } });
-		if (!res.ok) {
-			throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
-		}
-		return (await res.json()) as Paged<ConsolidationRun>;
-	});
-}
-
-export async function getConsolidationRun(
-	id: number
-): Promise<{ run: ConsolidationRun; actions: ConsolidationAction[] }> {
-	const path = `/api/memory/consolidation/runs/${id}`;
-	return cachedGet(path, async () => {
-		const res = await fetch(path, { headers: { accept: 'application/json' } });
-		if (!res.ok) {
-			throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
-		}
-		return (await res.json()) as { run: ConsolidationRun; actions: ConsolidationAction[] };
-	});
-}
-
-export async function getMemoryDecisions(
-	filters: MemoryDecisionsFilters = {}
-): Promise<Paged<ConsolidationAction>> {
-	const path = `/api/memory/decisions${toQuery(filters)}`;
-	return cachedGet(path, async () => {
-		const res = await fetch(path, { headers: { accept: 'application/json' } });
-		if (!res.ok) {
-			throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
-		}
-		return (await res.json()) as Paged<ConsolidationAction>;
-	});
 }
 
 export async function getLessonHistory(id: number): Promise<LessonHistory> {

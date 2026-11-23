@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# morning-facts — prints, in a few seconds and with no model, what the morning report is
+# written from: the nightly result, the four machines, Wright overnight and the sessions
+# that ran. scripts/morning-report runs it and hands the output to the morning session.
+# Runs on omit (the capture database's container and the ssh names are omit's).
+#
+#   morning-facts [hours]     how far back "overnight" reaches; 12 when left out
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+hours="${1:-12}"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+sql() {
+  docker exec -e PGOPTIONS='-c statement_timeout=8000 -c lock_timeout=2000' armitage-pg \
+    psql -U mike_adhoc -d claude_proxy -X -At -F ' | ' -c "$1" 2>&1
+}
+
+health='import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    print("health: no answer"); sys.exit()
+bad=[k for k,v in d.items() if isinstance(v,dict) and (v.get("status")=="degraded" or v.get("backlog_alarm") or v.get("alarm"))]
+print("health:", d.get("status"), "| build:", d.get("build",{}).get("sha_short"), "| degraded parts:", ", ".join(bad) or "none")
+for k in bad:
+    print("  ", k + ":", str(d[k].get("detail") or d[k])[:300])'
+
+machine() { # machine <name> <ssh host, or - for this machine>
+  local name=$1 host=$2 probe
+  probe="curl -s -m 5 localhost:9989/api/health | python3 -c '$health'
+echo \"failed units: \$( (systemctl --user --failed --no-legend 2>/dev/null || true) | awk '{print \$2}' | tr '\n' ' ')\"
+df -h / | awk 'NR==2 {print \"disk: \" \$4 \" free, \" \$5 \" used\"}'"
+  {
+    echo "$name"
+    if [[ $host == - ]]; then bash -c "$probe" 2>&1
+    else ssh -o BatchMode=yes -o ConnectTimeout=8 "$host" "$probe" 2>&1 || echo "ssh: no answer"
+    fi | sed 's/^/  /'
+  } > "$tmp/machine-$name"
+}
+
+machine omit - &
+machine mac mac &
+machine infra infra &
+machine deus deus &
+
+echo "# Morning facts, $(date '+%Y-%m-%d %H:%M %Z'), last $hours hours"
+echo
+echo "## Nightly tests and clippy"
+last="$(grep -a 'NIGHTLY-TESTS:' "$root/.deploy/nightly-tests.log" 2>/dev/null | tail -n 1)"
+echo "${last:-no nightly result in the log}"
+if [[ $last == *FAIL* ]]; then
+  echo "failures of that run:"
+  awk '/NIGHTLY-TESTS:/ {n=0; next}
+       /^ +(FAIL|SIGABRT|TIMEOUT) |^error(\[|:)/ {keep[n++]=$0}
+       END {for (i=0; i<n && i<40; i++) print "  " keep[i]}' "$root/.deploy/nightly-tests.log"
+fi
+echo "nightly log last written: $(date -r "$root/.deploy/nightly-tests.log" '+%Y-%m-%d %H:%M' 2>/dev/null)"
+echo
+echo "## Machines"
+git -C "$root" fetch -q origin main 2>/dev/null
+echo "main is $(git -C "$root" rev-parse --short=9 origin/main 2>/dev/null)"
+wait
+cat "$tmp"/machine-omit "$tmp"/machine-mac "$tmp"/machine-infra "$tmp"/machine-deus
+echo
+echo "## Game mode on omit (it stops mike and its database)"
+if [[ -f $HOME/.local/state/game/game.log ]]; then
+  grep -E 'Game mode is (on|off)|night check: (no game|a game is open but nobody)' \
+    "$HOME/.local/state/game/game.log" | tail -n 4
+else
+  echo "no game log"
+fi
+echo
+echo "## Wright"
+echo "day batches (day | state | rounds | gate exit | merge sha | landed):"
+sql "select day, state, rounds, gate_exit, left(coalesce(merge_sha,''),9),
+            to_char(landed_at at time zone 'Africa/Johannesburg','MM-DD HH24:MI')
+       from wright.fix_batches order by id desc limit 3"
+echo "open problems by check:"
+sql "select check_name, count(*) from wright.problems where state='open' group by 1 order by 2 desc"
+echo "open problems (id | check | what | opened | last seen):"
+sql "select id, check_name, left(resource,110),
+            to_char(opened_at at time zone 'Africa/Johannesburg','MM-DD HH24:MI'),
+            to_char(last_seen_at at time zone 'Africa/Johannesburg','MM-DD HH24:MI')
+       from wright.problems where state='open' order by opened_at desc limit 25"
+echo "engineer runs in the window (state | count | newest | reason of the newest):"
+sql "select state, count(*), to_char(max(created_at) at time zone 'Africa/Johannesburg','MM-DD HH24:MI'),
+            left(coalesce((array_agg(end_reason order by id desc))[1],''),160)
+       from wright.investigations where created_at > now() - make_interval(hours => $hours)
+      group by 1 order by 2 desc"
+echo "mike's own model calls in the window (machine | role | outcome | count):"
+sql "select coalesce(m.name,'?'), c.role, c.outcome, count(*)
+       from llm.calls c left join projects.machines m on m.machine_uuid = c.machine_uuid
+      where c.created_at > now() - make_interval(hours => $hours) and c.outcome <> 'ok'
+      group by 1,2,3 order by 4 desc limit 15"
+echo
+echo "## Sessions in the window"
+from="$(python3 -c "import datetime as d; print((d.datetime.now(d.timezone.utc)-d.timedelta(hours=$hours)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+curl -s -m 15 "localhost:9989/api/sessions?limit=200&date_from=$from" | python3 -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+except Exception:
+    print("sessions: no answer from the inspect API"); sys.exit()
+rows = [r for r in rows if (r.get("request_count") or 0) > 0]
+print(len(rows), "sessions with requests (id | machine | project | requests | last status | busy | waiting mail | last seen UTC | first prompt)")
+for r in rows:
+    prompt = " ".join((r.get("originating_operator_prompt") or r.get("title") or "").split())[:90]
+    print(" | ".join(str(x) for x in (
+        r["id"], (r.get("machine") or {}).get("name"), r.get("project") or r.get("cwd"),
+        r.get("request_count"), r.get("last_status"), r.get("busy"),
+        r.get("pending_inbox_count"), (r.get("last_seen") or "")[:16], prompt)))'

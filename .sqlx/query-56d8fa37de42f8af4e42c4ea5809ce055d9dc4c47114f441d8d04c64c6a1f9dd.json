@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH base AS (\n    SELECT COALESCE(max(s.ordinal) + 1, 0) AS next\n      FROM memory.knowledge_statements s WHERE s.item_id = $1\n), gone_own AS (\n    UPDATE memory.knowledge_statements s\n       SET state = 'gone', resolved_by_statement_id = NULL\n     WHERE s.item_id = $1 AND s.state <> 'gone'\n    RETURNING s.id, s.subject_id\n), gone_twin AS (\n    UPDATE memory.knowledge_statements s\n       SET state = 'gone', resolved_by_statement_id = NULL\n     WHERE s.state = 'current' AND s.item_id <> $1\n       AND s.item_id IN (\n           SELECT t.twin_item_id\n             FROM memory.knowledge_artifact_twins(ARRAY(\n                      SELECT i.source_id FROM memory.knowledge_items i\n                       WHERE i.id = $1 AND i.kind = 'artifact')) t)\n    RETURNING s.id, s.subject_id\n), created AS (\n    INSERT INTO memory.knowledge_statements\n        (item_id, ordinal, text, passage_start, passage_end, embedding, model_key, stated_at, split_hash)\n    SELECT $1, base.next + (e.n - 1)::integer, e.v ->> 'text',\n           (e.v ->> 'passage_start')::integer, (e.v ->> 'passage_end')::integer,\n           (e.v ->> 'embedding')::public.vector, $3::text, $4::timestamptz, $2::text\n      FROM base, jsonb_array_elements($5::jsonb) WITH ORDINALITY e(v, n)\n    RETURNING id, ordinal\n)\nSELECT 'created' AS \"outcome!\", c.id AS \"id!\", c.ordinal AS \"ordinal?\", NULL::bigint AS \"subject_id?\"\n  FROM created c\nUNION ALL\nSELECT 'gone', g.id, NULL, g.subject_id FROM gone_own g\nUNION ALL\nSELECT 'gone', g.id, NULL, g.subject_id FROM gone_twin g\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "outcome!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "ordinal?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "subject_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "56d8fa37de42f8af4e42c4ea5809ce055d9dc4c47114f441d8d04c64c6a1f9dd"
+}

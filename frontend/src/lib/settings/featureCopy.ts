@@ -143,6 +143,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'Keeps a short card for each open work thread: where it stands, what is next, blockers, the last handoff, decisions since, open promises and unmet asks. Built from the database on one machine; nothing leaves the machine. Turning it off stops the builder; turning it back on needs a restart.',
 		find: 'memory keeper thread card continue work thread'
 	},
+	knowledge_consolidation: {
+		label: 'Knowledge consolidation',
+		description:
+			'Splits each lesson, memory file, rule, agent, skill and instruction file into single statements, groups them by meaning and judges each group: a repeated statement is retired as covered, lessons that add to each other are merged, contradictions are settled, and every decision is recorded with its earlier text so it can be undone. File text goes to the consolidation model. Off by default.',
+		find: 'knowledge consolidation statements subjects covered merged contradiction lessons rules memory'
+	},
 	change_record_tail: {
 		label: 'Say what changed on answers',
 		description:

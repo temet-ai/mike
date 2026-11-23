@@ -1,0 +1,162 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.id AS \"id!\", m.run_id AS \"run_id!\", m.project_id AS \"project_id?\", m.measured_at AS \"measured_at!\",\n       m.statements_current AS \"statements_current!\", m.subjects AS \"subjects!\",\n       m.subjects_shared AS \"subjects_shared!\", m.conflicts_open AS \"conflicts_open!\",\n       m.guidance_chars AS \"guidance_chars!\", m.misgrouped_share AS \"misgrouped_share!\",\n       m.split_subject_share AS \"split_subject_share!\", m.grouping_distance AS \"grouping_distance!\"\n  FROM memory.knowledge_consolidation_measures m\n WHERE m.project_id IS NOT DISTINCT FROM $1 AND ($2::timestamptz IS NULL OR m.measured_at >= $2)\n ORDER BY m.measured_at, m.id\n LIMIT $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "measured_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "measured_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "statements_current!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "statements_current"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "subjects!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "subjects"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "subjects_shared!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "subjects_shared"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "conflicts_open!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "conflicts_open"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "guidance_chars!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "guidance_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "misgrouped_share!",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "misgrouped_share"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "split_subject_share!",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "split_subject_share"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "grouping_distance!",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_consolidation_measures",
+            "name": "grouping_distance"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "82dab78326157484fd3f7627327aaf77451d7a9b7bb3adfd5da41e9a212da016"
+}

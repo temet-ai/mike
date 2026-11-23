@@ -2,7 +2,7 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-15
+updated: 2026-11-20
 summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. The migrations are the source of truth.
 ---
 
@@ -1764,7 +1764,7 @@ History table for `overrides.overrides`. Every successful INSERT or PATCH writes
 | `memory.lesson_relation_kinds` | `supersedes`(1) `refines`(2) `recurs`(3) `contradicts`(4) |
 | `memory.lesson_relation_methods` | `declared`(1) `artifact_reference`(2) `adjudicated`(3) `operator`(4) `write_time`(5) `rewritten`(6) |
 | `memory.lesson_relation_statuses` | `proposed`(1) `confirmed`(2) `rejected`(3) `contested`(4) |
-| `memory.consolidation_run_kinds` | `session`(1) `nightly`(2) `gc`(3) |
+| `memory.consolidation_run_kinds` | `session`(1) `nightly`(2) `gc`(3) `knowledge`(4) |
 | `memory.consolidation_triggers` | `schedule`(1) `startup_catchup`(2) `manual`(3) |
 | `memory.consolidation_run_statuses` | `running`(1) `completed`(2) `partial`(3) `failed`(4) |
 | `memory.consolidation_action_kinds` | `promoted_to_daily`(1) `promoted_to_long_term`(2) `archived_duplicate`(3) `archived_trimmed`(4) `archived_expired`(5) `deleted_expired`(6) `evaluated`(7) |
@@ -2785,12 +2785,154 @@ enabled kind, each kind its own statement, when it takes the lease and then dail
 | `last_error_at` | `TIMESTAMPTZ NULL` | When `last_error` was recorded (`20261115140000`); NULL for earlier errors |
 | `model_key` | `TEXT NULL` | The embedder last tried; when the configured key differs, the sweep marks the item once |
 | `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()` | Last change; a save or failure older than this leaves the item waiting |
+| `consolidate_at` | `TIMESTAMPTZ NULL` | Knowledge consolidation queue (`20261120170000`): set by `memory.queue_knowledge_consolidation` when the item is saved with a changed source hash (`save_knowledge_embeddings`) or served from a twin; NULL = nothing to do. The migration queued every active lesson and every current file of the six guidance sources. The worker clears it only if it still holds the value it claimed. |
 
 **Indexes:**
 - `idx_knowledge_items_waiting`: `(ready_at, id) WHERE needs_embedding` — the sweep's only read
 - `idx_knowledge_items_failed`: `kind WHERE last_error IS NOT NULL`
 - `idx_knowledge_items_project`: `project_id` — the per-project health count
 - `idx_knowledge_items_kind_project`: `(kind, project_id, changed_at DESC)` (`20261115140000`) — the newest items of a kind in a project
+- `idx_knowledge_items_consolidation_waiting`: `(consolidate_at, id) WHERE consolidate_at IS NOT NULL` (`20261120170000`) — the consolidation claim
+
+---
+
+### Knowledge consolidation
+
+Added in `20261120170000_knowledge_consolidation.sql`; design in `mike-artifacts/design/2026-11-20-knowledge-consolidation.md`.
+An item queued through `memory.knowledge_items.consolidate_at` is split into statements, statements are grouped into
+subjects, a subject is judged as a group, and each judgement is a decision row. Store code:
+`crates/mike-knowledge/src/store/persistence/consolidation/` and
+`crates/mike-lessons/src/store/persistence/lessons/knowledge_consolidation.rs`.
+
+**Twins.** A file that is byte-identical (same scope, source name, relative path, title and content hash) in several
+checkouts of one project, or on one machine, is a twin group: the same identity `memory.share_twin_embeddings` uses.
+Only the lowest item id of the group (`memory.knowledge_twin_canonical`) owns statements. The other twin items have
+none; they resolve to the canonical item's statements. `memory.knowledge_artifact_twins(revision_ids)` lists twin items,
+`memory.knowledge_artifact_identity_v` carries the identity per revision. When the canonical item is deleted
+(`trg_knowledge_items_requeue_twin_heirs`) the surviving twin that becomes canonical is queued if no twin owns
+statements; replacing the canonical item's statements marks stray statements of its twins `gone`.
+
+| Object | Purpose |
+|---|---|
+| `memory.queue_knowledge_consolidation(item_ids)` | Sets `consolidate_at = clock_timestamp()`; called from `save_knowledge_embeddings` when the stored source hash changed, and by `share_twin_embeddings` |
+| `memory.refresh_knowledge_subjects(subject_ids)` | Recomputes `members` and `centre` (mean of the current members' vectors) |
+| `memory.mark_knowledge_subjects_changed(subject_ids, judge_after)` | Sets `changed_at` and moves `judge_after` later, never earlier |
+| `trg_knowledge_statements_settle_subjects` | When statements are deleted (their item is), refreshes and marks their subjects changed |
+| `memory.rehome_document_statements(item_id, body, judge_after)` | Gives a document's detached statements to its new revision's item: a statement whose passage text, read from its old revision, still occurs in the new body (in order) keeps its id, subject, state and embedding and gets the new offsets; the others become `gone`; returns the byte ranges of the new body no statement covers. Store method `rehome_document_statements`; the worker does not call it at this commit |
+| `memory.sweep_detached_knowledge_statements(older_than, judge_after)` | Marks statements detached for longer than `older_than` `gone`. Store method `sweep_detached_statements` (30-minute grace); the worker does not call it at this commit |
+| `trg_knowledge_documents_gone_statements` (update of `deleted_at`, and delete) | Marks a deleted document's detached statements `gone` |
+
+### `memory.knowledge_subjects`
+
+A group of statements about the same thing, from any carriers.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE; NULL is the machine-wide scope |
+| `centre` | `vector(768) NOT NULL` | Mean of the current members' vectors; an empty subject keeps its last centre |
+| `title`, `text` | `TEXT NOT NULL DEFAULT ''` | The concise text for the subject; empty until judged |
+| `members` | `INTEGER NOT NULL DEFAULT 0` | Current statements |
+| `changed_at`, `judge_after` | `TIMESTAMPTZ NULL` | Both NULL (judged, unchanged) or both set (CHECK); `judge_after` is the earliest judging time |
+| `judged_at` | `TIMESTAMPTZ NULL` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:** `idx_knowledge_subjects_project` `(project_id)`; `idx_knowledge_subjects_due` `(judge_after, id) WHERE changed_at IS NOT NULL`;
+`idx_knowledge_subjects_centre` HNSW `vector_cosine_ops` (m 16, ef_construction 64).
+
+---
+
+### `memory.knowledge_statements`
+
+One instruction or fact held by an item: a lesson is one statement, a file is split into several.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `item_id` | `BIGINT NULL` | FK → `memory.knowledge_items(id)` ON DELETE CASCADE; UNIQUE with `ordinal`. NULL only while the statement is detached (CHECK: `item_id` or `detached_at` is set) |
+| `document_uuid`, `revision_id` | `UUID NULL`, `BIGINT NULL` | FKs → `memory.knowledge_documents`, `memory.knowledge_revisions` ON DELETE SET NULL. The file and the revision whose body `passage_start`/`passage_end` index (byte offsets); filled on insert by `trg_knowledge_statements_fill_document`; NULL for lessons |
+| `detached_at` | `TIMESTAMPTZ NULL` | Set when the file item was deleted because its document moved to a newer revision (`trg_knowledge_items_detach_statements`): the statements keep their subject and state with `item_id` NULL so the new revision can claim them |
+| `ordinal` | `INTEGER NOT NULL` | Position; a re-split numbers the new rows after the old ones |
+| `text` | `TEXT NOT NULL` | |
+| `passage_start`, `passage_end` | `INTEGER NULL` | Byte offsets of the source passage in the revision's body; NULL for lessons; both or neither (CHECK) |
+| `embedding` | `vector(768) NOT NULL` | |
+| `model_key` | `TEXT NOT NULL` | The embedder |
+| `subject_id` | `BIGINT NULL` | FK → `memory.knowledge_subjects(id)` ON DELETE SET NULL |
+| `state` | `TEXT NOT NULL DEFAULT 'current'` | FK → `memory.knowledge_statement_states(code)`: `current` `covered` `superseded` `merged` `gone` |
+| `resolved_by_statement_id` | `BIGINT NULL` | FK → self ON DELETE SET NULL; only for `covered`, `superseded`, `merged` (CHECK) |
+| `stated_at` | `TIMESTAMPTZ NOT NULL` | The carrier's date |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `split_hash` | `TEXT NOT NULL` | The item's source hash when it was split; not indexed |
+
+**Statements survive a new revision of their file.** When a file item is deleted because its document is still live and
+has moved on, its non-`gone` statements are detached (`item_id` NULL, `detached_at` set, subjects untouched) instead of
+cascading. Every read joins the item, so detached statements are not returned by `nearest_statements`, subject loads or the
+measures; subject `members` and `centre` still count them until they are re-homed or gone. When the claim of the new
+revision's item reports `detached_statements`, the worker calls `rehome_document_statements(item, body, judge_after)`
+(`memory.rehome_document_statements`): in document order each detached statement's passage text (read from its `revision_id`
+body, bytes, whitespace-exact) is searched for in the new body, first occurrence at or after the previous match. A hit moves
+the statement to the new item with new offsets and an ordinal after the item's highest, keeping id, subject, state,
+`stated_at`, embedding and text; a miss makes it `gone` and marks its subject changed. The result lists the re-homed ids with
+their ranges, the gone count and the uncovered byte ranges of the body. `memory.sweep_detached_knowledge_statements` marks
+statements detached for more than 30 minutes gone (subjects changed). Deleting a document or setting its `deleted_at`
+(`trg_knowledge_documents_gone_statements*`) makes its detached statements gone and marks their subjects changed; an item
+that goes with its document, and lesson items, still cascade their statements away.
+
+**Indexes:** `idx_knowledge_statements_subject` `(subject_id)`; `idx_knowledge_statements_document` `(document_uuid)`, `idx_knowledge_statements_revision` `(revision_id)` and `idx_knowledge_statements_detached` `(detached_at) WHERE item_id IS NULL AND state <> 'gone'`; `idx_knowledge_statements_resolved_by` `(resolved_by_statement_id) WHERE NOT NULL`;
+`idx_knowledge_statements_embedding` HNSW `vector_cosine_ops` (m 16, ef_construction 64) `WHERE state = 'current'`.
+Nearest-statement reads run with `hnsw.iterative_scan = relaxed_order` (`set_vector_scan_limits`) because the project filter is applied after the index scan.
+
+---
+
+### `memory.knowledge_consolidation_decisions`
+
+One row per judged statement. Survives the statement, item and subject it names (their ids become NULL); `carrier_reference`
+and the texts remain, so a change can be undone from `text_before`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `run_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_runs(id)` ON DELETE CASCADE (run kind `knowledge`) |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE; NULL is machine-wide |
+| `subject_id`, `statement_id`, `item_id`, `counterpart_statement_id` | `BIGINT NULL` | FKs to subjects, statements, items, statements, each ON DELETE SET NULL |
+| `carrier_reference`, `counterpart_reference` | `TEXT` | The carrier's reference (NOT NULL), the counterpart's (NULL) |
+| `verdict` | `TEXT NOT NULL` | FK → `memory.knowledge_decision_verdicts(code)`: `kept` `covered` `superseded` `merged` `tightened` `misgrouped` `conflict_open` |
+| `text_before`, `text_after` | `TEXT` | NOT NULL, NULL |
+| `reason` | `TEXT NOT NULL` | |
+| `evidence` | `JSONB NOT NULL DEFAULT '[]'` | The chunks read; not filtered or joined on |
+| `model` | `TEXT NOT NULL` | |
+| `application` | `TEXT NOT NULL DEFAULT 'none'` | FK → `memory.knowledge_decision_applications(code)`: `applied` `proposed` `failed` `undone` `none` |
+| `applied_at`, `error` | `TIMESTAMPTZ`, `TEXT` NULL | `applied` needs `applied_at`; `error` is set exactly when `application = 'failed'` (CHECKs) |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:** `(project_id, created_at DESC, id DESC)`, `(subject_id, created_at DESC, id DESC)`, and one on each other FK column.
+
+---
+
+### `memory.knowledge_consolidation_measures`
+
+One row per project (NULL: machine-wide) per `knowledge` run, from `record_consolidation_measure`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `run_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_runs(id)` ON DELETE CASCADE |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
+| `measured_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `statements_current` | `INTEGER NOT NULL` | Current statements of items in the project |
+| `subjects` | `INTEGER NOT NULL` | Subjects with members |
+| `subjects_shared` | `INTEGER NOT NULL` | Subjects whose current statements come from more than one item |
+| `conflicts_open` | `INTEGER NOT NULL` | Distinct `conflict_open` pairs whose two statements are both still current and not undone |
+| `guidance_chars` | `BIGINT NOT NULL` | Characters of current statement text |
+| `misgrouped_share` | `REAL NOT NULL` | This run's `misgrouped` decisions over its decisions |
+| `split_subject_share` | `REAL NOT NULL` | Supplied by the worker: the share of this run's covered statements whose coverer was found among the nearby statements outside the subject (a subject split too tight) |
+| `grouping_distance` | `REAL NOT NULL` | The grouping similarity in effect for the project (the worker stores a cosine similarity between 0.62 and 0.80 here, although the CHECK allows 0 to 2); the latest row is the project's current value |
+
+**Indexes:** `(project_id, measured_at DESC, id DESC)`, `(run_id)`.
+
+Lookup tables with a text `code` primary key (referenced by FK, so reads see the words): `memory.knowledge_statement_states`,
+`memory.knowledge_decision_verdicts`, `memory.knowledge_decision_applications`. `memory.lessons.retired_kind` also accepts
+`consolidated`.
 
 ---
 

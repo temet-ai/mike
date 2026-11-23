@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM memory.knowledge_items\n                        WHERE consolidate_at IS NOT NULL AND consolidate_at <= now() AND NOT needs_embedding) AS \"items!\",\n                      (SELECT count(*) FROM memory.knowledge_subjects\n                        WHERE changed_at IS NOT NULL AND judge_after <= now() AND members > 0) AS \"subjects!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "items!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subjects!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "9646082f21ceef6bb758523fcf34d4cae4a394516ed74bf10bda203b3490f029"
+}

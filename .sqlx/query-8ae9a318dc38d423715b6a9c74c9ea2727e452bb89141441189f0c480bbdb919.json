@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"n!\" FROM (\n                   SELECT DISTINCT run_id, subject_id\n                     FROM memory.knowledge_consolidation_decisions\n                    WHERE created_at >= $1 AND subject_id IS NOT NULL) x",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8ae9a318dc38d423715b6a9c74c9ea2727e452bb89141441189f0c480bbdb919"
+}

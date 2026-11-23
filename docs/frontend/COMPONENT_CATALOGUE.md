@@ -104,7 +104,8 @@ A releases `app.css` from its own current allowlist.
 - `frontend/src/lib/components/memory/DecisionActionCard.svelte`
 - `frontend/src/lib/components/memory/LessonOutcomeRow.svelte`
 - `frontend/src/lib/components/memory/LessonRelationCard.svelte`
-- `frontend/src/lib/components/memory/RunsStrip.svelte`
+- `frontend/src/lib/components/memory/consolidation/ConsolidationSection.svelte`
+- `frontend/src/lib/components/ui/trend-chart/trend-chart.svelte`
 - `frontend/src/lib/components/projects/ProjectDetailPanel.svelte`
 - `frontend/src/lib/components/prompts/BlockCard.svelte`
 - `frontend/src/lib/components/prompts/PromptCatalogueRow.svelte`
@@ -535,8 +536,8 @@ content — none is a subset or superset of another's cells.
 - `frontend/src/lib/components/improvement/ImprovementStrip.svelte` — keep: the summary strip on What the judge did (counts waiting on you, each selecting its tab; last-7-days lessons and nudges; corrected share last week), modelled on the Sessions orientation strip; not per-request metric cells.
 - `frontend/src/lib/components/home/PulseStrip.svelte` — Home's single live status line
   (ONLINE/uptime/request count/stream count + an oscilloscope trace), not per-request metric cells.
-- `frontend/src/lib/components/memory/RunsStrip.svelte` — a small "did it run" facts strip
-  (last session / nightly / GC pass) for `/memory`; deliberately never shows counts.
+- `frontend/src/lib/components/ui/trend-chart/trend-chart.svelte` — a measure over runs: label, newest value,
+  change since the window's first run as text, a step line with both y ends labelled; bind `pointAt` across a group.
 - `frontend/src/lib/components/prompts/PromptKpiStrip.svelte` — a 4-cell KPI strip specific to the
   `/prompts` list page (Registered / Shapes observed / Unregistered / Drifted).
 - `frontend/src/lib/components/live/HealthStrip.svelte` — no current importers outside its own

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons SET text = $2\n              WHERE id = $1 AND archived_at IS NULL AND btrim($2) <> ''\n             RETURNING revision",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "revision"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "31c97a0bf3acec25b549569352df8659909221f5aa9fd71cc55cd7cde412baaf"
+}
