@@ -50,6 +50,22 @@ impl ReplyStreams {
         )
     }
 
+    pub fn has_open(&self) -> bool {
+        self.0.iter().any(|entry| !entry.sender.is_closed())
+    }
+
+    /// The channels this process holds an open reply stream for, sorted.
+    pub fn open_ids(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self
+            .0
+            .iter()
+            .filter(|entry| !entry.sender.is_closed())
+            .map(|entry| entry.key().clone())
+            .collect();
+        ids.sort();
+        ids
+    }
+
     pub fn sender(&self, cse_id: &str) -> Option<mpsc::Sender<PendingFrame>> {
         self.0
             .get(cse_id)

@@ -1,6 +1,6 @@
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use std::collections::HashSet;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
@@ -45,14 +45,59 @@ pub fn spawn_repush_for_stream(state: &AppState, cse_id: String) {
 async fn run(deps: PushDeps, shutdown: CancellationToken) {
     let mut ticker = interval(SWEEP_INTERVAL);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    let mut unreachable = Unreachable::default();
     loop {
         tokio::select! {
             () = shutdown.cancelled() => return,
             _ = ticker.tick() => {
-                repush_pending(&deps, None).await;
+                sweep_once(&deps, &mut unreachable).await;
             }
         }
     }
+}
+
+/// How long the sweep trusts that waiting sessions still have no reachable
+/// stream while neither the sessions nor the open streams change.
+const UNREACHABLE_BACKSTOP: Duration = Duration::from_secs(600);
+
+/// The waiting sessions and open streams of the last sweep that found no
+/// waiting session behind an open stream. Until either set changes, asking
+/// the database again finds the same nothing.
+#[derive(Default)]
+struct Unreachable {
+    key: Option<(Vec<Uuid>, Vec<String>)>,
+    at: Option<Instant>,
+}
+
+impl Unreachable {
+    fn still(&self, key: &(Vec<Uuid>, Vec<String>), now: Instant) -> bool {
+        self.key.as_ref() == Some(key)
+            && self
+                .at
+                .is_some_and(|at| now.duration_since(at) < UNREACHABLE_BACKSTOP)
+    }
+
+    fn note(&mut self, key: Option<(Vec<Uuid>, Vec<String>)>, now: Instant) {
+        self.at = key.as_ref().map(|_| now);
+        self.key = key;
+    }
+}
+
+async fn sweep_once(deps: &PushDeps, unreachable: &mut Unreachable) -> usize {
+    let mut candidates = wakeable_sessions(deps).await;
+    let streams = deps.remote_control_streams.open_ids();
+    if candidates.is_empty() || streams.is_empty() {
+        unreachable.note(None, Instant::now());
+        return 0;
+    }
+    candidates.sort();
+    let key = (candidates, streams);
+    if unreachable.still(&key, Instant::now()) {
+        return 0;
+    }
+    let recipients = recipients_with_stream(deps, &key.0, None).await;
+    unreachable.note(recipients.is_empty().then_some(key), Instant::now());
+    push_all(deps, recipients).await
 }
 
 pub async fn repush_pending(deps: &PushDeps, cse_id: Option<&str>) -> usize {
@@ -60,8 +105,16 @@ pub async fn repush_pending(deps: &PushDeps, cse_id: Option<&str>) -> usize {
     if candidates.is_empty() {
         return 0;
     }
+    push_all(
+        deps,
+        recipients_with_stream(deps, &candidates, cse_id).await,
+    )
+    .await
+}
+
+async fn push_all(deps: &PushDeps, recipients: Vec<Uuid>) -> usize {
     let mut pushed = 0;
-    for recipient in recipients_with_stream(deps, &candidates, cse_id).await {
+    for recipient in recipients {
         pushed += repush_session(deps, recipient).await;
     }
     pushed
@@ -167,5 +220,44 @@ fn log_pushed(recipient: Uuid, pushed: usize) {
             pushed,
             "remote control: pushed queued reminders once the session's stream was available"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn key(session: u128, stream: &str) -> (Vec<Uuid>, Vec<String>) {
+        (vec![Uuid::from_u128(session)], vec![stream.to_owned()])
+    }
+
+    #[test]
+    fn an_unreachable_sweep_is_not_asked_again_until_something_changes() {
+        let now = Instant::now();
+        let mut unreachable = Unreachable::default();
+        assert!(!unreachable.still(&key(1, "cse_a"), now));
+        unreachable.note(Some(key(1, "cse_a")), now);
+        assert!(unreachable.still(&key(1, "cse_a"), now));
+        assert!(
+            !unreachable.still(&key(2, "cse_a"), now),
+            "a new waiting session asks again"
+        );
+        assert!(
+            !unreachable.still(&key(1, "cse_b"), now),
+            "a new stream asks again"
+        );
+        assert!(
+            !unreachable.still(&key(1, "cse_a"), now + UNREACHABLE_BACKSTOP),
+            "the backstop asks again"
+        );
+    }
+
+    #[test]
+    fn a_sweep_that_reached_someone_is_not_kept() {
+        let now = Instant::now();
+        let mut unreachable = Unreachable::default();
+        unreachable.note(Some(key(1, "cse_a")), now);
+        unreachable.note(None, now);
+        assert!(!unreachable.still(&key(1, "cse_a"), now));
     }
 }

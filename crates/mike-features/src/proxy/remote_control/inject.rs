@@ -135,6 +135,9 @@ async fn push_reminder(
     if !deps.gate.admit(&session_id, reminder).may_wake() {
         return Ok(not_pushed(recipient, &source, "wake_not_admitted"));
     }
+    if !deps.remote_control_streams.has_open() {
+        return Ok(not_pushed(recipient, &source, "no_stream"));
+    }
     let mut channels = handle.proxy().fetch_channel_snapshots(&[recipient]).await?;
     channels.sort_by_key(|channel| std::cmp::Reverse(channel.stream_opened_at));
     let Some((channel, sender)) = channels.iter().find_map(|channel| {
