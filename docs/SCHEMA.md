@@ -2440,12 +2440,17 @@ set by time without a write), `lessons/vectors.rs` (`lessons`) and `project_know
 Seeded rows: `lessons`, `session_projects`; `thread_cards` and `thread_card_sources` are added by
 `20261109170000_thread_cards.sql`. `thread_card_sources` is read every 10 s by the memory-keeper card
 worker (`store/persistence/work_threads/cards/scan.rs`); `thread_cards` tells each machine's card
-snapshot to reload.
+snapshot to reload. `skill_installs` and `agents` are added by
+`20261123090000_skill_installs_and_agents_generations.sql`: the lesson worker keeps the topic-withheld
+lesson ids (`lessons`, `skill_installs`, `agents`) and the agent alias map (`agents`) until one of those
+rows moves (`PersistHandle::kept_while_named_generations_hold`, `generation_memo.rs`).
 
 **Triggers that bump it:**
 - `lessons`: `trg_lessons_change_generation`/`_upd` on `memory.lessons`, `trg_lesson_relations_change_generation`/`_upd` on `memory.lesson_relations`, `trg_lesson_shape_findings_change_generation`/`_upd` on `memory.lesson_shape_findings`
 - `lessons` and `session_projects`: `trg_projects_path_change_generation`/`_upd` on `projects.projects` (insert, delete, change of `project_path`)
 - `session_projects`: `trg_sessions_project_change_generation`/`_del`/`_upd` on `sessions.sessions` (rows with a `location_uuid` or `project_resolution = 'operator'`; updates of `project_id`, `location_uuid`, `project_resolution`)
+- `skill_installs`: `trg_skill_installs_change_generation`/`_upd` on `memory.skill_installs` (insert, delete, a change of `project_id`, `folder`, `lesson_watermark` or `retired_at`)
+- `agents`: `trg_agents_change_generation`/`_upd` on `agents.agents` (insert, delete, a change of `name`, `persona_aliases` or `name_variants`)
 - `thread_cards`: `trg_thread_cards_change_generation`/`_upd` on `work.thread_cards` (insert, delete, and an update that changes `card`, `text`, `content_hash` or `refs`; advancing `source_max_at` or `built_at` alone does not bump it)
 - `thread_card_sources`: `trg_thread_card_candidates_card_sources` on `work.thread_card_candidates` (insert or delete, once per statement), `trg_threads_card_sources`/`_upd` on `work.threads` (any change), `trg_thread_state_card_sources`/`_upd` on `work.thread_state` (the state fields, `files` and `updated_at`; not the embedding columns), `trg_thread_log_card_sources`/`_upd` on `work.thread_log` (any change), `trg_thread_sessions_card_sources`/`_upd` on `work.thread_sessions` (insert, delete, a change of `contribution`; not `last_seen_at`)
 

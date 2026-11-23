@@ -137,6 +137,11 @@ impl ChangeFeed {
     pub fn observe(&self, event: &ProxyEvent) {
         match event {
             ProxyEvent::RowChanged {
+                table: RowChangedTable::ChangeGenerations,
+                id,
+                ..
+            } => self.record(RowChangedTable::ChangeGenerations, Some(id)),
+            ProxyEvent::RowChanged {
                 table, session_id, ..
             } => self.record(*table, session_id.as_deref()),
             ProxyEvent::ResyncRequired { .. } => self.resync(),

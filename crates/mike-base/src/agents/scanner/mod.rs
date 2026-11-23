@@ -207,25 +207,6 @@ async fn upsert_resolved_personas(
     Ok(())
 }
 
-fn log_one_alternate_identity(alias: &crate::store::persistence::agents::AgentAlias) {
-    tracing::trace!(
-        alias = %alias.alias,
-        agent_id = alias.agent_id,
-        kind = %alias.kind,
-        "agent alternate identity"
-    );
-}
-
-fn log_alternate_identities(aliases: &[crate::store::persistence::agents::AgentAlias]) {
-    for alias in aliases {
-        log_one_alternate_identity(alias);
-    }
-    tracing::debug!(
-        alias_count = aliases.len(),
-        "agent alternate identities after disk scan"
-    );
-}
-
 async fn seed_persona_aliases(
     persist: &PersistHandle,
     personas: &std::collections::BTreeMap<String, String>,
@@ -235,11 +216,7 @@ async fn seed_persona_aliases(
     }
     let persona_names: Vec<String> = personas.keys().cloned().collect();
     let ids = persist.fetch_agent_ids_by_names(&persona_names).await?;
-    upsert_resolved_personas(persist, personas, ids).await?;
-
-    let aliases = persist.fetch_alias_map().await?;
-    log_alternate_identities(&aliases);
-    Ok(())
+    upsert_resolved_personas(persist, personas, ids).await
 }
 
 pub async fn scan_dirs(

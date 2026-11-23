@@ -2,6 +2,7 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::{HashMap, HashSet};
 
 use crate::store::persistence::agents::AgentAlias;
+use crate::store::persistence::generation_memo::NamedGenerations;
 use crate::store::persistence::lessons::{ChangeMark, InjectableLessonRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -73,11 +74,26 @@ fn merge_legacy_aliases(by_project: &mut HashMap<String, Vec<InjectableLesson>>)
     }
 }
 
+struct AgentAliases;
+
+impl NamedGenerations for AgentAliases {
+    const NAMES: &'static [&'static str] = &["agents"];
+}
+
+struct TopicWithheld;
+
+impl NamedGenerations for TopicWithheld {
+    const NAMES: &'static [&'static str] = &["lessons", "skill_installs", "agents"];
+}
+
 pub async fn load_persona_alias_map(
     persist: &PersistHandle,
 ) -> Result<HashMap<String, i64>, PersistError> {
-    let aliases = persist.fetch_resolution_map().await?;
-    Ok(persona_alias_map_from_rows(aliases))
+    persist
+        .kept_while_named_generations_hold::<AgentAliases, _, _, _>(|| async {
+            Ok(persona_alias_map_from_rows(persist.fetch_resolution_map().await?))
+        })
+        .await
 }
 
 fn persona_alias_map_from_rows(aliases: Vec<AgentAlias>) -> HashMap<String, i64> {
@@ -91,9 +107,13 @@ fn persona_alias_map_from_rows(aliases: Vec<AgentAlias>) -> HashMap<String, i64>
 }
 
 pub async fn load_topic_withheld(persist: &PersistHandle) -> Result<HashSet<i64>, PersistError> {
-    let ids = persist
-        .lessons()
-        .list_topic_lessons_withheld_from_content()
-        .await?;
-    Ok(ids.into_iter().collect())
+    persist
+        .kept_while_named_generations_hold::<TopicWithheld, _, _, _>(|| async {
+            let ids = persist
+                .lessons()
+                .list_topic_lessons_withheld_from_content()
+                .await?;
+            Ok(ids.into_iter().collect())
+        })
+        .await
 }

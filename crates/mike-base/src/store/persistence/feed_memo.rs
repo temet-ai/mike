@@ -33,14 +33,20 @@ pub struct Ticket {
 
 pub struct Memo<V> {
     scope: Scope,
+    names: &'static [&'static str],
     revision: AtomicU64,
     entries: DashMap<Uuid, (Vec<Generation>, V)>,
 }
 
 impl<V> Memo<V> {
     pub fn new(scope: Scope) -> Self {
+        Self::keyed_by(scope, &[])
+    }
+
+    pub fn keyed_by(scope: Scope, names: &'static [&'static str]) -> Self {
         Self {
             scope,
+            names,
             revision: AtomicU64::new(0),
             entries: DashMap::new(),
         }
@@ -59,10 +65,15 @@ pub struct Bound<'a, V> {
 
 impl<V: Clone> Bound<'_, V> {
     fn stamp(&self, session: Uuid) -> Vec<Generation> {
+        let keys: Vec<String> = if self.memo.names.is_empty() {
+            vec![session.to_string()]
+        } else {
+            self.memo.names.iter().map(|name| (*name).to_owned()).collect()
+        };
         self.feed.generations(
             self.memo.scope.tables,
             self.memo.scope.per_session,
-            &[session.to_string()],
+            &keys,
         )
     }
 

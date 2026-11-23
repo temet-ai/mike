@@ -24,7 +24,56 @@ impl<V, Tag> Default for GenerationMemo<V, Tag> {
     }
 }
 
+pub trait NamedGenerations: 'static {
+    const NAMES: &'static [&'static str];
+}
+
+pub struct NamedGenerationMemo<V, Tag> {
+    memo: Memo<V>,
+    tag: PhantomData<fn() -> Tag>,
+}
+
+impl<V, Tag: NamedGenerations> Default for NamedGenerationMemo<V, Tag> {
+    fn default() -> Self {
+        Self {
+            memo: Memo::keyed_by(
+                Scope {
+                    tables: &[],
+                    per_session: &[RowChangedTable::ChangeGenerations],
+                },
+                Tag::NAMES,
+            ),
+            tag: PhantomData,
+        }
+    }
+}
+
 impl PersistHandle {
+    pub async fn kept_while_named_generations_hold<Tag, V, E, Fut>(
+        &self,
+        read: impl FnOnce() -> Fut,
+    ) -> Result<V, E>
+    where
+        Tag: NamedGenerations,
+        V: Clone + Send + Sync + 'static,
+        Fut: Future<Output = Result<V, E>>,
+    {
+        let slot = self.memo::<NamedGenerationMemo<V, Tag>>();
+        let bound = self
+            .feed_memos
+            .fed_feed()
+            .and(self.feed_memos.bound(&slot.memo));
+        if let Some(kept) = bound.as_ref().and_then(|memo| memo.get(Uuid::nil())) {
+            return Ok(kept);
+        }
+        let ticket = bound.as_ref().map(|memo| memo.ticket());
+        let value = read().await?;
+        if let (Some(memo), Some(ticket)) = (bound, ticket) {
+            memo.remember(Uuid::nil(), ticket, value.clone());
+        }
+        Ok(value)
+    }
+
     pub async fn kept_generation<Tag, V, E, Fut>(&self, read: impl FnOnce() -> Fut) -> Result<V, E>
     where
         Tag: 'static,
