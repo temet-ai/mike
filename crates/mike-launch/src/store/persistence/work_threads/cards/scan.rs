@@ -1,8 +1,17 @@
 use super::super::WorkThreadError;
 use super::DirtyThread;
 
+struct ThreadCardSources;
+
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn thread_card_sources_generation(self) -> Result<i64, WorkThreadError> {
+        self.kept_generation::<ThreadCardSources, _, _, _>(|| {
+            self.read_thread_card_sources_generation()
+        })
+        .await
+    }
+
+    async fn read_thread_card_sources_generation(self) -> Result<i64, WorkThreadError> {
         let generation = crate::metrics::time_db("thread_card_sources_generation", async move {
             sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"

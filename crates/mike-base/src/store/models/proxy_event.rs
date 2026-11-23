@@ -36,6 +36,9 @@ pub enum RowChangedTable {
     WrightRepairs,
     WrightFollowups,
     SteeringEnrolments,
+    ChangeGenerations,
+    WrightCheckRuns,
+    WrightProblems,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

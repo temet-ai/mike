@@ -9,6 +9,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::feature_toggles::FeatureToggles;
 use crate::state::AppState;
+use crate::store::models::RowChangedTable;
+use crate::store::persistence::PersistError;
 
 pub(crate) mod dispatch;
 pub(crate) mod filter_rule;
@@ -157,8 +159,18 @@ async fn run_loop(
     }
 }
 
+async fn latest_check_run(owners: &Owners) -> Result<Option<i64>, PersistError> {
+    if let Some(feed) = owners.persist.feed_memos.fed_feed() {
+        let runs = feed.generations(&[RowChangedTable::WrightCheckRuns], &[], &[]);
+        return Ok(runs
+            .first()
+            .map(|run| i64::try_from(*run).unwrap_or(i64::MAX)));
+    }
+    owners.persist.web().latest_wright_check_run().await
+}
+
 async fn tick(owners: &Owners, wake: &mut Wake) {
-    let latest = match owners.persist.web().latest_wright_check_run().await {
+    let latest = match latest_check_run(owners).await {
         Ok(latest) => latest,
         Err(e) => return log_latest_failed(&e),
     };

@@ -3,8 +3,17 @@ use crate::store::persistence::PersistError;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+struct SessionProjects;
+
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
     pub async fn lesson_session_projects_fingerprint(self) -> Result<ChangeMark, PersistError> {
+        self.kept_generation::<SessionProjects, _, _, _>(|| {
+            self.read_lesson_session_projects_fingerprint()
+        })
+        .await
+    }
+
+    async fn read_lesson_session_projects_fingerprint(self) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("lesson_session_projects_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
                 ChangeMark,

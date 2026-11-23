@@ -40,3 +40,39 @@ fn every_action_code_round_trips_and_only_reversible_ones_have_an_undo() {
     assert_eq!(undoable, ["set_setting", "disable_filter_rule"]);
     assert_eq!(Action::from_code("restart_proxy"), None);
 }
+
+fn fed_owners() -> anyhow::Result<(super::Owners, crate::change_feed::ChangeFeed)> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://127.0.0.1:1/remedies_wake_fixture")?;
+    let persist = crate::store::persistence::PersistHandle::from_pools(
+        crate::store::persistence::pool_classes::PoolClasses::single(pool),
+    );
+    let feed = crate::change_feed::ChangeFeed::new();
+    let (_tx, rx) = tokio::sync::broadcast::channel(4);
+    crate::change_feed::spawn_change_feed(
+        &feed,
+        Some(&persist),
+        rx,
+        tokio_util::sync::CancellationToken::new(),
+        &tokio_util::task::TaskTracker::new(),
+    );
+    let owners = super::Owners {
+        persist,
+        settings: None,
+        filters: None,
+    };
+    Ok((owners, feed))
+}
+
+#[tokio::test]
+async fn with_a_fed_feed_a_new_check_run_is_learned_from_the_feed_without_a_read()
+-> anyhow::Result<()> {
+    let (owners, feed) = fed_owners()?;
+    let first = super::latest_check_run(&owners).await?;
+    assert_eq!(super::latest_check_run(&owners).await?, first);
+    feed.record(crate::store::models::RowChangedTable::Requests, None);
+    assert_eq!(super::latest_check_run(&owners).await?, first);
+    feed.record(crate::store::models::RowChangedTable::WrightCheckRuns, None);
+    assert_ne!(super::latest_check_run(&owners).await?, first);
+    Ok(())
+}

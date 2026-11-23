@@ -27,8 +27,15 @@ pub struct LocationRoot {
     pub project_id: i64,
 }
 
+struct ThreadCards;
+
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn thread_cards_generation(self) -> Result<i64, WorkThreadError> {
+        self.kept_generation::<ThreadCards, _, _, _>(|| self.read_thread_cards_generation())
+            .await
+    }
+
+    async fn read_thread_cards_generation(self) -> Result<i64, WorkThreadError> {
         let generation = crate::metrics::time_db("thread_cards_generation", async move {
             sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"

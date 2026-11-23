@@ -98,6 +98,7 @@ pub(crate) mod batch_states {
 
 const TICK: Duration = Duration::from_secs(2 * 60);
 const TOGGLE_POLL: Duration = Duration::from_secs(15);
+const FOLLOW_BACKSTOP: Duration = Duration::from_secs(10 * 60);
 const BACKOFF_FIRST: Duration = Duration::from_secs(5 * 60);
 const BACKOFF_MAX: Duration = Duration::from_secs(4 * 60 * 60);
 
@@ -187,18 +188,34 @@ where
 #[derive(Default)]
 struct FollowGate {
     quiet_since: Option<Generation>,
+    pending_since: Option<Instant>,
 }
 
+const FOLLOW_WAKES: &[RowChangedTable] = &[
+    RowChangedTable::WrightRepairs,
+    RowChangedTable::WrightProblems,
+];
+
 impl FollowGate {
-    fn due(&self, feed: Option<&ChangeFeed>) -> bool {
+    fn due(&self, feed: Option<&ChangeFeed>, now: Instant) -> bool {
         let Some(since) = self.quiet_since else {
             return true;
         };
-        feed.is_none_or(|feed| feed.changed_since(&[RowChangedTable::WrightRepairs], since))
+        let backstop = self
+            .pending_since
+            .is_some_and(|at| now.duration_since(at) >= FOLLOW_BACKSTOP);
+        backstop || feed.is_none_or(|feed| feed.changed_since(FOLLOW_WAKES, since))
     }
 
-    fn note(&mut self, feed: Option<&ChangeFeed>, before: Option<Generation>, report: &TickReport) {
-        self.quiet_since = before.filter(|_| feed.is_some() && !report.following);
+    fn note(
+        &mut self,
+        feed: Option<&ChangeFeed>,
+        before: Option<Generation>,
+        report: &TickReport,
+        now: Instant,
+    ) {
+        self.quiet_since = before.filter(|_| feed.is_some());
+        self.pending_since = report.following.then_some(now);
     }
 }
 
@@ -324,11 +341,11 @@ async fn recovered(ctx: &LiveContext) -> bool {
 async fn run_tick(ctx: &LiveContext, backoff: &mut Backoff, gate: &mut FollowGate) {
     let feed = ctx.persist.feed_memos.fed_feed();
     let before = feed.map(ChangeFeed::generation);
-    let due = gate.due(feed);
+    let due = gate.due(feed, Instant::now());
     match tick(ctx, backoff.open(Instant::now()), due).await {
         Ok(report) => {
             if due {
-                gate.note(feed, before, &report);
+                gate.note(feed, before, &report, Instant::now());
             }
             backoff.note(report.attempted.map(|(_, end)| end), Instant::now());
             log_tick(&report);

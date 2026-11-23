@@ -15,8 +15,15 @@ pub struct SeatMemoryRefresh {
     pub marks: SeatMemoryMarks,
 }
 
+struct SeatMemorySources;
+
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
     pub async fn seat_memory_generation(self) -> Result<i64, PersistError> {
+        self.kept_generation::<SeatMemorySources, _, _, _>(|| self.read_seat_memory_generation())
+            .await
+    }
+
+    async fn read_seat_memory_generation(self) -> Result<i64, PersistError> {
         crate::metrics::time_db("seat_memory_generation", async move {
             Ok(sqlx::query_scalar!(
                 r#"SELECT generation AS "generation!"

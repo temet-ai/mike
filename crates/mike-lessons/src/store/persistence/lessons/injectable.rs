@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 use crate::store::persistence::PersistError;
 
 pub use crate::lesson_cache::marks::ChangeMark;
@@ -14,20 +16,43 @@ pub struct InjectableLessonRow {
     pub route: Option<String>,
 }
 
+const FINGERPRINT: &str = "SELECT g.generation,
+        (SELECT count(*) FROM memory.lessons l
+          WHERE l.expires_at IS NOT NULL AND l.expires_at <= NOW()),
+        (SELECT min(l.expires_at) FROM memory.lessons l WHERE l.expires_at > NOW())
+   FROM memory.change_generations g
+  WHERE g.name = 'lessons'";
+
+struct InjectableLessons;
+
+#[derive(Clone)]
+struct Expiring {
+    mark: ChangeMark,
+    next_expiry: Option<DateTime<Utc>>,
+}
+
 impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn injectable_lessons_fingerprint(self) -> Result<ChangeMark, PersistError> {
-        crate::metrics::time_db("injectable_lessons_fingerprint", async move {
-            let fingerprint = sqlx::query_as!(
-                ChangeMark,
-                r#"SELECT g.generation AS "generation!",
-                          (SELECT count(*) FROM memory.lessons l
-                            WHERE l.expires_at IS NOT NULL AND l.expires_at <= NOW()) AS "expired!"
-                     FROM memory.change_generations g
-                    WHERE g.name = 'lessons'"#
+        let kept = self
+            .kept_generation_while::<InjectableLessons, _, _, _>(
+                || self.read_injectable_lessons_fingerprint(),
+                |kept: &Expiring| kept.next_expiry.is_none_or(|at| at > Utc::now()),
             )
-            .fetch_one(&self.pool)
             .await?;
-            Ok(fingerprint)
+        Ok(kept.mark)
+    }
+
+    async fn read_injectable_lessons_fingerprint(self) -> Result<Expiring, PersistError> {
+        crate::metrics::time_db("injectable_lessons_fingerprint", async move {
+            let row: (i64, i64, Option<DateTime<Utc>>) =
+                sqlx::query_as(FINGERPRINT).fetch_one(&self.pool).await?;
+            Ok(Expiring {
+                mark: ChangeMark {
+                    generation: row.0,
+                    expired: row.1,
+                },
+                next_expiry: row.2,
+            })
         })
         .await
     }

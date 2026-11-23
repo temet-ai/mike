@@ -1147,7 +1147,10 @@ export type RowChangedTable =
 	| 'workspace_questions'
 	| 'wright_repairs'
 	| 'wright_followups'
-	| 'steering_enrolments';
+	| 'steering_enrolments'
+	| 'change_generations'
+	| 'wright_check_runs'
+	| 'wright_problems';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

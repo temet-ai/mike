@@ -1,8 +1,17 @@
 use super::ChangeMark;
 use crate::store::persistence::PersistError;
 
+struct LessonVectors;
+
 impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn injectable_lesson_vectors_fingerprint(self) -> Result<ChangeMark, PersistError> {
+        self.kept_generation::<LessonVectors, _, _, _>(|| {
+            self.read_injectable_lesson_vectors_fingerprint()
+        })
+        .await
+    }
+
+    async fn read_injectable_lesson_vectors_fingerprint(self) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("injectable_lesson_vectors_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
                 ChangeMark,
