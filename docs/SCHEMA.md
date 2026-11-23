@@ -4334,8 +4334,13 @@ proposer and duplicate or collide on their work.
 WHERE holder = me OR heartbeat_at < now() - timeout` and reports whether a row was written. The
 timeout is the larger of 180 seconds and three times the worker loop's interval. A proxy that does
 not hold the lease skips the role's tick and logs it at debug level. A proxy with no machine
-identity file runs every role unleased. A claim result is remembered for 30 seconds, so an
-event-driven worker does not write a row per event.
+identity file runs every role unleased. The holder renews when a worker asks after half the
+timeout has passed (90 seconds at the 180-second floor). A proxy that does not hold the lease runs no
+claim: it reads the holder and its heartbeat age with `PersistHandle::llm_worker_lease_holder` and
+keeps the answer until that heartbeat would expire (at least 5 seconds), so it claims only a free,
+own or lapsed lease. A refused claim still locks the row and flushes a commit; a read does neither. Before
+2026-11-23 every machine claimed every role every 60 seconds, and about three claims in four were
+refusals.
 
 **Usage limit:** while this machine's Claude calls are held back after a usage-limit refusal
 (`llm::claude::limit::GATE`), it neither claims nor renews the lease of a model role

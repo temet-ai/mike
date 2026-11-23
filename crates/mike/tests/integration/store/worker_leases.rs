@@ -215,6 +215,82 @@ async fn holds_llm_role_only_the_first_machine_runs_a_role() -> anyhow::Result<(
     db.cleanup().await
 }
 
+async fn row_lock_xid(pool: &PgPool, role: &str) -> anyhow::Result<i64> {
+    Ok(
+        sqlx::query_scalar("SELECT xmax::text::bigint FROM llm.worker_leases WHERE role = $1")
+            .bind(role)
+            .fetch_one(pool)
+            .await?,
+    )
+}
+
+#[tokio::test]
+async fn holds_worker_role_rival_of_a_live_holder_reads_without_running_the_claim()
+-> anyhow::Result<()> {
+    let Some(factory) = TestDb::bootstrap().await? else {
+        eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let base = PersistHandle::connect(&db.database_url).await?;
+    let owner = base.clone().with_llm_machine(Uuid::new_v4());
+    let rival = base.clone().with_llm_machine(Uuid::new_v4());
+
+    assert!(owner.holds_worker_role("wright_watch", TIMEOUT).await);
+    assert_eq!(row_lock_xid(base.pool(), "wright_watch").await?, 0);
+    assert!(!rival.holds_worker_role("wright_watch", TIMEOUT).await);
+    assert_eq!(
+        row_lock_xid(base.pool(), "wright_watch").await?,
+        0,
+        "the rival only read the holder; a refused claim would have locked the row"
+    );
+    assert!(
+        !base
+            .claim_llm_worker_lease("wright_watch", Uuid::new_v4(), TIMEOUT)
+            .await?
+    );
+    assert_ne!(
+        row_lock_xid(base.pool(), "wright_watch").await?,
+        0,
+        "a refused claim locks the row, so the check above can see one"
+    );
+
+    base.pool().close().await;
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn holds_worker_role_rival_takes_a_stale_lease_over() -> anyhow::Result<()> {
+    let Some(factory) = TestDb::bootstrap().await? else {
+        eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let base = PersistHandle::connect(&db.database_url).await?;
+    let owner = Uuid::new_v4();
+    let rival = Uuid::new_v4();
+
+    assert!(
+        base.claim_llm_worker_lease("rerank_nightly", owner, TIMEOUT)
+            .await?
+    );
+    age_lease(base.pool(), "rerank_nightly", 181).await?;
+    let holder = base.llm_worker_lease_holder("rerank_nightly").await?;
+    assert_eq!(holder.map(|h| h.machine_uuid), Some(owner));
+    assert!(holder.is_some_and(|h| h.age >= TIMEOUT));
+    assert!(
+        base.clone()
+            .with_llm_machine(rival)
+            .holds_worker_role("rerank_nightly", Duration::ZERO)
+            .await
+    );
+    assert_eq!(holder_of(base.pool(), "rerank_nightly").await?, rival);
+    assert_eq!(base.llm_worker_lease_holder("missing_role").await?, None);
+
+    base.pool().close().await;
+    db.cleanup().await
+}
+
 #[tokio::test]
 async fn insert_llm_call_records_the_machine_that_made_the_call() -> anyhow::Result<()> {
     let Some(factory) = TestDb::bootstrap().await? else {

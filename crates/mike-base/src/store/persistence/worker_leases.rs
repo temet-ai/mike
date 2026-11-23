@@ -14,21 +14,60 @@ use crate::llm::LlmRole;
 mod tests;
 
 pub const MIN_LEASE_TIMEOUT: Duration = Duration::from_secs(180);
-const RENEW_EVERY: Duration = Duration::from_secs(60);
 const TIMEOUT_IN_TICKS: u32 = 3;
+const RECHECK_FLOOR: Duration = Duration::from_secs(5);
 
 pub fn lease_timeout(loop_interval: Duration) -> Duration {
     MIN_LEASE_TIMEOUT.max(loop_interval.saturating_mul(TIMEOUT_IN_TICKS))
 }
 
+pub fn renew_after(timeout: Duration) -> Duration {
+    timeout / 2
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Verdict {
+    held: bool,
+    fresh_for: Duration,
+}
+
+impl Verdict {
+    fn claimed(held: bool, timeout: Duration) -> Self {
+        let fresh_for = if held {
+            renew_after(timeout)
+        } else {
+            RECHECK_FLOOR
+        };
+        Self { held, fresh_for }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LeaseHolder {
+    pub machine_uuid: Uuid,
+    pub age: Duration,
+}
+
+fn wait_for_holder(
+    holder: Option<&LeaseHolder>,
+    machine: Uuid,
+    timeout: Duration,
+) -> Option<Verdict> {
+    let holder = holder.filter(|h| h.machine_uuid != machine && h.age < timeout)?;
+    Some(Verdict {
+        held: false,
+        fresh_for: timeout.saturating_sub(holder.age).max(RECHECK_FLOOR),
+    })
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Decision {
-    at: Instant,
+    until: Instant,
     held: bool,
 }
 
 fn decision_is_fresh(decision: Decision, now: Instant) -> bool {
-    now.saturating_duration_since(decision.at) < RENEW_EVERY
+    now < decision.until
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,8 +98,16 @@ impl LeaseMemo {
         decision_is_fresh(decision, now).then_some(decision.held)
     }
 
-    fn remember(&self, role: &'static str, held: bool, now: Instant) {
-        self.decisions.insert(role, Decision { at: now, held });
+    fn last_held(&self, role: &'static str) -> Option<bool> {
+        self.decisions.get(role).map(|decision| decision.held)
+    }
+
+    fn remember(&self, role: &'static str, verdict: Verdict, now: Instant) {
+        let decision = Decision {
+            until: now + verdict.fresh_for,
+            held: verdict.held,
+        };
+        self.decisions.insert(role, decision);
     }
 
     fn claim_gate(&self, role: &'static str) -> ClaimGate {
@@ -69,8 +116,8 @@ impl LeaseMemo {
 
     async fn decide<F, Fut>(&self, role: &'static str, claim: F) -> Option<bool>
     where
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = Option<bool>>,
+        F: FnOnce(Option<bool>) -> Fut,
+        Fut: Future<Output = Option<Verdict>>,
     {
         let asked = Instant::now();
         if let Some(held) = self.remembered(role, asked) {
@@ -83,11 +130,12 @@ impl LeaseMemo {
         {
             return attempt.held;
         }
-        let held = claim().await;
+        let verdict = claim(self.last_held(role)).await;
         let finished = Instant::now();
-        if let Some(held) = held {
-            self.remember(role, held, finished);
+        if let Some(verdict) = verdict {
+            self.remember(role, verdict, finished);
         }
+        let held = verdict.map(|verdict| verdict.held);
         *last = Some(Attempt { finished, held });
         held
     }
@@ -152,6 +200,28 @@ impl PersistHandle {
         .await
     }
 
+    pub async fn llm_worker_lease_holder(
+        &self,
+        role: &str,
+    ) -> Result<Option<LeaseHolder>, PersistError> {
+        crate::metrics::time_db("llm_worker_lease_holder", async move {
+            let row = sqlx::query!(
+                r#"SELECT machine_uuid,
+                          GREATEST(EXTRACT(EPOCH FROM now() - heartbeat_at), 0)::float8 AS "age_secs!"
+                     FROM llm.worker_leases
+                    WHERE role = $1"#,
+                role,
+            )
+            .fetch_optional(&self.pool)
+            .await?;
+            Ok(row.map(|row| LeaseHolder {
+                machine_uuid: row.machine_uuid,
+                age: Duration::try_from_secs_f64(row.age_secs).unwrap_or(Duration::MAX),
+            }))
+        })
+        .await
+    }
+
     pub async fn list_llm_worker_leases(&self) -> Result<Vec<WorkerLeaseRow>, PersistError> {
         crate::metrics::time_db("list_llm_worker_leases", async move {
             let rows = sqlx::query_as!(
@@ -207,8 +277,11 @@ impl PersistHandle {
         machine: Uuid,
         loop_interval: Duration,
     ) -> Option<bool> {
+        let timeout = lease_timeout(loop_interval);
         self.llm_leases
-            .decide(role, || self.claim_or_skip(role, machine, loop_interval))
+            .decide(role, |last_held| {
+                self.claim_or_skip(role, machine, timeout, last_held)
+            })
             .await
     }
 
@@ -216,13 +289,27 @@ impl PersistHandle {
         &self,
         role: &'static str,
         machine: Uuid,
-        loop_interval: Duration,
-    ) -> Option<bool> {
-        match self
-            .claim_llm_worker_lease(role, machine, lease_timeout(loop_interval))
-            .await
-        {
-            Ok(held) => Some(held),
+        timeout: Duration,
+        last_held: Option<bool>,
+    ) -> Option<Verdict> {
+        if last_held != Some(true) {
+            let holder = self
+                .llm_worker_lease_holder(role)
+                .await
+                .inspect_err(|error| {
+                    tracing::warn!(
+                        role,
+                        %error,
+                        "llm worker lease: could not read the holder; skipping this tick"
+                    );
+                })
+                .ok()?;
+            if let Some(wait) = wait_for_holder(holder.as_ref(), machine, timeout) {
+                return Some(wait);
+            }
+        }
+        match self.claim_llm_worker_lease(role, machine, timeout).await {
+            Ok(held) => Some(Verdict::claimed(held, timeout)),
             Err(error) => {
                 tracing::warn!(
                     role,
