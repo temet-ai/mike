@@ -192,24 +192,24 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             };
             let rows = sqlx::query_as!(
                 ReceiptEvidenceRow,
-                r#"SELECT request_id AS "request_id!",
-                          created_at AS "created_at!",
-                          convert_from(substring(request_body
-                                                 from greatest(1, pos - 120) for 400),
-                                       'UTF8') AS excerpt
-                     FROM (
-                         SELECT r.id AS request_id,
-                                r.created_at,
-                                r.request_body,
-                                position(convert_to($2, 'UTF8') in r.request_body) AS pos
-                           FROM requests.requests r
-                          WHERE r.session_id = $1
-                            AND r.created_at >= $3
-                            AND r.request_body IS NOT NULL
-                            AND position(convert_to($2, 'UTF8') in r.request_body) > 0
-                          LIMIT $4
-                     ) hits
-                    ORDER BY created_at"#,
+                r#"SELECT r.id AS "request_id!",
+                          r.created_at AS "created_at!",
+                          hit.excerpt
+                     FROM requests.requests r
+                    CROSS JOIN LATERAL (
+                          SELECT substring(t.text from greatest(1, strpos(t.text, $2) - 120)
+                                                   for 400) AS excerpt
+                            FROM (SELECT m.body::text AS text, rm.ord
+                                    FROM requests.messages rm
+                                    JOIN messages.messages m ON m.id = rm.message_id
+                                   WHERE rm.request_id = r.id) t
+                           WHERE strpos(t.text, $2) > 0
+                           ORDER BY t.ord
+                           LIMIT 1) hit
+                    WHERE r.session_id = $1
+                      AND r.created_at >= $3
+                    ORDER BY r.created_at, r.id
+                    LIMIT $4"#,
                 session_id,
                 needle,
                 after,

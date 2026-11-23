@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"request_id!\",\n                          r.created_at AS \"created_at!\",\n                          hit.excerpt\n                     FROM requests.requests r\n                    CROSS JOIN LATERAL (\n                          SELECT substring(t.text from greatest(1, strpos(t.text, $2) - 120)\n                                                   for 400) AS excerpt\n                            FROM (SELECT m.body::text AS text, rm.ord\n                                    FROM requests.messages rm\n                                    JOIN messages.messages m ON m.id = rm.message_id\n                                   WHERE rm.request_id = r.id) t\n                           WHERE strpos(t.text, $2) > 0\n                           ORDER BY t.ord\n                           LIMIT 1) hit\n                    WHERE r.session_id = $1\n                      AND r.created_at >= $3\n                    ORDER BY r.created_at, r.id\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "excerpt",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "2942171ca35736eb78f7921d5d069fe56a8a34f887c8696364613d429990a853"
+}

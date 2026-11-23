@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id AS \"id!\", request_body AS \"request_body!\"\n           FROM requests.requests\n           WHERE id = ANY($1)\n             AND request_body IS NOT NULL",
+  "query": "SELECT id AS \"id!\", request_envelope AS \"request_envelope!\"\n           FROM requests.requests\n           WHERE id = ANY($1)\n             AND request_envelope IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -16,12 +16,12 @@
       },
       {
         "ordinal": 1,
-        "name": "request_body!",
+        "name": "request_envelope!",
         "type_info": "Bytea",
         "origin": {
           "Table": {
             "table": "requests.requests",
-            "name": "request_body"
+            "name": "request_envelope"
           }
         }
       }
@@ -36,5 +36,5 @@
       true
     ]
   },
-  "hash": "8d8abb1d57b21311565df53d9f460f4f7a804faf54de00d7027d7d6314288442"
+  "hash": "555e7a0a852fa32679a0590e95d2ffcbd04eb031035c3279e3d6a108d185dcbf"
 }

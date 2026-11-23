@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use super::skill_drafts::DraftLesson;
 use crate::store::persistence::PersistError;
+use crate::store::persistence::reconstruct;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalDraft {
@@ -363,20 +364,30 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         window: ListingWindow,
     ) -> Result<Vec<ListingBody>, PersistError> {
         crate::metrics::time_db("recent_skill_listing_bodies", async move {
+            let Ok(marker) = std::str::from_utf8(marker) else {
+                return Ok(Vec::new());
+            };
             let rows = sqlx::query!(
                 r#"WITH recent AS (
-                       SELECT r.id, r.session_id, r.created_at, r.request_body
+                       SELECT r.id, r.session_id, r.created_at, r.request_envelope
                          FROM requests.requests r
                         WHERE r.project_id = $1
                           AND r.request_body_size BETWEEN $5 AND $6
+                          AND r.request_envelope IS NOT NULL
                         ORDER BY r.created_at DESC
                         LIMIT $2),
                    carrying AS (
-                       SELECT DISTINCT ON (c.session_id) c.id, c.created_at, c.request_body
+                       SELECT DISTINCT ON (c.session_id) c.id, c.created_at, c.request_envelope
                          FROM recent c
-                        WHERE position($3::bytea IN c.request_body) > 0
+                        WHERE position(convert_to($3::text, 'UTF8') IN c.request_envelope) > 0
+                           OR EXISTS (
+                               SELECT 1
+                                 FROM requests.messages rm
+                                 JOIN messages.messages m ON m.id = rm.message_id
+                                WHERE rm.request_id = c.id
+                                  AND strpos(m.body::text, $3::text) > 0)
                         ORDER BY c.session_id, c.created_at DESC)
-                   SELECT k.id AS "id!", k.request_body AS "body!"
+                   SELECT k.id AS "id!", k.request_envelope AS "envelope!"
                      FROM carrying k
                     ORDER BY k.created_at DESC
                     LIMIT $4"#,
@@ -389,13 +400,19 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
             )
             .fetch_all(&self.pool)
             .await?;
-            Ok(rows
-                .into_iter()
-                .map(|r| ListingBody {
-                    request_id: r.id,
-                    body: r.body,
-                })
-                .collect())
+            let mut listings = Vec::with_capacity(rows.len());
+            for row in rows {
+                let envelope = Some(bytes::Bytes::from(row.envelope));
+                let served =
+                    reconstruct::rehydrate_body(&self.pool, row.id, None, envelope).await?;
+                if let Some(served) = served {
+                    listings.push(ListingBody {
+                        request_id: row.id,
+                        body: served.bytes.to_vec(),
+                    });
+                }
+            }
+            Ok(listings)
         })
         .await
     }

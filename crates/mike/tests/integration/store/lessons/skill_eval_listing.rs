@@ -1,9 +1,13 @@
+use anyhow::Context as _;
 use mike::lesson_proposer::skill_eval::EVALUATOR_VERSION;
 use mike::store::persistence::lessons::skill_draft_eval::ListingWindow;
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
 use mike::store::persistence::lessons_repo::LessonsPersist as _;
+use mike::store::persistence::messages::{canonicalise_body_messages, write_request_messages};
+use mike::store::persistence::reconstruct::strip_bulk_arrays;
 use mike::store::test_support;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 
 use super::skill_drafts::{Fixture, draft, fixture};
 
@@ -45,13 +49,14 @@ pub(super) async fn request(
     body: &str,
     minutes_ago: i32,
 ) -> anyhow::Result<i64> {
-    Ok(sqlx::query_scalar(
+    let envelope = strip_bulk_arrays(body.as_bytes()).context("envelope")?;
+    let request_id: i64 = sqlx::query_scalar(
         "INSERT INTO requests.requests (
             session_id, project_id, method_id, path, is_streaming, message_count,
             is_tool_loop, status_id, params, last_user_message, human_prompt,
-            turn_type_id, turn_origin_id, request_body, request_body_size, created_at)
+            turn_type_id, turn_origin_id, request_envelope, request_body_size, created_at)
          SELECT $1, $2, rm.id, '/v1/messages', false, 1, false, rs.id, '{}'::jsonb,
-                'x', 'x', tt.id, ro.id, convert_to($3, 'UTF8'),
+                'x', 'x', tt.id, ro.id, $5,
                 octet_length(convert_to($3, 'UTF8')),
                 now() - make_interval(mins => $4)
            FROM requests.methods rm, requests.statuses rs, requests.turn_types tt,
@@ -64,8 +69,14 @@ pub(super) async fn request(
     .bind(project_id)
     .bind(body)
     .bind(minutes_ago)
+    .bind(envelope)
     .fetch_one(fx.handle.pool())
-    .await?)
+    .await?;
+    let canonical = canonicalise_body_messages(body.as_bytes())?;
+    let mut tx = fx.handle.pool().begin().await?;
+    write_request_messages(&mut tx, request_id, &canonical, &HashMap::new()).await?;
+    tx.commit().await?;
+    Ok(request_id)
 }
 
 #[tokio::test]
@@ -129,6 +140,42 @@ async fn listing_bodies_are_the_newest_carrying_request_of_each_session_of_the_p
             .await?
             .len(),
         1
+    );
+    fx.finish().await
+}
+
+#[tokio::test]
+async fn listing_bodies_find_a_marker_held_only_by_message_rows() -> anyhow::Result<()> {
+    let Some(fx) = fixture().await? else {
+        return Ok(());
+    };
+    let owner = session(&fx, fx.project_id).await?;
+    let body = json!({
+        "system": [{"type": "text", "text": "plain system"}],
+        "messages": [{"role": "user", "content": format!("The following skills are {MARKER}\n\n- only-in-message: does things\n")}]
+    })
+    .to_string();
+    let id = request(&fx, fx.project_id, owner, &body, 5).await?;
+    let stored: Option<Vec<u8>> =
+        sqlx::query_scalar("SELECT request_body FROM requests.requests WHERE id = $1")
+            .bind(id)
+            .fetch_one(fx.handle.pool())
+            .await?;
+    assert!(stored.is_none(), "the raw body column stays empty");
+
+    let found = fx
+        .handle
+        .lessons()
+        .recent_skill_listing_bodies(fx.project_id, MARKER.as_bytes(), WIDE)
+        .await?;
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].request_id, id);
+    let rebuilt: Value = serde_json::from_slice(&found[0].body)?;
+    assert_eq!(
+        rebuilt["messages"][0]["content"],
+        json!(format!(
+            "The following skills are {MARKER}\n\n- only-in-message: does things\n"
+        ))
     );
     fx.finish().await
 }

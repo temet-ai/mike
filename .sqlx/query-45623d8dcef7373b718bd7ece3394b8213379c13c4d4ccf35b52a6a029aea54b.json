@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recent AS (\n                       SELECT r.id, r.session_id, r.created_at, r.request_envelope\n                         FROM requests.requests r\n                        WHERE r.project_id = $1\n                          AND r.request_body_size BETWEEN $5 AND $6\n                          AND r.request_envelope IS NOT NULL\n                        ORDER BY r.created_at DESC\n                        LIMIT $2),\n                   carrying AS (\n                       SELECT DISTINCT ON (c.session_id) c.id, c.created_at, c.request_envelope\n                         FROM recent c\n                        WHERE position(convert_to($3::text, 'UTF8') IN c.request_envelope) > 0\n                           OR EXISTS (\n                               SELECT 1\n                                 FROM requests.messages rm\n                                 JOIN messages.messages m ON m.id = rm.message_id\n                                WHERE rm.request_id = c.id\n                                  AND strpos(m.body::text, $3::text) > 0)\n                        ORDER BY c.session_id, c.created_at DESC)\n                   SELECT k.id AS \"id!\", k.request_envelope AS \"envelope!\"\n                     FROM carrying k\n                    ORDER BY k.created_at DESC\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "envelope!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_envelope"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Int8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "45623d8dcef7373b718bd7ece3394b8213379c13c4d4ccf35b52a6a029aea54b"
+}

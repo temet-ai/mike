@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::store::persistence::PersistError;
+use crate::store::persistence::reconstruct;
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct SessionRequestIdRow {
@@ -79,30 +80,38 @@ async fn latest_request_body_candidates(
     to: DateTime<Utc>,
     candidate_cap: i64,
 ) -> Result<Vec<FindTextCandidateRow>, PersistError> {
+    let Ok(needle_text) = std::str::from_utf8(needle) else {
+        return Ok(Vec::new());
+    };
     let rows = sqlx::query_as!(
         FindTextCandidateRow,
         r#"SELECT request_id AS "request_id!",
-                          session_id AS "session_id!",
-                          created_at AS "created_at!"
-                   FROM (
-                       SELECT DISTINCT ON (r.session_id)
-                            r.id                 AS request_id,
-                            s.session_uuid::text AS session_id,
-                            r.created_at,
-                            r.request_body       AS body_col
-                       FROM requests.requests  r
-                       JOIN sessions.sessions  s ON s.id = r.session_id
-                       WHERE r.created_at >= $1
-                         AND r.created_at <  $2
-                       ORDER BY r.session_id, r.created_at DESC, r.id DESC
-                   ) latest
-                   WHERE latest.body_col IS NOT NULL
-                     AND position($3 IN latest.body_col) > 0
-                   ORDER BY latest.created_at DESC
-                   LIMIT $4"#,
+                  session_id AS "session_id!",
+                  created_at AS "created_at!"
+           FROM (
+               SELECT DISTINCT ON (r.session_id)
+                    r.id                 AS request_id,
+                    s.session_uuid::text AS session_id,
+                    r.created_at,
+                    r.request_envelope   AS envelope
+               FROM requests.requests  r
+               JOIN sessions.sessions  s ON s.id = r.session_id
+               WHERE r.created_at >= $1
+                 AND r.created_at <  $2
+               ORDER BY r.session_id, r.created_at DESC, r.id DESC
+           ) latest
+           WHERE position(convert_to($3::text, 'UTF8') IN latest.envelope) > 0
+              OR EXISTS (
+                   SELECT 1
+                     FROM requests.messages rm
+                     JOIN messages.messages m ON m.id = rm.message_id
+                    WHERE rm.request_id = latest.request_id
+                      AND strpos(m.body::text, $3::text) > 0)
+           ORDER BY latest.created_at DESC
+           LIMIT $4"#,
         from,
         to,
-        needle,
+        needle_text,
         candidate_cap,
     )
     .fetch_all(pool)
@@ -215,16 +224,20 @@ pub async fn fetch_request_bodies_batch(
         return Ok(HashMap::new());
     }
     let rows = sqlx::query!(
-        r#"SELECT id AS "id!", request_body AS "request_body!"
+        r#"SELECT id AS "id!", request_envelope AS "request_envelope!"
            FROM requests.requests
            WHERE id = ANY($1)
-             AND request_body IS NOT NULL"#,
+             AND request_envelope IS NOT NULL"#,
         request_ids,
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows
-        .into_iter()
-        .map(|r| (r.id, bytes::Bytes::from(r.request_body)))
-        .collect())
+    let mut bodies = HashMap::with_capacity(rows.len());
+    for row in rows {
+        let envelope = Some(bytes::Bytes::from(row.request_envelope));
+        if let Some(served) = reconstruct::rehydrate_body(pool, row.id, None, envelope).await? {
+            bodies.insert(row.id, served.bytes);
+        }
+    }
+    Ok(bodies)
 }

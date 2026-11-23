@@ -1,7 +1,9 @@
 use crate::db_helpers;
 
-use serde_json::Value;
+use mike::store::persistence::messages::{canonicalise_body_messages, write_request_messages};
+use serde_json::{Value, json};
 use sqlx::PgPool;
+use std::collections::HashMap;
 
 async fn make_session(pool: &PgPool, session_uuid: &str) -> anyhow::Result<i64> {
     let project = "receipt-fixture-project";
@@ -57,27 +59,36 @@ async fn capture_request(
     text: &str,
     minutes_ago: i64,
 ) -> anyhow::Result<()> {
-    sqlx::query(
+    let request_id: i64 = sqlx::query_scalar(
         "INSERT INTO requests.requests (
             session_id, project_id, method_id, path, is_streaming, message_count, is_tool_loop,
             status_id, params, last_user_message, human_prompt, turn_type_id, turn_origin_id,
-            request_body, created_at
+            request_envelope, created_at
          )
          SELECT s.id, s.project_id, rm.id, '/v1/messages', false, 0, false,
                 rs.id, '{}'::jsonb, '', '', rtt.id, rto.id,
-                convert_to($2, 'UTF8'), now() - ($3 || ' minutes')::interval
+                $3, now() - ($2 || ' minutes')::interval
            FROM sessions.sessions s,
                 requests.methods rm, requests.statuses rs,
                 requests.turn_types rtt, requests.turn_origins rto
           WHERE s.id = $1
             AND rm.code = 'POST' AND rs.code = 'complete'
-            AND rtt.code = 'user_prompt' AND rto.code = 'primary'",
+            AND rtt.code = 'user_prompt' AND rto.code = 'primary'
+        RETURNING id",
     )
     .bind(session_db_id)
-    .bind(text)
     .bind(minutes_ago.to_string())
-    .execute(pool)
+    .bind(br#"{"model":"m","messages":[]}"#.as_slice())
+    .fetch_one(pool)
     .await?;
+    let body = serde_json::to_vec(&json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": text}],
+    }))?;
+    let canonical = canonicalise_body_messages(&body)?;
+    let mut tx = pool.begin().await?;
+    write_request_messages(&mut tx, request_id, &canonical, &HashMap::new()).await?;
+    tx.commit().await?;
     Ok(())
 }
 

@@ -47,13 +47,14 @@ pub(super) async fn seed_request_with_body(
     offset_ms: i64,
 ) -> anyhow::Result<i64> {
     let now = chrono::Utc::now() + chrono::Duration::milliseconds(offset_ms);
+    let envelope = mike::store::persistence::reconstruct::strip_bulk_arrays(body);
     let params_seed = serde_json::json!({"thinking_enabled": false});
     let request_id: i64 = sqlx::query_scalar(
         "INSERT INTO requests.requests (
             session_id, project_id, method_id, path, is_streaming, message_count, is_tool_loop,
             status_id, params,
             last_user_message, human_prompt, turn_type_id, turn_origin_id,
-            request_body,
+            request_envelope,
             created_at
          )
          SELECT
@@ -73,9 +74,19 @@ pub(super) async fn seed_request_with_body(
     .bind(project_id)
     .bind(&params_seed)
     .bind(now)
-    .bind(body)
+    .bind(envelope)
     .fetch_one(pool)
     .await?;
+    let canonical = mike::store::persistence::messages::canonicalise_body_messages(body)?;
+    let mut tx = pool.begin().await?;
+    mike::store::persistence::messages::write_request_messages(
+        &mut tx,
+        request_id,
+        &canonical,
+        &std::collections::HashMap::new(),
+    )
+    .await?;
+    tx.commit().await?;
 
     Ok(request_id)
 }
