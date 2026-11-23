@@ -18,6 +18,7 @@ use crate::store::persistence::operator_turns::projection::{
 use crate::store::persistence::operator_turns::{LiveClaim, LiveFailure};
 use crate::store::persistence::turn_verdicts::VerdictMode;
 
+use super::claim_gate;
 use super::live_shared::LiveJudgeShared;
 use super::turn_sweep::{SweepReport, attribute_turn, reserve_claim_batch};
 use super::v2_judge::{V2InsertTarget, V2JudgeConfig, context_from_row, judge_turn_v2};
@@ -355,9 +356,10 @@ pub async fn run_live_sweep(
     breaker: &mut CircuitBreaker,
     batch: i64,
     window_days: i64,
+    settle: chrono::Duration,
 ) -> SweepReport {
     let now = Instant::now();
-    if breaker.should_skip(now) {
+    if breaker.should_skip(now) || !claim_due(judge, settle) {
         return SweepReport::labeled(0);
     }
     let reservation = match reserve_claim_batch(judge.llm, breaker.is_probing(now), batch) {
@@ -390,18 +392,31 @@ async fn release_transient_backoff(judge: &LiveJudge<'_>) {
     }
 }
 
+fn claim_due(judge: &LiveJudge<'_>, settle: chrono::Duration) -> bool {
+    let now = Utc::now();
+    let unchanged = claim_gate::queue_unchanged(judge.persist, now);
+    judge
+        .shared
+        .claim_due(judge.bundle.id, unchanged, settle, now)
+}
+
 async fn claim_live(judge: &LiveJudge<'_>, limit: i64, window_days: i64) -> Vec<i64> {
     let claim = LiveClaim {
         bundle_id: judge.bundle.id,
         since: Utc::now() - chrono::Duration::days(window_days),
         limit,
     };
+    let ticket = judge.persist.fresh_ticket();
     let Some(claimed) = ok_or_warn(
         judge.persist.claim_live_candidates_dated(claim).await,
         "live_judge.claim",
     ) else {
         return Vec::new();
     };
+    claim_gate::note_claim(judge.persist, ticket, claimed.len());
+    judge
+        .shared
+        .claimed(judge.bundle.id, claimed.len(), ticket.is_some(), Utc::now());
     super::live_backlog::publish(super::live_backlog::LiveQueueReading::from_claim(
         &claimed,
         limit,

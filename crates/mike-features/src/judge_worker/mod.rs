@@ -1,3 +1,4 @@
+mod claim_gate;
 pub mod immediate;
 pub mod jev_turn;
 pub mod live_backlog;
@@ -15,6 +16,8 @@ pub mod turn_sweep;
 pub mod turn_sweep_log;
 pub mod v2_judge;
 
+#[cfg(test)]
+mod judge_queue_notify_tests;
 #[cfg(test)]
 pub mod live_backlog_tests;
 #[cfg(test)]

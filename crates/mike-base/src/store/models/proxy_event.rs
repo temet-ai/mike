@@ -39,6 +39,7 @@ pub enum RowChangedTable {
     ChangeGenerations,
     WrightCheckRuns,
     WrightProblems,
+    JudgeQueue,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

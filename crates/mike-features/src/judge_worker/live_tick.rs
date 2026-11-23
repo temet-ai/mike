@@ -61,7 +61,8 @@ pub async fn run_live_tick(t: LiveTick<'_>, breaker: &mut CircuitBreaker) -> Liv
         .judge_worker_batch_size
         .unwrap_or(t.judge_cfg.batch_size);
     let window_days = t.overlay.turn_judge_live_window_days;
-    let sweep = run_live_sweep(&judge, breaker, batch, window_days).await;
+    let settle = super::claim_gate::settle_for(t.overlay.turn_judge_immediate);
+    let sweep = run_live_sweep(&judge, breaker, batch, window_days, settle).await;
     let rejudged = if sweep.defer.is_none() {
         super::rejudge::drain(&judge, breaker).await
     } else {

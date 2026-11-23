@@ -1,7 +1,10 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Arc, Mutex};
 
+use chrono::{DateTime, Duration, Utc};
 use dashmap::DashMap;
+
+use super::claim_gate::ClaimGate;
 
 #[derive(Debug, Clone, Default)]
 pub struct LiveJudgeShared {
@@ -9,6 +12,7 @@ pub struct LiveJudgeShared {
     announced_bundle: Arc<AtomicI64>,
     queue_reconciled_bundle: Arc<AtomicI64>,
     queue_reconciled_at_unix: Arc<AtomicI64>,
+    claim_gate: Arc<Mutex<ClaimGate>>,
 }
 
 pub struct InFlightGuard {
@@ -44,6 +48,24 @@ impl LiveJudgeShared {
     pub fn queue_reconcile_due(&self, bundle_id: i64, now_unix: i64, max_age_secs: i64) -> bool {
         self.queue_reconciled_bundle.load(Ordering::Acquire) != bundle_id
             || now_unix - self.queue_reconciled_at_unix.load(Ordering::Acquire) >= max_age_secs
+    }
+
+    pub fn claim_due(
+        &self,
+        bundle_id: i64,
+        unchanged: bool,
+        settle: Duration,
+        now: DateTime<Utc>,
+    ) -> bool {
+        self.claim_gate.lock().map_or(true, |mut gate| {
+            gate.should_claim(bundle_id, unchanged, settle, now)
+        })
+    }
+
+    pub fn claimed(&self, bundle_id: i64, found: usize, fed: bool, now: DateTime<Utc>) {
+        if let Ok(mut gate) = self.claim_gate.lock() {
+            gate.settle(bundle_id, found, fed, now);
+        }
     }
 
     pub fn note_queue_reconciled(&self, bundle_id: i64, now_unix: i64) {

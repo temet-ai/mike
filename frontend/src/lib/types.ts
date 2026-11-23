@@ -1150,7 +1150,8 @@ export type RowChangedTable =
 	| 'steering_enrolments'
 	| 'change_generations'
 	| 'wright_check_runs'
-	| 'wright_problems';
+	| 'wright_problems'
+	| 'judge_queue';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 
