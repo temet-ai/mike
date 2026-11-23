@@ -26,6 +26,8 @@ pub struct Manifest {
     #[serde(default)]
     pub identity: IdentityInput,
     pub request_predecessor: Option<i64>,
+    #[serde(default)]
+    pub response_predecessor: Option<i64>,
     pub request_complete: bool,
     pub response_complete: bool,
     pub response_received: bool,

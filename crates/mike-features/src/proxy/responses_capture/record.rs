@@ -123,6 +123,7 @@ pub fn manifest(record: &ExchangeRecord, finished: Option<&Finished>) -> Manifes
                 .into(),
         },
         request_predecessor: None,
+        response_predecessor: None,
         request_complete: record.request_body.complete.load(Ordering::Acquire),
         response_complete: record.response_body.complete.load(Ordering::Acquire),
         response_received: record.response_status.is_some(),

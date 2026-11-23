@@ -26,6 +26,7 @@ async fn zstd_wire_is_unchanged_and_complete_decoded_context_reuses_chunks() -> 
         .store(std::sync::Arc::new(Default::default()));
     let thread = Uuid::new_v4();
     let mut documents = Vec::new();
+    let mut responses = Vec::new();
     for _ in 0..2 {
         let response = routes(h.state.clone())
             .oneshot(
@@ -46,24 +47,31 @@ async fn zstd_wire_is_unchanged_and_complete_decoded_context_reuses_chunks() -> 
         assert_eq!(body(&h, capture.request_document_id).await?, decoded);
         assert_eq!(capture.request_document_id, capture.sent_document_id);
         documents.push(capture.request_document_id);
+        let response = capture
+            .response_document_id
+            .ok_or_else(|| anyhow::anyhow!("response missing"))?;
+        assert_eq!(body(&h, response).await?, STREAM);
+        responses.push(response);
     }
-    assert_ne!(documents[0], documents[1]);
-    let first = h
-        .persist
-        .runtime()
-        .capture_document_chunks(documents[0], 0, 200)
-        .await?;
-    let second = h
-        .persist
-        .runtime()
-        .capture_document_chunks(documents[1], 0, 200)
-        .await?;
-    assert_eq!(first.len(), second.len());
-    assert!(
-        second
-            .iter()
-            .all(|chunk| first.iter().any(|old| old.id == chunk.id))
-    );
+    for documents in [documents, responses] {
+        assert_ne!(documents[0], documents[1]);
+        let first = h
+            .persist
+            .runtime()
+            .capture_document_chunks(documents[0], 0, 200)
+            .await?;
+        let second = h
+            .persist
+            .runtime()
+            .capture_document_chunks(documents[1], 0, 200)
+            .await?;
+        assert_eq!(first.len(), second.len());
+        assert!(
+            second
+                .iter()
+                .all(|chunk| first.iter().any(|old| old.id == chunk.id))
+        );
+    }
     for request in server.received_requests().await.unwrap_or_default() {
         assert_eq!(request.body, encoded);
         assert_eq!(
@@ -154,6 +162,7 @@ async fn interrupted_staging_recovers_complete_received_bytes_under_the_same_ses
             status: "pending".into(),
         },
         request_predecessor: None,
+        response_predecessor: None,
         request_complete: true,
         response_complete: false,
         response_received: true,
@@ -250,6 +259,7 @@ async fn recovery_retries_proxy_identity_after_an_outage_without_hooks() -> anyh
             status: "pending".into(),
         },
         request_predecessor: None,
+        response_predecessor: None,
         request_complete: true,
         response_complete: false,
         response_received: true,

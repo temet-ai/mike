@@ -150,6 +150,8 @@ fn routes_with<S: Clone + Send + Sync + 'static>(state: ResponsesState) -> Route
 mod capture_tests;
 #[cfg(test)]
 mod relay_test_support;
+#[cfg(test)]
+mod stream_detection_tests;
 
 #[cfg(test)]
 #[path = "relay_tests.rs"]

@@ -18,6 +18,7 @@ pub struct Tee {
     writer: BodyWriter,
     json: BodyCapture,
     stream: Option<ResponsesStream>,
+    probing_stream: bool,
     expected: Option<u64>,
     pending: Option<(ResponsesState, ExchangeRecord)>,
 }
@@ -30,6 +31,7 @@ impl Tee {
         expected: Option<u64>,
         writer: BodyWriter,
     ) -> Self {
+        let probing_stream = !record.response_is_event_stream && can_probe_stream(&record);
         Self {
             upstream,
             writer,
@@ -38,9 +40,9 @@ impl Tee {
             } else {
                 MAX_FRAME_BYTES
             }),
-            stream: record
-                .response_is_event_stream
+            stream: (record.response_is_event_stream || probing_stream)
                 .then(ResponsesStream::default),
+            probing_stream,
             expected,
             pending: Some((state, record)),
         }
@@ -48,8 +50,12 @@ impl Tee {
 
     fn summary(&mut self) -> ResponsesSummary {
         if let Some(stream) = self.stream.take() {
-            stream.finish()
-        } else if let Some(body) = self.json.body() {
+            let summary = stream.finish();
+            if !self.probing_stream || identifies_responses_stream(&summary) {
+                return summary;
+            }
+        }
+        if let Some(body) = self.json.body() {
             summarize_json(body)
         } else {
             ResponsesSummary {
@@ -61,8 +67,9 @@ impl Tee {
 
     fn finish(&mut self, status: ExchangeStatus, error: Option<String>) {
         self.writer.finish(status == ExchangeStatus::Complete);
-        if let Some((state, record)) = self.pending.take() {
+        if let Some((state, mut record)) = self.pending.take() {
             let summary = self.summary();
+            record.response_is_event_stream |= summary.events > 0;
             let complete =
                 record.response_body.complete.load(Ordering::Acquire) || summary.terminal;
             let status = if status == ExchangeStatus::Aborted && complete {
@@ -99,8 +106,36 @@ impl Tee {
         }
         if let Some(stream) = &mut self.stream {
             stream.push(chunk);
+            if self.probing_stream && identifies_responses_stream(stream.summary()) {
+                self.probing_stream = false;
+                self.json = BodyCapture::new(0);
+            }
         }
     }
+}
+
+fn can_probe_stream(record: &ExchangeRecord) -> bool {
+    let has_content_type = record
+        .response_headers
+        .as_ref()
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|headers| {
+            headers.iter().any(|header| {
+                header.get(0).and_then(serde_json::Value::as_str) == Some("content-type")
+            })
+        });
+    !has_content_type
+        && record.method == "POST"
+        && record
+            .response_status
+            .is_some_and(|status| (200..300).contains(&status))
+        && reqwest::Url::parse(&record.upstream_url)
+            .is_ok_and(|url| url.path().ends_with("/responses"))
+}
+
+fn identifies_responses_stream(summary: &ResponsesSummary) -> bool {
+    summary.events > 0
+        && (summary.response_id.is_some() || summary.terminal || summary.error.is_some())
 }
 
 impl Stream for Tee {

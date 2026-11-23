@@ -123,6 +123,14 @@ impl crate::store::persistence::runtime_repo::RuntimeDb<'_> {
     ) -> Result<Option<i64>, PersistError> {
         reads::previous(self.pool(), session, thread).await
     }
+
+    pub async fn previous_capture_response(
+        self,
+        session: Option<Uuid>,
+        thread: Option<&str>,
+    ) -> Result<Option<i64>, PersistError> {
+        reads::previous_response(self.pool(), session, thread).await
+    }
 }
 
 fn invalid(message: &str) -> PersistError {

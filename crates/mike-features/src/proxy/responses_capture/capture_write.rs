@@ -85,17 +85,33 @@ async fn persist_response(
     let id = match manifest.exchange.response_document_id {
         Some(id) => id,
         None => {
+            let previous = persist
+                .runtime()
+                .previous_capture_response(
+                    manifest.exchange.session_uuid,
+                    manifest.exchange.provider_thread_id.as_deref(),
+                )
+                .await
+                .map_err(|error| error.to_string())?;
             let id = persist
                 .runtime()
-                .create_capture_document(None)
+                .create_capture_document(previous)
                 .await
                 .map_err(|error| error.to_string())?;
             manifest.exchange.response_document_id = Some(id);
+            manifest.response_predecessor = previous;
             write_manifest(directory, manifest).await?;
             id
         }
     };
-    document(persist, id, None, response_path, manifest.response_complete).await
+    document(
+        persist,
+        id,
+        manifest.response_predecessor,
+        response_path,
+        manifest.response_complete,
+    )
+    .await
 }
 
 struct Writer<'a> {

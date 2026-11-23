@@ -93,3 +93,36 @@ pub(super) async fn previous(
     .fetch_optional(pool)
     .await?)
 }
+
+pub(super) async fn previous_response(
+    pool: &PgPool,
+    session: Option<Uuid>,
+    thread: Option<&str>,
+) -> Result<Option<i64>, PersistError> {
+    if let Some(session) = session {
+        return Ok(sqlx::query_scalar!(
+            "SELECT d.id FROM runtime.capture_exchanges e
+             JOIN sessions.sessions s ON s.id = e.session_id
+             JOIN runtime.capture_documents d ON d.id = e.response_document_id
+             WHERE s.session_uuid = $1 AND ($2::text IS NULL OR e.provider_thread_id = $2)
+               AND d.finished AND d.byte_size > 0
+             ORDER BY e.created_at DESC, e.id DESC LIMIT 1",
+            session,
+            thread
+        )
+        .fetch_optional(pool)
+        .await?);
+    }
+    let Some(thread) = thread else {
+        return Ok(None);
+    };
+    Ok(sqlx::query_scalar!(
+        "SELECT d.id FROM runtime.capture_exchanges e
+         JOIN runtime.capture_documents d ON d.id = e.response_document_id
+         WHERE e.provider_thread_id = $1 AND d.finished AND d.byte_size > 0
+         ORDER BY e.created_at DESC, e.id DESC LIMIT 1",
+        thread
+    )
+    .fetch_optional(pool)
+    .await?)
+}

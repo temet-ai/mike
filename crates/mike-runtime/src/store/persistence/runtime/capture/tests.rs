@@ -6,6 +6,9 @@ use super::{CaptureChunkInput, CaptureExchangeInput};
 use crate::store::persistence::runtime::tests_observation_support::{Fixture, fixture};
 use crate::store::persistence::runtime_repo::RuntimePersist as _;
 
+#[path = "response_tests.rs"]
+mod response_tests;
+
 async fn setup() -> anyhow::Result<Fixture> {
     fixture()
         .await?
