@@ -229,7 +229,10 @@ impl PersistHandle {
              SET last_seen   = GREATEST(last_seen, $2),
                  last_status = $3,
                  title       = COALESCE($4, title)
-             WHERE id = $1",
+             WHERE id = $1
+               AND (last_status IS DISTINCT FROM $3
+                    OR last_seen < $2
+                    OR title IS DISTINCT FROM COALESCE($4, title))",
             session_db_id,
             req.created_at,
             status_str,

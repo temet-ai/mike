@@ -62,6 +62,7 @@ impl crate::store::persistence::dossier_repo::DossierDb<'_> {
                  UPDATE memory.turn_facts
                     SET built_at = $2
                   WHERE operator_turn_id = ANY($1)
+                    AND next_state = 'pending'
                     AND built_at < $2",
                 turn_ids,
                 built_at,

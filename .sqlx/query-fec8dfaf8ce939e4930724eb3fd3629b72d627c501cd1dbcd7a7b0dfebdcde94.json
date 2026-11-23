@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.change_events\n   SET session_id = $2,\n       kind = $3,\n       detail = detail || $4::jsonb\n WHERE id = $1\n   AND (session_id, kind, detail)\n       IS DISTINCT FROM ($2::bigint, $3::text, detail || $4::jsonb)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fec8dfaf8ce939e4930724eb3fd3629b72d627c501cd1dbcd7a7b0dfebdcde94"
+}

@@ -26,7 +26,7 @@ pub async fn apply(
     upsert_call(connection, session, observation).await?;
     upsert_item(connection, session, observation).await?;
     sqlx::query!(
-        "UPDATE sessions.sessions SET last_seen = GREATEST(last_seen, $2) WHERE id = $1",
+        "UPDATE sessions.sessions SET last_seen = GREATEST(last_seen, $2) WHERE id = $1 AND last_seen < $2",
         session,
         observation.observed_at
     )

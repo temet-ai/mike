@@ -48,7 +48,7 @@ WITH recent AS (
                min(COALESCE(f.built_at, '-infinity'::timestamptz)) AS oldest
           FROM recent r
           LEFT JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id
-         WHERE r.session_id IN (SELECT session_id FROM stale)
+         WHERE r.turn_id IN (SELECT turn_id FROM stale)
          GROUP BY r.session_id
     ), chosen AS (
         SELECT o.session_id, o.oldest

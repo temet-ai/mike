@@ -62,7 +62,8 @@ impl PersistHandle {
                     "UPDATE sessions.sessions
                      SET last_seen   = GREATEST(last_seen, $2),
                          last_status = 'Pending'
-                     WHERE id = $1",
+                     WHERE id = $1
+                       AND (last_status IS DISTINCT FROM 'Pending' OR last_seen < $2)",
                     session_db_id,
                     req.created_at,
                 )

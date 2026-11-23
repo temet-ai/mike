@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                     SET last_seen   = GREATEST(last_seen, $2),\n                         last_status = 'Pending'\n                     WHERE id = $1\n                       AND (last_status IS DISTINCT FROM 'Pending' OR last_seen < $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2d6a179c474fc7d8d669454a0dadbc21890f0e0628729e116a94cab48135e7ce"
+}

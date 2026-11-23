@@ -231,7 +231,48 @@ async fn update_change_author_names_session_kind_and_merges_detail() -> anyhow::
 }
 
 #[tokio::test]
-async fn only_an_event_the_code_scan_reads_moves_its_newest_written_mark() -> anyhow::Result<()> {
+async fn update_change_author_with_the_values_already_stored_rewrites_nothing() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let project_id = project(pool).await?;
+    let author = session(pool, project_id, None).await?;
+    let ids = f
+        .handle
+        .fleet()
+        .insert_change_events(&[event(project_id, ChangeKind::Edit, &["a.rs"])])
+        .await?;
+    let detail = json!({"tool_use_id": 9});
+    assert!(
+        f.handle
+            .fleet()
+            .update_change_author(ids[0], Some(author), ChangeKind::Edit, &detail)
+            .await?
+    );
+    let stored: String = sqlx::query_scalar("SELECT ctid::text FROM workspace.change_events WHERE id = $1")
+        .bind(ids[0])
+        .fetch_one(pool)
+        .await?;
+
+    let again = f
+        .handle
+        .fleet()
+        .update_change_author(ids[0], Some(author), ChangeKind::Edit, &detail)
+        .await?;
+
+    assert!(!again);
+    let after: String = sqlx::query_scalar("SELECT ctid::text FROM workspace.change_events WHERE id = $1")
+        .bind(ids[0])
+        .fetch_one(pool)
+        .await?;
+    assert_eq!(after, stored);
+    f.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn only_an_event_the_code_scan_reads_moves_its_newest_written_mark()-> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };

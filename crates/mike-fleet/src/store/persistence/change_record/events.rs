@@ -214,8 +214,11 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             )
             .execute(&self.pool)
             .await?;
-            self.memo::<super::open_memo::OpenChangesMemo>().revise();
-            Ok(done.rows_affected() > 0)
+            let changed = done.rows_affected() > 0;
+            if changed {
+                self.memo::<super::open_memo::OpenChangesMemo>().revise();
+            }
+            Ok(changed)
         })
         .await
     }

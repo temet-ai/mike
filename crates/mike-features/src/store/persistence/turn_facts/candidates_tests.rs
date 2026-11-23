@@ -147,8 +147,61 @@ async fn find_candidates_last_allowed_attempt_marks_turn_unbuildable() -> anyhow
     Ok(())
 }
 
+async fn seed_facts(pool: &PgPool, session: i64, turn: i64, next_state: &str) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO memory.turn_facts (
+             operator_turn_id, session_id, builder_version, built_at, max_request_id,
+             prompt_kind, prompt_kind_at_close, next_state, next_state_at_close,
+             text_chars, text_cut_at, aborted, interrupted, close_cause,
+             ended_on, ended_on_version, session_class, session_class_rule)
+         SELECT $1, $2, 'v', now() - interval '1 hour', 1,
+                'genuine', 'genuine', $3, $3,
+                0, 0, false, false, 'next_prompt',
+                'none', 'v', 'operator', 'default'",
+    )
+    .bind(turn)
+    .bind(session)
+    .bind(next_state)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn facts_ctid(pool: &PgPool, turn: i64) -> anyhow::Result<String> {
+    Ok(sqlx::query_scalar(
+        "SELECT ctid::text FROM memory.turn_facts WHERE operator_turn_id = $1",
+    )
+    .bind(turn)
+    .fetch_one(pool)
+    .await?)
+}
+
 #[tokio::test]
-async fn stamp_turn_facts_built_at_clears_backstop_attempt() -> anyhow::Result<()> {
+async fn stamp_turn_facts_built_at_rewrites_only_pending_turns() -> anyhow::Result<()> {
+    let Some(db) = test_util::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let (session, settled) = seed_closed_turn(&handle.pool, "/tmp/stamp-settled").await?;
+    seed_facts(&handle.pool, session, settled, "none_session_settled").await?;
+    let (pending_session, pending) = seed_closed_turn(&handle.pool, "/tmp/stamp-pending").await?;
+    seed_facts(&handle.pool, pending_session, pending, "pending").await?;
+    let settled_before = facts_ctid(&handle.pool, settled).await?;
+    let pending_before = facts_ctid(&handle.pool, pending).await?;
+
+    handle
+        .dossier()
+        .stamp_turn_facts_built_at(&[settled, pending], Utc::now())
+        .await?;
+
+    assert_eq!(facts_ctid(&handle.pool, settled).await?, settled_before);
+    assert_ne!(facts_ctid(&handle.pool, pending).await?, pending_before);
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn stamp_turn_facts_built_at_clears_backstop_attempt()-> anyhow::Result<()> {
     let Some(db) = test_util::acquire_ephemeral_db().await? else {
         return Ok(());
     };
