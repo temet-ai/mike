@@ -132,6 +132,7 @@ pub struct WorkspaceRosterRow {
     pub post_turn_summary_at: Option<DateTime<Utc>>,
     pub client_version: Option<String>,
     pub liveness_source: &'static str,
+    pub observation: Option<crate::store::persistence::runtime::SessionObservationRow>,
 }
 
 #[derive(Debug, Clone, Copy)]

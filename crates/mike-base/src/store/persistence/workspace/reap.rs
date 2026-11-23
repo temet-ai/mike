@@ -67,6 +67,7 @@ impl PersistHandle {
             .await?;
             if row.count > 0 {
                 self.note_registration_released();
+                self.registrations_changed(None);
             }
             Ok(ReapOutcome { reaped: row.count })
         })

@@ -1,4 +1,3 @@
-use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::sync::Arc;
 
 use axum::response::Response;
@@ -18,12 +17,6 @@ pub struct RosterAnswer {
     project_id: i64,
     project_path: String,
     rows: Arc<Vec<WorkspaceRosterRow>>,
-    observations: Arc<
-        std::collections::HashMap<
-            uuid::Uuid,
-            crate::store::persistence::runtime::SessionObservationRow,
-        >,
-    >,
 }
 
 impl Weigh for RosterAnswer {
@@ -42,22 +35,12 @@ pub async fn load_roster(
         .fetch_workspace_roster(project_id, scope)
         .await
         .map_err(persist_error_response)?;
-    let ids: Vec<_> = rows.iter().map(|row| row.session_uuid).collect();
-    let observations = handle
-        .runtime()
-        .session_observations(&ids)
-        .await
-        .map_err(persist_error_response)?
-        .into_iter()
-        .map(|row| (row.session_uuid, row))
-        .collect();
     let sessions = rows.iter().map(|r| r.session_uuid.to_string()).collect();
     Ok(Loaded {
         value: RosterAnswer {
             project_id,
             project_path,
             rows: Arc::new(rows),
-            observations: Arc::new(observations),
         },
         sessions,
     })
@@ -69,8 +52,8 @@ pub fn present_roster(state: &BaseState, answer: &RosterAnswer) -> Result<Presen
         .rows
         .iter()
         .cloned()
-        .map(|r| {
-            let observation = answer.observations.get(&r.session_uuid).cloned();
+        .map(|mut r| {
+            let observation = r.observation.take();
             let mut entry = roster_entry_from_row(r, None, &busy_ids);
             entry.busy |= observation
                 .as_ref()

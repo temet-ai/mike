@@ -156,6 +156,7 @@ mod tests {
             post_turn_summary_at: None,
             client_version: None,
             liveness_source: "lease",
+            observation: None,
         }
     }
 

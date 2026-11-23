@@ -1,0 +1,137 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.session_id       AS \"session_id!\",\n                          s.session_uuid     AS \"session_uuid!\",\n                          r.cwd              AS \"cwd!\",\n                          r.worktree         AS \"worktree?\",\n                          r.registered_via   AS \"registered_via!\",\n                          r.registered_at    AS \"registered_at!\",\n                          r.released_at      AS \"released_at?\",\n                          c.id               AS \"channel_id?\",\n                          c.cse_id           AS \"cse_id?\",\n                          c.client_version   AS \"client_version?\"\n                     FROM workspace.session_registrations r\n                     JOIN sessions.sessions s ON s.id = r.session_id\n                     LEFT JOIN remote_control.channels c ON c.local_session_uuid = s.session_uuid\n                    WHERE r.project_id = $1\n                      AND ($2 OR r.released_at IS NULL)\n                    ORDER BY r.registered_at DESC, r.session_id, c.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cwd!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "cwd"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "worktree?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "worktree"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "registered_via!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "registered_via"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "registered_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "registered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "released_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "released_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "channel_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "cse_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "cse_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "client_version?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "client_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "eba726eea5b4ea845d481179ebbac51a3575046771668d78a46e93de325449c6"
+}

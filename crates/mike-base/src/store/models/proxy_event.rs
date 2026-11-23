@@ -45,6 +45,9 @@ pub enum RowChangedTable {
     SessionGoals,
     Locations,
     CheckoutEdits,
+    WorkspaceSessionRegistrations,
+    RemoteControlChannels,
+    RuntimeSessionFacts,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

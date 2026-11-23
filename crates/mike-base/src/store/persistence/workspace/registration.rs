@@ -301,6 +301,7 @@ impl PersistHandle {
             if identity_written {
                 self.session_goals_changed(input.session_uuid);
             }
+            self.registrations_changed(Some(input.session_uuid));
             Ok(RegisteredWorkspaceSession {
                 flow_admission,
                 project_id,
@@ -405,6 +406,7 @@ impl PersistHandle {
             .await?;
 
             tx.commit().await?;
+            self.registrations_changed(Some(session_uuid));
             Ok(EndRegistrationOutcome::Ended)
         })
         .await

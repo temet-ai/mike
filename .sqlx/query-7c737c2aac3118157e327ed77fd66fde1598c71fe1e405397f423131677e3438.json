@@ -1,0 +1,516 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.session_id                AS \"session_id!\",\n       r.lease_expires_at          AS \"lease_expires_at!\",\n       sg.goal                     AS \"goal?\",\n       sg.next_steps               AS \"next_steps?\",\n       sg.display_name             AS \"display_name?\",\n       sg.role                     AS \"role?\",\n       sg.instructions             AS \"instructions?\",\n       v.newest_request_number     AS \"newest_request_number?\",\n       s.machine_uuid              AS \"machine_uuid?\",\n       sm.name                     AS \"machine_name?\",\n       v.session_uuid              AS \"session_uuid!\",\n       v.runtime                   AS \"runtime!\",\n       v.source                    AS \"source!\",\n       v.source_version            AS \"source_version?\",\n       v.fidelity                  AS \"fidelity!\",\n       v.completeness              AS \"completeness!\",\n       v.observed_at               AS \"observed_at?\",\n       v.lifecycle                 AS \"lifecycle?\",\n       v.lifecycle_at              AS \"lifecycle_at?\",\n       v.control                   AS \"control?\",\n       v.requested_model           AS \"requested_model?\",\n       v.observed_model            AS \"observed_model?\",\n       v.usage_scope               AS \"usage_scope?\",\n       v.usage_basis               AS \"usage_basis?\",\n       v.input_tokens              AS \"input_tokens?\",\n       v.cached_input_tokens       AS \"cached_input_tokens?\",\n       v.output_tokens             AS \"output_tokens?\",\n       v.reasoning_output_tokens   AS \"reasoning_output_tokens?\",\n       v.total_tokens              AS \"total_tokens?\",\n       v.context_window            AS \"context_window?\",\n       v.model_call_count          AS \"model_call_count!\",\n       ch.id                       AS \"channel_id?\",\n       ch.last_heartbeat_at        AS \"last_heartbeat_at?\",\n       ch.last_heartbeat_interval_seconds AS \"last_heartbeat_interval_seconds?\",\n       ch.last_idle_seconds        AS \"last_idle_seconds?\",\n       ch.worker_status            AS \"worker_status?\",\n       ch.worker_status_at         AS \"worker_status_at?\",\n       ch.stream_open              AS \"stream_open?\",\n       ch.stream_opened_at         AS \"stream_opened_at?\",\n       ch.last_delivery_at         AS \"last_delivery_at?\",\n       ch.post_turn_summary        AS \"post_turn_summary?\",\n       ch.post_turn_summary_at     AS \"post_turn_summary_at?\"\n  FROM workspace.session_registrations r\n  JOIN sessions.sessions s ON s.id = r.session_id\n  JOIN runtime.session_observation_summary_v v ON v.session_id = r.session_id\n  LEFT JOIN projects.machines sm ON sm.machine_uuid = s.machine_uuid\n  LEFT JOIN sessions.session_goals sg ON sg.session_id = r.session_id\n  LEFT JOIN LATERAL (\n       SELECT c.id, c.last_heartbeat_at, c.last_heartbeat_interval_seconds,\n              c.last_idle_seconds, c.worker_status, c.worker_status_at,\n              (c.stream_opened_at IS NOT NULL\n                 AND (c.stream_closed_at IS NULL\n                      OR c.stream_closed_at < c.stream_opened_at)) AS stream_open,\n              c.stream_opened_at, c.last_delivery_at,\n              c.post_turn_summary, c.post_turn_summary_at\n         FROM remote_control.channels c\n        WHERE c.id = ANY($2::bigint[])\n          AND c.local_session_uuid = v.session_uuid\n        ORDER BY c.last_heartbeat_at DESC NULLS LAST, c.id\n        LIMIT 1\n  ) ch ON true\n WHERE r.session_id = ANY($1::bigint[])\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lease_expires_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "lease_expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "goal?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "next_steps?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "next_steps"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "display_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "role?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "instructions?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "instructions"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "newest_request_number?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "newest_request_number"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "machine_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "machine_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "machine_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.machines",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "runtime!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "runtime"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "source_version?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "source_version"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "fidelity!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "fidelity"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "completeness!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "completeness"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "observed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "lifecycle?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "lifecycle"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "lifecycle_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "lifecycle_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "control?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "control"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "requested_model?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "requested_model"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "observed_model?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "observed_model"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "usage_scope?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "usage_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "usage_basis?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "usage_basis"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "input_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "input_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "cached_input_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "cached_input_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "output_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "output_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "reasoning_output_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "reasoning_output_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "total_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "total_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "context_window?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "context_window"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "model_call_count!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "model_call_count"
+          }
+        }
+      },
+      {
+        "ordinal": 31,
+        "name": "channel_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 32,
+        "name": "last_heartbeat_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_heartbeat_at"
+          }
+        }
+      },
+      {
+        "ordinal": 33,
+        "name": "last_heartbeat_interval_seconds?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_heartbeat_interval_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 34,
+        "name": "last_idle_seconds?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_idle_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 35,
+        "name": "worker_status?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "worker_status"
+          }
+        }
+      },
+      {
+        "ordinal": 36,
+        "name": "worker_status_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "worker_status_at"
+          }
+        }
+      },
+      {
+        "ordinal": 37,
+        "name": "stream_open?",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 38,
+        "name": "stream_opened_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "stream_opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 39,
+        "name": "last_delivery_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_delivery_at"
+          }
+        }
+      },
+      {
+        "ordinal": 40,
+        "name": "post_turn_summary?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "post_turn_summary"
+          }
+        }
+      },
+      {
+        "ordinal": 41,
+        "name": "post_turn_summary_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "post_turn_summary_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7c737c2aac3118157e327ed77fd66fde1598c71fe1e405397f423131677e3438"
+}

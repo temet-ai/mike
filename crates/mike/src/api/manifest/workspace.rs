@@ -22,6 +22,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         Coverage::Tool("get_workspace_roster"),
     ),
     route(
+        "GET",
+        "/api/workspace/projects/{project_path}/live-count",
+        Coverage::Exempt {
+            reason: "tether's status-line chip asks how many other sessions in the project are live on every status refresh; an investigating session reads the whole roster through get_workspace_roster instead",
+        },
+    ),
+    route(
         "POST",
         "/api/workspace/heartbeat",
         Coverage::Tool("workspace_heartbeat"),
@@ -72,6 +79,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/workspace/projects/{project_path}/roster",
             get(workspace::get_project_roster),
+        )
+        .route(
+            "/api/workspace/projects/{project_path}/live-count",
+            get(workspace::get_project_live_count),
         )
         .route("/api/workspace/heartbeat", post(workspace::heartbeat))
         .route(

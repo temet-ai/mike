@@ -1,5 +1,6 @@
 pub mod briefing;
 pub mod heartbeat;
+pub mod live_count;
 pub mod registration;
 pub mod roster;
 pub mod roster_poll;
@@ -11,6 +12,7 @@ pub use briefing::{
     Briefing, BriefingBuildRequest, build_workspace_briefing, extract_worktree_name, protocol_text,
 };
 pub use heartbeat::{get_wake_pending, heartbeat};
+pub use live_count::get_project_live_count;
 pub use registration::{assign_session_project, end_registration, register_session};
 pub use roster::{get_project_activity, get_project_roster, resolve_project_path};
 

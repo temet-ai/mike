@@ -28,7 +28,6 @@ pub mod tests_observation_support;
 pub use notification_targets::RuntimeNotificationTarget;
 pub use observation::{ObservationApplyOutcome, ObservationLimits};
 pub use observation_reads::RuntimeItemRow;
-pub use observation_reads::SessionObservationRow;
 pub use retention::RuntimeRetentionOutcome;
 
 use super::PersistError;
