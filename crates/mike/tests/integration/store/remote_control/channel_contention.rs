@@ -83,7 +83,7 @@ async fn a_call_that_changes_nothing_records_while_the_channel_row_is_locked() -
 }
 
 #[tokio::test]
-async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> anyhow::Result<()> {
+async fn last_seen_moves_only_past_the_debounce_and_heartbeats_only_once_due() -> anyhow::Result<()> {
     let Some(handle) = shared_handle().await? else {
         return Ok(());
     };
@@ -103,13 +103,13 @@ async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> 
     handle
         .proxy()
         .record_remote_control_call(RemoteControlCall {
-            created_at: at(base, 11),
+            created_at: at(base, 31),
             ..call_at(&cse_id, "POST", EVENTS)
         })
         .await?;
-    assert_eq!(last_seen(&handle, &cse_id).await?, at(base, 11));
+    assert_eq!(last_seen(&handle, &cse_id).await?, at(base, 31));
 
-    for seconds in [12, 13] {
+    for seconds in [32, 33] {
         handle
             .proxy()
             .record_remote_control_call(RemoteControlCall {
@@ -122,14 +122,39 @@ async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> 
             })
             .await?;
     }
-    let heartbeat: DateTime<Utc> = sqlx::query_scalar(
-        "SELECT last_heartbeat_at FROM remote_control.channels WHERE cse_id = $1",
-    )
-    .bind(&cse_id)
-    .fetch_one(handle.pool())
-    .await?;
-    assert_eq!(heartbeat, at(base, 13));
-    assert_eq!(call_count(&handle, &cse_id).await?, 5);
+    assert_eq!(stored_heartbeat(&handle, &cse_id).await?, at(base, 32));
+
+    handle
+        .proxy()
+        .record_remote_control_call(RemoteControlCall {
+            created_at: at(base, 63),
+            signals: RemoteControlSignals {
+                idle_seconds: Some(1),
+                ..RemoteControlSignals::default()
+            },
+            ..call_at(&cse_id, "POST", PATH_HEARTBEAT)
+        })
+        .await?;
+    assert_eq!(stored_heartbeat(&handle, &cse_id).await?, at(base, 63));
+
+    handle
+        .proxy()
+        .record_remote_control_call(RemoteControlCall {
+            created_at: at(base, 65),
+            signals: RemoteControlSignals {
+                idle_seconds: Some(1),
+                current_interval_seconds: Some(300),
+                ..RemoteControlSignals::default()
+            },
+            ..call_at(&cse_id, "POST", PATH_HEARTBEAT)
+        })
+        .await?;
+    assert_eq!(
+        stored_heartbeat(&handle, &cse_id).await?,
+        at(base, 65),
+        "a heartbeat that changes the interval lands at once"
+    );
+    assert_eq!(call_count(&handle, &cse_id).await?, 7);
 
     handle.pool().close().await;
     Ok(())
@@ -216,4 +241,13 @@ async fn simultaneous_first_calls_on_a_new_channel_all_record_on_one_row() -> an
 
     handle.pool().close().await;
     Ok(())
+}
+
+async fn stored_heartbeat(handle: &PersistHandle, cse_id: &str) -> anyhow::Result<DateTime<Utc>> {
+    Ok(sqlx::query_scalar(
+        "SELECT last_heartbeat_at FROM remote_control.channels WHERE cse_id = $1",
+    )
+    .bind(cse_id)
+    .fetch_one(handle.pool())
+    .await?)
 }

@@ -23,7 +23,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(sqlx::query!(
             "UPDATE memory.knowledge_sources SET last_heartbeat_at = now()
              WHERE source_uuid = ANY($1)
-               AND (last_heartbeat_at IS NULL OR last_heartbeat_at < now() - interval '5 minutes')",
+               AND (last_heartbeat_at IS NULL OR last_heartbeat_at < now() - interval '30 minutes')",
             sources
         )
         .execute(self.pool())

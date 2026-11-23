@@ -4,9 +4,15 @@
 -- one roll-up statement, and record_calls.sql then inserts the calls.
 --
 -- The channel row is written only when the call changes something a reader
--- can see: a new status, a newer heartbeat, a newly opened stream, a newer
--- delivery, a first link to a session, a new post-turn summary, or a call
--- that is more than $17 seconds newer than last_seen_at. A call that changes
+-- can see: a new status, a heartbeat that is due, a newly opened stream, a
+-- newer delivery, a first link to a session, a new post-turn summary, or a
+-- call newer than last_seen_at by the debounce.
+--
+-- Liveness readers allow a heartbeat three intervals of age (the roster, at
+-- least 20 s an interval) and last_seen_at two intervals (steering reach), so
+-- a heartbeat lands once half the roster's window has passed or when the
+-- interval itself changes, and last_seen_at once half an interval (at least
+-- $17 seconds) has passed. Status and stream changes land at once. A call that changes
 -- nothing (most /worker/events and /worker batches) takes no row lock at all,
 -- because the UPDATE finds no row to write and the plain SELECT below does
 -- not lock.
@@ -64,9 +70,15 @@ upd AS (
        AND (
             ($2::text IS NOT NULL AND $2::text IS DISTINCT FROM c.client_session_id)
          OR ($3::bigint IS NOT NULL AND $3::bigint IS DISTINCT FROM c.worker_epoch)
-         OR $4::timestamptz > c.last_seen_at + make_interval(secs => $17::integer)
+         OR $4::timestamptz > c.last_seen_at + make_interval(secs => GREATEST(
+                $17::integer, COALESCE(c.last_heartbeat_interval_seconds, 60) / 2))
          OR ($5::timestamptz IS NOT NULL
-             AND (c.last_heartbeat_at IS NULL OR $5::timestamptz > c.last_heartbeat_at))
+             AND (c.last_heartbeat_at IS NULL
+                  OR $5::timestamptz > c.last_heartbeat_at + make_interval(secs =>
+                         3 * GREATEST(COALESCE(c.last_heartbeat_interval_seconds, 20), 20) / 2)
+                  OR ($5::timestamptz > c.last_heartbeat_at
+                      AND $7::integer IS NOT NULL
+                      AND $7::integer IS DISTINCT FROM c.last_heartbeat_interval_seconds)))
          OR ($9::timestamptz IS NOT NULL
              AND (c.worker_status_at IS NULL OR $9::timestamptz >= c.worker_status_at)
              AND $8::text IS DISTINCT FROM c.worker_status)
