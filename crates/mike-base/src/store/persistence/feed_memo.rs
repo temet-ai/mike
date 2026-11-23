@@ -68,13 +68,14 @@ impl<V: Clone> Bound<'_, V> {
         let keys: Vec<String> = if self.memo.names.is_empty() {
             vec![session.to_string()]
         } else {
-            self.memo.names.iter().map(|name| (*name).to_owned()).collect()
+            self.memo
+                .names
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect()
         };
-        self.feed.generations(
-            self.memo.scope.tables,
-            self.memo.scope.per_session,
-            &keys,
-        )
+        self.feed
+            .generations(self.memo.scope.tables, self.memo.scope.per_session, &keys)
     }
 
     pub fn get(&self, session: Uuid) -> Option<V> {

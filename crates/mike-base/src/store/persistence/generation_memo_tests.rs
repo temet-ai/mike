@@ -123,15 +123,18 @@ async fn read_named(handle: &PersistHandle, reads: &AtomicI64) -> i64 {
 }
 
 #[tokio::test]
-async fn a_named_memo_is_read_again_only_when_one_of_its_generations_moves() -> anyhow::Result<()>
-{
+async fn a_named_memo_is_read_again_only_when_one_of_its_generations_moves() -> anyhow::Result<()> {
     let handle = handle()?;
     let feed = fed(&handle);
     let reads = AtomicI64::new(0);
     assert_eq!(read_named(&handle, &reads).await, 1);
     feed.observe(&generation_bumped("seat_memory_sources"));
     feed.record(RowChangedTable::Lessons, None);
-    assert_eq!(read_named(&handle, &reads).await, 1, "other generations keep it");
+    assert_eq!(
+        read_named(&handle, &reads).await,
+        1,
+        "other generations keep it"
+    );
     feed.observe(&generation_bumped("agents"));
     assert_eq!(read_named(&handle, &reads).await, 2);
     assert_eq!(read_named(&handle, &reads).await, 2);

@@ -50,8 +50,7 @@ async fn beat(handle: &PersistHandle, cse_id: &str, seconds_ago: i32) -> anyhow:
 }
 
 #[tokio::test]
-async fn registration_notices_skip_a_live_lease_renewal_and_name_a_release() -> anyhow::Result<()>
-{
+async fn registration_notices_skip_a_live_lease_renewal_and_name_a_release() -> anyhow::Result<()> {
     let Some(db) = acquire_ephemeral_db().await? else {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
         return Ok(());
@@ -141,11 +140,7 @@ async fn session_facts_notices_name_a_new_row_and_an_ended_lifecycle() -> anyhow
     let session = Uuid::new_v4();
     register(&handle, session, &unique_project("notice-facts")).await?;
     let mut listener = listening(&db.database_url).await?;
-    let facts = |sql: &'static str| {
-        sqlx::query(sql)
-            .bind(session)
-            .execute(&handle.pool)
-    };
+    let facts = |sql: &'static str| sqlx::query(sql).bind(session).execute(&handle.pool);
 
     facts(
         "INSERT INTO runtime.session_facts

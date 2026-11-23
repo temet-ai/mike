@@ -77,7 +77,10 @@ fn still_running(known: &LinkedChannels, running: &[RunningChannel]) -> Vec<(Str
         .iter()
         .map(|channel| (channel.cse_id.clone(), channel.session_uuid))
         .collect();
-    let mut linked = known.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut linked = known
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     linked.retain(|pair| current.contains(pair));
     current
         .into_iter()

@@ -1,7 +1,7 @@
 pub mod message_tests;
 
-use crate::steerer::fleet::steerer_eval::Abstention;
 use super::*;
+use crate::steerer::fleet::steerer_eval::Abstention;
 use crate::steerer::fleet::steerer_eval::TurnJudgement;
 
 #[test]

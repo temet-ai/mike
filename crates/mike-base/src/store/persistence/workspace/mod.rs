@@ -12,8 +12,8 @@ pub mod project_lookup;
 pub use project_lookup::PathMatch;
 pub mod reap;
 pub mod registration;
-pub mod runtime_launch;
 pub mod roster;
+pub mod runtime_launch;
 pub mod side_call_roster;
 
 pub const HEARTBEAT_LEASE_MINUTES: i64 = 15;

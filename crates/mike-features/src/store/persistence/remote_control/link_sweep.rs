@@ -23,12 +23,10 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 let rows = sqlx::query!(
                     r#"
                 SELECT s.session_uuid    AS "session_uuid!",
-                       cand.id           AS "request_id!",
-                       CASE WHEN cand.id = ANY($3) THEN NULL
-                            ELSE cand.request_body END AS "request_body?"
+                       cand.id           AS "request_id!"
                   FROM sessions.sessions s
                   JOIN LATERAL (
-                      SELECT rr.id, rr.request_body
+                      SELECT rr.id
                         FROM requests.requests rr
                        WHERE rr.session_id = s.id
                        ORDER BY rr.created_at DESC, rr.id DESC
@@ -44,21 +42,39 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 "#,
                     since,
                     limit,
-                    scanned_request_ids,
                 )
                 .fetch_all(&self.pool)
                 .await?;
 
-                Ok(rows
-                    .into_iter()
-                    .map(|r| ChannelLinkSweepCandidate {
+                let mut candidates = Vec::with_capacity(rows.len());
+                for r in rows {
+                    let request_body = if scanned_request_ids.contains(&r.request_id) {
+                        None
+                    } else {
+                        rebuilt_body(&self.pool, r.request_id).await?
+                    };
+                    candidates.push(ChannelLinkSweepCandidate {
                         session_uuid: r.session_uuid,
                         request_id: r.request_id,
-                        request_body: r.request_body,
-                    })
-                    .collect())
+                        request_body,
+                    });
+                }
+                Ok(candidates)
             },
         )
         .await
     }
+}
+
+/// The body as the parts store it: the envelope with its messages and tools put back.
+async fn rebuilt_body(
+    pool: &sqlx::PgPool,
+    request_id: i64,
+) -> Result<Option<Vec<u8>>, PersistError> {
+    let id = u64::try_from(request_id).unwrap_or_default();
+    Ok(
+        crate::store::persistence::rehydrate::fetch_request_body_by_id(pool, id)
+            .await?
+            .map(|served| served.bytes.to_vec()),
+    )
 }

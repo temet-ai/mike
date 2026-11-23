@@ -280,7 +280,10 @@ fn criteria_decider(
 /// that reads acceptance criteria. The registry check runs first, from
 /// memory, so with no verifier enabled no query runs at all.
 async fn criteria_have_a_reader(ctx: &FleetCtx, ph: &PersistHandle, session_uuid: Uuid) -> bool {
-    let verifiers = ctx.steerer_registry.load().enabled_ids_of_kind(VERIFIER_KIND);
+    let verifiers = ctx
+        .steerer_registry
+        .load()
+        .enabled_ids_of_kind(VERIFIER_KIND);
     if verifiers.is_empty() {
         return false;
     }

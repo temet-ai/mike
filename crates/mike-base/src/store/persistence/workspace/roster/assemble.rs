@@ -70,7 +70,8 @@ impl Activity<'_> {
     fn in_scope(&self, scope: RosterScope, clock: &Clock) -> bool {
         let (allow_stale, allow_ended) = scope.filter_bools();
         let open = self.member.released_at.is_none() && !self.lifecycle_over();
-        let current = !self.lifecycle_over() && !self.uncaptured(clock) && self.lease_or_recent(clock);
+        let current =
+            !self.lifecycle_over() && !self.uncaptured(clock) && self.lease_or_recent(clock);
         (allow_ended || open) && (allow_stale || current)
     }
 }
@@ -157,9 +158,7 @@ fn merge_channel(
 ) {
     row.channel_present = true;
     row.channel_cse_id = Some(identity.cse_id.clone());
-    row.heartbeat_age_seconds = channel
-        .last_heartbeat_at
-        .map(|hb| (now - hb).num_seconds());
+    row.heartbeat_age_seconds = channel.last_heartbeat_at.map(|hb| (now - hb).num_seconds());
     row.heartbeat_interval_seconds = channel.last_heartbeat_interval_seconds;
     row.idle_seconds = channel.last_idle_seconds;
     row.session_state = channel.worker_status.clone();

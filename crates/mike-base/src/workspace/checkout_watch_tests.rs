@@ -45,7 +45,11 @@ fn marks_leave_out_links_that_already_hold() {
 
     let marks = marks(&rows, &seen);
 
-    assert_eq!(marks.locations.len(), 2, "presence is still marked for every row");
+    assert_eq!(
+        marks.locations.len(),
+        2,
+        "presence is still marked for every row"
+    );
     assert!(marks.classified.is_empty());
 }
 
@@ -75,6 +79,10 @@ fn marks_carry_a_worktree_whose_parent_is_missing_or_wrong() {
     );
     assert_eq!(
         marks.main_roots,
-        vec![Some("/work/repo".to_owned()), Some("/work/repo".to_owned()), None]
+        vec![
+            Some("/work/repo".to_owned()),
+            Some("/work/repo".to_owned()),
+            None
+        ]
     );
 }

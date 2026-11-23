@@ -138,7 +138,10 @@ impl SteererRegistry {
 
     /// The ids of the enabled steerers of `kind`.
     pub fn enabled_ids_of_kind(&self, kind: &str) -> Vec<i64> {
-        self.enabled().filter(|s| s.kind == kind).map(|s| s.id).collect()
+        self.enabled()
+            .filter(|s| s.kind == kind)
+            .map(|s| s.id)
+            .collect()
     }
 }
 

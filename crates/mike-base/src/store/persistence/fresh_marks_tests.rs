@@ -66,7 +66,11 @@ async fn is_fresh_past_its_deadline_is_false() -> anyhow::Result<()> {
     let handle = handle()?;
     let _feed = fed(&handle);
     let now = Utc::now();
-    handle.mark_fresh(KEY, handle.fresh_ticket(), Some(now + Duration::seconds(30)));
+    handle.mark_fresh(
+        KEY,
+        handle.fresh_ticket(),
+        Some(now + Duration::seconds(30)),
+    );
     assert!(handle.is_fresh(KEY, WATCHED, now));
     assert!(!handle.is_fresh(KEY, WATCHED, now + Duration::seconds(31)));
     Ok(())

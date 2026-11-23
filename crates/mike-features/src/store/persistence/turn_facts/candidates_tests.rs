@@ -147,7 +147,12 @@ async fn find_candidates_last_allowed_attempt_marks_turn_unbuildable() -> anyhow
     Ok(())
 }
 
-async fn seed_facts(pool: &PgPool, session: i64, turn: i64, next_state: &str) -> anyhow::Result<()> {
+async fn seed_facts(
+    pool: &PgPool,
+    session: i64,
+    turn: i64,
+    next_state: &str,
+) -> anyhow::Result<()> {
     sqlx::query(
         "INSERT INTO memory.turn_facts (
              operator_turn_id, session_id, builder_version, built_at, max_request_id,
@@ -168,12 +173,12 @@ async fn seed_facts(pool: &PgPool, session: i64, turn: i64, next_state: &str) ->
 }
 
 async fn facts_ctid(pool: &PgPool, turn: i64) -> anyhow::Result<String> {
-    Ok(sqlx::query_scalar(
-        "SELECT ctid::text FROM memory.turn_facts WHERE operator_turn_id = $1",
+    Ok(
+        sqlx::query_scalar("SELECT ctid::text FROM memory.turn_facts WHERE operator_turn_id = $1")
+            .bind(turn)
+            .fetch_one(pool)
+            .await?,
     )
-    .bind(turn)
-    .fetch_one(pool)
-    .await?)
 }
 
 #[tokio::test]
@@ -201,7 +206,7 @@ async fn stamp_turn_facts_built_at_rewrites_only_pending_turns() -> anyhow::Resu
 }
 
 #[tokio::test]
-async fn stamp_turn_facts_built_at_clears_backstop_attempt()-> anyhow::Result<()> {
+async fn stamp_turn_facts_built_at_clears_backstop_attempt() -> anyhow::Result<()> {
     let Some(db) = test_util::acquire_ephemeral_db().await? else {
         return Ok(());
     };

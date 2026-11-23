@@ -3,8 +3,8 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::features_settings::cross_session::CrossSessionSettings;
-use crate::store::persistence::cross_session::{CalibrationRateRow, RollupRef, ThresholdRow};
 use crate::store::models::RowChangedTable;
+use crate::store::persistence::cross_session::{CalibrationRateRow, RollupRef, ThresholdRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const THRESHOLDS_LOADED: &str = "cross_session.thresholds";
@@ -41,7 +41,10 @@ impl CrossSessionSnapshot {
         Self::load_with(persist, Utc::now(), settings, None).await
     }
 
-    pub async fn load_after(persist: &PersistHandle, previous: &Self) -> Result<Self, PersistError> {
+    pub async fn load_after(
+        persist: &PersistHandle,
+        previous: &Self,
+    ) -> Result<Self, PersistError> {
         let rows = persist.fetch_settings().await?;
         let settings = CrossSessionSettings::from_rows(
             rows.iter()

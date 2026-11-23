@@ -34,7 +34,7 @@ impl PersistHandle {
         request_id: i64,
     ) -> Result<Option<ConversationStep>, PersistError> {
         let row = sqlx::query!(
-            "SELECT r.predecessor_request_id, r.request_body
+            "SELECT r.predecessor_request_id
                FROM requests.requests r
               WHERE r.id = $1",
             request_id,
@@ -50,10 +50,7 @@ impl PersistHandle {
             u64::try_from(request_id).unwrap_or_default(),
         )
         .await?;
-        let body = match sent {
-            Some(sent) => sent.to_vec(),
-            None => row.request_body.unwrap_or_default(),
-        };
+        let body = sent.map(|sent| sent.to_vec()).unwrap_or_default();
         let reply = assemble_message_json(&self.pool, request_id).await?;
         Ok(Some(ConversationStep {
             predecessor: row.predecessor_request_id,

@@ -176,4 +176,3 @@ fn mailbox_skip_count(pending: &[SystemReminder], max_per_turn: usize) -> usize 
         .count();
     mailbox_total.saturating_sub(max_per_turn)
 }
-

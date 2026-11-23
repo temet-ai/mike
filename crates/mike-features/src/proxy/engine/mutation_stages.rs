@@ -107,14 +107,7 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
             filter_applied: &mut filter_applied,
             request_id,
         };
-        steerer::stage::drain(
-            state,
-            session_id,
-            turn_origin,
-            &mut bk,
-            &mut manifest,
-        )
-        .await
+        steerer::stage::drain(state, session_id, turn_origin, &mut bk, &mut manifest).await
     };
     if post_filter_body != after_replay {
         record_injected_replay(state, &lane, &original, &post_filter_body);

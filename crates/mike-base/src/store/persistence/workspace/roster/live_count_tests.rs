@@ -53,8 +53,13 @@ async fn live_count_over_mixed_members_equals_the_live_scope_roster() -> anyhow:
         register(&handle, session, &project).await?;
     }
     insert_channel(&handle, &format!("cse_me_{me}"), Some(me), 0).await?;
-    insert_channel(&handle, &format!("cse_quiet_{quiet_channel}"), Some(quiet_channel), 300)
-        .await?;
+    insert_channel(
+        &handle,
+        &format!("cse_quiet_{quiet_channel}"),
+        Some(quiet_channel),
+        300,
+    )
+    .await?;
     handle.end_workspace_registration(released, None).await?;
     lapse(&handle, lapsed).await?;
 
@@ -183,9 +188,18 @@ fn held_count_after_a_notice_for_a_watched_or_any_member_table_does_not_hold() {
     let feed = ChangeFeed::new();
     let now = Utc::now();
     let watched = held(&feed, None);
-    feed.record(RowChangedTable::Requests, Some(&Uuid::from_u128(3).to_string()));
-    assert!(watched.holds(&feed, now), "a request of a session not watched");
-    feed.record(RowChangedTable::Requests, Some(&Uuid::from_u128(2).to_string()));
+    feed.record(
+        RowChangedTable::Requests,
+        Some(&Uuid::from_u128(3).to_string()),
+    );
+    assert!(
+        watched.holds(&feed, now),
+        "a request of a session not watched"
+    );
+    feed.record(
+        RowChangedTable::Requests,
+        Some(&Uuid::from_u128(2).to_string()),
+    );
     assert!(!watched.holds(&feed, now));
 
     let facts = held(&feed, None);

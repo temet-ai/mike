@@ -27,14 +27,7 @@ async fn drain_once(state: &AppState) -> TransformationManifest {
         filter_applied: &mut filter_applied,
         request_id: RequestId::next(),
     };
-    let injected = drain(
-        state,
-        SESSION,
-        &TurnOrigin::Primary,
-        &mut bk,
-        &mut manifest,
-    )
-    .await;
+    let injected = drain(state, SESSION, &TurnOrigin::Primary, &mut bk, &mut manifest).await;
     assert!(injected.is_empty());
     manifest.finish("test".to_string())
 }

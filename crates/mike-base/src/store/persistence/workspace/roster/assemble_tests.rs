@@ -94,7 +94,12 @@ fn a_released_member_reads_ended_and_only_the_all_scope_keeps_it() {
         Liveness::Ended
     );
     assert!(!in_scope(&released, &live_state, RosterScope::Live, &clock));
-    assert!(!in_scope(&released, &live_state, RosterScope::Active, &clock));
+    assert!(!in_scope(
+        &released,
+        &live_state,
+        RosterScope::Active,
+        &clock
+    ));
     assert!(in_scope(&released, &live_state, RosterScope::All, &clock));
 }
 
@@ -187,7 +192,10 @@ fn earliest_flip_with_a_fresh_channel_is_its_heartbeat_deadline() {
     let mut fresh = state(now + Duration::minutes(5), now);
     fresh.channel = Some(heartbeat(70, now - Duration::seconds(10)));
     let row = roster_row(&member(now), &fresh, &clock);
-    assert_eq!(earliest_flip(&row, &clock), Some(now + Duration::seconds(50)));
+    assert_eq!(
+        earliest_flip(&row, &clock),
+        Some(now + Duration::seconds(50))
+    );
 }
 
 #[test]

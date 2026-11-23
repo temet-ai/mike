@@ -178,9 +178,11 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
         match renewals.0.get(cse_id).map(|entry| *entry) {
             None => true,
             Some(ChannelLease::Unregistered(retry_at)) => std::time::Instant::now() >= retry_at,
-            Some(ChannelLease::Session(session_id)) => self.known_lease(session_id).is_none_or(|at| {
-                at < Utc::now() + chrono::Duration::minutes(i64::from(RENEW_WHEN_UNDER_MINUTES))
-            }),
+            Some(ChannelLease::Session(session_id)) => {
+                self.known_lease(session_id).is_none_or(|at| {
+                    at < Utc::now() + chrono::Duration::minutes(i64::from(RENEW_WHEN_UNDER_MINUTES))
+                })
+            }
         }
     }
 
