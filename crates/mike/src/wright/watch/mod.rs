@@ -44,6 +44,8 @@ mod logs_text_tests;
 #[cfg(test)]
 mod problems_tests;
 #[cfg(test)]
+mod reads_outpace_writes_tests;
+#[cfg(test)]
 mod schedule_tests;
 
 pub(crate) use catalogue::{WatchContext, run_check};

@@ -357,6 +357,7 @@ async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::R
             "mcp_tool_errors",
             "page_client_errors",
             "prompt_cache_breaks",
+            "reads_outpace_writes",
             "request_failures",
             "scheduled_job_failures",
             "session_tool_errors",

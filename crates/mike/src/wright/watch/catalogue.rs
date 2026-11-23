@@ -26,8 +26,8 @@ async fn run_probe(check: &CheckRow, ctx: &WatchContext) -> Result<Vec<Finding>,
                 .query
                 .as_deref()
                 .ok_or_else(|| format!("{}: a sql check has no query", check.name))?;
-            if check.name == counters::CHECK {
-                counters::save(pool, &check.params).await?;
+            if counters::reads_counters(&check.name) {
+                counters::save(pool, &check.name, &check.params).await?;
             }
             bounded::findings(pool, &check.name, query, &check.params).await
         }

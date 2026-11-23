@@ -133,6 +133,7 @@ fn brief_lists_open_followups_by_id_and_keeps_their_titles_in_evidence() {
     assert!(!brief.contains("IGNORE"));
     assert!(brief.contains("same_as"));
     assert!(brief.contains("tuning a Wright check"));
+    assert!(brief.contains(super::brief::QUESTION));
     let doc = evidence(&problem, &episode, &open, None);
     assert_eq!(doc["open_followups"][0]["id"], 41);
     assert_eq!(doc["open_followups"][0]["title"], HOSTILE);
