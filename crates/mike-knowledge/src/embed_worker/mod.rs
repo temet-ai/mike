@@ -9,6 +9,7 @@ use crate::store::operator_turns::embed_closed_pending;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
 
+mod idle_reap;
 pub mod knowledge;
 pub mod knowledge_key;
 pub mod knowledge_report;
@@ -48,8 +49,6 @@ pub mod knowledge_version_tests;
 #[cfg(test)]
 pub mod model_change_tests;
 
-const IDLE_TURN_THRESHOLD: Duration = Duration::from_secs(30 * 60);
-
 #[cfg(any(test, feature = "test-seams"))]
 pub async fn run_drain_once(state: &KnowledgeState) -> anyhow::Result<usize> {
     let embedding = state.embedding_service();
@@ -65,7 +64,7 @@ pub async fn run_reap_once(state: &KnowledgeState) -> anyhow::Result<Vec<i64>> {
         return Ok(Vec::new());
     };
     Ok(persist
-        .reap_idle_open_turns(IDLE_TURN_THRESHOLD, chrono::Utc::now())
+        .reap_idle_open_turns(idle_reap::IDLE_TURN_THRESHOLD, chrono::Utc::now())
         .await?)
 }
 
@@ -128,6 +127,7 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
     let mut breaker = new_breaker();
     let mut requeued_for: Option<String> = None;
     let mut drain_gate = DrainGate::default();
+    let mut reap_at = tokio::time::Instant::now();
 
     loop {
         tokio::select! {
@@ -136,6 +136,10 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
             _ = shutdown.cancelled() => {
                 log_shutdown_signalled();
                 return;
+            }
+
+            _ = tokio::time::sleep_until(reap_at) => {
+                reap_at = tokio::time::Instant::now() + idle_reap::reap_when_due(&persist).await;
             }
 
             _ = interval.tick() => {
@@ -249,8 +253,6 @@ async fn run_one_tick(
 ) {
     let now = Instant::now();
 
-    reap_idle_turns(persist).await;
-
     if breaker.should_skip(now) {
         log_breaker_open();
         return;
@@ -264,32 +266,6 @@ async fn run_one_tick(
         return;
     }
     refresh_vectors_and_log(persist, embedding, breaker).await;
-}
-
-async fn reap_idle_turns(persist: &PersistHandle) {
-    match persist
-        .reap_idle_open_turns(IDLE_TURN_THRESHOLD, chrono::Utc::now())
-        .await
-    {
-        Ok(reaped) if !reaped.is_empty() => {
-            persist.note_turn_embed_owed();
-            log_reaped(reaped.len());
-        }
-        Ok(_) => {}
-        Err(e) => log_reap_failed(&e),
-    }
-}
-
-fn log_reaped(count: usize) {
-    tracing::info!(
-        turns = count,
-        "embed_backfill: reaped {} idle open turn(s)",
-        count
-    );
-}
-
-fn log_reap_failed(e: &PersistError) {
-    tracing::warn!(error = %e, "embed_backfill: idle-turn reap failed — will retry next interval");
 }
 
 fn log_breaker_open() {

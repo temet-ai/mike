@@ -228,3 +228,42 @@ async fn health_counts_open_and_closed_unembedded_separately() -> anyhow::Result
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn earliest_open_turn_seen_at_is_the_quietest_open_session_and_skips_closed_turns()
+-> anyhow::Result<()> {
+    let Some(factory) = TestDb::bootstrap().await? else {
+        return Ok(());
+    };
+    let db = factory.acquire_isolated().await?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let pool = PgPool::connect(&db.database_url).await?;
+
+    assert_eq!(handle.earliest_open_turn_seen_at().await?, None);
+
+    let project_id = test_db::seed_project(&pool, "embed-worker-reap-earliest").await?;
+    let now = chrono::Utc::now();
+    let idle_threshold = std::time::Duration::from_secs(30 * 60);
+    let quiet = now - chrono::Duration::minutes(40);
+    let recent = now - chrono::Duration::minutes(10);
+    seed_open_turn(&pool, project_id, quiet).await?;
+    seed_open_turn(&pool, project_id, recent).await?;
+
+    let earliest = handle.earliest_open_turn_seen_at().await?;
+    assert_eq!(
+        earliest.map(|at| at.timestamp_micros()),
+        Some(quiet.timestamp_micros())
+    );
+
+    handle.reap_idle_open_turns(idle_threshold, now).await?;
+    let after = handle.earliest_open_turn_seen_at().await?;
+    assert_eq!(
+        after.map(|at| at.timestamp_micros()),
+        Some(recent.timestamp_micros()),
+        "a reaped turn no longer holds the earliest moment"
+    );
+
+    pool.close().await;
+    db.cleanup().await?;
+    Ok(())
+}

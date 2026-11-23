@@ -2,6 +2,22 @@ use super::TurnJudgmentStamp;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 impl PersistHandle {
+    pub async fn earliest_open_turn_seen_at(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PersistError> {
+        crate::metrics::time_db("earliest_open_turn_seen_at", async move {
+            Ok(sqlx::query_scalar!(
+                "SELECT min(s.last_seen)
+                   FROM memory.operator_turns t
+                   JOIN sessions.sessions s ON s.id = t.session_id
+                  WHERE t.closed_at IS NULL"
+            )
+            .fetch_one(&self.pool)
+            .await?)
+        })
+        .await
+    }
+
     pub async fn reap_idle_open_turns(
         &self,
         idle_threshold: std::time::Duration,
