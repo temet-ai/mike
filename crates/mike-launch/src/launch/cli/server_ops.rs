@@ -39,6 +39,7 @@ pub async fn build_runner<'a>(
         trust: TrustGate::from_home()?,
         briefs_dir: brief::default_briefs_dir()?,
         inspect_addr: Some(state.config().inspect_listen_addr.clone()),
+        proxy_addr: Some(state.config().proxy_listen_addr.clone()),
         mcp_server: super::mcp_preflight::find_server(),
         backend_reason: None,
     })

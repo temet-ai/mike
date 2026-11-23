@@ -20,6 +20,27 @@ pub fn claude_child_of(parent: u32) -> Option<u32> {
     children(parent).into_iter().find(|pid| is_claude(*pid))
 }
 
+pub(crate) fn agent_child_of(parent: u32) -> Option<u32> {
+    let mut parents = vec![parent];
+    for _ in 0..3 {
+        let next: Vec<_> = parents
+            .into_iter()
+            .take(32)
+            .flat_map(children)
+            .take(128)
+            .collect();
+        if let Some(pid) = next
+            .iter()
+            .copied()
+            .find(|pid| name(*pid).is_some_and(|name| matches!(name.as_str(), "claude" | "codex")))
+        {
+            return Some(pid);
+        }
+        parents = next;
+    }
+    None
+}
+
 fn is_claude(pid: u32) -> bool {
     name(pid).is_some_and(|name| name == "claude")
 }

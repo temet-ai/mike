@@ -108,7 +108,7 @@ pub async fn foreground_child_pid(cli: &TmuxCli, pane: &str) -> Option<u32> {
     let args = argv(&["display-message", "-p", "-t", pane, "-F", "#{pane_pid}"]);
     let text = cli.run_text(&args, DEFAULT_TIMEOUT).await.ok()?;
     let shell_pid: u32 = text.trim().parse().ok()?;
-    crate::launch::process::claude_child_of(shell_pid)
+    crate::launch::process::agent_child_of(shell_pid)
 }
 
 pub async fn wait_for_exit(pid: u32, wait: Duration) -> bool {

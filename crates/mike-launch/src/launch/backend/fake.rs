@@ -38,6 +38,7 @@ pub struct FakeBackend {
     pub open_requests: Mutex<Vec<OpenRequest>>,
     pub closed: Mutex<Vec<Surface>>,
     pub available: bool,
+    pub backend_id: Option<BackendId>,
 }
 
 impl FakeBackend {
@@ -83,7 +84,7 @@ impl FakeBackend {
 #[async_trait]
 impl TerminalBackend for FakeBackend {
     fn id(&self) -> BackendId {
-        BackendId::Herdr
+        self.backend_id.unwrap_or(BackendId::Herdr)
     }
 
     fn capabilities(&self) -> Capabilities {

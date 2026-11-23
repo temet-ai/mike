@@ -34,6 +34,7 @@ class CodexHooks(unittest.TestCase):
                     "MIKE_INSPECT_URL": "http://mike.test:9989", "CALL_LOG": str(self.log),
                     "HOOK_REPLY": json.dumps({"mike_session_id": MIKE_SESSION,
                                                "pending_mail": [MAIL]})}
+        self.env.pop("MIKE_CODEX_SPAWN_SESSION_ID", None)
         self.program("mike-mcp", "pass")
         self.program("codex", "print('codex-cli 0.167.2')")
         self.program("curl", """
@@ -168,6 +169,74 @@ sys.exit(int(os.environ.get('CURL_EXIT', '0')))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(path.read_text(), "[broken")
         self.assertFalse((self.home / "hooks.json").exists())
+
+    def test_required_mcp_failure_does_not_write_partial_setup(self):
+        (self.bin / "mike-mcp").unlink()
+        (self.bin / "python3").symlink_to(shutil.which("python3"))
+        self.env["PATH"] = str(self.bin)
+        result = self.install("--require-mcp", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("mike-mcp is missing", result.stderr)
+        self.assertFalse((self.home / "config.toml").exists())
+        self.assertFalse((self.home / "hooks.json").exists())
+        path = self.home / "config.toml"
+        original = '[mcp_servers.mike]\ncommand = "custom-mcp"\nenabled = false\n'
+        path.write_text(original)
+        result = self.install("--require-mcp", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("MCP server is disabled", result.stderr)
+        self.assertEqual(path.read_text(), original)
+        self.assertFalse((self.home / "hooks.json").exists())
+
+    def test_setup_report_only_identifies_the_mike_log_exporter(self):
+        report = json.loads(self.install("--require-mcp", "--report-json").stdout)
+        self.assertEqual(set(report), {"notice", "mike_otel_exporter"})
+        self.assertTrue(report["mike_otel_exporter"])
+        self.assertIn("/hooks", report["notice"])
+        (self.home / "config.toml").write_text('[otel]\nexporter = { otlp-http = { '
+            'endpoint = "http://operator/v1/logs", headers = { token = "secret" } } }\n')
+        report_text = self.install("--report-json").stdout
+        self.assertFalse(json.loads(report_text)["mike_otel_exporter"])
+        self.assertNotIn("secret", report_text)
+
+    def test_spawn_setup_refuses_profile_exporter_without_rewriting_it(self):
+        path = self.home / "config.toml"
+        original = '[profiles.custom.otel]\nexporter = "none"\n'
+        path.write_text(original)
+        result = self.install("--require-mcp", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("profile-level log exporters", result.stderr)
+        self.assertEqual(path.read_text(), original)
+        self.assertFalse((self.home / "hooks.json").exists())
+
+    def test_concurrent_setup_preserves_one_handler_per_event(self):
+        processes = [subprocess.Popen([str(INSTALL), "--codex-home", str(self.home),
+                                      "--require-mcp", "--report-json"], env=self.env,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                     for _ in range(4)]
+        for process in processes:
+            stdout, stderr = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertTrue(json.loads(stdout)["mike_otel_exporter"])
+        hooks = json.loads((self.home / "hooks.json").read_text())["hooks"]
+        self.assertTrue(all(len(groups) == 1 for groups in hooks.values()))
+        self.assertTrue(tomllib.loads((self.home / "config.toml").read_text())["features"]["hooks"])
+
+    def test_spawn_header_carries_valid_launch_context_for_root_and_children(self):
+        self.env["MIKE_SESSION_ID"] = MIKE_SESSION
+        self.hook()
+        self.assertFalse(any("x-mike-codex-spawn-session" in arg for arg in self.calls()[-1]["args"]))
+        self.env["MIKE_CODEX_SPAWN_SESSION_ID"] = MIKE_SESSION
+        self.hook("SessionStart")
+        self.assertIn("x-mike-codex-spawn-session: " + MIKE_SESSION, self.calls()[-1]["args"])
+        for event, fields in [("SubagentStart", {}), ("SubagentStop", {}),
+                              ("SessionStart", {"agent_id": "child"})]:
+            self.hook(event, **fields)
+            self.assertIn("x-mike-codex-spawn-session: " + MIKE_SESSION, self.calls()[-1]["args"])
+        for invalid in ("invalid", "00000000-0000-0000-0000-000000000000"):
+            self.env["MIKE_CODEX_SPAWN_SESSION_ID"] = invalid
+            self.hook("SessionStart")
+            self.assertFalse(any("x-mike-codex-spawn-session" in arg for arg in self.calls()[-1]["args"]))
 
     def test_hook_sends_metadata_only_and_uses_canonical_recipient(self):
         self.env["HOOK_REPLY"] = json.dumps({"mike_session_id": MIKE_SESSION,

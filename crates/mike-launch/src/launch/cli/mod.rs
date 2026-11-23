@@ -281,6 +281,7 @@ fn build_runner<'a>(
         trust: TrustGate::from_home()?,
         briefs_dir: brief::default_briefs_dir()?,
         inspect_addr: Some(config.inspect_listen_addr.clone()),
+        proxy_addr: Some(config.proxy_listen_addr.clone()),
         mcp_server: mcp_preflight::find_server(),
         backend_reason: None,
     })

@@ -235,6 +235,18 @@ pub struct OpenRequest {
     pub prompt_wait_ms: u64,
 }
 
+impl OpenRequest {
+    pub(crate) fn session_uuid(&self) -> Option<Uuid> {
+        if self.program == "codex" {
+            return self
+                .env
+                .get("MIKE_SESSION_ID")
+                .and_then(|id| id.parse().ok());
+        }
+        super::request::claude_args::session_of(&self.args)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Surface {
     pub backend: BackendId,
@@ -311,6 +323,8 @@ pub fn backend_for(id: BackendId) -> Option<Box<dyn TerminalBackend>> {
 
 #[cfg(test)]
 pub mod names_tests;
+#[cfg(test)]
+mod session_tests;
 
 #[cfg(test)]
 #[allow(

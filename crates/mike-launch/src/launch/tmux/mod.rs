@@ -121,7 +121,10 @@ async fn find_by_session(cli: &TmuxCli, session: Uuid) -> Result<Option<Surface>
 async fn list(cli: &TmuxCli) -> Result<Vec<Surface>, LaunchError> {
     let panes = surface::all_mike_panes(cli).await?;
     let mut out = Vec::with_capacity(panes.len());
-    for pane in panes.iter().filter(|p| p.current_command == "claude") {
+    for pane in panes
+        .iter()
+        .filter(|p| matches!(p.current_command.as_str(), "claude" | "codex"))
+    {
         let pid = surface::foreground_child_pid(cli, &pane.pane_id).await;
         out.push(surface::surface_from_pane(pane, pid, "existing", true));
     }

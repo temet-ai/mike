@@ -5,6 +5,7 @@ Existing hooks/settings are preserved. Codex still requires its own hook trust r
 The default log exporter sends metadata to Mike; raw capture remains disabled.
 """
 import argparse
+import fcntl
 import json
 from pathlib import Path
 import re
@@ -82,14 +83,36 @@ def metadata_exporter(config, parsed, mike_url, source, codex_home):
     return setting(config, "otel", "exporter", exporter)
 
 
+def uses_mike_exporter(config, mike_url):
+    exporter = config.get("otel", {}).get("exporter")
+    if not isinstance(exporter, dict):
+        return False
+    http = exporter.get("otlp-http")
+    return isinstance(http, dict) and http.get("endpoint") == (
+        mike_url.rstrip("/") + "/api/codex/observe/otel/v1/logs")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex-home", required=True, type=Path)
     parser.add_argument("--mike-url", default="http://127.0.0.1:9989")
     parser.add_argument("--source", default=socket.gethostname())
-    parser.add_argument("--print", action="store_true", dest="print_only")
+    parser.add_argument("--require-mcp", action="store_true")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--print", action="store_true", dest="print_only")
+    output.add_argument("--report-json", action="store_true")
     args = parser.parse_args()
     codex_home = args.codex_home.expanduser().resolve()
+    if args.print_only:
+        install(args, codex_home)
+        return
+    codex_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (codex_home / ".mike-setup.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        install(args, codex_home)
+
+
+def install(args, codex_home):
     hook_bin = codex_home / "mike" / "mike-codex-hook"
     command = " ".join((
         "MIKE_INSPECT_URL=" + shlex.quote(args.mike_url.rstrip("/")),
@@ -121,6 +144,12 @@ def main():
     config_path = codex_home / "config.toml"
     config = config_path.read_text() if config_path.exists() else ""
     parsed = tomllib.loads(config)
+    if args.require_mcp and any("exporter" in profile.get("otel", {})
+                                for profile in parsed.get("profiles", {}).values()):
+        raise ValueError("Codex spawn does not support profile-level log exporters; "
+                         "configure the exporter at the top level or launch Codex directly.")
+    if args.require_mcp and parsed.get("mcp_servers", {}).get("mike", {}).get("enabled") is False:
+        raise ValueError("the Mike MCP server is disabled; enable it before spawning an integrated Codex session.")
     config = setting(config, "features", "hooks", "true")
     config = metadata_exporter(config, parsed, args.mike_url, args.source, codex_home)
     # Mail bodies must be fetched as tool results, never promoted to hook context.
@@ -131,10 +160,12 @@ def main():
                        + "\n[mcp_servers.mike.env]\nMIKE_INSPECT_URL = "
                        + json.dumps(args.mike_url.rstrip("/")) + "\n")
         else:
+            if args.require_mcp:
+                raise ValueError("mike-mcp is missing; install it before spawning an integrated Codex session.")
             print("install: mike-mcp is missing; install it before receiving mail through Codex tools.",
                   file=sys.stderr)
     # Validate before writing either file. Existing user telemetry remains untouched.
-    tomllib.loads(config)
+    installed = tomllib.loads(config)
     rendered = json.dumps(doc, indent=2) + "\n"
     if args.print_only:
         print(rendered + "\n" + config)
@@ -144,9 +175,12 @@ def main():
     changed |= write_changed(config_path, config)
     changed |= write_changed(hook_bin, Path(__file__).with_name("mike-codex-hook").read_text())
     hook_bin.chmod(0o755)
-    if changed:
-        print("install: Mike lifecycle/mail hooks ready; review and trust them in Codex (/hooks).",
-              file=sys.stderr)
+    notice = "install: Mike lifecycle/mail hooks ready; review and trust them in Codex (/hooks)." if changed else ""
+    if args.report_json:
+        print(json.dumps({"notice": notice,
+                          "mike_otel_exporter": uses_mike_exporter(installed, args.mike_url)}))
+    elif notice:
+        print(notice, file=sys.stderr)
 
 
 if __name__ == "__main__":

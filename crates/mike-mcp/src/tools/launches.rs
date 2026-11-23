@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use rmcp::model::{CallToolResult, ErrorData as RmcpError, Tool};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use super::{object_schema, parse_args_default, parse_args_required, wrap_success};
@@ -38,23 +38,12 @@ fn spawn_session_surface_properties() -> Vec<(&'static str, Value)> {
             }),
         ),
         (
-            "claude_args",
-            json!({
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Extra arguments forwarded to `claude` verbatim, in order, \
-                    after mike's own flags (e.g. [\"--model\", \"opus\"])."
-            }),
-        ),
-        (
             "prompt",
             json!({
                 "type": "string",
-                "description": "The first-turn prompt. A short prompt is passed inline; a long \
-                    one is pushed to the session over Remote Control once it is up (launch_brief \
-                    toggle on; the launch's `brief_read_at` records when it was taken in) or \
-                    staged to a private brief file. Either way it is recorded as the session's \
-                    `brief` note (list_session_notes kind \"brief\")."
+                "description": "The first-turn prompt. Short prompts are passed inline; long \
+                    prompts use a private brief file. Claude may instead receive its brief \
+                    through Remote Control when launch_brief is enabled."
             }),
         ),
         (
@@ -86,24 +75,50 @@ fn spawn_session_surface_properties() -> Vec<(&'static str, Value)> {
             "trust",
             json!({
                 "type": "boolean",
-                "description": "Record the folder as trusted in ~/.claude.json before \
-                    launch, so Claude Code's own trust dialog cannot swallow the prompt."
+                "description": "For Claude, record the folder as trusted in ~/.claude.json. \
+                    Codex uses its own project and hook trust review."
             }),
         ),
         (
             "proxy_env",
             json!({
                 "type": "boolean",
-                "description": "Inject the proxy environment (HTTPS_PROXY / NO_PROXY / \
-                    NODE_EXTRA_CA_CERTS) into the surface. Default true."
+                "description": "Route model traffic through Mike. Claude uses the proxy \
+                    environment; Codex uses openai_base_url. Default true."
             }),
         ),
         (
             "remote_control",
             json!({
                 "type": "boolean",
-                "description": "Append --remote-control so the session is restartable and \
-                    pushable. Default true."
+                "description": "Enable Claude Remote Control. Default true for Claude; \
+                    ignored for Codex."
+            }),
+        ),
+    ]
+}
+
+fn spawn_session_runtime_properties() -> Vec<(&'static str, Value)> {
+    vec![
+        (
+            "runtime",
+            json!({
+                "type": "string", "enum": ["claude", "codex"], "default": "claude",
+                "description": "Coding agent to launch. Defaults to Claude."
+            }),
+        ),
+        (
+            "args",
+            json!({
+                "type": "array", "items": {"type": "string"},
+                "description": "Extra arguments forwarded verbatim to the selected runtime, in order."
+            }),
+        ),
+        (
+            "claude_args",
+            json!({
+                "type": "array", "items": {"type": "string"}, "deprecated": true,
+                "description": "Legacy alias for args. Supply either args or claude_args, never both."
             }),
         ),
     ]
@@ -152,19 +167,22 @@ fn spawn_session_identity_properties() -> Vec<(&'static str, Value)> {
 
 fn spawn_session_tool() -> Tool {
     let mut properties = spawn_session_surface_properties();
+    properties.extend(spawn_session_runtime_properties());
     properties.extend(spawn_session_identity_properties());
     let schema = object_schema(properties, &["folder"]);
     Tool::new(
         Cow::Borrowed(TOOL_SPAWN_SESSION),
         Cow::Borrowed(
-            "Open a terminal surface and start a fresh Claude Code session in it, wired to the \
-             proxy with a preassigned session id. Mutating: this opens a real terminal surface \
+            "Open a terminal surface and start a fresh Claude Code or Codex session in it, wired to \
+             Mike with a preassigned session id. Set runtime to codex for Codex; Claude is the default. \
+             Codex keeps its own approval settings and requires review of new Mike hooks in /hooks. \
+             Mutating: this opens a real terminal surface \
              and starts a real agent process on the host mike runs on. Pass `name`, `role`, \
              `instructions` and `goal` and the session is on the roster with that identity \
              before its first turn; no register_workspace_session or set_session_goal call is \
-             needed. Returns `{launch_id, session, backend}` as soon as the local checks pass \
+             needed. Returns `{launch_id, session, runtime, backend}` as soon as the local checks pass \
              (trust gate, worktree refusal, surface cap, ledger row written); opening the \
-             surface, registering the session and waiting for its Remote Control channel \
+             surface, registering the session and, for Claude, waiting for its Remote Control channel \
              continue in the background. Poll list_launches for the returned session, or \
              get_workspace_roster once it should have registered. A synchronous refusal (bad \
              folder, untrusted folder without `trust`, no terminal backend configured, surface \
@@ -214,7 +232,7 @@ fn kill_session_tool() -> Tool {
     Tool::new(
         Cow::Borrowed(TOOL_KILL_SESSION),
         Cow::Borrowed(
-            "Close the terminal surface hosting `session_id`, waiting briefly for the claude \
+            "Close the terminal surface hosting `session_id`, waiting briefly for the agent \
              process to exit. Mutating. A session with no known surface, or a surface already \
              gone, returns `closed: false` instead of an error: check `closed` and \
              `process_exited` in the response.",
@@ -223,10 +241,20 @@ fn kill_session_tool() -> Tool {
     )
 }
 
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum SpawnRuntime {
+    #[default]
+    Claude,
+    Codex,
+}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct SpawnSessionArgs {
     pub(crate) folder: String,
     #[serde(default)]
+    runtime: SpawnRuntime,
+    #[serde(default, rename = "args", alias = "claude_args")]
     pub(crate) claude_args: Vec<String>,
     #[serde(default)]
     pub(crate) prompt: Option<String>,
@@ -266,8 +294,11 @@ pub(crate) struct KillSessionArgs {
 fn spawn_session_body(args: SpawnSessionArgs) -> Value {
     let mut body = Map::new();
     body.insert("folder".to_string(), Value::String(args.folder));
+    if args.runtime != SpawnRuntime::Claude {
+        body.insert("runtime".to_string(), json!(args.runtime));
+    }
     if !args.claude_args.is_empty() {
-        body.insert("claude_args".to_string(), json!(args.claude_args));
+        body.insert("args".to_string(), json!(args.claude_args));
     }
     if let Some(prompt) = args.prompt {
         body.insert("prompt".to_string(), Value::String(prompt));
@@ -361,21 +392,5 @@ pub(crate) async fn call_tool(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn caller_env_keeps_only_present_terminal_keys() {
-        let env = caller_env(|key| match key {
-            "HC_TERMINAL_ID" => Some("t13".to_string()),
-            "TMUX" => Some(String::new()),
-            _ => None,
-        });
-        assert_eq!(Value::Object(env), json!({"HC_TERMINAL_ID": "t13"}));
-    }
-
-    #[test]
-    fn caller_env_outside_any_terminal_is_empty() {
-        assert!(caller_env(|_| None).is_empty());
-    }
-}
+#[path = "launches_tests.rs"]
+mod tests;

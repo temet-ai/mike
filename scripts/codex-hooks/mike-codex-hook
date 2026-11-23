@@ -24,6 +24,16 @@ FIELDS = ("session_id", "hook_event_name", "cwd", "model", "turn_id", "agent_id"
 CONTEXT_EVENTS = ("SessionStart", "UserPromptSubmit", "PostToolUse")
 
 
+def spawn_header():
+    try:
+        session = uuid.UUID(os.environ.get("MIKE_CODEX_SPAWN_SESSION_ID", ""))
+    except ValueError:
+        return []
+    if session.int == 0:
+        return []
+    return ["-H", "x-mike-codex-spawn-session: " + str(session)]
+
+
 def post(payload):
     url = os.environ.get("MIKE_INSPECT_URL", "http://127.0.0.1:9989").rstrip("/")
     codex_home = Path(os.environ.get("MIKE_CODEX_HOME", os.environ.get(
@@ -34,6 +44,7 @@ def post(payload):
                "-H", "x-mike-codex-home: " + str(codex_home),
                "-H", "x-mike-codex-source: " + os.environ.get("MIKE_CODEX_SOURCE", socket.gethostname()),
                "-H", "x-mike-delivery-id: " + str(uuid.uuid4()), "--data-binary", "@-"]
+    command.extend(spawn_header())
     result = subprocess.run(command, input=json.dumps(payload), text=True,
                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=0.8)
     if result.returncode:

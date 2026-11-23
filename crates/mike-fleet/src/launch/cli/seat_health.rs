@@ -122,6 +122,7 @@ fn relaunch_request(
     };
     ServerOpenRequest {
         folder: relaunch.folder.clone(),
+        runtime: crate::runtime::RuntimeKind::Claude,
         claude_args,
         prompt,
         run: relaunch.run.clone(),

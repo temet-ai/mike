@@ -11,9 +11,11 @@ use crate::base_state::BaseState;
 use crate::launch::backend_choice::{BackendChoice, CallerTerminal};
 use crate::launch::fleet::{brief_delivery, brief_version};
 use crate::launch::{BackendId, LaunchError};
+use crate::runtime::RuntimeKind;
 
 pub struct ServerOpenRequest {
     pub folder: String,
+    pub runtime: RuntimeKind,
     pub claude_args: Vec<String>,
     pub prompt: Option<String>,
     pub run: Option<String>,
@@ -35,6 +37,7 @@ pub struct ServerOpenRequest {
 pub struct ServerOpenStart {
     pub launch_id: Option<i64>,
     pub session: Option<Uuid>,
+    pub runtime: RuntimeKind,
     pub backend: BackendId,
     pub backend_reason: String,
 }
@@ -42,6 +45,9 @@ pub struct ServerOpenStart {
 fn build_tokens(req: &ServerOpenRequest) -> Vec<String> {
     let mut tokens = Vec::with_capacity(req.claude_args.len() + 8);
     tokens.push(req.folder.clone());
+    if req.runtime != RuntimeKind::Claude {
+        tokens.extend(["--runtime".to_string(), req.runtime.as_str().to_string()]);
+    }
     if let Some(run) = &req.run {
         tokens.push("--run".to_string());
         tokens.push(run.clone());
@@ -79,14 +85,25 @@ fn build_tokens(req: &ServerOpenRequest) -> Vec<String> {
     if !req.proxy_env {
         tokens.push("--no-proxy-env".to_string());
     }
-    if !req.remote_control {
+    if req.runtime != RuntimeKind::Claude || !req.remote_control {
         tokens.push("--no-remote-control".to_string());
     }
-    if !req.channels {
+    if req.runtime != RuntimeKind::Claude || !req.channels {
         tokens.push("--no-channels".to_string());
     }
-    tokens.extend(req.claude_args.iter().cloned());
     tokens
+}
+
+fn append_client_args(mut tokens: Vec<String>, args: &[String]) -> Vec<String> {
+    if !args.is_empty() {
+        tokens.push("--".to_string());
+        tokens.extend(args.iter().cloned());
+    }
+    tokens
+}
+
+fn claude_followup(req: &ServerOpenRequest, watch: bool) -> Option<Relaunch> {
+    (watch && req.runtime == RuntimeKind::Claude).then(|| Relaunch::from_request(req))
 }
 
 fn attach_prompt_file(
@@ -158,7 +175,7 @@ async fn open_server(
     let config = state.config();
     let mut runner = build_runner(&state, backend.as_ref(), &config.launch).await?;
     runner.backend_reason = Some(choice.reason.clone());
-    let mut follow = watch.then(|| Relaunch::from_request(&req));
+    let mut follow = claude_followup(&req, watch);
     let prompt = stamped_prompt(
         &state,
         (req.run.as_deref(), req.seat.as_deref()),
@@ -167,6 +184,7 @@ async fn open_server(
     .await;
     let tokens = build_tokens(&req);
     let (tokens, prompt_file) = attach_prompt_file(tokens, prompt.as_deref())?;
+    let tokens = append_client_args(tokens, &req.claude_args);
     let prepared = open::prepare(&runner, tokens, &mut std::io::empty()).await;
     drop(prompt_file);
     let prepared = match prepared {
@@ -186,6 +204,7 @@ async fn open_server(
     Ok(ServerOpenStart {
         launch_id,
         session,
+        runtime: req.runtime,
         backend: backend_id,
         backend_reason,
     })
@@ -222,7 +241,7 @@ fn spawn_finish(
             ),
         }
         match (follow, session) {
-            (Some(_), Some(session)) if pane_never_opened => close_late_pane(&state, session).await,
+            (_, Some(session)) if pane_never_opened => close_late_pane(&state, session).await,
             (Some(follow), Some(session)) => {
                 super::seat_health::watch(&state, follow, session).await;
             }
@@ -255,6 +274,7 @@ mod tests {
     fn build_tokens_orders_flags_before_claude_args() {
         let req = ServerOpenRequest {
             folder: "/repo".to_string(),
+            runtime: RuntimeKind::Claude,
             claude_args: vec!["--model".to_string(), "opus".to_string()],
             prompt: None,
             run: Some("r1".to_string()),
@@ -273,7 +293,7 @@ mod tests {
             caller: CallerTerminal::default(),
         };
         assert_eq!(
-            build_tokens(&req),
+            append_client_args(build_tokens(&req), &req.claude_args),
             vec![
                 "/repo",
                 "--run",
@@ -294,6 +314,7 @@ mod tests {
                 "--trust",
                 "--no-proxy-env",
                 "--no-remote-control",
+                "--",
                 "--model",
                 "opus",
             ]
@@ -304,6 +325,7 @@ mod tests {
     fn build_tokens_defaults_omit_every_optional_flag() {
         let req = ServerOpenRequest {
             folder: "/repo".to_string(),
+            runtime: RuntimeKind::Claude,
             claude_args: vec![],
             prompt: None,
             run: None,
@@ -322,6 +344,40 @@ mod tests {
             caller: CallerTerminal::default(),
         };
         assert_eq!(build_tokens(&req), vec!["/repo"]);
+    }
+
+    #[test]
+    fn codex_arguments_cannot_override_spawn_runtime_or_swallow_prompt() -> anyhow::Result<()> {
+        let req: crate::api::launches::CreateLaunchRequest =
+            serde_json::from_value(serde_json::json!({
+                "folder": "/repo", "runtime": "codex",
+                "args": ["--runtime", "claude", "--prompt-file", "client-value"]
+            }))?;
+        let req = ServerOpenRequest::from(req);
+        let (tokens, file) = attach_prompt_file(build_tokens(&req), Some("the actual prompt"))?;
+        let tokens = append_client_args(tokens, &req.claude_args);
+        let split = crate::launch::request::split_launch_args(tokens[1..].iter().cloned())?;
+        assert_eq!(split.runtime, RuntimeKind::Codex);
+        assert_eq!(split.claude_args, req.claude_args);
+        assert!(!split.remote_control);
+        assert!(!split.channels);
+        assert!(split.prompt_file.is_some());
+        assert!(file.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn codex_skips_claude_tool_relaunch_watchdog() -> anyhow::Result<()> {
+        let req: crate::api::launches::CreateLaunchRequest =
+            serde_json::from_value(serde_json::json!({
+                "folder": "/repo", "runtime": "codex"
+            }))?;
+        let mut req = ServerOpenRequest::from(req);
+        assert!(claude_followup(&req, true).is_none());
+        req.runtime = RuntimeKind::Claude;
+        assert!(claude_followup(&req, true).is_some());
+        assert!(claude_followup(&req, false).is_none());
+        Ok(())
     }
 
     #[test]

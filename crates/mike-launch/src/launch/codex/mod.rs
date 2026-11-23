@@ -1,9 +1,11 @@
 pub mod contract;
 pub mod fleet;
+pub(crate) mod interactive;
 pub mod model;
 pub mod observation;
 pub mod options;
 pub mod register;
+pub(crate) mod setup;
 
 pub use contract::{SeatKind, render_contract};
 pub use fleet::{

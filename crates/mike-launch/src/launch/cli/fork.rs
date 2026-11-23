@@ -185,10 +185,15 @@ pub async fn execute(
 ) -> open::OpenResult {
     let (target, rest) = take_target(tokens).map_err(bare)?;
     let (rest, folder_override, allow_prefix_change) = strip_fork_flags(rest);
+    let split = split_launch_args(rest).map_err(bare)?;
+    if split.runtime == crate::runtime::RuntimeKind::Codex {
+        return Err(bare(LaunchError::Usage(
+            "Codex supports fresh `mike spawn open --runtime codex` sessions; template forks are Claude-only".into(),
+        )));
+    }
     let template = resolve_template(runner, &target).await.map_err(bare)?;
     let recorded_args = template_args(&template);
 
-    let split = split_launch_args(rest).map_err(bare)?;
     if !allow_prefix_change
         && let Some((flag, recorded, given)) =
             conflicting_prefix_flag(&split.claude_args, &recorded_args)

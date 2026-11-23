@@ -3,6 +3,7 @@ pub mod acceptance_artifacts_tests;
 #[cfg(test)]
 pub mod brief_note_tests;
 pub mod claude_args;
+mod codex;
 #[cfg(test)]
 mod name_tests;
 #[cfg(test)]
@@ -58,6 +59,9 @@ impl LaunchSpec {
         prompt: Option<String>,
         opts: &AssembleOptions<'_>,
     ) -> Result<Self, LaunchError> {
+        if split.runtime == crate::runtime::RuntimeKind::Codex {
+            return codex::assemble(split, prompt, opts);
+        }
         let (session, preassigned) = match claude_args::session_rule(&split.claude_args)? {
             SessionRule::Explicit(id) | SessionRule::Resumed(id) => (Some(id), false),
             SessionRule::Resume => (None, false),
@@ -188,7 +192,9 @@ impl LaunchSpec {
         let typed = staged.mode != BriefMode::Note;
         let changed = demoted.delivered != staged.delivered;
         if !typed || (changed && self.args.pop().is_some()) {
-            self.args.extend(read_permission(&demoted));
+            if self.flags.runtime == crate::runtime::RuntimeKind::Claude {
+                self.args.extend(read_permission(&demoted));
+            }
             self.args.push(demoted.delivered.clone());
         }
         self.brief = Some(demoted);

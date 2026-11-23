@@ -26,7 +26,7 @@ struct Target {
 pub async fn open(cli: &TmuxCli, req: &OpenRequest) -> Result<Surface, LaunchError> {
     let folder = req.folder.to_string_lossy().into_owned();
     let env_flags = env_args(&req.env);
-    let session_uuid = session_uuid_from_args(&req.args);
+    let session_uuid = req.session_uuid();
 
     let target = match &req.run_tab {
         Some(window) => split_in_window(cli, window, &folder, &env_flags).await?,
@@ -40,7 +40,9 @@ pub async fn open(cli: &TmuxCli, req: &OpenRequest) -> Result<Surface, LaunchErr
     }
 
     send_command(cli, &target.pane_id, req).await?;
-    wait_ready(cli, &target.pane_id).await;
+    if req.program == "claude" {
+        wait_ready(cli, &target.pane_id).await;
+    }
     if req
         .args
         .iter()
@@ -73,10 +75,6 @@ pub async fn open(cli: &TmuxCli, req: &OpenRequest) -> Result<Surface, LaunchErr
         confirmed,
         prompt_detail: detail,
     })
-}
-
-fn session_uuid_from_args(args: &[String]) -> Option<Uuid> {
-    crate::launch::request::claude_args::session_of(args)
 }
 
 fn env_args(env: &BTreeMap<String, String>) -> Vec<String> {
@@ -222,20 +220,6 @@ async fn wait_ready(cli: &TmuxCli, pane: &str) {
 )]
 mod tests {
     use super::*;
-
-    #[test]
-    fn session_uuid_from_args_reads_space_and_equals_forms() {
-        let id = Uuid::new_v4();
-        assert_eq!(
-            session_uuid_from_args(&["--session-id".into(), id.to_string()]),
-            Some(id)
-        );
-        assert_eq!(
-            session_uuid_from_args(&[format!("--session-id={id}")]),
-            Some(id)
-        );
-        assert_eq!(session_uuid_from_args(&["--resume".into()]), None);
-    }
 
     #[test]
     fn env_args_are_dash_e_pairs_in_key_order() {

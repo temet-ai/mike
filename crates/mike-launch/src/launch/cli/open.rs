@@ -13,10 +13,12 @@ use super::prompt_turn;
 use super::registration;
 use super::run_seat;
 use super::runner::Runner;
+use crate::launch::codex::interactive;
 use crate::launch::{
     AssembleOptions, BackendId, ChannelCheck, LaunchError, LaunchOutput, LaunchSpec, OpenRequest,
     Placement, SplitLaunchArgs, Surface, WorktreeKind, brief, split_launch_args, worktree,
 };
+use crate::runtime::RuntimeKind;
 
 pub const MCP_MISSING: &str = "mike_mcp_missing";
 
@@ -132,7 +134,7 @@ fn strip_no_trust(tokens: Vec<String>) -> (Vec<String>, bool) {
 fn take_folder(split: &mut SplitLaunchArgs) -> Result<String, LaunchError> {
     if split.claude_args.is_empty() || split.claude_args[0].starts_with('-') {
         return Err(LaunchError::Usage(
-            "the folder must come first: mike spawn open <folder> [spawn flags] [claude args...]"
+            "the folder must come first: mike spawn open <folder> [spawn flags] [runtime args...]"
                 .into(),
         ));
     }
@@ -168,6 +170,11 @@ pub async fn prepare(
     let mut split = split_launch_args(tokens).map_err(bare)?;
     let raw_folder = take_folder(&mut split).map_err(bare)?;
     let mut output = skeleton(runner.backend.id(), &raw_folder, &split);
+    if split.runtime == RuntimeKind::Codex && runner.backend.id() == BackendId::Herdr {
+        return Err(fail(output, LaunchError::Unsupported(
+            "the legacy herdr backend starts Claude only; select herdr-core, tmux or terminal for Codex".into(),
+        ), "unsupported_runtime"));
+    }
     if runner.backend.id() == BackendId::None {
         return Err(fail(output, LaunchError::BackendNone, "backend_none"));
     }
@@ -185,9 +192,14 @@ pub async fn prepare(
         let files = worktree::carry_over_files(runner.config.worktree_config.as_deref());
         open_gates::report_carry_over(&worktree::carry_over(main_root, &folder, &files));
     }
-    let target = open_gates::trust_gate(runner, &folder, &split, no_trust, &output).await?;
-    super::mcp_preflight::apply(runner, &folder, &mut split)
-        .map_err(|e| fail(output.clone(), e, MCP_MISSING))?;
+    let target = if split.runtime == RuntimeKind::Codex {
+        crate::launch::trust::trust_target(&folder).await
+    } else {
+        let target = open_gates::trust_gate(runner, &folder, &split, no_trust, &output).await?;
+        super::mcp_preflight::apply(runner, &folder, &mut split)
+            .map_err(|e| fail(output.clone(), e, MCP_MISSING))?;
+        target
+    };
     open_gates::surface_cap(runner, &output).await?;
     let prompt = match &split.prompt_file {
         Some(source) => Some(
@@ -207,6 +219,9 @@ pub async fn prepare(
 }
 
 pub fn with_operator_args(mut split: SplitLaunchArgs, operator: &[String]) -> SplitLaunchArgs {
+    if split.runtime == RuntimeKind::Codex {
+        return split;
+    }
     let mut args = operator.to_vec();
     args.append(&mut split.claude_args);
     split.claude_args = args;
@@ -223,9 +238,11 @@ pub async fn start(runner: &Runner<'_>, p: Prepared) -> Result<Started, OpenFail
         .await
         .map_err(|error| fail(p.output.clone(), error, "fleet_admission"))?;
     let mut split = with_operator_args(p.split.clone(), &runner.config.claude_args);
-    crate::launch::seat::before_open(&runner.ledger, &mut split)
-        .await
-        .map_err(|e| fail(p.output.clone(), e, "fleet_settings"))?;
+    if split.runtime == RuntimeKind::Claude {
+        crate::launch::seat::before_open(&runner.ledger, &mut split)
+            .await
+            .map_err(|e| fail(p.output.clone(), e, "fleet_settings"))?;
+    }
     let opts = AssembleOptions {
         program: "claude".to_string(),
         proxy: runner.proxy.as_ref(),
@@ -236,15 +253,21 @@ pub async fn start(runner: &Runner<'_>, p: Prepared) -> Result<Started, OpenFail
     };
     let mut spec = LaunchSpec::assemble(split, p.prompt.clone(), &opts)
         .map_err(|e| fail(p.output.clone(), e, "usage"))?;
-    let prompt_in_argv = runner.backend.capabilities().prompt_in_argv;
+    if spec.flags.runtime == RuntimeKind::Codex {
+        interactive::prepare(runner, &mut spec)
+            .await
+            .map_err(|error| fail(p.output.clone(), error, "codex_setup"))?;
+    }
+    let prompt_in_argv =
+        spec.flags.runtime == RuntimeKind::Codex || runner.backend.capabilities().prompt_in_argv;
     let mut delivery = Delivery::split(&spec, prompt_in_argv);
     let placed = run_seat::resolve(runner, &p.split).await;
     let launch_id = open_record::record_start(runner, &p, &spec, &delivery).await;
-    if admission.is_some() && launch_id.is_none() {
+    if (admission.is_some() || spec.flags.runtime == RuntimeKind::Codex) && launch_id.is_none() {
         return Err(fail(
             p.output,
             LaunchError::Failed(
-                "fleet launch was not durably recorded; no backend open was attempted".into(),
+                "launch was not durably recorded; no backend open was attempted".into(),
             ),
             "fleet_ledger_unavailable",
         ));
@@ -322,6 +345,14 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
             output: Some(Box::new(opened_output(output, &spec, &surface, &delivery))),
             error,
         });
+    }
+    if spec.flags.runtime == RuntimeKind::Codex {
+        let output = interactive::opened(output, &spec, &surface);
+        runner
+            .ledger
+            .record_outcome(launch_id, &success_outcome(&output, false))
+            .await;
+        return Ok(output);
     }
     if let Some(session) = spec.session {
         registration::register_opened_surface(

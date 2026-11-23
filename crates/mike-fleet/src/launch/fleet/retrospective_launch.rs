@@ -199,6 +199,7 @@ pub async fn launch(
         .map_err(|err| LaunchError::Failed(err.to_string()))?;
     let request = ServerOpenRequest {
         folder: def.repo.clone(),
+        runtime: crate::runtime::RuntimeKind::Claude,
         claude_args: args(&def, job),
         prompt: Some(prompt(row, &def, job)),
         run: Some(job.run_id.clone()),

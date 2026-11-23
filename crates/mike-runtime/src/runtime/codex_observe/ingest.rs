@@ -17,6 +17,7 @@ pub struct ObserveSource {
     pub codex_version: Option<String>,
     pub hook_boundary: bool,
     pub codex_home: Option<String>,
+    pub spawn_session: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -72,7 +73,30 @@ pub async fn ingest_hook(
     let namespace = source_namespace(persist, source).await?;
     let scope = payload.scope();
     let parent = scope.parent_thread_id.as_deref();
-    let session = resolve_hook_session(persist, &namespace, parent, &scope.thread_id).await?;
+    if parent.is_some()
+        && let Some(spawn) = source.spawn_session
+        && !super::spawn::telemetry_ready(persist, &namespace, source, spawn).await?
+    {
+        let mut pending = report(namespace.id, delivery_id, ObservationApplyOutcome::Applied);
+        pending.facts = 0;
+        pending.replayed = true;
+        pending.availability = "awaiting_spawn_hook";
+        return Ok(pending);
+    }
+    let session = match (parent, source.spawn_session) {
+        (None, Some(spawn)) => {
+            super::spawn::resolve(
+                persist,
+                &namespace,
+                source,
+                spawn,
+                &scope.thread_id,
+                payload.cwd.as_deref(),
+            )
+            .await?
+        }
+        _ => resolve_hook_session(persist, &namespace, parent, &scope.thread_id).await?,
+    };
     let observation = session::hook(persist, source, session, delivery_id, &payload).await?;
     sync_lifecycle(persist, session, delivery_id, &payload).await?;
     let outcome = persist
@@ -189,6 +213,12 @@ pub async fn ingest_otel(
     report.replayed = true;
     if signal != "logs" {
         report.availability = "signal_not_projected";
+        return Ok(report);
+    }
+    if let Some(spawn) = source.spawn_session
+        && !super::spawn::telemetry_ready(persist, &namespace, &source, spawn).await?
+    {
+        report.availability = "awaiting_spawn_hook";
         return Ok(report);
     }
     for (index, fact) in log_facts(&body).iter().enumerate() {

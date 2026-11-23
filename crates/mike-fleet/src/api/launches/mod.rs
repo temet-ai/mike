@@ -18,6 +18,7 @@ use crate::launch::{
     BackendId, DoctorReport, KillReport, LaunchError, ServerOpenRequest, ServerOpenStart,
     doctor_for_server, kill_for_server, open_for_server,
 };
+use crate::runtime::RuntimeKind;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
@@ -31,6 +32,8 @@ fn default_true() -> bool {
 pub struct CreateLaunchRequest {
     pub folder: String,
     #[serde(default)]
+    pub runtime: RuntimeKind,
+    #[serde(default, rename = "args", alias = "claude_args")]
     pub claude_args: Vec<String>,
     #[serde(default)]
     pub prompt: Option<String>,
@@ -66,6 +69,7 @@ impl From<CreateLaunchRequest> for ServerOpenRequest {
     fn from(body: CreateLaunchRequest) -> Self {
         Self {
             folder: body.folder,
+            runtime: body.runtime,
             claude_args: body.claude_args,
             prompt: body.prompt,
             run: body.run,
@@ -90,6 +94,7 @@ impl From<CreateLaunchRequest> for ServerOpenRequest {
 pub struct CreateLaunchResponse {
     pub launch_id: Option<i64>,
     pub session: Option<Uuid>,
+    pub runtime: RuntimeKind,
     pub backend: BackendId,
     pub backend_reason: String,
 }
@@ -99,6 +104,7 @@ impl From<ServerOpenStart> for CreateLaunchResponse {
         Self {
             launch_id: start.launch_id,
             session: start.session,
+            runtime: start.runtime,
             backend: start.backend,
             backend_reason: start.backend_reason,
         }
@@ -236,3 +242,6 @@ pub async fn get_launch_doctor(
         .map(Json)
         .map_err(|e| launch_error_response(&e))
 }
+
+#[cfg(test)]
+mod tests;

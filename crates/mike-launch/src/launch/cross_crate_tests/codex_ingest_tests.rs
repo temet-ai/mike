@@ -11,6 +11,7 @@ fn source() -> ObserveSource {
         codex_version: Some("0.167.1".into()),
         hook_boundary: true,
         codex_home: None,
+        spawn_session: None,
     }
 }
 

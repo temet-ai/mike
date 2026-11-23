@@ -40,6 +40,12 @@ observations, quota admission, mail and readers. The library has offline tests a
 dependency on Mike, SQLx, Axum or a running model; host tests cover those interfaces.
 This adds no process or separately released service.
 
+Ordinary terminal launch selects Codex with `mike spawn open <folder> --runtime codex`
+or `spawn_session(runtime: "codex")`. The independent client validates provider
+arguments and runs bounded setup; `mike-launch` owns terminal selection and the launch
+ledger. Trusted root hooks bind the native thread to the launch's Mike session ID.
+Early telemetry and child hooks wait for that binding without retaining a backlog.
+
 Routine Codex ingestion retains bounded metadata. Optional diagnostic bodies have separate
 record/session/global limits and expiry; streaming request forwarding never depends on
 collecting the body. The existing retention worker expires facts, receipts and diagnostic

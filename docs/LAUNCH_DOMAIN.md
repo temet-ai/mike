@@ -91,7 +91,7 @@ Eight verbs, all in `crates/mike-launch/src/launch/cli/`:
 
 | Verb | Does |
 |---|---|
-| `open <folder> [placement] [flags] [claude args]` | Opens a terminal surface in `folder` and starts `claude` in it with a preassigned session id. |
+| `open <folder> [placement] [flags] [agent args]` | Opens a terminal surface with a preassigned Mike session id. Defaults to Claude; `--runtime codex` selects a fresh interactive Codex session. |
 | `kill --session <uuid>` | Closes the surface hosting `<uuid>`, and only that one; a second call is an exit-0 no-op. |
 | `list [--run <id>]` | One line per surface the backend hosts, joined against the ledger's open launches, newest launch first; unmatched surfaces follow in surface-ref order. `--run` scopes to one run's seats. |
 | `doctor` | Runs every dependency check for a launch (backend, sidecar, CA certificate, the `claude` binary, the inspect API, the database) with the remedy beside each failure. |
@@ -107,6 +107,7 @@ argument kept in order; a literal `--` forwards the rest verbatim. The shared fl
 
 | Flag | Verbs | What it does |
 |---|---|---|
+| `--runtime <claude\|codex>` | open | Selects the runtime; defaults to Claude. Codex uses its own arguments, compact hook/telemetry setup and model proxy route, without Claude Remote Control. Provider arguments after `--` are passed verbatim. |
 | `--tab` | open, warm, fork | Tab placement — what a launch gets when no placement flag is given. Mutually exclusive with `--split`. |
 | `--split <l\|r\|u\|d>` | open, warm, fork | Split placement in that direction. A backend without split support ignores it and reports what it actually did in the launch's `actual_placement`. |
 | `--panel` | open, warm, fork | Panel placement. Unlike `--split`, it may be combined with `--tab`. |

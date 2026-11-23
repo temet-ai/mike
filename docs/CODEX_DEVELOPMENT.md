@@ -2,14 +2,14 @@
 title: Developing the Codex client
 status: active
 created: 2026-11-12
-updated: 2026-11-12
-summary: The independent managed Codex client and its Mike integration boundary.
+updated: 2026-11-23
+summary: The independent Codex client and its Mike integration boundary.
 ---
 
 # Developing the Codex client
 
-`crates/mike-codex/` is the managed Codex app-server client used by Mike's fleet
-launcher. It is a library in this workspace, with its own tests and no dependency
+`crates/mike-codex/` owns the Codex app-server client, observation decoders and
+interactive argument/setup adapters. It is a library in this workspace, with its own tests and no dependency
 on Mike, SQLx, Axum or the frontend. The purpose of this boundary is a shorter
 edit-and-test loop for the client.
 
@@ -21,6 +21,13 @@ hook and OpenTelemetry decoding, and incremental Responses metadata parsing.
 Mike owns fleet contracts and permissions, session registration, authentication
 file setup, durable mail, persistence and reader policy. Mike's
 `launch/codex/` module connects those responsibilities to the client.
+
+Ordinary `mike spawn open <folder> --runtime codex` uses the same terminal backend
+as other launches. Pure interactive Codex arguments and bounded setup execution
+live in `mike-codex`; the host locates the packaged installer, records launch identity
+and opens the terminal. Hook ingestion validates the launch's session and home
+before binding the native thread. Telemetry and child hooks arriving before that hook are marked
+`awaiting_spawn_hook` and is not spooled or assigned a second session identity.
 
 Client tests use a local fake app-server and synthetic messages. They need no
 Codex installation, credentials, model inference, database or running Mike.

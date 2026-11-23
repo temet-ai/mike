@@ -68,8 +68,8 @@ pub async fn find_by_session(
         .into_iter()
         .find(|c| c.class == tag);
     Ok(entry.map(|c| {
-        let claude_pid = claude_child_of(c.pid);
-        surface_from_client(&c, claude_pid, "existing", true)
+        let agent_pid = crate::launch::process::agent_child_of(c.pid);
+        surface_from_client(&c, agent_pid, "existing", true)
     }))
 }
 
@@ -79,8 +79,8 @@ pub async fn list(cli: &TerminalCli, timeout: Duration) -> Result<Vec<Surface>, 
         .into_iter()
         .filter(|c| c.class.starts_with(APP_ID_PREFIX))
         .map(|c| {
-            let claude_pid = claude_child_of(c.pid);
-            surface_from_client(&c, claude_pid, "existing", true)
+            let agent_pid = crate::launch::process::agent_child_of(c.pid);
+            surface_from_client(&c, agent_pid, "existing", true)
         })
         .collect())
 }
@@ -122,7 +122,7 @@ pub fn claude_child_of(window_pid: u32) -> Option<u32> {
 pub async fn wait_for_child_pid(window_pid: u32, budget: Duration) -> Option<u32> {
     let deadline = Instant::now() + budget;
     loop {
-        if let Some(pid) = claude_child_of(window_pid) {
+        if let Some(pid) = crate::launch::process::agent_child_of(window_pid) {
             return Some(pid);
         }
         if Instant::now() >= deadline {

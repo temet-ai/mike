@@ -2,13 +2,20 @@
 title: Connecting ordinary Codex sessions to Mike
 status: active
 created: 2026-11-11
-updated: 2026-11-12
+updated: 2026-11-23
 summary: Compact lifecycle hooks, automatic mailbox notices, explicit agent receipt, and bounded local state for ordinary Codex sessions.
 ---
 
 # Connecting ordinary Codex sessions to Mike
 
 `cdx` updates this adapter in the active `CODEX_HOME` before launching Codex.
+`mike spawn open <folder> --runtime codex` also runs this setup before opening
+its terminal. Spawn identifies its reserved Mike session through a dedicated
+environment value; hooks send that context separately from the native Codex
+thread ID. Mike validates the launch and home before binding the root thread.
+Child hooks arriving first wait for the root binding without creating another
+parent identity; children retain their own identities.
+
 Install it explicitly for sessions launched another way:
 
 ```bash

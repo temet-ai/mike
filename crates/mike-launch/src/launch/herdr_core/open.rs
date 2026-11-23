@@ -24,7 +24,7 @@ pub async fn open(
 ) -> Result<Surface, LaunchError> {
     let folder = req.folder.to_string_lossy().into_owned();
     let placed = place::place(cli, caller, &folder, req.run.as_ref()).await;
-    let session = session_uuid_from_args(&req.args);
+    let session = req.session_uuid();
     let env = with_caller_path(&req.env, std::env::var("PATH").ok());
     let command = agent_command(&req.program, &req.args, &env)?;
     let labels = agent_labels(&placed, req, session);
@@ -36,7 +36,11 @@ pub async fn open(
     {
         confirm_channels_dialog(cli, &address).await;
     }
-    let state = wait_reported(cli, &address).await;
+    let state = if req.program == "claude" {
+        wait_reported(cli, &address).await
+    } else {
+        None
+    };
     let prompted = match &req.prompt {
         Some(text) => Some(prompt::deliver(cli, &address, text, req.prompt_wait_ms).await?),
         None => None,
@@ -190,10 +194,6 @@ pub fn shell_quote(arg: &str) -> String {
     } else {
         format!("'{}'", arg.replace('\'', "'\\''"))
     }
-}
-
-pub fn session_uuid_from_args(args: &[String]) -> Option<Uuid> {
-    crate::launch::request::claude_args::session_of(args)
 }
 
 async fn wait_reported(cli: &HcCli, address: &str) -> Option<String> {

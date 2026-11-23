@@ -1,5 +1,6 @@
 mod error;
 mod events;
+pub mod interactive;
 mod model;
 mod observation;
 pub mod observe;
@@ -11,6 +12,7 @@ pub mod responses_body;
 mod rpc;
 mod rpc_frame;
 mod seat;
+pub mod setup;
 
 pub use error::CodexError;
 pub use observation::{

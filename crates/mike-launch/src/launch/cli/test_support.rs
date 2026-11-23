@@ -23,6 +23,7 @@ pub fn runner<'a>(
         trust: TrustGate::new(claude_json),
         briefs_dir: home.join("briefs"),
         inspect_addr: None,
+        proxy_addr: None,
         mcp_server: None,
         backend_reason: None,
     })

@@ -87,6 +87,7 @@ pub async fn begin(
     };
     let request = ServerOpenRequest {
         folder: def.repo.clone(),
+        runtime: crate::runtime::RuntimeKind::Claude,
         claude_args: args,
         prompt: Some(super::report_proof::starting_prompt(persist, def, run_id, seat).await),
         run: Some(run_id.to_string()),

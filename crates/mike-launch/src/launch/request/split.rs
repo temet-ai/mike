@@ -1,9 +1,11 @@
 use super::super::backend::{Placement, SplitDirection};
 use super::super::brief::PromptSource;
 use super::super::error::LaunchError;
+use crate::runtime::RuntimeKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SplitLaunchArgs {
+    pub runtime: RuntimeKind,
     pub placement: Option<Placement>,
     pub anchor_terminal: Option<String>,
     pub json: bool,
@@ -27,6 +29,7 @@ pub struct SplitLaunchArgs {
 impl SplitLaunchArgs {
     fn empty() -> Self {
         Self {
+            runtime: RuntimeKind::Claude,
             placement: None,
             anchor_terminal: None,
             json: false,
@@ -50,6 +53,7 @@ impl SplitLaunchArgs {
 }
 
 enum Flag {
+    Runtime,
     Tab,
     Split,
     Panel,
@@ -74,6 +78,7 @@ enum Flag {
 impl Flag {
     fn parse(token: &str) -> Option<Flag> {
         Some(match token {
+            "--runtime" => Flag::Runtime,
             "--tab" => Flag::Tab,
             "--split" => Flag::Split,
             "--panel" => Flag::Panel,
@@ -100,7 +105,8 @@ impl Flag {
     fn takes_value(&self) -> bool {
         matches!(
             self,
-            Flag::Split
+            Flag::Runtime
+                | Flag::Split
                 | Flag::AnchorTerminal
                 | Flag::PromptFile
                 | Flag::Run
@@ -119,12 +125,13 @@ pub fn split_launch_args(
 ) -> Result<SplitLaunchArgs, LaunchError> {
     let mut out = SplitLaunchArgs::empty();
     let mut iter = tokens.into_iter();
+    let mut checked = Vec::new();
     while let Some(token) = iter.next() {
         if token == "--" {
             out.claude_args.extend(iter);
             break;
         }
-        reject_legacy(&token)?;
+        checked.push(token.clone());
         let (name, inline_value) = split_inline_value(&token);
         let Some(flag) = Flag::parse(name) else {
             out.claude_args.push(token);
@@ -142,6 +149,14 @@ pub fn split_launch_args(
             None
         };
         apply(&mut out, flag, name, value)?;
+    }
+    if out.runtime == RuntimeKind::Claude {
+        for token in checked {
+            reject_legacy(&token)?;
+        }
+    } else {
+        out.remote_control = false;
+        out.channels = false;
     }
     Ok(out)
 }
@@ -174,6 +189,17 @@ fn apply(
     value: Option<String>,
 ) -> Result<(), LaunchError> {
     match flag {
+        Flag::Runtime => {
+            out.runtime = match value.as_deref() {
+                Some("claude") => RuntimeKind::Claude,
+                Some("codex") => RuntimeKind::Codex,
+                _ => {
+                    return Err(LaunchError::Usage(
+                        "--runtime must be claude or codex".into(),
+                    ));
+                }
+            }
+        }
         Flag::Tab => set_placement(out, Placement::Tab, name)?,
         Flag::Split => {
             let dir: SplitDirection = value.unwrap_or_default().parse()?;

@@ -88,6 +88,7 @@ struct Launch {
 fn open_request(launch: Launch) -> ServerOpenRequest {
     ServerOpenRequest {
         folder: launch.folder,
+        runtime: crate::runtime::RuntimeKind::Claude,
         claude_args: launch.claude_args,
         prompt: Some(launch.body),
         run: None,

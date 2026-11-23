@@ -25,10 +25,13 @@ pub enum SpawnCommand {
                       [--run <id>] [--seat <name>] [--role <role>] [--instructions <text>] \
                       [--goal <text>] [--session-name <name>] [--prompt-file <path|->] \
                       [--worktree-ok] [--trust|--no-trust] [--no-proxy-env] \
-                      [--no-remote-control] [claude args...] [-- <claude args...>]",
+                      [--runtime <claude|codex>] [--no-remote-control] [runtime args...] [-- <runtime args...>]",
     after_help = "The folder comes first. Spawn's own flags may appear anywhere after it; every \
-                  other token is a claude argument, kept in order, and a literal `--` forwards \
-                  the rest verbatim. Claude receives `--session-id <uuid>`, the operator's \
+                  other token is a runtime argument, kept in order, and a literal `--` forwards \
+                  the rest verbatim. The runtime defaults to Claude. Codex starts a fresh local \
+                  interactive session with its native approval and trust settings, plus Mike \
+                  hooks, metadata telemetry and MCP. Codex does not accept Claude resume or \
+                  template arguments. Claude receives `--session-id <uuid>`, the operator's \
                   launch_claude_args, your arguments, then `--remote-control` and the prompt \
                   from --prompt-file. --role/--instructions/--goal seed the spawned session's \
                   identity on the launch ledger; --session-name sets its roster name and \

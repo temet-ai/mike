@@ -28,14 +28,23 @@ fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn source(headers: &HeaderMap) -> ObserveSource {
-    ObserveSource {
+fn source(headers: &HeaderMap) -> Result<ObserveSource, String> {
+    let spawn_session = header_text(headers, "x-mike-codex-spawn-session")
+        .map(|value| {
+            Uuid::parse_str(&value)
+                .ok()
+                .filter(|id| !id.is_nil())
+                .ok_or_else(|| "x-mike-codex-spawn-session must be a non-nil UUID".to_string())
+        })
+        .transpose()?;
+    Ok(ObserveSource {
         label: header_text(headers, SOURCE_HEADER).unwrap_or_else(|| DEFAULT_SOURCE.to_owned()),
         codex_version: header_text(headers, VERSION_HEADER),
         hook_boundary: header_text(headers, "x-mike-codex-control").as_deref()
             == Some("hook_boundary"),
         codex_home: header_text(headers, "x-mike-codex-home"),
-    }
+        spawn_session,
+    })
 }
 
 fn delivery_id(headers: &HeaderMap) -> Result<Uuid, String> {
@@ -71,7 +80,11 @@ pub async fn post_hook(
         Ok(id) => id,
         Err(message) => return (StatusCode::BAD_REQUEST, message).into_response(),
     };
-    answer(ingest::ingest_hook(persist, &source(&headers), delivery, &body).await)
+    let source = match source(&headers) {
+        Ok(source) => source,
+        Err(message) => return (StatusCode::BAD_REQUEST, message).into_response(),
+    };
+    answer(ingest::ingest_hook(persist, &source, delivery, &body).await)
 }
 
 pub async fn post_otel(
@@ -94,7 +107,11 @@ pub async fn post_otel(
         );
         return (StatusCode::UNSUPPORTED_MEDIA_TYPE, message).into_response();
     }
-    answer(ingest::ingest_otel(persist, &source(&headers), &signal, &body).await)
+    let source = match source(&headers) {
+        Ok(source) => source,
+        Err(message) => return (StatusCode::BAD_REQUEST, message).into_response(),
+    };
+    answer(ingest::ingest_otel(persist, &source, &signal, &body).await)
 }
 
 #[derive(Debug, Deserialize)]

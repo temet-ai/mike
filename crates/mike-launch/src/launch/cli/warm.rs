@@ -46,6 +46,11 @@ pub async fn execute(
         error: e,
     })?;
     let mut prepared = open::prepare(runner, tokens, stdin).await?;
+    if prepared.split.runtime == crate::runtime::RuntimeKind::Codex {
+        return Err(open::fail(prepared.output, LaunchError::Usage(
+            "Codex supports fresh `mike spawn open --runtime codex` sessions; warm templates are Claude-only".into(),
+        ), "unsupported_runtime"));
+    }
     prepared.default_role(&name);
     let claude_args = prepared.claude_args().to_vec();
     let folder = prepared.folder().to_string_lossy().into_owned();

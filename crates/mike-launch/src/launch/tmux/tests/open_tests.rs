@@ -35,6 +35,54 @@ fn request(session: Uuid, run_tab: Option<&str>, prompt: Option<&str>) -> OpenRe
 }
 
 #[tokio::test]
+async fn codex_open_records_mike_identity_without_polling_claude_readiness() -> anyhow::Result<()> {
+    let fake = FakeTmux::new();
+    fake.answer("new-session", "%1\u{1f}0\n");
+    fake.answer("set-option", "");
+    fake.answer("send-keys", "");
+    fake.answer("display-message", "4242\n");
+    let backend = TmuxBackend::with_binary(fake.bin());
+    let session = Uuid::new_v4();
+    let mut request = request(session, None, None);
+    request.program = "codex".into();
+    request.args = vec!["--no-daemon".into(), "--".into(), "hello".into()];
+    request
+        .env
+        .insert("MIKE_SESSION_ID".into(), session.to_string());
+    let surface =
+        tokio::time::timeout(std::time::Duration::from_secs(5), backend.open(&request)).await??;
+    assert_eq!(surface.session_uuid, Some(session));
+    let calls = fake.calls();
+    let heads: Vec<_> = calls.iter().map(|call| call[0].as_str()).collect();
+    assert_eq!(
+        heads,
+        vec!["new-session", "set-option", "send-keys", "display-message"]
+    );
+    assert!(
+        calls[2]
+            .iter()
+            .any(|arg| arg.contains("codex --no-daemon -- hello"))
+    );
+    assert!(!surface.confirmed);
+    Ok(())
+}
+
+#[tokio::test]
+async fn codex_owned_panes_are_listed_for_surface_capacity() -> anyhow::Result<()> {
+    let fake = FakeTmux::new();
+    let session = Uuid::new_v4();
+    fake.answer(
+        "list-panes",
+        &format!("mike-codex\x1f%1\x1f0\x1f/tmp\x1fcodex\x1f{session}\n"),
+    );
+    fake.answer("display-message", "4242\n");
+    let rows = TmuxBackend::with_binary(fake.bin()).list().await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].session_uuid, Some(session));
+    Ok(())
+}
+
+#[tokio::test]
 async fn open_new_session_no_prompt_records_session_uuid_and_starts_claude() {
     let fake = FakeTmux::new();
     fake.answer("new-session", "%1\u{1f}0\n");

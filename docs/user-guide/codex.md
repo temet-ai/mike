@@ -12,9 +12,37 @@ For an ordinary Codex session, mike keeps small facts and not the text of the co
 - Which model answered and how many tokens it used.
 - Messages sent to it from other sessions, so a Codex session can take part in [messages between sessions](reading-sessions.md).
 
-mike does not keep your prompts, Codex's answers, tool arguments or tool output. The session appears in the roster of sessions with this much and no more.
+Routine observation does not keep your prompts, Codex's answers, tool arguments or tool output. A brief you submit through Mike's launcher is retained in the launch record, as it is for other launches.
 
 ## Connect Codex
+
+To open a Codex terminal through mike:
+
+```sh
+mike spawn open /path/to/project --runtime codex
+```
+
+This installs or updates the compact hooks, metadata exporter and Mike MCP setup,
+then launches Codex through mike's proxy. It preserves your Codex approval and
+sandbox settings. To use the same approval bypass as `cx`, pass it explicitly:
+
+```sh
+mike spawn open /path/to/project --runtime codex -- --dangerously-bypass-approvals-and-sandbox
+```
+
+The `spawn_session` tool accepts `runtime: "codex"` and an optional `args` array.
+Claude remains the default when runtime is omitted. Codex launches support fresh
+interactive sessions on Herdr-core, tmux or a desktop terminal; warm templates and
+forks still require Claude. Legacy Herdr does not support Codex. Select a supported
+backend before the subcommand, for example
+`mike --launch-backend tmux spawn open /path/to/project --runtime codex`.
+Spawn preserves a top-level custom telemetry exporter. Profile-level log
+exporters and per-command exporter overrides are currently unsupported.
+
+The launch returns Mike's session ID. Once trusted hooks run, the native Codex
+thread attaches to that same ID. Opening a terminal does not confirm that the
+initial prompt was answered. Codex has no Claude Remote Control channel, so the
+launcher does not wait for one.
 
 Install mike's hooks once in your Codex folder. From a release install, the installer sits in the package's `share/mike/scripts` folder, under the prefix mike was installed into:
 

@@ -151,6 +151,7 @@ impl Effects for Live<'_> {
             .map_err(|err| err.to_string())?;
         let request = ServerOpenRequest {
             folder: launch.folder.clone(),
+            runtime: crate::runtime::RuntimeKind::Claude,
             claude_args: vec![
                 "--session-id".to_string(),
                 launch.session.to_string(),

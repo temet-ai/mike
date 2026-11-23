@@ -4,7 +4,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::close::session_mismatch;
-use super::open::{agent_command, run_argv, session_uuid_from_args, with_caller_path};
+use super::open::{agent_command, run_argv, with_caller_path};
 use super::place::{Place, choose_space, run_space_id, spaces_matching};
 use super::probe::agent_ran;
 use super::prompt::{blocked_detail, turn_started};
@@ -184,34 +184,6 @@ fn run_argv_starts_in_the_background_without_a_parent_and_labels_the_tab() {
             "claude"
         ]
     );
-}
-
-#[test]
-fn session_uuid_from_args_reads_both_forms() {
-    let id = Uuid::new_v4();
-    assert_eq!(
-        session_uuid_from_args(&["--session-id".into(), id.to_string()]),
-        Some(id)
-    );
-    assert_eq!(
-        session_uuid_from_args(&[format!("--session-id={id}")]),
-        Some(id)
-    );
-    assert_eq!(session_uuid_from_args(&[]), None);
-}
-
-#[test]
-fn session_uuid_from_args_resume_without_fork_is_the_resumed_session() {
-    let id = Uuid::new_v4();
-    assert_eq!(
-        session_uuid_from_args(&["--resume".into(), id.to_string()]),
-        Some(id)
-    );
-    assert_eq!(
-        session_uuid_from_args(&["--resume".into(), id.to_string(), "--fork-session".into()]),
-        None
-    );
-    assert_eq!(session_uuid_from_args(&["--continue".into()]), None);
 }
 
 fn term(status: Option<&str>, turn: Option<u64>) -> Terminal {

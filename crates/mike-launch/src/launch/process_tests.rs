@@ -40,3 +40,36 @@ fn a_reaped_child_is_no_longer_alive() -> std::io::Result<()> {
     assert!(!alive(pid));
     Ok(())
 }
+
+#[test]
+fn codex_process_is_found_below_a_launcher_without_matching_an_unrelated_process()
+-> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let binary = directory.path().join("codex");
+    std::fs::copy("/bin/sleep", &binary)?;
+    if cfg!(target_os = "macos") {
+        let signed = Command::new("codesign")
+            .args(["--sign", "-", "--force"])
+            .arg(&binary)
+            .output()?;
+        anyhow::ensure!(signed.status.success(), "fixture codesigning failed");
+    }
+    let mut launcher = Command::new("sh")
+        .args(["-c", "\"$1\" 0.3 & wait", "mike-process-test"])
+        .arg(&binary)
+        .stdin(Stdio::null())
+        .spawn()?;
+    let mut found = None;
+    for _ in 0..20 {
+        found = super::agent_child_of(launcher.id());
+        if found.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let found_name = found.and_then(name);
+    launcher.wait()?;
+    assert_eq!(found_name.as_deref(), Some("codex"));
+    assert_eq!(super::agent_child_of(u32::MAX), None);
+    Ok(())
+}

@@ -1,7 +1,7 @@
 use super::delivery::Delivery;
 use super::open::Prepared;
 use super::runner::Runner;
-use crate::launch::{LaunchSpec, Placement, SplitLaunchArgs};
+use crate::launch::{LaunchSpec, Placement};
 use crate::store::persistence::launch::{NewLaunch, NewRun};
 
 pub async fn record_start(
@@ -56,25 +56,33 @@ pub async fn record_start(
     };
     new.anchor_ref = p.split.anchor_terminal.clone();
     new.remote_control = p.split.remote_control;
-    new.proxy_env = p.split.proxy_env && runner.proxy.is_some();
-    new.identity = launch_identity_payload(&p.split);
+    new.proxy_env = p.split.proxy_env
+        && (runner.proxy.is_some() || spec.flags.runtime == crate::runtime::RuntimeKind::Codex);
+    new.identity = launch_identity_payload(spec);
     new.backend_reason = runner.backend_reason.clone();
     runner.ledger.insert_launch(&new).await
 }
 
-fn launch_identity_payload(split: &SplitLaunchArgs) -> Option<serde_json::Value> {
+fn launch_identity_payload(spec: &LaunchSpec) -> Option<serde_json::Value> {
+    let split = &spec.flags;
     let name = split.session_name.clone().or_else(|| split.seat.clone());
     if name.is_none()
         && split.role.is_none()
         && split.instructions.is_none()
         && split.goal.is_none()
+        && split.runtime != crate::runtime::RuntimeKind::Codex
     {
         return None;
     }
-    Some(serde_json::json!({
+    let mut identity = serde_json::json!({
         "name": name,
         "role": split.role,
         "instructions": split.instructions,
         "goal": split.goal,
-    }))
+    });
+    if split.runtime == crate::runtime::RuntimeKind::Codex {
+        identity["runtime"] = serde_json::json!("codex");
+        identity["runtime_home"] = serde_json::json!(spec.env.get("CODEX_HOME"));
+    }
+    Some(identity)
 }

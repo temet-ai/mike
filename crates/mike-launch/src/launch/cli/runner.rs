@@ -12,6 +12,7 @@ pub struct Runner<'a> {
     pub trust: TrustGate,
     pub briefs_dir: PathBuf,
     pub inspect_addr: Option<String>,
+    pub proxy_addr: Option<String>,
     pub mcp_server: Option<PathBuf>,
     pub backend_reason: Option<String>,
 }
