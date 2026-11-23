@@ -55,6 +55,35 @@ mod tests {
 
     const TICK: Duration = Duration::from_millis(20);
 
+    const DISPLAY: &str = include_str!("display.rs");
+    const BRIEF_REFRESH: &str = include_str!("brief_version.rs");
+    const RETROSPECTIVE: &str = include_str!("retrospective_worker.rs");
+
+    #[test]
+    fn the_display_tick_reads_seat_rows_only_through_assemble_with_rows() {
+        assert!(!DISPLAY.contains("fleet_seat_rows"));
+        assert!(DISPLAY.contains("assemble_with_rows(state, row)"));
+        assert_eq!(DISPLAY.matches("assemble_with_rows(").count(), 1);
+    }
+
+    #[test]
+    fn every_fleet_loop_waits_through_the_idle_pause() {
+        for (name, source) in [
+            ("display", DISPLAY),
+            ("brief refresh", BRIEF_REFRESH),
+            ("retrospective", RETROSPECTIVE),
+        ] {
+            assert!(
+                source.contains("super::idle::pause("),
+                "the {name} loop must wait through idle::pause"
+            );
+            assert!(
+                !source.contains("tokio::time::sleep(") && !source.contains("interval("),
+                "the {name} loop must not keep its own fixed timer"
+            );
+        }
+    }
+
     async fn finishes(feed: &ChangeFeed, busy: bool, since: Generation) -> bool {
         tokio::time::timeout(
             Duration::from_millis(300),
