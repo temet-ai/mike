@@ -147,6 +147,7 @@ pub struct WorkingCheckout {
     pub checkout: String,
     pub project_id: i64,
     pub newest_request_at: DateTime<Utc>,
+    pub sessions: Vec<uuid::Uuid>,
 }
 
 pub use crate::store::persistence::change_record::identity::SessionIdentity;

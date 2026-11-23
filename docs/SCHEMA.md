@@ -2,7 +2,7 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-15
+updated: 2026-11-23
 summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. The migrations are the source of truth.
 ---
 
@@ -156,6 +156,8 @@ queries, `mailbox.session_real_project_id()` (a session's project from its worki
 - `locations_project`: `project_id` (BTree)
 - `locations_origin_url`: `origin_url` (BTree, partial: not null)
 - `locations_parent`: `parent_location_uuid` (BTree, partial: not null)
+
+**Triggers:** `trg_locations_row_changed` (AFTER INSERT OR DELETE) and `trg_locations_row_changed_update` (AFTER UPDATE when `project_id`, `machine_uuid`, `root_path`, `origin_url`, `parent_location_uuid` or `created_at` changed, or `present_at` turned NULL or non-NULL); NOTIFY `proxy.row_changed`, table `locations`, `id` the location's machine uuid (`20261123120000`). The 10-minute `present_at` refresh, `gone_at` and `last_seen` bumps send nothing. `trg_projects_locations_row_changed` on `projects.projects` (AFTER UPDATE when `merged_into_id` or `project_uuid` changed) sends the same table with `id` `projects.projects`. Readers: the per-machine checkout memo (`store/persistence/location_memo.rs`) behind `checkout_rows`, `locations_on_machine` and `machine_location_roots`, and the change-record supervisor.
 
 ---
 
@@ -1456,6 +1458,8 @@ are NOT generated columns or triggers. This keeps the path extraction logic evol
 - `idx_tool_uses_name`: `tool_name` (BTree)
 - `idx_tool_uses_file_path`: `file_path WHERE NOT NULL` (BTree partial) — file-touch queries
 - `idx_tool_uses_bash_command_trgm`: GIN trgm on `(input->>'command') WHERE tool_name='Bash'` — command search
+
+**Trigger:** `trg_tool_uses_checkout_edits` — AFTER INSERT of an `Edit`, `Write`, `MultiEdit` or `NotebookEdit` call whose `file_path` starts with `/`; NOTIFY `proxy.row_changed`, table `checkout_edits`, constant payload (`20261123120000`). The change-record supervisor waits for it, since such an edit can add a folder to the checkouts it watches. A conflicting insert (`ON CONFLICT DO NOTHING`) sends nothing.
 
 ---
 
@@ -6949,8 +6953,10 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_dossier_entries_thread_card_busy_inserted`, `trg_dossier_entries_thread_card_busy_updated`, `trg_turn_verdicts_thread_card_busy_inserted`, `trg_session_notes_thread_card_busy_written` | `memory.dossier_entries`, `memory.turn_verdicts`, `workspace.session_notes` | a promise inserted, or its `recorded_at` / `close_recorded_at` moved, or a live verdict inserted, for a session linked to a work thread; a decision or finding with a `thread:` tag written; one notice per transaction per table; `20261120170520`, `20261120170521`, `20261120170522` | `proxy.row_changed`, table `thread_card_busy_sources` |
 | `trg_session_goals_row_changed`, `trg_session_goals_row_changed_upd` | `sessions.session_goals` | AFTER INSERT OR DELETE; AFTER UPDATE OF `goal`, `next_steps`, `role`, `display_name`, `instructions` when one of them changed (a write that moves only `updated_at`, `set_by` or `goal_source` is silent); skipped when the session row is gone; `20261123110000` | `proxy.row_changed`, table `session_goals`, `session_id` the session's uuid |
 | `trg_sessions_session_goals_row_changed_delete` | `sessions.sessions` | AFTER DELETE (the goal row goes by cascade after the session row, so its own trigger cannot resolve the uuid); `20261123110000` | `proxy.row_changed`, table `session_goals`, `session_id` the deleted session's uuid |
+| `trg_locations_row_changed`, `trg_locations_row_changed_update`, `trg_projects_locations_row_changed` | `projects.locations`, `projects.projects` | a location inserted or deleted, or a column the checkout readers use changed (`present_at` only when it turns NULL or non-NULL); a project's `merged_into_id` or `project_uuid` changed; one notice per transaction per machine; `20261123120000` | `proxy.row_changed`, table `locations`, `id` the machine uuid (or `projects.projects`) |
+| `trg_tool_uses_checkout_edits` | `tools.uses` | AFTER INSERT of an `Edit`, `Write`, `MultiEdit` or `NotebookEdit` call on an absolute `file_path`; one notice per transaction (constant payload); `20261123120000` | `proxy.row_changed`, table `checkout_edits` |
 
-This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `correction_qualifications`, `session_embedding_sources`, `workspace_questions`, `wright_repairs`, `wright_followups`, `steering_enrolments`, `change_generations`, `wright_check_runs`, `wright_problems`, `judge_queue`, `semantic_turn_sources`, `thread_card_busy_sources`, `session_goals`) publish `session_id` NULL, except `runtime_threads`, `dossier_directives`, `session_embedding_sources`, `steering_enrolments` and `session_goals`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
+This table lists the triggers added or widened to wake workers, plus the first four; every table that reaches the WS feed also has a variant in `RowChangedTable` (`store/models/proxy_event.rs`). The tables whose triggers are only for workers (`lessons`, `rejudge_runs`, `guard_thresholds`, `wright_reply_jobs`, `runtime_threads`, `steerers`, `dossier_directives`, `semantic_anchors`, `correction_qualifications`, `session_embedding_sources`, `workspace_questions`, `wright_repairs`, `wright_followups`, `steering_enrolments`, `change_generations`, `wright_check_runs`, `wright_problems`, `judge_queue`, `semantic_turn_sources`, `thread_card_busy_sources`, `session_goals`, `locations`, `checkout_edits`) publish `session_id` NULL, except `runtime_threads`, `dossier_directives`, `session_embedding_sources`, `steering_enrolments` and `session_goals`, which publish the owning session's uuid, and `workspace_questions`, which publishes the recipient's; the SPA does not read them. Their readers wait on the change feed instead of polling ([`ARCHITECTURE.md`](ARCHITECTURE.md), "Workers Wait on the Change Feed"). Each is written a few hundred times a day at most, so the commit-time NOTIFY lock is negligible.
 
 ### Fill triggers (retired in the migration squash)
 

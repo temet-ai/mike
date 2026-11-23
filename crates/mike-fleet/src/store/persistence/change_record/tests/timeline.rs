@@ -135,6 +135,12 @@ async fn checkouts_with_working_sessions_returns_each_folder_with_its_newest_req
     assert_eq!(one.checkout, "/work/alpha");
     assert_eq!(one.project_id, project_id);
     assert_eq!(one.newest_request_at, now - Duration::minutes(2));
+    let uuid: uuid::Uuid =
+        sqlx::query_scalar("SELECT session_uuid FROM sessions.sessions WHERE id = $1")
+            .bind(busy)
+            .fetch_one(pool)
+            .await?;
+    assert_eq!(one.sessions, [uuid]);
     f.db.cleanup().await?;
     Ok(())
 }

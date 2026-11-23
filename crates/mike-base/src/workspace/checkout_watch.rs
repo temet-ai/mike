@@ -50,22 +50,38 @@ pub async fn watch_checkouts(
     machine: Uuid,
 ) -> Result<Vec<LocationMove>, PersistError> {
     let rows = persist.checkout_rows(machine).await?;
-    let reading = rows.clone();
-    let Some(seen) = off_request_threads("checkout presence", move || {
-        reading.iter().map(Seen::of).collect::<Vec<Seen>>()
-    })
-    .await
-    else {
+    let Some(seen) = look(&rows).await else {
         return Ok(Vec::new());
     };
     persist
         .record_checkout_marks(machine, &marks(&rows, &seen))
         .await?;
+    if !any_vanished_main(&rows, &seen) {
+        return Ok(Vec::new());
+    }
+    let rows = persist.read_checkout_rows(machine).await?;
+    let Some(seen) = look(&rows).await else {
+        return Ok(Vec::new());
+    };
     let mut moves = Vec::new();
     for (location, root) in automatic_moves(&rows, &seen) {
         moves.push(persist.move_location(location, &root).await?);
     }
     Ok(moves)
+}
+
+async fn look(rows: &[CheckoutRow]) -> Option<Vec<Seen>> {
+    let reading = rows.to_vec();
+    off_request_threads("checkout presence", move || {
+        reading.iter().map(Seen::of).collect::<Vec<Seen>>()
+    })
+    .await
+}
+
+fn any_vanished_main(rows: &[CheckoutRow], seen: &[Seen]) -> bool {
+    rows.iter()
+        .zip(seen)
+        .any(|(row, seen)| vanished_main(row, seen))
 }
 
 pub(super) fn marks(rows: &[CheckoutRow], seen: &[Seen]) -> CheckoutMarks {

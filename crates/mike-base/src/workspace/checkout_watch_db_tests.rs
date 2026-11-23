@@ -149,3 +149,62 @@ async fn watch_checkouts_missing_main_with_two_candidates_is_left_gone() -> anyh
     assert!(gone(&f, old).await?);
     Ok(())
 }
+
+fn fed(handle: &crate::store::persistence::PersistHandle) {
+    let feed = crate::change_feed::ChangeFeed::new();
+    let (_tx, rx) = tokio::sync::broadcast::channel(4);
+    crate::change_feed::spawn_change_feed(
+        &feed,
+        Some(handle),
+        rx,
+        tokio_util::sync::CancellationToken::new(),
+        &tokio_util::task::TaskTracker::new(),
+    );
+}
+
+async fn set(f: &Fixture, sql: &str, location: Uuid) -> anyhow::Result<()> {
+    sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+        .bind(location)
+        .execute(f.handle.pool())
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn watch_checkouts_with_kept_rows_judges_a_move_on_fresh_presence() -> anyhow::Result<()> {
+    let f = Fixture::new().await?;
+    let disk = Disk::new()?;
+    let (old_root, clone_root) = (disk.base.join("old"), disk.base.join("clone"));
+    init_repo(&old_root)?;
+    let old = f.location(&text(&old_root)).await?;
+    record_origins(&f.handle, f.machine).await?;
+    set(
+        &f,
+        "UPDATE projects.locations SET present_at = now() - interval '1 hour'
+          WHERE location_uuid = $1",
+        old,
+    )
+    .await?;
+    init_repo(&clone_root)?;
+    let clone = f.location(&text(&clone_root)).await?;
+    set(
+        &f,
+        "UPDATE projects.locations SET created_at = now() - interval '30 minutes'
+          WHERE location_uuid = $1",
+        clone,
+    )
+    .await?;
+    fed(&f.handle);
+    record_origins(&f.handle, f.machine).await?;
+
+    fs::remove_dir_all(&old_root)?;
+    record_origins(&f.handle, f.machine).await?;
+
+    assert_eq!(
+        f.root_of(old).await?,
+        Some(text(&old_root)),
+        "the clone was registered while the old checkout was still on disk"
+    );
+    assert!(gone(&f, old).await?);
+    Ok(())
+}

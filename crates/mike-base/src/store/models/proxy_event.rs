@@ -43,6 +43,8 @@ pub enum RowChangedTable {
     SemanticTurnSources,
     ThreadCardBusySources,
     SessionGoals,
+    Locations,
+    CheckoutEdits,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

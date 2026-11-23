@@ -1154,7 +1154,9 @@ export type RowChangedTable =
 	| 'judge_queue'
 	| 'semantic_turn_sources'
 	| 'thread_card_busy_sources'
-	| 'session_goals';
+	| 'session_goals'
+	| 'locations'
+	| 'checkout_edits';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

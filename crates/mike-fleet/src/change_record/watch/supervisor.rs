@@ -5,21 +5,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
+use chrono::{DateTime, Utc};
 use tokio_util::sync::CancellationToken;
 
+use super::working::{WAKES, Working, expiry, worked_within};
 use super::{Checkout, Git, Running, WatchConfig, key, start};
 use crate::base_state::BaseState;
+use crate::change_feed::ChangeFeed;
 use crate::change_record::WorkingCheckout;
 use crate::feature_toggles::FeatureToggles;
 use crate::store::persistence::PersistHandle;
 
-const TICK: Duration = Duration::from_secs(30);
+const RETRY: Duration = Duration::from_secs(30);
+const TOGGLE_CHECK: Duration = Duration::from_secs(30);
 const MAX_BACKOFF: Duration = Duration::from_secs(600);
 const ROOT_CACHE: usize = 1024;
-
-fn worked_within() -> chrono::Duration {
-    chrono::Duration::minutes(30)
-}
 
 pub fn spawn_change_record_watcher(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
@@ -27,9 +27,10 @@ pub fn spawn_change_record_watcher(state: &BaseState) {
         return;
     };
     let toggles = state.feature_toggle_overlay.clone();
+    let feed = state.change_feed.clone();
     let shutdown = state.shutdown();
     state.tracker.spawn(async move {
-        Supervisor::new(persist, WatchConfig::default())
+        Supervisor::new(persist, feed, WatchConfig::default())
             .supervise(toggles, shutdown)
             .await;
     });
@@ -38,16 +39,23 @@ pub fn spawn_change_record_watcher(state: &BaseState) {
 pub struct Supervisor {
     persist: PersistHandle,
     config: WatchConfig,
+    working: Working,
     running: BTreeMap<String, Running>,
     roots: HashMap<String, Option<String>>,
     failures: u32,
 }
 
+struct Wanted {
+    projects: BTreeMap<String, i64>,
+    newest: BTreeMap<String, DateTime<Utc>>,
+}
+
 impl Supervisor {
-    pub fn new(persist: PersistHandle, config: WatchConfig) -> Self {
+    pub fn new(persist: PersistHandle, feed: ChangeFeed, config: WatchConfig) -> Self {
         Self {
             persist,
             config,
+            working: Working::new(feed),
             running: BTreeMap::new(),
             roots: HashMap::new(),
             failures: 0,
@@ -59,23 +67,35 @@ impl Supervisor {
         toggles: Arc<ArcSwap<FeatureToggles>>,
         shutdown: CancellationToken,
     ) {
-        let mut delay = TICK;
         loop {
-            tokio::select! {
-                () = shutdown.cancelled() => break,
-                () = tokio::time::sleep(delay) => {}
-            }
-            delay = if toggles.load().change_record {
-                self.tick(&shutdown).await
+            let since = self.working.feed().generation();
+            let pause = if toggles.load().change_record {
+                self.step(&shutdown).await
             } else {
                 self.stop_all();
-                TICK
+                self.working.forget();
+                None
             };
+            let wait = pause.unwrap_or_else(|| self.working.wait(Utc::now(), TOGGLE_CHECK));
+            let feed = self.working.feed().clone();
+            tokio::select! {
+                () = shutdown.cancelled() => break,
+                () = tokio::time::sleep(wait), if pause.is_some() => {}
+                _ = feed.wait_for_change(&WAKES, since, wait), if pause.is_none() => {}
+            }
         }
         self.stop_all();
     }
 
-    pub async fn tick(&mut self, shutdown: &CancellationToken) -> Duration {
+    async fn step(&mut self, shutdown: &CancellationToken) -> Option<Duration> {
+        if !self.working.due(Utc::now()) {
+            return None;
+        }
+        self.tick(shutdown).await
+    }
+
+    pub async fn tick(&mut self, shutdown: &CancellationToken) -> Option<Duration> {
+        let stamp = self.working.before_read();
         match self
             .persist
             .fleet()
@@ -85,40 +105,60 @@ impl Supervisor {
             Ok(rows) => {
                 self.failures = 0;
                 let wanted = self.resolve(&rows).await;
-                self.apply(&wanted, shutdown);
-                TICK
+                self.working.read(stamp, &rows, expiry(&wanted.newest));
+                self.apply(&wanted.projects, shutdown);
+                None
             }
             Err(err) => {
                 self.failures = self.failures.saturating_add(1);
+                self.working.forget();
                 tracing::warn!(error = %err, failures = self.failures, "change record: working checkouts could not be read");
-                backoff(self.failures)
+                Some(backoff(self.failures))
             }
         }
+    }
+
+    pub fn read_again_at(&self) -> Option<DateTime<Utc>> {
+        self.working.expires()
     }
 
     pub fn watching(&self) -> BTreeSet<String> {
         self.running.keys().cloned().collect()
     }
 
-    async fn resolve(&mut self, rows: &[WorkingCheckout]) -> BTreeMap<String, i64> {
+    async fn resolve(&mut self, rows: &[WorkingCheckout]) -> Wanted {
         if self.roots.len() > ROOT_CACHE {
             self.roots.clear();
         }
-        let mut wanted = BTreeMap::new();
+        let mut wanted = Wanted {
+            projects: BTreeMap::new(),
+            newest: BTreeMap::new(),
+        };
         for row in rows {
-            if self.config.skip_temporary && is_temporary(&row.checkout) {
+            let Some(root) = self.root_of(&row.checkout).await else {
                 continue;
-            }
-            let gone = matches!(self.roots.get(&row.checkout), Some(Some(root)) if !Path::new(root).is_dir());
-            if gone || !self.roots.contains_key(&row.checkout) {
-                let root = repository_root(&row.checkout).await;
-                self.roots.insert(row.checkout.clone(), root);
-            }
-            if let Some(Some(root)) = self.roots.get(&row.checkout) {
-                wanted.entry(root.clone()).or_insert(row.project_id);
-            }
+            };
+            wanted
+                .projects
+                .entry(root.clone())
+                .or_insert(row.project_id);
+            let newest = wanted.newest.entry(root).or_insert(row.newest_request_at);
+            *newest = (*newest).max(row.newest_request_at);
         }
         wanted
+    }
+
+    async fn root_of(&mut self, checkout: &str) -> Option<String> {
+        if self.config.skip_temporary && is_temporary(checkout) {
+            return None;
+        }
+        let gone =
+            matches!(self.roots.get(checkout), Some(Some(root)) if !Path::new(root).is_dir());
+        if gone || !self.roots.contains_key(checkout) {
+            let root = repository_root(checkout).await;
+            self.roots.insert(checkout.to_owned(), root);
+        }
+        self.roots.get(checkout).cloned().flatten()
     }
 
     fn apply(&mut self, wanted: &BTreeMap<String, i64>, shutdown: &CancellationToken) {
@@ -198,5 +238,5 @@ pub fn plan(
 
 pub fn backoff(failures: u32) -> Duration {
     let factor = 1u32 << failures.min(5);
-    (TICK * factor).min(MAX_BACKOFF)
+    (RETRY * factor).min(MAX_BACKOFF)
 }

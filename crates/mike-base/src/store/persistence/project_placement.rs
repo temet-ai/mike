@@ -23,22 +23,6 @@ pub struct MachineLocationRoot {
 }
 
 impl PersistHandle {
-    pub async fn machine_location_roots(
-        &self,
-        machine: Uuid,
-    ) -> Result<Vec<MachineLocationRoot>, PersistError> {
-        Ok(sqlx::query_as!(
-            MachineLocationRoot,
-            r#"SELECT DISTINCT ON (l.root_path) l.root_path,
-                    COALESCE(p.merged_into_id, p.id) AS "project_id!"
-             FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id
-             WHERE l.machine_uuid = $1 ORDER BY l.root_path, l.last_seen DESC"#,
-            machine,
-        )
-        .fetch_all(self.pool())
-        .await?)
-    }
-
     pub async fn project_id_for_path(&self, path: &str) -> Result<Option<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT COALESCE(merged_into_id, id) AS "project_id!" FROM projects.projects
@@ -199,20 +183,6 @@ impl PersistHandle {
         .fetch_one(self.pool())
         .await?;
         Ok(row)
-    }
-
-    pub async fn locations_on_machine(
-        &self,
-        machine: Uuid,
-    ) -> Result<Vec<MachineLocation>, PersistError> {
-        Ok(sqlx::query_as!(
-            MachineLocation,
-            "SELECT location_uuid, root_path, origin_url FROM projects.locations
-              WHERE machine_uuid = $1 ORDER BY root_path",
-            machine
-        )
-        .fetch_all(self.pool())
-        .await?)
     }
 }
 

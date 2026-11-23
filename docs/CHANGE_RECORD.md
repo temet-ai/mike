@@ -2,7 +2,7 @@
 title: The change record
 status: active
 created: 2026-10-05
-updated: 2026-11-06
+updated: 2026-11-23
 summary: One record of what happened in a checkout, with who made each change and the content before it, the five answers a session reads from it, the lines added to answers it already gets and to the start of a turn, the two toggles that switch it on, and what it does not see.
 ---
 
@@ -65,9 +65,15 @@ before and after, so the state before a change can be shown later, committed or 
 
 ### The watcher
 
-For every checkout in which a session made a request in the last 30 minutes, mike runs a
-watcher. It asks which checkouts are being worked in every 30 seconds, starts one watcher for
-each, and stops one when nobody has worked there for 30 minutes. It is not limited to fleets.
+For every checkout in which a session made a request, or edited a file, in the last 30
+minutes, mike runs a watcher. It is not limited to fleets. mike asks which checkouts are being
+worked in when a change notice says the answer could have moved: a request from a session that
+was not in the last answer, an edit tool call, a checkout location or a session's location
+changing, or a listener reconnect. Requests of sessions already in the answer do not ask
+again. It also asks when the oldest watched checkout's newest request turns 30 minutes old, and
+stops that checkout's watcher then if nobody has worked there since. It starts one watcher for
+each new checkout. A watcher that ended on its own is started again at the next answer. Without
+a change feed it asks every 30 seconds.
 
 - **File notifications.** The operating system tells the watcher a file changed (inotify here,
   FSEvents on the Mac). It waits about 300 ms to collect a burst, leaves out what git ignores

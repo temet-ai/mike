@@ -36,7 +36,10 @@ impl CheckoutMarks {
 }
 
 impl PersistHandle {
-    pub async fn checkout_rows(&self, machine: Uuid) -> Result<Vec<CheckoutRow>, PersistError> {
+    pub(crate) async fn read_checkout_rows(
+        &self,
+        machine: Uuid,
+    ) -> Result<Vec<CheckoutRow>, PersistError> {
         Ok(sqlx::query_as!(
             CheckoutRow,
             r#"SELECT l.location_uuid, l.root_path, r.id AS project_id, r.project_uuid,
