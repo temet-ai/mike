@@ -1,4 +1,6 @@
 use super::PersistError;
+use crate::store::models::RowChangedTable;
+use crate::store::persistence::feed_memo::{Memo, Scope};
 
 #[derive(Debug, Clone)]
 pub struct SessionGoal {
@@ -7,6 +9,17 @@ pub struct SessionGoal {
     pub role: Option<String>,
     pub display_name: Option<String>,
     pub instructions: Option<String>,
+}
+
+struct SessionGoalMemo(Memo<Option<SessionGoal>>);
+
+impl Default for SessionGoalMemo {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[],
+            per_session: &[RowChangedTable::SessionGoals],
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,12 +72,33 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     identity.session_uuid
                 )));
             }
+            self.session_goals_changed(identity.session_uuid);
             Ok(())
         })
         .await
     }
 
     pub async fn get_session_goal(
+        self,
+        session_uuid: uuid::Uuid,
+    ) -> Result<Option<SessionGoal>, PersistError> {
+        let held = self.memo::<SessionGoalMemo>();
+        let memo = self
+            .feed_memos
+            .fed_feed()
+            .and(self.feed_memos.bound(&held.0));
+        if let Some(goal) = memo.as_ref().and_then(|memo| memo.get(session_uuid)) {
+            return Ok(goal);
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let goal = self.read_session_goal(session_uuid).await?;
+        if let (Some(memo), Some(ticket)) = (memo, ticket) {
+            memo.remember(session_uuid, ticket, goal.clone());
+        }
+        Ok(goal)
+    }
+
+    async fn read_session_goal(
         self,
         session_uuid: uuid::Uuid,
     ) -> Result<Option<SessionGoal>, PersistError> {
@@ -89,3 +123,11 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 }
+
+#[cfg(test)]
+#[path = "session_goals_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "session_goals_notify_tests.rs"]
+mod notify_tests;

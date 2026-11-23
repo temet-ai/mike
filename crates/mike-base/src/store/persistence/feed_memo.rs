@@ -177,6 +177,11 @@ impl PersistHandle {
             .record(RowChangedTable::LaunchLaunches, session);
     }
 
+    pub fn session_goals_changed(&self, session: Uuid) {
+        self.feed_memos
+            .record(RowChangedTable::SessionGoals, Some(session));
+    }
+
     pub fn fleets_changed(&self) {
         self.feed_memos.record(RowChangedTable::LaunchFleets, None);
     }

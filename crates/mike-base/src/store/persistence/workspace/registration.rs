@@ -188,12 +188,13 @@ async fn upsert_session_identity(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     session_id: i64,
     input: &RegisterWorkspaceSession<'_>,
-) -> Result<(), PersistError> {
+) -> Result<bool, PersistError> {
     let seed = fetch_pending_launch_identity(tx, input.session_uuid).await?;
     if identity_is_absent(input, seed.as_ref()) {
-        return Ok(());
+        return Ok(false);
     }
-    apply_session_identity(tx, session_id, input, seed.as_ref()).await
+    apply_session_identity(tx, session_id, input, seed.as_ref()).await?;
+    Ok(true)
 }
 
 impl PersistHandle {
@@ -278,7 +279,7 @@ impl PersistHandle {
             )
             .await?;
 
-            upsert_session_identity(&mut tx, session_id, &input).await?;
+            let identity_written = upsert_session_identity(&mut tx, session_id, &input).await?;
             super::launch_brief::materialize_launch_briefs(&mut *tx, input.session_uuid).await?;
 
             if !runtime_bounded {
@@ -297,6 +298,9 @@ impl PersistHandle {
             }
 
             tx.commit().await?;
+            if identity_written {
+                self.session_goals_changed(input.session_uuid);
+            }
             Ok(RegisteredWorkspaceSession {
                 flow_admission,
                 project_id,
