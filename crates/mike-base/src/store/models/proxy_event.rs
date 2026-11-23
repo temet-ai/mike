@@ -41,6 +41,7 @@ pub enum RowChangedTable {
     WrightProblems,
     JudgeQueue,
     SemanticTurnSources,
+    ThreadCardBusySources,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

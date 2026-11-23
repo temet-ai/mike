@@ -1152,7 +1152,8 @@ export type RowChangedTable =
 	| 'wright_check_runs'
 	| 'wright_problems'
 	| 'judge_queue'
-	| 'semantic_turn_sources';
+	| 'semantic_turn_sources'
+	| 'thread_card_busy_sources';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

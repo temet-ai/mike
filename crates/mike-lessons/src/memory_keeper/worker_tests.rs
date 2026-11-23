@@ -4,11 +4,21 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use sqlx::postgres::PgListener;
+use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
-use super::{Keeper, LEASE_ROLE, TICK, TickOutcome};
+use super::{
+    BUSY_BACKSTOP, BUSY_SOURCES, BUSY_SOURCES_CURRENT, Keeper, LEASE_ROLE, TICK, TickOutcome,
+};
+use crate::change_feed::{ChangeFeed, spawn_change_feed};
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
+use crate::store::persistence::test_support::{
+    TestDbHandle, acquire_ephemeral_db, seed_session_turns,
+};
 use crate::store::persistence::work_threads::{CheckpointInput, MetaUpdate, StateFields};
 
 const SLUG: &str = "keeper-cards";
@@ -264,5 +274,170 @@ async fn card_worker_after_candidates_are_written_adds_the_related_section() -> 
         )),
         "{text}"
     );
+    f.db.cleanup().await
+}
+
+struct Fed {
+    feed: ChangeFeed,
+    shutdown: CancellationToken,
+    _events: broadcast::Sender<crate::store::models::ProxyEvent>,
+}
+
+impl Drop for Fed {
+    fn drop(&mut self) {
+        self.shutdown.cancel();
+    }
+}
+
+fn fed(persist: &PersistHandle) -> Fed {
+    let feed = ChangeFeed::new();
+    let (events, rx) = broadcast::channel(16);
+    let shutdown = CancellationToken::new();
+    spawn_change_feed(
+        &feed,
+        Some(persist),
+        rx,
+        shutdown.clone(),
+        &TaskTracker::new(),
+    );
+    Fed {
+        feed,
+        shutdown,
+        _events: events,
+    }
+}
+
+async fn tagged_note(f: &Fixture, session_id: i64, title: &str) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO workspace.session_notes (session_id, kind, title, tags)
+         VALUES ($1, 'decision', $2, ARRAY['thread:keeper-cards'])",
+    )
+    .bind(session_id)
+    .bind(title)
+    .execute(f.handle.pool())
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn card_worker_sweep_with_a_change_feed_waits_for_a_busy_source_notice() -> anyhow::Result<()>
+{
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let fed = fed(&f.handle);
+    let thread_id = f.checkpoint("busy sources").await?;
+    let session_id = f.session_row().await?;
+    let start = Instant::now();
+    let mut keeper = Keeper::new(start);
+    keeper.tick(&f.handle, start).await;
+    let now = Utc::now();
+    assert!(f.handle.is_fresh(BUSY_SOURCES_CURRENT, &BUSY_SOURCES, now));
+    let after_backstop = now + BUSY_BACKSTOP;
+    assert!(
+        !f.handle
+            .is_fresh(BUSY_SOURCES_CURRENT, &BUSY_SOURCES, after_backstop)
+    );
+
+    tagged_note(&f, session_id, "Waits for its notice").await?;
+    fed.feed.record(RowChangedTable::Requests, None);
+    let quiet = start + Duration::from_secs(61);
+    assert_eq!(written(keeper.tick(&f.handle, quiet).await), Some(0));
+
+    fed.feed
+        .record(RowChangedTable::ThreadCardBusySources, None);
+    let woken = start + Duration::from_secs(122);
+    assert_eq!(written(keeper.tick(&f.handle, woken).await), Some(1));
+    let (text, _) = card(f.handle.pool(), thread_id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no card"))?;
+    assert!(text.contains("Waits for its notice"), "{text}");
+    f.db.cleanup().await
+}
+
+const SENTINEL: &str = r#"{"table":"sentinel"}"#;
+
+async fn busy_notices_before_sentinel(listener: &mut PgListener) -> anyhow::Result<usize> {
+    let mut seen = 0;
+    loop {
+        let notice = listener.recv().await?;
+        if notice.payload() == SENTINEL {
+            return Ok(seen);
+        }
+        let payload: serde_json::Value = serde_json::from_str(notice.payload())?;
+        if payload["table"] == "thread_card_busy_sources" {
+            seen += 1;
+        }
+    }
+}
+
+async fn promise(pool: &PgPool, session_id: i64, key: &str) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO memory.dossier_entries
+             (session_id, kind, data, status, source, source_ref, dedup_key, extractor_version,
+              effective_at)
+         VALUES ($1, 'promise', '{}', 'open', 'capture', 'requests.requests:1', $2, 'test', now())",
+    )
+    .bind(session_id)
+    .bind(key)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn live_verdict(pool: &PgPool, session_id: i64) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO memory.turn_verdicts
+                (operator_turn_id, session_id, mode, rubric_version, input_builder_version, model,
+                 reaction, delivery, confidence, rationale, unmet_ask, evidence_quality, projected,
+                 as_of, input_text)
+         SELECT t.id, t.session_id, 'live', 'test', 'test', 'test', 'accepted', 'none', 0.9, 'r',
+                '', 'absent', true, NOW(), 'input'
+           FROM memory.operator_turns t WHERE t.session_id = $1 LIMIT 1",
+    )
+    .bind(session_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn busy_sources_notify_only_for_thread_linked_sessions_and_tagged_notes() -> anyhow::Result<()>
+{
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    f.checkpoint("notices").await?;
+    let linked = f.session_row().await?;
+    let pool = f.handle.pool();
+    seed_session_turns(pool, &f.session.to_string(), f.project, 1).await?;
+    let unlinked: i64 = sqlx::query_scalar(
+        "INSERT INTO sessions.sessions (session_uuid, project_id, first_seen, last_seen)
+         VALUES ($1, $2, now(), now()) RETURNING id",
+    )
+    .bind(Uuid::new_v4())
+    .bind(f.project)
+    .fetch_one(pool)
+    .await?;
+    let mut listener = PgListener::connect(&f.db.database_url).await?;
+    listener.listen("proxy.row_changed").await?;
+
+    promise(pool, unlinked, "unlinked").await?;
+    sqlx::query(
+        "INSERT INTO workspace.session_notes (session_id, kind, title, tags)
+         VALUES ($1, 'decision', 'Untagged', '{}')",
+    )
+    .bind(linked)
+    .execute(pool)
+    .await?;
+    promise(pool, linked, "linked").await?;
+    tagged_note(&f, linked, "Tagged").await?;
+    live_verdict(pool, linked).await?;
+    sqlx::query("SELECT pg_notify('proxy.row_changed', $1)")
+        .bind(SENTINEL)
+        .execute(pool)
+        .await?;
+
+    assert_eq!(busy_notices_before_sentinel(&mut listener).await?, 3);
     f.db.cleanup().await
 }

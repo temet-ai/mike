@@ -14,12 +14,16 @@ use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
 use crate::feature_toggles::live_gate::wait_until_on;
 use crate::state::AppState;
+use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::work_threads::WorkThreadError;
 
 pub const LEASE_ROLE: &str = "memory_keeper_cards";
 pub const TICK: Duration = Duration::from_secs(10);
 const SWEEP_EVERY: Duration = Duration::from_secs(60);
+const BUSY_BACKSTOP: chrono::Duration = chrono::Duration::seconds(600);
+const BUSY_SOURCES_CURRENT: &str = "memory_keeper.busy_sources_current";
+const BUSY_SOURCES: [RowChangedTable; 1] = [RowChangedTable::ThreadCardBusySources];
 const BREAKER_THRESHOLD: u32 = 3;
 const BREAKER_COOLDOWN_BASE: Duration = Duration::from_secs(30);
 const BREAKER_COOLDOWN_MAX: Duration = Duration::from_secs(600);
@@ -54,6 +58,7 @@ impl Keeper {
     pub async fn tick(&mut self, persist: &PersistHandle, now: Instant) -> TickOutcome {
         if !persist.holds_worker_role(LEASE_ROLE, TICK).await {
             self.generation = None;
+            persist.forget_fresh(BUSY_SOURCES_CURRENT);
             health::record(LastPass::NotLeader { at: Utc::now() });
             return TickOutcome::NotLeader;
         }
@@ -92,7 +97,9 @@ impl Keeper {
         if self.generation != Some(generation) {
             dirty.extend(persist.launch().thread_cards_behind_their_threads().await?);
         }
-        if sweep {
+        let busy = sweep && !persist.is_fresh(BUSY_SOURCES_CURRENT, &BUSY_SOURCES, Utc::now());
+        let ticket = persist.fresh_ticket();
+        if busy {
             dirty.extend(
                 persist
                     .launch()
@@ -102,6 +109,13 @@ impl Keeper {
         }
         let report = rebuild(persist, &merge(dirty)).await?;
         self.generation = Some(generation);
+        if busy {
+            persist.mark_fresh(
+                BUSY_SOURCES_CURRENT,
+                ticket,
+                Some(Utc::now() + BUSY_BACKSTOP),
+            );
+        }
         Ok(report)
     }
 }
