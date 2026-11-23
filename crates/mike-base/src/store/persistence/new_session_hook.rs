@@ -29,6 +29,26 @@ impl PersistHandle {
     }
 }
 
+/// Set when this process sets up a session it had not seen; the channel-link
+/// sweep takes it to decide whether its candidate query can find anything new.
+#[derive(Default)]
+struct SessionsArrived(std::sync::atomic::AtomicBool);
+
+impl PersistHandle {
+    pub fn note_session_arrived(&self) {
+        self.memo::<SessionsArrived>()
+            .0
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// Whether a session arrived since the last call.
+    pub fn take_sessions_arrived(&self) -> bool {
+        self.memo::<SessionsArrived>()
+            .0
+            .swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+}
+
 const SET_UP_CAPACITY: usize = 50_000;
 
 #[derive(Default)]

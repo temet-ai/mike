@@ -5,6 +5,7 @@ pub mod assemble;
 pub mod capture_classification;
 pub mod capture_retry;
 pub mod capture_support;
+mod capture_write_memo;
 pub mod change_log;
 pub mod change_record;
 pub mod composition_usage;
@@ -111,7 +112,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 
@@ -224,16 +224,6 @@ impl PersistHandle {
     pub async fn ping(&self) -> Result<(), sqlx::Error> {
         self.pool.acquire().await?;
         Ok(())
-    }
-
-    pub async fn latest_capture_write_at(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
-        crate::metrics::time_db("latest_capture_write_at", async move {
-            let ts = sqlx::query_scalar!("SELECT MAX(created_at) FROM requests.requests")
-                .fetch_one(&self.pool)
-                .await?;
-            Ok(ts)
-        })
-        .await
     }
 
     pub async fn preflight(&self) -> Result<(), PersistError> {
@@ -399,6 +389,21 @@ mod tests {
         assert_eq!(
             latest, max_created_at,
             "latest_capture_write_at must equal the true MAX(created_at)"
+        );
+
+        test_util::seed_session_turns(&handle.pool, &session_b, project_id, 1).await?;
+        assert_eq!(
+            handle.latest_capture_write_at().await?,
+            Some(latest),
+            "once known, the value is kept, not read again"
+        );
+        let later = latest + chrono::Duration::seconds(5);
+        handle.note_capture_write(later);
+        handle.note_capture_write(latest);
+        assert_eq!(
+            handle.latest_capture_write_at().await?,
+            Some(later),
+            "a committed capture moves it forward, never back"
         );
 
         db.cleanup().await?;

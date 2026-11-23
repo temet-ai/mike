@@ -72,6 +72,9 @@ impl PersistHandle {
 
             tx.commit().await?;
             self.remember_committed_session(session_epoch, &req.session_id, session_db_id);
+            if row_inserted {
+                self.note_capture_write(req.created_at);
+            }
 
             let dispatch_wire_ids = if row_inserted {
                 super::request_write_worker_producer::dispatch_result_wire_ids(
@@ -167,6 +170,7 @@ impl PersistHandle {
     }
 
     async fn set_up_new_session(&self, session_id: &str) {
+        self.note_session_arrived();
         let hooked = match (session_id.parse::<uuid::Uuid>(), self.new_session_hook()) {
             (Ok(session_uuid), Some(hook)) => hook.on_new_session(self, session_uuid).await,
             _ => Ok(()),
