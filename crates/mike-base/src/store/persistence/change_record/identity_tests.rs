@@ -99,6 +99,18 @@ async fn next_notice(
     Ok(serde_json::from_str(note.payload())?)
 }
 
+async fn next_notice_for(
+    listener: &mut sqlx::postgres::PgListener,
+    table: &str,
+) -> anyhow::Result<serde_json::Value> {
+    loop {
+        let payload = next_notice(listener).await?;
+        if payload["table"] == table {
+            return Ok(payload);
+        }
+    }
+}
+
 #[tokio::test]
 async fn a_deleted_session_sends_its_notice_and_leaves_the_memo() -> anyhow::Result<()> {
     let Some(db) = acquire_ephemeral_db().await? else {
@@ -117,8 +129,7 @@ async fn a_deleted_session_sends_its_notice_and_leaves_the_memo() -> anyhow::Res
         .bind(a)
         .execute(handle.pool())
         .await?;
-    let payload = next_notice(&mut listener).await?;
-    assert_eq!(payload["table"], "sessions");
+    let payload = next_notice_for(&mut listener, "sessions").await?;
     assert_eq!(payload["op"], "DELETE");
     assert_eq!(payload["session_id"], a.to_string());
 
