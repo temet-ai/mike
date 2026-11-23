@@ -6,6 +6,7 @@ use super::PersistError;
 #[derive(Debug, Clone)]
 pub struct ChannelLinkSweepCandidate {
     pub session_uuid: Uuid,
+    pub request_id: i64,
     pub request_body: Option<Vec<u8>>,
 }
 
@@ -14,6 +15,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
         self,
         since: DateTime<Utc>,
         limit: i64,
+        scanned_request_ids: &[i64],
     ) -> Result<Vec<ChannelLinkSweepCandidate>, PersistError> {
         crate::metrics::time_db(
             "remote_control_fetch_channel_link_sweep_candidates",
@@ -21,10 +23,12 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 let rows = sqlx::query!(
                     r#"
                 SELECT s.session_uuid    AS "session_uuid!",
-                       cand.request_body AS "request_body?"
+                       cand.id           AS "request_id!",
+                       CASE WHEN cand.id = ANY($3) THEN NULL
+                            ELSE cand.request_body END AS "request_body?"
                   FROM sessions.sessions s
                   JOIN LATERAL (
-                      SELECT rr.request_body
+                      SELECT rr.id, rr.request_body
                         FROM requests.requests rr
                        WHERE rr.session_id = s.id
                        ORDER BY rr.created_at DESC, rr.id DESC
@@ -40,6 +44,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                 "#,
                     since,
                     limit,
+                    scanned_request_ids,
                 )
                 .fetch_all(&self.pool)
                 .await?;
@@ -48,6 +53,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
                     .into_iter()
                     .map(|r| ChannelLinkSweepCandidate {
                         session_uuid: r.session_uuid,
+                        request_id: r.request_id,
                         request_body: r.request_body,
                     })
                     .collect())

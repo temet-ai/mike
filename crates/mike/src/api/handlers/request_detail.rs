@@ -265,24 +265,28 @@ pub(crate) async fn get_request(
     } else {
         None
     };
-    let request_number = match state.persist() {
-        Some(handle) => handle
-            .fetch_request_number(id)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    error = %e,
-                    request_id = id,
-                    "get_request: request_number lookup failed",
-                );
-                None
-            })
-            .map(|n| n.max(0) as u64),
+    let numbering = match state.persist() {
+        Some(handle) => handle.fetch_request_number(id).await.unwrap_or_else(|e| {
+            tracing::warn!(
+                error = %e,
+                request_id = id,
+                "get_request: request_number lookup failed",
+            );
+            None
+        }),
         None => None,
     };
     let composer_cache = state.composer.cache().load();
     let mut detail = RequestDetail::from_request(&req, &composer_cache, predecessor_request_id);
-    detail.request_number = request_number;
+    detail.request_number = numbering
+        .and_then(|n| n.request_number)
+        .map(|n| n.max(0) as u64);
+    // A row loaded from the database carries no body bytes; its stored size stands in.
+    if req.request_body.is_none()
+        && let Some(n) = numbering
+    {
+        detail.request_body_size = u64::try_from(n.request_body_size).unwrap_or_default();
+    }
     Ok(Json(detail))
 }
 

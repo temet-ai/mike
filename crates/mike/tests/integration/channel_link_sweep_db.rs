@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use uuid::Uuid;
 
 use crate::test_db::TestDb;
@@ -78,7 +80,7 @@ async fn sweep_tick_links_a_candidate_with_a_marker() -> anyhow::Result<()> {
     let session_uuid =
         seed_session_with_request(handle.pool(), project_id, Some(request_body.as_bytes())).await?;
 
-    run_sweep_tick(&handle, 120, 200, false).await;
+    run_sweep_tick(&handle, 120, 200, false, &mut HashSet::new()).await;
     let before: Option<Uuid> = sqlx::query_scalar!(
         "SELECT local_session_uuid FROM remote_control.channels
           WHERE cse_id = 'cse_sweepTickAbc123'"
@@ -97,7 +99,7 @@ async fn sweep_tick_links_a_candidate_with_a_marker() -> anyhow::Result<()> {
         "taking the arrival clears it"
     );
 
-    run_sweep_tick(&handle, 120, 200, true).await;
+    run_sweep_tick(&handle, 120, 200, true, &mut HashSet::new()).await;
 
     let linked: Option<Uuid> = sqlx::query_scalar!(
         "SELECT local_session_uuid FROM remote_control.channels
@@ -128,7 +130,7 @@ async fn sweep_tick_leaves_a_candidate_with_no_marker_alone() -> anyhow::Result<
     let project_id = seed_project(handle.pool(), "/tmp/sweep-tick-no-marker").await?;
     seed_session_with_request(handle.pool(), project_id, Some(b"nothing to see here")).await?;
 
-    run_sweep_tick(&handle, 120, 200, true).await;
+    run_sweep_tick(&handle, 120, 200, true, &mut HashSet::new()).await;
 
     let count: i64 =
         sqlx::query_scalar!("SELECT COUNT(*) AS \"count!\" FROM remote_control.channels")

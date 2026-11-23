@@ -214,17 +214,24 @@ pub async fn fetch_predecessor_request_id(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RequestNumbering {
+    pub request_number: Option<i64>,
+    pub request_body_size: i32,
+}
+
 pub async fn fetch_request_number(
     pool: &PgPool,
     request_id: u64,
-) -> Result<Option<i64>, PersistError> {
-    let row = sqlx::query_scalar!(
-        "SELECT request_number FROM requests.requests WHERE id = $1",
+) -> Result<Option<RequestNumbering>, PersistError> {
+    let row = sqlx::query_as!(
+        RequestNumbering,
+        "SELECT request_number, request_body_size FROM requests.requests WHERE id = $1",
         request_id as i64,
     )
     .fetch_optional(pool)
     .await?;
-    Ok(row.flatten())
+    Ok(row)
 }
 
 pub async fn fetch_response_body_by_id(

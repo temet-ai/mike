@@ -233,7 +233,10 @@ impl PersistHandle {
         )
         .await
     }
-    pub async fn fetch_request_number(&self, request_id: u64) -> Result<Option<i64>, PersistError> {
+    pub async fn fetch_request_number(
+        &self,
+        request_id: u64,
+    ) -> Result<Option<rehydrate::RequestNumbering>, PersistError> {
         crate::metrics::time_db(
             "fetch_request_number",
             rehydrate::fetch_request_number(&self.pool, request_id),

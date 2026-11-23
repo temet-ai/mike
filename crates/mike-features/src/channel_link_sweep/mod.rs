@@ -55,6 +55,7 @@ async fn run(
     let mut ticker = interval(Duration::from_secs(cfg.interval_secs));
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut queried_at: Option<Instant> = None;
+    let mut scanned = std::collections::HashSet::new();
 
     loop {
         tokio::select! {
@@ -79,6 +80,7 @@ async fn run(
                     CANDIDATE_WINDOW_MINUTES,
                     cfg.batch_size,
                     query,
+                    &mut scanned,
                 )
                 .await;
             }

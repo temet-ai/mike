@@ -96,7 +96,7 @@ async fn candidate_carries_its_newest_requests_body_not_an_older_one() -> anyhow
 
     let candidates = handle
         .proxy()
-        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
+        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200, &[])
         .await?;
     let found = candidates
         .iter()
@@ -106,6 +106,47 @@ async fn candidate_carries_its_newest_requests_body_not_an_older_one() -> anyhow
         found.request_body.as_deref(),
         Some(&b"newer claude.ai/code/session_abc123"[..]),
         "must carry the NEWEST request's body, not an older one"
+    );
+
+    handle.pool().close().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_request_body_already_scanned_is_not_fetched_again() -> anyhow::Result<()> {
+    let Some(handle) = shared_handle().await? else {
+        return Ok(());
+    };
+
+    let project_id = seed_project(handle.pool(), &unique("/tmp/link-sweep-scanned")).await?;
+    let now = Utc::now();
+    let session_uuid = seed_session(handle.pool(), project_id, now).await?;
+    let session_id = session_bigint_id(handle.pool(), session_uuid).await?;
+    seed_request(handle.pool(), session_id, project_id, Some(b"body"), -1).await?;
+
+    let since = now - chrono::Duration::hours(2);
+    let first = handle
+        .proxy()
+        .fetch_channel_link_sweep_candidates(since, 200, &[])
+        .await?;
+    let found = first
+        .iter()
+        .find(|c| c.session_uuid == session_uuid)
+        .ok_or_else(|| anyhow::anyhow!("session must be a candidate"))?;
+    assert!(found.request_body.is_some(), "a new request's body is read");
+
+    let again = handle
+        .proxy()
+        .fetch_channel_link_sweep_candidates(since, 200, &[found.request_id])
+        .await?;
+    let found_again = again
+        .iter()
+        .find(|c| c.session_uuid == session_uuid)
+        .ok_or_else(|| anyhow::anyhow!("session stays a candidate"))?;
+    assert_eq!(found_again.request_id, found.request_id);
+    assert!(
+        found_again.request_body.is_none(),
+        "a body read on an earlier tick must not be read again"
     );
 
     handle.pool().close().await;
@@ -135,7 +176,7 @@ async fn a_session_with_a_linked_channel_is_never_a_candidate() -> anyhow::Resul
 
     let candidates = handle
         .proxy()
-        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
+        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200, &[])
         .await?;
     assert!(
         !candidates.iter().any(|c| c.session_uuid == session_uuid),
@@ -161,7 +202,7 @@ async fn a_session_last_seen_outside_the_window_is_not_a_candidate() -> anyhow::
 
     let candidates = handle
         .proxy()
-        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200)
+        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 200, &[])
         .await?;
     assert!(
         !candidates.iter().any(|c| c.session_uuid == stale_session),
@@ -188,7 +229,7 @@ async fn the_limit_bounds_the_candidate_count() -> anyhow::Result<()> {
 
     let candidates = handle
         .proxy()
-        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 3)
+        .fetch_channel_link_sweep_candidates(now - chrono::Duration::hours(2), 3, &[])
         .await?;
     assert_eq!(candidates.len(), 3, "LIMIT must bound the returned rows");
 

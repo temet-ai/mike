@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_number, request_body_size FROM requests.requests WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_number",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_number"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body_size"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "3c514e90b849796798a8bfe720006c17ee6511b13de510f06665db5f42c5833e"
+}

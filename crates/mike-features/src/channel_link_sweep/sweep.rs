@@ -1,14 +1,20 @@
+use std::collections::HashSet;
+
 use super::own_marker::own_channel_ids;
 use crate::proxy::remote_control::route::is_channel_id;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::store::persistence::remote_control::ChannelLinkSweepCandidate;
 use crate::store::persistence::{PersistError, PersistHandle};
 
+/// `scanned` holds the request ids whose bodies an earlier tick already read.
+/// The query leaves those bodies out, so a candidate's body is read once per
+/// newest request, not on every tick; it is replaced by this tick's ids.
 pub async fn run_sweep_tick(
     persist: &PersistHandle,
     window_minutes: i64,
     batch_size: i64,
     query_candidates: bool,
+    scanned: &mut HashSet<i64>,
 ) {
     let running = super::local_registry::link_running_sessions(persist).await;
     if running > 0 {
@@ -18,9 +24,10 @@ pub async fn run_sweep_tick(
         return;
     }
     let since = chrono::Utc::now() - chrono::Duration::minutes(window_minutes);
+    let skip: Vec<i64> = scanned.iter().copied().collect();
     let candidates = match persist
         .proxy()
-        .fetch_channel_link_sweep_candidates(since, batch_size)
+        .fetch_channel_link_sweep_candidates(since, batch_size, &skip)
         .await
     {
         Ok(candidates) => candidates,
@@ -30,6 +37,7 @@ pub async fn run_sweep_tick(
         }
     };
 
+    *scanned = candidates.iter().map(|c| c.request_id).collect();
     let considered = candidates.len();
     let linked = link_all_candidates(persist, &candidates).await;
     log_tick_complete(considered, linked);

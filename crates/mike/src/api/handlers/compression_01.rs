@@ -199,9 +199,26 @@ pub(crate) async fn load_intercepted_request(
     match in_memory {
         Some(req) => Ok(req),
         None => match load_request_from_db(state, id).await? {
-            Some(req) => Ok(req),
+            Some(mut req) => {
+                req.request_body = load_stored_body(state, id).await?;
+                Ok(req)
+            }
             None => Err(StatusCode::NOT_FOUND),
         },
+    }
+}
+
+/// The database row lookup leaves the body out; the estimate reads it here.
+async fn load_stored_body(state: &AppState, id: u64) -> Result<Option<Bytes>, StatusCode> {
+    let Some(handle) = state.persist() else {
+        return Ok(None);
+    };
+    match handle.fetch_request_body_by_id(id).await {
+        Ok(served) => Ok(served.map(|s| s.bytes)),
+        Err(e) => {
+            tracing::warn!(error = %e, request_id = id, "compress_estimate: body fetch failed");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
