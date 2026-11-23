@@ -56,7 +56,8 @@ pub(crate) const SQL_BRIEF: &str = "Compose SQL, never rewrite it: when the defe
 pub(crate) fn job(claim: &ClaimedRepair, worktree: &Path) -> RepairJob {
     let brief = format!(
         "Repair {id}: fix the code defect that finding {finding} traced to {part} for Wright problem {problem} (check `{check}`). \
-         Edit files in this worktree only, keep the change narrow and inside the owning part, and add or adjust the test that shows the fix. \
+         Fix it the way the finding's answers say it should behave: the work runs only when what it depends on changes, off the hot path where it was on one, with queries that read only what they use. \
+         Edit files in this worktree only, keep the change inside the owning part, and add or adjust the test that fails if the same waste or defect comes back. \
          This worktree is the day's shared branch: earlier fixes of the day are already committed on it, so leave their files alone unless your defect needs them. \
          You cannot commit: Wright's executor commits your change on that branch, and gates the whole branch once with the push hook after the day ends. It refuses changes to the feature toggles (the operator's switch that turns Wright off), authentication, the gate, credentials or deploy paths. Wright's own code is yours to fix like any other part. \
          You cannot compile or reach a database here; the executor runs one `cargo check` of the crate you touched and the push hook compiles and runs the tests later, so read the code carefully instead. \
