@@ -103,6 +103,19 @@ sys.exit(int(os.environ.get('CURL_EXIT', '0')))
                 actual = tomllib.loads((self.home / "config.toml").read_text())["otel"]
                 self.assertEqual(actual, tomllib.loads(original)["otel"])
 
+    def test_install_preserves_newline_when_hooks_is_first_setting(self):
+        for enabled in ("true", "false"):
+            with self.subTest(enabled=enabled):
+                path = self.home / "config.toml"
+                path.write_text(f'[features]\nhooks = {enabled}\n\n[mcp_servers.mike]\ncommand = "custom-mcp"\n')
+                self.install()
+                first = path.read_text()
+                parsed = tomllib.loads(first)
+                self.assertTrue(parsed["features"]["hooks"])
+                self.assertEqual(parsed["mcp_servers"]["mike"]["command"], "custom-mcp")
+                self.install()
+                self.assertEqual(path.read_text(), first)
+
     def test_metadata_exporter_extends_existing_metadata_settings(self):
         (self.home / "config.toml").write_text('[otel]\nenvironment = "staging"\n'
                                                 'log_user_prompt = false\n')

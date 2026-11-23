@@ -21,14 +21,14 @@ EVENTS = ("SessionStart", "SessionEnd", "UserPromptSubmit", "PostToolUse", "Stop
 
 def setting(text, section, key, value):
     """Change one scalar without rewriting unrelated comments or settings."""
-    header = re.search(r"(?m)^\s*\[" + re.escape(section) + r"\]\s*(?:#.*)?$", text)
+    header = re.search(r"(?m)^[ \t]*\[" + re.escape(section) + r"\][ \t]*(?:#.*)?$", text)
     if header is None:
         return text.rstrip() + f"\n\n[{section}]\n{key} = {value}\n"
     start = header.end()
-    following = re.search(r"(?m)^\s*\[", text[start:])
+    following = re.search(r"(?m)^[ \t]*\[", text[start:])
     end = start + following.start() if following else len(text)
     block = text[start:end]
-    pattern = r"(?m)^\s*" + re.escape(key) + r"\s*=.*$"
+    pattern = r"(?m)^[ \t]*" + re.escape(key) + r"[ \t]*=.*$"
     if re.search(pattern, block):
         block = re.sub(pattern, f"{key} = {value}", block)
     else:
