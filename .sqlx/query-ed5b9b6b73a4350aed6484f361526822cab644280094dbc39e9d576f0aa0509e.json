@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.capture_chunks (origin_document_id, origin_ordinal, body)\n         SELECT $1, input.ordinal, input.body FROM UNNEST($2::bigint[], $3::bytea[]) AS input(ordinal, body)\n         RETURNING id, origin_ordinal",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_chunks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "origin_ordinal",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_chunks",
+            "name": "origin_ordinal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array",
+        "ByteaArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ed5b9b6b73a4350aed6484f361526822cab644280094dbc39e9d576f0aa0509e"
+}

@@ -43,6 +43,9 @@ import type {
 	RequestDeltasPayload,
 	RequestStreamBlocksPayload,
 	RequestSummary,
+	RuntimeCaptureBody,
+	RuntimeCaptureDirection,
+	RuntimeCapturePage,
 	SessionDetail,
 	SessionHead,
 	SessionProjectAssignmentResponse,
@@ -106,10 +109,11 @@ export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 	throw lastErr;
 }
 
-async function rawGetJson<T>(path: string): Promise<T> {
+async function rawGetJson<T>(path: string, cache?: RequestCache): Promise<T> {
 	return withRetry(async () => {
 		const res = await fetch(path, {
-			headers: { accept: 'application/json' }
+			headers: { accept: 'application/json' },
+			...(cache ? { cache } : {})
 		});
 		if (!res.ok) {
 			throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
@@ -535,6 +539,45 @@ export function getSession(id: string, params: GetSessionParams = {}): Promise<S
 
 export function getSessionHead(id: string): Promise<SessionHead> {
 	return getJson<SessionHead>(`/api/sessions/${encodeURIComponent(id)}/head`);
+}
+
+export function getRuntimeCaptures(sessionId: string, offset = 0): Promise<RuntimeCapturePage> {
+	return rawGetJson<RuntimeCapturePage>(
+		`/api/sessions/${encodeURIComponent(sessionId)}/runtime-captures?limit=20&offset=${offset}`,
+		'no-store'
+	);
+}
+
+export function runtimeCaptureBodyUrl(
+	sessionId: string,
+	exchangeId: string,
+	direction: RuntimeCaptureDirection
+): `/api/${string}` {
+	return `/api/sessions/${encodeURIComponent(sessionId)}/runtime-captures/${encodeURIComponent(exchangeId)}/body/${direction}`;
+}
+
+export async function getRuntimeCaptureBody(
+	sessionId: string,
+	exchangeId: string,
+	direction: RuntimeCaptureDirection,
+	signal?: AbortSignal
+): Promise<RuntimeCaptureBody> {
+	const path = runtimeCaptureBodyUrl(sessionId, exchangeId, direction);
+	// Complete bodies stay out of the persistent API cache; downloads use the same byte stream.
+	return withRetry(async () => {
+		const response = await fetch(path, { cache: 'no-store', signal });
+		if (!response.ok) {
+			throw new ApiError(
+				`GET ${path} failed: ${response.status} ${response.statusText}`,
+				response.status,
+				path
+			);
+		}
+		return {
+			bytes: await response.arrayBuffer(),
+			complete: response.headers.get('x-mike-capture-complete') === 'true'
+		};
+	});
 }
 
 export interface SessionValidationStatusDto {

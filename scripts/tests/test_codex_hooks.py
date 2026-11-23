@@ -104,6 +104,43 @@ sys.exit(int(os.environ.get('CURL_EXIT', '0')))
                 actual = tomllib.loads((self.home / "config.toml").read_text())["otel"]
                 self.assertEqual(actual, tomllib.loads(original)["otel"])
 
+    def test_proxy_setup_removes_only_mike_hooks_and_owned_exporter(self):
+        self.install()
+        hooks_path = self.home / "hooks.json"
+        hooks = json.loads(hooks_path.read_text())
+        hooks["hooks"]["Stop"].append({"hooks": [{"type": "command", "command": "user-hook"}]})
+        hooks_path.write_text(json.dumps(hooks))
+        config_path = self.home / "config.toml"
+        expected = tomllib.loads(config_path.read_text())
+        expected["otel"]["exporter"] = "none"
+        result = self.install("--proxy-only", "--require-mcp", "--report-json")
+        self.assertEqual(json.loads(hooks_path.read_text())["hooks"], {
+            "Stop": [{"hooks": [{"type": "command", "command": "user-hook"}]}]})
+        self.assertEqual(tomllib.loads(config_path.read_text()), expected)
+        self.assertNotIn("review and trust", json.loads(result.stdout)["notice"])
+        self.install("--proxy-only", "--require-mcp")
+        self.assertEqual(tomllib.loads(config_path.read_text()), expected)
+
+    def test_proxy_setup_preserves_operator_telemetry_and_profile_overrides(self):
+        path = self.home / "config.toml"
+        original = ('[otel]\nexporter = { otlp-http = { endpoint = "http://operator/v1/logs" } }\n'
+                    '[profiles.work.otel]\nexporter = "none"\n')
+        path.write_text(original)
+        self.install("--proxy-only", "--require-mcp")
+        actual = tomllib.loads(path.read_text())
+        expected = tomllib.loads(original)
+        self.assertEqual(actual["otel"], expected["otel"])
+        self.assertEqual(actual["profiles"], expected["profiles"])
+
+    def test_fresh_proxy_setup_installs_mcp_without_hooks_or_telemetry(self):
+        self.install("--proxy-only", "--require-mcp")
+        config = tomllib.loads((self.home / "config.toml").read_text())
+        self.assertIn("mike", config["mcp_servers"])
+        self.assertNotIn("features", config)
+        self.assertNotIn("otel", config)
+        self.assertEqual(json.loads((self.home / "hooks.json").read_text())["hooks"], {})
+        self.assertFalse((self.home / "mike" / "mike-codex-hook").exists())
+
     def test_install_preserves_newline_when_hooks_is_first_setting(self):
         for enabled in ("true", "false"):
             with self.subTest(enabled=enabled):

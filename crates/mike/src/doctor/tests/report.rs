@@ -42,7 +42,7 @@ fn every_check_the_audit_lists_is_present_with_a_stable_id() {
         "code_scan",
         "scheduled_jobs",
         "worker_provider",
-        "codex_hooks",
+        "codex_proxy",
         "prompt_assistant",
     ] {
         assert!(ids.contains(&expected), "missing {expected} in {ids:?}");

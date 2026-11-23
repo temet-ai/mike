@@ -7,37 +7,76 @@ use super::record::{ExchangeRecord, Finished};
 use crate::runtime::{ModelCallObservation, ObservationSource, SessionObservation, UsageSnapshot};
 use crate::store::persistence::PersistHandle;
 
+pub(super) fn source(record: &ExchangeRecord) -> super::spool::IdentityInput {
+    super::spool::IdentityInput {
+        launch: record.launch_session,
+        home: record.codex_home.clone(),
+        thread: record
+            .correlation
+            .provider_thread_id
+            .clone()
+            .or_else(|| record.correlation.provider_session_id.clone()),
+        cwd: record.correlation.cwd.clone(),
+    }
+}
+
 pub async fn resolve_identity(
     persist: &PersistHandle,
     record: &mut ExchangeRecord,
 ) -> Result<(), String> {
-    let thread = record
-        .correlation
-        .provider_thread_id
-        .as_deref()
-        .or(record.correlation.provider_session_id.as_deref());
-    record.correlation.session_uuid = match (record.codex_home.as_deref(), thread) {
-        (Some(home), Some(thread)) => {
-            crate::runtime::codex_observe::resolve_bound_session(persist, home, thread)
-                .await
-                .map_err(|error| error.to_string())?
-        }
-        (None, Some(thread)) => persist
-            .runtime()
-            .resolve_unique_codex_session(thread)
-            .await
-            .map_err(|error| error.to_string())?,
-        _ => None,
+    record.correlation.session_uuid = None;
+    let input = source(record);
+    let Some(identity) = resolve_source(persist, &input).await? else {
+        record.correlation.evidence["normalized_session"] =
+            serde_json::json!({"unknown":"no provider thread or launch identity in this request"});
+        return Ok(());
     };
-    record.correlation.evidence["normalized_session"] = match record.correlation.session_uuid {
-        Some(session) => {
-            serde_json::json!({"source":if record.codex_home.is_some() { "verified_home_binding" } else { "unique_existing_thread_binding" },"session_id":session})
-        }
-        None => {
-            serde_json::json!({"unknown":"no unambiguous existing thread binding; provider IDs are retained separately"})
-        }
-    };
+    record.correlation.session_uuid = Some(identity.session_id);
+    record.correlation.cwd = identity.cwd;
+    record.codex_home = identity.codex_home;
+    record.correlation.evidence["normalized_session"] = serde_json::json!({
+        "source":if input.thread.is_some() { "proxy_thread_binding" } else { "verified_proxy_launch" },
+        "session_id":identity.session_id,
+    });
     Ok(())
+}
+
+pub(super) async fn resolve_source(
+    persist: &PersistHandle,
+    input: &super::spool::IdentityInput,
+) -> Result<Option<crate::runtime::codex_proxy_identity::ProxyIdentity>, String> {
+    use crate::runtime::codex_proxy_identity::{ProxyIdentity, ProxySource, resolve};
+    if let Some(thread) = &input.thread {
+        return resolve(
+            persist,
+            &ProxySource {
+                launch: input.launch,
+                home: input.home.clone(),
+                thread: thread.clone(),
+                cwd: input.cwd.clone(),
+            },
+        )
+        .await
+        .map(Some)
+        .map_err(|error| error.to_string());
+    }
+    let Some(id) = input.launch else {
+        return Ok(None);
+    };
+    let launch = persist
+        .runtime_launch_identity(id, crate::runtime::RuntimeKind::Codex)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "no open Codex launch matches the proxy route".to_string())?;
+    persist
+        .ensure_runtime_session(id)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(Some(ProxyIdentity {
+        session_id: id,
+        cwd: Some(launch.folder),
+        codex_home: Some(launch.runtime_home.into()),
+    }))
 }
 
 pub async fn record(

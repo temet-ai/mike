@@ -199,6 +199,7 @@ fn build_session_detail(
         SessionDetail {
             observation: None,
             runtime_items: None,
+            captures_available: false,
             summary,
             requests: request_summaries,
             total_requests: Some(total),
@@ -217,6 +218,7 @@ fn build_session_detail(
         SessionDetail {
             observation: None,
             runtime_items: None,
+            captures_available: false,
             summary,
             requests: request_summaries,
             total_requests: None,

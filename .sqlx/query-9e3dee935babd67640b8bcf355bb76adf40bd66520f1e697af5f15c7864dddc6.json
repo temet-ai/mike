@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.ordinal, c.id, c.body FROM runtime.capture_document_chunks r\n         JOIN runtime.capture_chunks c ON c.id = r.chunk_id\n         WHERE r.document_id = $1 AND r.ordinal >= $2 AND r.ordinal < $3 ORDER BY r.ordinal",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ordinal",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_document_chunks",
+            "name": "ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_chunks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_chunks",
+            "name": "body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9e3dee935babd67640b8bcf355bb76adf40bd66520f1e697af5f15c7864dddc6"
+}

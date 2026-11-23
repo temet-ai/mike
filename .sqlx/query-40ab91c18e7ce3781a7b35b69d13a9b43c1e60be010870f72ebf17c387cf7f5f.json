@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions SET ttl_override = interval '1 second' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "40ab91c18e7ce3781a7b35b69d13a9b43c1e60be010870f72ebf17c387cf7f5f"
+}

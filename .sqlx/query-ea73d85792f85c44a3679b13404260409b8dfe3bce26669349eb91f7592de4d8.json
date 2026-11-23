@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT NOT EXISTS (\n            SELECT 1 FROM UNNEST($1::bigint[]) AS wanted(id)\n            LEFT JOIN runtime.capture_documents d ON d.id = wanted.id\n            WHERE d.id IS NULL\n               OR EXISTS (SELECT 1 FROM runtime.capture_exchanges e\n                          WHERE e.exchange_uuid <> $2 AND\n                            (e.request_document_id = d.id OR e.sent_document_id = d.id OR e.response_document_id = d.id))\n               OR (d.predecessor_id IS NOT NULL AND NOT d.predecessor_id = ANY($1)\n                   AND NOT EXISTS (\n                       SELECT 1 FROM runtime.capture_exchanges p\n                       WHERE (p.request_document_id = d.predecessor_id OR p.sent_document_id = d.predecessor_id OR p.response_document_id = d.predecessor_id)\n                         AND (($3::bigint IS NOT NULL AND p.session_id = $3)\n                              OR ($4::text IS NOT NULL AND p.provider_thread_id = $4\n                                  AND ($3::bigint IS NULL OR p.session_id IS NULL OR p.session_id = $3)))\n                   ))\n        ) AS \"valid!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "valid!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Uuid",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ea73d85792f85c44a3679b13404260409b8dfe3bce26669349eb91f7592de4d8"
+}

@@ -1,19 +1,24 @@
+mod capture_write;
 pub mod correlation;
 pub mod diagnostic;
 pub mod headers;
 pub mod record;
+mod recovery;
 pub mod relay;
 pub mod request_body;
+mod spool;
 pub mod tee;
 pub mod wire_observation;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Router;
 use axum::routing::any;
-use tokio::sync::{Semaphore, mpsc};
+use tokio::sync::{Mutex, Semaphore, mpsc};
+use tokio_util::task::TaskTracker;
 
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
@@ -84,6 +89,9 @@ pub struct ResponsesState {
     pub registered: Arc<Mutex<HashMap<uuid::Uuid, Instant>>>,
     pub recorded: Option<mpsc::UnboundedSender<Result<i64, String>>>,
     pub slots: Arc<Semaphore>,
+    pub capture_root: Option<Arc<PathBuf>>,
+    pub tasks: TaskTracker,
+    recovery: Arc<recovery::Schedule>,
     pub toggles: Arc<arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>>,
 }
 
@@ -100,6 +108,9 @@ impl ResponsesState {
             registered: Arc::new(Mutex::new(HashMap::new())),
             recorded: None,
             slots: Arc::new(Semaphore::new(16)),
+            capture_root: Some(Arc::new(std::env::temp_dir().join("mike-codex-capture"))),
+            tasks: TaskTracker::new(),
+            recovery: Arc::new(recovery::Schedule::default()),
             toggles: Arc::new(arc_swap::ArcSwap::from_pointee(Default::default())),
         }
     }
@@ -112,6 +123,14 @@ pub fn router(state: &AppState) -> Router<AppState> {
         state.persist().cloned(),
     );
     responses.toggles = state.feature_toggle_overlay.clone();
+    responses.capture_root =
+        match crate::config::paths::InstallationPaths::resolve(Some(&state.config.config_path)) {
+            Ok(paths) => Some(Arc::new(paths.state_dir.join("codex-capture"))),
+            Err(error) => {
+                tracing::error!(%error, "Codex capture directory cannot be resolved");
+                None
+            }
+        };
     routes_with(responses)
 }
 
@@ -121,10 +140,16 @@ pub fn routes(state: ResponsesState) -> Router {
 }
 
 fn routes_with<S: Clone + Send + Sync + 'static>(state: ResponsesState) -> Router<S> {
+    recovery::maybe_start(&state);
     Router::new()
         .route(&format!("{ROUTE_PREFIX}/{{*rest}}"), any(relay::handle))
         .with_state(state)
 }
+
+#[cfg(test)]
+mod capture_tests;
+#[cfg(test)]
+mod relay_test_support;
 
 #[cfg(test)]
 #[path = "relay_tests.rs"]

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Install Mike's compact lifecycle and mailbox hooks in an explicit Codex home.
+"""Prepare Mike integration in an explicit Codex home.
 
-Existing hooks/settings are preserved. Codex still requires its own hook trust review.
-The default log exporter sends metadata to Mike; raw capture remains disabled.
+--proxy-only prepares MCP and removes Mike-owned hooks and the legacy exporter.
+Without it, install the legacy lifecycle/mail hooks, subject to Codex's trust review.
+Unrelated hooks and settings are preserved; complete capture belongs to the proxy.
 """
 import argparse
 import fcntl
@@ -92,12 +93,22 @@ def uses_mike_exporter(config, mike_url):
         mike_url.rstrip("/") + "/api/codex/observe/otel/v1/logs")
 
 
+def owned_exporter(config, mike_url, codex_home):
+    if not uses_mike_exporter(config, mike_url):
+        return False
+    headers = config["otel"]["exporter"]["otlp-http"].get("headers", {})
+    return (headers.get("x-mike-codex-home") == str(codex_home)
+            and bool(headers.get("x-mike-codex-source")))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex-home", required=True, type=Path)
     parser.add_argument("--mike-url", default="http://127.0.0.1:9989")
     parser.add_argument("--source", default=socket.gethostname())
     parser.add_argument("--require-mcp", action="store_true")
+    parser.add_argument("--proxy-only", action="store_true",
+                        help="prepare MCP and remove Mike-owned hooks; capture uses the proxy")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--print", action="store_true", dest="print_only")
     output.add_argument("--report-json", action="store_true")
@@ -136,7 +147,7 @@ def install(args, codex_home):
             hooks[event] = kept
         else:
             del hooks[event]
-    for event in EVENTS:
+    for event in (() if args.proxy_only else EVENTS):
         hooks.setdefault(event, []).append({"hooks": [{
             "type": "command", "command": command, "timeout": 3,
             "async": False,
@@ -144,14 +155,17 @@ def install(args, codex_home):
     config_path = codex_home / "config.toml"
     config = config_path.read_text() if config_path.exists() else ""
     parsed = tomllib.loads(config)
-    if args.require_mcp and any("exporter" in profile.get("otel", {})
+    if args.require_mcp and not args.proxy_only and any("exporter" in profile.get("otel", {})
                                 for profile in parsed.get("profiles", {}).values()):
         raise ValueError("Codex spawn does not support profile-level log exporters; "
                          "configure the exporter at the top level or launch Codex directly.")
     if args.require_mcp and parsed.get("mcp_servers", {}).get("mike", {}).get("enabled") is False:
         raise ValueError("the Mike MCP server is disabled; enable it before spawning an integrated Codex session.")
-    config = setting(config, "features", "hooks", "true")
-    config = metadata_exporter(config, parsed, args.mike_url, args.source, codex_home)
+    if not args.proxy_only:
+        config = setting(config, "features", "hooks", "true")
+        config = metadata_exporter(config, parsed, args.mike_url, args.source, codex_home)
+    elif owned_exporter(parsed, args.mike_url, codex_home):
+        config = setting(config, "otel", "exporter", '"none"')
     # Mail bodies must be fetched as tool results, never promoted to hook context.
     if "mike" not in parsed.get("mcp_servers", {}):
         binary = shutil.which("mike-mcp")
@@ -173,9 +187,12 @@ def install(args, codex_home):
     hook_bin.parent.mkdir(parents=True, exist_ok=True)
     changed = write_changed(hooks_path, rendered)
     changed |= write_changed(config_path, config)
-    changed |= write_changed(hook_bin, Path(__file__).with_name("mike-codex-hook").read_text())
-    hook_bin.chmod(0o755)
-    notice = "install: Mike lifecycle/mail hooks ready; review and trust them in Codex (/hooks)." if changed else ""
+    if not args.proxy_only:
+        changed |= write_changed(hook_bin, Path(__file__).with_name("mike-codex-hook").read_text())
+        hook_bin.chmod(0o755)
+    notice = ("install: Mike proxy integration ready; Mike-owned hooks removed."
+              if args.proxy_only else
+              "install: Mike lifecycle/mail hooks ready; review and trust them in Codex (/hooks).") if changed else ""
     if args.report_json:
         print(json.dumps({"notice": notice,
                           "mike_otel_exporter": uses_mike_exporter(installed, args.mike_url)}))

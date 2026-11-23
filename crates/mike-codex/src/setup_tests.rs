@@ -24,7 +24,7 @@ async fn setup_keeps_home_and_endpoint_as_literal_arguments() -> anyhow::Result<
     assert_eq!(
         result.notice,
         format!(
-            "--codex-home\n{}\n--mike-url\n{url}\n--require-mcp\n--report-json",
+            "--codex-home\n{}\n--mike-url\n{url}\n--require-mcp\n--proxy-only\n--report-json",
             home.display()
         )
     );

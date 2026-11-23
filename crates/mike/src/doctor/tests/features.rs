@@ -46,20 +46,15 @@ fn worker_provider_warns_when_neither_claude_nor_a_key_is_available() -> anyhow:
 }
 
 #[test]
-fn codex_hooks_warn_only_when_codex_is_on_path_without_them() -> anyhow::Result<()> {
+fn codex_proxy_does_not_require_legacy_hooks() -> anyhow::Result<()> {
     let mut observed = healthy();
     let checks = evaluate(&observed);
-    assert_eq!(check(&checks, "codex_hooks")?.status, Status::Ok);
+    assert_eq!(check(&checks, "codex_proxy")?.status, Status::Ok);
     observed.features.codex.on_path = true;
-    let hooks = warning(&observed, "codex_hooks")?;
-    assert!(
-        hooks.detail.contains("/home/ada/.codex"),
-        "{}",
-        hooks.detail
-    );
-    observed.features.codex.hooks_installed = true;
     let checks = evaluate(&observed);
-    assert_eq!(check(&checks, "codex_hooks")?.status, Status::Ok);
+    let proxy = check(&checks, "codex_proxy")?;
+    assert_eq!(proxy.status, Status::Ok);
+    assert!(proxy.detail.contains("Hooks are not required"));
     Ok(())
 }
 

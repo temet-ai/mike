@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runtime.capture_documents SET finished = true, complete = $2\n         WHERE id = $1 AND (NOT finished OR complete = $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3fd08553f3132a954510b216ec9357a4f64e32ef5107e38f67878b79cedd94f5"
+}

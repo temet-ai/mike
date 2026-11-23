@@ -25,12 +25,12 @@ fn configuration_preserves_prompt_and_custom_exporter_without_claiming_observati
 -> anyhow::Result<()> {
     let home = tempfile::tempdir()?;
     let mut spec = spec(home.path(), &["-m", "gpt-fixture", "hello"])?;
-    configure(&mut spec, home.path(), Some("127.0.0.1:9988"), false)?;
+    configure(&mut spec, home.path(), Some("127.0.0.1:9988"))?;
     assert_eq!(spec.args.last().map(String::as_str), Some("hello"));
-    assert!(
-        spec.args
-            .contains(&"openai_base_url=\"http://127.0.0.1:9988/codex\"".into())
-    );
+    assert!(spec.args.contains(&format!(
+        "openai_base_url=\"http://127.0.0.1:9988/codex/launch/{}\"",
+        spec.session.unwrap()
+    )));
     assert!(!spec.args.iter().any(|arg| arg.contains("otel.exporter")));
     assert_eq!(spec.env.get("CODEX_HOME"), spec.env.get("MIKE_CODEX_HOME"));
     let output = LaunchOutput {
@@ -60,20 +60,19 @@ fn configuration_preserves_prompt_and_custom_exporter_without_claiming_observati
 }
 
 #[test]
-fn configured_exporter_gets_spawn_header_and_proxy_opt_out_is_respected() -> anyhow::Result<()> {
+fn proxy_opt_out_preserves_arguments_without_exporter_injection() -> anyhow::Result<()> {
     let home = tempfile::tempdir()?;
     let mut spec = spec(home.path(), &["--no-proxy-env", "--", "--", "resume"])?;
-    configure(&mut spec, home.path(), None, true)?;
+    configure(&mut spec, home.path(), None)?;
     let delimiter = spec
         .args
         .iter()
         .position(|arg| arg == "--")
         .ok_or_else(|| anyhow::anyhow!("no provider delimiter"))?;
     assert!(
-        spec.args[..delimiter]
+        !spec.args[..delimiter]
             .iter()
-            .any(|arg| arg
-                .starts_with("otel.exporter.otlp-http.headers.x-mike-codex-spawn-session="))
+            .any(|arg| arg.contains("otel.exporter"))
     );
     assert!(
         !spec
@@ -83,7 +82,7 @@ fn configured_exporter_gets_spawn_header_and_proxy_opt_out_is_respected() -> any
     );
     assert_eq!(spec.args.last().map(String::as_str), Some("resume"));
     spec.flags.proxy_env = true;
-    assert!(configure(&mut spec, home.path(), None, false).is_err());
+    assert!(configure(&mut spec, home.path(), None).is_err());
     Ok(())
 }
 

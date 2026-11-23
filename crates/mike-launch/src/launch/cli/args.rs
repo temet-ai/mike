@@ -30,7 +30,7 @@ pub enum SpawnCommand {
                   other token is a runtime argument, kept in order, and a literal `--` forwards \
                   the rest verbatim. The runtime defaults to Claude. Codex starts a fresh local \
                   interactive session with its native approval and trust settings, plus Mike \
-                  hooks, metadata telemetry and MCP. Codex does not accept Claude resume or \
+                  proxy capture and MCP. Codex does not accept Claude resume or \
                   template arguments. Claude receives `--session-id <uuid>`, the operator's \
                   launch_claude_args, your arguments, then `--remote-control` and the prompt \
                   from --prompt-file. --role/--instructions/--goal seed the spawned session's \

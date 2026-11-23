@@ -9,6 +9,7 @@ pub(crate) use get_session::get_session;
 pub(crate) struct SessionDetail {
     pub(crate) observation: Option<crate::store::persistence::runtime::SessionObservationRow>,
     pub(crate) runtime_items: Option<runtime_detail::ItemPage>,
+    pub(crate) captures_available: bool,
     pub(crate) summary: SessionSummary,
     pub(crate) requests: Vec<RequestSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]

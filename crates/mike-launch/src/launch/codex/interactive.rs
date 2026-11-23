@@ -26,7 +26,7 @@ pub(crate) async fn prepare(runner: &Runner<'_>, spec: &mut LaunchSpec) -> Resul
     let home = canonical_home()?;
     let installer = super::setup::installer().ok_or_else(|| {
         LaunchError::Failed(
-            "Codex hook installer is missing; reinstall Mike's shared scripts".into(),
+            "Codex integration installer is missing; reinstall Mike's shared scripts".into(),
         )
     })?;
     let setup = mike_codex::setup::install(&installer, &home, &http_url(inspect))
@@ -35,12 +35,7 @@ pub(crate) async fn prepare(runner: &Runner<'_>, spec: &mut LaunchSpec) -> Resul
     if !setup.notice.is_empty() {
         eprintln!("mike spawn: {}", setup.notice);
     }
-    configure(
-        spec,
-        &home,
-        runner.proxy_addr.as_deref(),
-        setup.mike_otel_exporter,
-    )?;
+    configure(spec, &home, runner.proxy_addr.as_deref())?;
     Ok(())
 }
 
@@ -53,12 +48,7 @@ fn canonical_home() -> Result<PathBuf, LaunchError> {
     std::fs::canonicalize(&home).map_err(|error| LaunchError::io("resolving the Codex home", error))
 }
 
-fn configure(
-    spec: &mut LaunchSpec,
-    home: &Path,
-    proxy: Option<&str>,
-    mike_otel: bool,
-) -> Result<(), LaunchError> {
+fn configure(spec: &mut LaunchSpec, home: &Path, proxy: Option<&str>) -> Result<(), LaunchError> {
     let home = home
         .to_str()
         .ok_or_else(|| LaunchError::Failed("the Codex home path is not valid UTF-8".into()))?;
@@ -67,19 +57,13 @@ fn configure(
         let proxy = proxy.ok_or_else(|| {
             LaunchError::Failed("Codex spawn requires Mike's proxy address".into())
         })?;
-        args.extend(mike_codex::interactive::proxy_args(&format!(
-            "{}/codex",
-            http_url(proxy)
-        )));
-    }
-    if mike_otel {
         let session = spec.session.ok_or_else(|| {
             LaunchError::Failed("Codex spawn has no Mike session identity".into())
         })?;
-        args.extend(mike_codex::interactive::spawn_otel_args(
-            &session.to_string(),
-            home,
-        ));
+        args.extend(mike_codex::interactive::proxy_args(&format!(
+            "{}/codex/launch/{session}",
+            http_url(proxy)
+        )));
     }
     let index = spec
         .args

@@ -2,8 +2,8 @@
 title: Codex Responses capture
 status: active
 created: 2026-11-11
-updated: 2026-11-12
-summary: Bounded Codex observation, optional diagnostic wire evidence, and the verified authentication and transport boundary.
+updated: 2026-11-23
+summary: Complete Codex proxy capture, shared body references, and the authentication and transport boundary.
 session_id:
   - 83f69e4d-2806-46e6-8748-85f6ad4cbb16
 ---
@@ -28,7 +28,7 @@ is sourced; `scripts/cx`, the cargo wrapper, is run by its path and does not cla
 
 ## What mike does with it
 
-The proxy bind (`:9988`) serves `/codex/{*rest}` (`crates/mike/src/responses_capture/`):
+The proxy bind (`:9988`) serves `/codex/{*rest}` (`crates/mike-features/src/proxy/responses_capture/`):
 
 1. The request body is streamed without an unbounded whole-body buffer. The upstream is chosen from the credentials: a
    `chatgpt-account-id` header means a ChatGPT login and goes to
@@ -42,43 +42,44 @@ The proxy bind (`:9988`) serves `/codex/{*rest}` (`crates/mike/src/responses_cap
    SSE event is recognized before transport EOF: a client closing after that event is not an
    aborted response. A fully relayed Content-Length body is also complete without another poll.
    Per-frame parsing is bounded at 1 MiB; oversized or invalid frames are reported as observation
-   gaps. Forwarded bytes are unaffected.
+   gaps. Complete capture and forwarded bytes are unaffected.
 4. A WebSocket upgrade on `/codex/responses` is answered `426 Upgrade Required` and recorded as
    `transport = websocket_refused`. Codex 0.167.1 then falls back to HTTP POST with SSE for the
    rest of the session (observed on both auth routes).
-5. An existing thread binding links wire facts to a Mike session only when it is
-   unambiguous. The optional `x-mike-codex-home` header can disambiguate registered
-   local namespaces; an invalid explicit home never falls back to another namespace.
-   Unknown or ambiguous provider IDs remain available for inspection but are not
-   guessed to be Mike identities. Ordinary hook and
-   metadata-telemetry observation supplies the session lifecycle and usage independently.
+5. Spawned sessions use `/codex/launch/<Mike-session-UUID>` as their provider base URL.
+   The proxy validates that open Codex launch, binds the native thread to its reserved
+   identity, and keeps child threads distinct. Ordinary `/codex` traffic can register
+   its native thread directly. Hooks are not required for capture or identity.
 
-## Storage and observation policy
+## Capture and storage
 
-Routine managed/hook/telemetry observation stores session state, usage and terminal item
-metadata without raw payloads, tool arguments, output bodies or duplicate context transcripts.
-The shared roster, fleet seat and session views read this common layer. The launcher installs
-compact lifecycle/mail hooks and Mike MCP setup; Codex's own hook trust review still applies.
-See [the hook setup](../scripts/codex-hooks/README.md) for receipt and idle wakeup semantics.
+Every exchange retains its complete request and response content, including unknown
+fields and events. Parsing supplies model, usage and status projections; a parser gap
+cannot remove bytes from capture. Interrupted streams retain the bytes received and
+are marked incomplete. Original and forwarded request documents share a reference
+while forwarding is unchanged. Future injection can record a separate sent document
+without copying unchanged content.
 
-`codex_diagnostic_capture` defaults off and can be changed live in `/settings/workers` or the
-existing feature API. When enabled, original request and response evidence is admitted whole
-within 4 MiB per exchange, 32 MiB per session and 256 MiB installation limits. Unchanged
-forwarded request bytes reference the original instead of being stored again. Output items
-are not copied out of the response body. At most 16 exchanges can hold observation buffers or
-await a database write; saturation records a metric/logged gap and does not block forwarding.
+`mike-codex::capture` divides bodies into chunks and compares them with chunks from a
+known predecessor. The generic store carries matching chunk IDs forward and inserts
+new bytes using returned IDs. Each document has its own ordered references, so
+identical requests remain separate occurrences and reconstruction needs no recursive
+chain. No global hash lookup or content-hash index is involved.
 
-Evidence states are `not_collected`, `retained`, `budget_refused`, `incomplete` and `expired`.
-An incomplete or over-budget body is not retained as a misleading prefix. Raw evidence expires
-after 24 hours; diagnostic metadata has a separate seven-day expiry. Common facts have finite
-row/byte budgets and a 90-day history window; retry receipts expire separately. Expiry is
-batched by the retention worker. Admission remains bounded even when sweeping is disabled.
-Historical Codex raw/projection records are swept under the migration's declared policy;
-legacy Claude retention is unchanged.
+The stream uses file staging instead of an unbounded memory buffer. Chunk boundaries
+bound working memory; they do not truncate payloads. Failed commits retain staging
+for recovery. The existing session view lists exchanges and reads a body only when
+opened, without adding another persistent browser copy.
 
-These are logical admitted-data budgets, not a promise that PostgreSQL files, indexes, WAL or
-backups occupy exactly those bytes. Deletion normally makes database pages reusable. Missing
-usage stays unknown, and runtime completion is separate from fleet acceptance or mail receipt.
+This capture path introduces no automatic content expiry, per-body limit or storage
+quota. Sessions with captures are excluded from automatic session expiry. Retention
+and deletion policy are separate operator decisions. Existing bounded metadata
+projections and legacy diagnostic retention do not govern these documents.
+
+`codex_diagnostic_capture` is not required for full proxy capture. The old diagnostic
+record remains a metadata projection; it does not add a second copy of these bodies.
+Missing usage stays unknown, and a completed response is separate from mail receipt
+or fleet acceptance.
 
 ### Correlation, with its evidence
 
@@ -106,15 +107,16 @@ model list, in this version. It does not redirect login, token refresh or teleme
 - **WebSocket Responses transport.** Refused rather than relayed; frames over a WebSocket are
   never captured. If a future Codex stops falling back to HTTP, its turns fail visibly through
   `cdx` instead of passing uncaptured.
-- **Codex started without `cdx`.** Goes straight to OpenAI. Through the forward sidecar
+- **Codex started without a proxy launcher or provider URL.** Goes straight to OpenAI. Through the forward sidecar
   (`HTTPS_PROXY=:9987`) its CONNECTs to `api.openai.com` and `chatgpt.com` are blind tunnels; the
   sidecar now logs them at `warn` naming `cdx` (`proxy-forward/src/connect.rs`). The sidecar's
   MITM, cert resolver and upgrade bridge stay Anthropic-only (`intercept_host`), and any
   WebSocket upgrade through the sidecar remains a direct, uncaptured bridge (`route/upgrade.rs`).
 - **Non-model calls** (auth refresh, `chatgpt.com` analytics, plugin and MCP traffic) do not use
   `openai_base_url` and are not captured.
-- **Compressed bodies.** Opt-in zstd request evidence is stored byte-exact but not decoded, so request `model`
-  is NULL for them; the request's own model is in `x-codex-turn-metadata`.
+- **Compressed bodies.** Complete zstd payloads are decoded for storage, with the original
+  headers and stored encoding recorded separately. The upstream receives the original bytes.
+  Invalid or unsupported encoding falls back to retaining the encoded body and a decode error.
 
 ## Combinations not exercised on this machine
 

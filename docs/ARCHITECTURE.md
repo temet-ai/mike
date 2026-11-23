@@ -34,25 +34,24 @@ The proxy has no Anthropic-side credentials of its own — it forwards whatever 
 
 ### Codex integration boundary
 
-Codex protocol transport, hook/OTEL decoding and incremental Responses metadata parsing
-live in the independent `mike-codex` library. Mike owns the adapters to common session
-observations, quota admission, mail and readers. The library has offline tests and no
-dependency on Mike, SQLx, Axum or a running model; host tests cover those interfaces.
-This adds no process or separately released service.
+Codex protocol transport, Responses parsing and complete-body chunking live in the
+independent `mike-codex` library. It has offline tests and no dependency on Mike,
+SQLx, Axum or a running model. The host owns forwarding, durable staging, generic
+document storage, session identity and reader routes. This adds no process or
+separately released service.
 
 Ordinary terminal launch selects Codex with `mike spawn open <folder> --runtime codex`
-or `spawn_session(runtime: "codex")`. The independent client validates provider
-arguments and runs bounded setup; `mike-launch` owns terminal selection and the launch
-ledger. Trusted root hooks bind the native thread to the launch's Mike session ID.
-Early telemetry and child hooks wait for that binding without retaining a backlog.
+or `spawn_session(runtime: "codex")`. A launch-specific proxy URL binds the native
+thread to the reserved Mike session; child threads remain distinct. Setup registers
+MCP and removes Mike-owned hooks. Capture and identity use the proxy.
 
-Routine Codex ingestion retains bounded metadata. Optional diagnostic bodies have separate
-record/session/global limits and expiry; streaming request forwarding never depends on
-collecting the body. The existing retention worker expires facts, receipts and diagnostic
-evidence. Common reader views adapt Claude's existing requests without a second copy.
-Ordinary Codex sessions receive bounded mail notices through trusted hooks or the local
-queue; only an explicit mailbox acknowledgement means consumed. See
-[the runtime contract](RUNTIME_CONTRACT.md), [capture bounds](CODEX_CAPTURE.md) and
+Complete request and response documents reuse known predecessor chunks through
+ordered surrogate-ID references. Unchanged forwarded bodies share the original
+request document; this is the boundary for subsequent injection. Unknown content is
+preserved independently of metadata projection. There are no new capture quotas or
+automatic expiry policies. Existing retention guards protect sessions with captures.
+Common reader views adapt Claude's existing requests without a second copy. See
+[the runtime contract](RUNTIME_CONTRACT.md), [capture storage](CODEX_CAPTURE.md) and
 [focused development checks](CODEX_DEVELOPMENT.md).
 
 ## 2. System Map

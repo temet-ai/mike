@@ -12,6 +12,20 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     route("GET", "/api/sessions", Coverage::Tool("list_sessions")),
     route("GET", "/api/sessions/{id}", Coverage::Tool("get_session")),
     route(
+        "GET",
+        "/api/sessions/{id}/runtime-captures",
+        Coverage::Exempt {
+            reason: "complete runtime captures in the existing session view; no new MCP tool",
+        },
+    ),
+    route(
+        "GET",
+        "/api/sessions/{id}/runtime-captures/{exchange}/body/{direction}",
+        Coverage::Exempt {
+            reason: "lazy complete body stream for the existing session view",
+        },
+    ),
+    route(
         "PATCH",
         "/api/sessions/{id}/project",
         Coverage::Exempt {
@@ -367,6 +381,15 @@ fn register_session_notes_routes(router: Router<AppState>) -> Router<AppState> {
 }
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
+    let router = router
+        .route(
+            "/api/sessions/{id}/runtime-captures",
+            get(crate::api::runtime_capture::list),
+        )
+        .route(
+            "/api/sessions/{id}/runtime-captures/{exchange}/body/{direction}",
+            get(crate::api::runtime_capture::body),
+        );
     let router = register_session_core_routes(router);
     let router = register_messaging_and_thread_routes(router);
     let router = register_session_turn_and_overview_routes(router);

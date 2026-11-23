@@ -17,15 +17,15 @@ pub struct SetupOutcome {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SetupError {
-    #[error("could not run the Codex hook installer: {0}")]
+    #[error("could not run the Codex integration installer: {0}")]
     Io(#[from] std::io::Error),
-    #[error("the Codex hook installer did not finish within 15 seconds")]
+    #[error("the Codex integration installer did not finish within 15 seconds")]
     Timeout,
-    #[error("the Codex hook installer exceeded its 8 KiB diagnostic limit")]
+    #[error("the Codex integration installer exceeded its 8 KiB diagnostic limit")]
     OutputLimit,
-    #[error("the Codex hook installer returned an invalid setup report: {0}")]
+    #[error("the Codex integration installer returned an invalid setup report: {0}")]
     InvalidReport(#[from] serde_json::Error),
-    #[error("the Codex hook installer failed ({code:?}): {detail}")]
+    #[error("the Codex integration installer failed ({code:?}): {detail}")]
     Failed { code: Option<i32>, detail: String },
 }
 
@@ -40,6 +40,7 @@ pub async fn install(
         .arg("--mike-url")
         .arg(inspect_url)
         .arg("--require-mcp")
+        .arg("--proxy-only")
         .arg("--report-json")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -47,12 +48,12 @@ pub async fn install(
         .kill_on_drop(true)
         .spawn()?;
     let stderr = child.stderr.take().ok_or_else(|| {
-        std::io::Error::other("the Codex hook installer has no diagnostic stream")
+        std::io::Error::other("the Codex integration installer has no diagnostic stream")
     })?;
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| std::io::Error::other("the Codex hook installer has no report stream"))?;
+        .ok_or_else(|| std::io::Error::other("the Codex integration installer has no report stream"))?;
     let (report, notice, status) = tokio::time::timeout(DEADLINE, async {
         tokio::try_join!(read_notice(stdout), read_notice(stderr), async {
             child.wait().await.map_err(SetupError::Io)

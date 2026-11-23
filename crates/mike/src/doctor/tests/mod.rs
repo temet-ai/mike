@@ -135,11 +135,7 @@ fn healthy_features() -> FeatureFacts {
             claude_on_service_path: Some(PathBuf::from("/home/ada/.local/bin/claude")),
             openrouter_key_variable: None,
         },
-        codex: CodexFacts {
-            on_path: false,
-            home: Some(PathBuf::from("/home/ada/.codex")),
-            hooks_installed: false,
-        },
+        codex: CodexFacts { on_path: false },
         prompt_assistant: PromptAssistantFacts {
             enabled: true,
             addr: "127.0.0.1:9985".to_string(),

@@ -203,6 +203,20 @@ it('preserves normalized observations and whole runtime items without captured r
 	expect(mockGetSession).toHaveBeenCalledTimes(1);
 });
 
+it('preserves capture availability without runtime observations or projected requests', async () => {
+	const id = 'capture-only-session';
+	mockGetSession.mockResolvedValue({ ...makePage(id, 0, 0, 0), captures_available: true });
+	const first = createSessionDetailStore();
+	await first.load(id);
+	expect(first.detail?.captures_available).toBe(true);
+	expect(first.detail?.observation).toBeNull();
+	expect(first.detail?.requests).toEqual([]);
+	const cached = createSessionDetailStore();
+	await cached.load(id);
+	expect(cached.detail?.captures_available).toBe(true);
+	expect(mockGetSession).toHaveBeenCalledTimes(1);
+});
+
 describe('page residency and the older-request walk-back', () => {
 	const EAGER_PAGES = PAGES_CAP_PER_SESSION;
 	const RESIDENT_PAGES = PAGES_RESIDENT_CAP_PER_SESSION;

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions SET last_seen = GREATEST(last_seen + interval '1 microsecond', clock_timestamp()) WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cabd9cd3ea5d5a4a4b59c5e7ad8df8ad734c710e2c9735b14610fef1ef13182c"
+}

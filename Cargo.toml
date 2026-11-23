@@ -20,6 +20,7 @@ version = "0.1.0-alpha.5"
 # Shared dep versions so both crates resolve identically. Crate-specific
 # deps (axum, rmcp, etc.) stay in the individual crate manifests.
 anyhow = "1"
+async-compression = { version = "0.4", features = ["tokio", "zstd"] }
 async-trait = "0.1"
 bytes = "1"
 bytesize = "2"

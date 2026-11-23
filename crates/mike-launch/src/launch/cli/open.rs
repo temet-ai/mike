@@ -354,16 +354,7 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
             .await;
         return Ok(output);
     }
-    if let Some(session) = spec.session {
-        registration::register_opened_surface(
-            runner.inspect_addr.as_deref(),
-            session,
-            &request.folder,
-            repo_root.as_deref(),
-            surface.pid,
-        )
-        .await;
-    }
+    register_surface(runner, &spec, &request, repo_root.as_deref(), &surface).await;
     let mut output = opened_output(output, &spec, &surface, &delivery);
     let captured = request.env.contains_key("HTTPS_PROXY");
     prompt_turn::confirm_from_capture(&runner.ledger, watch.as_ref(), captured, &mut output).await;
@@ -403,6 +394,25 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
         });
     }
     Ok(output)
+}
+
+async fn register_surface(
+    runner: &Runner<'_>,
+    spec: &LaunchSpec,
+    request: &OpenRequest,
+    repo_root: Option<&Path>,
+    surface: &Surface,
+) {
+    if let Some(session) = spec.session {
+        registration::register_opened_surface(
+            runner.inspect_addr.as_deref(),
+            session,
+            &request.folder,
+            repo_root,
+            surface.pid,
+        )
+        .await;
+    }
 }
 
 async fn record_opened(

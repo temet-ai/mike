@@ -29,14 +29,16 @@ pub(super) async fn attach(
     let session = Uuid::parse_str(id).map_err(|_| StatusCode::NOT_FOUND)?;
     let ids = [session];
     let limit = limit.clamp(1, 100);
-    let (observation, items) = tokio::join!(
+    let (observation, items, captures) = tokio::join!(
         handle.runtime().session_observations(&ids),
         handle.runtime().list_runtime_items(
             session,
             limit as i64 + 1,
             i64::try_from(offset).unwrap_or(i64::MAX)
         ),
+        handle.runtime().list_capture_exchanges(session, 1, 0),
     );
+    detail.captures_available = !captures.map_err(unavailable)?.is_empty();
     detail.observation = observation.map_err(unavailable)?.into_iter().next();
     let mut items = items.map_err(unavailable)?;
     let has_more = items.len() > limit;

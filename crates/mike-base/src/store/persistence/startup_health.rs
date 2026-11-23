@@ -52,6 +52,7 @@ impl PersistHandle {
                        AND p.ttl_override IS NULL
                        AND s2.last_seen < $2::timestamptz - $1::interval
                        AND inflight.session_id IS NULL
+                       AND NOT EXISTS (SELECT 1 FROM runtime.capture_exchanges e WHERE e.session_id = s2.id)
                  ) sub
                  WHERE s.id = sub.id",
                 &default_ttl_pg,
@@ -79,6 +80,7 @@ impl PersistHandle {
                      WHERE NOT s2.pinned
                        AND (s2.ttl_override IS NOT NULL OR p.ttl_override IS NOT NULL)
                        AND inflight.session_id IS NULL
+                       AND NOT EXISTS (SELECT 1 FROM runtime.capture_exchanges e WHERE e.session_id = s2.id)
                  ) sub
                  WHERE s.id = sub.id
                    AND NOT sub.project_pinned

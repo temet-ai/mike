@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use super::observed::{
@@ -56,16 +55,8 @@ fn worker_provider(models: &ModelFacts) -> WorkerProviderFacts {
 }
 
 fn codex(models: &ModelFacts) -> CodexFacts {
-    let home = std::env::var_os("CODEX_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")));
-    let hooks_installed = home
-        .as_ref()
-        .is_some_and(|home| home.join("mike").join("mike-codex-hook").is_file());
     CodexFacts {
         on_path: models.codex_on_path,
-        home,
-        hooks_installed,
     }
 }
 

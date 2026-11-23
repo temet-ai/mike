@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.capture_exchanges AS e\n            (exchange_uuid, session_id, provider_thread_id, created_at, metadata,\n             request_document_id, sent_document_id, response_document_id, status)\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n         ON CONFLICT (exchange_uuid) DO UPDATE SET\n             session_id = COALESCE(EXCLUDED.session_id, e.session_id),\n             provider_thread_id = COALESCE(EXCLUDED.provider_thread_id, e.provider_thread_id),\n             metadata = EXCLUDED.metadata,\n             response_document_id = COALESCE(EXCLUDED.response_document_id, e.response_document_id),\n             status = EXCLUDED.status\n         WHERE e.request_document_id = EXCLUDED.request_document_id\n           AND e.sent_document_id = EXCLUDED.sent_document_id\n           AND e.created_at = EXCLUDED.created_at\n           AND (e.session_id IS NULL OR EXCLUDED.session_id IS NULL OR e.session_id = EXCLUDED.session_id)\n           AND (e.provider_thread_id IS NULL OR EXCLUDED.provider_thread_id IS NULL OR e.provider_thread_id = EXCLUDED.provider_thread_id)\n           AND (e.response_document_id IS NULL OR EXCLUDED.response_document_id IS NULL OR e.response_document_id = EXCLUDED.response_document_id)\n           AND (e.status = 'pending' OR e.status = EXCLUDED.status)\n         RETURNING WITH (OLD AS before, NEW AS after) after.session_id,\n             (before.id IS NULL OR\n              ROW(before.session_id, before.provider_thread_id, before.metadata, before.response_document_id, before.status)\n              IS DISTINCT FROM\n              ROW(after.session_id, after.provider_thread_id, after.metadata, after.response_document_id, after.status)) AS \"changed!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "changed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Jsonb",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "205c2e7e33d471e7fa420f01ea3d5ead5532d47aefe9a62f8d734d6c20e49183"
+}

@@ -1,4 +1,9 @@
-import type { RuntimeItem, RuntimeItemPage, RuntimeSessionObservation } from '$lib/types';
+import type {
+	RuntimeCaptureExchange,
+	RuntimeItem,
+	RuntimeItemPage,
+	RuntimeSessionObservation
+} from '$lib/types';
 
 export function buildRuntimeObservation(
 	overrides: Partial<RuntimeSessionObservation> = {}
@@ -48,4 +53,30 @@ export function buildRuntimeItem(overrides: Partial<RuntimeItem> = {}): RuntimeI
 
 export function buildRuntimeItemPage(overrides: Partial<RuntimeItemPage> = {}): RuntimeItemPage {
 	return { items: [buildRuntimeItem()], offset: 0, limit: 1, has_more: true, ...overrides };
+}
+
+export function buildRuntimeCaptureExchange(
+	overrides: Partial<RuntimeCaptureExchange> = {}
+): RuntimeCaptureExchange {
+	return {
+		id: 'b3fbc6a0-c9aa-4cef-97cb-395b4659203e',
+		session_uuid: 'f5f2e486-3f2f-413f-8c4e-419227f994d3',
+		provider_thread_id: 'provider-thread-1',
+		created_at: '2026-11-23T13:00:00Z',
+		metadata: {
+			method: 'POST',
+			path: '/v1/responses',
+			request_headers: { 'content-type': 'application/json', 'content-encoding': 'zstd' },
+			request_stored_encoding: 'identity',
+			response_status: 200,
+			response_headers: { 'content-type': 'text/event-stream' },
+			response_stored_encoding: 'identity',
+			additional_provider_field: { complete_value: 'Preserve unknown metadata fields.' }
+		},
+		request_document_id: 1,
+		sent_document_id: 1,
+		response_document_id: 2,
+		status: 'complete',
+		...overrides
+	};
 }

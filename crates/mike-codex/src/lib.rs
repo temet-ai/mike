@@ -1,3 +1,4 @@
+pub mod capture;
 mod error;
 mod events;
 pub mod interactive;

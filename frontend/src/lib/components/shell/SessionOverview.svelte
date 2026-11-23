@@ -360,14 +360,14 @@
 		</div>
 	{:else if summary}
 		<div class="s-scroll">
-			{#if detail?.observation}
+			{#if detail?.observation || detail?.captures_available}
 				<RuntimeSessionPanel
 					{sessionId}
-					observation={detail.observation}
+					observation={detail.observation ?? null}
 					initialItems={detail.runtime_items ?? null}
 				/>
 			{/if}
-			{#if !hasRequests && !detail?.observation}
+			{#if !hasRequests && !detail?.observation && !detail?.captures_available}
 				<p class="s-empty-note">No requests captured yet.</p>
 			{:else if hasRequests}
 				<div class="s-top-grid">
@@ -449,9 +449,9 @@
 									{@const fgVar = agentFgVar(group.subagentType)}
 									<div class="s-agent-group">
 										<div class="s-agent-type-row">
-											<span class="s-agent-type" style:color={fgVar ?? ''}
-												>{group.subagentType}</span
-											>
+											<span class="s-agent-type" style:color={fgVar ?? ''}>
+												{group.subagentType}
+											</span>
 											<span class="s-agent-count">
 												{group.events.length}
 												{group.events.length === 1 ? 'dispatch' : 'dispatches'}
@@ -462,14 +462,17 @@
 												<span
 													class="s-agent-model s-agent-model-unknown"
 													title="Model unavailable — no subagent request matched this persona label"
-													>—</span
 												>
+													—
+												</span>
 											{/if}
 											<span
 												class="s-agent-turns-dep"
 												title="View agent turns — requires per-request agent attribution (deferred, see dependency-findings.md §D2)"
-												aria-disabled="true">turns ↗</span
+												aria-disabled="true"
 											>
+												turns ↗
+											</span>
 										</div>
 										<div class="s-dispatch-list">
 											{#each group.events as event, di (di)}
@@ -481,8 +484,9 @@
 														class="s-dispatch-link"
 														aria-label="Go to dispatch request #{event.requestId}"
 														title="Go to the request that issued this Task call"
-														>#{event.requestId}</a
 													>
+														#{event.requestId}
+													</a>
 													<div class="s-dispatch-desc">
 														{event.description ?? '(no description)'}
 													</div>

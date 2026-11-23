@@ -28,12 +28,12 @@ The guide follows one fictional example: a session named `docs`, role `writer`, 
 
 What is stored and what is not:
 
-- **Bodies are stored whole.** A request or response is kept exactly as it crossed the wire. If a session reads a file that holds a secret, the secret is in the conversation, goes to Anthropic, and is stored with it. mike does not filter bodies.
+- **Bodies are stored whole.** Complete request and response content is retained. Codex requests compressed in transit are stored decoded with their headers; decoding failures retain the encoded data. If a session reads a file that holds a secret, the secret is in the conversation, goes to Anthropic, and is stored with it. mike does not filter bodies.
 - **Credentials in headers are not stored.** The `authorization`, `proxy-authorization`, `x-api-key`, `cookie` and `set-cookie` headers, and any header whose name ends in `token` or contains `api-key`, `secret`, `password` or `credential`, are stored as `[redacted]`. The real value is still passed on to Anthropic, as it must be.
 - **The capture holds no Anthropic credential of its own.** It forwards the one Claude Code sends.
 - **Keys you give mike are never written to the database.** An OpenRouter key lives in your environment or in your configuration file. A setting whose name contains `key`, `secret`, `token`, `password` or `credential` is refused by the settings store.
 - **A copy of the original request is kept even when a feature rewrites what is forwarded.** What mike captured is what Claude Code sent, not what mike passed on.
-- **Old sessions are deleted.** A sweep runs every hour and removes sessions older than 365 days.
+- **Session retention is separate from capture representation.** The existing expiry sweep excludes sessions with Codex proxy captures; those captures have no automatic expiry.
 
 ## What leaves your machine
 

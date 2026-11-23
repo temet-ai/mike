@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.request_document_id FROM runtime.capture_exchanges e\n         JOIN runtime.capture_documents d ON d.id = e.request_document_id\n         WHERE e.provider_thread_id = $1 AND d.finished AND d.complete AND d.byte_size > 0\n         ORDER BY e.created_at DESC, e.id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_document_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "request_document_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d0ea71707a1df55fbe0f32c1b4b287b2a22076437ec33edb525feea1b0c5c7d8"
+}

@@ -1,18 +1,20 @@
 # Codex sessions
 
-mike can also watch OpenAI Codex. It does not rewrite anything Codex sends: it records what happened so a Codex session shows up beside your Claude Code sessions. This page says what mike sees, how to connect Codex, how to check the connection and the one switch that keeps more.
+mike can also watch OpenAI Codex. It does not rewrite anything Codex sends: it records what happened so a Codex session shows up beside your Claude Code sessions. The proxy captures the complete request and response content, and the session view lets you open it when needed.
 
-Everything here stays on your machine. Codex talks to OpenAI as it always did; mike's hooks only tell mike about it.
+Codex sends its model traffic through mike, which forwards it to OpenAI. Capture is stored locally.
 
 ## What mike sees
 
-For an ordinary Codex session, mike keeps small facts and not the text of the conversation:
+For a Codex session routed through mike, capture includes:
 
-- That the session started, ended, stopped, ran a tool or ran a subagent.
+- Complete request and response content, including prompts, answers, tool calls and tool results present in that traffic.
 - Which model answered and how many tokens it used.
-- Messages sent to it from other sessions, so a Codex session can take part in [messages between sessions](reading-sessions.md).
+- Separate request occurrences and child-session identities, with repeated content sharing storage.
 
-Routine observation does not keep your prompts, Codex's answers, tool arguments or tool output. A brief you submit through Mike's launcher is retained in the launch record, as it is for other launches.
+Open a session and use its capture list to read or download a request or response. Content is loaded when opened. Interrupted responses are labelled, and captured content is not discarded because a metadata parser cannot interpret it.
+
+Capture has no new automatic expiry or storage quota. Repeated content is referenced instead of copied. A brief submitted through the launcher is also retained in its launch record.
 
 ## Connect Codex
 
@@ -22,8 +24,8 @@ To open a Codex terminal through mike:
 mike spawn open /path/to/project --runtime codex
 ```
 
-This installs or updates the compact hooks, metadata exporter and Mike MCP setup,
-then launches Codex through mike's proxy. It preserves your Codex approval and
+This prepares Mike MCP, removes Mike-owned hooks, and launches Codex through
+mike's proxy. It preserves your Codex approval and
 sandbox settings. To use the same approval bypass as `cx`, pass it explicitly:
 
 ```sh
@@ -36,55 +38,44 @@ interactive sessions on Herdr-core, tmux or a desktop terminal; warm templates a
 forks still require Claude. Legacy Herdr does not support Codex. Select a supported
 backend before the subcommand, for example
 `mike --launch-backend tmux spawn open /path/to/project --runtime codex`.
-Spawn preserves a top-level custom telemetry exporter. Profile-level log
-exporters and per-command exporter overrides are currently unsupported.
+Operator telemetry is preserved. The older Mike-installed exporter is disabled;
+session identity comes from the proxy.
 
-The launch returns Mike's session ID. Once trusted hooks run, the native Codex
-thread attaches to that same ID. Opening a terminal does not confirm that the
+The launch returns Mike's session ID. Its proxy URL binds the native Codex
+thread to that same ID when model traffic arrives. Opening a terminal does not confirm that the
 initial prompt was answered. Codex has no Claude Remote Control channel, so the
 launcher does not wait for one.
 
-Install mike's hooks once in your Codex folder. From a release install, the installer sits in the package's `share/mike/scripts` folder, under the prefix mike was installed into:
+You can also source `scripts/shell/cdx.zsh` and use `cdx` or `cx`. Both send model
+traffic through the proxy; `cx` also adds Codex's explicit approval bypass. These
+wrappers report when Mike is unavailable and a launch would be uncaptured.
 
-```sh
-<prefix>/share/mike/scripts/codex-hooks/install --codex-home ~/.codex
-```
+Capture and session identity do not require hook installation or hook trust.
+Unrelated hooks and native Codex approval settings remain yours. The proxy is the
+capture and future injection boundary; this change does not claim automatic mail
+receipt or idle-session wakeup.
 
-In a mike source checkout, run `scripts/codex-hooks/install --codex-home ~/.codex` instead. It needs `python3`.
+## Check capture
 
-| Option | What it does |
-|---|---|
-| `--codex-home` | The Codex folder to change. Required. Use a throwaway folder to try it first. |
-| `--print` | Shows the hooks and settings it would write, and writes nothing. |
-| `--mike-url` | Where mike's inspect API listens. Default `http://127.0.0.1:9989`. |
-| `--source` | A label for this machine on the sessions it reports. Default: the machine's name. |
+Run `mike doctor`, send a prompt in the launched session, then open that session in
+Mike. The capture list shows each exchange and its completion status. The old
+`codex_diagnostic_capture` switch is not required for complete proxy capture.
 
-The installer adds its hooks next to yours and keeps the rest of your Codex settings. It turns Codex's hooks feature on, adds a small exporter of usage figures (with prompt and answer logging off) unless you already configured one, and registers `mike-mcp` in Codex if it is installed and no server called `mike` is set. It never changes Codex's sandbox or approval settings.
+For compressed requests, Mike keeps the complete decoded payload and the original
+headers while forwarding the original request unchanged. If decoding fails, it
+retains the encoded data and records the failure. Unknown fields and events remain
+in the captured body. Binary content can be downloaded.
 
-Codex asks you to trust new hooks before it runs them. Open `/hooks` inside Codex and review and trust mike's. Until you do, mike sees nothing of that session.
-
-## Check the hooks
-
-```sh
-mike doctor
-```
-
-Look for the `codex hooks` line. It is `ok` when Codex is not installed (nothing to hook) or when mike's hooks are in your Codex folder. It is `warn` when Codex is installed but the hooks are not, and the line ends with the install command above. The check looks only for the installed files, not for your trust review in Codex, so a session that still shows nothing is a reason to open `/hooks`.
-
-If you installed the hooks while mike was stopped, nothing is lost for good: later hook calls report again, but facts from the gap are not replayed.
-
-## Keep the full bodies for diagnosis
-
-A switch, `codex_diagnostic_capture`, is off by default. Turn it on in **Settings**, **Workers** at <http://localhost:9990/settings/workers> when you need to see exactly what Codex sent and received, for example to report a problem. With it on, mike keeps the complete request and response bodies of Codex sessions that go through mike's address, within the size limits the settings page shows, and drops them after 24 hours. Nothing leaves the machine. Bodies contain your code and prompts, so turn it off again when you are done. [Settings](settings.md) lists it with the other switches.
-
-This applies only to Codex whose model calls are sent through mike's proxy. A Codex that talks to OpenAI directly is seen only through the hooks.
+Only traffic sent through the proxy is captured. Local tool results appear when
+Codex includes them in a model request; local work that produces no model traffic
+is not visible through this route.
 
 ## When it does not work
 
 | What you see | What to do |
 |---|---|
-| `warn codex hooks` in `mike doctor` | Run the install command the line prints, then trust the hooks in Codex with `/hooks`. |
-| Hooks installed, the session is missing | Review and trust the hooks with `/hooks` in Codex, and check that mike is running with `mike doctor`. |
-| The installer is not in `share/mike/scripts` | Your install has no scripts folder. Install from a release archive, or use a source checkout. |
+| The launched session has no captures | Check that mike is running and that the session uses Mike's proxy URL, then send a prompt. |
+| A body is marked interrupted | The connection ended before the complete body arrived; the received bytes are retained. |
+| A body downloads instead of displaying text | It contains binary or encoded data; the download preserves it. |
 
 [Privacy](privacy.md) says what mike stores, and [Troubleshooting](troubleshooting.md) covers the rest.

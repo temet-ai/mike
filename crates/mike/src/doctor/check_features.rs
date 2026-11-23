@@ -13,7 +13,7 @@ pub(super) fn features(facts: &FeatureFacts) -> Vec<Check> {
     vec![
         scheduled_jobs(&facts.jobs),
         worker_provider(&facts.worker_provider),
-        codex_hooks(&facts.codex),
+        codex_proxy(&facts.codex),
         prompt_assistant(&facts.prompt_assistant),
     ]
 }
@@ -70,32 +70,15 @@ fn worker_provider(facts: &WorkerProviderFacts) -> Check {
     }
 }
 
-fn codex_hooks(facts: &CodexFacts) -> Check {
-    if !facts.on_path {
-        return Check::ok(
-            "codex_hooks",
-            "codex hooks",
-            "codex is not on PATH, so there is nothing to hook",
-        );
-    }
-    let home = facts
-        .home
-        .as_ref()
-        .map_or_else(|| "~/.codex".to_owned(), |home| home.display().to_string());
-    if facts.hooks_installed {
-        return Check::ok(
-            "codex_hooks",
-            "codex hooks",
-            format!("mike's hooks are installed in {home}"),
-        );
-    }
-    warn_with_fix(
-        "codex_hooks",
-        "codex hooks",
-        format!(
-            "codex is on PATH but mike's hooks are not installed in {home}, so ordinary Codex sessions are not observed"
-        ),
-        "share/mike/scripts/codex-hooks/install --codex-home ~/.codex (under the release install's prefix; scripts/codex-hooks/install in a checkout), then review the hooks in Codex with /hooks",
+fn codex_proxy(facts: &CodexFacts) -> Check {
+    Check::ok(
+        "codex_proxy",
+        "codex proxy",
+        if facts.on_path {
+            "Codex is available; launch through `mike spawn open <folder> --runtime codex` or `cdx` for capture. Hooks are not required."
+        } else {
+            "Codex is not on PATH"
+        },
     )
 }
 

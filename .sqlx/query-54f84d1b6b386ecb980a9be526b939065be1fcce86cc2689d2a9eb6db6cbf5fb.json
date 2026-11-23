@@ -1,0 +1,126 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.exchange_uuid AS id, s.session_uuid AS \"session_uuid?\", e.provider_thread_id, e.created_at, e.metadata,\n                e.request_document_id, e.sent_document_id, e.response_document_id, e.status\n         FROM runtime.capture_exchanges e JOIN sessions.sessions s ON s.id = e.session_id\n         WHERE s.session_uuid = $1 ORDER BY e.created_at DESC, e.id DESC LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "exchange_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "provider_thread_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "provider_thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "metadata",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "metadata"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "request_document_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "request_document_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_document_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "sent_document_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "response_document_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "response_document_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_exchanges",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "54f84d1b6b386ecb980a9be526b939065be1fcce86cc2689d2a9eb6db6cbf5fb"
+}

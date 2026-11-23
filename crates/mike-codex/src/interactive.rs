@@ -17,10 +17,6 @@ pub enum InteractiveError {
     MissingValue(String),
     #[error("Codex accepts one initial prompt; use --prompt-file for a complete brief")]
     MultiplePrompts,
-    #[error(
-        "per-invocation `{0}` changes the OTel exporter required for Mike's session identity; configure the exporter in CODEX_HOME/config.toml or run Codex directly"
-    )]
-    TelemetryOverride(String),
 }
 
 pub fn parse_interactive(args: &[String]) -> Result<InteractiveArgs, InteractiveError> {
@@ -68,12 +64,6 @@ fn push_option(
     value: &str,
     inline: bool,
 ) -> Result<(), InteractiveError> {
-    if matches!(name, "--config" | "-c") {
-        let key = value.split_once('=').map_or(value, |(key, _)| key).trim();
-        if replaces_log_exporter(key) {
-            return Err(InteractiveError::TelemetryOverride(key.into()));
-        }
-    }
     if matches!(name, "--model" | "-m") {
         parsed.model = Some(value.into());
     }
@@ -84,47 +74,12 @@ fn push_option(
     Ok(())
 }
 
-fn replaces_log_exporter(key: &str) -> bool {
-    let mut path = key
-        .split('.')
-        .map(|part| part.trim().trim_matches(['\'', '"']));
-    match path.next() {
-        Some("otel") => matches!(path.next(), None | Some("exporter")),
-        Some("profiles") => {
-            if path.next().is_none() {
-                return true;
-            }
-            match path.next() {
-                None => true,
-                Some("otel") => matches!(path.next(), None | Some("exporter")),
-                _ => false,
-            }
-        }
-        _ => false,
-    }
-}
-
 pub fn proxy_args(base_url: &str) -> Vec<String> {
     vec![
         "-c".into(),
         format!(
             "openai_base_url={}",
             serde_json::Value::String(base_url.into())
-        ),
-    ]
-}
-
-pub fn spawn_otel_args(session: &str, home: &str) -> Vec<String> {
-    vec![
-        "-c".into(),
-        format!(
-            "otel.exporter.otlp-http.headers.x-mike-codex-spawn-session={}",
-            serde_json::Value::String(session.into())
-        ),
-        "-c".into(),
-        format!(
-            "otel.exporter.otlp-http.headers.x-mike-codex-home={}",
-            serde_json::Value::String(home.into())
         ),
     ]
 }

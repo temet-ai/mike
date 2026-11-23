@@ -177,7 +177,7 @@ pub async fn list_observed(
         "items": items,
         "next_offset": offset + limit,
         "items_scope": "supply session_id for paginated turn and tool metadata",
-        "content_availability": "not_collected",
+        "content_availability": "see_session_runtime_captures",
         "capture": "normalized lifecycle, turn and tool metadata; raw hook and telemetry payloads are not retained",
         "supported_codex_versions": SUPPORTED_CODEX_VERSIONS,
         "coverage_gaps": COVERAGE_GAPS,

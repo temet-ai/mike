@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH inserted AS (\n            INSERT INTO runtime.capture_document_chunks (document_id, ordinal, chunk_id)\n            SELECT $1, $2 + input.ord - 1, input.id FROM UNNEST($3::bigint[]) WITH ORDINALITY AS input(id, ord)\n            RETURNING chunk_id\n         ), sizes AS (\n            SELECT count(*) AS chunks, COALESCE(sum(c.byte_size), 0)::bigint AS bytes\n            FROM inserted i JOIN runtime.capture_chunks c ON c.id = i.chunk_id\n         ) UPDATE runtime.capture_documents d SET chunk_count = d.chunk_count + sizes.chunks,\n              byte_size = d.byte_size + sizes.bytes FROM sizes WHERE d.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "91e84def5b6959f1c0cb5a508b5e63215de5cdf93092da608baccc643f6db715"
+}

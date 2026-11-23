@@ -87,20 +87,7 @@ fn proxy_override_quotes_the_complete_url() {
 }
 
 #[test]
-fn spawn_otel_headers_override_only_identity_with_toml_quoted_values() {
-    assert_eq!(
-        super::spawn_otel_args("fixture-uuid", "/home/operator/codex home"),
-        args(&[
-            "-c",
-            "otel.exporter.otlp-http.headers.x-mike-codex-spawn-session=\"fixture-uuid\"",
-            "-c",
-            "otel.exporter.otlp-http.headers.x-mike-codex-home=\"/home/operator/codex home\"",
-        ])
-    );
-}
-
-#[test]
-fn invocation_exporter_rewrites_are_refused_before_setup() -> anyhow::Result<()> {
+fn proxy_identity_does_not_restrict_operator_telemetry_settings() -> anyhow::Result<()> {
     for input in [
         args(&["-c", "otel.exporter=\"none\""]),
         args(&["--config=otel.exporter.otlp-http.endpoint=\"https://elsewhere\""]),
@@ -116,10 +103,8 @@ fn invocation_exporter_rewrites_are_refused_before_setup() -> anyhow::Result<()>
         args(&["-c", "profiles.work={ otel={ exporter=\"none\" } }"]),
         args(&["-c", "profiles={ work={ otel={ exporter=\"none\" } } }"]),
     ] {
-        assert!(matches!(
-            parse_interactive(&input),
-            Err(InteractiveError::TelemetryOverride(_))
-        ));
+        let parsed = parse_interactive(&input)?;
+        assert_eq!(&parsed.args[1..], input);
     }
     assert!(
         parse_interactive(&args(&["-c", "otel.trace_exporter=\"none\"", "hello"]))?

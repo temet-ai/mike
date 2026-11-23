@@ -123,6 +123,7 @@ interface CachedSession {
 	modelBreakdown: ModelBreakdownEntry[];
 	tokenUsage: SessionTokenUsage | null;
 	observation: RuntimeSessionObservation | null;
+	capturesAvailable: boolean;
 	runtimeItems: RuntimeItemPage | null;
 	total: number;
 	pages: Map<number, RequestSummary[]>;
@@ -207,6 +208,7 @@ function projectFromCache(entry: CachedSession): SessionDetail {
 		model_breakdown: entry.modelBreakdown,
 		token_usage: entry.tokenUsage ?? undefined,
 		observation: entry.observation,
+		captures_available: entry.capturesAvailable,
 		runtime_items: entry.runtimeItems,
 		requests,
 		total_requests: entry.total,
@@ -320,6 +322,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 		modelBreakdown: ModelBreakdownEntry[];
 		tokenUsage: SessionTokenUsage | null;
 		observation: RuntimeSessionObservation | null;
+		capturesAvailable: boolean;
 		runtimeItems: RuntimeItemPage | null;
 		total: number;
 		pageOffset: number;
@@ -338,6 +341,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 			modelBreakdown: fetched.model_breakdown ?? [],
 			tokenUsage: fetched.token_usage ?? null,
 			observation: fetched.observation ?? null,
+			capturesAvailable: fetched.captures_available ?? false,
 			runtimeItems: fetched.runtime_items ?? null,
 			total,
 			pageOffset: Math.max(0, total - page.length),
@@ -368,6 +372,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 					modelBreakdown,
 					tokenUsage,
 					observation,
+					capturesAvailable,
 					runtimeItems,
 					total,
 					pageOffset,
@@ -382,6 +387,7 @@ export function createSessionDetailStore(): SessionDetailStore {
 					modelBreakdown,
 					tokenUsage,
 					observation,
+					capturesAvailable,
 					runtimeItems,
 					total,
 					// eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain local scratch or imperative bookkeeping, never read reactively; a Svelte reactive collection mutated during a derived throws state_unsafe_mutation

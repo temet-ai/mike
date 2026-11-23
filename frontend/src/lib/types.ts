@@ -315,6 +315,7 @@ export interface SessionDetail {
 	summary: SessionSummary;
 	requests: RequestSummary[];
 	observation?: RuntimeSessionObservation | null;
+	captures_available?: boolean;
 	runtime_items?: RuntimeItemPage | null;
 	quality?: SessionQuality | null;
 	model_breakdown?: ModelBreakdownEntry[];
@@ -367,6 +368,30 @@ export interface RuntimeItemPage {
 	offset: number;
 	limit: number;
 	has_more: boolean;
+}
+
+export interface RuntimeCaptureExchange {
+	id: string;
+	session_uuid: string | null;
+	provider_thread_id: string | null;
+	created_at: string;
+	metadata: Record<string, unknown>;
+	request_document_id: number;
+	sent_document_id: number;
+	response_document_id: number | null;
+	status: 'pending' | 'complete' | 'error' | 'aborted' | 'refused';
+}
+
+export interface RuntimeCapturePage {
+	exchanges: RuntimeCaptureExchange[];
+	next_offset: number;
+}
+
+export type RuntimeCaptureDirection = 'request' | 'sent' | 'response';
+
+export interface RuntimeCaptureBody {
+	bytes: ArrayBuffer;
+	complete: boolean;
 }
 
 export interface SessionHead {

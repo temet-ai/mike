@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT predecessor_id, chunk_count, finished FROM runtime.capture_documents WHERE id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "predecessor_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_documents",
+            "name": "predecessor_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "chunk_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_documents",
+            "name": "chunk_count"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "finished",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "runtime.capture_documents",
+            "name": "finished"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "a05927575e3aba9a028a7b6a28cec123f9a12766d34656880806688edbe8c802"
+}

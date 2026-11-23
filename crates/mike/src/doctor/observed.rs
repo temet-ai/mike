@@ -47,8 +47,6 @@ pub(crate) struct WorkerProviderFacts {
 #[derive(Debug, Clone)]
 pub(crate) struct CodexFacts {
     pub(crate) on_path: bool,
-    pub(crate) home: Option<PathBuf>,
-    pub(crate) hooks_installed: bool,
 }
 
 #[derive(Debug, Clone)]
