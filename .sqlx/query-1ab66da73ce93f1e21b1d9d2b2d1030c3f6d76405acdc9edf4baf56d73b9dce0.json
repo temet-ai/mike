@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\", COALESCE(sum(byte_size), 0)::bigint AS \"total_bytes!\"\n                   FROM messages.messages m\n                   WHERE NOT EXISTS (\n                       SELECT 1 FROM requests.messages rm WHERE rm.message_id = m.id\n                   )\n                   AND NOT EXISTS (\n                       SELECT 1 FROM requests.deltas rd WHERE rd.message_id = m.id\n                   )\n                   AND NOT EXISTS (\n                       SELECT 1 FROM requests.sent_messages sm WHERE sm.message_id = m.id\n                   )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "1ab66da73ce93f1e21b1d9d2b2d1030c3f6d76405acdc9edf4baf56d73b9dce0"
+}

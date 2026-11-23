@@ -44,30 +44,42 @@ pub async fn rehydrate_body(
         return Ok(None);
     };
 
-    let mut out = envelope.to_vec();
-    let mut splices: Vec<(usize, Vec<u8>)> = Vec::new();
-    for key in BULK_ARRAYS {
-        let Some((at, end)) = top_level_array_span(&out, key) else {
-            continue;
-        };
-        debug_assert_eq!(at, end, "the envelope's bulk arrays are stored empty");
-        let contents = match key {
-            "messages" => rebuild_messages(pool, request_id).await?,
-            "tools" => rebuild_tools(pool, request_id).await?,
-            _ => unreachable!("BULK_ARRAYS is exhaustive"),
-        };
-        if !contents.is_empty() {
-            splices.push((at, contents));
-        }
-    }
-    splices.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
-    for (at, contents) in splices {
-        out.splice(at..at, contents);
-    }
+    let messages = rebuild_messages(pool, request_id).await?;
+    let tools = rebuild_tools(pool, request_id).await?;
+    let out = splice_empty_arrays(&envelope, &[("messages", &messages), ("tools", &tools)]);
     Ok(Some(ServedBody {
         bytes: bytes::Bytes::from(out),
         reconstructed: true,
     }))
+}
+
+pub(crate) fn splice_empty_arrays(envelope: &[u8], fills: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut splices: Vec<(usize, &[u8])> = fills
+        .iter()
+        .filter(|(_, contents)| !contents.is_empty())
+        .filter_map(|(key, contents)| {
+            top_level_array_span(envelope, key)
+                .filter(|(at, end)| at == end)
+                .map(|(at, _)| (at, *contents))
+        })
+        .collect();
+    splices.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
+    let mut out = envelope.to_vec();
+    for (at, contents) in splices {
+        out.splice(at..at, contents.iter().copied());
+    }
+    out
+}
+
+pub(crate) fn join_messages(messages: &[JsonValue]) -> Result<Vec<u8>, PersistError> {
+    let mut out = Vec::new();
+    for (idx, message) in messages.iter().enumerate() {
+        if idx > 0 {
+            out.push(b',');
+        }
+        serde_json::to_writer(&mut out, message)?;
+    }
+    Ok(out)
 }
 
 pub struct ServedBody {
@@ -87,16 +99,15 @@ async fn rebuild_messages(pool: &PgPool, request_id: i64) -> Result<Vec<u8>, Per
     .fetch_all(pool)
     .await?;
 
-    let mut out = Vec::new();
-    for (idx, row) in rows.into_iter().enumerate() {
-        let mut message = row.body;
-        restore_cache_control(&mut message, row.cache_control.as_ref());
-        if idx > 0 {
-            out.push(b',');
-        }
-        serde_json::to_writer(&mut out, &message)?;
-    }
-    Ok(out)
+    let messages: Vec<JsonValue> = rows
+        .into_iter()
+        .map(|row| {
+            let mut message = row.body;
+            restore_cache_control(&mut message, row.cache_control.as_ref());
+            message
+        })
+        .collect();
+    join_messages(&messages)
 }
 
 async fn rebuild_tools(pool: &PgPool, request_id: i64) -> Result<Vec<u8>, PersistError> {
@@ -121,7 +132,7 @@ async fn rebuild_tools(pool: &PgPool, request_id: i64) -> Result<Vec<u8>, Persis
     Ok(out)
 }
 
-fn restore_cache_control(message: &mut JsonValue, recorded: Option<&JsonValue>) {
+pub(crate) fn restore_cache_control(message: &mut JsonValue, recorded: Option<&JsonValue>) {
     let Some(JsonValue::Array(entries)) = recorded else {
         return;
     };

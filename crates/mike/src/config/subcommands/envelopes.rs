@@ -135,12 +135,20 @@ pub(super) async fn compact_request_bodies(
 
     println!(
         "\ncompact-request-bodies summary: {} row(s) cleared, {} byte(s) reclaimed across {} \
-         batch(es). {} row(s) refused for want of an envelope.",
+         batch(es). {} row(s) refused for want of an envelope. {} row(s) kept their body because \
+         the original or sent version rebuilt without it differs from the stored body.",
         outcome.cleared_rows,
         outcome.reclaimed_bytes,
         outcome.batches,
         survey.refused_no_envelope_rows,
+        outcome.refused_rows,
     );
+    if outcome.refused_rows > 0 {
+        println!(
+            "  (run `mike backfill-sent-content --execute` for rows whose old sent patches do not \
+             apply to the rebuilt body, then compact again)"
+        );
+    }
     println!(
         "  Space returns to the filesystem only after a table rewrite — \
          `mike reclaim-space --table requests.requests` takes an ACCESS EXCLUSIVE lock, so run it \

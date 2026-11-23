@@ -69,7 +69,23 @@ pub struct CompactRequestBodiesArgs {
 
 const DEFAULT_COMPACTION_MIN_IDLE_DAYS: i32 = 14;
 
-const DEFAULT_COMPACTION_BATCH_SIZE: i64 = 500;
+const DEFAULT_COMPACTION_BATCH_SIZE: i64 = 50;
+
+#[derive(Debug, Clone, Args)]
+pub struct BackfillSentContentArgs {
+    #[arg(long, default_value_t = 1)]
+    pub from: i64,
+    #[arg(long)]
+    pub to: Option<i64>,
+    #[arg(long, default_value_t = DEFAULT_SENT_CONTENT_BATCH_SIZE)]
+    pub batch_size: i64,
+    #[arg(long, conflicts_with = "execute")]
+    pub dry_run: bool,
+    #[arg(long)]
+    pub execute: bool,
+}
+
+const DEFAULT_SENT_CONTENT_BATCH_SIZE: i64 = 50;
 
 #[derive(Debug, Clone, Args)]
 pub struct RepairSessionPromptsArgs {

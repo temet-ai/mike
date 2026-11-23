@@ -55,6 +55,13 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                                  AND d.sent_patch_bytes IS NOT NULL
                                  AND position('proxy-lessons'::bytea IN d.sent_patch_bytes) > 0
                           )
+                          OR position('proxy-lessons'::bytea IN r.sent_envelope) > 0
+                          OR EXISTS (
+                              SELECT 1 FROM requests.sent_messages sm
+                                JOIN messages.messages m ON m.id = sm.message_id
+                               WHERE sm.request_id = r.id
+                                 AND strpos(m.body::text, 'proxy-lessons') > 0
+                          )
                       )
                     ORDER BY r.id"#,
                 from,

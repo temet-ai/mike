@@ -42,9 +42,7 @@ async fn seed_session(
     let mut request_ids = Vec::with_capacity(with_envelope.len());
     for (ord, envelope) in with_envelope.iter().enumerate() {
         let body = format!(r#"{{"model":"claude-opus-5","messages":[],"turn":{ord}}}"#);
-        let envelope_bytes = envelope
-            .then(|| br#"{"model":"claude-opus-5","messages":[]}"#.to_vec())
-            .map(|v| v.to_vec());
+        let envelope_bytes = envelope.then(|| body.as_bytes().to_vec());
         let request_id: i64 = sqlx::query_scalar(
             "INSERT INTO requests.requests (
                 session_id, project_id, method_id, path, is_streaming,
@@ -233,13 +231,13 @@ async fn compaction_leaves_delta_rows_untouched() -> anyhow::Result<()> {
         "INSERT INTO requests.deltas
             (request_id, session_id, message_id, change_kind_id, ord,
              computed_at, sent_patch_start, sent_patch_end, sent_patch_bytes)
-         SELECT $1, $2, $3, ck.id, 0, now(), 0, 4, $4
+         SELECT $1, $2, $3, ck.id, 0, now(), 10, 23, $4
            FROM requests.delta_change_kinds ck WHERE ck.code = 'added'",
     )
     .bind(compacted)
     .bind(seeded.session_id)
     .bind(message_id)
-    .bind(b"patc".as_slice())
+    .bind(b"claude-opus-6".as_slice())
     .execute(&handle.pool)
     .await?;
 
@@ -256,7 +254,7 @@ async fn compaction_leaves_delta_rows_untouched() -> anyhow::Result<()> {
     let patch = surviving[0].1.clone();
     assert_eq!(
         patch,
-        Some(b"patc".to_vec()),
+        Some(b"claude-opus-6".to_vec()),
         "the sent-patch bytes must survive compaction"
     );
 

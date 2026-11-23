@@ -162,21 +162,18 @@ mod tests {
     }
 
     #[test]
-    fn the_declared_body_reconstructs_through_the_envelope_patch() -> anyhow::Result<()> {
+    fn the_declared_body_rebuilds_from_sent_content() -> anyhow::Result<()> {
         let raw = br#"{"model":"m","messages":[{"role":"user","content":"hi"}],"system":"S","tools":[{"name":"Read"}]}"#;
         let DeclareOutcome::Declared { new_body, .. } = declare_tools(raw) else {
-            panic!("expected a declaration");
+            anyhow::bail!("expected a declaration");
         };
-        let patch = crate::store::persistence::messages::compute_envelope_patch(raw, &new_body)
-            .map_err(|e| anyhow::anyhow!("{e}"))?
-            .ok_or_else(|| anyhow::anyhow!("expected an envelope patch for the tools append"))?;
-        let mut rebuilt = raw[..patch.start as usize].to_vec();
-        rebuilt.extend_from_slice(&patch.bytes);
-        rebuilt.extend_from_slice(&raw[patch.end as usize..]);
+        let rebuilt =
+            crate::store::persistence::sent_content::sent_round_trip_in_memory(raw, &new_body)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(
-            rebuilt,
-            new_body.to_vec(),
-            "request_sent must reconstruct the tools the proxy declared"
+            serde_json::from_slice::<serde_json::Value>(&rebuilt)?,
+            serde_json::from_slice::<serde_json::Value>(&new_body)?,
+            "request_sent must rebuild the tools the proxy declared"
         );
         Ok(())
     }

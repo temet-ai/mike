@@ -1,10 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT sent_patch_start AS \"sent_patch_start!\",\n                  sent_patch_end   AS \"sent_patch_end!\",\n                  sent_patch_bytes AS \"sent_patch_bytes!\"\n             FROM requests.deltas\n            WHERE request_id = $1\n              AND sent_patch_start IS NOT NULL",
+  "query": "SELECT request_id,\n                  sent_patch_start AS \"sent_patch_start!\",\n                  sent_patch_end   AS \"sent_patch_end!\",\n                  sent_patch_bytes AS \"sent_patch_bytes!\"\n             FROM requests.deltas\n            WHERE request_id = ANY($1)\n              AND sent_patch_start IS NOT NULL",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
         "name": "sent_patch_start!",
         "type_info": "Int4",
         "origin": {
@@ -15,7 +26,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "sent_patch_end!",
         "type_info": "Int4",
         "origin": {
@@ -26,7 +37,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "sent_patch_bytes!",
         "type_info": "Bytea",
         "origin": {
@@ -39,14 +50,15 @@
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Int8Array"
       ]
     },
     "nullable": [
+      false,
       true,
       true,
       true
     ]
   },
-  "hash": "c059edcf2d1092c2306e452365c53c918692887eb05180f0d12c9dbb7541876a"
+  "hash": "735bd6010330934469b1b6d74ed0a627f19d289a328a9c6c8bfb75662a7f09d4"
 }

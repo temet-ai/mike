@@ -9,14 +9,6 @@ pub struct DeltaRow {
     pub change_kind: &'static str,
     pub ord: i32,
     pub removed_reason: Option<&'static str>,
-    pub sent_patch: Option<SentPatch>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SentPatch {
-    pub start: i32,
-    pub end: i32,
-    pub bytes: Vec<u8>,
 }
 
 pub const COMPACTION_CONTINUATION_MARKER: &str =
@@ -69,7 +61,6 @@ pub fn compute_delta(
                 change_kind: "added",
                 ord: m.ord,
                 removed_reason: None,
-                sent_patch: None,
             });
         }
     }
@@ -87,7 +78,6 @@ pub fn compute_delta(
                 change_kind: "removed",
                 ord: *ord,
                 removed_reason: Some(reason),
-                sent_patch: None,
             });
         }
     }
@@ -200,18 +190,6 @@ pub async fn insert_request_deltas(
         .iter()
         .map(|r| r.removed_reason.map(str::to_owned))
         .collect();
-    let patch_starts: Vec<Option<i32>> = rows
-        .iter()
-        .map(|r| r.sent_patch.as_ref().map(|p| p.start))
-        .collect();
-    let patch_ends: Vec<Option<i32>> = rows
-        .iter()
-        .map(|r| r.sent_patch.as_ref().map(|p| p.end))
-        .collect();
-    let patch_bytes: Vec<Option<Vec<u8>>> = rows
-        .iter()
-        .map(|r| r.sent_patch.as_ref().map(|p| p.bytes.clone()))
-        .collect();
 
     sqlx::query!(
         "INSERT INTO requests.deltas (
@@ -219,18 +197,16 @@ pub async fn insert_request_deltas(
             session_id,
             change_kind_id, ord,
             message_id,
-            removed_reason_id,
-            sent_patch_start, sent_patch_end, sent_patch_bytes
+            removed_reason_id
          )
          SELECT $1, $2,
                 $6,
                 dck.id,
                 d.ord,
                 m.id,
-                drr.id,
-                d.patch_start, d.patch_end, d.patch_bytes
-           FROM UNNEST($3::text[], $4::int[], $5::text[], $7::int[], $8::int[], $9::bytea[])
-                AS d(kind, ord, reason, patch_start, patch_end, patch_bytes)
+                drr.id
+           FROM UNNEST($3::text[], $4::int[], $5::text[])
+                AS d(kind, ord, reason)
            JOIN requests.delta_change_kinds         dck ON dck.code = d.kind
            LEFT JOIN requests.delta_removed_reasons drr ON drr.code = d.reason
            -- Resolve message_id from the bridge: added rows use the current
@@ -248,9 +224,6 @@ pub async fn insert_request_deltas(
         &ords,
         &reasons as &[Option<String>],
         session_db_id,
-        &patch_starts as &[Option<i32>],
-        &patch_ends as &[Option<i32>],
-        &patch_bytes as &[Option<Vec<u8>>],
     )
     .execute(&mut *conn)
     .await?;

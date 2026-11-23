@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests r\n            SET sent_envelope = v.envelope\n           FROM UNNEST($1::bigint[], $2::bytea[]) AS v(id, envelope)\n          WHERE r.id = v.id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "ByteaArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "be2fdadb995d17eca3f5b21e3b582cec06ea0415a27f960ef3c13ecbb0c301d6"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n                    SET request_body = NULL\n                  WHERE id = ANY($1)\n                    AND request_body IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "494ab15e2976963c2eb38b3a5b9a589dfefebfab5e9c2864712bc7fc30b7a6f0"
+}

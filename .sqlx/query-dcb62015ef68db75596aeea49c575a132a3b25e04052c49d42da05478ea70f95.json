@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT filtered_request_body, request_envelope, sent_envelope, sent_message_count,\n                sent_patch_start, sent_patch_end, sent_patch_bytes\n           FROM requests.requests\n          WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "filtered_request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "filtered_request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_envelope",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_envelope"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "sent_envelope",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_envelope"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sent_message_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_message_count"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "sent_patch_start",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_start"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sent_patch_end",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_end"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_patch_bytes",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "dcb62015ef68db75596aeea49c575a132a3b25e04052c49d42da05478ea70f95"
+}

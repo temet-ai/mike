@@ -3,8 +3,8 @@ use sqlx::PgPool;
 use super::row::{self, PersistedRequestRow};
 use crate::store::models::InterceptedRequest;
 use crate::store::persistence::PersistError;
-use crate::store::persistence::messages;
 use crate::store::persistence::reconstruct;
+use crate::store::persistence::sent_content;
 use crate::types::ToolCall;
 
 #[derive(Debug)]
@@ -88,9 +88,10 @@ pub async fn fetch_request_body_by_id(
 ) -> Result<Option<reconstruct::ServedBody>, PersistError> {
     let id_i64 = i64::try_from(request_id).unwrap_or(i64::MAX);
     let row = sqlx::query!(
-        "SELECT request_body, request_envelope
-         FROM requests.requests
-         WHERE id = $1",
+        r#"SELECT CASE WHEN request_envelope IS NULL THEN request_body END AS "request_body?",
+                  request_envelope
+             FROM requests.requests
+            WHERE id = $1"#,
         id_i64,
     )
     .fetch_optional(pool)
@@ -112,61 +113,7 @@ pub async fn fetch_request_sent_body_by_id(
     request_id: u64,
 ) -> Result<Option<bytes::Bytes>, PersistError> {
     let id_i64 = i64::try_from(request_id).unwrap_or(i64::MAX);
-    let row = sqlx::query!(
-        "SELECT request_body, filtered_request_body, request_envelope
-         FROM requests.requests
-         WHERE id = $1",
-        id_i64,
-    )
-    .fetch_optional(pool)
-    .await?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    if let Some(legacy) = row.filtered_request_body {
-        return Ok(Some(bytes::Bytes::from(legacy)));
-    }
-    let Some(served) = reconstruct::rehydrate_body(
-        pool,
-        id_i64,
-        row.request_body.map(bytes::Bytes::from),
-        row.request_envelope.map(bytes::Bytes::from),
-    )
-    .await?
-    else {
-        return Ok(None);
-    };
-    let request_body = served.bytes;
-    let mut patches: Vec<messages::SentPatchRow> = sqlx::query_as!(
-        messages::SentPatchRow,
-        r#"SELECT sent_patch_start AS "sent_patch_start!",
-                  sent_patch_end   AS "sent_patch_end!",
-                  sent_patch_bytes AS "sent_patch_bytes!"
-             FROM requests.deltas
-            WHERE request_id = $1
-              AND sent_patch_start IS NOT NULL"#,
-        id_i64,
-    )
-    .fetch_all(pool)
-    .await?;
-    let envelope: Option<messages::SentPatchRow> = sqlx::query_as!(
-        messages::SentPatchRow,
-        r#"SELECT sent_patch_start AS "sent_patch_start!",
-                  sent_patch_end   AS "sent_patch_end!",
-                  sent_patch_bytes AS "sent_patch_bytes!"
-             FROM requests.requests
-            WHERE id = $1
-              AND sent_patch_start IS NOT NULL"#,
-        id_i64,
-    )
-    .fetch_optional(pool)
-    .await?;
-    patches.extend(envelope);
-    if patches.is_empty() {
-        return Ok(Some(request_body));
-    }
-    let reconstructed = messages::apply_sent_patches(&request_body, patches)?;
-    Ok(Some(bytes::Bytes::from(reconstructed)))
+    sent_content::fetch_sent_body(pool, id_i64).await
 }
 
 pub async fn fetch_predecessor_request_id(

@@ -53,7 +53,7 @@ fn rewrite_leaves_untouched_top_level_fields_byte_identical() -> anyhow::Result<
 }
 
 #[test]
-fn envelope_patch_captures_a_system_only_rewrite_alongside_a_tools_array() -> anyhow::Result<()> {
+fn sent_content_captures_a_system_only_rewrite_alongside_a_tools_array() -> anyhow::Result<()> {
     let raw: &[u8] = br#"{"model":"m","system":[{"type":"text","text":"preamble. anchor phrase here. more text follows."}],"tools":[{"name":"Bash","description":"runs a shell command","input_schema":{"type":"object"}}],"messages":[{"role":"user","content":"hi"}]}"#;
     let c = cfg(vec![rule(
         "append",
@@ -67,22 +67,13 @@ fn envelope_patch_captures_a_system_only_rewrite_alongside_a_tools_array() -> an
         anyhow::bail!("expected Rewrote — the anchor is present and the rule is enabled");
     };
 
-    let patch = crate::store::persistence::messages::compute_envelope_patch(raw, &new_body)
-        .map_err(|e| anyhow::anyhow!("compute_envelope_patch failed: {e}"))?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "compute_envelope_patch returned None — the filter's system[] rewrite \
-                 was not captured for request_sent reconstruction (issue #166)"
-            )
-        })?;
-
-    let mut reconstructed = raw[..patch.start as usize].to_vec();
-    reconstructed.extend_from_slice(&patch.bytes);
-    reconstructed.extend_from_slice(&raw[patch.end as usize..]);
+    let rebuilt =
+        crate::store::persistence::sent_content::sent_round_trip_in_memory(raw, &new_body)
+            .map_err(|e| anyhow::anyhow!("the sent body did not rebuild: {e}"))?;
     assert_eq!(
-        reconstructed, new_body,
-        "request_body + the captured envelope patch must reconstruct exactly \
-         what the filter forwarded upstream"
+        serde_json::from_slice::<serde_json::Value>(&rebuilt)?,
+        serde_json::from_slice::<serde_json::Value>(&new_body)?,
+        "the stored sent content must rebuild what the filter forwarded upstream"
     );
     Ok(())
 }

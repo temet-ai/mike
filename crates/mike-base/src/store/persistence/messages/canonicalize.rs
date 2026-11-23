@@ -178,13 +178,13 @@ struct NewMessageBatch {
     roles: Vec<String>,
 }
 
-fn collect_new_message_bodies(
-    canonical: &[CanonicalMessage],
-    carry_forward: &HashMap<String, i64>,
+fn collect_new_message_bodies<'a>(
+    canonical: impl IntoIterator<Item = &'a CanonicalMessage>,
+    known: &HashMap<String, i64>,
 ) -> Result<NewMessageBatch, serde_json::Error> {
     use std::collections::HashSet;
 
-    let mut seen_new: HashSet<&str> = HashSet::with_capacity(canonical.len());
+    let mut seen_new: HashSet<&str> = HashSet::new();
     let mut batch = NewMessageBatch {
         shas: Vec::new(),
         bodies: Vec::new(),
@@ -192,7 +192,7 @@ fn collect_new_message_bodies(
         roles: Vec::new(),
     };
     for m in canonical {
-        if carry_forward.contains_key(&m.sha) || !seen_new.insert(m.sha.as_str()) {
+        if known.contains_key(&m.sha) || !seen_new.insert(m.sha.as_str()) {
             continue;
         }
         batch.shas.push(m.sha.clone());
@@ -203,6 +203,36 @@ fn collect_new_message_bodies(
         batch.roles.push(m.role.clone());
     }
     Ok(batch)
+}
+
+pub async fn insert_new_message_bodies<'a>(
+    conn: &mut PgConnection,
+    canonical: impl IntoIterator<Item = &'a CanonicalMessage>,
+    known: &HashMap<String, i64>,
+) -> Result<HashMap<String, i64>, PersistError> {
+    let new = collect_new_message_bodies(canonical, known)?;
+    let mut new_ids: HashMap<String, i64> = HashMap::with_capacity(new.shas.len());
+    if new.shas.is_empty() {
+        return Ok(new_ids);
+    }
+    let inserted = sqlx::query!(
+        "INSERT INTO messages.messages (message_sha256, body, byte_size, role_id)
+         SELECT u.sha, u.body, u.byte_size, r.id
+         FROM UNNEST($1::text[], $2::jsonb[], $3::int[], $4::text[])
+              AS u(sha, body, byte_size, role)
+         JOIN messages.roles r ON r.code = u.role
+         RETURNING id AS \"id!\", message_sha256 AS \"message_sha256!\"",
+        &new.shas,
+        &new.bodies,
+        &new.byte_sizes,
+        &new.roles,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    for row in inserted {
+        new_ids.insert(row.message_sha256, row.id);
+    }
+    Ok(new_ids)
 }
 
 struct BridgeRows {
@@ -248,57 +278,39 @@ pub async fn write_request_messages(
     request_id: i64,
     canonical: &[CanonicalMessage],
     carry_forward: &HashMap<String, i64>,
-) -> Result<(), PersistError> {
+) -> Result<HashMap<String, i64>, PersistError> {
     if canonical.is_empty() {
-        return Ok(());
+        return Ok(HashMap::new());
     }
 
-    let already_bridged: Option<i32> = sqlx::query_scalar!(
-        "SELECT 1 AS \"one!\" FROM requests.messages WHERE request_id = $1 LIMIT 1",
+    let bridged = sqlx::query!(
+        "SELECT m.message_sha256, rm.message_id
+           FROM requests.messages rm
+           JOIN messages.messages m ON m.id = rm.message_id
+          WHERE rm.request_id = $1",
         request_id,
     )
-    .fetch_optional(&mut *conn)
+    .fetch_all(&mut *conn)
     .await?;
-    if already_bridged.is_some() {
-        return Ok(());
+    if !bridged.is_empty() {
+        return Ok(bridged
+            .into_iter()
+            .map(|row| (row.message_sha256, row.message_id))
+            .collect());
     }
     insert_request_messages(conn, request_id, canonical, carry_forward).await
 }
 
-/// Writes a request's message bridge without checking for an earlier one: for a
-/// request row inserted in the same transaction, which cannot have one yet.
 pub async fn insert_request_messages(
     conn: &mut PgConnection,
     request_id: i64,
     canonical: &[CanonicalMessage],
     carry_forward: &HashMap<String, i64>,
-) -> Result<(), PersistError> {
+) -> Result<HashMap<String, i64>, PersistError> {
     if canonical.is_empty() {
-        return Ok(());
+        return Ok(HashMap::new());
     }
-    let new = collect_new_message_bodies(canonical, carry_forward)?;
-
-    let mut new_ids: HashMap<String, i64> = HashMap::with_capacity(new.shas.len());
-    if !new.shas.is_empty() {
-        let inserted = sqlx::query!(
-            "INSERT INTO messages.messages (message_sha256, body, byte_size, role_id)
-             SELECT u.sha, u.body, u.byte_size, r.id
-             FROM UNNEST($1::text[], $2::jsonb[], $3::int[], $4::text[])
-                  AS u(sha, body, byte_size, role)
-             JOIN messages.roles r ON r.code = u.role
-             RETURNING id AS \"id!\", message_sha256 AS \"message_sha256!\"",
-            &new.shas,
-            &new.bodies,
-            &new.byte_sizes,
-            &new.roles,
-        )
-        .fetch_all(&mut *conn)
-        .await?;
-        for row in inserted {
-            new_ids.insert(row.message_sha256, row.id);
-        }
-    }
-
+    let new_ids = insert_new_message_bodies(conn, canonical, carry_forward).await?;
     let bridge = resolve_bridge_rows(request_id, canonical, carry_forward, &new_ids)?;
 
     sqlx::query!(
@@ -314,5 +326,9 @@ pub async fn insert_request_messages(
     .execute(&mut *conn)
     .await?;
 
-    Ok(())
+    Ok(canonical
+        .iter()
+        .zip(bridge.message_ids)
+        .map(|(m, id)| (m.sha.clone(), id))
+        .collect())
 }

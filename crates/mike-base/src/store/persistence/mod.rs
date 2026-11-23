@@ -70,7 +70,7 @@ pub mod request_write_tests_author_kind;
 #[cfg(test)]
 pub mod request_write_tests_dedup;
 #[cfg(test)]
-pub mod request_write_tests_patches;
+pub mod request_write_tests_sent_body;
 #[cfg(test)]
 pub mod request_write_tests_session_prompt_lane;
 #[cfg(test)]
@@ -78,6 +78,7 @@ pub mod request_write_tests_system_prompt_id;
 pub mod request_write_tool_io;
 pub mod request_write_worker_producer;
 pub mod retention;
+pub mod sent_content;
 pub mod runtime;
 pub mod session_analyzer_overrides;
 pub mod session_diagnostics_reads;

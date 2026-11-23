@@ -1,5 +1,6 @@
 use super::PersistHandle;
 use super::error::PersistError;
+use super::sent_content;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CompactionSurvey {
@@ -13,6 +14,7 @@ pub struct CompactionSurvey {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CompactionOutcome {
     pub cleared_rows: u64,
+    pub refused_rows: u64,
     pub reclaimed_bytes: i64,
     pub batches: u64,
 }
@@ -21,6 +23,7 @@ pub struct CompactionOutcome {
 pub struct CompactionBatchOutcome {
     pub watermark: i64,
     pub cleared: u64,
+    pub refused: u64,
     pub reclaimed_bytes: i64,
 }
 
@@ -84,6 +87,7 @@ impl PersistHandle {
                 return Ok(total);
             };
             total.cleared_rows += batch.cleared;
+            total.refused_rows += batch.refused;
             total.reclaimed_bytes += batch.reclaimed_bytes;
             total.batches += 1;
             cursor = batch.watermark + 1;
@@ -102,57 +106,79 @@ impl PersistHandle {
                 .execute(&mut *tx)
                 .await?;
 
-            let row = sqlx::query!(
-                r#"WITH victims AS (
-                       SELECT r.id, octet_length(r.request_body) AS bytes
-                         FROM requests.requests r
-                         JOIN sessions.sessions s ON s.id = r.session_id
-                        WHERE r.id >= $1
-                          AND r.request_body IS NOT NULL
-                          AND r.request_envelope IS NOT NULL
-                          AND s.last_seen < now() - make_interval(days => $2)
-                          AND EXISTS (
-                              SELECT 1
-                                FROM requests.requests later
-                               WHERE later.session_id = r.session_id
-                                 AND later.id > r.id
-                          )
-                        ORDER BY r.id ASC
-                        LIMIT $3
-                   ),
-                   cleared AS (
-                       UPDATE requests.requests r
-                          SET request_body = NULL
-                         FROM victims v
-                        WHERE r.id = v.id
-                       RETURNING r.id
-                   )
-                   SELECT count(*)                          AS "cleared!",
-                          COALESCE(sum(v.bytes), 0)::bigint AS "reclaimed_bytes!",
-                          max(v.id)                         AS "watermark"
-                     FROM victims v
-                     JOIN cleared c ON c.id = v.id"#,
-                cursor,
-                min_idle_days,
-                batch_size,
-            )
-            .fetch_one(&mut *tx)
-            .await?;
-
-            let Some(watermark) = row.watermark else {
+            let candidates =
+                compaction_candidates(&mut tx, min_idle_days, batch_size, cursor).await?;
+            let Some(watermark) = candidates.last().map(|c| c.id) else {
                 tx.rollback().await?;
                 return Ok(None);
             };
+            let clearable = sent_content::clearable_ids(&mut tx, &candidates).await?;
+            let reclaimed_bytes = candidates
+                .iter()
+                .filter(|c| clearable.contains(&c.id))
+                .map(|c| c.request_body.len() as i64)
+                .sum();
+            let cleared = sqlx::query!(
+                "UPDATE requests.requests
+                    SET request_body = NULL
+                  WHERE id = ANY($1)
+                    AND request_body IS NOT NULL",
+                &clearable,
+            )
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
             tx.commit().await?;
 
             Ok(Some(CompactionBatchOutcome {
                 watermark,
-                cleared: u64::try_from(row.cleared).unwrap_or_default(),
-                reclaimed_bytes: row.reclaimed_bytes,
+                cleared,
+                refused: (candidates.len() - clearable.len()) as u64,
+                reclaimed_bytes,
             }))
         })
         .await
     }
+}
+
+async fn compaction_candidates(
+    conn: &mut sqlx::PgConnection,
+    min_idle_days: i32,
+    batch_size: i64,
+    cursor: i64,
+) -> Result<Vec<sent_content::ClearCandidate>, PersistError> {
+    let rows = sqlx::query!(
+        r#"SELECT r.id,
+                  r.request_body AS "request_body!",
+                  (r.filtered_request_body IS NOT NULL) AS "has_filtered_body!"
+             FROM requests.requests r
+             JOIN sessions.sessions s ON s.id = r.session_id
+            WHERE r.id >= $1
+              AND r.request_body IS NOT NULL
+              AND r.request_envelope IS NOT NULL
+              AND s.last_seen < now() - make_interval(days => $2)
+              AND EXISTS (
+                  SELECT 1
+                    FROM requests.requests later
+                   WHERE later.session_id = r.session_id
+                     AND later.id > r.id
+              )
+            ORDER BY r.id ASC
+            LIMIT $3"#,
+        cursor,
+        min_idle_days,
+        batch_size,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| sent_content::ClearCandidate {
+            id: row.id,
+            request_body: row.request_body,
+            has_filtered_body: row.has_filtered_body,
+        })
+        .collect())
 }
 
 #[cfg(test)]

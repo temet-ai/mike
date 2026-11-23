@@ -3,14 +3,7 @@ use sqlx::PgConnection;
 use super::DeltaRow;
 use crate::store::persistence::PersistError;
 
-type Key = (
-    String,
-    i32,
-    Option<String>,
-    Option<i32>,
-    Option<i32>,
-    Option<Vec<u8>>,
-);
+type Key = (String, i32, Option<String>);
 
 fn keys(rows: &[DeltaRow]) -> Vec<Key> {
     let mut keys: Vec<Key> = rows
@@ -20,9 +13,6 @@ fn keys(rows: &[DeltaRow]) -> Vec<Key> {
                 r.change_kind.to_string(),
                 r.ord,
                 r.removed_reason.map(str::to_owned),
-                r.sent_patch.as_ref().map(|p| p.start),
-                r.sent_patch.as_ref().map(|p| p.end),
-                r.sent_patch.as_ref().map(|p| p.bytes.clone()),
             )
         })
         .collect();
@@ -50,7 +40,6 @@ pub async fn stored_deltas(
 ) -> Result<StoredDeltas, PersistError> {
     let stored = sqlx::query!(
         r#"SELECT dck.code AS "kind!", d.ord AS "ord!", drr.code AS "reason?",
-                  d.sent_patch_start, d.sent_patch_end, d.sent_patch_bytes,
                   d.predecessor_request_id, d.session_id
              FROM requests.deltas d
              JOIN requests.delta_change_kinds dck ON dck.id = d.change_kind_id
@@ -78,16 +67,7 @@ pub async fn stored_deltas(
     }
     let mut existing: Vec<Key> = stored
         .into_iter()
-        .map(|s| {
-            (
-                s.kind,
-                s.ord,
-                s.reason,
-                s.sent_patch_start,
-                s.sent_patch_end,
-                s.sent_patch_bytes,
-            )
-        })
+        .map(|s| (s.kind, s.ord, s.reason))
         .collect();
     existing.sort();
     Ok(if existing == keys(rows) {

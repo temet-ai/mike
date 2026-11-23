@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n            SET sent_envelope = NULL, sent_message_count = NULL\n          WHERE id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a893baec900cabc3e9e32fdc8a652335abf13b2ac27ec298111555e16d7a5d97"
+}

@@ -1,11 +1,9 @@
-use std::collections::HashSet;
-
-use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 
 use super::PersistError;
 use super::messages;
+use super::sent_content;
 use super::session_locks;
-use super::text_sanitize;
 use crate::store::models::InterceptedRequest;
 
 async fn stamp_predecessor_and_request_number(
@@ -58,147 +56,6 @@ const STAMP_IN_SEND_ORDER: &str = "WITH mine AS (
            ) n
           WHERE r.id = $1";
 
-async fn attach_sent_patches_to_deltas(
-    tx: &mut sqlx::PgConnection,
-    request_db_id: i64,
-    body_bytes: &[u8],
-    sent_bytes: &[u8],
-    canonical: &[messages::CanonicalMessage],
-    delta_rows: &mut [messages::DeltaRow],
-) -> Result<(), PersistError> {
-    let mut patches = match messages::compute_sent_patches(body_bytes, sent_bytes, canonical) {
-        Ok(patches) => patches,
-        Err(e) => {
-            tracing::warn!(
-                request_id = request_db_id,
-                error = %e,
-                "insert_request_initial: per-message sent patches unavailable; \
-                 capturing the sent body as one patch"
-            );
-            return apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent_bytes)
-                .await;
-        }
-    };
-
-    let added_ords: HashSet<i32> = delta_rows
-        .iter()
-        .filter(|r| r.change_kind == "added")
-        .map(|r| r.ord)
-        .collect();
-    let has_homeless_diff = patches.keys().any(|ord| !added_ords.contains(ord));
-
-    if !has_homeless_diff {
-        attach_added_row_patches(delta_rows, &mut patches);
-        if deltas_and_envelope_reconstruct(body_bytes, sent_bytes, delta_rows) {
-            return Ok(());
-        }
-        for row in delta_rows.iter_mut() {
-            row.sent_patch = None;
-        }
-    }
-    apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent_bytes).await
-}
-
-fn deltas_and_envelope_reconstruct(
-    body_bytes: &[u8],
-    sent_bytes: &[u8],
-    delta_rows: &[messages::DeltaRow],
-) -> bool {
-    let envelope = messages::envelope_patch_for_capture(body_bytes, sent_bytes)
-        .ok()
-        .flatten();
-    let message_patches = delta_rows.iter().filter_map(|r| r.sent_patch.clone());
-    messages::patches_reconstruct_sent(
-        body_bytes,
-        sent_bytes,
-        envelope.into_iter().chain(message_patches),
-    )
-}
-
-async fn capture_sent_body_without_messages(
-    tx: &mut sqlx::PgConnection,
-    request_db_id: i64,
-    body_bytes: &[u8],
-    sent_bytes: Option<&[u8]>,
-) -> Result<(), PersistError> {
-    match sent_bytes {
-        Some(sent) if !deltas_and_envelope_reconstruct(body_bytes, sent, &[]) => {
-            apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent).await
-        }
-        _ => Ok(()),
-    }
-}
-
-async fn apply_whole_body_envelope_patch(
-    tx: &mut sqlx::PgConnection,
-    request_db_id: i64,
-    body_bytes: &[u8],
-    sent_bytes: &[u8],
-) -> Result<(), PersistError> {
-    match messages::whole_body_envelope_patch(body_bytes, sent_bytes) {
-        Ok(Some(p)) => {
-            sqlx::query!(
-                "UPDATE requests.requests
-                                SET sent_patch_start = $2,
-                                    sent_patch_end   = $3,
-                                    sent_patch_bytes = $4
-                              WHERE id = $1",
-                request_db_id,
-                p.start,
-                p.end,
-                p.bytes,
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-        Ok(None) => {}
-        Err(e) => {
-            tracing::warn!(
-                request_id = request_db_id,
-                error = %e,
-                "insert_request_initial: whole-body sent-patch computation skipped"
-            );
-        }
-    }
-    Ok(())
-}
-
-fn attach_added_row_patches(
-    delta_rows: &mut [messages::DeltaRow],
-    patches: &mut std::collections::HashMap<i32, messages::SentPatch>,
-) {
-    for row in delta_rows.iter_mut() {
-        if row.change_kind == "added" {
-            row.sent_patch = patches.remove(&row.ord);
-        }
-    }
-}
-
-fn clean_canonical_message(message: messages::CanonicalMessage) -> messages::CanonicalMessage {
-    if !text_sanitize::body_carries_nul(&message.body_canonical_bytes) {
-        return message;
-    }
-    let Ok(mut body) = serde_json::from_slice::<serde_json::Value>(&message.body_canonical_bytes)
-    else {
-        return message;
-    };
-    if !text_sanitize::clean_json(&mut body) {
-        return message;
-    }
-    let Ok(bytes) = serde_json::to_vec(&body) else {
-        return message;
-    };
-    let Ok(byte_size) = i32::try_from(bytes.len()) else {
-        return message;
-    };
-    messages::CanonicalMessage {
-        sha: hex::encode(Sha256::digest(&bytes)),
-        body_canonical_bytes: bytes,
-        byte_size,
-        ..message
-    }
-}
-
 pub async fn write_message_dedup_bridge(
     tx: &mut sqlx::PgConnection,
     req: &InterceptedRequest,
@@ -222,18 +79,15 @@ pub async fn write_message_dedup_bridge(
         }
     };
     if canonical.is_empty() {
-        return capture_sent_body_without_messages(
-            tx,
-            request_db_id,
-            body_bytes,
-            req.sent_body.as_deref(),
-        )
-        .await;
+        return write_sent_messages(tx, req, request_db_id, &canonical, &HashMap::new(), None)
+            .await;
     }
-    let canonical: Vec<messages::CanonicalMessage> =
-        canonical.into_iter().map(clean_canonical_message).collect();
+    let canonical: Vec<messages::CanonicalMessage> = canonical
+        .into_iter()
+        .map(messages::clean_canonical_message)
+        .collect();
 
-    let mut predecessor = messages::resolve_predecessor_and_delta(
+    let predecessor = messages::resolve_predecessor_and_delta(
         &mut *tx,
         req,
         session_db_id,
@@ -242,7 +96,7 @@ pub async fn write_message_dedup_bridge(
     )
     .await?;
 
-    write_bridge_messages(
+    let message_ids = write_bridge_messages(
         &mut *tx,
         (request_db_id, fresh_row),
         &canonical,
@@ -252,38 +106,57 @@ pub async fn write_message_dedup_bridge(
 
     stamp_predecessor_and_request_number(tx, request_db_id, &predecessor, session_db_id).await?;
     let predecessor_request_id = predecessor.predecessor_request_id;
-    let delta_rows = &mut predecessor.rows;
-
-    if let Some(sent_bytes) = req.sent_body.as_deref() {
-        attach_sent_patches_to_deltas(
-            tx,
-            request_db_id,
-            body_bytes,
-            sent_bytes,
-            &canonical,
-            delta_rows,
-        )
-        .await?;
-    }
+    write_sent_messages(
+        tx,
+        req,
+        request_db_id,
+        &canonical,
+        &message_ids,
+        predecessor_request_id,
+    )
+    .await?;
 
     write_bridge_deltas(
         &mut *tx,
         (request_db_id, fresh_row),
         predecessor_request_id,
         session_db_id,
-        delta_rows,
+        &predecessor.rows,
     )
     .await
 }
 
-/// A request row inserted in this transaction has no bridge rows yet, so its
-/// writes skip the read for earlier ones.
+async fn write_sent_messages(
+    tx: &mut sqlx::PgConnection,
+    req: &InterceptedRequest,
+    request_db_id: i64,
+    canonical: &[messages::CanonicalMessage],
+    message_ids: &HashMap<String, i64>,
+    predecessor_request_id: Option<i64>,
+) -> Result<(), PersistError> {
+    let (Some(original), Some(sent)) = (req.request_body.as_deref(), req.sent_body.as_deref())
+    else {
+        return Ok(());
+    };
+    sent_content::write_captured_sent_messages(
+        tx,
+        request_db_id,
+        sent_content::CapturedBodies { original, sent },
+        sent_content::OriginalMessages {
+            canonical,
+            ids: message_ids,
+            predecessor_request_id,
+        },
+    )
+    .await
+}
+
 async fn write_bridge_messages(
     tx: &mut sqlx::PgConnection,
     (request_db_id, fresh_row): (i64, bool),
     canonical: &[messages::CanonicalMessage],
-    carry_forward: &std::collections::HashMap<String, i64>,
-) -> Result<(), PersistError> {
+    carry_forward: &HashMap<String, i64>,
+) -> Result<HashMap<String, i64>, PersistError> {
     if fresh_row {
         messages::insert_request_messages(tx, request_db_id, canonical, carry_forward).await
     } else {

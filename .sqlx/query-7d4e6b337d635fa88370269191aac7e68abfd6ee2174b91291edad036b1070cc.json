@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT dck.code AS \"kind!\", d.ord AS \"ord!\", drr.code AS \"reason?\",\n                  d.sent_patch_start, d.sent_patch_end, d.sent_patch_bytes,\n                  d.predecessor_request_id, d.session_id\n             FROM requests.deltas d\n             JOIN requests.delta_change_kinds dck ON dck.id = d.change_kind_id\n             LEFT JOIN requests.delta_removed_reasons drr ON drr.id = d.removed_reason_id\n            WHERE d.request_id = $1",
+  "query": "SELECT dck.code AS \"kind!\", d.ord AS \"ord!\", drr.code AS \"reason?\",\n                  d.predecessor_request_id, d.session_id\n             FROM requests.deltas d\n             JOIN requests.delta_change_kinds dck ON dck.id = d.change_kind_id\n             LEFT JOIN requests.delta_removed_reasons drr ON drr.id = d.removed_reason_id\n            WHERE d.request_id = $1",
   "describe": {
     "columns": [
       {
@@ -38,39 +38,6 @@
       },
       {
         "ordinal": 3,
-        "name": "sent_patch_start",
-        "type_info": "Int4",
-        "origin": {
-          "Table": {
-            "table": "requests.deltas",
-            "name": "sent_patch_start"
-          }
-        }
-      },
-      {
-        "ordinal": 4,
-        "name": "sent_patch_end",
-        "type_info": "Int4",
-        "origin": {
-          "Table": {
-            "table": "requests.deltas",
-            "name": "sent_patch_end"
-          }
-        }
-      },
-      {
-        "ordinal": 5,
-        "name": "sent_patch_bytes",
-        "type_info": "Bytea",
-        "origin": {
-          "Table": {
-            "table": "requests.deltas",
-            "name": "sent_patch_bytes"
-          }
-        }
-      },
-      {
-        "ordinal": 6,
         "name": "predecessor_request_id",
         "type_info": "Int8",
         "origin": {
@@ -81,7 +48,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 4,
         "name": "session_id",
         "type_info": "Int8",
         "origin": {
@@ -102,11 +69,8 @@
       false,
       true,
       true,
-      true,
-      true,
-      true,
       false
     ]
   },
-  "hash": "b0b1185867aa766d34e7fb9ed59846e6a975751bcac6b39b8aabcf453ec9db51"
+  "hash": "7d4e6b337d635fa88370269191aac7e68abfd6ee2174b91291edad036b1070cc"
 }

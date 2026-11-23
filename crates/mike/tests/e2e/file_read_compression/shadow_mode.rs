@@ -8,8 +8,9 @@ use anthropic_fixtures::{
 use serde_json::{Value, json};
 
 use super::support::{
-    assert_manifest_chain_closes, big_read_content, fetch_delta_patch_len, fetch_manifest_row,
-    latest_request_id_for_session, send_read_result_request, sha256_of, wait_for_request_detail,
+    assert_manifest_chain_closes, big_read_content, count_sent_content, fetch_manifest_row,
+    latest_request_id_for_session, same_json, send_read_result_request, sha256_of,
+    wait_for_request_detail,
 };
 
 #[tokio::test]
@@ -67,10 +68,10 @@ async fn file_read_compression_toggle_on_shadow_mode_forwards_byte_identical() -
         "shadow mode must not populate filtered_request_body"
     );
 
-    let delta_patch_len = fetch_delta_patch_len(&pool, request_id as i64).await?;
-    assert!(
-        delta_patch_len.is_none(),
-        "shadow mode must not record a sent-patch delta — got {delta_patch_len:?}"
+    let sent_content = count_sent_content(&pool, request_id as i64).await?;
+    assert_eq!(
+        sent_content, 0,
+        "shadow mode must not record any sent content"
     );
 
     let sent_payload: Value = client
@@ -84,14 +85,12 @@ async fn file_read_compression_toggle_on_shadow_mode_forwards_byte_identical() -
     let sent_text = sent_payload["text"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("request_sent body missing text"))?;
-    assert_eq!(
-        sent_text.as_bytes(),
-        forwarded_bytes.as_slice(),
+    assert!(
+        same_json(sent_text.as_bytes(), &forwarded_bytes)?,
         "request_sent must reconstruct the exact bytes forwarded upstream"
     );
-    assert_eq!(
-        sent_text.as_bytes(),
-        original_bytes.as_slice(),
+    assert!(
+        same_json(sent_text.as_bytes(), &original_bytes)?,
         "shadow mode: sent bytes equal the original bytes"
     );
 
@@ -286,14 +285,12 @@ async fn file_read_compression_shadow_mode_preserves_cache_control_bearing_messa
     let sent_text = sent_payload["text"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("request_sent body missing text"))?;
-    assert_eq!(
-        sent_text.as_bytes(),
-        forwarded_bytes.as_slice(),
+    assert!(
+        same_json(sent_text.as_bytes(), &forwarded_bytes)?,
         "request_sent must reconstruct byte-exactly, including the cache_control-bearing block"
     );
-    assert_eq!(
-        sent_text.as_bytes(),
-        original_bytes.as_slice(),
+    assert!(
+        same_json(sent_text.as_bytes(), &original_bytes)?,
         "shadow mode: sent bytes equal the original bytes"
     );
 

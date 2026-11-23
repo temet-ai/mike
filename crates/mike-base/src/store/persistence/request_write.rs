@@ -3,7 +3,7 @@ use serde_json::Value as JsonValue;
 use super::PersistError;
 use super::capture_classification::classify_author_kind;
 use super::id_resolvers::resolve_session_and_project_id;
-use super::{messages, reconstruct, text_sanitize};
+use super::{reconstruct, sent_content, text_sanitize};
 use crate::store::models::{self, InterceptedRequest};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub struct RequestEnvelopePrep<'a> {
     pub request_body_size: i32,
     pub request_envelope: Option<Vec<u8>>,
     pub filtered_request_body_bytes: Option<&'a [u8]>,
-    pub envelope_patch: Option<messages::SentPatch>,
+    pub sent_envelope: Option<Vec<u8>>,
     pub request_headers: JsonValue,
     pub params: JsonValue,
     pub message_count: i32,
@@ -51,7 +51,12 @@ impl<'a> RequestEnvelopePrep<'a> {
                 (true, Some(bytes)) => Some(bytes.as_ref()),
                 _ => None,
             };
-        let envelope_patch = compute_envelope_patch_for_insert(req, request_body_bytes);
+        let sent_envelope = match (request_body_bytes, req.sent_body.as_deref()) {
+            (Some(original), Some(sent)) => {
+                sent_content::sent_envelope(original, request_envelope.as_deref(), sent)
+            }
+            _ => None,
+        };
 
         let mut request_headers = serde_json::to_value(&req.request_headers)?;
         text_sanitize::clean_json(&mut request_headers);
@@ -72,34 +77,13 @@ impl<'a> RequestEnvelopePrep<'a> {
             request_body_size,
             request_envelope,
             filtered_request_body_bytes,
-            envelope_patch,
+            sent_envelope,
             request_headers,
             params,
             message_count,
             request_id,
             author_kind_code,
         })
-    }
-}
-
-fn compute_envelope_patch_for_insert(
-    req: &InterceptedRequest,
-    request_body_bytes: Option<&[u8]>,
-) -> Option<messages::SentPatch> {
-    let (orig, sent) = match (request_body_bytes, req.sent_body.as_deref()) {
-        (Some(orig), Some(sent)) => (orig, sent),
-        _ => return None,
-    };
-    match messages::envelope_patch_for_capture(orig, sent) {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!(
-                request_id = req.id.as_u64(),
-                error = %e,
-                "insert_request_initial: envelope sent-patch computation skipped"
-            );
-            None
-        }
     }
 }
 
@@ -155,9 +139,6 @@ async fn insert_requests_row_mint(
     project_id: i64,
     prep: &RequestEnvelopePrep<'_>,
 ) -> Result<Option<i64>, PersistError> {
-    let envelope_patch_start = prep.envelope_patch.as_ref().map(|p| p.start);
-    let envelope_patch_end = prep.envelope_patch.as_ref().map(|p| p.end);
-    let envelope_patch_bytes = prep.envelope_patch.as_ref().map(|p| p.bytes.as_slice());
     let returned_id: Option<i64> = sqlx::query_scalar(
         "INSERT INTO requests.requests (
             session_id, project_id,
@@ -174,18 +155,18 @@ async fn insert_requests_row_mint(
             agent_instance_id,
             claude_code_agent_id,
             transformation_manifest,
-            sent_patch_start, sent_patch_end, sent_patch_bytes,
+            sent_envelope,
             author_kind_id,
             request_envelope
         )
         SELECT $1, $2, rm.id, $4, $5, $6, $7, $8, rs.id,
-               $9, $10, $11, $25, $12, $13, rtt.id, rto.id, $16, $17, $18, $19, $20, $21,
-               $22, $23, $24, ak.id, $27
+               $9, $10, $11, $23, $12, $13, rtt.id, rto.id, $16, $17, $18, $19, $20, $21,
+               $22, ak.id, $25
         FROM requests.methods rm, requests.statuses rs,
              requests.turn_types rtt, requests.turn_origins rto,
              requests.author_kinds ak
         WHERE rm.code = $3 AND rs.code = 'pending'
-          AND rtt.code = $14 AND rto.code = $15 AND ak.code = $26
+          AND rtt.code = $14 AND rto.code = $15 AND ak.code = $24
         RETURNING id",
     )
     .bind(session_db_id)
@@ -209,9 +190,7 @@ async fn insert_requests_row_mint(
     .bind(req.agent_instance_id)
     .bind(&req.claude_code_agent_id)
     .bind(req.transformation_manifest.as_ref())
-    .bind(envelope_patch_start)
-    .bind(envelope_patch_end)
-    .bind(envelope_patch_bytes)
+    .bind(prep.sent_envelope.as_deref())
     .bind(prep.request_body_size)
     .bind(prep.author_kind_code)
     .bind(prep.request_envelope.as_deref())
@@ -227,9 +206,6 @@ async fn insert_requests_row_ensure(
     project_id: i64,
     prep: &RequestEnvelopePrep<'_>,
 ) -> Result<Option<i64>, PersistError> {
-    let envelope_patch_start = prep.envelope_patch.as_ref().map(|p| p.start);
-    let envelope_patch_end = prep.envelope_patch.as_ref().map(|p| p.end);
-    let envelope_patch_bytes = prep.envelope_patch.as_ref().map(|p| p.bytes.as_slice());
     let returned_id: Option<i64> = sqlx::query_scalar(
         "INSERT INTO requests.requests (
             id,
@@ -247,19 +223,19 @@ async fn insert_requests_row_ensure(
             agent_instance_id,
             claude_code_agent_id,
             transformation_manifest,
-            sent_patch_start, sent_patch_end, sent_patch_bytes,
+            sent_envelope,
             author_kind_id,
             request_envelope
         )
         OVERRIDING SYSTEM VALUE
         SELECT $1, $2, $3, rm.id, $5, $6, $7, $8, $9, rs.id,
-               $10, $11, $12, $26, $13, $14, rtt.id, rto.id, $17, $18, $19, $20, $21, $22,
-               $23, $24, $25, ak.id, $28
+               $10, $11, $12, $24, $13, $14, rtt.id, rto.id, $17, $18, $19, $20, $21, $22,
+               $23, ak.id, $26
         FROM requests.methods rm, requests.statuses rs,
              requests.turn_types rtt, requests.turn_origins rto,
              requests.author_kinds ak
         WHERE rm.code = $4 AND rs.code = 'pending'
-          AND rtt.code = $15 AND rto.code = $16 AND ak.code = $27
+          AND rtt.code = $15 AND rto.code = $16 AND ak.code = $25
         ON CONFLICT ON CONSTRAINT requests_pkey DO NOTHING
         RETURNING id",
     )
@@ -285,9 +261,7 @@ async fn insert_requests_row_ensure(
     .bind(req.agent_instance_id)
     .bind(&req.claude_code_agent_id)
     .bind(req.transformation_manifest.as_ref())
-    .bind(envelope_patch_start)
-    .bind(envelope_patch_end)
-    .bind(envelope_patch_bytes)
+    .bind(prep.sent_envelope.as_deref())
     .bind(prep.request_body_size)
     .bind(prep.author_kind_code)
     .bind(prep.request_envelope.as_deref())

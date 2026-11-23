@@ -1,18 +1,13 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT request_body, request_envelope\n         FROM requests.requests\n         WHERE id = $1",
+  "query": "SELECT CASE WHEN request_envelope IS NULL THEN request_body END AS \"request_body?\",\n                  request_envelope\n             FROM requests.requests\n            WHERE id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "request_body",
+        "name": "request_body?",
         "type_info": "Bytea",
-        "origin": {
-          "Table": {
-            "table": "requests.requests",
-            "name": "request_body"
-          }
-        }
+        "origin": "Expression"
       },
       {
         "ordinal": 1,
@@ -32,9 +27,9 @@
       ]
     },
     "nullable": [
-      true,
+      null,
       true
     ]
   },
-  "hash": "b41ecb1f93a273c1505163e39db3fb696b9d8613f41e6a107d3a0e9c03159286"
+  "hash": "fecbb0be6b5bbbe9771e283d615e284899328dae455e1c7262c64181a101fc03"
 }

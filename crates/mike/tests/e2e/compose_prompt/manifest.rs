@@ -108,12 +108,12 @@ async fn fetch_manifest_row(
     Ok(row)
 }
 
-async fn fetch_envelope_patch_len(
+async fn fetch_sent_envelope(
     pool: &sqlx::PgPool,
     request_id: i64,
-) -> anyhow::Result<Option<i32>> {
-    let row: Option<(Option<i32>,)> = sqlx::query_as(
-        "SELECT octet_length(sent_patch_bytes)::int
+) -> anyhow::Result<Option<Vec<u8>>> {
+    let row: Option<(Option<Vec<u8>>,)> = sqlx::query_as(
+        "SELECT sent_envelope
          FROM requests.requests
          WHERE id = $1",
     )
@@ -160,19 +160,17 @@ fn assert_manifest_chain_closes(manifest: &Value) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn assert_envelope_patch_is_mutation_sized(
+async fn assert_sent_envelope_leaves_out_the_messages(
     pool: &sqlx::PgPool,
     request_id: u64,
-    original_bytes: &[u8],
 ) -> anyhow::Result<()> {
-    let envelope_patch_len = fetch_envelope_patch_len(pool, request_id as i64)
+    let envelope = fetch_sent_envelope(pool, request_id as i64)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("requests.requests.sent_patch_bytes missing"))?;
+        .ok_or_else(|| anyhow::anyhow!("requests.requests.sent_envelope missing"))?;
+    let envelope = String::from_utf8(envelope)?;
     assert!(
-        (envelope_patch_len as usize) < original_bytes.len() / 10,
-        "envelope patch ({envelope_patch_len} bytes) must be on the order of the mutation, \
-         not the {}-byte body",
-        original_bytes.len()
+        envelope.contains(r#""messages":[]"#),
+        "the sent envelope must leave the messages to the message tables: {envelope}"
     );
     Ok(())
 }
@@ -196,9 +194,9 @@ async fn assert_sent_body_reconstructs_forwarded_bytes(
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("request_sent body missing text"))?;
     assert_eq!(
-        sent_text.as_bytes(),
-        forwarded_bytes,
-        "request_sent must reconstruct the exact bytes forwarded upstream"
+        serde_json::from_str::<Value>(sent_text)?,
+        serde_json::from_slice::<Value>(forwarded_bytes)?,
+        "request_sent must rebuild what was forwarded upstream"
     );
     assert_ne!(
         sent_text.as_bytes(),
@@ -294,7 +292,7 @@ async fn templated_composition_stores_exact_sent_body_with_closed_manifest() -> 
          must stay NULL even when the composer templated"
     );
 
-    assert_envelope_patch_is_mutation_sized(&pool, request_id, &original_bytes).await?;
+    assert_sent_envelope_leaves_out_the_messages(&pool, request_id).await?;
     assert_sent_body_reconstructs_forwarded_bytes(
         &client,
         &inspect_url,

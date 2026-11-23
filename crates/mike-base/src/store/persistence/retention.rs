@@ -23,6 +23,9 @@ impl PersistHandle {
                    )
                    AND NOT EXISTS (
                        SELECT 1 FROM requests.deltas rd WHERE rd.message_id = m.id
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1 FROM requests.sent_messages sm WHERE sm.message_id = m.id
                    )",
                 batch_size,
             )
@@ -43,6 +46,9 @@ impl PersistHandle {
                    )
                    AND NOT EXISTS (
                        SELECT 1 FROM requests.deltas rd WHERE rd.message_id = m.id
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1 FROM requests.sent_messages sm WHERE sm.message_id = m.id
                    )"#
             )
             .fetch_one(&self.pool)

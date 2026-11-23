@@ -126,30 +126,15 @@ async fn latest_sent_body_candidates(
     to: DateTime<Utc>,
     candidate_cap: i64,
 ) -> Result<Vec<FindTextCandidateRow>, PersistError> {
-    let rows = sqlx::query_as!(
+    let Ok(needle_text) = std::str::from_utf8(needle) else {
+        return Ok(Vec::new());
+    };
+    let rows = sqlx::query_file_as!(
         FindTextCandidateRow,
-        r#"SELECT request_id AS "request_id!",
-                          session_id AS "session_id!",
-                          created_at AS "created_at!"
-                   FROM (
-                       SELECT DISTINCT ON (r.session_id)
-                            r.id                 AS request_id,
-                            s.session_uuid::text AS session_id,
-                            r.created_at,
-                            COALESCE(r.filtered_request_body, r.request_body) AS body_col
-                       FROM requests.requests  r
-                       JOIN sessions.sessions  s ON s.id = r.session_id
-                       WHERE r.created_at >= $1
-                         AND r.created_at <  $2
-                       ORDER BY r.session_id, r.created_at DESC, r.id DESC
-                   ) latest
-                   WHERE latest.body_col IS NOT NULL
-                     AND position($3 IN latest.body_col) > 0
-                   ORDER BY latest.created_at DESC
-                   LIMIT $4"#,
+        "src/store/persistence/rehydrate/find_text_sent_candidates.sql",
         from,
         to,
-        needle,
+        needle_text,
         candidate_cap,
     )
     .fetch_all(pool)

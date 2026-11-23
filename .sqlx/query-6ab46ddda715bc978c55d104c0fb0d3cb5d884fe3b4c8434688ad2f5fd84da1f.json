@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.message_sha256, sm.message_id\n           FROM requests.sent_messages sm\n           JOIN messages.messages m ON m.id = sm.message_id\n          WHERE sm.request_id = ANY($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "message_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.sent_messages",
+            "name": "message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6ab46ddda715bc978c55d104c0fb0d3cb5d884fe3b4c8434688ad2f5fd84da1f"
+}

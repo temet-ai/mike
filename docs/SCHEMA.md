@@ -854,6 +854,21 @@ Columns added by the judgement-context migrations (definition as migrated):
 | `request_body_size` | integer |
 | `request_envelope` | bytea |
 
+Columns of the sent (upstream) body, added by `20261123170000_requests_sent_content.sql`. The sent
+body is stored as content, never as byte offsets into `request_body`, so it rebuilds after
+`request_body` is cleared (`store/persistence/sent_content/`):
+
+| Column | Definition | Purpose |
+|---|---|---|
+| `sent_envelope` | bytea NULL | Set only when the sent body differs from the original outside `messages`: the sent body with its top-level `messages` array emptied, and its `tools` array emptied when the sent tools are byte-identical to the original's. An empty `tools` array is filled from `requests.tools`; tools mike changed stay inline (an emptied tools array is written `[ ]` so it is not refilled). NULL means the sent envelope is `request_envelope`. |
+| `sent_message_count` | integer NULL | Set when the sent body has a different number of messages from the original; `requests.sent_messages` then holds every sent message. CHECK `>= 0` (NOT VALID). |
+| `sent_patch_start`, `sent_patch_end`, `sent_patch_bytes` | integer, integer, bytea | Legacy: an envelope byte patch into `request_body`. No longer written; read only for rows with no content-level sent data (`mike backfill-sent-content` converts rows that still have `request_body`). `requests.deltas.sent_patch_*` is the per-message half, also legacy. |
+
+The sent body is read as: the original messages (from `requests.messages`) with the
+`requests.sent_messages` rows replacing theirs at the same ord (or exactly the
+`sent_message_count` rows of `requests.sent_messages`), spliced into `sent_envelope` (or
+`request_envelope`), tools from `requests.tools` when the envelope's `tools` array is empty.
+
 ### `requests.methods` (vocab)
 
 Baseline lookup of HTTP methods. FK target of `requests.requests.method_id` and
@@ -961,6 +976,29 @@ Ordered FK bridge per request. One row per `(request, ord)` pair. The content SH
 **Indexes:**
 - `idx_request_messages_request_id`: `request_id` (BTree)
 - `idx_request_messages_message_id`: `message_id` (BTree)
+
+---
+
+### `requests.sent_messages`
+
+Added by `20261123170100_requests_sent_messages.sql`. One row per sent message whose content or
+`cache_control` differs from the original message at the same ord, or one row per sent message when
+`requests.requests.sent_message_count` is set. Written at capture from the in-memory original and
+sent bodies (`sent_content/live.rs`) or by `mike backfill-sent-content` from `request_body` plus the
+legacy patches. Bodies go through the same canonical, `cache_control`-stripped form and dedupe as
+`requests.messages`, reusing the request's own or its predecessor's message rows by id.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `request_id` | `BIGINT NOT NULL` | FK → `requests.requests(id)` ON DELETE CASCADE |
+| `ord` | `INTEGER NOT NULL` | Position in the sent body's message list (CHECK >= 0) |
+| `message_id` | `BIGINT NOT NULL` | FK → `messages.messages(id)` |
+| `cache_control` | `JSONB NULL` | The sent message's `cache_control` placements, same shape as `requests.messages.cache_control` |
+
+**Primary key:** `(request_id, ord)`
+
+**Indexes:**
+- `idx_sent_messages_message_id`: `message_id` (BTree); the orphaned-message sweep checks it
 
 ---
 

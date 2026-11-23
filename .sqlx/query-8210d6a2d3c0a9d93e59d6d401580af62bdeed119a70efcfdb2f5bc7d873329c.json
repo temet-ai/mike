@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM requests.sent_messages WHERE request_id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8210d6a2d3c0a9d93e59d6d401580af62bdeed119a70efcfdb2f5bc7d873329c"
+}

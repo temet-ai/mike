@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id, r.request_body AS \"request_body!\", r.request_envelope,\n                  r.predecessor_request_id,\n                  r.sent_patch_start, r.sent_patch_end, r.sent_patch_bytes\n             FROM requests.requests r\n            WHERE r.id >= $1\n              AND r.id <= $2\n              AND r.request_body IS NOT NULL\n              AND r.filtered_request_body IS NULL\n              AND r.sent_envelope IS NULL\n              AND r.sent_message_count IS NULL\n              AND (r.sent_patch_start IS NOT NULL\n                   OR EXISTS (SELECT 1 FROM requests.deltas d\n                               WHERE d.request_id = r.id\n                                 AND d.sent_patch_start IS NOT NULL))\n              AND NOT EXISTS (SELECT 1 FROM requests.sent_messages sm\n                               WHERE sm.request_id = r.id)\n            ORDER BY r.id\n            LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_envelope",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_envelope"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "predecessor_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "predecessor_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "sent_patch_start",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_start"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sent_patch_end",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_end"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_patch_bytes",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "sent_patch_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "215403492f6fbc253d55aa50a63d564c12d390f19975d54e046d8b1b17674eb9"
+}

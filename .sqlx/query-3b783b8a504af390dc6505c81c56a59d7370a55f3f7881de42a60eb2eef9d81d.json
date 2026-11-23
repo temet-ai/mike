@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.sent_messages (request_id, ord, message_id, cache_control)\n         SELECT u.request_id, u.ord, u.message_id, u.cache_control\n           FROM UNNEST($1::bigint[], $2::int[], $3::bigint[], $4::jsonb[])\n                AS u(request_id, ord, message_id, cache_control)\n         ON CONFLICT (request_id, ord) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "Int8Array",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b783b8a504af390dc6505c81c56a59d7370a55f3f7881de42a60eb2eef9d81d"
+}

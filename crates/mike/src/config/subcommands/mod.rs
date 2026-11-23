@@ -34,6 +34,7 @@ mod print_config;
 mod reclaim_space;
 mod semantic;
 mod semantic_backtest;
+mod sent_content;
 mod sidecar_origins;
 mod steer_questions;
 mod sweep;
@@ -55,6 +56,7 @@ pub enum ConfigCommand {
     BackfillRequestEnvelopes(BackfillRequestEnvelopesArgs),
     BackfillRequestSystemPrompts(BackfillRequestSystemPromptsArgs),
     CompactRequestBodies(CompactRequestBodiesArgs),
+    BackfillSentContent(BackfillSentContentArgs),
     ReclassifySystemPrompts(BackfillRequestSystemPromptsArgs),
     RepairSessionPrompts(RepairSessionPromptsArgs),
     RestampSidecarOrigins(RestampSidecarOriginsArgs),
@@ -112,6 +114,9 @@ pub async fn run(cmd: ConfigCommand, cli: CliOverrides) -> Result<()> {
         }
         ConfigCommand::CompactRequestBodies(args) => {
             envelopes::compact_request_bodies(args, cli).await
+        }
+        ConfigCommand::BackfillSentContent(args) => {
+            sent_content::backfill_sent_content(args, cli).await
         }
         ConfigCommand::ReclassifySystemPrompts(args) => {
             system_prompt_identity::reclassify_system_prompts(args, cli).await

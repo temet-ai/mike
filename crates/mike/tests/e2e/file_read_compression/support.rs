@@ -106,22 +106,24 @@ pub(super) async fn fetch_manifest_row(
     Ok(row)
 }
 
-pub(super) async fn fetch_delta_patch_len(
+pub(super) async fn count_sent_content(
     pool: &sqlx::PgPool,
     request_id: i64,
-) -> anyhow::Result<Option<i32>> {
-    let row: Option<(Option<i32>,)> = sqlx::query_as(
-        "SELECT octet_length(sent_patch_bytes)::int
-         FROM requests.deltas
-         WHERE request_id = $1
-           AND sent_patch_start IS NOT NULL
-         ORDER BY id
-         LIMIT 1",
+) -> anyhow::Result<i64> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT (SELECT count(*) FROM requests.sent_messages WHERE request_id = $1)
+              + (SELECT count(*) FROM requests.requests
+                  WHERE id = $1
+                    AND (sent_envelope IS NOT NULL OR sent_message_count IS NOT NULL))",
     )
     .bind(request_id)
-    .fetch_optional(pool)
+    .fetch_one(pool)
     .await?;
-    Ok(row.and_then(|(v,)| v))
+    Ok(count)
+}
+
+pub(super) fn same_json(left: &[u8], right: &[u8]) -> anyhow::Result<bool> {
+    Ok(serde_json::from_slice::<Value>(left)? == serde_json::from_slice::<Value>(right)?)
 }
 
 pub(super) fn sha256_of(bytes: &[u8]) -> String {

@@ -5,54 +5,6 @@ mod tests {
     use crate::store::persistence::test_support as test_util;
 
     #[tokio::test]
-    async fn insert_request_initial_tools_append_persists_zero_width_patch_byte_exactly()
-    -> anyhow::Result<()> {
-        let Some(db) = test_util::acquire_ephemeral_db().await? else {
-            return Ok(());
-        };
-        let handle = PersistHandle::connect(&db.database_url).await?;
-        let cases: [(&[u8], &[u8]); 2] = [
-            (
-                br#"{"messages":[{"role":"user","content":"hi"}],"tools":[]}"#,
-                br#"{"messages":[{"role":"user","content":"hi"}],"tools":[{"name":"mike_session_roster"}]}"#,
-            ),
-            (
-                br#"{"messages":[{"role":"user","content":"hi"}],"tools":[{"name":"Read"}]}"#,
-                br#"{"messages":[{"role":"user","content":"hi"}],"tools":[{"name":"Read"},{"name":"mike_session_roster"}]}"#,
-            ),
-        ];
-        let mut request_id = 97_004;
-        for (original, sent) in cases {
-            let patch = super::super::messages::compute_envelope_patch(original, sent)?
-                .ok_or_else(|| anyhow::anyhow!("tools append must produce an envelope patch"))?;
-            assert_eq!(patch.start, patch.end);
-            for id_mode in [IdMode::Mint, IdMode::Ensure] {
-                let session_id = uuid::Uuid::new_v4().to_string();
-                let mut req = crate::store::tests::make_test_request(
-                    Some(crate::store::models::RequestId::from_raw(request_id)),
-                    &session_id,
-                );
-                request_id += 1;
-                req.request_body = Some(bytes::Bytes::copy_from_slice(original));
-                req.sent_body = Some(bytes::Bytes::copy_from_slice(sent));
-                let outcome = handle.insert_request_initial(&req, true, id_mode).await?;
-                let persisted = handle
-                    .fetch_request_by_id(outcome.id as u64)
-                    .await?
-                    .ok_or_else(|| anyhow::anyhow!("request must survive the initial INSERT"))?;
-                assert_eq!(persisted.request_body.as_deref(), Some(original));
-                let reconstructed = handle
-                    .fetch_request_sent_body_by_id(outcome.id as u64)
-                    .await?
-                    .ok_or_else(|| anyhow::anyhow!("sent body must reconstruct after insertion"))?;
-                assert_eq!(reconstructed.as_ref(), sent);
-            }
-        }
-        db.cleanup().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn insert_request_initial_persists_request_body_size() -> anyhow::Result<()> {
         let Some(db) = test_util::acquire_ephemeral_db().await? else {
             return Ok(());
@@ -108,66 +60,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[allow(
-        clippy::expect_used,
-        reason = "test fixture; a NULL here is the failure the test exists to catch"
-    )]
-    async fn insert_request_initial_identity_request_leaves_sent_patch_null() -> anyhow::Result<()>
-    {
-        let Some(db) = test_util::acquire_ephemeral_db().await? else {
-            return Ok(());
-        };
-        let handle = PersistHandle::connect(&db.database_url).await?;
-        let session_id = uuid::Uuid::new_v4().to_string();
-
-        let mut req = crate::store::tests::make_test_request(
-            Some(crate::store::models::RequestId::from_raw(97_002)),
-            &session_id,
-        );
-        let body = serde_json::json!({
-            "messages": [{"role": "user", "content": "unmutated turn"}]
-        });
-        let body_bytes = bytes::Bytes::from(body.to_string());
-        req.request_body = Some(body_bytes.clone());
-        req.sent_body = None;
-        handle
-            .insert_request_initial(&req, true, IdMode::Ensure)
-            .await?;
-
-        let (patch_start,): (Option<i32>,) = sqlx::query_as(
-            "SELECT sent_patch_start FROM requests.deltas
-              WHERE request_id = $1 AND change_kind_id = 1",
-        )
-        .bind(97_002_i64)
-        .fetch_one(&handle.pool)
-        .await?;
-        assert_eq!(
-            patch_start, None,
-            "an identity request must leave sent_patch_start NULL"
-        );
-
-        let reconstructed = crate::store::persistence::rehydrate::fetch_request_sent_body_by_id(
-            &handle.pool,
-            97_002,
-        )
-        .await?
-        .expect("reconstruction must return Some for a request with request_body");
-        assert_eq!(
-            reconstructed.as_ref(),
-            body_bytes.as_ref(),
-            "an identity request's request_sent must equal request_body unchanged"
-        );
-
-        db.cleanup().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[allow(
-        clippy::expect_used,
-        reason = "test fixture; a NULL here is the failure the test exists to catch"
-    )]
-    async fn insert_request_initial_sent_patch_preserves_cache_control_in_raw_reconstruction()
+    async fn insert_request_initial_sent_edit_keeps_cache_control_in_the_rebuilt_sent_body()
     -> anyhow::Result<()> {
         let Some(db) = test_util::acquire_ephemeral_db().await? else {
             return Ok(());
@@ -195,7 +88,7 @@ mod tests {
         let sent_bytes = bytes::Bytes::from(sent_body.to_string());
 
         req.request_body = Some(client_bytes);
-        req.sent_body = Some(sent_bytes.clone());
+        req.sent_body = Some(sent_bytes);
         handle
             .insert_request_initial(&req, true, IdMode::Ensure)
             .await?;
@@ -205,11 +98,11 @@ mod tests {
             97_003,
         )
         .await?
-        .expect("reconstruction must return Some for a request with request_body");
+        .ok_or_else(|| anyhow::anyhow!("the sent body must be served"))?;
         assert_eq!(
-            reconstructed.as_ref(),
-            sent_bytes.as_ref(),
-            "raw reconstruction must preserve cache_control byte-exactly, unaffected by canonical stripping"
+            serde_json::from_slice::<serde_json::Value>(&reconstructed)?,
+            sent_body,
+            "the rebuilt sent body must carry cache_control where it was sent"
         );
         assert!(
             std::str::from_utf8(&reconstructed)?.contains("cache_control"),
@@ -316,8 +209,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn insert_request_initial_two_field_mutation_reconstructs_the_sent_body()
-    -> anyhow::Result<()> {
+    async fn insert_request_initial_two_field_mutation_rebuilds_the_sent_body() -> anyhow::Result<()>
+    {
         let Some(db) = test_util::acquire_ephemeral_db().await? else {
             return Ok(());
         };
@@ -354,9 +247,9 @@ mod tests {
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("sent body must reconstruct after insertion"))?;
             assert_eq!(
-                reconstructed.as_ref(),
-                sent,
-                "request {request_id}: the captured sent body must equal the forwarded bytes"
+                serde_json::from_slice::<serde_json::Value>(&reconstructed)?,
+                serde_json::from_slice::<serde_json::Value>(sent)?,
+                "request {request_id}: the captured sent body must equal what was forwarded"
             );
         }
         db.cleanup().await?;
