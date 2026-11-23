@@ -1146,7 +1146,8 @@ export type RowChangedTable =
 	| 'session_embedding_sources'
 	| 'workspace_questions'
 	| 'wright_repairs'
-	| 'wright_followups';
+	| 'wright_followups'
+	| 'steering_enrolments';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

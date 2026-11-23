@@ -7,6 +7,7 @@ pub mod efficiency_steerer_class_tests;
 #[cfg(test)]
 pub mod enrol_inert_steerers_tests;
 pub mod enrolment;
+mod enrolment_memo;
 pub mod fleet;
 pub mod guard;
 pub mod intervention;
@@ -50,7 +51,7 @@ pub struct SteererRow {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(sqlx::FromRow, Debug)]
+#[derive(sqlx::FromRow, Debug, Clone, PartialEq, Eq)]
 pub struct EnrolmentRow {
     pub id: i64,
     pub session_id: i64,

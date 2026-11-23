@@ -49,6 +49,9 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
             )
             .execute(&self.pool)
             .await?;
+            if result.rows_affected() > 0 {
+                self.enrolments_changed(session_uuid);
+            }
             Ok(result.rows_affected())
         })
         .await
@@ -84,6 +87,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
             .fetch_one(&mut *tx)
             .await?;
             tx.commit().await?;
+            self.enrolments_changed(session_uuid);
             Ok(row.id)
         })
         .await
@@ -100,12 +104,16 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
             )
             .execute(&self.pool)
             .await?;
-            Ok(result.rows_affected() > 0)
+            let disenrolled = result.rows_affected() > 0;
+            if disenrolled {
+                self.forget_all_enrolments();
+            }
+            Ok(disenrolled)
         })
         .await
     }
 
-    pub async fn list_active_enrolments_for_session(
+    pub(super) async fn read_active_enrolments_for_session(
         self,
         session_uuid: uuid::Uuid,
     ) -> Result<Vec<EnrolmentRow>, PersistError> {

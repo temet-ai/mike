@@ -46,7 +46,7 @@ impl<V> Memo<V> {
         }
     }
 
-    fn forget_all(&self) {
+    pub fn forget_all(&self) {
         self.revision.fetch_add(1, Ordering::AcqRel);
         self.entries.clear();
     }
