@@ -3102,8 +3102,10 @@ Columns: the function's output (`item_kind`, `source_ref`, `session_uuid`, `sess
 `idx_seat_memory_items_search_tsv` (GIN on `search_tsv`).
 
 The same migration adds the `seat_memory_sources` row of `memory.change_generations`, bumped once
-per statement by `AFTER INSERT … FOR EACH STATEMENT` triggers on `launch.launches`,
-`launch.fleet_events` and `mailbox.messages`, and the `seat_memory_index` toggle key.
+per statement by `AFTER INSERT … FOR EACH STATEMENT` triggers on `launch.launches` and
+`launch.fleet_events`, and the `seat_memory_index` toggle key. The trigger on `mailbox.messages`
+was dropped by migration `20261123130000`: seat memory reads mail only through an operator turn
+that names the message, so inserting mail changes nothing it returns.
 
 ---
 

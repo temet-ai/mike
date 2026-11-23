@@ -12,7 +12,7 @@ WITH seat_sessions AS MATERIALIZED (
     SELECT DISTINCT ON (sm.project_id, sm.item_kind, sm.source_ref, sm.session_uuid) sm.*
       FROM (SELECT array_agg(k.session_uuid) AS sessions FROM seat_sessions k) keys
      CROSS JOIN LATERAL memory.seat_memory(keys.sessions) sm
-     WHERE sm.session_uuid IS NOT NULL AND sm.source_ref IS NOT NULL AND sm.text IS NOT NULL
+     WHERE keys.sessions IS NOT NULL AND sm.session_uuid IS NOT NULL AND sm.source_ref IS NOT NULL AND sm.text IS NOT NULL
      ORDER BY sm.project_id, sm.item_kind, sm.source_ref, sm.session_uuid, sm.at
 ), changed AS (
     SELECT f.*
@@ -41,10 +41,16 @@ WITH seat_sessions AS MATERIALIZED (
            repeat_count = EXCLUDED.repeat_count, report_filed = EXCLUDED.report_filed,
            verdict_accepted = EXCLUDED.verdict_accepted, refreshed_at = now()
     RETURNING 1
-), removed AS (
+), removed_scoped AS (
     DELETE FROM memory.seat_memory_items i
-     WHERE ($1::bigint IS NULL
-            OR i.session_uuid IN (SELECT k.session_uuid FROM seat_sessions k))
+     WHERE i.session_uuid IN (SELECT k.session_uuid FROM seat_sessions k)
+       AND NOT EXISTS (SELECT 1 FROM fresh f
+                        WHERE f.project_id = i.project_id AND f.item_kind = i.item_kind
+                          AND f.source_ref = i.source_ref AND f.session_uuid = i.session_uuid)
+    RETURNING 1
+), removed_all AS (
+    DELETE FROM memory.seat_memory_items i
+     WHERE $1::bigint IS NULL
        AND NOT EXISTS (SELECT 1 FROM fresh f
                         WHERE f.project_id = i.project_id AND f.item_kind = i.item_kind
                           AND f.source_ref = i.source_ref AND f.session_uuid = i.session_uuid)
@@ -52,7 +58,7 @@ WITH seat_sessions AS MATERIALIZED (
 )
 SELECT (SELECT count(*) FROM fresh) AS "items!",
        (SELECT count(*) FROM written) AS "written!",
-       (SELECT count(*) FROM removed) AS "removed!",
+       ((SELECT count(*) FROM removed_scoped) + (SELECT count(*) FROM removed_all)) AS "removed!",
        (SELECT COALESCE(max(l.id), 0) FROM launch.launches l) AS "launch_mark!",
        (SELECT COALESCE(max(e.id), 0) FROM launch.fleet_events e) AS "event_mark!",
        now() - interval '1 minute' AS "turn_mark!"

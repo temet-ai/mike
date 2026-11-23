@@ -421,7 +421,7 @@ async fn checking_for_brief_mail_that_is_already_queued_bumps_no_generation() ->
     let before = seat_memory_generation(&env).await?;
     env.persist.mail_launch_briefs(session).await?;
     let queued = seat_memory_generation(&env).await?;
-    assert!(queued > before, "queuing the brief adds a mail row");
+    assert_eq!(queued, before, "a mail insert does not wake seat memory");
     for _ in 0..3 {
         env.persist.mail_launch_briefs(session).await?;
     }
@@ -429,6 +429,11 @@ async fn checking_for_brief_mail_that_is_already_queued_bumps_no_generation() ->
         seat_memory_generation(&env).await?,
         queued,
         "a check that adds no mail leaves seat memory alone"
+    );
+    env.launch(Uuid::new_v4(), "note", "Another brief.").await?;
+    assert!(
+        seat_memory_generation(&env).await? > queued,
+        "a launch wakes seat memory"
     );
     env.cleanup().await
 }
