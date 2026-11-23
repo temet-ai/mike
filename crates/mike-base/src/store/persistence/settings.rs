@@ -45,7 +45,7 @@ impl PersistHandle {
         self.fetch_settings_for_machine(machine).await
     }
 
-    pub async fn fetch_settings_for_machine(
+    pub(super) async fn read_resolved_settings(
         &self,
         machine: Option<Uuid>,
     ) -> Result<Vec<(String, serde_json::Value)>, PersistError> {
@@ -103,6 +103,7 @@ impl PersistHandle {
             .execute(&self.pool)
             .await?;
 
+            self.forget_settings();
             Ok(())
         })
         .await
@@ -130,6 +131,7 @@ impl PersistHandle {
             .await?;
             let ids = super::change_log::own_change_ids(&mut tx).await?;
             tx.commit().await?;
+            self.forget_settings();
             Ok(ids)
         })
         .await
@@ -153,6 +155,7 @@ impl PersistHandle {
                 .await?;
             let ids = super::change_log::own_change_ids(&mut tx).await?;
             tx.commit().await?;
+            self.forget_settings();
             Ok(ids)
         })
         .await
@@ -174,6 +177,7 @@ impl PersistHandle {
                 .await?
                 .rows_affected();
             tx.commit().await?;
+            self.forget_settings();
             Ok(deleted > 0)
         })
         .await

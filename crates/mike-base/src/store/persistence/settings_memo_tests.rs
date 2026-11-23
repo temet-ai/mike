@@ -40,3 +40,42 @@ async fn a_setting_is_kept_until_the_config_listener_reloads() -> anyhow::Result
     assert_eq!(handle.setting_value("test.absent").await?, None);
     db.cleanup().await
 }
+
+fn resolved(rows: &[(String, serde_json::Value)]) -> Option<serde_json::Value> {
+    rows.iter()
+        .find(|(key, _)| key == "test.memo")
+        .map(|(_, value)| value.clone())
+}
+
+#[tokio::test]
+async fn resolved_settings_are_kept_until_a_reload_or_an_own_write() -> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    handle.settings_changed();
+    write(&handle, 1).await?;
+    assert_eq!(
+        resolved(&handle.fetch_settings_for_machine(None).await?),
+        Some(1.into())
+    );
+    write(&handle, 2).await?;
+    assert_eq!(
+        resolved(&handle.fetch_settings_for_machine(None).await?),
+        Some(1.into()),
+        "kept until the reload"
+    );
+    handle.settings_changed();
+    assert_eq!(
+        resolved(&handle.fetch_settings_for_machine(None).await?),
+        Some(2.into())
+    );
+
+    handle.upsert_setting("test.memo", &3.into()).await?;
+    assert_eq!(
+        resolved(&handle.fetch_settings_for_machine(None).await?),
+        Some(3.into()),
+        "this process's own write is read back at once"
+    );
+    db.cleanup().await
+}

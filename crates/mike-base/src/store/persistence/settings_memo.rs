@@ -4,10 +4,17 @@
 //! [`PersistHandle::settings_changed`] on each one and whenever it connects
 //! again, so a kept value is never older than the overlay itself. Until the
 //! listener first reloads, every read goes to the database.
+//!
+//! The resolved settings of a machine (its `config.machine_settings` rows over
+//! the shared `config.settings`) are kept the same way: `config.machine_settings`
+//! fires the same NOTIFY. This process's own writes drop the kept values at
+//! once, so a write is read back without waiting for the listener.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use dashmap::DashMap;
+use uuid::Uuid;
 
 use super::{PersistError, PersistHandle};
 
@@ -18,16 +25,45 @@ struct SettingValues {
     live: AtomicBool,
     generation: AtomicU64,
     values: DashMap<String, Option<serde_json::Value>>,
+    resolved: DashMap<Option<Uuid>, Arc<Vec<(String, serde_json::Value)>>>,
 }
+
+pub type ResolvedSettings = Vec<(String, serde_json::Value)>;
 
 impl PersistHandle {
     /// Drops every kept setting value; the config listener calls this on each
     /// reload, which also turns the memo on.
     pub fn settings_changed(&self) {
+        self.forget_settings();
+        self.memo::<SettingValues>()
+            .live
+            .store(true, Ordering::Release);
+    }
+
+    /// Drops every kept setting value without turning the memo on; called
+    /// after this process writes `config.settings` or `config.machine_settings`.
+    pub fn forget_settings(&self) {
         let memo = self.memo::<SettingValues>();
         memo.generation.fetch_add(1, Ordering::AcqRel);
         memo.values.clear();
-        memo.live.store(true, Ordering::Release);
+        memo.resolved.clear();
+    }
+
+    pub async fn fetch_settings_for_machine(
+        &self,
+        machine: Option<Uuid>,
+    ) -> Result<ResolvedSettings, PersistError> {
+        let memo = self.memo::<SettingValues>();
+        let live = memo.live.load(Ordering::Acquire);
+        if live && let Some(rows) = memo.resolved.get(&machine) {
+            return Ok(rows.as_ref().clone());
+        }
+        let generation = memo.generation.load(Ordering::Acquire);
+        let rows = self.read_resolved_settings(machine).await?;
+        if live && memo.generation.load(Ordering::Acquire) == generation {
+            memo.resolved.insert(machine, Arc::new(rows.clone()));
+        }
+        Ok(rows)
     }
 
     pub async fn setting_value(
