@@ -1,5 +1,7 @@
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub mod candidates;
+#[cfg(test)]
+pub mod candidates_tests;
 pub mod first_ten;
 pub mod grade;
 pub mod load;
@@ -139,9 +141,9 @@ async fn gated_tick(state: &KnowledgeState, persist: &PersistHandle, now: DateTi
     }
     memory_workers::mark_running(RERANK_NIGHTLY, Utc::now());
     let window = window_start(now, budget.start_hour_utc);
-    let whole = !once::finished(window);
-    let pass = pass_with(state, persist, &budget, now, &idle, whole).await;
-    if whole && pass.stopped.is_none() {
+    let with_pairs = !once::finished(window);
+    let pass = pass_with(state, persist, &budget, now, &idle, with_pairs).await;
+    if with_pairs && pass.stopped.is_none() {
         once::mark_finished(window);
     }
     report(&pass);
@@ -164,20 +166,27 @@ async fn pass_with(
     budget: &QuietBudget,
     now: DateTime<Utc>,
     idle: &(impl Idle + Sync),
-    whole: bool,
+    with_pairs: bool,
 ) -> Pass {
     let mut pass = Pass::default();
     let rows = persist.fetch_settings().await.unwrap_or_default();
     let template = first_ten::grading_template_from_rows(&rows);
     pass.stopped = grade_phase(state, persist, idle, &template, &mut pass.graded).await;
+    let window_start = window_start(now, budget.start_hour_utc);
     if pass.stopped.is_none() {
-        let window_start = window_start(now, budget.start_hour_utc);
         pass.stopped = tune_phase(state, persist, window_start, now, &mut pass.tuned).await;
     }
-    if whole && pass.stopped.is_none() {
-        pass.stopped = candidates_phase(state, persist, idle, &mut pass.thread_candidates).await;
+    if pass.stopped.is_none() {
+        pass.stopped = candidates_phase(
+            state,
+            persist,
+            idle,
+            window_start,
+            &mut pass.thread_candidates,
+        )
+        .await;
     }
-    if whole
+    if with_pairs
         && pass.stopped.is_none()
         && let Some(phase) = state.lesson_pairs.clone()
     {

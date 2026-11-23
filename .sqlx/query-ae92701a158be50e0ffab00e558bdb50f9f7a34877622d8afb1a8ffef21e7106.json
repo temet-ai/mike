@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE work.thread_card_candidates SET built_at = now() WHERE thread_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ae92701a158be50e0ffab00e558bdb50f9f7a34877622d8afb1a8ffef21e7106"
+}

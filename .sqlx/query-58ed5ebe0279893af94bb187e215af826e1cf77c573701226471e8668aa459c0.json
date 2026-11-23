@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH own_turn AS (\n    SELECT max(t.id) AS id\n    FROM memory.operator_turns t JOIN sessions.sessions s ON s.id = t.session_id\n    WHERE s.session_uuid = $7::uuid AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n), own_refs AS (\n    SELECT 'turn:' || o.id AS reference FROM own_turn o WHERE o.id IS NOT NULL\n    UNION ALL\n    SELECT vk.kind || ':' || v.id\n    FROM own_turn o\n    JOIN memory.live_turn_verdicts_v v ON v.operator_turn_id = o.id\n    CROSS JOIN (VALUES ('unmet_ask'), ('correction')) vk(kind)\n), nearest_knowledge_chunks AS MATERIALIZED (\n    SELECT c.state_id, c.embedding <=> $2::text::public.vector AS distance\n    FROM memory.knowledge_embedding_chunks c\n    WHERE $6::bool\n    ORDER BY c.embedding <=> $2::text::public.vector\n    LIMIT 1000\n), semantic_chunks AS (\n    (SELECT e.reference, 1 - (c.embedding <=> $2::text::public.vector) AS score\n     FROM memory.knowledge_embedding_chunks c\n     JOIN memory.knowledge_embedding_state e ON e.id = c.state_id\n     WHERE NOT $6::bool\n       AND (e.project_id = $1 OR (e.project_id IS NULL AND e.source_kind = 'artifact')) AND e.reference IS NOT NULL\n       AND e.model_key = ANY($3::text[]) AND e.completed_at IS NOT NULL\n     ORDER BY c.embedding <=> $2::text::public.vector\n     LIMIT 200)\n    UNION ALL\n    (SELECT e.reference, 1 - n.distance AS score\n     FROM nearest_knowledge_chunks n\n     JOIN memory.knowledge_embedding_state e ON e.id = n.state_id\n     WHERE (e.project_id = $1 OR (e.project_id IS NULL AND e.source_kind = 'artifact')) AND e.reference IS NOT NULL\n       AND e.model_key = ANY($3::text[]) AND e.completed_at IS NOT NULL\n     ORDER BY n.distance\n     LIMIT 200)\n    UNION ALL\n    (SELECT 'turn:' || c.turn_id, 1 - (c.chunk_embedding <=> $2::text::public.vector)\n     FROM memory.operator_turn_chunks c JOIN memory.operator_turns t ON t.id = c.turn_id\n     WHERE t.project_id = $1 AND c.embedding_model = $4\n       AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n     ORDER BY c.chunk_embedding <=> $2::text::public.vector\n     LIMIT 200)\n)\nSELECT reference AS \"reference!\", score AS \"score!\"\nFROM (SELECT reference, max(score) AS score, max(max(score)) OVER () AS best\n      FROM semantic_chunks\n      WHERE ($8::text[] IS NULL OR split_part(reference, ':', 1)\n            = ANY(SELECT CASE WHEN wanted.kind IN ('memory', 'skill') THEN 'artifact' ELSE wanted.kind END\n                    FROM unnest($8::text[]) AS wanted(kind)))\n        AND NOT EXISTS (SELECT 1 FROM own_refs o WHERE o.reference = semantic_chunks.reference)\n      GROUP BY reference) per_reference\nWHERE score >= GREATEST(($5::float8[])[1], best - ($5::float8[])[2])\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "score!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "TextArray",
+        "Text",
+        "Float8Array",
+        "Bool",
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "58ed5ebe0279893af94bb187e215af826e1cf77c573701226471e8668aa459c0"
+}

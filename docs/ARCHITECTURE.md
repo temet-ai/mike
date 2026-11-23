@@ -1448,7 +1448,15 @@ running service; every setting's kept change or best rejected candidate is recor
 
 After tuning, and under the same quiet window, idle check before each unit of work and lease, the night
 pass builds two more derived sets. `rerank_nightly/candidates.rs` visits each open work thread (any status
-but done, complete, parked or superseded): the query text is the thread's title, goal and the latest
+but done, complete, parked or superseded) that is due. The database decides which threads are due
+(`threads_due_for_card_candidates`, one statement given the start of the current quiet window), so the
+answer survives a restart or a move of the worker lease: a thread with no rows is due when its project has
+knowledge beyond the thread's own entries; a thread whose title, goal or checkpoint changed after its rows'
+`built_at` is due at once; a thread last checked before the window start is due when its project gained a
+lesson, thread entry, session note or operator turn since; a thread checked inside the window is not due
+again, and a thread with no query text never is. A reranked result equal to the stored rows still sets
+`built_at = now()`, which is how a check is recorded; only inserts and deletes bump `thread_card_sources`.
+The query text is the thread's title, goal and the latest
 checkpoint's tldr, where_we_are and next_up, cut to the reranker's 600-character query cap. It runs the
 project's knowledge search for 100 candidates (the query's terms joined with `or`, so a long text matches
 documents that share any term; the embedding comes from the text as written), keeps lessons, thread entries

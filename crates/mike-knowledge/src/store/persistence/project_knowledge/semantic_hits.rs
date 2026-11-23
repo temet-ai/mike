@@ -14,7 +14,7 @@ pub struct SemanticAsk<'a> {
     pub cut: [f64; 2],
     pub nearest_first: bool,
     pub caller: Option<uuid::Uuid>,
-    pub kind: Option<&'a str>,
+    pub kinds: Option<&'a [String]>,
 }
 
 pub async fn semantic_hits(
@@ -31,7 +31,7 @@ pub async fn semantic_hits(
         &ask.cut[..],
         ask.nearest_first,
         ask.caller,
-        ask.kind,
+        ask.kinds,
     )
     .fetch_all(&mut **tx)
     .await?;

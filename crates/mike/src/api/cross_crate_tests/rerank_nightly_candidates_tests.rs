@@ -74,6 +74,17 @@ async fn rows(pool: &PgPool, thread_id: i64) -> anyhow::Result<Vec<(i32, String,
     .await?)
 }
 
+async fn checked_before_the_window(pool: &PgPool, thread_id: i64) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE work.thread_card_candidates SET built_at = timestamptz '2026-11-01 00:00:00+00'
+          WHERE thread_id = $1",
+    )
+    .bind(thread_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 async fn sources_generation(pool: &PgPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar(
         "SELECT generation FROM memory.change_generations WHERE name = 'thread_card_sources'",
@@ -111,6 +122,7 @@ async fn night_pass_with_many_lessons_ranks_ten_for_the_thread_and_replaces_them
     .bind(thread_id)
     .execute(pool)
     .await?;
+    checked_before_the_window(pool, thread_id).await?;
     let second = night_pass(
         &harness.state.knowledge_state(),
         &harness.handle,
@@ -201,6 +213,7 @@ async fn night_pass_when_the_reranker_fails_leaves_the_threads_old_candidates() 
             }],
         )
         .await?;
+    checked_before_the_window(harness.handle.pool(), thread_id).await?;
     let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
@@ -216,6 +229,44 @@ async fn night_pass_when_the_reranker_fails_leaves_the_threads_old_candidates() 
     let kept = rows(harness.handle.pool(), thread_id).await?;
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].1, "lesson:old");
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn night_pass_second_pass_in_the_same_window_visits_no_thread() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    harness.enable_rerank(2_000);
+    harness.reranker_prefers_later_documents(None).await;
+    let project = project(&harness).await?;
+    let thread_id = thread(&harness, project, "cache-tuning", "tune the reranker cache").await?;
+    lessons(harness.handle.pool(), project, 3).await?;
+    let budget = quiet_budget(&harness.state.knowledge_state());
+
+    let first = night_pass(
+        &harness.state.knowledge_state(),
+        &harness.handle,
+        &budget,
+        at(23),
+        &AlwaysIdle,
+    )
+    .await;
+    let never_idle = IdleOnce(AtomicUsize::new(1));
+    let second = night_pass(
+        &harness.state.knowledge_state(),
+        &harness.handle,
+        &budget,
+        at(23),
+        &never_idle,
+    )
+    .await;
+
+    assert_eq!(first.stopped, None);
+    assert_eq!(first.thread_candidates, 1);
+    assert_eq!(
+        second.stopped, None,
+        "a thread listed again would have stopped the pass on the busy machine"
+    );
+    assert!(!rows(harness.handle.pool(), thread_id).await?.is_empty());
     harness.cleanup().await
 }
 

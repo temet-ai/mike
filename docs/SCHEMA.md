@@ -6231,7 +6231,7 @@ that are still live and renders them as the card's `Related` section. Derived da
 | `ref` | `TEXT NOT NULL` | `lesson:<uuid>`, `entry:<thread_log id>`, `note:<uuid>` or `turn:<id>` |
 | `kind` | `TEXT NOT NULL` | The prefix of `ref`: `lesson`, `entry`, `note` or `turn` |
 | `score` | `REAL NOT NULL` | Reranker relevance to the thread's query text |
-| `built_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the nightly pass wrote the row |
+| `built_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the nightly pass last wrote or re-checked the thread's rows; an equal result updates it without touching the rows, and `threads_due_for_card_candidates` reads it to decide which threads to rebuild |
 
 **Triggers:** `trg_thread_card_candidates_card_sources` (statement level, insert and delete) bumps the
 `thread_card_sources` row of `memory.change_generations`; `thread_cards_behind_their_threads` counts the

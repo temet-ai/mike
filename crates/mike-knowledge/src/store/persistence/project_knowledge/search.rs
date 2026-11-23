@@ -37,6 +37,8 @@ pub struct KnowledgeQuery {
     #[serde(default)]
     pub query: String,
     pub kind: Option<String>,
+    #[serde(skip)]
+    pub kinds: Option<Vec<String>>,
     #[serde(default)]
     pub include_historical: bool,
     #[serde(default)]
@@ -51,6 +53,12 @@ pub struct KnowledgeQuery {
 impl KnowledgeQuery {
     pub fn window(&self) -> Result<SearchWindow, String> {
         SearchWindow::parse(self.since.as_deref(), self.until.as_deref())
+    }
+
+    fn wanted_kinds(&self) -> Option<Vec<String>> {
+        self.kinds
+            .clone()
+            .or_else(|| self.kind.clone().map(|kind| vec![kind]))
     }
 
     fn thread_slug(&self) -> Option<&str> {
@@ -78,7 +86,7 @@ impl<'a> QueryVector<'a> {
         &'s self,
         project_id: i64,
         scope: &CallScope,
-        kind: Option<&'s str>,
+        kinds: Option<&'s [String]>,
     ) -> Option<SemanticAsk<'s>> {
         Some(SemanticAsk {
             project_id,
@@ -88,7 +96,7 @@ impl<'a> QueryVector<'a> {
             cut: self.cut_bounds(),
             nearest_first: self.nearest_first,
             caller: scope.caller,
-            kind,
+            kinds,
         })
     }
 
@@ -143,7 +151,7 @@ fn fetch_hits<'a>(
     sqlx::query_scalar::<_, Value>(include_str!("search.sql"))
         .bind(project_id)
         .bind(&input.query)
-        .bind(&input.kind)
+        .bind(input.wanted_kinds())
         .bind(input.include_historical)
         .bind(limit)
         .bind(offset)
@@ -248,7 +256,8 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         let mut tx = self.pool().begin().await?;
         let bound = QueryVector::from(vector, input.semantic_cut, nearest_first);
         let scope = CallScope::of(input, window);
-        let semantic = match bound.ask(project_id, &scope, input.kind.as_deref()) {
+        let kinds = input.wanted_kinds();
+        let semantic = match bound.ask(project_id, &scope, kinds.as_deref()) {
             Some(ask) => {
                 set_vector_scan_limits(&mut tx).await?;
                 crate::metrics::time_db("knowledge_search_semantic", semantic_hits(&mut tx, ask))

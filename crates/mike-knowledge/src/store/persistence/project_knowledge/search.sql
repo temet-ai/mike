@@ -42,7 +42,7 @@ WITH own_turn AS (
 ), pool_probe AS (
     SELECT 'artifact' AS kind, h.id AS kid, NULL::text AS ks1, NULL::text AS ks2, NULL::text AS ks3,
            count(*) AS matched, bool_or(t.ident) AS ident
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR $3::text[] && ARRAY['artifact', 'memory', 'skill']) t
      CROSS JOIN LATERAL (SELECT r0.id
                            FROM (SELECT r1.id FROM memory.knowledge_revisions r1 WHERE r1.search_tsv @@ t.tq OFFSET 0) r0
                            JOIN memory.knowledge_documents d0 ON d0.current_revision = r0.id
@@ -52,7 +52,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'lesson', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'lesson' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT l0.id
                            FROM (SELECT l1.id, l1.project_id FROM memory.lessons l1
                                   WHERE l1.search_tsv @@ t.tq OFFSET 0) l0
@@ -60,7 +60,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'note', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'note' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT n0.id
                            FROM (SELECT n1.id, n1.session_id FROM workspace.session_notes n1
                                   WHERE n1.search_tsv @@ t.tq OFFSET 0) n0
@@ -69,7 +69,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'turn', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'turn' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT t0.id
                            FROM (SELECT t1.id, t1.project_id, t1.opened_by FROM memory.operator_turns t1
                                   WHERE t1.project_id = $1 AND t1.search_tsv @@ t.tq OFFSET 0) t0
@@ -77,7 +77,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'thread_msg', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'thread' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT m0.id
                            FROM (SELECT m1.id, m1.thread_id FROM mailbox.messages m1
                                   WHERE m1.thread_id IS NOT NULL AND m1.search_tsv @@ t.tq OFFSET 0) m0
@@ -86,7 +86,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'thread_entry', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'thread_entry' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT e0.id
                            FROM (SELECT e1.id, e1.thread_id FROM work.thread_log e1
                                   WHERE e1.search_tsv @@ t.tq OFFSET 0) e0
@@ -95,7 +95,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'question_answer', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'question_answer' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT a0.id
                            FROM (SELECT a1.id, a1.project_id FROM workspace.questions a1
                                   WHERE a1.search_tsv @@ t.tq OFFSET 0) a0
@@ -103,7 +103,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'verdict', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR $3::text[] && ARRAY['unmet_ask', 'correction']) t
      CROSS JOIN LATERAL (SELECT v0.id
                            FROM (SELECT v1.id, v1.operator_turn_id FROM memory.turn_verdicts v1
                                   WHERE v1.mode = 'live'
@@ -114,7 +114,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'learning', NULL, h.session_id::text, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'learning' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT k0.session_id
                            FROM (SELECT k1.session_id FROM memory.session_knowledge k1
                                   WHERE k1.search_tsv @@ t.tq OFFSET 0) k0
@@ -123,7 +123,7 @@ WITH own_turn AS (
      GROUP BY h.session_id
     UNION ALL
     SELECT 'session', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'session' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT s0.id
                            FROM (SELECT s1.id, s1.project_id FROM sessions.sessions s1
                                   WHERE s1.overview_tsv @@ t.tq OFFSET 0) s0
@@ -131,7 +131,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'mail', h.id, NULL, NULL, NULL, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'mail' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT m0.id
                            FROM (SELECT m1.id, m1.from_session_id, m1.thread_id FROM mailbox.messages m1
                                   WHERE m1.from_session_id IS NOT NULL AND m1.search_tsv @@ t.tq OFFSET 0) m0
@@ -141,7 +141,7 @@ WITH own_turn AS (
      GROUP BY h.id
     UNION ALL
     SELECT 'seat', NULL, h.item_kind, h.source_ref, h.session_uuid::text, count(*), bool_or(t.ident)
-      FROM terms t
+      FROM (SELECT * FROM terms WHERE $3::text[] IS NULL OR 'seat' = ANY($3::text[])) t
      CROSS JOIN LATERAL (SELECT i0.item_kind, i0.source_ref, i0.session_uuid
                            FROM (SELECT i1.item_kind, i1.source_ref, i1.session_uuid, i1.project_id
                                    FROM memory.seat_memory_items i1
@@ -216,14 +216,14 @@ WITH own_turn AS (
       JOIN memory.knowledge_kinds nk ON nk.kind = h.source_kind AND NOT nk.built_in
      WHERE $2 <> '' AND h.project_id = $1 AND h.completed_at IS NOT NULL
        AND h.search_tsv @@ (SELECT match_tsq FROM q)
-       AND ($3::text IS NULL OR h.source_kind = $3::text)
+       AND ($3::text[] IS NULL OR h.source_kind = ANY($3::text[]))
     UNION
     SELECT h.id
       FROM memory.knowledge_kinds nk
       JOIN semantic s2 ON starts_with(s2.reference, nk.kind || ':')
       JOIN memory.knowledge_embedding_state h ON h.reference = s2.reference AND h.source_kind = nk.kind
      WHERE NOT nk.built_in AND h.project_id = $1 AND h.completed_at IS NOT NULL
-       AND ($3::text IS NULL OR h.source_kind = $3::text)
+       AND ($3::text[] IS NULL OR h.source_kind = ANY($3::text[]))
     UNION
     (SELECT newest.state_id
        FROM memory.knowledge_kinds nk
@@ -232,7 +232,7 @@ WITH own_turn AS (
             FROM memory.knowledge_items hi
             JOIN memory.knowledge_embedding_state e ON e.item_id = hi.id AND e.completed_at IS NOT NULL
            WHERE $2 = '' AND hi.kind = nk.kind AND hi.project_id = $1
-             AND ($3::text IS NULL OR hi.kind = $3::text)
+             AND ($3::text[] IS NULL OR hi.kind = ANY($3::text[]))
            ORDER BY hi.changed_at DESC
            LIMIT (SELECT m FROM bound)) newest
       WHERE NOT nk.built_in
@@ -281,7 +281,7 @@ WITH own_turn AS (
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE (loc.project_id = $1 OR s.machine_uuid IS NOT NULL)
        AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
-       AND ($3::text IS NULL OR $3::text = 'artifact')
+       AND ($3::text[] IS NULL OR 'artifact' = ANY($3::text[]))
        AND s.name NOT IN ('claude-memory', 'skills')
        AND ($4 OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
     UNION ALL
@@ -319,7 +319,7 @@ WITH own_turn AS (
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE (loc.project_id = $1 OR s.machine_uuid IS NOT NULL)
        AND ($2 = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
-       AND ($3::text IS NULL OR $3::text IN ('memory', 'skill'))
+       AND ($3::text[] IS NULL OR $3::text[] && ARRAY['memory', 'skill'])
        AND s.name IN ('claude-memory', 'skills')
        AND ($4 OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
     UNION ALL
@@ -356,7 +356,7 @@ WITH own_turn AS (
      CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE l.search_tsv END AS tsv
                          OFFSET 0) lt
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
-     WHERE l.project_id = $1 AND ($3::text IS NULL OR $3::text = 'lesson')
+     WHERE l.project_id = $1 AND ($3::text[] IS NULL OR 'lesson' = ANY($3::text[]))
        AND ($2 = '' OR lt.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($4 OR (l.archived_at IS NULL AND (l.expires_at IS NULL OR l.expires_at > now())
          AND NOT COALESCE(lm.superseded, false)))
@@ -381,7 +381,7 @@ WITH own_turn AS (
              ORDER BY h.updated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN workspace.session_notes n ON n.id = hit.id
       JOIN sessions.sessions ss ON ss.id = n.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'note:' || n.note_uuid
-     WHERE ss.project_id = $1 AND ($3::text IS NULL OR $3::text = 'note')
+     WHERE ss.project_id = $1 AND ($3::text[] IS NULL OR 'note' = ANY($3::text[]))
        AND ($2 = '' OR n.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($4 OR COALESCE(n.status, '') NOT IN ('superseded', 'archived', 'rejected'))
     UNION ALL
@@ -404,7 +404,7 @@ WITH own_turn AS (
              ORDER BY h.created_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.operator_turns t ON t.id = hit.id
       JOIN sessions.sessions ss ON ss.id = t.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'turn:' || t.id
-     WHERE t.project_id = $1 AND ($3::text IS NULL OR $3::text = 'turn')
+     WHERE t.project_id = $1 AND ($3::text[] IS NULL OR 'turn' = ANY($3::text[]))
        AND ($2 = '' OR t.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND (t.opened_by IS NULL OR t.opened_by = 'operator')
     UNION ALL
@@ -422,7 +422,7 @@ WITH own_turn AS (
                     AND (NOT q.pool OR m.id IN (SELECT ph.kid FROM pool_pick ph WHERE ph.kind = 'thread_msg'))
                   GROUP BY m.thread_id) hit ON hit.thread_id = th.id
       LEFT JOIN semantic sem ON sem.reference = 'thread:' || th.thread_uuid
-     WHERE th.project_id = $1 AND ($3::text IS NULL OR $3::text = 'thread')
+     WHERE th.project_id = $1 AND ($3::text[] IS NULL OR 'thread' = ANY($3::text[]))
        AND ($2 = '' OR hit.thread_id IS NOT NULL OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(doc.tsv @@ q.ident_tsq, false),
@@ -441,7 +441,7 @@ WITH own_turn AS (
               wts.decisions) AS txt) txt
      CROSS JOIN LATERAL (SELECT txt.txt,
               COALESCE(wt.search_tsv, ''::tsvector) || COALESCE(wts.search_tsv, ''::tsvector) AS tsv) doc
-     WHERE wt.project_id = $1 AND ($3::text IS NULL OR $3::text = 'work_thread')
+     WHERE wt.project_id = $1 AND ($3::text[] IS NULL OR 'work_thread' = ANY($3::text[]))
        AND ($2 = '' OR doc.tsv @@ q.match_tsq)
     UNION ALL
     SELECT COALESCE(doc.tsv @@ q.ident_tsq, false),
@@ -471,7 +471,7 @@ WITH own_turn AS (
       LEFT JOIN sessions.sessions ws ON ws.session_uuid = l.session_uuid CROSS JOIN q
      CROSS JOIN LATERAL (SELECT concat_ws(E'\n\n', l.summary, l.body) AS txt, l.search_tsv AS tsv) doc
       LEFT JOIN semantic sem ON sem.reference = 'thread_entry:' || l.id
-     WHERE wt.project_id = $1 AND ($3::text IS NULL OR $3::text = 'thread_entry')
+     WHERE wt.project_id = $1 AND ($3::text[] IS NULL OR 'thread_entry' = ANY($3::text[]))
        AND ($2 = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND ($4 OR l.kind IS DISTINCT FROM 'state-replaced')
     UNION ALL
@@ -501,7 +501,7 @@ WITH own_turn AS (
               CASE WHEN $2 = '' THEN ''::tsvector
                    ELSE qa.search_tsv END AS tsv OFFSET 0) doc
       LEFT JOIN semantic sem ON sem.reference = 'question_answer:' || qa.question_uuid
-     WHERE qa.project_id = $1 AND qa.answer IS NOT NULL AND ($3::text IS NULL OR $3::text = 'question_answer')
+     WHERE qa.project_id = $1 AND qa.answer IS NOT NULL AND ($3::text[] IS NULL OR 'question_answer' = ANY($3::text[]))
        AND ($2 = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(vt.tsv @@ q.ident_tsq, false),
@@ -536,7 +536,7 @@ WITH own_turn AS (
                          OFFSET 0) vt
      CROSS JOIN LATERAL (VALUES ('unmet_ask'), ('correction')) vk(kind) CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = vk.kind || ':' || v.id
-     WHERE v.project_id = $1 AND ($3::text IS NULL OR $3::text IN ('unmet_ask', 'correction'))
+     WHERE v.project_id = $1 AND ($3::text[] IS NULL OR $3::text[] && ARRAY['unmet_ask', 'correction'])
        AND CASE vk.kind WHEN 'unmet_ask' THEN btrim(COALESCE(v.unmet_ask, '')) <> ''
                 ELSE v.reaction IN ('corrected', 'redirected') END
        AND ($2 = '' OR vt.tsv @@ q.match_tsq
@@ -570,7 +570,7 @@ WITH own_turn AS (
                            FROM (SELECT memory.session_learnings_text(k.learnings) AS txt OFFSET 0) lkt
                          OFFSET 0) lk
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'learning:' || k.session_id
-     WHERE ls.project_id = $1 AND cardinality(k.learnings) > 0 AND ($3::text IS NULL OR $3::text = 'learning')
+     WHERE ls.project_id = $1 AND cardinality(k.learnings) > 0 AND ($3::text[] IS NULL OR 'learning' = ANY($3::text[]))
        AND ($2 = '' OR lk.tsv @@ q.match_tsq
             OR sem.score IS NOT NULL)
     UNION ALL
@@ -601,7 +601,7 @@ WITH own_turn AS (
      CROSS JOIN LATERAL (SELECT CASE WHEN $2 = '' THEN ''::tsvector ELSE ss.overview_tsv END AS tsv
                          OFFSET 0) sv
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'session:' || ss.session_uuid
-     WHERE ss.project_id = $1 AND btrim(coalesce(ss.overview, '')) <> '' AND ($3::text IS NULL OR $3::text = 'session')
+     WHERE ss.project_id = $1 AND btrim(coalesce(ss.overview, '')) <> '' AND ($3::text[] IS NULL OR 'session' = ANY($3::text[]))
        AND ($2 = '' OR sv.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(m.search_tsv @@ q.ident_tsq, false),
@@ -633,7 +633,7 @@ WITH own_turn AS (
       LEFT JOIN mailbox.threads mt ON mt.id = m.thread_id
       LEFT JOIN sessions.sessions mto ON mto.id = m.to_session_id CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = 'mail:' || m.message_uuid
-     WHERE COALESCE(mt.project_id, mf.project_id) = $1 AND ($3::text IS NULL OR $3::text = 'mail')
+     WHERE COALESCE(mt.project_id, mf.project_id) = $1 AND ($3::text[] IS NULL OR 'mail' = ANY($3::text[]))
        AND ($2 = '' OR m.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(si.search_tsv @@ q.ident_tsq, false),
@@ -675,7 +675,7 @@ WITH own_turn AS (
                                      THEN 'thread_entry:' || substr(si.source_ref, 7)
                                      ELSE si.source_ref END AS reference) seat_ref
       LEFT JOIN semantic sem ON sem.reference = seat_ref.reference
-     WHERE si.project_id = $1 AND ($3::text IS NULL OR $3::text = 'seat') AND ($2 = '' OR si.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+     WHERE si.project_id = $1 AND ($3::text[] IS NULL OR 'seat' = ANY($3::text[])) AND ($2 = '' OR si.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
     SELECT COALESCE(kh.search_tsv @@ q.ident_tsq, false),
            kh.reference, kh.source_kind, kb.name, 'current', NULL::text, kh.changed_at,
@@ -686,13 +686,13 @@ WITH own_turn AS (
       JOIN kind_bodies kb ON kb.kind = kh.source_kind AND kb.source_id = kh.source_id
      CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = kh.reference
-     WHERE kh.project_id = $1 AND ($3::text IS NULL OR $3::text = kh.source_kind)
+     WHERE kh.project_id = $1 AND ($3::text[] IS NULL OR kh.source_kind = ANY($3::text[]))
        AND ($2 = '' OR kh.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
 ), cheap AS MATERIALIZED (
     SELECT c.*, row_number() OVER () AS rid
       FROM candidates c
       LEFT JOIN own_refs o ON o.reference = c.reference
-     WHERE ($3::text IS NULL OR c.source_kind = $3)
+     WHERE ($3::text[] IS NULL OR c.source_kind = ANY($3::text[]))
        AND o.reference IS NULL
        AND ($13::timestamptz IS NULL OR c.updated_at >= $13::timestamptz)
        AND ($14::timestamptz IS NULL OR c.updated_at < $14::timestamptz)

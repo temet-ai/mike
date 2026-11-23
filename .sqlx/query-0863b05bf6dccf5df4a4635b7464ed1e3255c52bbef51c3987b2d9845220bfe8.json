@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open AS (\n                       SELECT t.id, t.project_id,\n                              GREATEST(t.updated_at, s.updated_at) AS text_changed_at,\n                              concat_ws(E'\\n', NULLIF(btrim(t.title), ''), NULLIF(btrim(t.goal), ''),\n                                        NULLIF(btrim(s.tldr), ''), NULLIF(btrim(s.where_we_are), ''),\n                                        NULLIF(btrim(s.next_up), '')) AS query_text\n                         FROM work.threads t\n                         LEFT JOIN work.thread_state s ON s.thread_id = t.id\n                        WHERE t.status IS NULL\n                           OR t.status NOT IN ('done', 'complete', 'parked', 'superseded')\n                   ), checked AS (\n                       SELECT c.thread_id, max(c.built_at) AS built_at\n                         FROM work.thread_card_candidates c\n                        GROUP BY c.thread_id\n                   )\n                   SELECT o.id AS \"thread_id!\", o.project_id AS \"project_id!\",\n                          o.query_text AS \"query_text!\"\n                     FROM open o\n                     LEFT JOIN checked b ON b.thread_id = o.id\n                    WHERE o.query_text <> ''\n                      AND CASE\n                            WHEN b.built_at IS NOT NULL AND o.text_changed_at > b.built_at THEN true\n                            WHEN b.built_at IS NULL OR b.built_at < $1 THEN\n                                EXISTS (SELECT 1 FROM memory.lessons k\n                                         WHERE k.project_id = o.project_id AND k.archived_at IS NULL\n                                           AND k.created_at > COALESCE(b.built_at, '-infinity'))\n                                OR EXISTS (SELECT 1 FROM memory.operator_turns k\n                                            WHERE k.project_id = o.project_id\n                                              AND (k.opened_by IS NULL OR k.opened_by = 'operator')\n                                              AND k.created_at > COALESCE(b.built_at, '-infinity'))\n                                OR EXISTS (SELECT 1 FROM work.thread_log k\n                                             JOIN work.threads w ON w.id = k.thread_id\n                                            WHERE w.project_id = o.project_id AND k.thread_id <> o.id\n                                              AND k.created_at > COALESCE(b.built_at, '-infinity'))\n                                OR EXISTS (SELECT 1 FROM workspace.session_notes k\n                                             JOIN sessions.sessions n ON n.id = k.session_id\n                                            WHERE n.project_id = o.project_id\n                                              AND k.created_at > COALESCE(b.built_at, '-infinity'))\n                            ELSE false\n                          END\n                    ORDER BY o.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "query_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "0863b05bf6dccf5df4a4635b7464ed1e3255c52bbef51c3987b2d9845220bfe8"
+}

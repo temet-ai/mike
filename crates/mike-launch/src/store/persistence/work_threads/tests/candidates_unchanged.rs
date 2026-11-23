@@ -57,6 +57,46 @@ async fn the_same_candidates_again_write_nothing_and_bump_nothing() -> anyhow::R
         "nothing tells the card worker to look again"
     );
 
+    let rows_before: Vec<(i32, String)> = sqlx::query_as(
+        "SELECT rank, ref FROM work.thread_card_candidates WHERE thread_id = $1 ORDER BY rank",
+    )
+    .bind(thread_id)
+    .fetch_all(pool)
+    .await?;
+    sqlx::query(
+        "UPDATE work.thread_card_candidates SET built_at = now() - interval '2 days' WHERE thread_id = $1",
+    )
+    .bind(thread_id)
+    .execute(pool)
+    .await?;
+    assert_eq!(
+        f.handle
+            .launch()
+            .replace_thread_card_candidates(thread_id, &first)
+            .await?,
+        0
+    );
+    let checked_again: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM work.thread_card_candidates
+          WHERE thread_id = $1 AND built_at > now() - interval '1 minute'",
+    )
+    .bind(thread_id)
+    .fetch_one(pool)
+    .await?;
+    let rows_after: Vec<(i32, String)> = sqlx::query_as(
+        "SELECT rank, ref FROM work.thread_card_candidates WHERE thread_id = $1 ORDER BY rank",
+    )
+    .bind(thread_id)
+    .fetch_all(pool)
+    .await?;
+    assert_eq!(checked_again, 2, "an equal result still records the check");
+    assert_eq!(rows_after, rows_before, "and leaves the rows alone");
+    assert_eq!(
+        generation(pool).await?,
+        bumped,
+        "without waking the card worker"
+    );
+
     let reordered = vec![candidate("lesson:b", 0.9), candidate("lesson:a", 0.5)];
     assert_eq!(
         f.handle

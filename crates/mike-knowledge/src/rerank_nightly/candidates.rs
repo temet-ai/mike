@@ -3,6 +3,7 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use super::grade::{embed_query, rerank_all};
@@ -11,7 +12,7 @@ use crate::analysis::rerank::MAX_QUERY_CHARS;
 use crate::api::project_knowledge::rerank_page::documents_for;
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::project_knowledge::KnowledgeQuery;
+use crate::store::persistence::project_knowledge::{KnowledgeQuery, SemanticCut};
 use crate::store::persistence::work_threads::{
     CandidateThread, NewThreadCandidate, WorkThreadError,
 };
@@ -19,6 +20,7 @@ use crate::store::persistence::work_threads::{
 const CANDIDATE_ROWS: i64 = 100;
 const LEXICAL_TERMS: usize = 40;
 const MIN_TERM_CHARS: usize = 3;
+pub(super) const KEPT_SOURCE_KINDS: [&str; 4] = ["lesson", "note", "turn", "thread_entry"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Built {
@@ -28,9 +30,9 @@ enum Built {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Contender {
-    reference: String,
-    kind: String,
+pub(super) struct Contender {
+    pub(super) reference: String,
+    pub(super) kind: String,
     row: Value,
 }
 
@@ -38,9 +40,14 @@ pub async fn candidates_phase(
     state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
+    window_start: DateTime<Utc>,
     written: &mut usize,
 ) -> Option<Stop> {
-    let threads = match persist.launch().threads_for_card_candidates().await {
+    let threads = match persist
+        .launch()
+        .threads_due_for_card_candidates(window_start)
+        .await
+    {
         Ok(threads) => threads,
         Err(error) => {
             return Some(database_failed(
@@ -88,11 +95,10 @@ async fn build_thread(
         return Ok(Built::Skipped);
     }
     let vector = embed_query(state, &query).await;
-    let input = KnowledgeQuery {
-        query: lexical_query(&query),
-        semantic_cut: state.rerank_service().ranking().semantic_cut(),
-        ..KnowledgeQuery::default()
-    };
+    let input = candidate_query(
+        lexical_query(&query),
+        state.rerank_service().ranking().semantic_cut(),
+    );
     let rows = persist
         .knowledge()
         .knowledge_candidate_rows(thread.project_id, &input, CANDIDATE_ROWS, vector.as_ref())
@@ -139,15 +145,32 @@ fn lexical_query(text: &str) -> String {
         .join(" or ")
 }
 
-fn contenders(rows: Vec<Value>) -> Vec<Contender> {
+pub(super) fn candidate_query(query: String, semantic_cut: SemanticCut) -> KnowledgeQuery {
+    KnowledgeQuery {
+        query,
+        semantic_cut,
+        kinds: Some(
+            KEPT_SOURCE_KINDS
+                .iter()
+                .map(|kind| (*kind).to_owned())
+                .collect(),
+        ),
+        ..KnowledgeQuery::default()
+    }
+}
+
+pub(super) fn contenders(rows: Vec<Value>) -> Vec<Contender> {
     rows.into_iter()
         .filter_map(|row| {
             let source_kind = row["source_kind"].as_str()?;
+            if !KEPT_SOURCE_KINDS.contains(&source_kind) {
+                return None;
+            }
             let reference = row["reference"].as_str()?;
-            let (kind, reference) = match source_kind {
-                "lesson" | "note" | "turn" => (source_kind, reference.to_owned()),
-                "thread_entry" => ("entry", format!("entry:{}", reference.split_once(':')?.1)),
-                _ => return None,
+            let (kind, reference) = if source_kind == "thread_entry" {
+                ("entry", format!("entry:{}", reference.split_once(':')?.1))
+            } else {
+                (source_kind, reference.to_owned())
             };
             Some(Contender {
                 reference,

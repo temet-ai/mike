@@ -43,8 +43,9 @@ WITH own_turn AS (
 SELECT reference AS "reference!", score AS "score!"
 FROM (SELECT reference, max(score) AS score, max(max(score)) OVER () AS best
       FROM semantic_chunks
-      WHERE ($8::text IS NULL OR split_part(reference, ':', 1)
-            = CASE WHEN $8::text IN ('memory', 'skill') THEN 'artifact' ELSE $8::text END)
+      WHERE ($8::text[] IS NULL OR split_part(reference, ':', 1)
+            = ANY(SELECT CASE WHEN wanted.kind IN ('memory', 'skill') THEN 'artifact' ELSE wanted.kind END
+                    FROM unnest($8::text[]) AS wanted(kind)))
         AND NOT EXISTS (SELECT 1 FROM own_refs o WHERE o.reference = semantic_chunks.reference)
       GROUP BY reference) per_reference
 WHERE score >= GREATEST(($5::float8[])[1], best - ($5::float8[])[2])

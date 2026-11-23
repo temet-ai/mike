@@ -336,6 +336,82 @@ async fn search_marks_a_lesson_a_later_lesson_contradicts_and_names_its_author_s
     Ok(())
 }
 
+async fn seed_turn(s: &Seeded) -> anyhow::Result<()> {
+    let pool = s.handle.pool();
+    let (project_id, session_uuid): (i64, String) = sqlx::query_as(
+        "SELECT p.id, (SELECT ss.session_uuid::text FROM sessions.sessions ss
+                        WHERE ss.project_id = p.id ORDER BY ss.id LIMIT 1)
+           FROM projects.projects p WHERE p.project_uuid = $1::text::uuid",
+    )
+    .bind(&s.project)
+    .fetch_one(pool)
+    .await?;
+    crate::store::persistence::test_support::seed_session_turns(pool, &session_uuid, project_id, 1)
+        .await?;
+    sqlx::query("UPDATE memory.operator_turns SET user_prompt = $2 WHERE project_id = $1")
+        .bind(project_id)
+        .bind(format!("{} turn text", s.word))
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+fn prefixes(references: &[String]) -> Vec<&str> {
+    let mut kinds: Vec<&str> = references
+        .iter()
+        .filter_map(|r| r.split_once(':').map(|(kind, _)| kind))
+        .collect();
+    kinds.dedup();
+    kinds
+}
+
+#[tokio::test]
+async fn search_with_a_kind_list_returns_only_those_kinds_and_without_one_returns_every_kind()
+-> anyhow::Result<()> {
+    let Some(s) = seed().await? else {
+        return Ok(());
+    };
+    seed_turn(&s).await?;
+
+    let turns = s
+        .references(KnowledgeQuery {
+            kinds: Some(vec!["turn".to_owned()]),
+            ..s.query("turn")
+        })
+        .await?;
+    assert!(!turns.is_empty(), "the seeded turn is found");
+    assert_eq!(prefixes(&turns), vec!["turn"]);
+
+    let notes_and_lessons = s
+        .references(KnowledgeQuery {
+            kind: None,
+            kinds: Some(vec!["note".to_owned(), "lesson".to_owned()]),
+            ..s.query("note")
+        })
+        .await?;
+    assert!(notes_and_lessons.contains(&s.note_in_window));
+    assert!(notes_and_lessons.contains(&s.newer_lesson));
+    let mut kinds = prefixes(&notes_and_lessons);
+    kinds.sort();
+    kinds.dedup();
+    assert_eq!(kinds, vec!["lesson", "note"]);
+
+    let everything = s
+        .references(KnowledgeQuery {
+            kind: None,
+            kinds: None,
+            ..s.query("note")
+        })
+        .await?;
+    let mut kinds = prefixes(&everything);
+    kinds.sort();
+    kinds.dedup();
+    assert!(kinds.contains(&"turn"), "{kinds:?}");
+    assert!(kinds.contains(&"note"), "{kinds:?}");
+    assert!(kinds.contains(&"lesson"), "{kinds:?}");
+    Ok(())
+}
+
 #[tokio::test]
 async fn search_leaves_out_a_superseded_lesson_unless_historical_and_then_marks_it()
 -> anyhow::Result<()> {
