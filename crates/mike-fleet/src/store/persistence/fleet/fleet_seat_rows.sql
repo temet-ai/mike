@@ -17,11 +17,26 @@ SELECT l.seat,
   LEFT JOIN sessions.sessions s        ON s.session_uuid = l.session_uuid
   LEFT JOIN sessions.session_goals g   ON g.session_id = s.id
   LEFT JOIN runtime.session_observation_v observation ON observation.session_id = s.id
+  LEFT JOIN runtime.session_facts sf   ON sf.session_id = s.id
+  -- The count and newest time need no status or origin, and runtime.model_call_facts joins
+  -- both lookup tables once per request row. A session with no recorded facts is a wire
+  -- session, so its requests are counted straight from requests.requests; a session with
+  -- facts is counted through the view, whose requests branch returns nothing for it.
   LEFT JOIN LATERAL (
-        SELECT count(*) AS requests, max(r.created_at) AS last_request_at
-          FROM runtime.model_call_facts r
-         WHERE r.session_id = s.id
-           AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()
+        SELECT sum(c.n)::bigint AS requests, max(c.newest) AS last_request_at
+          FROM (
+                SELECT count(*) AS n, max(r.created_at) AS newest
+                  FROM requests.requests r
+                 WHERE sf.session_id IS NULL
+                   AND r.session_id = s.id
+                   AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()
+                UNION ALL
+                SELECT count(*), max(r.created_at)
+                  FROM runtime.model_call_facts r
+                 WHERE sf.session_id IS NOT NULL
+                   AND r.session_id = s.id
+                   AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()
+               ) c
        ) rq ON true
   LEFT JOIN LATERAL (
         SELECT r.id, r.cache_read_input_tokens, r.cache_creation_input_tokens
