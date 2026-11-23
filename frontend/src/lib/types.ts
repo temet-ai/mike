@@ -1151,7 +1151,8 @@ export type RowChangedTable =
 	| 'change_generations'
 	| 'wright_check_runs'
 	| 'wright_problems'
-	| 'judge_queue';
+	| 'judge_queue'
+	| 'semantic_turn_sources';
 
 export type RowChangedOp = 'INSERT' | 'UPDATE' | 'DELETE';
 

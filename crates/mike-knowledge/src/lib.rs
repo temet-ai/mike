@@ -13,4 +13,6 @@ pub mod semantic;
 mod semantic_correction_notify_tests;
 #[cfg(test)]
 mod semantic_source_notify_tests;
+#[cfg(test)]
+mod semantic_turn_sources_notify_tests;
 pub mod store;

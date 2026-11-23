@@ -4,20 +4,30 @@ use crate::change_feed::{ChangeFeed, Generation};
 use crate::store::models::RowChangedTable;
 
 pub const SOURCE_BACKSTOP: Duration = Duration::from_secs(3_600);
+pub const TURN_BACKSTOP: Duration = Duration::from_secs(600);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceStep {
     Directives,
     Anchors,
     Corrections,
+    Turns,
 }
 
 impl SourceStep {
+    fn backstop(self) -> Duration {
+        match self {
+            Self::Turns => TURN_BACKSTOP,
+            Self::Directives | Self::Anchors | Self::Corrections => SOURCE_BACKSTOP,
+        }
+    }
+
     fn watched(self) -> &'static [RowChangedTable] {
         match self {
             Self::Directives => &[RowChangedTable::DossierDirectives],
             Self::Anchors => &[RowChangedTable::SemanticAnchors],
             Self::Corrections => &[RowChangedTable::CorrectionQualifications],
+            Self::Turns => &[RowChangedTable::SemanticTurnSources],
         }
     }
 }
@@ -37,6 +47,7 @@ pub struct SourceSteps {
     directives: Option<EmptyMark>,
     anchors: Option<EmptyMark>,
     corrections: Option<EmptyMark>,
+    turns: Option<EmptyMark>,
 }
 
 impl SourceSteps {
@@ -45,6 +56,7 @@ impl SourceSteps {
             SourceStep::Directives => &mut self.directives,
             SourceStep::Anchors => &mut self.anchors,
             SourceStep::Corrections => &mut self.corrections,
+            SourceStep::Turns => &mut self.turns,
         }
     }
 
@@ -83,7 +95,7 @@ impl SourceSteps {
             (Some(at), 0) => Some(EmptyMark {
                 embedder_key: embedder_key.to_owned(),
                 at,
-                until: now + SOURCE_BACKSTOP,
+                until: now + step.backstop(),
             }),
             _ => None,
         };

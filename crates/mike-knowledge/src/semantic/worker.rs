@@ -230,6 +230,36 @@ impl SemanticWorker {
         Ok(tagged.written)
     }
 
+    async fn build(
+        &self,
+        builder: &Builder<'_>,
+        limit: i64,
+        state: &mut LoopState,
+    ) -> Result<BuildReport, SemanticError> {
+        let feed = &self.base.change_feed;
+        let key = &builder.embedder.embedder_key;
+        let now = Instant::now();
+        let from_start = state.cursor == 0;
+        if from_start && state.sources.nothing_new(SourceStep::Turns, feed, key, now) {
+            return Ok(BuildReport::default());
+        }
+        let ticket = SourceSteps::ticket(feed);
+        let window = SemanticWindow {
+            from: None,
+            until: None,
+            after_turn: state.cursor,
+            limit,
+        };
+        let build = builder.build_batch(&window).await?;
+        state.cursor = if build.turns == 0 { 0 } else { build.last_turn };
+        if from_start || build.turns > 0 {
+            state
+                .sources
+                .settle(SourceStep::Turns, ticket, key, build.turns, now);
+        }
+        Ok(build)
+    }
+
     async fn periodic(
         &self,
         cfg: &SemanticConfig,
@@ -300,14 +330,7 @@ impl SemanticWorker {
             config: &cfg,
             embedder: &embedder,
         };
-        let window = SemanticWindow {
-            from: None,
-            until: None,
-            after_turn: state.cursor,
-            limit: cfg.batch_turns,
-        };
-        let build = builder.build_batch(&window).await?;
-        state.cursor = if build.turns == 0 { 0 } else { build.last_turn };
+        let build = self.build(&builder, cfg.batch_turns, state).await?;
         let mut report = TickReport {
             status: if build.egress_blocked {
                 "egress_blocked"

@@ -196,3 +196,41 @@ async fn forgetting_corrections_keeps_the_other_marks() {
     steps.forget(SourceStep::Corrections);
     assert!(steps.nothing_new(SourceStep::Directives, &fed.feed, KEY, now));
 }
+
+#[tokio::test]
+async fn turns_found_empty_wait_until_a_turn_source_is_written() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Turns, now);
+    assert!(steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, now));
+    fed.feed
+        .record(RowChangedTable::DossierDirectives, Some("s"));
+    assert!(
+        steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, now),
+        "a directive does not wake the turn step"
+    );
+    fed.feed.record(RowChangedTable::SemanticTurnSources, None);
+    assert!(!steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, now));
+}
+
+#[tokio::test]
+async fn turns_found_empty_run_again_after_the_600_second_backstop() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = settled_empty(&fed.feed, SourceStep::Turns, now);
+    assert_eq!(TURN_BACKSTOP, Duration::from_secs(600));
+    let before = now + TURN_BACKSTOP - Duration::from_secs(1);
+    assert!(steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, before));
+    let at = now + TURN_BACKSTOP;
+    assert!(!steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, at));
+}
+
+#[tokio::test]
+async fn turns_that_found_rows_run_again_the_next_tick() {
+    let fed = fed();
+    let now = Instant::now();
+    let mut steps = SourceSteps::default();
+    let ticket = SourceSteps::ticket(&fed.feed);
+    steps.settle(SourceStep::Turns, ticket, KEY, 3, now);
+    assert!(!steps.nothing_new(SourceStep::Turns, &fed.feed, KEY, now));
+}
