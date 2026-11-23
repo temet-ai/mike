@@ -70,8 +70,18 @@ if ! { mkdir -p "$BACKUP.tmp" && cp -p "$BIN/mike" "$BIN/mike-mcp" "$BACKUP.tmp/
 fi
 rm -rf "$BACKUP" && mv "$BACKUP.tmp" "$BACKUP"
 
+# install_share: put the bundle's share/mike (the scripts the scheduled jobs run) beside
+# the binary, where `mike learning promote` and the other jobs look for it.
+install_share() {
+  [ -d "$dir/share/mike" ] || return 0
+  share="$BIN/../share"
+  mkdir -p "$share" && rm -rf "$share/.mike.new" && cp -a "$dir/share/mike" "$share/.mike.new" &&
+    rm -rf "$share/mike" && mv "$share/.mike.new" "$share/mike"
+}
+
 if install "$dir" && restart; then
   say "mike serve, mike forward serve and $URL are up on the new build"
+  install_share || say "could not install $dir/share/mike beside $BIN; the scheduled jobs keep the old scripts"
   echo OK
   exit 0
 fi
