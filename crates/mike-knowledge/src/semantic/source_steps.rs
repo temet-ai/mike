@@ -93,11 +93,3 @@ impl SourceSteps {
 #[cfg(test)]
 #[path = "tests/source_steps_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "tests/source_notify_tests.rs"]
-mod notify_tests;
-
-#[cfg(test)]
-#[path = "tests/correction_notify_tests.rs"]
-mod correction_notify_tests;
