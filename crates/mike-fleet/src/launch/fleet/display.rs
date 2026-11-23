@@ -7,11 +7,11 @@ use std::time::Duration;
 use super::definition::FleetDefinition;
 use super::here;
 use super::shutdown::{self, RUNNING, STOPPING};
-use super::status::{FleetStatus, SeatStatus, assemble};
+use super::status::{FleetStatus, SeatStatus, assemble_with_rows};
 use crate::base_state::BaseState;
 use crate::launch::{BackendId, Notice, TerminalBackend, backend_for};
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::fleet::FleetRow;
+use crate::store::persistence::fleet::{FleetRow, FleetSeatRow};
 
 const INTERVAL: Duration = Duration::from_secs(20);
 const REPLACE_AT: i64 = 600_000;
@@ -71,11 +71,11 @@ async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) -> bo
         return busy;
     };
     for row in &running {
-        let Ok(status) = assemble(state, row).await else {
+        let Ok((status, seat_rows)) = assemble_with_rows(state, row).await else {
             continue;
         };
         run_registered_steps(state, persist, row, &status).await;
-        show(backend.as_ref(), persist, row, &status).await;
+        show(backend.as_ref(), persist, row, (&status, &seat_rows)).await;
         announce(backend.as_ref(), row, &status, seen).await;
     }
     busy
@@ -182,12 +182,9 @@ async fn show(
     backend: &dyn TerminalBackend,
     persist: &PersistHandle,
     row: &FleetRow,
-    status: &FleetStatus,
+    (status, seats): (&FleetStatus, &[FleetSeatRow]),
 ) {
     let Some(run) = &row.run_id else {
-        return;
-    };
-    let Ok(seats) = persist.fleet().fleet_seat_rows(run).await else {
         return;
     };
     for seat in seats.iter().filter(|s| s.closed_at.is_none()) {

@@ -223,6 +223,21 @@ pub async fn assemble(
     state: &crate::base_state::BaseState,
     row: &crate::store::persistence::fleet::FleetRow,
 ) -> Result<FleetStatus, String> {
+    assemble_with_rows(state, row)
+        .await
+        .map(|(status, _)| status)
+}
+
+pub async fn assemble_with_rows(
+    state: &crate::base_state::BaseState,
+    row: &crate::store::persistence::fleet::FleetRow,
+) -> Result<
+    (
+        FleetStatus,
+        Vec<crate::store::persistence::fleet::FleetSeatRow>,
+    ),
+    String,
+> {
     let persist = state
         .persist()
         .ok_or_else(|| "the database is not reachable".to_string())?;
@@ -245,7 +260,8 @@ pub async fn assemble(
     };
     let live = live_states(state).await;
     let seats: Vec<SeatFacts> = seat_rows
-        .into_iter()
+        .iter()
+        .cloned()
         .map(|s| SeatFacts {
             live_state: s.session_uuid.and_then(|id| live.get(&id).cloned()),
             session: s.session_uuid,
@@ -292,7 +308,7 @@ pub async fn assemble(
     }
     let mut status = build_with_evidence(header, &def, (&seats, &notes), evidence, &recorded);
     super::staff_claims::annotate(&mut status);
-    Ok(status)
+    Ok((status, seat_rows))
 }
 
 pub fn note_facts(n: crate::store::persistence::fleet::FleetNoteRow) -> NoteFacts {
