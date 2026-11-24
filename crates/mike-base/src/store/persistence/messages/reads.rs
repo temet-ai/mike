@@ -165,3 +165,40 @@ pub async fn fetch_request_deltas_by_id(
     .await?;
     Ok(rows)
 }
+
+pub const RECENT_REQUESTS: i64 = 32;
+pub const NEW_THREAD_REQUESTS: i64 = 512;
+
+pub async fn fetch_session_known_messages(
+    conn: &mut PgConnection,
+    session_db_id: i64,
+    created_at: DateTime<Utc>,
+    canonical: &[CanonicalMessage],
+    lookback: i64,
+) -> Result<std::collections::HashMap<String, i64>, PersistError> {
+    if canonical.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let shas: Vec<String> = canonical.iter().map(|m| m.sha.clone()).collect();
+    let rows = sqlx::query!(
+        "SELECT DISTINCT ON (m.message_sha256)
+                m.message_sha256 AS \"sha!\", m.id AS \"id!\"
+           FROM (SELECT r.id
+                   FROM requests.requests r
+                  WHERE r.session_id = $1
+                    AND r.created_at <= $2
+                  ORDER BY r.created_at DESC, r.id DESC
+                  LIMIT $4) recent
+           JOIN requests.messages rm ON rm.request_id = recent.id
+           JOIN messages.messages m ON m.id = rm.message_id
+          WHERE m.message_sha256 = ANY($3)
+          ORDER BY m.message_sha256, m.id",
+        session_db_id,
+        created_at,
+        &shas,
+        lookback,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    Ok(rows.into_iter().map(|r| (r.sha, r.id)).collect())
+}

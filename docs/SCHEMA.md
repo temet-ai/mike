@@ -778,7 +778,18 @@ recomputes the predecessor live from the same lineage rule. The predecessor is c
 rule applies (`lane_fallback`, a guess): the latest earlier request in the lane, scoped for a `subagent` or
 `workflow_subagent` row to the same `agent_instance_id`, never a main-thread request for a subagent without an
 instance. `none` means no candidate. This is a different fact from the dispatching primary request the listing
-exposes as `dispatch_request_id`. Historical rows were populated by the one-shot `mike backfill-predecessors`
+exposes as `dispatch_request_id`.
+
+The same step decides which of the request's messages are already stored, so the bridge reuses their
+`messages.messages` rows instead of inserting copies. A request compared with a predecessor (`lane_fallback`
+without `thread`, `thread_restart`) reuses the messages of the predecessor's whole conversation
+(`chain_bridge.rs`: the predecessor and every request it reaches back through `thread_link`), not only the
+predecessor's own bridge rows, which for a continuation hold only its new messages. Every request also reuses
+the messages its session stored in its latest requests (`fetch_session_known_messages` in `reads.rs`: the
+latest 32 requests for continuations and full resends, 512 for `thread_start` and `thread_restart`, which are
+rare and repeat the session's opening and older turns). Messages are never matched across sessions. Until
+2026-11-24 a full resend whose predecessor was a continuation, a new thread and a side call stored their
+messages again; the Wright check `repeated_messages` reports a rule that stores repeats again. Historical rows were populated by the one-shot `mike backfill-predecessors`
 command; the columns are NULL on rows that never took the snapshot path, and `predecessor_rule_id` is NULL on
 every row captured before 2026-11-17.
 
@@ -6739,6 +6750,7 @@ Changes to the seeded set since then:
 - `20261120166965_idle_polls_one_hour_window.sql` shortens `idle_polls`' window so a statement fixed early in it does not stay flagged on its old rate.
 - `20261120166800_wright_repair_22_superseded.sql` drops repair 22 and closes the two problems it served, because its target statement was replaced.
 - `20261120166990_idle_polls_statement_counters.sql` adds `wright.statement_counters` (`queryid`, `taken_at`, `calls`, `rows`, `total_ms`, `stats_since`; primary key `queryid, taken_at`). The watch runner fills it before each `idle_polls` pass (`watch/counters.rs`): a new snapshot of every statement of a role in `params.roles` once its newest is `min_window_minutes` old or its counters were reset, keeping the two newest per statement and dropping statements not seen for 6 hours. `idle_polls` now judges each statement from its newest snapshot at least `min_window_minutes` old instead of from episode bases, so a statement it never flagged is no longer judged over its whole history; the param `window_hours` goes.
+- `20261124170000_wright_repeated_messages.sql` adds the check `repeated_messages`: over `window_hours` (6) of messages stored (`messages.messages.last_seen`, which is never updated after insert), it counts the copies of a message its session already stored in that window, grouped by the `predecessor_rule` of the request that first used each copy, and reports a rule with `min_repeats` (50) repeats or more that are `max_repeat_share` (0.1) or more of what it stored; the evidence names the rule, the counts, the repeated bytes, the sessions and the newest request that stored a repeat.
 - `20261124150000_wright_query_checks_full_text.sql` captures the whole statement of the query checks (`slow_queries`, `reads_outpace_writes`, `idle_polls`) without touching a problem's identity. A problem is identified by `UNIQUE (check_name, scope, resource)`, and a btree entry cannot hold a whole statement (a first version of this migration that put it in the resource failed on a row of 22000 bytes), so the resource stays `query <queryid>: ` plus the first 120 characters of the collapsed text. The evidence field `query` of the three checks is the whole text (it was cut at 160, and at 4000 for `slow_queries`), and `slow_queries` compares whole collapsed texts to find a statement that came back under a new queryid (`text_key`, it compared the first 120 characters). `wright.problems.statement` (`TEXT NULL`, not indexed, null for a check that is not about a statement) holds the whole text: `open_findings.sql` sets it from the evidence `query` of a `scope = 'query'` finding on every pass and rewrites it only when it changed; the migration fills it for existing query problems, open or healthy, from `pg_stat_statements` by the queryid in the resource, where the statement is still there and starts with the text the resource names. The view `wright.cause_queue` gains `statement`, the representative problem's, after its existing columns.
 - `20261123100000_wright_reads_outpace_writes.sql` adds `wright.table_counters` (`taken_at`, `relid`, `writes`: `n_tup_ins + n_tup_upd + n_tup_del` from `pg_stat_user_tables`; primary key `taken_at, relid`) and the check `reads_outpace_writes`. The runner writes every table's counters in the same transaction as each statement snapshot and deletes a table snapshot once no statement snapshot has its `taken_at`. The check reports a read-only statement run `calls_per_hour` or more times an hour that is read `reads_per_write` or more times per row written to the tables its FROM and JOIN clauses name (through views and partitions), over the `idle_polls` window, whether or not it returns rows.
 

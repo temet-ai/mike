@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (m.message_sha256)\n                m.message_sha256 AS \"sha!\", m.id AS \"id!\"\n           FROM (SELECT r.id\n                   FROM requests.requests r\n                  WHERE r.session_id = $1\n                    AND r.created_at <= $2\n                  ORDER BY r.created_at DESC, r.id DESC\n                  LIMIT $4) recent\n           JOIN requests.messages rm ON rm.request_id = recent.id\n           JOIN messages.messages m ON m.id = rm.message_id\n          WHERE m.message_sha256 = ANY($3)\n          ORDER BY m.message_sha256, m.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sha!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "message_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "84172d58f4bbf641438c154e9ac15220ea234fd78aa507fac2356c6ead7fb2cc"
+}

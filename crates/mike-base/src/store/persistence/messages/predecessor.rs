@@ -9,7 +9,9 @@ use crate::store::persistence::agent_instance_capture::is_subagent_origin;
 use super::canonicalize::CanonicalMessage;
 use super::chain_bridge::fetch_chain_bridge;
 use super::delta::{DeltaRow, compute_delta, is_reliable_sidecar_origin};
-use super::reads::{fetch_predecessor_bridge, fetch_predecessor_primary};
+use super::reads::{
+    NEW_THREAD_REQUESTS, RECENT_REQUESTS, fetch_predecessor_primary, fetch_session_known_messages,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PredecessorRule {
@@ -42,17 +44,58 @@ pub struct PredecessorDelta {
 }
 
 impl PredecessorDelta {
-    fn all_added(
+    fn fresh(
         canonical: &[CanonicalMessage],
-        predecessor_request_id: Option<i64>,
+        known: HashMap<String, i64>,
         rule: PredecessorRule,
     ) -> Self {
         Self {
-            predecessor_request_id,
+            predecessor_request_id: None,
             rows: compute_delta(canonical, None),
-            carry_forward: HashMap::new(),
+            carry_forward: known,
             rule,
         }
+    }
+
+    fn continuation(
+        canonical: &[CanonicalMessage],
+        predecessor: i64,
+        known: HashMap<String, i64>,
+        rule: PredecessorRule,
+    ) -> Self {
+        Self {
+            predecessor_request_id: Some(predecessor),
+            rows: compute_delta(canonical, None),
+            carry_forward: known,
+            rule,
+        }
+    }
+
+    fn against(
+        canonical: &[CanonicalMessage],
+        predecessor: i64,
+        bridge: Vec<(i32, String, i64)>,
+        rule: PredecessorRule,
+    ) -> Self {
+        let carry_forward: HashMap<String, i64> = bridge
+            .iter()
+            .map(|(_, sha, message_id)| (sha.clone(), *message_id))
+            .collect();
+        let pred_shas: Vec<(i32, String)> =
+            bridge.into_iter().map(|(ord, sha, _)| (ord, sha)).collect();
+        Self {
+            predecessor_request_id: Some(predecessor),
+            rows: compute_delta(canonical, Some(&pred_shas)),
+            carry_forward,
+            rule,
+        }
+    }
+
+    fn reusing(mut self, known: HashMap<String, i64>) -> Self {
+        for (sha, message_id) in known {
+            self.carry_forward.entry(sha).or_insert(message_id);
+        }
+        self
     }
 }
 
@@ -64,9 +107,17 @@ pub async fn resolve_predecessor_and_delta(
     agent_instance_id: Option<i64>,
 ) -> Result<PredecessorDelta, PersistError> {
     if is_reliable_sidecar_origin(&req.turn_origin) {
-        return Ok(PredecessorDelta::all_added(
+        let known = fetch_session_known_messages(
+            conn,
+            session_db_id,
+            req.created_at,
             canonical,
-            None,
+            RECENT_REQUESTS,
+        )
+        .await?;
+        return Ok(PredecessorDelta::fresh(
+            canonical,
+            known,
             PredecessorRule::None,
         ));
     }
@@ -77,21 +128,35 @@ pub async fn resolve_predecessor_and_delta(
     if link.kind == ThreadKind::Create {
         return start_or_restart(conn, req, session_db_id, canonical, agent_instance_id).await;
     }
+    let known = fetch_session_known_messages(
+        conn,
+        session_db_id,
+        req.created_at,
+        canonical,
+        RECENT_REQUESTS,
+    )
+    .await?;
     if link.continues()
         && let Some(linked) = linked_predecessor(conn, link).await?
     {
-        return Ok(PredecessorDelta::all_added(
+        return Ok(PredecessorDelta::continuation(
             canonical,
-            Some(linked),
+            linked,
+            known,
             PredecessorRule::ThreadLink,
         ));
     }
-    let guessed = lane_predecessor(conn, req, session_db_id, agent_instance_id).await?;
-    Ok(PredecessorDelta::all_added(
-        canonical,
-        guessed,
-        guessed.map_or(PredecessorRule::None, |_| PredecessorRule::LaneFallback),
-    ))
+    Ok(
+        match lane_predecessor(conn, req, session_db_id, agent_instance_id).await? {
+            Some(guessed) => PredecessorDelta::continuation(
+                canonical,
+                guessed,
+                known,
+                PredecessorRule::LaneFallback,
+            ),
+            None => PredecessorDelta::fresh(canonical, known, PredecessorRule::None),
+        },
+    )
 }
 
 async fn start_or_restart(
@@ -107,41 +172,37 @@ async fn start_or_restart(
         None
     };
     let Some(predecessor) = earlier else {
-        return Ok(PredecessorDelta::all_added(
+        let known = fetch_session_known_messages(
+            conn,
+            session_db_id,
+            req.created_at,
             canonical,
-            None,
+            NEW_THREAD_REQUESTS,
+        )
+        .await?;
+        return Ok(PredecessorDelta::fresh(
+            canonical,
+            known,
             PredecessorRule::ThreadStart,
         ));
     };
     let chain = fetch_chain_bridge(conn, predecessor).await?;
-    let mut restart = delta_against(
+    let mut restart = PredecessorDelta::against(
         canonical,
         predecessor,
         chain,
         PredecessorRule::ThreadRestart,
     );
     restart.rows.retain(|row| row.change_kind == "added");
-    Ok(restart)
-}
-
-fn delta_against(
-    canonical: &[CanonicalMessage],
-    predecessor: i64,
-    bridge: Vec<(i32, String, i64)>,
-    rule: PredecessorRule,
-) -> PredecessorDelta {
-    let carry_forward: HashMap<String, i64> = bridge
-        .iter()
-        .map(|(_, sha, message_id)| (sha.clone(), *message_id))
-        .collect();
-    let pred_shas: Vec<(i32, String)> =
-        bridge.into_iter().map(|(ord, sha, _)| (ord, sha)).collect();
-    PredecessorDelta {
-        predecessor_request_id: Some(predecessor),
-        rows: compute_delta(canonical, Some(&pred_shas)),
-        carry_forward,
-        rule,
-    }
+    let known = fetch_session_known_messages(
+        conn,
+        session_db_id,
+        req.created_at,
+        canonical,
+        NEW_THREAD_REQUESTS,
+    )
+    .await?;
+    Ok(restart.reusing(known))
 }
 
 async fn linked_predecessor(
@@ -191,17 +252,34 @@ async fn lane_predecessor_and_delta(
 ) -> Result<PredecessorDelta, PersistError> {
     let Some(predecessor) = lane_predecessor(conn, req, session_db_id, agent_instance_id).await?
     else {
-        return Ok(PredecessorDelta::all_added(
+        let known = fetch_session_known_messages(
+            conn,
+            session_db_id,
+            req.created_at,
             canonical,
-            None,
+            RECENT_REQUESTS,
+        )
+        .await?;
+        return Ok(PredecessorDelta::fresh(
+            canonical,
+            known,
             PredecessorRule::None,
         ));
     };
-    let pred_bridge = fetch_predecessor_bridge(conn, predecessor).await?;
-    Ok(delta_against(
+    let bridge = fetch_chain_bridge(conn, predecessor).await?;
+    let known = fetch_session_known_messages(
+        conn,
+        session_db_id,
+        req.created_at,
+        canonical,
+        RECENT_REQUESTS,
+    )
+    .await?;
+    Ok(PredecessorDelta::against(
         canonical,
         predecessor,
-        pred_bridge,
+        bridge,
         PredecessorRule::LaneFallback,
-    ))
+    )
+    .reusing(known))
 }
