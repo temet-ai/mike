@@ -71,7 +71,14 @@
     "repeated_notices",
     "resolvers",
     "retention_worker",
-    "runtime",
+    "runtime::codex::admission",
+    "runtime::codex::children",
+    "runtime::codex::ingest",
+    "runtime::codex::item",
+    "runtime::codex::observe",
+    "runtime::codex::projection",
+    "runtime::codex::usage",
+    "runtime::tests",
     "semantic",
     "serve",
     "service_token",
@@ -111,7 +118,7 @@
       "reason": "Subprocess clears all env; bootstrap must reject missing/blank admin before network. This explicitly tests the fail-closed contract."
     },
     "crates/mike/src/doctor/observe_features.rs": {
-      "sha256": "5df75552b63457b7131a071a4bba01d7b96bdc0e5283b33cf38324484f1eb1bb",
+      "sha256": "1aadc90a363b0d1e77fff379723d759ddc9b12fefb05c6c1fe80cec5e91f4285",
       "reason": "production code: doctor opens the configured database read-only; it holds no test"
     },
     "crates/mike-code/src/wiring/classify.rs": {

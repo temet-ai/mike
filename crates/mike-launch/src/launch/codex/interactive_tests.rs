@@ -27,9 +27,11 @@ fn configuration_preserves_prompt_and_custom_exporter_without_claiming_observati
     let mut spec = spec(home.path(), &["-m", "gpt-fixture", "hello"])?;
     configure(&mut spec, home.path(), Some("127.0.0.1:9988"))?;
     assert_eq!(spec.args.last().map(String::as_str), Some("hello"));
+    let session = spec
+        .session
+        .ok_or_else(|| anyhow::anyhow!("configure left the launch without a session"))?;
     assert!(spec.args.contains(&format!(
-        "openai_base_url=\"http://127.0.0.1:9988/codex/launch/{}\"",
-        spec.session.unwrap()
+        "openai_base_url=\"http://127.0.0.1:9988/codex/launch/{session}\""
     )));
     assert!(!spec.args.iter().any(|arg| arg.contains("otel.exporter")));
     assert_eq!(spec.env.get("CODEX_HOME"), spec.env.get("MIKE_CODEX_HOME"));
