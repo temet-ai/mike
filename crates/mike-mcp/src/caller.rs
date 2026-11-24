@@ -5,7 +5,8 @@ use crate::client::InspectClient;
 
 pub(crate) mod retrospective;
 
-const SESSION_TAGGED_TOOLS: [&str; 5] = [
+const SESSION_TAGGED_TOOLS: [&str; 6] = [
+    "what_changed",
     "work_thread_checkpoint",
     "work_thread_add_entry",
     "search_project_knowledge",

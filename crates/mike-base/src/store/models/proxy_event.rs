@@ -48,6 +48,7 @@ pub enum RowChangedTable {
     WorkspaceSessionRegistrations,
     RemoteControlChannels,
     RuntimeSessionFacts,
+    EvalRollups,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

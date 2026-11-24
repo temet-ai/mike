@@ -10,10 +10,21 @@ pub fn persist_unavailable_response() -> Response {
 }
 
 pub fn persist_error_response(e: crate::store::persistence::PersistError) -> Response {
-    tracing::warn!(error = %e, "persistence operation failed in pin/ttl handler");
+    if let crate::store::persistence::capture_retry::WriteFailure::Temporary(reason) =
+        crate::store::persistence::capture_retry::classify(&e)
+    {
+        tracing::warn!(error = %e, reason, "database temporarily unavailable; request refused with 503");
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(axum::http::header::RETRY_AFTER, "5")],
+            format!("database temporarily unavailable: {reason}"),
+        )
+            .into_response();
+    }
+    tracing::warn!(error = %e, "persistence operation failed");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        "persistence write failed",
+        "persistence operation failed",
     )
         .into_response()
 }
@@ -31,3 +42,7 @@ pub fn knowledge_error(error: crate::store::persistence::PersistError) -> Respon
         other => persist_error_response(other),
     }
 }
+
+#[cfg(test)]
+#[path = "errors_tests.rs"]
+mod tests;

@@ -1,6 +1,6 @@
 pub mod canonicalize;
-pub mod clean;
 pub mod chain_bridge;
+pub mod clean;
 pub mod delta;
 pub mod delta_correction;
 pub mod delta_same;

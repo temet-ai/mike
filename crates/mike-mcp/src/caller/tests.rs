@@ -453,3 +453,33 @@ async fn search_tools_without_a_caller_session_send_no_session_id() -> anyhow::R
     assert_eq!(prepared, original);
     Ok(())
 }
+
+#[tokio::test]
+async fn what_changed_without_session_id_receives_the_caller_session() -> anyhow::Result<()> {
+    let client = InspectClient::new("http://127.0.0.1:1".into());
+
+    let prepared = supply_defaults(
+        &client,
+        "what_changed",
+        args(json!({"view": "changes"})),
+        Some(SESSION),
+    )
+    .await?
+    .ok_or_else(|| anyhow::anyhow!("missing arguments"))?;
+
+    assert_eq!(prepared["session_id"], SESSION);
+    assert_eq!(prepared["view"], "changes");
+    Ok(())
+}
+
+#[tokio::test]
+async fn what_changed_with_explicit_session_id_keeps_it() -> anyhow::Result<()> {
+    let client = InspectClient::new("http://127.0.0.1:1".into());
+    let original = args(json!({"view": "changes", "session_id": "explicit"}));
+
+    let prepared =
+        supply_defaults(&client, "what_changed", original.clone(), Some(SESSION)).await?;
+
+    assert_eq!(prepared, original);
+    Ok(())
+}

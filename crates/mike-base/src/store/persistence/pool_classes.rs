@@ -32,6 +32,14 @@ impl PoolClass {
             PoolClass::Background => "background",
         }
     }
+
+    pub fn application_name(self) -> &'static str {
+        match self {
+            PoolClass::Capture => "claude-proxy-capture",
+            PoolClass::Interactive => "claude-proxy-interactive",
+            PoolClass::Background => "claude-proxy-background",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,12 +68,13 @@ pub const DEFAULT_BACKGROUND_LIMITS: PoolClassLimits = PoolClassLimits {
 };
 
 impl PoolClassLimits {
-    fn shape(self) -> PoolShape {
+    fn shape(self, class: PoolClass) -> PoolShape {
         PoolShape {
             max_connections: self.max_connections,
             acquire_timeout: Duration::from_millis(self.acquire_timeout_ms),
             statement_timeout: Duration::from_millis(self.statement_timeout_ms),
             read_only: false,
+            application_name: class.application_name(),
         }
     }
 }
@@ -107,9 +116,9 @@ impl PoolClasses {
 
     fn build(database_url: &str, config: &PoolClassesConfig) -> Result<Self, PersistError> {
         Ok(Self {
-            capture: lazy_pool(database_url, config.capture)?,
-            interactive: lazy_pool(database_url, config.interactive)?,
-            background: lazy_pool(database_url, config.background)?,
+            capture: lazy_pool(database_url, config.capture, PoolClass::Capture)?,
+            interactive: lazy_pool(database_url, config.interactive, PoolClass::Interactive)?,
+            background: lazy_pool(database_url, config.background, PoolClass::Background)?,
             split: true,
         })
     }
@@ -133,14 +142,21 @@ impl PoolClasses {
     }
 }
 
-fn lazy_pool(database_url: &str, limits: PoolClassLimits) -> Result<PgPool, PersistError> {
-    let shape = limits.shape();
+fn lazy_pool(
+    database_url: &str,
+    limits: PoolClassLimits,
+    class: PoolClass,
+) -> Result<PgPool, PersistError> {
+    let shape = limits.shape(class);
     let options = pool::shaped_connect_options(database_url, &shape)?;
     Ok(pool::shaped_pool_options(&shape).connect_lazy_with(options))
 }
 
 async fn probe(database_url: &str, connect_timeout: Duration) -> Result<(), PersistError> {
-    let options = pool::shaped_connect_options(database_url, &DEFAULT_CAPTURE_LIMITS.shape())?;
+    let options = pool::shaped_connect_options(
+        database_url,
+        &DEFAULT_CAPTURE_LIMITS.shape(PoolClass::Capture),
+    )?;
     let mut connection = tokio::time::timeout(connect_timeout, options.connect())
         .await
         .map_err(|_| pool::connect_error(database_url, sqlx::Error::PoolTimedOut))?

@@ -27,7 +27,7 @@ fn what_changed_tool() -> Tool {
             ),
             (
                 "session_id",
-                json!({"type": "string", "description": "Your own session id. Needed for changes and standing; whose can use `checkout` instead."}),
+                json!({"type": "string", "description": "Your own session id. Omit to use the trusted MCP caller session; required for changes and standing when caller context is unavailable. whose can use `checkout` instead."}),
             ),
             (
                 "since",

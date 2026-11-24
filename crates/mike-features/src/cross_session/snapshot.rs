@@ -9,6 +9,8 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 const THRESHOLDS_LOADED: &str = "cross_session.thresholds";
 const GUARD_THRESHOLDS: &[RowChangedTable] = &[RowChangedTable::GuardThresholds];
+const ROLLUP_LOADED: &str = "cross_session.rollup";
+const EVAL_ROLLUPS: &[RowChangedTable] = &[RowChangedTable::EvalRollups];
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct CrossSessionSnapshot {
@@ -76,11 +78,7 @@ impl CrossSessionSnapshot {
         previous: Option<&Self>,
     ) -> Result<Self, PersistError> {
         let guard = persist.steerer().guard_steerer().await?.map(|g| g.id);
-        let rollup = persist.steerer().rollup_as_of(as_of).await?;
-        let rows = match (rollup, guard) {
-            (Some(r), Some(g)) => persist.steerer().fetch_calibration_rows(r.id, g).await?,
-            _ => Vec::new(),
-        };
+        let (rollup, rows) = load_rollup(persist, as_of, guard, previous).await?;
         let (thresholds, fire_thresholds) =
             load_thresholds(persist, as_of, guard, previous).await?;
         Ok(Self {
@@ -161,4 +159,28 @@ async fn load_thresholds(
         persist.mark_fresh(THRESHOLDS_LOADED, ticket, None);
     }
     Ok((thresholds, fire_thresholds))
+}
+
+async fn load_rollup(
+    persist: &PersistHandle,
+    as_of: DateTime<Utc>,
+    guard: Option<i64>,
+    previous: Option<&CrossSessionSnapshot>,
+) -> Result<(Option<RollupRef>, Vec<CalibrationRateRow>), PersistError> {
+    if let Some(previous) = previous
+        && previous.guard_steerer_id == guard
+        && persist.is_fresh(ROLLUP_LOADED, EVAL_ROLLUPS, as_of)
+    {
+        return Ok((previous.rollup, previous.rows.clone()));
+    }
+    let ticket = persist.fresh_ticket();
+    let rollup = persist.steerer().rollup_as_of(as_of).await?;
+    let rows = match (rollup, guard) {
+        (Some(r), Some(g)) => persist.steerer().fetch_calibration_rows(r.id, g).await?,
+        _ => Vec::new(),
+    };
+    if previous.is_some() {
+        persist.mark_fresh(ROLLUP_LOADED, ticket, None);
+    }
+    Ok((rollup, rows))
 }

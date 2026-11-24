@@ -94,6 +94,7 @@ pub struct PoolShape {
     pub acquire_timeout: Duration,
     pub statement_timeout: Duration,
     pub read_only: bool,
+    pub application_name: &'static str,
 }
 
 const SINGLE_POOL_MAX_CONNECTIONS: u32 = 8;
@@ -106,6 +107,7 @@ impl PoolShape {
             acquire_timeout,
             statement_timeout: SINGLE_POOL_STATEMENT_TIMEOUT,
             read_only,
+            application_name: "claude-proxy",
         }
     }
 }
@@ -126,7 +128,7 @@ pub fn shaped_connect_options(
         .map_err(|e: sqlx::Error| connect_error(database_url, e))?;
     let statement_timeout = format!("{}ms", shape.statement_timeout.as_millis());
     let mut settings = vec![
-        ("application_name", "claude-proxy"),
+        ("application_name", shape.application_name),
         ("statement_timeout", statement_timeout.as_str()),
         ("idle_in_transaction_session_timeout", "60s"),
         ("lock_timeout", "5s"),

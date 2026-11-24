@@ -188,22 +188,31 @@ pub async fn read_all(state: &AppState) -> Readings {
 }
 
 pub async fn note_capture_outage(state: &AppState) {
+    let capture_pool = state.persist().map(|p| p.capture());
     let (reachable, capture) = tokio::join!(
-        probe::probe_persistence(state.persist(), probe::CAPABILITY_PROBE_DEADLINE),
-        probe::probe_latest_capture(state.persist(), probe::CAPABILITY_PROBE_DEADLINE),
+        probe::probe_persistence(capture_pool.as_ref(), probe::CAPABILITY_PROBE_DEADLINE),
+        probe::probe_latest_capture(capture_pool.as_ref(), probe::CAPABILITY_PROBE_DEADLINE),
     );
     if reachable == probe::ProbeState::NotConfigured {
         return;
     }
     let persistence = persistence_health(state, reachable, capture);
-    let failure = if !persistence.reachable {
-        Some("the database does not answer")
-    } else if persistence.capture_stalled {
-        Some("the database answers but captures are not being written")
-    } else {
-        None
-    };
-    capture_outage::note_reading(failure);
+    capture_outage::note_reading(outage_reading(reachable, persistence.capture_stalled));
+}
+
+fn outage_reading(reachable: probe::ProbeState, capture_stalled: bool) -> Option<&'static str> {
+    match reachable {
+        probe::ProbeState::Failed => Some("the database does not answer"),
+        _ if capture_stalled => Some("captures are not being written"),
+        probe::ProbeState::TimedOut => {
+            tracing::warn!(
+                pool = "capture",
+                "health: the database is slow to answer; captures are still being written"
+            );
+            None
+        }
+        _ => None,
+    }
 }
 
 pub async fn refresh_once(state: &AppState) {

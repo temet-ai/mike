@@ -121,3 +121,26 @@ async fn a_read_that_finishes_before_its_deadline_keeps_its_value() {
     let read = read_bounded(done, std::future::pending(), "test").await;
     assert_eq!(read, Some(5));
 }
+
+#[test]
+fn outage_reading_slow_probe_with_captures_flowing_is_no_outage() {
+    assert_eq!(outage_reading(probe::ProbeState::TimedOut, false), None);
+}
+
+#[test]
+fn outage_reading_refused_probe_is_an_outage() {
+    assert_eq!(
+        outage_reading(probe::ProbeState::Failed, false),
+        Some("the database does not answer")
+    );
+}
+
+#[test]
+fn outage_reading_stalled_captures_is_an_outage_whatever_the_probe() {
+    for state in [probe::ProbeState::Ok, probe::ProbeState::TimedOut] {
+        assert_eq!(
+            outage_reading(state, true),
+            Some("captures are not being written")
+        );
+    }
+}
