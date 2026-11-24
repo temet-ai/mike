@@ -1,5 +1,5 @@
-SELECT p.id, p.check_name, p.source, p.scope, p.resource, p.state, p.opened_at, p.last_seen_at,
-       p.healthy_at, ep.episodes AS episodes, ep.latest_evidence
+SELECT p.id, p.check_name, p.source, p.scope, p.resource, p.statement, p.state, p.opened_at,
+       p.last_seen_at, p.healthy_at, ep.episodes AS episodes, ep.latest_evidence
   FROM wright.problems p
   LEFT JOIN wright.episodes oe ON oe.problem_id = p.id AND oe.closed_at IS NULL
   CROSS JOIN LATERAL (

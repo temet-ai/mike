@@ -202,7 +202,7 @@ function checkArea(cause: WrightCause): CauseArea {
 export function causeArea(cause: WrightCause): CauseArea {
 	const { check_name: check, resource } = cause;
 	if (QUERY_CHECKS.has(check)) {
-		const tables = queryTables(resource);
+		const tables = queryTables(cause.statement ?? resource);
 		const first = tables[0];
 		if (first === undefined) return checkArea(cause);
 		const schema = first.split('.')[0]!;

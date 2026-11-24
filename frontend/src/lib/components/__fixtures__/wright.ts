@@ -34,6 +34,7 @@ export function problemFixture(over: Partial<WrightProblem> = {}): WrightProblem
 		source: 'mcp_tools',
 		resource:
 			'mcp__tether__work_thread_checkpoint: <tool_use_error>work_thread_checkpoint needs `tldr`</tool_use_error>',
+		statement: null,
 		state: 'open',
 		opened_at: ago(420),
 		last_seen_at: ago(3),
@@ -58,12 +59,17 @@ export const WAITED_HOURS = 6;
 export const LONG_RESOURCE =
 	'query 6512464039861100498: WITH own_turn AS ( SELECT max(t.id) AS id FROM memory.operator_turns t WHERE t.session_id = $1 AND t.kind = $2 ), prior AS ( SELECT p.id, p.text FROM memory.operator_turns p JOIN own_turn o ON p.id < o.id WHERE p.session_id = $1 ORDER BY p.id DESC LIMIT 20 ) SELECT * FROM prior';
 
+/** The whole text behind LONG_RESOURCE, which the resource cuts after 120 characters of SQL. */
+export const LONG_STATEMENT =
+	'WITH own_turn AS ( SELECT max(t.id) AS id FROM memory.operator_turns t WHERE t.session_id = $1 AND t.kind = $2 ), prior AS ( SELECT p.id, p.text FROM memory.operator_turns p JOIN own_turn o ON p.id < o.id WHERE p.session_id = $1 ORDER BY p.id DESC LIMIT 20 ) SELECT * FROM prior WHERE prior.text IS NOT NULL';
+
 export function causeFixture(over: Partial<WrightCause> = {}): WrightCause {
 	const base: WrightCause = {
 		cause_id: 10,
 		problem_id: 707,
 		check_name: 'decisions_health',
 		resource: 'blocked_dialog',
+		statement: null,
 		problems: 16,
 		observations: 16,
 		opened_at: ago(60 * 30),
@@ -119,6 +125,7 @@ export function causes(): WrightCause[] {
 			problem_id: 703,
 			check_name: 'slow_queries',
 			resource: LONG_RESOURCE,
+			statement: LONG_STATEMENT,
 			problems: 7,
 			observations: 1733,
 			opened_at: ago(60 * 52),
