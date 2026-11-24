@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\" FROM (\n             (SELECT rm.request_id AS id FROM requests.messages rm\n               WHERE rm.message_id = ANY($1) ORDER BY rm.request_id LIMIT 20)\n             UNION\n             (SELECT sm.request_id FROM requests.sent_messages sm\n               WHERE sm.message_id = ANY($1) ORDER BY sm.request_id LIMIT 10)\n             UNION\n             (SELECT d.request_id FROM requests.deltas d\n               WHERE d.message_id = ANY($1) ORDER BY d.request_id LIMIT 10)\n         ) sampled\n         ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7697771045f473dbaf6c6b3a98a9a8ba967b1a88c1d2b7f7a36988f5c1e01617"
+}

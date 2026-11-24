@@ -108,6 +108,18 @@ pub struct RestampSidecarOriginsArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct RepairRepeatedMessagesArgs {
+    #[arg(long)]
+    pub execute: bool,
+    #[arg(long, default_value_t = 2000)]
+    pub batch_size: usize,
+    #[arg(long, default_value_t = usize::MAX)]
+    pub max_batches: usize,
+    #[arg(long, default_value_t = 60)]
+    pub idle_minutes: i32,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct SweepOrphanedMessagesArgs {
     #[arg(long)]
     pub execute: bool,

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.deltas d\n            SET message_id = map.keep_id\n           FROM UNNEST($1::bigint[], $2::bigint[]) AS map(copy_id, keep_id)\n          WHERE d.message_id = map.copy_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "08f1ebbfabee56595cff81380d54c0c4d3e3fbf857ed1014c25b4091867efaa3"
+}

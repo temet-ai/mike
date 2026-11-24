@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH gone AS (\n             DELETE FROM messages.messages m\n              WHERE m.id = ANY($1)\n                AND NOT EXISTS (SELECT 1 FROM requests.messages rm WHERE rm.message_id = m.id)\n                AND NOT EXISTS (SELECT 1 FROM requests.sent_messages sm WHERE sm.message_id = m.id)\n                AND NOT EXISTS (SELECT 1 FROM requests.deltas d WHERE d.message_id = m.id)\n             RETURNING m.byte_size\n         )\n         SELECT count(*) AS \"rows!\", coalesce(sum(byte_size), 0)::bigint AS \"bytes!\" FROM gone",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rows!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "87d31a6ebf17d7257e046b38831e455cee475e10c05240fae66327d613eafd42"
+}

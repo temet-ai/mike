@@ -31,10 +31,11 @@ mod migrate;
 mod origin_backfill;
 mod print_config;
 mod reclaim_space;
+mod repair_repeated_messages;
 mod semantic;
 mod semantic_backtest;
-mod session_projects;
 mod sent_content;
+mod session_projects;
 mod sidecar_origins;
 mod steer_questions;
 mod sweep;
@@ -66,6 +67,7 @@ pub enum ConfigCommand {
     DetectLessonRelations(DetectLessonRelationsArgs),
     ForgetRetractedMigrations,
     SweepOrphanedMessages(SweepOrphanedMessagesArgs),
+    RepairRepeatedMessages(RepairRepeatedMessagesArgs),
     VerifierReplay(VerifierReplayArgs),
     DossierBackfill(DossierBackfillArgs),
     DossierParity(DossierParityArgs),
@@ -146,6 +148,9 @@ async fn run_maintenance_command(cmd: ConfigCommand, cli: CliOverrides) -> Resul
         ConfigCommand::ForgetRetractedMigrations => migrate::forget_retracted_migrations(cli).await,
         ConfigCommand::SweepOrphanedMessages(args) => {
             sweep::sweep_orphaned_messages(args, cli).await
+        }
+        ConfigCommand::RepairRepeatedMessages(args) => {
+            repair_repeated_messages::repair_repeated_messages(args, cli).await
         }
         ConfigCommand::VerifierReplay(args) => verifier_replay::verifier_replay(args, cli).await,
         cmd => run_judgement_command(cmd, cli).await,

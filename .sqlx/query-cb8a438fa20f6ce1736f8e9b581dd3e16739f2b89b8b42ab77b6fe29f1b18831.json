@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH map AS (\n             SELECT * FROM UNNEST($1::bigint[], $2::bigint[]) AS u(copy_id, keep_id)\n         ),\n         busy AS (\n             SELECT rm.message_id AS copy_id\n               FROM requests.messages rm\n               JOIN requests.requests r ON r.id = rm.request_id\n               JOIN sessions.sessions s ON s.id = r.session_id\n              WHERE rm.message_id = ANY($1)\n                AND s.last_seen >= now() - make_interval(mins => $3)\n             UNION\n             SELECT sm.message_id\n               FROM requests.sent_messages sm\n               JOIN requests.requests r ON r.id = sm.request_id\n               JOIN sessions.sessions s ON s.id = r.session_id\n              WHERE sm.message_id = ANY($1)\n                AND s.last_seen >= now() - make_interval(mins => $3)\n             UNION\n             SELECT d.message_id\n               FROM requests.deltas d\n               JOIN sessions.sessions s ON s.id = d.session_id\n              WHERE d.message_id = ANY($1)\n                AND s.last_seen >= now() - make_interval(mins => $3)\n         )\n         SELECT map.copy_id AS \"copy_id!\", map.keep_id AS \"keep_id!\"\n           FROM map\n           JOIN messages.messages c ON c.id = map.copy_id\n           JOIN messages.messages k ON k.id = map.keep_id\n          WHERE c.role_id = k.role_id\n            AND c.body::text = k.body::text\n            AND NOT EXISTS (SELECT 1 FROM busy WHERE busy.copy_id = map.copy_id)\n          ORDER BY map.copy_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "copy_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "keep_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "cb8a438fa20f6ce1736f8e9b581dd3e16739f2b89b8b42ab77b6fe29f1b18831"
+}

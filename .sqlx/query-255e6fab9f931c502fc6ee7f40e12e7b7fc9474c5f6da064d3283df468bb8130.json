@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.sent_messages sm\n            SET message_id = map.keep_id\n           FROM UNNEST($1::bigint[], $2::bigint[]) AS map(copy_id, keep_id)\n          WHERE sm.message_id = map.copy_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "255e6fab9f931c502fc6ee7f40e12e7b7fc9474c5f6da064d3283df468bb8130"
+}

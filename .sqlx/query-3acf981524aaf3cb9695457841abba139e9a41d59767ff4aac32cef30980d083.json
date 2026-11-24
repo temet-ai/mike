@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT x.id AS \"copy_id!\", x.keep_id AS \"keep_id!\", x.byte_size AS \"byte_size!\",\n                (extract(year FROM x.first_seen) * 100 + extract(month FROM x.first_seen))::int\n                    AS \"month!\"\n           FROM (SELECT m.id, m.byte_size, m.first_seen,\n                        first_value(m.id) OVER (PARTITION BY m.message_sha256 ORDER BY m.id) AS keep_id\n                   FROM messages.messages m) x\n          WHERE x.id <> x.keep_id\n          ORDER BY x.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "copy_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "keep_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "byte_size!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "byte_size"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "month!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "3acf981524aaf3cb9695457841abba139e9a41d59767ff4aac32cef30980d083"
+}

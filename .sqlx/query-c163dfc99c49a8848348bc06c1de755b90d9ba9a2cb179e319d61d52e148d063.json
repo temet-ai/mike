@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rm.request_id AS \"request_id!\", 'messages' AS \"part!\",\n                md5(string_agg(rm.ord || ':' || m.body::text || ':' || coalesce(rm.cache_control::text, ''),\n                               E'\\n' ORDER BY rm.ord, rm.id)) AS \"digest!\"\n           FROM requests.messages rm JOIN messages.messages m ON m.id = rm.message_id\n          WHERE rm.request_id = ANY($1)\n          GROUP BY rm.request_id\n         UNION ALL\n         SELECT sm.request_id, 'sent',\n                md5(string_agg(sm.ord || ':' || m.body::text || ':' || coalesce(sm.cache_control::text, ''),\n                               E'\\n' ORDER BY sm.ord))\n           FROM requests.sent_messages sm JOIN messages.messages m ON m.id = sm.message_id\n          WHERE sm.request_id = ANY($1)\n          GROUP BY sm.request_id\n         UNION ALL\n         SELECT d.request_id, 'deltas',\n                md5(string_agg(d.ord || ':' || d.change_kind_id || ':' || m.body::text,\n                               E'\\n' ORDER BY d.change_kind_id, d.ord, d.id))\n           FROM requests.deltas d JOIN messages.messages m ON m.id = d.message_id\n          WHERE d.request_id = ANY($1)\n          GROUP BY d.request_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "part!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "digest!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c163dfc99c49a8848348bc06c1de755b90d9ba9a2cb179e319d61d52e148d063"
+}
