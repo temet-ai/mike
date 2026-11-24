@@ -43,7 +43,9 @@ if systemctl --user is-active -q mike-arm-deploy; then
 fi
 cd "$HOME/$repo"
 git fetch -q origin
-git checkout -q --detach "$sha"
+# main moves forward to the commit, so sessions in this checkout stay on a branch; only when it
+# cannot fast-forward is the commit checked out detached, because the build runs from it.
+{ git checkout -q main && git merge -q --ff-only "$sha"; } || git checkout -q --detach "$sha"
 systemd-run --user --quiet --collect --unit mike-arm-deploy \
   --setenv=PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin" \
   --property=StandardOutput="append:$state/deploy.log" --property=StandardError="append:$state/deploy.log" \
