@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
+use super::cause_steers;
 use super::steer_owners as owners;
 use super::{Change, SteerApply, SteerError};
 use crate::store::persistence::wright::conversation_steers::OperatorProblemUndo;
@@ -132,6 +133,7 @@ impl SteerApply for Steers {
                 self.read_open_problem(check, resource).await
             }
             Change::SkipProblem { id, .. } => self.read_skip(*id).await,
+            queue_change => cause_steers::read(&self.persist, queue_change).await,
         }
     }
 
@@ -152,6 +154,7 @@ impl SteerApply for Steers {
             Change::SkipProblem { id, until } => {
                 Ok(json!({"problem_id": id, "skipped_until": until}))
             }
+            queue_change => cause_steers::apply(&self.persist, queue_change).await,
         }
     }
 
@@ -170,6 +173,7 @@ impl SteerApply for Steers {
             }
             Change::OpenProblem { .. } => self.undo_open_problem(prior, effect).await,
             Change::SkipProblem { .. } => Ok(prior.clone()),
+            queue_change => cause_steers::undo(&self.persist, queue_change, prior, effect).await,
         }
     }
 }

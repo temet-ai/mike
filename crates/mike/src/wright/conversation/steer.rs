@@ -2,15 +2,24 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use super::steer_causes as causes;
+
 pub(crate) const MAX_SPAN_DAYS: i64 = 7;
 pub(crate) const NAME_MAX_CHARS: usize = 120;
 pub(crate) const RESOURCE_MAX_CHARS: usize = 200;
-pub(crate) const KINDS: [&str; 5] = [
+pub(crate) const KINDS: [&str; 12] = [
     "pause_remedy",
     "resume_remedy",
     "open_problem",
     "set_engineer_limit",
     "skip_problem",
+    "pin_cause",
+    "unpin_cause",
+    "set_cause_priority",
+    "merge_causes",
+    "separate_merge",
+    "group_causes",
+    "ungroup_causes",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,14 +73,52 @@ impl LimitField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum Change {
-    PauseRemedy { name: String, until: DateTime<Utc> },
-    ResumeRemedy { name: String },
-    OpenProblem { check: String, resource: String },
-    SetEngineerLimit { field: LimitField, value: i64 },
-    SkipProblem { id: i64, until: DateTime<Utc> },
+    PauseRemedy {
+        name: String,
+        until: DateTime<Utc>,
+    },
+    ResumeRemedy {
+        name: String,
+    },
+    OpenProblem {
+        check: String,
+        resource: String,
+    },
+    SetEngineerLimit {
+        field: LimitField,
+        value: i64,
+    },
+    SkipProblem {
+        id: i64,
+        until: DateTime<Utc>,
+    },
+    PinCause {
+        cause_id: i64,
+    },
+    UnpinCause {
+        cause_id: i64,
+    },
+    SetCausePriority {
+        cause_id: i64,
+        priority: Option<f64>,
+    },
+    MergeCauses {
+        into: i64,
+        cause_ids: Vec<i64>,
+    },
+    SeparateMerge {
+        merge_id: i64,
+    },
+    GroupCauses {
+        name: String,
+        cause_ids: Vec<i64>,
+    },
+    UngroupCauses {
+        cause_ids: Vec<i64>,
+    },
 }
 
 impl Change {
@@ -80,12 +127,12 @@ impl Change {
     }
 }
 
-struct Fields<'a> {
-    kind: &'a str,
-    map: &'a Map<String, Value>,
+pub(super) struct Fields<'a> {
+    pub(super) kind: &'a str,
+    pub(super) map: &'a Map<String, Value>,
 }
 
-fn shown(value: Option<&Value>) -> String {
+pub(super) fn shown(value: Option<&Value>) -> String {
     value.map_or_else(|| "missing".to_owned(), Value::to_string)
 }
 
@@ -107,7 +154,7 @@ fn fields(proposal: &Value) -> Result<Fields<'_>, String> {
 }
 
 impl Fields<'_> {
-    fn only(&self, allowed: &[&str]) -> Result<(), String> {
+    pub(super) fn only(&self, allowed: &[&str]) -> Result<(), String> {
         let extra = self
             .map
             .keys()
@@ -122,7 +169,7 @@ impl Fields<'_> {
         }
     }
 
-    fn text(&self, field: &str, max: usize) -> Result<String, String> {
+    pub(super) fn text(&self, field: &str, max: usize) -> Result<String, String> {
         let value = self.map.get(field);
         match value.and_then(Value::as_str).map(str::trim) {
             Some(text) if !text.is_empty() && text.chars().count() <= max => Ok(text.to_owned()),
@@ -134,7 +181,7 @@ impl Fields<'_> {
         }
     }
 
-    fn int(&self, field: &str) -> Result<i64, String> {
+    pub(super) fn int(&self, field: &str) -> Result<i64, String> {
         let value = self.map.get(field);
         value.and_then(Value::as_i64).ok_or_else(|| {
             format!(
@@ -218,6 +265,8 @@ pub(crate) fn parse(proposal: &Value, now: DateTime<Utc>) -> Result<Change, Stri
         }
         "set_engineer_limit" => fields.limit(),
         "skip_problem" => fields.skip(now),
+        "pin_cause" | "unpin_cause" | "set_cause_priority" | "merge_causes" | "separate_merge"
+        | "group_causes" | "ungroup_causes" => causes::parse(&fields),
         other => Err(format!(
             "steer.kind is `{other}`; Wright can only propose {}",
             KINDS.join(", ")

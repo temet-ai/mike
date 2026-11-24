@@ -38,7 +38,7 @@ pub(crate) use investigations::{
 pub(crate) use log_lines::{LogLineRow, NewLogLine};
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, Following, RepairFilter, RepairRow, RepairUpdate};
-pub(crate) use triage::{Merged, RecurringCause, WaitingCause};
+pub(crate) use triage::{CauseRow, Merged, RecurringCause, WaitingCause};
 pub(crate) use triage_operator::{CausePatch, MergeOutcome, PatchOutcome, SeparateOutcome};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

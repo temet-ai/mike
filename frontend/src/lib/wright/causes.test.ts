@@ -144,6 +144,54 @@ describe('causeArea', () => {
 		expect(queryTables('select t.id from prior t')).toEqual([]);
 	});
 
+	it('does not take the FROM of EXTRACT, SUBSTRING, TRIM or OVERLAY for a table', () => {
+		expect(
+			queryTables('SELECT EXTRACT(epoch FROM t.created_at) AS s FROM wright.problems t')
+		).toEqual(['wright.problems']);
+		expect(
+			queryTables('select substring(p.text from x.y for 3), trim(both $1 from p.name) from memory.turns p')
+		).toEqual(['memory.turns']);
+		expect(queryTables('SELECT TRIM(LEADING FROM t.name), OVERLAY(a.b PLACING c FROM d.e) FROM prior t')).toEqual([]);
+		expect(queryTables('SELECT extract ( day FROM  t.opened ) FROM sessions.sessions t')).toEqual([
+			'sessions.sessions'
+		]);
+	});
+
+	it('still reads a table named in a subquery inside one of those functions', () => {
+		expect(
+			queryTables(
+				'SELECT EXTRACT(epoch FROM (SELECT max(x.at) FROM memory.events x)) FROM wright.causes c'
+			)
+		).toEqual(['memory.events', 'wright.causes']);
+	});
+
+	it('does not take IS DISTINCT FROM for a table', () => {
+		expect(
+			queryTables('SELECT 1 FROM wright.causes c WHERE c.a IS DISTINCT FROM p.b AND c.x IS NOT DISTINCT FROM q.y')
+		).toEqual(['wright.causes']);
+		expect(queryTables('SELECT 1 FROM prior c WHERE c.a IS DISTINCT FROM p.b')).toEqual([]);
+	});
+
+	it('does not read a table from a string literal or a comment', () => {
+		expect(
+			queryTables(
+				"SELECT 1 FROM wright.causes WHERE note = 'copied from a.b, it''s join c.d' /* from e.f */ -- from g.h"
+			)
+		).toEqual(['wright.causes']);
+	});
+
+	it('names the area of a long full statement whose first table is far into the text', () => {
+		const columns = Array.from({ length: 30 }, (_, i) => `COALESCE(t.col_${i}, 0) AS c${i}`).join(', ');
+		const sql = `query 42: WITH own_turn AS ( SELECT ${columns}, EXTRACT(epoch FROM t.created_at) AS age FROM prior t ) SELECT * FROM own_turn o JOIN mailbox.messages m ON m.id = o.c0 JOIN steering.interventions i ON i.id = m.id`;
+		expect(sql.search(/mailbox\.messages/)).toBeGreaterThan(200);
+		const area = causeArea(cause({ check_name: 'idle_polls', resource: sql }));
+		expect(area).toMatchObject({
+			kind: 'tables',
+			label: 'mailbox tables',
+			detail: ['mailbox.messages', 'steering.interventions']
+		});
+	});
+
 	it('puts two checks against the same schema in one area', () => {
 		const slow = causeArea(
 			cause({ check_name: 'slow_queries', resource: 'query 1: SELECT * FROM wright.problems' })

@@ -138,14 +138,52 @@ export interface CauseArea {
 	detail: string[];
 }
 
+// `IS [NOT] DISTINCT FROM x.y` compares columns; the lookbehind keeps its FROM out of the match.
 const SQL_TABLE =
-	/\b(?:from|update|into|join)\s+(?:only\s+)?"?([a-z_][a-z0-9_]*)"?\s*\.\s*"?([a-z_][a-z0-9_]*)"?/gi;
+	/(?<!\bdistinct\s+)\b(?:from|update|into|join)\s+(?:only\s+)?"?([a-z_][a-z0-9_]*)"?\s*\.\s*"?([a-z_][a-z0-9_]*)"?/gi;
 const QUERY_CHECKS = new Set(['slow_queries', 'reads_outpace_writes', 'idle_polls']);
+/** Functions whose argument list has its own FROM: EXTRACT(x FROM y), SUBSTRING(s FROM n), TRIM(c FROM s). */
+const FROM_FUNCTIONS = new Set(['extract', 'substring', 'trim', 'overlay']);
 
-/** Every `schema.table` a query names after FROM, UPDATE, INTO or JOIN, in order, once each. */
+/** The SQL with string literals and comments blanked out, so text inside them names no table. */
+function blankLiterals(sql: string): string {
+	return sql
+		.replace(/'(?:[^']|'')*'/g, (m) => ' '.repeat(m.length))
+		.replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length))
+		.replace(/--[^\n]*/g, (m) => ' '.repeat(m.length));
+}
+
+/**
+ * For each position of the (blanked) SQL, whether the innermost open parenthesis belongs to a
+ * function that has its own FROM. A subquery opened inside it starts a new level, so its FROM counts.
+ */
+function insideFromFunction(sql: string): boolean[] {
+	const inside: boolean[] = [];
+	const stack: boolean[] = [];
+	for (let i = 0; i < sql.length; i++) {
+		const ch = sql[i];
+		if (ch === '(') {
+			const word = /([a-z_]+)\s*$/i.exec(sql.slice(Math.max(0, i - 16), i))?.[1];
+			stack.push(word !== undefined && FROM_FUNCTIONS.has(word.toLowerCase()));
+		} else if (ch === ')') {
+			stack.pop();
+		}
+		inside.push(stack.at(-1) === true);
+	}
+	return inside;
+}
+
+/**
+ * Every `schema.table` a query names after FROM, UPDATE, INTO or JOIN, in order, once each. The
+ * FROM of EXTRACT, SUBSTRING, TRIM and OVERLAY, of IS DISTINCT FROM, and anything inside a string
+ * literal or a comment is not a table.
+ */
 export function queryTables(sql: string): string[] {
+	const text = blankLiterals(sql);
+	const inFunction = insideFromFunction(text);
 	const seen: string[] = [];
-	for (const match of sql.matchAll(SQL_TABLE)) {
+	for (const match of text.matchAll(SQL_TABLE)) {
+		if (inFunction[match.index]) continue;
 		const table = `${match[1]!.toLowerCase()}.${match[2]!.toLowerCase()}`;
 		if (!seen.includes(table)) seen.push(table);
 	}
