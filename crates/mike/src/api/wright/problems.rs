@@ -129,8 +129,20 @@ pub(crate) async fn list_causes(
         .list_wright_causes(limit)
         .await
         .map_err(persist_error_response)?;
+    let groups = handle
+        .web()
+        .list_wright_cause_groups()
+        .await
+        .map_err(persist_error_response)?;
+    let limits = handle
+        .web()
+        .wright_followup_limits()
+        .await
+        .map_err(persist_error_response)?;
     Ok(Json(json!({
         "causes": causes,
+        "groups": groups,
+        "max_attempts": limits.max_attempts,
         "limit": limit,
         "waited_hours": crate::wright::triage::WAITED_HOURS,
         "watch_enabled": watch_enabled(&state),

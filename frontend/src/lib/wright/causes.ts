@@ -1,4 +1,4 @@
-import type { WrightCause } from '$lib/api/wright';
+import type { NotInvestigatedBecause, WrightCause } from '$lib/api/wright';
 
 /**
  * What the Triage queue says about the causes the API ranks. Pure functions, so the wording and
@@ -112,6 +112,265 @@ export function causeLinks(cause: WrightCause): CauseLink[] {
 	return links;
 }
 
-/** Server order: highest priority first, the older cause first on a tie. */
+/**
+ * The engineer's order, which the server also uses: pinned causes first, then the highest
+ * `rank_priority` (the operator's value when set, else the formula's), the older cause on a tie.
+ */
 export const byPriorityDesc = (a: WrightCause, b: WrightCause): number =>
-	b.priority - a.priority || a.cause_id - b.cause_id;
+	Number(b.pinned) - Number(a.pinned) ||
+	b.rank_priority - a.rank_priority ||
+	a.cause_id - b.cause_id;
+
+/** The operator moved this cause, so its score no longer follows the formula. */
+export const isMoved = (cause: WrightCause): boolean => cause.operator_priority !== null;
+
+/* ---------------------------------------------------------------------------------- areas */
+
+export type AreaKind = 'tables' | 'module' | 'job' | 'decisions' | 'check';
+
+export interface CauseArea {
+	/** Causes with the same key show together, whichever check they come from. */
+	key: string;
+	kind: AreaKind;
+	/** "wright tables", "mike_features::proxy::responses_capture", "decisions_loop". */
+	label: string;
+	/** What the label was taken from, for the opened row: every table a query names, the full path. */
+	detail: string[];
+}
+
+const SQL_TABLE =
+	/\b(?:from|update|into|join)\s+(?:only\s+)?"?([a-z_][a-z0-9_]*)"?\s*\.\s*"?([a-z_][a-z0-9_]*)"?/gi;
+const QUERY_CHECKS = new Set(['slow_queries', 'reads_outpace_writes', 'idle_polls']);
+
+/** Every `schema.table` a query names after FROM, UPDATE, INTO or JOIN, in order, once each. */
+export function queryTables(sql: string): string[] {
+	const seen: string[] = [];
+	for (const match of sql.matchAll(SQL_TABLE)) {
+		const table = `${match[1]!.toLowerCase()}.${match[2]!.toLowerCase()}`;
+		if (!seen.includes(table)) seen.push(table);
+	}
+	return seen;
+}
+
+function checkArea(cause: WrightCause): CauseArea {
+	return { key: `check:${cause.check_name}`, kind: 'check', label: cause.check_name, detail: [] };
+}
+
+/**
+ * The part of mike a cause belongs to, from its check and resource. Pure and local: the rules
+ * come from the live queue (queries by schema, log errors by module, job failures by job name).
+ * Causes that match none of them are an area of their own named by the check.
+ */
+export function causeArea(cause: WrightCause): CauseArea {
+	const { check_name: check, resource } = cause;
+	if (QUERY_CHECKS.has(check)) {
+		const tables = queryTables(resource);
+		const first = tables[0];
+		if (first === undefined) return checkArea(cause);
+		const schema = first.split('.')[0]!;
+		return { key: `tables:${schema}`, kind: 'tables', label: `${schema} tables`, detail: tables };
+	}
+	if (check === 'log_errors') {
+		const path = /^([A-Za-z_]\w*(?:::[A-Za-z_]\w*)+)/.exec(resource)?.[1];
+		if (path === undefined) return checkArea(cause);
+		const module = path.split('::').slice(0, 3).join('::');
+		return {
+			key: `module:${module}`,
+			kind: 'module',
+			label: module,
+			detail: module === path ? [] : [path]
+		};
+	}
+	if (check === 'scheduled_job_failures') {
+		const job = /^job:([^@\s]+)/.exec(resource)?.[1];
+		if (job === undefined) return checkArea(cause);
+		return { key: `job:${job}`, kind: 'job', label: job, detail: [] };
+	}
+	if (check === 'decisions_health') {
+		return { key: 'decisions', kind: 'decisions', label: 'decisions', detail: [] };
+	}
+	return checkArea(cause);
+}
+
+export interface TriageSection {
+	/** `group:<id>` for a named group, else the area key. */
+	key: string;
+	kind: 'group' | 'area';
+	label: string;
+	detail: string[];
+	causes: WrightCause[];
+}
+
+/**
+ * The By area view: a section for each named group, then one for each derived area; causes in
+ * rank order inside a section, sections ordered by their highest-ranked cause. A cause in a
+ * group shows only in its group. `rows` arrive in the order the page shows (the store keeps it
+ * still while Wright refreshes), so the sections keep it instead of sorting again.
+ */
+export function sectionsByArea(rows: WrightCause[]): TriageSection[] {
+	const groups = new Map<string, TriageSection>();
+	const areas = new Map<string, TriageSection>();
+	for (const cause of rows) {
+		if (cause.group_id !== null) {
+			const key = `group:${cause.group_id}`;
+			const section = groups.get(key) ?? {
+				key,
+				kind: 'group' as const,
+				label: cause.group_name ?? `Group ${cause.group_id}`,
+				detail: [],
+				causes: []
+			};
+			section.causes.push(cause);
+			groups.set(key, section);
+			continue;
+		}
+		const area = causeArea(cause);
+		const section = areas.get(area.key) ?? {
+			key: area.key,
+			kind: 'area' as const,
+			label: area.label,
+			detail: [],
+			causes: []
+		};
+		section.causes.push(cause);
+		for (const line of area.detail) if (!section.detail.includes(line)) section.detail.push(line);
+		areas.set(area.key, section);
+	}
+	// Map insertion order is best-cause-first, because `rows` are walked in rank order.
+	return [...groups.values(), ...areas.values()];
+}
+
+/* -------------------------------------------------------------------------------- scoring */
+
+const DAY_MS = 86_400_000;
+
+export interface ScoreLine {
+	label: string;
+	value: string;
+}
+
+const round1 = (n: number): string => (Math.round(n * 10) / 10).toString();
+
+/**
+ * How the queue's score is made. The formula's own total is the server's `priority`; the lines
+ * above it are its inputs as the page can see them, so they may differ from it by a little.
+ */
+export function scoreBreakdown(cause: WrightCause, now: number = Date.now()): ScoreLine[] {
+	const opened = Date.parse(cause.opened_at);
+	const days = Number.isNaN(opened) ? 0 : Math.max(0, (now - opened) / DAY_MS);
+	const lines: ScoreLine[] = [
+		{ label: 'Problems', value: `${cause.problems}` },
+		{
+			label: 'Times seen',
+			value: `${cause.observations} (adds ${round1(Math.log(1 + cause.observations))})`
+		},
+		{ label: 'Days open', value: round1(days) },
+		{ label: 'Formula score', value: round1(cause.priority) }
+	];
+	if (cause.operator_priority !== null) {
+		lines.push({ label: 'Your value', value: `${round1(cause.operator_priority)}, used instead` });
+	}
+	return lines;
+}
+
+/** Why the engineer will or will not take the cause. `null` when the server has not said yet. */
+export function engineerLine(cause: WrightCause, maxAttempts: number | null): string | null {
+	const lead = cause.pinned ? 'Pinned. ' : '';
+	if (cause.investigable === true) {
+		return cause.pinned
+			? 'Pinned. The engineer takes it before the unpinned causes.'
+			: 'The engineer takes it when it reaches the top of the queue.';
+	}
+	if (cause.investigable === null && cause.not_investigated_because === null) return null;
+	const reasons: Record<NotInvestigatedBecause, string> = {
+		finding: 'it already has a finding',
+		followup: 'a follow-up is already filed for it',
+		known_fix: 'a known fix already answers it',
+		attempts:
+			maxAttempts === null
+				? 'it has used all its attempts'
+				: `it has used all ${maxAttempts} of its attempts`
+	};
+	const because = cause.not_investigated_because;
+	return because === null
+		? `${lead}The engineer will not take it.`
+		: `${lead}The engineer will not take it: ${reasons[because]}.`;
+}
+
+/* ---------------------------------------------------------------------------- reordering */
+
+/** Where in a list a cause goes: between its two new neighbours, or past an end. */
+export function priorityBetween(
+	above: WrightCause | undefined,
+	below: WrightCause | undefined
+): number | null {
+	if (above !== undefined && below !== undefined) {
+		return (above.rank_priority + below.rank_priority) / 2;
+	}
+	if (below !== undefined) return below.rank_priority + 1;
+	if (above !== undefined) return above.rank_priority - 1;
+	return null;
+}
+
+/**
+ * The `operator_priority` that puts cause `id` at `targetIndex` of `scope`, counted after it is
+ * taken out of its place. Only causes with the same pin state count: a pin keeps its row ahead
+ * of every unpinned one, so a move across that edge would change nothing. `null` when the
+ * cause is already there, is not in scope or has nothing to move past.
+ */
+export function priorityForIndex(
+	scope: WrightCause[],
+	id: number,
+	targetIndex: number
+): number | null {
+	const moving = scope.find((c) => c.cause_id === id);
+	if (moving === undefined) return null;
+	const zone = scope.filter((c) => c.pinned === moving.pinned);
+	const from = zone.findIndex((c) => c.cause_id === id);
+	const others = zone.filter((c) => c.cause_id !== id);
+	const to = Math.max(0, Math.min(targetIndex, others.length));
+	if (to === from) return null;
+	return priorityBetween(others[to - 1], others[to]);
+}
+
+export type MoveDirection = 'up' | 'down';
+
+/** Whether the cause has a neighbour to pass in that direction, within its pin state. */
+export function canMove(scope: WrightCause[], id: number, direction: MoveDirection): boolean {
+	const moving = scope.find((c) => c.cause_id === id);
+	if (moving === undefined) return false;
+	const zone = scope.filter((c) => c.pinned === moving.pinned);
+	const at = zone.findIndex((c) => c.cause_id === id);
+	return direction === 'up' ? at > 0 : at < zone.length - 1;
+}
+
+/** The value for Move up or Move down, one place within the cause's pin state. */
+export function moveStep(
+	scope: WrightCause[],
+	id: number,
+	direction: MoveDirection
+): number | null {
+	const moving = scope.find((c) => c.cause_id === id);
+	if (moving === undefined || !canMove(scope, id, direction)) return null;
+	const zone = scope.filter((c) => c.pinned === moving.pinned);
+	const at = zone.findIndex((c) => c.cause_id === id);
+	return priorityForIndex(scope, id, direction === 'up' ? at - 1 : at + 1);
+}
+
+export type DropEdge = 'before' | 'after';
+
+/** The value for dropping cause `id` on the `before` or `after` edge of cause `overId`. */
+export function dropStep(
+	scope: WrightCause[],
+	id: number,
+	overId: number,
+	edge: DropEdge
+): number | null {
+	const moving = scope.find((c) => c.cause_id === id);
+	const over = scope.find((c) => c.cause_id === overId);
+	if (moving === undefined || over === undefined || id === overId) return null;
+	if (moving.pinned !== over.pinned) return null;
+	const others = scope.filter((c) => c.pinned === moving.pinned && c.cause_id !== id);
+	const at = others.findIndex((c) => c.cause_id === overId);
+	return priorityForIndex(scope, id, at + (edge === 'after' ? 1 : 0));
+}

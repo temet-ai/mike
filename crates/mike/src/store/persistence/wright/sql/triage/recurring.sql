@@ -11,5 +11,5 @@ SELECT q.cause_id, q.followup_id, q.issue_number, q.check_name, q.resource,
          FROM wright.problems p
         WHERE p.cause_id = q.cause_id
           AND p.last_seen_at > COALESCE(c.commented_at, fu.filed_at, fu.created_at))
- ORDER BY q.priority DESC, q.cause_id
+ ORDER BY q.pinned DESC, q.rank_priority DESC, q.cause_id
  LIMIT $1

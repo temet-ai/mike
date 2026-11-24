@@ -6846,7 +6846,33 @@ ON DELETE SET NULL`, partial index `idx_wright_problems_cause`) is set once per 
 The view `wright.cause_queue` has one row per cause with an open problem: its representative
 problem and episode (most observed), problem and observation counts, attempts, finding, live
 follow-up and issue, whether a remedy answers the check, and `priority = problems + ln(1 +
-observations) + days open`.
+observations) + days open`. Migration `20261124140000_wright_cause_operator.sql` adds the
+operator's controls to `wright.causes`: `pinned_at` (`TIMESTAMPTZ NULL`; a pinned cause comes before
+every unpinned one), `operator_priority` (`DOUBLE PRECISION NULL`, between -1e12 and 1e12; when set
+it replaces `priority` for that cause) and `group_id` (`BIGINT NULL REFERENCES
+wright.cause_groups(id) ON DELETE SET NULL`, partial index `idx_wright_causes_group`; a group only
+changes how the page shows a cause and has no effect on ranking). The view gains, after its
+existing columns, `pinned`, `operator_priority`, `rank_priority` (`COALESCE(operator_priority,
+priority)`) and `group_id`; every reader orders by `pinned DESC, rank_priority DESC, cause_id`.
+
+### `wright.cause_groups`
+
+The operator's named groups of causes (migration `20261124140000_wright_cause_operator.sql`):
+`id` (identity), `name` (`TEXT NOT NULL UNIQUE`, non-blank), `created_at`. Deleting a group sets
+`wright.causes.group_id` to null on its causes.
+
+### `wright.cause_merges`
+
+One row per cause absorbed by a merge (migration `20261124140000_wright_cause_operator.sql`): `id`
+(identity), `root_cause_id` and `absorbed_cause_id` (both `REFERENCES wright.causes(id) ON DELETE
+CASCADE`, different, indexed), `problem_ids` (`BIGINT[] NOT NULL`, the problems moved from the
+absorbed cause), `by` (`operator` or `engineer`), `created_at` and `separated_at`. An engineer
+merge (a finding's `same_cause_as`) and an operator merge (cause to cause, from the Wright page)
+both write rows. Separating is allowed only on an operator merge with `separated_at` null: it
+clears the absorbed cause's `merged_into`, moves the listed problems that still sit in the root
+cause back, and sets `separated_at`. Problems opened after the merge stay in the root, because
+triage assigned them there. The partial index `idx_wright_cause_merges_root` serves the list of
+live merges per root.
 
 ### `wright.followup_limits`
 

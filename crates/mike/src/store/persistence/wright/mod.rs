@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 
+mod cause_groups;
 mod checks;
 pub(crate) mod conversation;
 pub(crate) mod conversation_steers;
@@ -16,6 +17,7 @@ pub(crate) mod remedies;
 
 mod repairs;
 mod triage;
+mod triage_operator;
 
 #[cfg(test)]
 mod followups_tests;
@@ -24,6 +26,7 @@ mod followups_memo_tests;
 #[cfg(test)]
 mod triage_tests;
 
+pub(crate) use cause_groups::GroupWrite;
 pub(crate) use fix_batches::{BatchFix, BatchUpdate, FixBatchRow};
 pub(crate) use followups::{FollowupRow, NewFollowup, RootCausePick};
 pub(crate) use followups_flow::{Fixer, FollowupLimits, FollowupLimitsPatch};
@@ -36,6 +39,7 @@ pub(crate) use log_lines::{LogLineRow, NewLogLine};
 pub(crate) use remedies::{RemedyPatch, RemedyRow};
 pub(crate) use repairs::{ClaimedRepair, Following, RepairFilter, RepairRow, RepairUpdate};
 pub(crate) use triage::{Merged, RecurringCause, WaitingCause};
+pub(crate) use triage_operator::{CausePatch, MergeOutcome, PatchOutcome, SeparateOutcome};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct CheckRow {

@@ -211,7 +211,8 @@
 	.convo__inner {
 		display: flex;
 		flex-direction: column;
-		block-size: min(46rem, calc(100svh - 12rem));
+		/* The queues sit below the conversation, so it leaves room for their first rows. */
+		block-size: min(34rem, calc(100svh - 18rem));
 		min-block-size: 24rem;
 	}
 

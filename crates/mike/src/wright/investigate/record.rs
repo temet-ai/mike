@@ -88,7 +88,7 @@ async fn merge_causes(ctx: &EngineerContext, finding_id: i64, problem_id: i64, s
     match ctx
         .persist
         .web()
-        .merge_wright_causes(problem_id, same)
+        .merge_wright_causes(problem_id, same, "engineer")
         .await
     {
         Ok(merged) => log_merged(finding_id, merged),
