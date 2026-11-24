@@ -17,6 +17,7 @@ async fn capture_raw(
     let outcome = handle
         .insert_request_initial(&req, true, IdMode::Mint)
         .await?;
+    super::store_request_body(handle, outcome.id, raw.as_bytes()).await?;
     Ok((
         outcome.id,
         outcome.session_id.context("the capture has a session")?,

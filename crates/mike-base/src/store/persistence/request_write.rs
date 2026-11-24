@@ -28,6 +28,10 @@ pub struct RequestInsertOutcome {
 
 pub struct RequestEnvelopePrep<'a> {
     pub request_body_bytes: Option<&'a [u8]>,
+    /// The raw body stored in `request_body`: only for a body no envelope can be
+    /// made from (it carries a NUL byte, or is not a JSON object). Every other
+    /// body is rebuilt from its envelope and decomposed parts.
+    pub stored_body_bytes: Option<&'a [u8]>,
     pub request_body_size: i32,
     pub request_envelope: Option<Vec<u8>>,
     pub filtered_request_body_bytes: Option<&'a [u8]>,
@@ -46,6 +50,7 @@ impl<'a> RequestEnvelopePrep<'a> {
         let request_envelope = request_body_bytes
             .filter(|bytes| !text_sanitize::body_carries_nul(bytes))
             .and_then(reconstruct::strip_bulk_arrays);
+        let stored_body_bytes = request_body_bytes.filter(|_| request_envelope.is_none());
         let filtered_request_body_bytes =
             match (req.filter_applied, req.filtered_request_body.as_ref()) {
                 (true, Some(bytes)) => Some(bytes.as_ref()),
@@ -74,6 +79,7 @@ impl<'a> RequestEnvelopePrep<'a> {
 
         Ok(Self {
             request_body_bytes,
+            stored_body_bytes,
             request_body_size,
             request_envelope,
             filtered_request_body_bytes,
@@ -179,7 +185,7 @@ async fn insert_requests_row_mint(
     .bind(req.is_tool_loop)
     .bind(&prep.request_headers)
     .bind(&prep.params)
-    .bind(prep.request_body_bytes)
+    .bind(prep.stored_body_bytes)
     .bind(&req.last_user_message)
     .bind(&req.human_prompt)
     .bind(&req.turn_type)
@@ -250,7 +256,7 @@ async fn insert_requests_row_ensure(
     .bind(req.is_tool_loop)
     .bind(&prep.request_headers)
     .bind(&prep.params)
-    .bind(prep.request_body_bytes)
+    .bind(prep.stored_body_bytes)
     .bind(&req.last_user_message)
     .bind(&req.human_prompt)
     .bind(&req.turn_type)

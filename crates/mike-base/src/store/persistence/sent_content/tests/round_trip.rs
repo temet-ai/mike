@@ -240,3 +240,32 @@ async fn capture_tools_edit_keeps_the_sent_tools_inline() -> anyhow::Result<()> 
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn a_new_capture_stores_no_raw_body_and_serves_both_versions() -> anyhow::Result<()> {
+    let Some(db) = test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let original = conversation(3);
+    let sent = with(original.clone(), |b| {
+        b["messages"][2]["content"][0]["text"] = json!("edited")
+    });
+    let id = capture_one(&handle, &original, Some(&sent)).await?;
+    let stored: (bool, bool, i32) = sqlx::query_as(
+        "SELECT request_body IS NULL, request_envelope IS NOT NULL, request_body_size
+           FROM requests.requests WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_one(&handle.pool)
+    .await?;
+    assert_eq!(
+        stored,
+        (true, true, i32::try_from(original.to_string().len())?),
+        "a body with an envelope keeps only its envelope and size"
+    );
+    assert_eq!(original_of(&handle, id).await?, original);
+    assert_eq!(sent_of(&handle, id).await?, sent);
+    db.cleanup().await?;
+    Ok(())
+}

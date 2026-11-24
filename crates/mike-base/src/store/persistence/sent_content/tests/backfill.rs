@@ -1,7 +1,7 @@
 use anyhow::Context;
 use serde_json::{Value as JsonValue, json};
 
-use super::{SentColumns, clear_request_body, sent_columns, sent_of};
+use super::{SentColumns, clear_request_body, sent_columns, sent_of, store_request_body};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::messages::{SentPatchRow, apply_sent_patches};
 use crate::store::persistence::test_support;
@@ -19,6 +19,7 @@ async fn capture_raw(handle: &PersistHandle) -> anyhow::Result<i64> {
             crate::store::persistence::request_write::IdMode::Mint,
         )
         .await?;
+    store_request_body(handle, outcome.id, RAW.as_bytes()).await?;
     Ok(outcome.id)
 }
 

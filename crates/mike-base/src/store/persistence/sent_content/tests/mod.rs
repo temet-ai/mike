@@ -26,6 +26,21 @@ pub(super) async fn capture(handle: &PersistHandle, capture: Capture<'_>) -> any
     Ok(outcome.id)
 }
 
+/// Stores `raw` in `request_body`, as every row captured before the write path
+/// stopped keeping bodies has it.
+pub(super) async fn store_request_body(
+    handle: &PersistHandle,
+    request_id: i64,
+    raw: &[u8],
+) -> anyhow::Result<()> {
+    sqlx::query("UPDATE requests.requests SET request_body = $2 WHERE id = $1")
+        .bind(request_id)
+        .bind(raw)
+        .execute(&handle.pool)
+        .await?;
+    Ok(())
+}
+
 pub(super) async fn clear_request_body(
     handle: &PersistHandle,
     request_id: i64,
