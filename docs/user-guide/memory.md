@@ -172,7 +172,6 @@ An installed mike (Homebrew, mise or an archive) runs the four jobs whose script
 |---|---|
 | `learning_promote` | Runs `mike learning promote` hourly overnight. It writes the lessons that should always apply to `.claude/rules/mike-lessons.md` in your project folder, each tagged `[lesson:<id> rev:<n>]`, and installs skills there. A lesson your own `CLAUDE.md`, `AGENTS.md` or rules files already say is left out. |
 | `learning_audit` | Runs `mike learning-audit` weekly: reviews last week's sessions, lessons and tool use and writes a report under `artifacts/learning-audit`. |
-| `compressor_loop` | Compares sessions with and without shortened file reads and adjusts the [compressor](compression.md)'s settings, daily. |
 | `lesson_relations` | Finds lessons that repeat or contradict each other, daily, before consolidation. |
 
 None of them needs Python or `psql`; they run mike's own commands. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.

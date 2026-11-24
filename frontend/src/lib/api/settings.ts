@@ -31,24 +31,9 @@ export interface SettingMeta {
  */
 export type SettingValue = boolean | number | string | string[] | null | Record<string, number>;
 
-export interface CompressionEffective {
-	state: 'pure_shadow' | 'sampled_forwarding' | 'forced_forwarding' | 'off' | (string & {});
-	mode: string;
-	forward_share: number;
-	applies: string;
-	summary: string;
-	session_arm: string;
-	/** Absent on backends older than the feature-switch report; treat a missing value as true. */
-	enabled?: boolean;
-}
-
 export interface SettingsCatalogueResponse {
 	settings: SettingMeta[];
 	steerer_openrouter_configured_via_env: boolean;
-	/** Absent on older backends; the page then renders no forwarding state. */
-	file_read_compression_effective?: CompressionEffective;
-	/** Absent on older backends; the page then renders no forwarding state. */
-	shell_output_compression_effective?: CompressionEffective;
 }
 
 export interface FeatureDto {

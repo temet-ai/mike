@@ -34,8 +34,6 @@ fn stage_order_matches_documented_pipeline_sequence() {
             "steerer",
             "repeated_notices",
             "read_dedup",
-            "file_read_compression",
-            "shell_output_compression",
             "proxy_tools",
             "context_focus_question",
             "proxy_tool_thread",

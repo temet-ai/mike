@@ -281,12 +281,12 @@ function mapScene(withSidecar) {
 	});
 }
 
-/* ═══ Scene: thirteen stages (REQUEST_FLOW, ARCHITECTURE §4) ═════ */
+/* ═══ Scene: twelve stages (REQUEST_FLOW, ARCHITECTURE §4) ═════ */
 function stagesScene() {
 	const STAGES = [
 		['accept', 'fixed'], ['filter'], ['reminder_on_token'], ['lazy_sections'], ['recall_injector', 'armed'], ['lessons'],
 		['self_identity'], ['workspace_briefing'], ['agent_lessons'], ['reminders', 'armed'], ['steerer', 'armed'], ['read_dedup', 'armed'],
-		['file_read_compression'], ['proxy_tools'], ['composer'], ['upstream', 'fixed']
+		['proxy_tools'], ['composer'], ['upstream', 'fixed']
 	];
 	const INFO = {
 		accept: ['accept', 'stored_body = the original inbound bytes, captured before any stage runs.', 'This copy is what the inspect API and mike-mcp serve, whatever happens next.'],
@@ -300,7 +300,7 @@ function stagesScene() {
 	const CW = 110, CH = 66, X0 = 25, Y1 = 30, Y2 = 200;
 	const nodes = {}, centers = [];
 	STAGES.forEach(([id, st], i) => {
-		const row2 = i >= 8, col = row2 ? 15 - i : i;
+		const row2 = i >= 8, col = row2 ? STAGES.length - 1 - i : i;
 		const x = X0 + col * 120, y = row2 ? Y2 : Y1;
 		centers.push([x + CW / 2, y + CH / 2]);
 		const lines = id === 'steerer' ? ['steerer', '+ queue drain'] : id.length > 13 ? splitName(id) : [id];
@@ -378,7 +378,7 @@ function stagesScene() {
 		svg: frame({
 			W, H, heading: 'Request pipeline: an example with four active rewrite paths',
 			title: 'mike request pipeline, animated',
-			desc: 'Animated diagram of pipeline::STAGE_ORDER. A request packet passes accept, then filter, reminder_on_token, lazy_sections, recall_injector, lessons, self_identity, workspace_briefing, agent_lessons, reminders, the steerer queue drain, read_dedup, file_read_compression, proxy_tools and the composer, then goes upstream. In this primary-turn example recall_injector, reminders, the queue drain and read_dedup rewrite the forwarded body; the logical inbound capture never changes.'
+			desc: 'Animated diagram of pipeline::STAGE_ORDER. A request packet passes accept, then filter, reminder_on_token, lazy_sections, recall_injector, lessons, self_identity, workspace_briefing, agent_lessons, reminders, the steerer queue drain, read_dedup, proxy_tools and the composer, then goes upstream. In this primary-turn example recall_injector, reminders, the queue drain and read_dedup rewrite the forwarded body; the logical inbound capture never changes.'
 		}, body), T
 	};
 }

@@ -127,3 +127,14 @@ pub fn code_reviewer_snapshot() -> LessonSnapshot {
         )],
     )
 }
+
+pub fn earlier_from_messages(
+    messages: &[serde_json::Value],
+) -> anyhow::Result<crate::conversation::EarlierTurns> {
+    let raw = serde_json::to_vec(&json!({ "messages": messages }))?;
+    let parsed = crate::conversation::body_messages(&raw)
+        .ok_or_else(|| anyhow::anyhow!("earlier messages did not parse"))?;
+    Ok(crate::conversation::EarlierTurns::from_chain(
+        std::sync::Arc::from(parsed),
+    ))
+}

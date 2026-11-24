@@ -75,7 +75,7 @@ class ScheduledJobObservationTests(OfflineTests):
                                                             else "never_run")} for name in names]}
 
     def test_shipped_jobs_available_and_checkout_jobs_marked_is_accepted(self):
-        states = defaults.validate_scheduled_jobs(self.response(learning_audit="failing", compressor_loop="off"))
+        states = defaults.validate_scheduled_jobs(self.response(learning_audit="failing"))
         self.assertEqual(states["learning_audit"], "failing")
         self.assertEqual(states["lessons_commit"], "unavailable")
 

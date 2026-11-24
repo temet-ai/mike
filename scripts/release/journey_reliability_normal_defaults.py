@@ -32,7 +32,6 @@ analysis.enabled
 assistant.anthropic_auth_mode
 assistant.provider
 composition_enabled
-compressor_loop.enabled
 compression_dedup.enabled
 directives.proposer.min_confirmed
 directives.proposer.min_sessions
@@ -71,14 +70,6 @@ eval.labels.holdout_percent
 eval.relay_labels_enabled
 eval.rollup.enabled
 eval.rollup.hour_utc
-file_read_compression.enabled_producers
-file_read_compression.forward_share
-file_read_compression.grace_turns
-file_read_compression.head_lines
-file_read_compression.min_bytes
-file_read_compression.mode
-file_read_compression.protected_paths
-file_read_compression.tail_lines
 guard.calibration.input_mode
 guard.calibration.min_labelled
 guard.calibration.window_days
@@ -251,13 +242,6 @@ session_judge.rejudge_daily_call_cap
 session_judge.request_timeout_secs
 session_judge.system_prompt
 session_judge.v3_lookback_hours
-shell_output_compression.forward_share
-shell_output_compression.head_lines
-shell_output_compression.min_bytes
-shell_output_compression.mode
-shell_output_compression.signal_context_lines
-shell_output_compression.signal_line_cap
-shell_output_compression.tail_lines
 steerer.intake_criteria.input_budget
 steerer.max_output_tokens
 steerer.model

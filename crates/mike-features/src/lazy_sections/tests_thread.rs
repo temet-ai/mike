@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use super::tests_inject_reminder::{REMINDER_BODY, REMINDER_TOKEN, inject_reminder_rule};
 use super::tests_support::{cfg, rewrote};
 use super::*;
-use crate::compress::history::earlier_from_messages;
+use crate::reminders::test_support::earlier_from_messages;
 
 fn thread_body(messages: Vec<Value>) -> anyhow::Result<Vec<u8>> {
     Ok(serde_json::to_vec(&json!({

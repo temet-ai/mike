@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-use crate::compress::file_reads::glob::glob_match;
+use super::glob::glob_match;
 
 const MIN_RULE_CHARS: usize = 25;
 const MAX_RULE_CHARS: usize = 600;

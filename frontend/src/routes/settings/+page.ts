@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { getFeatures, getSettings } from '$lib/api/settings';
-import type { FeatureDto, CompressionEffective, SettingMeta } from '$lib/api/settings';
+import type { FeatureDto, SettingMeta } from '$lib/api/settings';
 import { getCapabilities } from '$lib/api/capabilities';
 import type { CapabilityRow } from '$lib/api/capabilities';
 
@@ -8,8 +8,6 @@ export interface SettingsPageData {
 	features: FeatureDto[] | null;
 	loadError: string | null;
 	settings: SettingMeta[] | null;
-	fileReadCompressionEffective: CompressionEffective | null;
-	shellOutputCompressionEffective: CompressionEffective | null;
 	steererOpenrouterConfiguredViaEnv: boolean;
 	settingsLoadError: string | null;
 	capabilities: CapabilityRow[] | null;
@@ -33,14 +31,6 @@ export const load: PageLoad = async ({ url }): Promise<SettingsPageData> => {
 			: null;
 
 	const settings = settingsResult.status === 'fulfilled' ? settingsResult.value.settings : null;
-	const fileReadCompressionEffective =
-		settingsResult.status === 'fulfilled'
-			? (settingsResult.value.file_read_compression_effective ?? null)
-			: null;
-	const shellOutputCompressionEffective =
-		settingsResult.status === 'fulfilled'
-			? (settingsResult.value.shell_output_compression_effective ?? null)
-			: null;
 	const steererOpenrouterConfiguredViaEnv =
 		settingsResult.status === 'fulfilled'
 			? settingsResult.value.steerer_openrouter_configured_via_env
@@ -64,8 +54,6 @@ export const load: PageLoad = async ({ url }): Promise<SettingsPageData> => {
 		features,
 		loadError,
 		settings,
-		fileReadCompressionEffective,
-		shellOutputCompressionEffective,
 		steererOpenrouterConfiguredViaEnv,
 		settingsLoadError,
 		capabilities,

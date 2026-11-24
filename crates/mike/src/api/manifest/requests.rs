@@ -68,11 +68,6 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "GET",
-        "/api/tool-results/{tool_use_id}/original",
-        Coverage::Tool("get_request_body"),
-    ),
-    route(
-        "GET",
         "/api/requests/{id}/body/request_sent",
         Coverage::Tool("get_request_sent_body"),
     ),
@@ -261,10 +256,6 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/requests/{id}/body/request",
             get(handlers::get_request_body),
-        )
-        .route(
-            "/api/tool-results/{tool_use_id}/original",
-            get(handlers::get_tool_result_original),
         )
         .route(
             "/api/requests/{id}/body/request_sent",

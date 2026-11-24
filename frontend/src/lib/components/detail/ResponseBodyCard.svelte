@@ -1,5 +1,4 @@
 <script lang="ts">
-	import CompressionFlag from '$lib/components/compression/CompressionFlag.svelte';
 	import type { BodyPayload, RequestDetail } from '$lib/types';
 	import { useLazyBody } from '$lib/stores/bodyFetcher.svelte';
 	import { isAbortedRequest, isNonAbortedStreamingError } from '$lib/status';
@@ -40,8 +39,6 @@
 
 	const body = useLazyBody(() => detail, 'response');
 </script>
-
-<CompressionFlag target={{ kind: 'response', request_id: detail.id }} />
 
 {#if isPending}
 	<div class="flex flex-col gap-2">
@@ -163,8 +160,10 @@
 		<button
 			type="button"
 			class="rounded-[2px] border border-[var(--status-danger-border)] px-2 py-0.5 text-label uppercase tracking-wider text-[var(--status-danger-fg)] hover:border-[var(--status-danger-fg)] hover:bg-[var(--status-danger-bg)]"
-			onclick={body.retry}>Retry</button
+			onclick={body.retry}
 		>
+			Retry
+		</button>
 	</div>
 {:else if body.loading}
 	<p class="text-xs italic text-[var(--text-3)]">Loading body…</p>

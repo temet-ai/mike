@@ -83,7 +83,7 @@
 						Steering settings
 					</a>
 				{/snippet}
-				{#each ['reminders', 'recall_injector', 'file_read_compression'] as row (row)}
+				{#each ['reminders', 'recall_injector', 'agent_lessons'] as row (row)}
 					<div
 						style="padding:16px 20px; border-bottom:1px solid var(--border-subtle); font-size:13px; color:var(--text-1);"
 					>

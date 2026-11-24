@@ -63,7 +63,7 @@ WORKER_CONDITIONS = {
 # GET /api/scheduled-jobs ids whose script the archive ships (script_assets.SCRIPTS), and
 # the ones that are checkout-only. An installed mike runs the first; it marks the second
 # "unavailable" because they need a source checkout.
-SHIPPED_JOB_IDS = ("learning_promote", "learning_audit", "compressor_loop", "lesson_relations")
+SHIPPED_JOB_IDS = ("learning_promote", "learning_audit", "lesson_relations")
 CHECKOUT_ONLY_JOB_IDS = ("lessons_commit", "usage_audit", "memory_review")
 
 

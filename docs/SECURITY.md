@@ -196,7 +196,7 @@ A fresh install is already in this state. To confirm or restore it:
    switch to its default. The ones that rewrite traffic or call out default off:
    `reminders`, `recall_injector`, `weasel_intercept`, `reminder_on_token`, `mailbox_redelivery`,
    `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`,
-   `turn_guard`, `agent_lessons`, `file_read_compression`, `shell_output_compression`,
+   `turn_guard`, `agent_lessons`,
    `proxy_tools`, `self_identity_reminder`, `repeated_notices`, `workspace_briefing`,
    `native_peer_mail`, `mod_lesson_delivery` and `context_focus_question`;
    [`FEATURES.md`](FEATURES.md) lists every switch with its default. Switches that are on by

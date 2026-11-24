@@ -40,7 +40,6 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | Prompts | `/prompts`, and its main, subagent, volatile-lines and new views | [Prompts, agents and tools](prompts-and-agents.md) |
 | Agents | `/agents`, and an agent at `/agents/<agent>` | [Prompts, agents and tools](prompts-and-agents.md) |
 | Fleet | `/fleet` | [Fleets](fleets/README.md), [Projects](projects.md) |
-| Compression review | `/compression-review` | [Compression](compression.md) |
 | Tools | `/tools` (tool errors are on the same page) | [Prompts, agents and tools](prompts-and-agents.md) |
 | Code findings | `/code-findings` | [Settings](settings.md) (the `code_scan` and `code_findings` switches) |
 | Agent dispatches | `/diagnostics/agent-dispatches` | [Prompts, agents and tools](prompts-and-agents.md) |

@@ -277,7 +277,7 @@ mod tests {
         );
         assert!(
             second_body.filtered_stored().is_none(),
-            "rewrite_forwarded_only must not stamp the stored audit copy, matching file_read_compression"
+            "rewrite_forwarded_only must not stamp the stored audit copy, matching the other stage rewrites"
         );
         let rewritten: serde_json::Value = serde_json::from_slice(second_body.body())?;
         let stubbed = rewritten

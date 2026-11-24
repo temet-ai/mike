@@ -5,9 +5,8 @@ use chrono::Weekday;
 use super::schedule::{Cadence, Period};
 use crate::lessons_settings::meta_memory_loop::MEMORY_REVIEW_ENABLED_KEY;
 use crate::settings::meta_scheduled_jobs::{
-    COMPRESSOR_LOOP_ENABLED_KEY, DECISIONS_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
-    LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
-    USAGE_AUDIT_ENABLED_KEY,
+    DECISIONS_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY, LEARNING_PROMOTE_ENABLED_KEY,
+    LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -72,29 +71,6 @@ pub(super) const AUDIT: Job = Job {
     enabled_key: LEARNING_AUDIT_ENABLED_KEY,
     schedule_text: "weekly, once on Monday between 01:00 and 06:59 UTC",
     failure_hint: "It runs `mike learning-audit` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand to see the error.",
-};
-
-pub(super) const COMPRESSOR_LOOP: Job = Job {
-    name: "compressor_loop",
-    label: "File-read compressor loop",
-    description: "Compares sessions that got shortened file reads with those that did not and adjusts the compressor's settings, so it keeps only the cuts that do no harm.",
-    script: "scripts/compressor-loop",
-    checkout_only: false,
-    mike_command: Some(&["compressor-loop"]),
-    args: &["--days", "7", "--apply"],
-    timeout: Duration::from_secs(20 * 60),
-    cadence: Cadence {
-        weekday: None,
-        hours: &[4, 5, 6],
-        minute: 30,
-        period: Period::Day,
-    },
-    nice: 10,
-    leased: true,
-    alarm_exit: None,
-    enabled_key: COMPRESSOR_LOOP_ENABLED_KEY,
-    schedule_text: "daily, once between 04:30 and 06:59 UTC",
-    failure_hint: "It runs `mike compressor-loop` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike), which reads the capture database and changes settings through the inspect API on 127.0.0.1:9989, so check that both answer.",
 };
 
 #[cfg(test)]
@@ -238,10 +214,9 @@ pub(super) const DECISIONS_LOOP: Job = Job {
     failure_hint: "It runs `mike decisions loop` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand with --force to see the error.",
 };
 
-pub(crate) static JOBS: [Job; 8] = [
+pub(crate) static JOBS: [Job; 7] = [
     PROMOTE,
     AUDIT,
-    COMPRESSOR_LOOP,
     LESSONS_COMMIT,
     USAGE_AUDIT,
     LESSON_RELATIONS,

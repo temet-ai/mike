@@ -211,25 +211,4 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         })
         .await
     }
-
-    pub async fn first_request_carrying_result(
-        self,
-        wire_tool_use_id: &str,
-    ) -> Result<Option<i64>, PersistError> {
-        crate::metrics::time_db("first_request_carrying_result", async {
-            let id = sqlx::query_scalar!(
-                r#"SELECT tr.request_id AS "request_id!"
-                   FROM tools.uses tu
-                   JOIN tools.results tr ON tr.tool_use_id = tu.id
-                  WHERE tu.wire_tool_use_id = $1
-                  ORDER BY tr.request_id
-                  LIMIT 1"#,
-                wire_tool_use_id,
-            )
-            .fetch_optional(&self.pool)
-            .await?;
-            Ok(id)
-        })
-        .await
-    }
 }

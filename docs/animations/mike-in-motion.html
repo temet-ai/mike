@@ -249,7 +249,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; display: grid; ga
 	<header class="top">
 		<div class="eyebrow"><span>mike</span><span>Claude proxy</span><span>How it works</span></div>
 		<h1>Mike in <em>Motion</em></h1>
-		<p class="lede">Five animated walkthroughs of what happens to a Claude Code turn inside mike: the map of every port, the thirteen stages that can rewrite a request, the two ways an answer can be replaced, the two capture phases per request, and boot to shutdown. Each scene plays on its own. Pause it, or click any step to jump there.</p>
+		<p class="lede">Five animated walkthroughs of what happens to a Claude Code turn inside mike: the map of every port, the twelve stages that can rewrite a request, the two ways an answer can be replaced, the two capture phases per request, and boot to shutdown. Each scene plays on its own. Pause it, or click any step to jump there.</p>
 	</header>
 
 	<nav class="tabs" role="tablist" aria-label="Scenes">
@@ -290,7 +290,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; display: grid; ga
 		</div>
 		<div class="grid">
 			<div class="panel stage">
-				<div class="svgbox"><svg id="svg-stages" viewBox="0 0 1000 350" role="img" aria-label="The request pipeline: accept, thirteen mutation stages, composer, upstream"></svg></div>
+				<div class="svgbox"><svg id="svg-stages" viewBox="0 0 1000 350" role="img" aria-label="The request pipeline: accept, twelve mutation stages, composer, upstream"></svg></div>
 				<div class="bodies">
 					<div class="body">
 						<h3 style="color:var(--blue)">Captured · stored_body</h3>
@@ -688,7 +688,7 @@ const mapD = Diagram(document.getElementById('svg-map'), {
 	nodes: {
 		claude: { x: 30, y: 250, w: 180, h: 76, kind: 'outside', label: 'Claude Code', sub: 'ANTHROPIC_BASE_URL' },
 		fwd: { x: 330, y: 60, w: 200, h: 76, kind: 'mike', label: 'proxy-forward', sub: ':9987 · HTTPS MITM', optional: true, cls: 'dim' },
-		proxy: { x: 330, y: 230, w: 200, h: 116, kind: 'mike', label: 'mike proxy', sub: [':9988 · /v1 and /v2', '13 mutation stages', 'SSE tee + parser'] },
+		proxy: { x: 330, y: 230, w: 200, h: 116, kind: 'mike', label: 'mike proxy', sub: [':9988 · /v1 and /v2', '12 mutation stages', 'SSE tee + parser'] },
 		anthropic: { x: 790, y: 250, w: 180, h: 76, kind: 'vendor', label: 'Anthropic API', sub: 'api.anthropic.com' },
 		pg: { x: 330, y: 440, w: 200, h: 76, kind: 'store', label: 'Postgres', sub: 'capture + normalized bodies' },
 		inspect: { x: 590, y: 440, w: 180, h: 76, kind: 'mike', label: 'Inspect API', sub: ':9989 · /api, /api/ws' },
@@ -754,7 +754,7 @@ const mapSteps = [
 		text: '<code>proxy-forward</code> on <code>:9987</code> is an HTTPS MITM sidecar. Ordinary non-WebSocket <code>/v1/*</code> and <code>/v2/*</code> HTTP requests use the capturing <code>:9988</code> leg. WebSocket upgrades go direct and remain uncaptured; unhealthy-capture failover also goes straight to <code>api.anthropic.com</code>.' }
 ];
 
-/* ═══ Scene 2 · thirteen stages ═══════════════════════════════ */
+/* ═══ Scene 2 · twelve stages ═══════════════════════════════ */
 const STAGES = [
 	{ id: 'accept', fixed: true, name: 'accept', gate: 'always', fx: '<code>stored_body</code> = the original inbound bytes, captured before any stage runs.' },
 	{ id: 'filter', name: 'filter', gate: 'operator-authored rules in FilterConfig · default: no rules', json: true,
@@ -779,8 +779,6 @@ const STAGES = [
 		fx: 'Appends eligible queued reminders. Only steerer-origin entries need the steerer toggle; authored mailbox messages have a separate gate. Same-request judging can await a bounded LLM call before this drain.', op: { add: '<system-reminder> steerer: "re-run it twice"' } },
 	{ id: 'read_dedup', name: 'read_dedup', gate: 'compression_dedup.enabled · default off', fwdOnly: true,
 		fx: 'rewrite_forwarded_only: a repeated Read result becomes a stub in the forwarded body. The stored copy keeps the client\'s bytes.', op: { mod: 'messages[4]', val: 'tool_result → dedup stub (file already read)', fwd: true } },
-	{ id: 'file_read_compression', name: 'file_read_compression', gate: 'file_read_compression toggle · default off', shadow: true,
-		fx: 'Shadow mode even when on: computes a reduction and logs it, never rewrites the forwarded body.' },
 	{ id: 'proxy_tools', name: 'proxy_tools', gate: 'proxy_tools toggle · default off', fwdOnly: true,
 		fx: 'Declares mike_* tools into the forwarded request only. It also arms the buffered forwarder on the way back.', op: { mod: 'tools', val: '[Bash, Read, Edit, …, mike_session_roster]', fwd: true } },
 	{ id: 'composer', name: 'composer', gate: 'composition_enabled · primary_first only · default off', inplace: true, skipPrimary: true,
@@ -816,7 +814,7 @@ function splitName(n) {
 }
 STAGES.forEach((s, i) => {
 	const row2 = i >= 8;
-	const col = row2 ? 15 - i : i;
+	const col = row2 ? STAGES.length - 1 - i : i;
 	const x = X0 + col * (CW + GAP), y = row2 ? Y2 : Y1;
 	s.cx = x + CW / 2; s.cy = y + CH / 2;
 	const kind = s.id === 'accept' ? 'mike' : s.id === 'upstream' ? 'vendor' : 'stage';
@@ -875,7 +873,7 @@ function freshRows() { return BASE.map(([k, v]) => ({ k, v })); }
 renderBody(document.getElementById('body-stored'), freshRows());
 function setNow(s, state) {
 	document.getElementById('s2-name').textContent = s.name;
-	const pill = state === 'on' ? '<span class="pill on">fired</span>' : state === 'skip' ? '<span class="pill skip">skipped</span>' : state === 'off' ? '<span class="pill off">off · passes through</span>' : state === 'shadow' ? '<span class="pill on">armed · shadow only</span>' : '';
+	const pill = state === 'on' ? '<span class="pill on">fired</span>' : state === 'skip' ? '<span class="pill skip">skipped</span>' : state === 'off' ? '<span class="pill off">off · passes through</span>' : '';
 	document.getElementById('s2-gate').innerHTML = pill + esc(s.gate);
 	document.getElementById('s2-fx').innerHTML = s.fx;
 }
@@ -919,7 +917,6 @@ async function s2run() {
 		if (s.fixed) { g.classList.add('on'); setNow(s, ''); continue; }
 		if (!S2.armed.has(s.id)) { setNow(s, 'off'); await wait(140); continue; }
 		if (s.skipPrimary) { g.classList.add('skip'); setNow(s, 'skip'); await wait(1300); continue; }
-		if (s.shadow) { g.classList.add('fire'); setNow(s, 'shadow'); await wait(1300); g.classList.remove('fire'); continue; }
 		g.classList.add('fire');
 		setNow(s, 'on');
 		fired.push(s);

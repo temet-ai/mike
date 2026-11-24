@@ -66,7 +66,6 @@
 		| '/threads'
 		| '/tools'
 		| '/code-findings'
-		| '/compression-review'
 		| '/diagnostics/agent-dispatches'
 		| '/diagnostics/prompt-cache'
 		| '/memory'
@@ -216,12 +215,6 @@
 					href: '/fleet',
 					icon: Network,
 					hint: 'Session fleet canvas — captured sessions and the messages linking them'
-				},
-				{
-					label: 'Compression review',
-					href: '/compression-review',
-					icon: Wrench,
-					hint: 'Flagged requests, responses and tool results for compression investigation'
 				},
 				{
 					label: 'Tools',

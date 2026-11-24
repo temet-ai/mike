@@ -101,11 +101,6 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
-        key: "file_read_compression",
-        scope: ToggleScope::Session,
-        applies: ToggleApplies::NewSessions,
-    },
-    ToggleMeta {
         key: "fleet_auto_start",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,
@@ -219,11 +214,6 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         key: "side_calls",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,
-    },
-    ToggleMeta {
-        key: "shell_output_compression",
-        scope: ToggleScope::Session,
-        applies: ToggleApplies::NewSessions,
     },
     ToggleMeta {
         key: "steerer",

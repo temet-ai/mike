@@ -173,13 +173,6 @@
 			{#each rows as row (row.tool_id)}
 				<li class="tool-row" class:tool-row--file={isFileTool(row.tool_name)}>
 					<ToolCallCard
-						compressionTarget={row.use_id && row.result?.request_id
-							? {
-									kind: 'tool_result',
-									request_id: row.result.request_id,
-									tool_use_id: row.use_id
-								}
-							: undefined}
 						name={row.tool_name}
 						input={row.input}
 						collapsible
@@ -197,8 +190,10 @@
 									class="tool-row__ord"
 									title="{row.ord + 1}{ordinalSuffix(
 										row.ord + 1
-									)} tool call in request #{row.request_id}">#{row.ord + 1}</span
+									)} tool call in request #{row.request_id}"
 								>
+									#{row.ord + 1}
+								</span>
 								<span class="tool-row__ts" title={row.created_at}>
 									{formatRelative(row.created_at, now)}
 								</span>
@@ -206,8 +201,9 @@
 								<span
 									class="tool-row__tool-id"
 									title="Anthropic tool call ID — matches the toolu_xxx ID in the raw SSE stream. Full ID: {row.tool_id}"
-									>{shortToolId(row.tool_id)}</span
 								>
+									{shortToolId(row.tool_id)}
+								</span>
 							</span>
 						{/snippet}
 					</ToolCallCard>

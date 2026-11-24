@@ -46,7 +46,7 @@ fn stage_applied_often_enough_or_seen_too_rarely_or_served_by_client_is_not_a_fi
 
 #[test]
 fn stage_applied_below_a_tenth_of_a_percent_stays_a_finding_with_its_rate() -> anyhow::Result<()> {
-    let findings = stage_findings(&[stage("file_read_compression", 2000, 1, "no_candidates")]);
+    let findings = stage_findings(&[stage("read_dedup", 2000, 1, "no_candidates")]);
     let [finding] = findings.as_slice() else {
         anyhow::bail!("expected one finding, got {findings:?}");
     };
@@ -175,14 +175,14 @@ fn daily_job_is_late_after_thirty_six_hours_but_a_weekly_job_is_not() -> anyhow:
         })
     };
     let rows = [
-        ran("compressor_loop", Some("2026-11-12T12:00:00Z"))?,
+        ran("learning_promote", Some("2026-11-12T12:00:00Z"))?,
         ran("learning_audit", Some("2026-11-10T12:00:00Z"))?,
         ran("lessons_commit", Some("2026-11-14T01:30:00Z"))?,
         ran("usage_audit", None)?,
     ];
     let findings = job_findings(&rows, now);
     let subjects: Vec<&str> = findings.iter().map(|f| f.subject.as_str()).collect();
-    assert_eq!(subjects, vec!["job:compressor_loop", "job:usage_audit"]);
+    assert_eq!(subjects, vec!["job:learning_promote", "job:usage_audit"]);
     assert!(findings[1].figure_text.contains("never succeeded"));
     Ok(())
 }

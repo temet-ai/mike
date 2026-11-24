@@ -59,8 +59,6 @@ mod embed_drain;
 mod embedding_graph_api;
 #[path = "e2e/embeddings_recall.rs"]
 mod embeddings_recall;
-#[path = "e2e/file_read_compression.rs"]
-mod file_read_compression;
 #[path = "e2e/filter_rule_firing_counts_api.rs"]
 mod filter_rule_firing_counts_api;
 #[path = "e2e/filter_rules_api.rs"]

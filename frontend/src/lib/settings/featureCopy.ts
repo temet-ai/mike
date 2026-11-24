@@ -167,17 +167,6 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'When a session has stopped before reading what its edit added, sends the findings over Remote Control so it fixes them now instead of on its next turn.',
 		find: 'mike-code findings remote control push idle wake'
 	},
-	file_read_compression: {
-		label: 'File-read compression',
-		description:
-			'Shortens large file reads in the session history before a request is sent. The full original is always captured.'
-	},
-	shell_output_compression: {
-		label: 'Shell-output compression',
-		description:
-			'Shortens large Bash output in the session history before a request is sent. The full original is always captured.',
-		find: 'bash shell command output terminal'
-	},
 	context_focus_question: {
 		label: 'Reason recorded with each tool call',
 		description:

@@ -70,6 +70,7 @@ mod settings_01;
 mod settings_01_launch_values;
 mod settings_02;
 pub mod spend_01;
+mod steered_request_dto;
 mod steerer_assist;
 #[cfg(test)]
 mod tests_01;
@@ -87,7 +88,6 @@ pub(crate) use anthropic_integration_01::*;
 pub(crate) use anthropic_integration_02::*;
 pub(crate) use anthropic_integration_03::*;
 pub(crate) use capabilities::*;
-pub(crate) use compression_01::*;
 pub(crate) use diagnostic_dto::*;
 pub(crate) use diagnostic_memory::*;
 pub(crate) use diagnostics::*;
@@ -136,6 +136,7 @@ pub(crate) use session_summary::*;
 pub(crate) use settings_01::*;
 pub(crate) use settings_02::*;
 pub(crate) use spend_01::*;
+pub(crate) use steered_request_dto::*;
 pub(crate) use steerer_assist::*;
 pub(crate) use steerer_model_check::*;
 pub(crate) use steerers_01::*;
@@ -150,7 +151,6 @@ pub(crate) use usage_workflows_01::*;
 pub(crate) use worker_toggles::*;
 
 mod capabilities;
-mod compression_01;
 mod diagnostics;
 mod filter_dry_run;
 #[cfg(test)]
@@ -168,8 +168,6 @@ pub(crate) mod recall_turns_detail;
 pub mod receipts_01;
 mod remote_control_link;
 mod request_detail;
-#[cfg(test)]
-mod request_recovery_tests;
 mod request_summary;
 pub(super) mod search_session;
 mod search_session_messages;

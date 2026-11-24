@@ -109,20 +109,6 @@ const SPECS: Spec[] = [
 		fix: 'Check that claude is logged in on this machine and that the proxy answers.'
 	},
 	{
-		id: 'compressor_loop',
-		label: 'File-read compressor loop',
-		description:
-			"Compares sessions that got shortened file reads with those that did not and adjusts the compressor's settings.",
-		schedule: 'daily, once between 04:30 and 06:59 UTC',
-		group: 'measurement',
-		window: win('day', [4, 5, 6], 30),
-		lastStart: '2026-11-13T04:30:00Z',
-		minutes: 9,
-		next: '2026-11-14T04:30:00Z',
-		enabled_key: 'compressor_loop.enabled',
-		fix: 'Check that psql and the inspect API answer.'
-	},
-	{
 		id: 'usage_audit',
 		label: 'Weekly usage audit',
 		description:

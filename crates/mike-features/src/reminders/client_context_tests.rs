@@ -448,7 +448,7 @@ async fn findings_ready_turns_true_once_analysis_completes_with_no_findings() ->
 #[test]
 fn client_text_reached_continue_body_with_marker_in_earlier_turn_is_true() -> anyhow::Result<()> {
     let marker = "proxy-workspace-briefing";
-    let earlier = crate::compress::history::earlier_from_messages(&[serde_json::json!({
+    let earlier = crate::reminders::test_support::earlier_from_messages(&[serde_json::json!({
         "role": "user",
         "content": [{"type": "text", "text": format!("<system-reminder source=\"{marker}\">roster</system-reminder>")}]
     })])?;

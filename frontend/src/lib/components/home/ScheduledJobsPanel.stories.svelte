@@ -136,7 +136,6 @@
 			'learning_audit',
 			'lessons_commit',
 			'memory_review',
-			'compressor_loop',
 			'usage_audit',
 			'cargo_sweep',
 			'nightly_tests'

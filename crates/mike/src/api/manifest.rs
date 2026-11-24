@@ -17,7 +17,6 @@ mod anthropic;
 mod cache_breaks;
 mod changes;
 mod codex_observe;
-mod compression_review;
 mod config_history;
 mod cross_session;
 mod dossier;
@@ -86,7 +85,6 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         session_reconcile::ROUTES,
         knowledge::ROUTES,
         config_history::ROUTES,
-        compression_review::ROUTES,
         eval::ROUTES,
         dossier::ROUTES,
         session_mail::ROUTES,
@@ -143,7 +141,6 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = session_reconcile::register(router);
     let router = knowledge::register(router);
     let router = config_history::register(router);
-    let router = compression_review::register(router);
     let router = eval::register(router);
     let router = dossier::register(router);
     let router = session_mail::register(router);
@@ -327,7 +324,6 @@ mod tests {
             [
                 "learning_promote",
                 "learning_audit",
-                "compressor_loop",
                 "lessons_commit",
                 "usage_audit",
                 "lesson_relations",

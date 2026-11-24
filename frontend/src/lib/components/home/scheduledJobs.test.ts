@@ -135,7 +135,7 @@ describe('groupJobs', () => {
 		]);
 		expect(groups.map((g) => g.jobs.map((j) => j.id))).toEqual([
 			['learning_promote', 'lesson_relations', 'learning_audit', 'lessons_commit', 'memory_review'],
-			['compressor_loop', 'usage_audit'],
+			['usage_audit'],
 			['cargo_sweep', 'nightly_tests']
 		]);
 	});

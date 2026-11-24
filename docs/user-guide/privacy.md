@@ -50,7 +50,7 @@ On a fresh install, only the first row happens.
 
 Every outbound model call's full body is recorded in the database, so you can read exactly what was sent. A few evaluation commands, such as `mike eval run` and `mike verifier-replay --execute`, can also send past turns to OpenRouter; they send nothing unless you run them with a key set.
 
-Features that rewrite requests change what Anthropic receives, not what leaves your machine for anyone else. [Settings](settings.md) lists the switches and their defaults. Each feature's page says what it sends: [Memory](memory.md), [Steering](steering.md), [Judge](judge.md), [Filters](filters.md) and [Compression](compression.md).
+Features that rewrite requests change what Anthropic receives, not what leaves your machine for anyone else. [Settings](settings.md) lists the switches and their defaults. Each feature's page says what it sends: [Memory](memory.md), [Steering](steering.md), [Judge](judge.md) and [Filters](filters.md).
 
 ### The forwarding sidecar
 

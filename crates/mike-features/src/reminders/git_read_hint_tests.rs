@@ -264,7 +264,7 @@ fn last_turn_read_git_continue_body_with_earlier_assistant_matches_full_body() -
 {
     let first = serde_json::json!({"role": "user", "content": [{"type": "text", "text": "go"}]});
     let earlier =
-        crate::compress::history::earlier_from_messages(&[first, bash_call("git status")])?;
+        crate::reminders::test_support::earlier_from_messages(&[first, bash_call("git status")])?;
     let body = continue_body_after_bash_result()?;
     let full = body_after_bash("git status");
     assert_eq!(
@@ -276,7 +276,8 @@ fn last_turn_read_git_continue_body_with_earlier_assistant_matches_full_body() -
         None
     );
 
-    let writing = crate::compress::history::earlier_from_messages(&[bash_call("git commit -m x")])?;
+    let writing =
+        crate::reminders::test_support::earlier_from_messages(&[bash_call("git commit -m x")])?;
     assert_eq!(
         super::git_read_hint::last_turn_read_git(&body, &writing),
         None
@@ -286,7 +287,7 @@ fn last_turn_read_git_continue_body_with_earlier_assistant_matches_full_body() -
 
 #[test]
 fn hint_continue_body_with_earlier_git_read_is_appended_like_full_body() -> anyhow::Result<()> {
-    let earlier = crate::compress::history::earlier_from_messages(&[bash_call("git diff")])?;
+    let earlier = crate::reminders::test_support::earlier_from_messages(&[bash_call("git diff")])?;
     let body = continue_body_after_bash_result()?;
     let outcome = super::git_read_hint::hint_reminder(
         "hint-window-thread",

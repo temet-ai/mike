@@ -22,7 +22,7 @@ fn scheduled_jobs_pass_and_name_the_checkout_only_jobs_that_stand_aside() -> any
 fn scheduled_jobs_warn_with_a_fix_when_a_shipped_script_is_missing() -> anyhow::Result<()> {
     let mut observed = healthy();
     observed.features.jobs.runnable = 0;
-    observed.features.jobs.missing = vec!["learning_promote", "compressor_loop"];
+    observed.features.jobs.missing = vec!["learning_promote", "usage_audit"];
     let jobs = warning(&observed, "scheduled_jobs")?;
     assert!(jobs.detail.contains("learning_promote"), "{}", jobs.detail);
     assert!(

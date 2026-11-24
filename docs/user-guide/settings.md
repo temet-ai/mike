@@ -63,7 +63,7 @@ Related pages:
 
 ![The setup page in the browser, with steps that open in a terminal](images/settings-setup.png)
 
-[Setup](setup.md) walks through the setup steps. [Memory](memory.md), [Steering](steering.md), [Judge](judge.md), [Filters](filters.md) and [Compression](compression.md) explain the features behind these pages.
+[Setup](setup.md) walks through the setup steps. [Memory](memory.md), [Steering](steering.md), [Judge](judge.md) and [Filters](filters.md) explain the features behind these pages.
 
 ## What is on and off by default
 
@@ -80,7 +80,7 @@ Defaults below are the ones in this build. "Rewrites" means the request mike for
 | `mailbox_redelivery` | Delivers messages between sessions again when they were delivered but not read. |
 | `proxy_tools` | Gives a session mike's own tools and answers their calls itself. |
 | `repeated_notices` | Removes repeats of Claude Code's standard notices from the copy sent on. |
-| `file_read_compression`, `shell_output_compression` | Shorten older file reads and command output in a conversation's history. Each starts in `shadow` mode, which only records what it would cut. See [Compression](compression.md). |
+| `compression_dedup.enabled` (Read dedup, **Rewrite duplicate reads**) | When Claude reads the same file twice and nothing has changed, replaces the repeat with a one-line note that names the earlier read and says to read again after an edit. An `Edit`, `Write` or notebook edit of that file makes the next read count as new. It looks at `Read` and plain `cat <file>` commands only. With it off, mike still counts duplicates and records what it could save, and forwards the request unchanged. Your capture keeps the full original either way. |
 | `reminder_on_token` | Replaces a marker some hooks add with a note. |
 | `code_findings` | Adds a note naming the code-check findings in the session's own recent edits. Needs `code_scan`. |
 

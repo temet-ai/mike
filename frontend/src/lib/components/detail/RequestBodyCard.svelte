@@ -1,5 +1,4 @@
 <script lang="ts">
-	import CompressionFlag from '$lib/components/compression/CompressionFlag.svelte';
 	import { getContext } from 'svelte';
 	import type { BodyPayload, RequestDetail } from '$lib/types';
 	import { useLazyDelta, useLazyBody, useLazyManifest } from '$lib/stores/bodyFetcher.svelte';
@@ -49,8 +48,6 @@
 		return body.full;
 	});
 </script>
-
-<CompressionFlag target={{ kind: 'request', request_id: detail.id }} />
 
 <Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col gap-2">
 	<Tabs.List data-slot="request-body-tabs-list">
@@ -118,8 +115,10 @@
 					<button
 						type="button"
 						class="rounded-[2px] border border-[var(--status-danger-border)] px-2 py-0.5 text-label uppercase tracking-wider text-[var(--status-danger-fg)] hover:border-[var(--status-danger-fg)] hover:bg-[var(--status-danger-bg)]"
-						onclick={body.retry}>Retry</button
+						onclick={body.retry}
 					>
+						Retry
+					</button>
 				</div>
 			{:else if body.loading}
 				<p class="text-xs italic text-[var(--text-3)]">Loading body…</p>
@@ -140,8 +139,10 @@
 				<button
 					type="button"
 					class="rounded-[2px] border border-[var(--status-danger-border)] px-2 py-0.5 text-label uppercase tracking-wider text-[var(--status-danger-fg)] hover:border-[var(--status-danger-fg)] hover:bg-[var(--status-danger-bg)]"
-					onclick={sentBody.retry}>Retry</button
+					onclick={sentBody.retry}
 				>
+					Retry
+				</button>
 			</div>
 		{:else if sentBody.loading}
 			<p class="text-xs italic text-[var(--text-3)]">Loading sent body…</p>

@@ -12,7 +12,6 @@ fn feature_toggles_mutation_and_egress_default_off() {
     assert!(!t.judge_worker);
     assert!(!t.session_judge);
     assert!(!t.agent_lessons);
-    assert!(!t.file_read_compression);
     assert!(!t.self_identity_reminder);
     assert!(!t.proxy_tools);
     assert!(!t.workspace_briefing);
@@ -82,7 +81,6 @@ fn get_toggle_enabled_roundtrips() {
         judge_worker: true,
         session_judge: true,
         agent_lessons: false,
-        file_read_compression: true,
         retention_sweep: true,
         channel_link_sweep: true,
         proxy_tools: false,
@@ -117,7 +115,6 @@ fn get_toggle_enabled_roundtrips() {
         ("steerer", true),
         ("db_resync", false),
         ("agent_lessons", false),
-        ("file_read_compression", true),
         ("retention_sweep", true),
         ("channel_link_sweep", true),
         ("workspace_capture_registration", true),
@@ -207,29 +204,6 @@ fn set_toggle_enabled_db_resync_round_trips() -> anyhow::Result<()> {
 }
 
 #[test]
-fn set_toggle_enabled_file_read_compression_round_trips() -> anyhow::Result<()> {
-    let t = FeatureToggles::default();
-    assert_eq!(get_toggle_enabled(&t, "file_read_compression"), Some(false));
-
-    let on = set_toggle_enabled(&t, "file_read_compression", true).ok_or_else(|| {
-        anyhow::anyhow!("set_toggle_enabled must return Some for file_read_compression")
-    })?;
-    assert_eq!(get_toggle_enabled(&on, "file_read_compression"), Some(true));
-    assert_eq!(get_toggle_enabled(&t, "file_read_compression"), Some(false));
-
-    let off = set_toggle_enabled(&on, "file_read_compression", false).ok_or_else(|| {
-        anyhow::anyhow!("set_toggle_enabled must return Some for file_read_compression")
-    })?;
-    assert_eq!(
-        get_toggle_enabled(&off, "file_read_compression"),
-        Some(false)
-    );
-    assert!(!off.reminders);
-    assert!(!off.steerer);
-    Ok(())
-}
-
-#[test]
 fn set_toggle_enabled_produces_new_value() -> anyhow::Result<()> {
     let t = FeatureToggles::default();
     let updated = set_toggle_enabled(&t, "reminders", true)
@@ -279,7 +253,6 @@ fn toggle_meta_covers_all_keys() {
             "decisions",
             "directive_proposer",
             "dossier_builder",
-            "file_read_compression",
             "fleet_auto_start",
             "harvester",
             "judge_lessons",
@@ -303,7 +276,6 @@ fn toggle_meta_covers_all_keys() {
             "session_end_shadow",
             "session_judge",
             "side_calls",
-            "shell_output_compression",
             "steerer",
             "turn_guard",
             "weasel_intercept",
@@ -391,7 +363,6 @@ fn overlay_with_mixed_toggles() -> FeatureToggles {
         judge_worker: true,
         session_judge: true,
         agent_lessons: true,
-        file_read_compression: false,
         retention_sweep: true,
         channel_link_sweep: true,
         proxy_tools: true,
@@ -423,7 +394,6 @@ fn assert_resolved_flags(resolved: &ResolvedToggles) {
     assert!(resolved.recall_injector);
     assert!(!resolved.weasel_intercept);
     assert!(resolved.agent_lessons);
-    assert!(!resolved.file_read_compression);
     assert!(!resolved.workspace_capture_registration);
     assert!(!resolved.self_identity_reminder);
     assert!(!resolved.workspace_briefing);

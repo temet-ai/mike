@@ -1,5 +1,5 @@
 <script lang="ts">
-		import SettingsPage from '$lib/components/settings/SettingsPage.svelte';
+	import SettingsPage from '$lib/components/settings/SettingsPage.svelte';
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
 	import SearchField from '$lib/components/shared/SearchField.svelte';
 	import FilteredEmptyState from '$lib/components/shared/FilteredEmptyState.svelte';
@@ -12,18 +12,12 @@
 	import SettingsSection from '$lib/components/settings/SettingsSection.svelte';
 	import CapabilityPanel from '$lib/components/settings/CapabilityPanel.svelte';
 	import LaunchBackendValidationCard from '$lib/components/settings/LaunchBackendValidationCard.svelte';
-	import CompressionForwardingState from '$lib/components/settings/CompressionForwardingState.svelte';
 	import HelpHint from '$lib/components/shared/HelpHint.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { resolve } from '$app/paths';
 	import { ApiError } from '$lib/api';
 	import { getFeatures, getSettings, patchFeature, patchSetting } from '$lib/api/settings';
-	import type {
-		FeatureDto,
-		CompressionEffective,
-		SettingMeta,
-		SettingValue
-	} from '$lib/api/settings';
+	import type { FeatureDto, SettingMeta, SettingValue } from '$lib/api/settings';
 	import { getCapabilities } from '$lib/api/capabilities';
 	import type { CapabilityRow } from '$lib/api/capabilities';
 	import type { SettingsPageData } from './+page';
@@ -51,8 +45,6 @@
 	let loadError = $state<string | null>(null);
 	let pageLoading = $state(true);
 	let settings = $state<SettingMeta[]>([]);
-	let fileReadCompressionEffective = $state<CompressionEffective | null>(null);
-	let shellOutputCompressionEffective = $state<CompressionEffective | null>(null);
 	let settingQuery = $derived(data.find ?? '');
 	const normalizedQuery = $derived(settingQuery.trim().toLowerCase());
 	let settingsLoadError = $state<string | null>(null);
@@ -71,8 +63,6 @@
 		loadError = data.loadError;
 		pageLoading = false;
 		settings = data.settings ?? [];
-		fileReadCompressionEffective = data.fileReadCompressionEffective;
-		shellOutputCompressionEffective = data.shellOutputCompressionEffective;
 		settingsLoadError = data.settingsLoadError;
 		settingsLoading = false;
 		capabilities = data.capabilities ?? [];
@@ -129,8 +119,6 @@
 		try {
 			const result = await getSettings();
 			settings = result.settings;
-			fileReadCompressionEffective = result.file_read_compression_effective ?? null;
-			shellOutputCompressionEffective = result.shell_output_compression_effective ?? null;
 		} catch (err) {
 			settingsLoadError = err instanceof ApiError ? err.message : String(err);
 		} finally {
@@ -157,28 +145,11 @@
 		try {
 			const saved = await patchFeature(key, newValue);
 			features = features.map((f) => (f.key === key ? { ...f, ...saved } : f));
-			if (key === 'file_read_compression' || key === 'shell_output_compression')
-				void refreshCompressionEffective();
 		} catch (err) {
 			features = features.map((f) => (f.key === key ? { ...f, enabled: previous } : f));
 			rowError = { ...rowError, [key]: err instanceof ApiError ? err.message : String(err) };
 		} finally {
 			rowLoading = { ...rowLoading, [key]: false };
-		}
-	}
-	const FORWARDING_KEYS: ReadonlySet<string> = new Set([
-		'file_read_compression.mode',
-		'file_read_compression.forward_share',
-		'shell_output_compression.mode',
-		'shell_output_compression.forward_share'
-	]);
-	async function refreshCompressionEffective(): Promise<void> {
-		try {
-			const result = await getSettings();
-			fileReadCompressionEffective = result.file_read_compression_effective ?? null;
-			shellOutputCompressionEffective = result.shell_output_compression_effective ?? null;
-		} catch {
-			// keep the last known effective state; the row shows its own save result
 		}
 	}
 	async function handleSettingSave(key: string, value: SettingValue): Promise<void> {
@@ -191,7 +162,6 @@
 		try {
 			const saved = await patchSetting(key, value);
 			settings = settings.map((s) => (s.key === key ? { ...s, ...saved } : s));
-			if (FORWARDING_KEYS.has(key)) void refreshCompressionEffective();
 		} catch (err) {
 			if (previous.kind === 'bool')
 				settings = settings.map((s) => (s.key === key ? { ...s, value: previous.value } : s));
@@ -277,18 +247,6 @@
 
 <svelte:head><title>Settings — mike</title></svelte:head>
 
-{#snippet frcState()}
-	{#if fileReadCompressionEffective !== null}
-		<CompressionForwardingState effective={fileReadCompressionEffective} />
-	{/if}
-{/snippet}
-
-{#snippet shellState()}
-	{#if shellOutputCompressionEffective !== null}
-		<CompressionForwardingState effective={shellOutputCompressionEffective} />
-	{/if}
-{/snippet}
-
 <SettingsPage
 	title="General settings"
 	current="/settings"
@@ -316,9 +274,10 @@
 			clearLabel="Clear setting search"
 			placeholder="Find a setting"
 		/>
-		<span class="cfg-find-count" role="status"
-			>{shownCount} {searching ? (shownCount === 1 ? 'match' : 'matches') : 'settings'}</span
-		>
+		<span class="cfg-find-count" role="status">
+			{shownCount}
+			{searching ? (shownCount === 1 ? 'match' : 'matches') : 'settings'}
+		</span>
 	</div>
 
 	{#if !searching}
@@ -421,19 +380,7 @@
 					<LaunchBackendValidationCard backend={backendSetting.value} />
 				{/if}
 			{/if}
-			{@const fileReadState =
-				group === 'File read compression' && fileReadCompressionEffective !== null}
-			{@const shellOutputState =
-				group === 'Shell-output compression' && shellOutputCompressionEffective !== null}
-			{@const forwardingState = fileReadState || shellOutputState}
-			<SettingsSection
-				title={group}
-				id={toSlug(group)}
-				level="h3"
-				badge={forwardingState ? 'Applies to new sessions' : undefined}
-				badgeVariant="session"
-				description={fileReadState ? frcState : shellOutputState ? shellState : undefined}
-			>
+			<SettingsSection title={group} id={toSlug(group)} level="h3">
 				{#each groupSettings as setting (setting.key)}
 					<SettingRow
 						{setting}

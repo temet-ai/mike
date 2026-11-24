@@ -2,7 +2,6 @@ use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const LEARNING_PROMOTE_ENABLED_KEY: &str = "learning_promote.enabled";
 pub const LEARNING_AUDIT_ENABLED_KEY: &str = "learning_audit.enabled";
-pub const COMPRESSOR_LOOP_ENABLED_KEY: &str = "compressor_loop.enabled";
 pub const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
@@ -54,18 +53,6 @@ pub fn entries() -> Vec<SettingMeta> {
             machine per database runs it (the job lease). It makes no LLM call and sends \
             nothing off the machine. Read on every check, once a minute; a run already \
             under way finishes.",
-        ),
-        enabled_entry(
-            COMPRESSOR_LOOP_ENABLED_KEY,
-            "File-read compressor loop",
-            "Daily, once between 04:30 and 06:59 UTC, run scripts/compressor-loop --days 7 \
-            --apply, a shell wrapper for `mike compressor-loop`, from the checkout this \
-            proxy was started in. It scores the compressor's \
-            forward and control arms and adjusts the file_read_compression settings through \
-            the inspect API only when its evidence says so; it widens only when a current \
-            qualification.json from the task trials is in its state folder. One machine per database runs it \
-            (the job lease). It makes no LLM call and sends nothing off the machine. Read on \
-            every check, once a minute; a run already under way finishes.",
         ),
         enabled_entry(
             LESSONS_COMMIT_ENABLED_KEY,

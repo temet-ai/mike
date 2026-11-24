@@ -7,7 +7,6 @@ mod args;
 mod backfill_flow_admission;
 mod backfill_predecessors;
 mod backfill_session_prompts;
-mod compressor_loop;
 mod decisions;
 mod decisions_import;
 mod decisions_replay;
@@ -86,7 +85,6 @@ pub enum ConfigCommand {
     Learning(learning::LearningCommand),
     LearningAudit(learning_audit::LearningAuditArgs),
     OriginBackfill(OriginBackfillArgs),
-    CompressorLoop(compressor_loop::CompressorLoopArgs),
 }
 
 pub async fn run(cmd: ConfigCommand, cli: CliOverrides) -> Result<()> {
@@ -166,7 +164,6 @@ async fn run_judgement_command(cmd: ConfigCommand, cli: CliOverrides) -> Result<
         ConfigCommand::Learning(command) => learning::run(command, cli).await,
         ConfigCommand::LearningAudit(args) => learning_audit::learning_audit(args, cli).await,
         ConfigCommand::OriginBackfill(args) => origin_backfill::origin_backfill(args, cli).await,
-        ConfigCommand::CompressorLoop(args) => compressor_loop::compressor_loop(args, cli).await,
         cmd => unreachable!(
             "run_judgement_command received a variant run() should have handled directly: {cmd:?}"
         ),

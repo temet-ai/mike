@@ -145,24 +145,14 @@ fn get_request_summary_tool() -> Tool {
 }
 
 fn get_request_body_tool() -> Tool {
-    let mut schema = id_with_pointer_schema();
-    std::sync::Arc::make_mut(&mut schema).remove("required");
-    if let Some(Value::Object(properties)) =
-        std::sync::Arc::make_mut(&mut schema).get_mut("properties")
-    {
-        properties.insert("tool_use_id".into(), json!({"type":"string", "description":"Recover a captured tool result; supply sha256 too, without pointer."}));
-        properties.insert("sha256".into(), json!({"type":"string", "pattern":"^[a-fA-F0-9]{64}$", "description":"Expected SHA-256 of the decoded original result text; mismatch refuses recovery."}));
-    }
     Tool::new(
         Cow::Borrowed(TOOL_GET_REQUEST_BODY),
         Cow::Borrowed(
             "Raw request body the client sent (/v1/messages JSON — full system, messages, tools). \
              Returns {text, byte_size, has_body}. \
-             Optional `pointer` (RFC 6901 JSON pointer) projects to a subtree. \
-             For exact compressed-result recovery, pass the marker's tool_use_id and sha256 \
-             (no id needed); text is the JSON-encoded original string, unaffected by later file edits.",
+             Optional `pointer` (RFC 6901 JSON pointer) projects to a subtree.",
         ),
-        schema,
+        id_with_pointer_schema(),
     )
 }
 
@@ -267,65 +257,6 @@ pub(crate) struct GetBodyArgs {
     pub(crate) pointer: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct GetOriginalBodyArgs {
-    #[serde(default)]
-    id: Option<u64>,
-    pointer: Option<String>,
-    tool_use_id: Option<String>,
-    sha256: Option<String>,
-}
-
-impl GetOriginalBodyArgs {
-    fn query(&self) -> Result<Vec<(&'static str, String)>, RmcpError> {
-        match (&self.tool_use_id, &self.sha256) {
-            (None, None) => Ok(self
-                .pointer
-                .as_ref()
-                .map(|p| vec![("pointer", p.clone())])
-                .unwrap_or_default()),
-            (Some(id), Some(hash))
-                if self.pointer.is_none()
-                    && !id.is_empty()
-                    && id
-                        .bytes()
-                        .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
-                    && hash.len() == 64
-                    && hash.bytes().all(|c| c.is_ascii_hexdigit()) =>
-            {
-                Ok(vec![("tool_use_id", id.clone()), ("sha256", hash.clone())])
-            }
-            _ => Err(RmcpError::invalid_params(
-                "Recovery requires tool_use_id and a SHA-256, without pointer",
-                None,
-            )),
-        }
-    }
-
-    async fn fetch(&self, client: &InspectClient) -> Result<Value, RmcpError> {
-        let query = self.query()?;
-        let value = match (&self.tool_use_id, self.id) {
-            (Some(tool_use_id), _) => {
-                client
-                    .get_json_with_not_found_query(
-                        &format!("/api/tool-results/{tool_use_id}/original"),
-                        &query,
-                        &format!("tool result {tool_use_id}"),
-                    )
-                    .await
-            }
-            (None, Some(id)) => client.get_request_body(id, self.pointer.as_deref()).await,
-            (None, None) => {
-                return Err(RmcpError::invalid_params(
-                    "get_request_body needs id, or tool_use_id with sha256",
-                    None,
-                ));
-            }
-        };
-        value.map_err(McpError::into_rmcp)
-    }
-}
-
 fn list_requests_query(args: &ListRequestsArgs) -> Vec<(&'static str, String)> {
     let mut query: Vec<(&'static str, String)> = Vec::new();
     if let Some(o) = args.offset {
@@ -386,8 +317,11 @@ pub(crate) async fn call_tool(
             Ok(wrap_success("summary", value))
         }
         TOOL_GET_REQUEST_BODY => {
-            let args = parse_args_required::<GetOriginalBodyArgs>(arguments)?;
-            let value = args.fetch(client).await?;
+            let args = parse_args_required::<GetBodyArgs>(arguments)?;
+            let value = client
+                .get_request_body(args.id, args.pointer.as_deref())
+                .await
+                .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("body", value))
         }
         TOOL_GET_REQUEST_SENT_BODY => {
@@ -442,46 +376,5 @@ pub(crate) async fn call_tool(
             format!("unknown request tool: {other}"),
             None,
         )),
-    }
-}
-
-#[cfg(test)]
-mod recovery_tests {
-    use super::*;
-    use wiremock::matchers::{method, path, query_param};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-
-    #[tokio::test]
-    async fn recovery_arguments_without_id_reach_the_tool_result_route() -> anyhow::Result<()> {
-        let server = MockServer::start().await;
-        let client = InspectClient::new(server.uri());
-        let hash = "a".repeat(64);
-        Mock::given(method("GET"))
-            .and(path("/api/tool-results/tool-one/original"))
-            .and(query_param("tool_use_id", "tool-one"))
-            .and(query_param("sha256", hash.as_str()))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(json!({"text":"\"original\"","has_body":true})),
-            )
-            .expect(1)
-            .mount(&server)
-            .await;
-        let args = json!({"tool_use_id":"tool-one","sha256":hash});
-        call_tool(&client, TOOL_GET_REQUEST_BODY, args.as_object().cloned()).await?;
-        Ok(())
-    }
-
-    #[test]
-    fn recovery_rejects_partial_and_conflicting_selectors() -> anyhow::Result<()> {
-        for value in [
-            json!({"id":1,"tool_use_id":"x"}),
-            json!({"id":1,"tool_use_id":"x","sha256":"bad"}),
-            json!({"id":1,"tool_use_id":"x","sha256":"a".repeat(64),"pointer":"/messages"}),
-        ] {
-            let args: GetOriginalBodyArgs = serde_json::from_value(value)?;
-            assert!(args.query().is_err());
-        }
-        Ok(())
     }
 }

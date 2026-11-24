@@ -1,4 +1,4 @@
-pub fn glob_match(pattern: &str, path: &str) -> bool {
+pub(super) fn glob_match(pattern: &str, path: &str) -> bool {
     let pattern_segments: Vec<&str> = pattern.split('/').collect();
     let path_segments: Vec<&str> = path.split('/').collect();
     match_segments(&pattern_segments, &path_segments)

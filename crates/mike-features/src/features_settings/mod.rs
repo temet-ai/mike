@@ -5,17 +5,13 @@ pub mod meta_dossier;
 pub mod meta_eval;
 pub mod meta_eval_alarms;
 pub mod meta_session_scoped;
-pub mod meta_shell_output;
 pub mod meta_turn_guard;
 pub mod overlay;
 pub mod overrides;
 pub mod sections;
 
-pub use overlay::{
-    ContextShapingOverlay, FileReadCompressionOverlay, RemindersOverlay,
-    ShellOutputCompressionOverlay, WeaselOverlay,
-};
-pub use sections::{CompressConfig, RemindersConfig, SessionJudgeConfig, WeaselInterceptConfig};
+pub use overlay::{ContextShapingOverlay, RemindersOverlay, WeaselOverlay};
+pub use sections::{RemindersConfig, SessionJudgeConfig, WeaselInterceptConfig};
 
 use crate::config::SectionSpec;
 use crate::settings::FeatureSettings;
@@ -24,7 +20,6 @@ pub static FEATURES_SETTINGS: FeatureSettings = FeatureSettings {
     name: "features",
     meta: meta::entries,
     sections: &[
-        SectionSpec::of::<CompressConfig>(),
         SectionSpec::of::<RemindersConfig>(),
         SectionSpec::of::<WeaselInterceptConfig>(),
         SectionSpec::of::<SessionJudgeConfig>(),

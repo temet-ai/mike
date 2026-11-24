@@ -24,9 +24,9 @@ fn target_stub(outcome: StageOutcome) -> TargetEntry {
 fn stage_stub(ordinal: u32, input: &str, output: &str, outcome: StageOutcome) -> StageEntry {
     StageEntry {
         ordinal,
-        stage: "compression.file_read".to_string(),
+        stage: "read_dedup".to_string(),
         outcome,
-        policy_id: "file_read".to_string(),
+        policy_id: "read_dedup".to_string(),
         policy_version: 1,
         resolved_parameters: serde_json::json!({}),
         input_sha256: input.to_string(),

@@ -32,7 +32,7 @@ The left-hand menu lists every page in four groups. Hover an item for a one-line
 |---|---|
 | Overview | Home, Projects, Sessions, the judge's pages and Comms: what is happening and what was said |
 | Levers | Filters, Steering Monitor and Steerers: pages that change what mike does to traffic |
-| Insight | Flagged responses, Prompts, Agents, Fleet, Compression review, Tools and Agent dispatches: pages that only read what was captured |
+| Insight | Flagged responses, Prompts, Agents, Fleet, Tools and Agent dispatches: pages that only read what was captured |
 | System | Memory, Skills, Proposals, Memory diagnostics, Settings and Help |
 
 The judge's pages and the Settings sub-pages sit indented under their parent in the menu. The

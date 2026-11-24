@@ -1,9 +1,6 @@
 use serde_json::json;
 
-use super::{
-    ContextShapingOverlay, FileReadCompressionOverlay, RemindersOverlay,
-    ShellOutputCompressionOverlay, WeaselOverlay,
-};
+use super::{ContextShapingOverlay, RemindersOverlay, WeaselOverlay};
 use crate::settings::{SettingsOverlay, apply_db_rows_to_overlay};
 
 fn overlay_from(rows: Vec<(&str, serde_json::Value)>) -> SettingsOverlay {
@@ -60,43 +57,6 @@ fn features_overlay_real_correction_prompt_is_used() {
 }
 
 #[test]
-fn features_overlay_file_read_compression_keys_fold() {
-    let overlay = overlay_from(vec![
-        ("file_read_compression.min_bytes", json!(4000)),
-        ("file_read_compression.head_lines", json!(10)),
-        ("file_read_compression.tail_lines", json!(5)),
-        (
-            "file_read_compression.enabled_producers",
-            json!(["Read", "Grep"]),
-        ),
-        ("file_read_compression.protected_paths", json!(["**/*.env"])),
-        ("file_read_compression.mode", json!("forward")),
-    ]);
-    let file_read = overlay.features.get::<FileReadCompressionOverlay>();
-    assert_eq!(file_read.min_bytes, 4000);
-    assert_eq!(file_read.head_lines, 10);
-    assert_eq!(file_read.tail_lines, 5);
-    assert_eq!(file_read.enabled_producers, vec!["Read", "Grep"]);
-    assert_eq!(file_read.protected_paths, vec!["**/*.env"]);
-    assert!(file_read.forward());
-}
-
-#[test]
-fn features_overlay_shell_output_keys_fold() {
-    let overlay = overlay_from(vec![
-        ("shell_output_compression.signal_line_cap", json!(12)),
-        ("shell_output_compression.mode", json!("forward")),
-    ]);
-    let shell = overlay.features.get::<ShellOutputCompressionOverlay>();
-    assert_eq!(shell.signal_line_cap, 12);
-    assert!(shell.forward());
-    assert_eq!(
-        shell.head_lines,
-        ShellOutputCompressionOverlay::default().head_lines
-    );
-}
-
-#[test]
 fn features_overlay_unknown_keys_leave_overlay_default() {
     let overlay = overlay_from(vec![("no_such_key", json!(true))]);
     assert_eq!(overlay, SettingsOverlay::default());
@@ -108,8 +68,6 @@ fn features_settings_registered_meta_holds_moved_keys() {
     for key in [
         "reminders.inject_lessons",
         "weasel_intercept.correction_prompt",
-        "file_read_compression.protected_paths",
-        "shell_output_compression.mode",
         "compression_dedup.enabled",
         "context_focus_question.mode",
         super::meta_dossier::ENTRIES_ENABLED_KEY,
@@ -141,10 +99,6 @@ fn features_settings_overlay_defaults_match_meta_defaults() {
     assert_eq!(
         meta_default("weasel_intercept.correction_prompt"),
         Some(json!(WeaselOverlay::default().correction_prompt))
-    );
-    assert_eq!(
-        meta_default("file_read_compression.protected_paths"),
-        Some(json!(FileReadCompressionOverlay::default().protected_paths))
     );
 }
 

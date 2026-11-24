@@ -2,7 +2,6 @@ pub use mike_fleet::api::workspace;
 pub use mike_fleet::api::*;
 pub use mike_lessons::api::*;
 pub(crate) mod cache_breaks;
-pub(crate) mod compression_review;
 pub(crate) mod config_history;
 pub(crate) mod db_cost;
 pub mod handlers;

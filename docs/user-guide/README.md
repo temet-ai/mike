@@ -54,7 +54,6 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 - [The judge](judge.md): how mike labels turns and sessions, and how you check it.
 - [Decisions](decisions.md): a small model that answers mike's quick yes or no questions.
 - [Filter rules](filters.md): rewrite parts of the system prompt before it is sent.
-- [Compression](compression.md): what mike can shorten, and what it does today.
 
 **Work with sessions**
 

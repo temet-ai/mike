@@ -2,15 +2,13 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect, userEvent, waitFor } from 'storybook/test';
 	import SettingsPage from './+page.svelte';
-	import type { CompressionEffective, FeatureDto, SettingMeta } from '$lib/api/settings';
+	import type { FeatureDto, SettingMeta } from '$lib/api/settings';
 	import type { CapabilityRow } from '$lib/api/capabilities';
 	import type { SettingsPageData } from './+page';
 
 	const FEATURES: FeatureDto[] = [
 		{ key: 'reminders', enabled: true, scope: 'session', applies: 'new_sessions' },
 		{ key: 'recall_injector', enabled: true, scope: 'session', applies: 'new_sessions' },
-		{ key: 'file_read_compression', enabled: true, scope: 'session', applies: 'new_sessions' },
-		{ key: 'shell_output_compression', enabled: false, scope: 'session', applies: 'new_sessions' },
 		{ key: 'agent_lessons', enabled: true, scope: 'session', applies: 'new_sessions' },
 		{ key: 'proxy_tools', enabled: true, scope: 'session', applies: 'new_sessions' },
 		{ key: 'weasel_intercept', enabled: true, scope: 'session', applies: 'new_sessions' },
@@ -37,77 +35,7 @@
 		} as SettingMeta;
 	}
 
-	const MODE_DESCRIPTION =
-		'Forward sends every new session shortened requests, whatever the share. Shadow sends shortened requests only to the share of new sessions set below and records what would be shortened for the rest; shadow with a share of 0 never forwards. Sessions already running keep the policy they started with.';
-
-	const FILE_READ_EFFECTIVE: CompressionEffective = {
-		state: 'sampled_forwarding',
-		mode: 'shadow',
-		forward_share: 20,
-		applies: 'new_sessions',
-		enabled: true,
-		summary:
-			'20% of new sessions (by session id) are sent shortened requests; the rest are the shadow control.',
-		session_arm:
-			"each request's manifest records its session's arm in the file_read_compression stage's resolved_parameters.arm"
-	};
-	const SHELL_OUTPUT_EFFECTIVE: CompressionEffective = {
-		state: 'off',
-		mode: 'shadow',
-		forward_share: 0,
-		applies: 'new_sessions',
-		enabled: false,
-		summary:
-			'Shell-output compression is off: no session is sent shortened requests and nothing is recorded. Mode and share take effect for new sessions once it is turned on.',
-		session_arm:
-			"each request's manifest records its session's arm in the shell_output_compression stage's resolved_parameters.arm"
-	};
-
 	const SETTINGS: SettingMeta[] = [
-		meta({
-			key: 'file_read_compression.mode',
-			group: 'File read compression',
-			kind: 'enum',
-			default: 'shadow',
-			value: 'shadow',
-			enum_variants: ['shadow', 'forward'],
-			label: 'Mode',
-			description: MODE_DESCRIPTION
-		}),
-		meta({
-			key: 'file_read_compression.forward_share',
-			group: 'File read compression',
-			kind: 'int',
-			default: 0,
-			value: 20,
-			min_i64: 0,
-			max_i64: 100,
-			label: 'Share of sessions forwarded',
-			description:
-				"In shadow mode, the percent of new sessions, chosen by session id, that are sent shortened requests; the rest are the control. Forward mode ignores it. Sessions already running keep their arm, which each request's manifest records. The compressor scorecard adjusts it."
-		}),
-		meta({
-			key: 'shell_output_compression.mode',
-			group: 'Shell-output compression',
-			kind: 'enum',
-			default: 'shadow',
-			value: 'shadow',
-			enum_variants: ['shadow', 'forward'],
-			label: 'Mode',
-			description: MODE_DESCRIPTION
-		}),
-		meta({
-			key: 'shell_output_compression.forward_share',
-			group: 'Shell-output compression',
-			kind: 'int',
-			default: 0,
-			value: 0,
-			min_i64: 0,
-			max_i64: 100,
-			label: 'Share of sessions forwarded',
-			description:
-				"In shadow mode, the percent of new sessions, chosen by session id, that are sent shortened Bash output; the rest are the control. Forward mode ignores it. Each request's manifest records its session's arm."
-		}),
 		meta({
 			key: 'analysis.enabled',
 			group: 'Analysis',
@@ -215,8 +143,6 @@
 			features: FEATURES,
 			loadError: null,
 			settings: SETTINGS,
-			fileReadCompressionEffective: FILE_READ_EFFECTIVE,
-			shellOutputCompressionEffective: SHELL_OUTPUT_EFFECTIVE,
 			steererOpenrouterConfiguredViaEnv: false,
 			settingsLoadError: null,
 			capabilities: CAPABILITIES,
@@ -279,9 +205,7 @@
 		if (url.includes('/api/settings'))
 			return json({
 				settings: SETTINGS,
-				steerer_openrouter_configured_via_env: false,
-				file_read_compression_effective: FILE_READ_EFFECTIVE,
-				shell_output_compression_effective: SHELL_OUTPUT_EFFECTIVE
+				steerer_openrouter_configured_via_env: false
 			});
 		if (url.includes('/api/steering/models')) return json({ models: [] });
 		if (url.includes('/api/sync/status'))
@@ -333,13 +257,6 @@
 		await expect(canvasElement.querySelector('[data-testid="capability-panel"]')).not.toBeNull();
 		await expect(canvasElement.textContent).toContain('Capability status');
 		await expect(canvasElement.textContent).toContain('no OpenRouter API key is configured');
-		const shell = canvasElement.querySelector('#shell-output-compression');
-		await expect(shell).not.toBeNull();
-		await expect(shell?.textContent).toContain('Off');
-		await expect(shell?.textContent).toContain('Shell-output compression is off');
-		await expect(canvasElement.querySelector('#file-read-compression')?.textContent).toContain(
-			'Sampled forwarding: 20% of new sessions'
-		);
 	}}
 >
 	{#snippet template(args)}

@@ -45,7 +45,6 @@ sha2 = "0.11"
 # present in the build graph transitively (via `insta`); promoted to a
 # direct workspace dep so the `compress` preview endpoint can emit a full
 # unified diff without a hand-rolled LCS.
-similar = { version = "3", features = ["text"] }
 # sqlx 0.9 split the old combined `runtime-tokio-rustls` feature into a runtime
 # and a TLS backend chosen separately. `tls-rustls-ring` keeps the ring crypto
 # provider the rest of the workspace uses (see rcgen above), so the build still

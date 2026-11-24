@@ -13,13 +13,12 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
 
     let toggles = handle.fetch_feature_toggles().await?;
 
-    assert_eq!(toggles.len(), 25);
+    assert_eq!(toggles.len(), 24);
     let not_operator_set_but_enabled = ["prompt_assistant", "semantic_context"];
     let fresh_install_off = [
         "agent_lessons",
         "directive_proposer",
         "dossier_builder",
-        "file_read_compression",
         "judge_lessons",
         "judge_worker",
         "mailbox_redelivery",
@@ -66,7 +65,6 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
             "db_resync",
             "directive_proposer",
             "dossier_builder",
-            "file_read_compression",
             "harvester",
             "judge_lessons",
             "judge_worker",

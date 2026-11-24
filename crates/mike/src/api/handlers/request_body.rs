@@ -1,5 +1,4 @@
 use super::*;
-use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 pub(crate) fn byte_size(bytes: Option<&Bytes>) -> u64 {
     bytes.map(|b| b.len() as u64).unwrap_or(0)
@@ -110,10 +109,6 @@ pub(crate) struct RequestBodyIndexPayload {
 pub(crate) struct BodyPointerParams {
     #[serde(default)]
     pub(crate) pointer: Option<String>,
-    #[serde(default)]
-    pub(crate) tool_use_id: Option<String>,
-    #[serde(default)]
-    pub(crate) sha256: Option<String>,
 }
 
 impl BodyPointerParams {
@@ -194,60 +189,12 @@ pub(crate) async fn get_request_body(
             None => return Err(StatusCode::NOT_FOUND),
         },
     };
-    let recovery_pointer = original_result_pointer(&params, body.as_ref())?;
-    let mut payload = match recovery_pointer.as_deref().or(params.effective_pointer()) {
+    let mut payload = match params.effective_pointer() {
         Some(p) => BodyPayload::from_bytes_with_pointer(body.as_ref(), p),
         None => BodyPayload::from_bytes(body.as_ref()),
     };
     payload.reconstructed = reconstructed;
     Ok(Json(payload))
-}
-
-pub(crate) async fn get_tool_result_original(
-    State(state): State<AppState>,
-    Path(tool_use_id): Path<String>,
-    Query(params): Query<BodyPointerParams>,
-) -> Result<Json<BodyPayload>, StatusCode> {
-    let Some(handle) = state.persist() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-    let request_id = handle
-        .steerer()
-        .first_request_carrying_result(&tool_use_id)
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, tool_use_id, "get_tool_result_original: lookup failed");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?;
-    let params = BodyPointerParams {
-        pointer: None,
-        tool_use_id: Some(tool_use_id),
-        sha256: params.sha256,
-    };
-    get_request_body(State(state), Path(request_id as u64), Query(params)).await
-}
-
-fn original_result_pointer(
-    params: &BodyPointerParams,
-    body: Option<&Bytes>,
-) -> Result<Option<String>, StatusCode> {
-    match (&params.tool_use_id, &params.sha256) {
-        (None, None) => Ok(None),
-        (Some(id), Some(hash))
-            if params.pointer.is_none()
-                && !id.is_empty()
-                && hash.len() == 64
-                && hash.bytes().all(|c| c.is_ascii_hexdigit()) =>
-        {
-            let body = body.ok_or(StatusCode::NOT_FOUND)?;
-            crate::compress::recovery::CapturedResults::new(body)
-                .pointer(id, &hash.to_ascii_lowercase())
-                .map(|p| Some(p.to_string()))
-                .ok_or(StatusCode::CONFLICT)
-        }
-        _ => Err(StatusCode::BAD_REQUEST),
-    }
 }
 
 pub(crate) async fn load_request_body_from_db(

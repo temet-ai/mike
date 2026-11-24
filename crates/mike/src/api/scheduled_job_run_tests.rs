@@ -66,8 +66,8 @@ async fn run_now_while_the_job_runs_is_a_conflict_saying_so() -> anyhow::Result<
 async fn run_now_for_a_turned_off_job_is_a_conflict_saying_it_is_off() -> anyhow::Result<()> {
     let mut off = ready();
     off.enabled = false;
-    replace_for_tests("compressor_loop", &off);
-    let (status, body) = post(from_app(), "compressor_loop").await?;
+    replace_for_tests("usage_audit", &off);
+    let (status, body) = post(from_app(), "usage_audit").await?;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["reason"], "turned_off");
     Ok(())

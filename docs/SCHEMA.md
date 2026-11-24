@@ -4375,7 +4375,7 @@ proposer and duplicate or collide on their work.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `compressor_loop`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike-knowledge/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
+| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike-knowledge/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
 | `machine_uuid` | `UUID NOT NULL` | The machine that owns the role, from its `machine.json` |
 | `heartbeat_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Database-clock time of the owner's last claim or renewal |
 
@@ -6303,6 +6303,8 @@ mutation and egress toggles off on a database that has captured no requests yet.
 
 **Indexes:** none beyond the PK — the table has ≤10 rows and is read at startup and on every settings-page load.
 
+Migration `20261124160000_remove_compression_toggles.sql` deletes the `file_read_compression` and `shell_output_compression` rows. `trg_feature_toggles_change_log` records the delete in `config.change_log`.
+
 The `decisions` key is the master switch of the Jev decisions layer (`crates/mike-base/src/feature_toggles/meta.rs`: scope global, applies immediately). It needs no migration and no seeded row. Its code default is off, because the questions carry captured text to OpenRouter. The per-point modes are `config.settings` keys (`decisions.<point>.mode`), not toggles.
 
 Migration `20260929000001_improvement_schema.sql` (JC21) adds `judge_lessons` to the closed key
@@ -6321,6 +6323,8 @@ Open-keyspace companion to `feature_toggles`: the expanded operator-tunable `Pro
 Rust-side against a compile-time `SETTINGS_META` registry instead of in the DB. No seed rows: an absent key
 falls back to the compiled `ProxyConfig` default; writing a row overrides it; deleting the row restores the
 default.
+
+Migration `20261124160100_remove_compression_settings.sql` deletes every row whose key starts with `file_read_compression.`, `shell_output_compression.`, `compress.` or `compressor_loop.`. `trg_settings_change_log` records the delete in `config.change_log`. `compression_dedup.enabled` is untouched.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -6702,7 +6706,7 @@ restart. About fifteen rows a day per machine; no retention sweep.
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | Surrogate key |
-| `job_name` | `TEXT NOT NULL` | `Job.name`: `learning_promote`, `learning_audit`, `compressor_loop`, `lessons_commit`, `usage_audit` |
+| `job_name` | `TEXT NOT NULL` | `Job.name`: `learning_promote`, `learning_audit`, `lessons_commit`, `usage_audit` |
 | `machine_uuid` | `UUID NULL` | The machine that ran it (`machine.json`); `NULL` when that proxy had no identity. Per-machine jobs restore only their own machine's rows; leased jobs restore from any machine |
 | `trigger` | `TEXT NOT NULL` | `schedule` or `manual` (`POST /api/scheduled-jobs/{name}/run`). Only `schedule` rows restore the period slot |
 | `started_at` / `finished_at` | `TIMESTAMPTZ NOT NULL` | When the run started and ended; `finished_at >= started_at` |

@@ -158,25 +158,9 @@ mod schedule_restore_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::super::jobs::{
-        AUDIT, COMPRESSOR_LOOP, LESSONS_COMMIT, PROMOTE, SIX_HOURLY_FIXTURE, USAGE_AUDIT,
-    };
+    use super::super::jobs::{AUDIT, LESSONS_COMMIT, PROMOTE, SIX_HOURLY_FIXTURE, USAGE_AUDIT};
     use super::*;
     use chrono::TimeZone;
-
-    #[test]
-    fn compressor_loop_runs_once_a_day_in_its_morning_window() {
-        let mut schedule = Schedule::default();
-        let cadence = &COMPRESSOR_LOOP.cadence;
-        assert!(!schedule.due(cadence, at(14, 4, 29)));
-        assert!(schedule.due(cadence, at(14, 4, 30)));
-        assert!(schedule.due(cadence, at(14, 6, 59)));
-        assert!(!schedule.due(cadence, at(14, 7, 0)));
-        schedule.begin(cadence, at(14, 4, 31));
-        schedule.finish(at(14, 4, 40), true);
-        assert!(!schedule.due(cadence, at(14, 5, 30)));
-        assert!(schedule.due(cadence, at(15, 4, 30)));
-    }
 
     #[test]
     fn a_six_hourly_job_runs_on_the_hour_every_six_hours() {

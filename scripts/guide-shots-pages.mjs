@@ -61,7 +61,6 @@ export const SHOTS = {
   steering: async (page, ctx) => { await go(page, ctx, '/steering'); await page.getByRole('tab', { name: /fleet/i }).click().catch(() => page.getByText(/^Fleet/).first().click()); await settle(page, 600); },
   judge: (page, ctx) => go(page, ctx, '/sessions/labelling'),
   'filter-workbench': async (page, ctx) => { await go(page, ctx, '/filter/workbench'); await page.getByText('Claude Code 2.1.0').first().click(); await settle(page); },
-  'compression-review': (page, ctx) => go(page, ctx, '/compression-review'),
   comms: async (page, ctx) => { await go(page, ctx, '/comms'); await page.getByText(DEMO.folder).first().click(); await settle(page, 600); await page.getByText('Install page: which method first?').first().click().catch(() => {}); await settle(page, 600); },
   fleet: (page, ctx) => go(page, ctx, '/fleet'),
   settings: (page, ctx) => go(page, ctx, '/settings'),
@@ -116,7 +115,6 @@ export const CLIPS = {
   judge: (page) => band(page, { to: page.locator('.page-strip'), pad: 8 }),
   // The outline with the one edit in it; the edits list beside it repeats the same line.
   'filter-workbench': (page) => band(page, { from: page.getByText('Billing header', { exact: true }), to: page.getByText(/most common path first/), pad: 14, x: 0, width: 540 }),
-  'compression-review': (page) => band(page, { to: page.getByText('SAVE REVIEW'), pad: 8 }),
   comms: (page) => band(page, {}),
   // The canvas down to the second session, without the inspector beside it.
   fleet: async (page) => { const c = await box(page, page.locator('.fleet-canvas-wrap')); const n = await box(page, page.getByText('8e1f7d52', { exact: true })); return { x: c.x, y: c.y, width: c.width, height: n.y + n.height + 40 - c.y }; },

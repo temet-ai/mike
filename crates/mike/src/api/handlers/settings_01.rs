@@ -123,80 +123,11 @@ pub(crate) async fn list_settings(
         crate::config::reload_openrouter_key(&state.config(), &env_var_name)
             .is_ok_and(|key| key.is_some());
 
-    let value_of = |key: &str| {
-        settings
-            .iter()
-            .find(|s| s["key"] == key)
-            .map(|s| s["value"].clone())
-            .unwrap_or_default()
-    };
-    let toggles = state.feature_toggle_overlay.load();
-    let effective_for = |prefix: &str, enabled: bool, rule: &str| {
-        let mut effective = compression_effective(
-            (enabled, rule),
-            value_of(&format!("{prefix}.mode"))
-                .as_str()
-                .unwrap_or("shadow"),
-            value_of(&format!("{prefix}.forward_share"))
-                .as_u64()
-                .unwrap_or(0) as usize,
-        );
-        effective["session_arm"] = serde_json::Value::from(format!(
-            "each request's manifest records its session's arm in the {prefix} stage's resolved_parameters.arm"
-        ));
-        effective
-    };
-    let file_read_compression_effective = effective_for(
-        "file_read_compression",
-        toggles.file_read_compression,
-        "File-read compression",
-    );
-    let shell_output_compression_effective = effective_for(
-        "shell_output_compression",
-        toggles.shell_output_compression,
-        "Shell-output compression",
-    );
-
     Json(serde_json::json!({
         "machine": { "uuid": view.machine_uuid, "name": view.machine_name },
         "settings": settings,
         "steerer_openrouter_configured_via_env": steerer_openrouter_configured_via_env,
-        "file_read_compression_effective": file_read_compression_effective,
-        "shell_output_compression_effective": shell_output_compression_effective,
     }))
-}
-
-fn compression_effective(
-    (enabled, rule): (bool, &str),
-    mode: &str,
-    forward_share: usize,
-) -> serde_json::Value {
-    let mut effective = crate::compress::stage::effective_forwarding(mode, forward_share);
-    effective["enabled"] = serde_json::Value::Bool(enabled);
-    if !enabled {
-        effective["state"] = serde_json::Value::from("off");
-        effective["summary"] = serde_json::Value::from(format!(
-            "{rule} is off: no session is sent shortened requests and nothing is recorded. Mode and share take effect for new sessions once it is turned on.",
-        ));
-    }
-    effective
-}
-
-#[cfg(test)]
-#[test]
-fn compression_effective_reports_off_when_the_switch_is_off_whatever_the_share() {
-    let off = compression_effective((false, "Shell-output compression"), "shadow", 20);
-    assert_eq!(off["state"], "off");
-    assert_eq!(off["enabled"], false);
-    assert_eq!(off["forward_share"], 20);
-    assert!(
-        off["summary"]
-            .as_str()
-            .is_some_and(|s| s.starts_with("Shell-output compression is off"))
-    );
-    let on = compression_effective((true, "File-read compression"), "shadow", 20);
-    assert_eq!(on["state"], "sampled_forwarding");
-    assert_eq!(on["enabled"], true);
 }
 
 #[derive(Debug, Deserialize)]

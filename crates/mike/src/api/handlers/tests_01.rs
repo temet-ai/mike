@@ -247,7 +247,6 @@ pub(crate) async fn get_request_transformation_manifest_pointer_projects_full_su
         Path(13),
         Query(BodyPointerParams {
             pointer: Some("/schema_version".to_string()),
-            ..BodyPointerParams::default()
         }),
     )
     .await

@@ -143,5 +143,3 @@ A rule changes what is sent to Anthropic: the system prompt and message text aft
 are what Anthropic receives. The workbench also has a **Prompt assistant** pane; what it
 sends, and to which model provider, is covered in [Privacy](privacy.md), with the provider
 choices in [Settings](settings.md).
-
-Next, read [Compression](compression.md) for the other ways mike shortens a request.

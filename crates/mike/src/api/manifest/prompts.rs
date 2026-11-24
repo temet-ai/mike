@@ -17,9 +17,6 @@ const OPERATOR_AGENTS: Coverage = Coverage::Exempt {
 const OPERATOR_VOLATILE_LINES: Coverage = Coverage::Exempt {
     reason: "operator-only volatile-line registry; not surfaced via MCP",
 };
-const COMPRESSION_MEASUREMENT: Coverage = Coverage::Exempt {
-    reason: "compression measurement is REST/SPA-only; no agent workflow uses it (2026-07-16 audit)",
-};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route(
@@ -129,8 +126,6 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "operator-only bulk import; restore workflow is run from the SPA, not MCP",
         },
     ),
-    route("POST", "/api/compress/estimate", COMPRESSION_MEASUREMENT),
-    route("GET", "/api/compress/stats", COMPRESSION_MEASUREMENT),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -211,6 +206,4 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
                 .patch(handlers::patch_volatile_line)
                 .delete(handlers::delete_volatile_line),
         )
-        .route("/api/compress/estimate", post(handlers::compress_estimate))
-        .route("/api/compress/stats", get(handlers::compress_stats))
 }

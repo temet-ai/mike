@@ -26,7 +26,7 @@ mike is a reverse proxy for Claude Code's traffic to `api.anthropic.com`. It
 records every request and response on your machine, shows them in a web UI,
 lets Claude Code query that history over MCP, and can (only when switched on)
 change what is sent and what comes back: lessons from earlier sessions, a nudge
-when a session drifts, a rewrite of the system prompt, shortened tool output.
+when a session drifts, a rewrite of the system prompt, repeated file reads replaced by a note.
 It also starts and coordinates Claude Code sessions (spawn, fleets, mail, work
 threads) and runs a learning loop that turns corrections into lessons and
 skills.
@@ -129,11 +129,9 @@ replayed first so the prompt cache prefix stays stable (`injected_replay/`).
 | 11 | Git read hint | `change_record` (off) | Nudge to use `what_changed` instead of git | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | — | Steerer drain | not gated here; producers are | Delivers queued steerer interventions and mailbox messages, up to `mailbox_max_deliveries_per_turn` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md) |
 | 12 | Repeated notices | `repeated_notices` (off) | Sends each Claude Code boilerplate notice once per session | [`FEATURES.md`](FEATURES.md) |
-| 13 | Read dedup | setting `compression_dedup.enabled` (off) | Replaces duplicate Read results | user guide [compression](user-guide/compression.md) |
-| 14 | File-read compression | `file_read_compression` (off); mode `shadow` / `forward`, `forward_share` | Head and tail of older large reads, pointer to the captured original | user guide [compression](user-guide/compression.md) |
-| 15 | Shell-output compression | `shell_output_compression` (off) | Bash output cut to head, tail and signal lines on the request that first carries it | user guide [compression](user-guide/compression.md) |
-| 16 | Proxy-declared tools | `proxy_tools` (off) | Adds mike's own tools (`mike_session_roster`) to `tools[]` and answers them in-process | [`ARCHITECTURE.md` §4.5](ARCHITECTURE.md#45-weasel-intercept) |
-| 17 | Context-focus question | `context_focus_question` (off) | Asks for one line per tool call; stripped from the response | [`FEATURES.md`](FEATURES.md) |
+| 13 | Read dedup | setting `compression_dedup.enabled` (off) | Replaces duplicate Read results | [`FEATURES`](FEATURES.md) |
+| 14 | Proxy-declared tools | `proxy_tools` (off) | Adds mike's own tools (`mike_session_roster`) to `tools[]` and answers them in-process | [`ARCHITECTURE.md` §4.5](ARCHITECTURE.md#45-weasel-intercept) |
+| 15 | Context-focus question | `context_focus_question` (off) | Asks for one line per tool call; stripped from the response | [`FEATURES.md`](FEATURES.md) |
 
 After the stages: prompt composition (`compose_prompt/`; `composition_enabled`
 exists in config but the stage does not read it), a cache-scope tripwire
@@ -178,7 +176,7 @@ recorded in `llm.calls`.
 | Directive proposals | `directive_proposer` (off) | no | Proposes standing directives from corrections the operator restated across sessions, by SQL over captured data; also calibrates guard thresholds across sessions. Proposals wait on `/memory`; nothing is injected | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
 | Change record | `change_record` (off) | no | Watches checkouts for file changes, commits, pushes and checks so `what_changed` answers without git | MCP `what_changed`; REST `/api/changes` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | Retention sweep, mailbox reaper, workspace reaper, channel-link sweep, work registry, health refresher, DB cost monitor, resync | `retention_sweep`, `channel_link_sweep`, `db_resync` (on); the rest always | no | Local housekeeping: TTL deletes (365 d default), expired mail, lapsed roster rows, channel links, DB statement budgets, fallback-to-primary resync | REST `/api/sync/status`, `/api/db-cost` | [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md) |
-| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule (none runs Python; `learning_promote`, `learning_audit` and `compressor_loop` are `sh` wrappers for `mike learning promote`, `mike learning-audit`, `mike compressor-loop`): `learning_promote`, `learning_audit`, `compressor_loop`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
+| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule (none runs Python; `learning_promote` and `learning_audit` are `sh` wrappers for `mike learning promote`, `mike learning-audit`): `learning_promote`, `learning_audit`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 
 #### Jev decisions layer
 
@@ -233,7 +231,7 @@ wins over a code default, so an upgrade never changes what an install does.
 - **Off by default, rewrite traffic:** `reminders`, `recall_injector`,
   `agent_lessons`, `self_identity_reminder`, `workspace_briefing`,
   `mailbox_redelivery`, `repeated_notices`, `reminder_on_token`,
-  `file_read_compression`, `shell_output_compression`, `proxy_tools`,
+  `proxy_tools`,
   `context_focus_question`, `change_record_tail`, `weasel_intercept`, and the
   settings `reminders.inject_lessons`, `compression_dedup.enabled`.
 - **Off by default, call a model:** `steerer`, `judge_worker`,
@@ -297,7 +295,7 @@ seat contracts; `mike-mcp list-tools --full --json` is the catalogue.
 `crates/mike/src/api/manifest/` holds one file per area; each row names the
 route, the handler and its MCP coverage. Areas: `requests`, `sessions`,
 `session_mail`, `memory`, `lesson_delivery`, `projects`, `knowledge`,
-`filters`, `prompts`, `prompt_shaping`, `compression_review`, `steering`,
+`filters`, `prompts`, `prompt_shaping`, `steering`,
 `evaluations`, `steer_questions`, `verdicts`, `dossier`, `eval`,
 `eval_metrics`, `semantic`, `cross_session`, `improvement`, `skills`,
 `skill_outcomes`, `proposals`, `fleets`, `launches`, `workspace`, `questions`,
@@ -318,7 +316,7 @@ groups pages as Overview, Levers, Insight and System; the user guide's
   `/sessions/labelling[/accuracy[/<run>[/review]]]`.
 - **Levers:** `/filter/workbench`, `/steering[/<id>]`.
 - **Insight:** `/analysis`, `/prompts[/main|/new|/subagent/<persona>|/volatile-lines]`,
-  `/agents[/<id>]`, `/fleet`, `/compression-review`, `/tools`,
+  `/agents[/<id>]`, `/fleet`, `/tools`,
   `/diagnostics/agent-dispatches`.
 - **System:** `/memory`, `/skills[/<id>]`, `/proposals`, `/diagnostics/memory`,
   `/settings[/steering|/workers|/assistants|/embedding|/flagging|/integrations|/history|/setup]`,

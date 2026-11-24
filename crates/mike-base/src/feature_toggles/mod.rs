@@ -43,10 +43,6 @@ pub struct FeatureToggles {
 
     pub agent_lessons: bool,
 
-    pub file_read_compression: bool,
-
-    pub shell_output_compression: bool,
-
     pub retention_sweep: bool,
 
     #[serde(default)]
@@ -166,8 +162,6 @@ impl Default for FeatureToggles {
             judge_worker: false,
             session_judge: false,
             agent_lessons: false,
-            file_read_compression: false,
-            shell_output_compression: false,
             retention_sweep: true,
             codex_diagnostic_capture: false,
             channel_link_sweep: true,
@@ -221,8 +215,6 @@ pub struct ResolvedToggles {
     pub recall_injector: bool,
     pub weasel_intercept: bool,
     pub agent_lessons: bool,
-    pub file_read_compression: bool,
-    pub shell_output_compression: bool,
     pub proxy_tools: bool,
     pub context_focus_question: bool,
     pub workspace_capture_registration: bool,
@@ -239,8 +231,6 @@ impl ResolvedToggles {
             recall_injector: overlay.recall_injector,
             weasel_intercept: overlay.weasel_intercept,
             agent_lessons: overlay.agent_lessons,
-            file_read_compression: overlay.file_read_compression,
-            shell_output_compression: overlay.shell_output_compression,
             proxy_tools: overlay.proxy_tools,
             context_focus_question: overlay.context_focus_question,
             workspace_capture_registration: overlay.workspace_capture_registration,
@@ -282,8 +272,6 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "context_focus_question" => Some(toggles.context_focus_question),
         "db_resync" => Some(toggles.db_resync),
         "dossier_builder" => Some(toggles.dossier_builder),
-        "file_read_compression" => Some(toggles.file_read_compression),
-        "shell_output_compression" => Some(toggles.shell_output_compression),
         "fleet_auto_start" => Some(toggles.fleet_auto_start),
         "harvester" => Some(toggles.harvester),
         "judge_lessons" => Some(toggles.judge_lessons),
@@ -356,8 +344,6 @@ pub fn set_toggle_enabled(
         "context_focus_question" => updated.context_focus_question = enabled,
         "db_resync" => updated.db_resync = enabled,
         "dossier_builder" => updated.dossier_builder = enabled,
-        "file_read_compression" => updated.file_read_compression = enabled,
-        "shell_output_compression" => updated.shell_output_compression = enabled,
         "fleet_auto_start" => updated.fleet_auto_start = enabled,
         "harvester" => updated.harvester = enabled,
         "judge_lessons" => updated.judge_lessons = enabled,

@@ -62,9 +62,6 @@ export async function seedDemo(ctx) {
   const turnId = (turns.find?.((t) => t.user_prompt === DEMO.correction) ?? {}).turn_id;
   await call(ctx, 'POST', '/api/lessons', { project_path: DEMO.folder, kind: 'correction', session_id: DEMO.session, source_turn_id: turnId, text: 'On the install page, list Homebrew first; the archive download and mise follow as alternatives.' });
   await call(ctx, 'POST', '/api/lessons', { project_path: DEMO.folder, kind: 'convention', session_id: DEMO.session, text: 'Give each install method one command and one sentence on when to use it.' });
-  const reqs = (await call(ctx, 'GET', `/api/sessions/${DEMO.session}/requests`)).requests;
-  const second = reqs.map((r) => r.id).sort((a, b) => a - b)[1];
-  await call(ctx, 'POST', '/api/compression-review', { kind: 'request', request_id: second, reason: 'The whole install page came back as one tool result.', evidence: 'Request 2 carries the full text of content/install.md.', actor: 'operator' });
   const steerers = await call(ctx, 'GET', '/api/steerers');
   const refocus = steerers.find((x) => x.name === 'refocus');
   await call(ctx, 'PATCH', `/api/steerers/${refocus.id}`, { enabled: true });

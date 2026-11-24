@@ -1,6 +1,4 @@
 <script lang="ts">
-	import CompressionFlag from '$lib/components/compression/CompressionFlag.svelte';
-	import type { CompressionTarget } from '$lib/api/compressionReview';
 	import type { Snippet } from 'svelte';
 	import { untrack } from 'svelte';
 	import { AlertTriangle, Braces, ChevronDown, ChevronUp, Loader } from '@lucide/svelte';
@@ -35,7 +33,6 @@
 	}
 
 	interface Props {
-		compressionTarget?: CompressionTarget;
 		name?: string;
 		input?: unknown;
 		showRawInput?: boolean;
@@ -55,7 +52,6 @@
 	}
 
 	let {
-		compressionTarget,
 		name,
 		input,
 		showRawInput = true,
@@ -193,9 +189,9 @@
 			aria-label={`${cardExpanded ? 'Collapse' : 'Expand'} ${effectiveName} call, request ${denseReqLabel}`}
 			onclick={toggleCard}
 		>
-			<span class="font-mono text-micro tabular-nums text-[var(--text-faint)]"
-				>#{denseReqLabel}</span
-			>
+			<span class="font-mono text-micro tabular-nums text-[var(--text-faint)]">
+				#{denseReqLabel}
+			</span>
 			<span
 				class="flex size-[22px] shrink-0 items-center justify-center rounded-[2px]"
 				style="background: color-mix(in srgb, var({denseAccentVar}) 16%, transparent); color: var({denseAccentVar});"
@@ -203,18 +199,19 @@
 				<presentation.icon size={13} aria-hidden="true" />
 			</span>
 			<span class="flex min-w-0 items-baseline gap-2">
-				<span class="shrink-0 font-mono text-xs font-medium text-[var(--text-strong)]"
-					>{effectiveName}</span
-				>
+				<span class="shrink-0 font-mono text-xs font-medium text-[var(--text-strong)]">
+					{effectiveName}
+				</span>
 				{#if denseTarget}
-					<span class="min-w-0 break-words font-mono text-xs text-[var(--text-2)]"
-						>{denseTarget}</span
-					>
+					<span class="min-w-0 break-words font-mono text-xs text-[var(--text-2)]">
+						{denseTarget}
+					</span>
 				{/if}
 			</span>
 			<span class="flex flex-col items-end gap-1">
-				<span class="font-mono text-micro tabular-nums text-[var(--text-2)]">{denseBytesLabel}</span
-				>
+				<span class="font-mono text-micro tabular-nums text-[var(--text-2)]">
+					{denseBytesLabel}
+				</span>
 				<span class="h-[3px] w-[60px] overflow-hidden bg-[var(--surface-3)]">
 					<span
 						class="block h-full"
@@ -264,13 +261,6 @@
 							{running ? 'running…' : 'no result captured'}
 						</p>
 					{:else}
-						{#if tool?.use_id && tool.result?.request_id}<CompressionFlag
-								target={{
-									kind: 'tool_result',
-									request_id: tool.result.request_id,
-									tool_use_id: tool.use_id
-								}}
-							/>{/if}
 						<pre
 							class={cn(
 								'max-h-[280px] overflow-auto whitespace-pre-wrap break-words font-mono text-label leading-relaxed',
@@ -286,16 +276,20 @@
 							onclick={(e) => {
 								e.stopPropagation();
 								onOpenDrawer?.('request');
-							}}>view request</button
+							}}
 						>
+							view request
+						</button>
 						<button
 							type="button"
 							class="text-micro uppercase tracking-wider text-[var(--text-faint)] hover:text-[var(--text-strong)]"
 							onclick={(e) => {
 								e.stopPropagation();
 								onOpenDrawer?.('response');
-							}}>view response</button
+							}}
 						>
+							view response
+						</button>
 					</div>
 				{/if}
 			</div>
@@ -406,7 +400,6 @@
 
 				{#if resolvedResult() !== undefined}
 					{@const r = resolvedResult()!}
-					{#if compressionTarget}<CompressionFlag target={compressionTarget} />{/if}
 					<ToolResultCard
 						toolName={r.toolName ?? effectiveName}
 						content={typeof r.content === 'string' ? r.content : JSON.stringify(r.content, null, 2)}

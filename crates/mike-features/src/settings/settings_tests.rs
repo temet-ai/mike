@@ -1,7 +1,5 @@
 use super::*;
-use crate::features_settings::{
-    ContextShapingOverlay, FileReadCompressionOverlay, RemindersOverlay, WeaselOverlay,
-};
+use crate::features_settings::{ContextShapingOverlay, RemindersOverlay, WeaselOverlay};
 
 #[test]
 fn settings_meta_keys_are_unique() {
@@ -42,13 +40,6 @@ fn settings_overlay_defaults_match_toggle_off_by_default_contract() {
             .get::<ContextShapingOverlay>()
             .compression_dedup_enabled,
         "compression_dedup.enabled must default false"
-    );
-    assert!(
-        !features
-            .get::<FileReadCompressionOverlay>()
-            .protected_paths
-            .is_empty(),
-        "file_read_compression.protected_paths must not default empty"
     );
 }
 
@@ -99,28 +90,6 @@ fn settings_meta_text_kind_defaults_are_never_blank() {
             meta.key
         );
     }
-}
-
-#[test]
-fn settings_overlay_default_matches_file_read_compression_compiled_defaults() {
-    let overlay = SettingsOverlay::default()
-        .features
-        .get::<FileReadCompressionOverlay>();
-    assert_eq!(overlay.min_bytes, 1500);
-    assert_eq!(overlay.head_lines, 40);
-    assert_eq!(overlay.tail_lines, 20);
-    assert_eq!(overlay.enabled_producers, vec!["Read".to_owned()]);
-    assert_eq!(
-        overlay.protected_paths,
-        vec![
-            "**/CLAUDE.md".to_owned(),
-            "**/BRIEF*.md".to_owned(),
-            "**/.claude/**".to_owned(),
-            "**/docs/plans/**".to_owned(),
-            "**/artifacts/threads/**".to_owned(),
-            "**/*.rules.md".to_owned(),
-        ]
-    );
 }
 
 #[test]
