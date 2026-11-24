@@ -1,6 +1,6 @@
 # Codex sessions
 
-mike can also watch OpenAI Codex. It does not rewrite anything Codex sends: it records what happened so a Codex session shows up beside your Claude Code sessions. The proxy captures the complete request and response content, and the session view lets you open it when needed.
+mike records complete OpenAI Codex requests and responses and delivers pending Mike mail and context through the proxy. Codex sessions appear beside your Claude Code sessions, with captured content available in the session view.
 
 Codex sends its model traffic through mike, which forwards it to OpenAI. Capture is stored locally.
 
@@ -52,8 +52,23 @@ wrappers report when Mike is unavailable and a launch would be uncaptured.
 
 Capture and session identity do not require hook installation or hook trust.
 Unrelated hooks and native Codex approval settings remain yours. The proxy is the
-capture and future injection boundary; this change does not claim automatic mail
-receipt or idle-session wakeup.
+capture and injection boundary.
+
+## Mail and context
+
+Mike adds pending mail and reminders to eligible model requests as external context.
+The session view retains both the original request and the outgoing request so you
+can inspect what Mike added. Peer content does not grant operator approval or change
+Codex permissions.
+
+For an open Codex session launched through Mike, a native queue notice can wake the
+idle terminal. The proxy delivers the actual mail on its next request. The notice
+contains no peer message body. A queued notice, delivered mail and acknowledged mail
+are separate states: Mike records delivery against the captured outgoing request,
+and the recipient explicitly acknowledges the message after handling it.
+
+If the native notice fails, mail remains pending for the next model request. Older
+Codex versions without native queue support still receive mail on an eligible request.
 
 ## Check capture
 
@@ -62,7 +77,8 @@ Mike. The capture list shows each exchange and its completion status. The old
 `codex_diagnostic_capture` switch is not required for complete proxy capture.
 
 For compressed requests, Mike keeps the complete decoded payload and the original
-headers while forwarding the original request unchanged. If decoding fails, it
+headers. It forwards the original bytes when no context is added; when Mike adds
+context, the outgoing decoded JSON is captured separately. If decoding fails, it
 retains the encoded data and records the failure. Unknown fields and events remain
 in the captured body. Binary content can be downloaded.
 

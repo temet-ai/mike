@@ -38,11 +38,45 @@ pub async fn handle(State(state): State<ResponsesState>, request: Request) -> Re
     if headers::is_websocket_upgrade(&parts.headers) {
         return refuse_websocket(state, record, request, response_writer).await;
     }
-    let body = match stage_request(&record, request).await {
+    if let Err(error) = stage_request(&record, request).await {
+        return failure(state, record, response_writer, error);
+    }
+    let (completed, outcome) = tokio::sync::oneshot::channel();
+    let tasks = state.tasks.clone();
+    tasks.spawn(async move {
+        let response = forward_staged(state, record, parts, response_writer).await;
+        let _ = completed.send(response);
+    });
+    outcome
+        .await
+        .unwrap_or_else(|error| capture_unavailable(&error.to_string()))
+}
+
+async fn forward_staged(
+    state: ResponsesState,
+    mut record: ExchangeRecord,
+    parts: axum::http::request::Parts,
+    response_writer: BodyWriter,
+) -> Response {
+    if let Err(error) = super::injection::prepare(&state, &mut record).await {
+        return failure(state, record, response_writer, error);
+    }
+    if let Err(error) = super::record::pre_forward(&state, &mut record).await {
+        return failure(
+            state,
+            record,
+            response_writer,
+            format!("sent capture failed: {error}"),
+        );
+    }
+    let path = if sent_changed(&record) {
+        record.spool.directory.join("sent")
+    } else {
+        record.request_body.path.clone()
+    };
+    let body = match forwarded_body(&path).await {
         Ok(body) => body,
-        Err(error) => {
-            return failure(state, record, response_writer, error);
-        }
+        Err(error) => return failure(state, record, response_writer, error.to_string()),
     };
     forward(
         state,
@@ -63,10 +97,7 @@ fn capture_unavailable(error: &str) -> Response {
     )
 }
 
-async fn stage_request(
-    record: &ExchangeRecord,
-    request: RequestBody,
-) -> Result<reqwest::Body, String> {
+async fn stage_request(record: &ExchangeRecord, request: RequestBody) -> Result<(), String> {
     receive_request(request)
         .await
         .map_err(|error| format!("request capture failed: {error}"))?;
@@ -74,10 +105,7 @@ async fn stage_request(
         .request_body
         .wait()
         .await
-        .map_err(|error| format!("request capture failed: {error}"))?;
-    forwarded_body(&record.request_body.path)
-        .await
-        .map_err(|error| format!("captured request unavailable: {error}"))
+        .map_err(|error| format!("request capture failed: {error}"))
 }
 
 async fn receive_request(mut request: RequestBody) -> Result<(), axum::Error> {
@@ -151,6 +179,8 @@ async fn prepare(
             .map(Into::into),
         launch_session,
         spool,
+        injection: None,
+        progress: None,
     };
     record
         .spool
@@ -250,7 +280,18 @@ async fn forward(
     body: reqwest::Body,
     writer: BodyWriter,
 ) -> Response {
-    let outbound = filter_request_headers(inbound, &upstream_host(&record.upstream_url));
+    let mut outbound = filter_request_headers(inbound, &upstream_host(&record.upstream_url));
+    if sent_changed(&record) {
+        for name in [
+            "content-encoding",
+            "content-length",
+            "content-md5",
+            "digest",
+            "content-digest",
+        ] {
+            outbound.remove(name);
+        }
+    }
     record.forwarded_headers = headers::captured(&outbound);
     if let Err(error) = record.spool.write_manifest(&manifest(&record, None)).await {
         drop(body);
@@ -311,6 +352,14 @@ async fn relay_response(
     record.upstream_request_id = headers::upstream_request_id(upstream.headers());
     record.response_is_event_stream = headers::text(upstream.headers(), "content-type")
         .is_some_and(|value| value.contains("text/event-stream"));
+    if status.is_success() && sent_changed(&record) {
+        if let Err(error) = super::record::accepted(&state, &mut record).await {
+            tracing::error!(%error, capture = %record.spool.id, "Codex mail receipt awaits capture recovery");
+        }
+        super::injection::finish(&state, &mut record, true).await;
+    } else {
+        super::injection::finish(&state, &mut record, false).await;
+    }
     if let Err(error) = record.spool.write_manifest(&manifest(&record, None)).await {
         return failure(
             state,
@@ -331,6 +380,13 @@ async fn relay_response(
     *response.status_mut() = status;
     *response.headers_mut() = response_headers;
     response
+}
+
+fn sent_changed(record: &ExchangeRecord) -> bool {
+    record
+        .progress
+        .as_ref()
+        .is_some_and(|progress| progress.sent_changed)
 }
 
 fn plain(status: StatusCode, message: &str) -> Response {

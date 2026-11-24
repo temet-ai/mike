@@ -31,6 +31,18 @@ pub struct Manifest {
     pub request_complete: bool,
     pub response_complete: bool,
     pub response_received: bool,
+    #[serde(default)]
+    pub sent_changed: bool,
+    #[serde(default)]
+    pub sent_complete: bool,
+    #[serde(default)]
+    pub request_persisted: bool,
+    #[serde(default)]
+    pub sent_persisted: bool,
+    #[serde(default)]
+    pub injected_messages: Vec<Uuid>,
+    #[serde(default)]
+    pub upstream_accepted: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -69,6 +81,7 @@ impl Spool {
         private_directory(&preparing).await?;
         let lock = lock(&preparing)?.ok_or_else(|| std::io::Error::other("capture is locked"))?;
         tokio::fs::rename(&preparing, &directory).await?;
+        tokio::fs::File::open(root).await?.sync_all().await?;
         Ok(Arc::new(Self {
             id,
             directory,
@@ -211,6 +224,12 @@ pub async fn write_manifest(directory: &Path, manifest: &Manifest) -> Result<(),
         .map_err(|error| error.to_string())?;
     file.sync_all().await.map_err(|error| error.to_string())?;
     tokio::fs::rename(temporary, directory.join("manifest.json"))
+        .await
+        .map_err(|error| error.to_string())?;
+    tokio::fs::File::open(directory)
+        .await
+        .map_err(|error| error.to_string())?
+        .sync_all()
         .await
         .map_err(|error| error.to_string())
 }

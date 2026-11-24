@@ -2,7 +2,7 @@
 title: Developing the Codex client
 status: active
 created: 2026-11-12
-updated: 2026-11-23
+updated: 2026-11-24
 summary: The independent Codex client and its Mike integration boundary.
 ---
 
@@ -18,7 +18,8 @@ edit-and-test loop for the client.
 The client owns the app-server connection, protocol request construction,
 thread start/resume/fork, turn dispatch/interruption and returned turn results,
 legacy hook and OpenTelemetry decoding, incremental Responses metadata parsing, and
-complete byte segmentation for capture.
+complete byte segmentation for capture, native queue invocation and streaming Responses
+input inspection/splicing. The splice adapter owns no mailbox or database policy.
 Mike owns fleet contracts and permissions, session registration, authentication
 file setup, durable mail, persistence and reader policy. Mike's
 `launch/codex/` module connects those responsibilities to the client.
@@ -53,7 +54,9 @@ or quota. See [capture storage](CODEX_CAPTURE.md).
 
 Keep checks at their owning layer: chunking and protocol fixtures in `mike-codex`,
 identity and document round trips in focused runtime tests, and a local upstream
-fixture for unchanged forwarding and captured bytes. Do not repeat the provider
+fixture for unchanged forwarding, injected original/sent bytes, accepted delivery receipts,
+rejected-request retry and recovery. Native queue checks use an isolated Codex home and
+a local upstream; a successful queue command is never treated as consumption. Do not repeat the provider
 fixture matrix in the host or require a running model for these checks.
 
 ## Experimental network proxy

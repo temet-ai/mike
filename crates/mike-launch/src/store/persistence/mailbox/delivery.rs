@@ -136,6 +136,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     SET claimed_at = NULL
                   WHERE message_uuid = $1
                     AND sent_request_id IS NULL
+                    AND sent_at IS NULL
                     AND consumed_at IS NULL
                     AND dead_lettered_at IS NULL",
                 message_uuid,
@@ -296,7 +297,8 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                       AND recip.id = m.to_session_id
                       AND recip.session_uuid = $1
                       AND m.consumed_at IS NULL
-                      AND (m.sent_request_id IS NOT NULL OR m.channel_delivered_at IS NOT NULL)
+                      AND (m.sent_request_id IS NOT NULL OR m.channel_delivered_at IS NOT NULL
+                           OR EXISTS (SELECT 1 FROM mailbox.capture_deliveries d WHERE d.message_id = m.id))
                 RETURNING m.consumed_at AS "consumed_at!""#,
                 to_session_uuid,
                 message_uuid,

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT min(m.queued_at) AS earliest\n                     FROM mailbox.messages m\n                    WHERE m.to_session_id IS NOT NULL\n                      AND m.sent_request_id IS NULL\n                      AND m.sent_at IS NULL\n                      AND m.channel_delivered_at IS NULL\n                      AND m.consumed_at IS NULL\n                      AND m.dead_lettered_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "earliest",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6101612208229616901369112690393fab0f5c725f9b68ff43895947c42f284f"
+}

@@ -2,6 +2,7 @@ mod capture_write;
 pub mod correlation;
 pub mod diagnostic;
 pub mod headers;
+mod injection;
 pub mod record;
 mod recovery;
 pub mod relay;
@@ -93,6 +94,7 @@ pub struct ResponsesState {
     pub tasks: TaskTracker,
     recovery: Arc<recovery::Schedule>,
     pub toggles: Arc<arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>>,
+    pub host: Option<Arc<AppState>>,
 }
 
 impl ResponsesState {
@@ -112,6 +114,7 @@ impl ResponsesState {
             tasks: TaskTracker::new(),
             recovery: Arc::new(recovery::Schedule::default()),
             toggles: Arc::new(arc_swap::ArcSwap::from_pointee(Default::default())),
+            host: None,
         }
     }
 }
@@ -123,6 +126,7 @@ pub fn router(state: &AppState) -> Router<AppState> {
         state.persist().cloned(),
     );
     responses.toggles = state.feature_toggle_overlay.clone();
+    responses.host = Some(Arc::new(state.clone()));
     responses.capture_root =
         match crate::config::paths::InstallationPaths::resolve(Some(&state.config.config_path)) {
             Ok(paths) => Some(Arc::new(paths.state_dir.join("codex-capture"))),

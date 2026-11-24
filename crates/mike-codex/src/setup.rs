@@ -50,10 +50,9 @@ pub async fn install(
     let stderr = child.stderr.take().ok_or_else(|| {
         std::io::Error::other("the Codex integration installer has no diagnostic stream")
     })?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| std::io::Error::other("the Codex integration installer has no report stream"))?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        std::io::Error::other("the Codex integration installer has no report stream")
+    })?;
     let (report, notice, status) = tokio::time::timeout(DEADLINE, async {
         tokio::try_join!(read_notice(stdout), read_notice(stderr), async {
             child.wait().await.map_err(SetupError::Io)

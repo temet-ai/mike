@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT t.thread_id, t.runtime_home\n  FROM runtime.notification_targets t\n  JOIN sessions.sessions s ON s.id = t.session_id\n  LEFT JOIN runtime.session_facts f ON f.session_id = t.session_id\n  LEFT JOIN runtime.threads thread ON thread.session_id = s.id AND thread.provider_thread_id = t.thread_id\n  LEFT JOIN runtime.namespaces n ON n.id = thread.namespace_id\n       AND n.runtime_kind = 'codex' AND n.durable_key = 'codex-home:' || t.runtime_home\n  LEFT JOIN sessions.sessions owner ON owner.id = COALESCE(thread.owning_seat_id, thread.session_id)\n       AND n.id IS NOT NULL\n  LEFT JOIN launch.launches l ON l.session_uuid = owner.session_uuid\n WHERE s.session_uuid = $1\n   AND (f.control = 'hook_boundary' OR (n.id IS NOT NULL AND (\n       l.id IS NULL OR (l.closed_at IS NULL\n           AND l.identity->>'runtime' = 'codex' AND l.identity->>'runtime_home' = t.runtime_home)\n   )))\n   AND f.lifecycle IS DISTINCT FROM 'ended' AND f.lifecycle IS DISTINCT FROM 'failed'\n   AND t.verified_at > now() - interval '7 days'\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.notification_targets",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "runtime_home",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.notification_targets",
+            "name": "runtime_home"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "65a3bdf3601c996b7b9ecbe24a8d27fa627f7405b54851fc8704b6cf63d04428"
+}

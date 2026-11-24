@@ -139,7 +139,6 @@ async fn recover_one(
         manifest.exchange.status = "aborted".into();
         manifest.exchange.metadata["error"] =
             serde_json::json!("capture recovered after the proxy stopped before finalization");
-        manifest.request_complete = false;
         manifest.response_complete = false;
         manifest.response_received |= tokio::fs::metadata(path.join("response"))
             .await
@@ -149,6 +148,9 @@ async fn recover_one(
     recover_identity(state, persist, &mut manifest).await?;
     write_manifest(path, &manifest).await?;
     super::capture_write::persist(persist, path, &mut manifest).await?;
+    super::record::finish_delivery(persist, &manifest)
+        .await
+        .map_err(|error| error.to_string())?;
     tokio::fs::remove_dir_all(path)
         .await
         .map_err(|error| error.to_string())
@@ -160,6 +162,12 @@ async fn recover_identity(
     manifest: &mut Manifest,
 ) -> Result<(), String> {
     if manifest.exchange.session_uuid.is_some() {
+        super::record::register_notification_target(
+            persist,
+            &manifest.identity,
+            manifest.exchange.session_uuid,
+        )
+        .await;
         return Ok(());
     }
     let Some(identity) =
@@ -168,6 +176,7 @@ async fn recover_identity(
         return Ok(());
     };
     manifest.exchange.session_uuid = Some(identity.session_id);
+    manifest.identity.home = identity.codex_home;
     manifest.exchange.metadata["correlation"]["normalized_session"] =
         serde_json::json!({"source":"recovered_proxy_identity", "session_id":identity.session_id});
     let correlation = super::Correlation {
@@ -176,5 +185,11 @@ async fn recover_identity(
         ..Default::default()
     };
     super::record::register_session(state, persist, &correlation).await;
+    super::record::register_notification_target(
+        persist,
+        &manifest.identity,
+        Some(identity.session_id),
+    )
+    .await;
     Ok(())
 }

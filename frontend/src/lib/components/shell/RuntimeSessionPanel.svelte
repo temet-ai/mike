@@ -84,7 +84,7 @@
 			? [
 					['Runtime', observed.runtime],
 					['Lifecycle', value(observed.lifecycle)],
-					['Mail delivery', value(observed.control)],
+					['Control mode', value(observed.control)],
 					['Source', observed.source],
 					['Source version', value(observed.source_version)],
 					['Fidelity', observed.fidelity],

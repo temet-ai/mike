@@ -2,7 +2,7 @@
 title: Codex Responses capture
 status: active
 created: 2026-11-11
-updated: 2026-11-23
+updated: 2026-11-24
 summary: Complete Codex proxy capture, shared body references, and the authentication and transport boundary.
 session_id:
   - 83f69e4d-2806-46e6-8748-85f6ad4cbb16
@@ -34,9 +34,11 @@ The proxy bind (`:9988`) serves `/codex/{*rest}` (`crates/mike-features/src/prox
    `chatgpt-account-id` header means a ChatGPT login and goes to
    `https://chatgpt.com/backend-api/codex`; any other request goes to `https://api.openai.com/v1`.
    Override with `MIKE_RESPONSES_CHATGPT_UPSTREAM` / `MIKE_RESPONSES_OPENAI_UPSTREAM`.
-2. The forwarded body is the inbound body unchanged (no Codex mutation stage exists); headers go
-   through the same `filter_request_headers` as Claude traffic (hop-by-hop removed, `Host`
-   rewritten, `accept-encoding: identity`).
+2. Eligible model turns can receive pending Mike mail and reminders. The provider crate
+   appends one user input message containing explicitly external context while preserving
+   existing JSON bytes and unknown fields. Unchanged requests retain their wire encoding;
+   changed requests are forwarded as identity JSON with stale encoding, length and digest
+   headers removed. Headers otherwise use the shared request filter.
 3. The response streams to the client unchanged. `mike-codex` incrementally extracts response
    identity, observed model, status and nullable usage into common operational facts. A terminal
    SSE event is recognized before transport EOF: a client closing after that event is not an
@@ -57,8 +59,10 @@ Every exchange retains its complete request and response content, including unkn
 fields and events. Parsing supplies model, usage and status projections; a parser gap
 cannot remove bytes from capture. Interrupted streams retain the bytes received and
 are marked incomplete. Original and forwarded request documents share a reference
-while forwarding is unchanged. Future injection can record a separate sent document
-without copying unchanged content.
+while forwarding is unchanged. Injection records a separate sent document with unchanged
+chunks referenced from the original. Both complete documents are persisted before forwarding.
+An accepted request gets a durable mailbox delivery link before response relay; explicit
+acknowledgement alone marks mail read. Failed receipt writes retain staging for recovery.
 
 `mike-codex::capture` divides bodies into chunks and compares them with chunks from a
 known predecessor. The generic store carries matching chunk IDs forward and inserts
@@ -115,7 +119,8 @@ model list, in this version. It does not redirect login, token refresh or teleme
 - **Non-model calls** (auth refresh, `chatgpt.com` analytics, plugin and MCP traffic) do not use
   `openai_base_url` and are not captured.
 - **Compressed bodies.** Complete zstd payloads are decoded for storage, with the original
-  headers and stored encoding recorded separately. The upstream receives the original bytes.
+  headers and stored encoding recorded separately. The upstream receives the original bytes
+  when no context is injected, or the separately captured identity JSON when it is.
   Invalid or unsupported encoding falls back to retaining the encoded body and a decode error.
 
 ## Combinations not exercised on this machine
@@ -125,7 +130,8 @@ model list, in this version. It does not redirect login, token refresh or teleme
 - ChatGPT login against the real `chatgpt.com` through mike: not run by the tests (they use a
   local stub); the redirect itself was observed live with a stub upstream.
 - Retries after a mid-stream upstream failure, response compression from the real upstream,
-  `codex` interactive TUI and `app-server` turns: the routing code is shared, but only
-  `codex exec` was run.
+  and app-server turns were not part of the original wire probe. Native TUI idle queue
+  consumption with `--no-daemon` was subsequently verified on 0.171.0 and 0.172.0
+  against an isolated stub on 2026-11-24; queue success is not a mail receipt.
 - Correlation of a WebSocket continuation (`previous_response_id` over one socket): impossible
   while WebSockets are refused.

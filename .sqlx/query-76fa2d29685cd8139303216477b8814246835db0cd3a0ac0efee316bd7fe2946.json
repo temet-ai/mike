@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.launches SET closed_at = now() WHERE session_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "76fa2d29685cd8139303216477b8814246835db0cd3a0ac0efee316bd7fe2946"
+}

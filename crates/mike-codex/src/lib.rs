@@ -1,6 +1,7 @@
 pub mod capture;
 mod error;
 mod events;
+pub mod injection;
 pub mod interactive;
 mod model;
 mod observation;

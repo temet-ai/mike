@@ -90,6 +90,7 @@ tracing-subscriber = { workspace = true, features = ["json"] }
 uuid = { workspace = true }
 
 [dev-dependencies]
+async-compression = { workspace = true }
 mike-base = { path = "../mike-base", features = ["test-seams"] }
 mike-runtime = { path = "../mike-runtime", features = ["test-seams"] }
 mike-launch = { path = "../mike-launch", features = ["test-seams"] }

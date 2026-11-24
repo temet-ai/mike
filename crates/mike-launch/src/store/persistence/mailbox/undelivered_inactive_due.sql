@@ -14,6 +14,10 @@ SELECT m.message_uuid
        SELECT 1 FROM requests.requests r
         WHERE r.session_id = m.to_session_id AND r.created_at >= $1
    )
+   AND NOT EXISTS (
+       SELECT 1 FROM runtime.capture_exchanges c
+        WHERE c.session_id = m.to_session_id AND c.created_at >= $1
+   )
  ORDER BY m.queued_at
  LIMIT 100
  FOR UPDATE OF m SKIP LOCKED

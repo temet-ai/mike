@@ -114,12 +114,16 @@ fn confirm_message_receipt_tool() -> Tool {
         Cow::Borrowed(
             "Check whether the addressed session acted on a mailbox message. Searches the recipient's own \
              captured traffic after the message was queued for a citation of the message uuid or a \
-             distinctive run of its body. Returns {confidence, delivery_row, receipt_evidence[], caveat}; \
+             distinctive run of its body. Returns {confidence, delivery_row, receipt_evidence[], \
+             capture_delivery_evidence[], caveat}; capture evidence identifies accepted proxy \
+             deliveries by exchange UUID, separately from traffic citations with Claude request IDs. \
              confidence, strongest first: acknowledged (it acked), high (its traffic cites the uuid), \
              medium (its traffic quotes the body), none. Call this before asserting a session never got a \
              message: a delivery row is not receipt, because a session that pulls its own inbox acts on a \
              message while claimed_at and consumed_at stay null. confidence=none means no citation was \
-             found, not that the message did not arrive. verify_message_read is the sender-scoped tool that \
+             found, not that the message did not arrive. Codex capture delivery alone does not prove \
+             the session read or acted on mail and does not raise confidence; its explicit ack does. \
+             verify_message_read is the sender-scoped tool that \
              reports the delivery row itself. Served only under the `full` profile: a session \
              outside a fleet that must settle whether a peer acted on a message calls it \
              (MIKE_MCP_PROFILE=full); a fleet seat asks the peer.",

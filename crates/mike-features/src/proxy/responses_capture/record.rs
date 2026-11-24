@@ -16,6 +16,10 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::runtime::capture::CaptureExchangeInput;
 use crate::store::persistence::workspace::RegisterWorkspaceSession;
 
+#[path = "capture_progress.rs"]
+mod progress;
+pub(super) use progress::{accepted, finish_delivery, pre_forward};
+
 const REGISTER_EVERY: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +63,8 @@ pub struct ExchangeRecord {
     pub codex_home: Option<std::path::PathBuf>,
     pub launch_session: Option<Uuid>,
     pub spool: Arc<Spool>,
+    pub(super) injection: Option<super::injection::PendingInjection>,
+    pub(super) progress: Option<Manifest>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +109,7 @@ pub fn manifest(record: &ExchangeRecord, finished: Option<&Finished>) -> Manifes
         "projection_undecodable_frames":summary.map(|value| value.undecodable_frames),
         "error":finished.and_then(|value| value.error.as_ref()),
     });
-    Manifest {
+    let mut manifest = Manifest {
         identity: super::wire_observation::source(record),
         exchange: CaptureExchangeInput {
             id: record.spool.id,
@@ -127,7 +133,15 @@ pub fn manifest(record: &ExchangeRecord, finished: Option<&Finished>) -> Manifes
         request_complete: record.request_body.complete.load(Ordering::Acquire),
         response_complete: record.response_body.complete.load(Ordering::Acquire),
         response_received: record.response_status.is_some(),
-    }
+        sent_changed: false,
+        sent_complete: false,
+        request_persisted: false,
+        sent_persisted: false,
+        injected_messages: Vec::new(),
+        upstream_accepted: false,
+    };
+    progress::restore(&mut manifest, record.progress.as_ref());
+    manifest
 }
 
 pub(super) async fn prepare_identity(state: &ResponsesState, record: &mut ExchangeRecord) {
@@ -141,6 +155,27 @@ pub(super) async fn prepare_identity(state: &ResponsesState, record: &mut Exchan
         return;
     }
     register_session(state, persist, &record.correlation).await;
+    register_notification_target(
+        persist,
+        &super::wire_observation::source(record),
+        record.correlation.session_uuid,
+    )
+    .await;
+}
+
+pub(super) async fn register_notification_target(
+    persist: &PersistHandle,
+    identity: &super::spool::IdentityInput,
+    session: Option<Uuid>,
+) {
+    if let (Some(session), Some(thread), Some(home)) = (
+        session,
+        identity.thread.as_deref(),
+        identity.home.as_deref(),
+    ) {
+        crate::runtime::codex_home::observe_local_codex(persist, session, thread, home.to_str())
+            .await;
+    }
 }
 
 pub fn spawn_finish(state: ResponsesState, mut record: ExchangeRecord, mut finished: Finished) {
@@ -163,6 +198,11 @@ async fn finish(
     record: &mut ExchangeRecord,
     finished: &mut Finished,
 ) -> Result<i64, String> {
+    let accepted = record
+        .progress
+        .as_ref()
+        .is_some_and(|progress| progress.upstream_accepted);
+    super::injection::finish(state, record, accepted).await;
     let (request, response) = tokio::join!(record.request_body.wait(), record.response_body.wait());
     for result in [request, response] {
         if let Err(error) = result {
@@ -188,6 +228,9 @@ async fn finish(
         .await
         .map_err(|error| error.to_string())?;
     super::capture_write::persist(persist, &record.spool.directory, &mut manifest).await?;
+    finish_delivery(persist, &manifest)
+        .await
+        .map_err(|error| error.to_string())?;
     let id = project(state, persist, record, finished).await;
     tokio::fs::remove_dir_all(&record.spool.directory)
         .await

@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-11-23
+updated: 2026-11-24
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -43,11 +43,34 @@ separately released service.
 Ordinary terminal launch selects Codex with `mike spawn open <folder> --runtime codex`
 or `spawn_session(runtime: "codex")`. A launch-specific proxy URL binds the native
 thread to the reserved Mike session; child threads remain distinct. Setup registers
-MCP and removes Mike-owned hooks. Capture and identity use the proxy.
+MCP and removes Mike-owned hooks. Capture, identity and context injection use the proxy.
+
+`mike-codex::injection` validates and splices Responses input from seekable streams,
+without rebuilding the original JSON or imposing a body cap. The host reuses Mike's
+mailbox claim, redelivery, reminder admission and staleness policies. It appends
+explicitly external Mike/peer context as a user message; it never promotes peer
+content into system/developer instructions or changes native permissions. Non-turn
+requests and unsupported bodies remain unchanged, with mail still pending.
+
+Before forwarding changed input, the host persists complete original and sent
+capture documents. Upstream success records `mailbox.capture_deliveries`, linking
+the actual capture exchange and mailbox row by surrogate IDs. This delivery evidence
+permits explicit acknowledgement but does not itself mark a message read. Durable
+staging records accepted mail IDs so a restart can finish the receipt idempotently;
+rejected input releases its undelivered claims. Reader receipts expose capture
+references separately from evidence of reading.
+
+A local Codex session with a verified native thread/home binding can receive a static
+external notice through `codex queue --thread … --message …`. A running native TUI
+picks it up while idle, with `--no-daemon` preserved and without `--resume`, hooks or
+terminal typing. Managed launches must still be open. The next proxy request carries the mail. Queue success is only a
+notification outcome; a failed notification leaves the message pending for the next
+request, without claiming an automatic wake retry.
 
 Complete request and response documents reuse known predecessor chunks through
 ordered surrogate-ID references. Unchanged forwarded bodies share the original
-request document; this is the boundary for subsequent injection. Unknown content is
+request document. Injection creates a separate sent document, reusing the original
+request chunks. Unknown content is
 preserved independently of metadata projection. There are no new capture quotas or
 automatic expiry policies. Existing retention guards protect sessions with captures.
 Common reader views adapt Claude's existing requests without a second copy. See

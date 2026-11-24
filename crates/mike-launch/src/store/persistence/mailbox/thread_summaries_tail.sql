@@ -23,13 +23,14 @@ message_stats AS (
         COUNT(*) AS message_count,
         COUNT(*) FILTER (
             WHERE m.to_session_id IS NOT NULL
-              AND (m.sent_request_id IS NOT NULL OR m.channel_delivered_at IS NOT NULL)
+              AND (m.sent_at IS NOT NULL OR m.sent_request_id IS NOT NULL OR m.channel_delivered_at IS NOT NULL)
               AND m.consumed_at IS NULL
               AND m.dead_lettered_at IS NULL
         ) AS unread_count,
         MIN(m.queued_at) FILTER (
             WHERE m.to_session_id IS NOT NULL
               AND m.sent_request_id IS NULL
+              AND m.sent_at IS NULL
               AND m.channel_delivered_at IS NULL
               AND m.consumed_at IS NULL
               AND m.dead_lettered_at IS NULL
@@ -39,6 +40,7 @@ message_stats AS (
                 WHEN m.to_session_id IS NULL THEN NULL
                 WHEN m.dead_lettered_at IS NOT NULL THEN 0
                 WHEN m.consumed_at IS NOT NULL THEN 4
+                WHEN m.sent_at IS NOT NULL THEN 3
                 WHEN m.sent_request_id IS NOT NULL THEN 3
                 WHEN m.channel_delivered_at IS NOT NULL THEN 3
                 WHEN m.claimed_at IS NOT NULL THEN 2

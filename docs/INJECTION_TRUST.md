@@ -1,12 +1,12 @@
 ---
-title: "Injection trust: what Claude Code keeps and what it acts on"
+title: "Injection trust in Claude Code and Codex"
 status: active
 created: 2026-09-29
-updated: 2026-11-15
-summary: Which routes mike has into a session (proxy injection, the mike channel, Remote Control pushes, mod prompts, hook context) keep their text in the session's history and which Claude Code frames as something to act on, as measured on Claude Code 2.1.283 to 2.1.311.
+updated: 2026-11-24
+summary: Source framing, transcript persistence, and delivery evidence for Mike context in Claude Code and Codex.
 ---
 
-# Injection trust: what Claude Code keeps and what it acts on
+# Injection trust in Claude Code and Codex
 
 mike puts text in front of Claude Code sessions by several routes: proxy
 injection into the request body, the mike MCP channel, and Remote Control
@@ -39,6 +39,29 @@ that needs a session to *do* something mike tells it.
 the tether mod, have the mod submit it. Use the channel
 for information, and proxy injection for context that only has to hold for one
 request.
+
+## Codex proxy context and native idle notices
+
+Codex uses a separate provider adapter in `mike-codex`. Mike appends context as a
+Responses user input message with explicit external Mike/peer framing. The body
+and any embedded role tags remain quoted data within the session's existing task
+and permissions. This is request-local context; Mike does not write it into the
+native transcript. Existing reminder admission and mail redelivery policy govern
+subsequent requests.
+
+The host stores the original and outgoing request separately, sharing unchanged
+chunks. A `mailbox.capture_deliveries` row records an accepted outgoing request.
+`verify_session_message` and receipts expose that capture reference. Delivery
+alone is not evidence that the model read or acted on the content; explicit
+`ack_session_message` remains a separate action.
+
+For an idle ordinary terminal, Mike queues a static notice with `codex queue
+--thread … --message …`, without `--resume`. The notice identifies Mike as an
+external source, contains no peer body and grants no operator approval. Native
+Codex 0.171.0 and 0.172.0 picked up this notice from an idle `--no-daemon` TUI in
+isolated local-upstream probes on 2026-11-24. The proxy supplies mail on the next
+eligible model request. Queue exit success establishes only that a notice was
+queued; it does not establish receipt or reading.
 
 ## 1. Claude Code does not keep proxy-injected text
 

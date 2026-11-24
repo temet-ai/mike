@@ -148,12 +148,32 @@ pub struct MailboxMessageDto {
     pub thread_uuid: Option<uuid::Uuid>,
     pub in_reply_to_uuid: Option<uuid::Uuid>,
     pub context_items: Vec<crate::store::persistence::mailbox::ContextItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_delivery_evidence: Option<Vec<CaptureDeliveryEvidenceDto>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CaptureDeliveryEvidenceDto {
+    pub exchange_uuid: uuid::Uuid,
+    pub delivered_at: String,
+}
+
+impl From<crate::store::persistence::mailbox::CaptureDeliveryEvidence>
+    for CaptureDeliveryEvidenceDto
+{
+    fn from(evidence: crate::store::persistence::mailbox::CaptureDeliveryEvidence) -> Self {
+        Self {
+            exchange_uuid: evidence.exchange_uuid,
+            delivered_at: evidence.delivered_at.to_rfc3339(),
+        }
+    }
 }
 
 pub struct MailboxLifecycle {
     pub consumed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub dead_lettered_at: Option<chrono::DateTime<chrono::Utc>>,
     pub sent_request_id: Option<i64>,
+    pub sent_at: Option<chrono::DateTime<chrono::Utc>>,
     pub channel_delivered_at: Option<chrono::DateTime<chrono::Utc>>,
     pub claimed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub queued_at: chrono::DateTime<chrono::Utc>,
@@ -168,7 +188,10 @@ pub fn mailbox_status_and_staleness(
         "consumed"
     } else if lifecycle.dead_lettered_at.is_some() {
         "dead_lettered"
-    } else if lifecycle.sent_request_id.is_some() || lifecycle.channel_delivered_at.is_some() {
+    } else if lifecycle.sent_request_id.is_some()
+        || lifecycle.sent_at.is_some()
+        || lifecycle.channel_delivered_at.is_some()
+    {
         "delivered"
     } else if lifecycle.claimed_at.is_some() {
         "claimed"
@@ -190,6 +213,7 @@ pub fn mailbox_message_dto(
             consumed_at: r.consumed_at,
             dead_lettered_at: r.dead_lettered_at,
             sent_request_id: r.sent_request_id,
+            sent_at: r.sent_at,
             channel_delivered_at: r.channel_delivered_at,
             claimed_at: r.claimed_at,
             queued_at: r.queued_at,
@@ -219,6 +243,7 @@ pub fn mailbox_message_dto(
         thread_uuid: r.thread_uuid,
         in_reply_to_uuid: r.in_reply_to_uuid,
         context_items: Vec::new(),
+        capture_delivery_evidence: None,
     }
 }
 
@@ -233,19 +258,15 @@ pub fn mailbox_message_dto_with_activity(
     let context_items = r.context_items;
     let mut dto = mailbox_message_dto(r.row, now, stale_threshold_minutes);
     dto.context_items = context_items;
-    let undelivered_pending = dto.sent_at.is_none()
-        && dto.channel_delivered_at.is_none()
-        && dto.consumed_at.is_none()
-        && dto.dead_lettered_at.is_none();
-    dto.delivery_state = undelivered_pending.then(|| {
+    if matches!(dto.status, "pending" | "claimed") {
         let within_ttl = recipient_last_request_at
             .is_some_and(|t| now - t <= chrono::Duration::minutes(delivery_ttl_minutes));
-        if within_ttl {
+        dto.delivery_state = Some(if within_ttl {
             "awaiting_eligible_turn"
         } else {
             "recipient_inactive"
-        }
-    });
+        });
+    }
     dto.recipient_last_request_at = recipient_last_request_at.map(|t| t.to_rfc3339());
     dto.recipient_last_eligible_turn_at = recipient_last_eligible_turn_at.map(|t| t.to_rfc3339());
     dto
@@ -268,6 +289,7 @@ pub fn thread_message_dto(
             consumed_at: r.consumed_at,
             dead_lettered_at: r.dead_lettered_at,
             sent_request_id: r.sent_request_id,
+            sent_at: r.sent_at,
             channel_delivered_at: r.channel_delivered_at,
             claimed_at: r.claimed_at,
             queued_at: r.queued_at,
@@ -297,6 +319,7 @@ pub fn thread_message_dto(
         thread_uuid: Some(r.thread_uuid),
         in_reply_to_uuid: r.in_reply_to_uuid,
         context_items: r.context_items.0,
+        capture_delivery_evidence: None,
     }
 }
 
@@ -406,6 +429,7 @@ pub mod status_tests {
             consumed_at: consumed.then_some(now),
             dead_lettered_at: None,
             sent_request_id: None,
+            sent_at: None,
             channel_delivered_at: channel_delivered.then_some(now),
             claimed_at: None,
             queued_at: now - chrono::Duration::minutes(30),
@@ -438,3 +462,7 @@ pub mod status_tests {
         assert_eq!(stale, Some(true));
     }
 }
+
+#[cfg(test)]
+#[path = "mailbox_dto_capture_tests.rs"]
+mod capture_tests;

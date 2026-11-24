@@ -1,10 +1,11 @@
+pub mod capture_delivery;
 pub mod carried;
 pub mod closed_rejection;
 pub mod delivery;
-pub mod redelivery;
-pub mod reply_attach;
-pub mod reload;
 pub mod recipient_activity;
+pub mod redelivery;
+pub mod reload;
+pub mod reply_attach;
 pub mod reply_to;
 pub mod session_mail_memo;
 pub mod session_reads;
@@ -21,6 +22,7 @@ pub mod unqueued;
 #[cfg(test)]
 pub mod tests;
 
+pub use capture_delivery::CaptureDeliveryEvidence;
 pub use team_comms::{TeamCommsDispatchRow, TeamCommsMessageRow};
 pub use thread_types::{
     ParticipantIdentityRow, ResolveThreadOutcome, ThreadMessageRow, ThreadResolution,

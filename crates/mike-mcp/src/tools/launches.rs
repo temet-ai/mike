@@ -76,7 +76,7 @@ fn spawn_session_surface_properties() -> Vec<(&'static str, Value)> {
             json!({
                 "type": "boolean",
                 "description": "For Claude, record the folder as trusted in ~/.claude.json. \
-                    Codex uses its own project and hook trust review."
+                    Codex uses its own project trust and approval settings."
             }),
         ),
         (
@@ -175,7 +175,8 @@ fn spawn_session_tool() -> Tool {
         Cow::Borrowed(
             "Open a terminal surface and start a fresh Claude Code or Codex session in it, wired to \
              Mike with a preassigned session id. Set runtime to codex for Codex; Claude is the default. \
-             Codex keeps its own approval settings and requires review of new Mike hooks in /hooks. \
+             Codex keeps its own approval settings; Mike captures and injects context through \
+             its model proxy, with no Mike hooks to install or review. \
              Mutating: this opens a real terminal surface \
              and starts a real agent process on the host mike runs on. Pass `name`, `role`, \
              `instructions` and `goal` and the session is on the roster with that identity \

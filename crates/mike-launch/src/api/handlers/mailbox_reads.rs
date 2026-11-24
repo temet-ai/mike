@@ -137,11 +137,9 @@ pub async fn get_session_message(
         .fetch_message_for_recipient(message_uuid, session_uuid)
         .await
     {
-        Ok(Some(row)) => {
-            let now = chrono::Utc::now();
-            let stale_threshold_minutes = state.config().mailbox_stale_minutes;
-            Ok(Json(mailbox_message_dto(row, now, stale_threshold_minutes)))
-        }
+        Ok(Some(row)) => mailbox_message_with_capture(handle, &state, row)
+            .await
+            .map(Json),
         Ok(None) => Err(mailbox_error(
             StatusCode::NOT_FOUND,
             "message_not_found",
@@ -179,11 +177,9 @@ pub async fn get_session_message_receipt(
         .fetch_message_for_sender(message_uuid, session_uuid)
         .await
     {
-        Ok(Some(row)) => {
-            let now = chrono::Utc::now();
-            let stale_threshold_minutes = state.config().mailbox_stale_minutes;
-            Ok(Json(mailbox_message_dto(row, now, stale_threshold_minutes)))
-        }
+        Ok(Some(row)) => mailbox_message_with_capture(handle, &state, row)
+            .await
+            .map(Json),
         Ok(None) => Err(mailbox_error(
             StatusCode::NOT_FOUND,
             "message_not_found",
@@ -203,6 +199,36 @@ pub async fn get_session_message_receipt(
             ))
         }
     }
+}
+
+async fn mailbox_message_with_capture(
+    handle: &crate::store::persistence::PersistHandle,
+    state: &BaseState,
+    row: crate::store::persistence::mailbox::MailboxMessageRow,
+) -> Result<MailboxMessageDto, Response> {
+    let evidence = handle
+        .launch()
+        .fetch_capture_delivery_evidence(row.to_session_uuid, row.message_uuid)
+        .await
+        .map_err(|error| {
+            tracing::warn!(
+                %error,
+                message_uuid = %row.message_uuid,
+                "mailbox capture delivery evidence query failed"
+            );
+            mailbox_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "database_error",
+                "failed to fetch mailbox delivery evidence".to_string(),
+            )
+        })?;
+    let mut dto = mailbox_message_dto(
+        row,
+        chrono::Utc::now(),
+        state.config().mailbox_stale_minutes,
+    );
+    dto.capture_delivery_evidence = Some(evidence.into_iter().map(Into::into).collect());
+    Ok(dto)
 }
 
 #[derive(Serialize)]

@@ -2380,6 +2380,7 @@ version = "0.1.0-alpha.5"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "async-compression",
  "async-trait",
  "axum",
  "bytes",

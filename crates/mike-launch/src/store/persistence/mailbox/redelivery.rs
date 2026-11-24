@@ -172,6 +172,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                           SET dead_lettered_at = now()
                         WHERE m.to_session_id IS NOT NULL
                           AND m.sent_request_id IS NULL
+                          AND m.sent_at IS NULL
                           AND m.channel_delivered_at IS NULL
                           AND m.consumed_at IS NULL
                           AND m.dead_lettered_at IS NULL
@@ -180,6 +181,11 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                               SELECT 1 FROM requests.requests r
                                WHERE r.session_id = m.to_session_id
                                  AND r.created_at >= $2
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM runtime.capture_exchanges c
+                               WHERE c.session_id = m.to_session_id
+                                 AND c.created_at >= $2
                           )
                     RETURNING m.message_uuid, m.from_session_id, m.to_session_id
                    ),

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.launches(session_uuid, backend, folder, identity) VALUES($1,'tmux','/repo',$2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6423de16a5a999a0660e75eec5c36f2bd35b46c0fdc2cd5f675be4186f615531"
+}

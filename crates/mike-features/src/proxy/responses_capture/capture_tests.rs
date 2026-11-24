@@ -166,6 +166,12 @@ async fn interrupted_staging_recovers_complete_received_bytes_under_the_same_ses
         request_complete: true,
         response_complete: false,
         response_received: true,
+        sent_changed: false,
+        sent_complete: false,
+        request_persisted: false,
+        sent_persisted: false,
+        injected_messages: Vec::new(),
+        upstream_accepted: false,
     };
     tokio::fs::write(spool.directory.join("request"), REQUEST).await?;
     let partial = b"event: future.partial\ndata: {\"text\":\"kept entirely\"}\n\n";
@@ -263,6 +269,12 @@ async fn recovery_retries_proxy_identity_after_an_outage_without_hooks() -> anyh
         request_complete: true,
         response_complete: false,
         response_received: true,
+        sent_changed: false,
+        sent_complete: false,
+        request_persisted: false,
+        sent_persisted: false,
+        injected_messages: Vec::new(),
+        upstream_accepted: false,
     };
     tokio::fs::write(spool.directory.join("request"), REQUEST).await?;
     tokio::fs::write(spool.directory.join("response"), b"partial captured reply").await?;

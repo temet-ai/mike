@@ -1,5 +1,6 @@
 use super::*;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::mailbox::MailboxMessageRow;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ReceiptEvidenceDto {
@@ -31,13 +32,16 @@ pub(crate) struct MessageReceiptResponse {
     pub(crate) confidence: ReceiptConfidence,
     pub(crate) delivery_row: DeliveryRowDto,
     pub(crate) receipt_evidence: Vec<ReceiptEvidenceDto>,
+    pub(crate) capture_delivery_evidence: Vec<CaptureDeliveryEvidenceDto>,
     pub(crate) caveat: &'static str,
 }
 
 pub(crate) const RECEIPT_CAVEAT: &str = "A delivery-row absence is not evidence of non-receipt: a session that pulls its own \
      inbox acts on a message while leaving claimed_at and consumed_at untouched. \
      confidence=none means no citation was found in the recipient's captured traffic, \
-     which is not the same as the message never arriving.";
+     which is not the same as the message never arriving. capture_delivery_evidence proves \
+     the model endpoint accepted a request carrying this mail; it does not prove the recipient \
+     read or acted on it. Codex capture delivery alone does not raise read confidence.";
 
 pub(crate) const RECEIPT_BODY_NEEDLE_LEN: usize = 60;
 pub(crate) const RECEIPT_EVIDENCE_LIMIT: i64 = 20;
@@ -74,74 +78,104 @@ pub(crate) async fn confirm_message_receipt(
             .into_response());
     };
 
+    let evidence = fetch_traffic_receipt_evidence(handle, &msg)
+        .await
+        .map_err(|error| failed(&error))?;
+    let capture_evidence = handle
+        .launch()
+        .fetch_capture_delivery_evidence(to_uuid, msg_uuid)
+        .await
+        .map_err(|error| failed(&error))?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    Ok(Json(MessageReceiptResponse::from_evidence(
+        msg,
+        evidence,
+        capture_evidence,
+    )))
+}
+
+async fn fetch_traffic_receipt_evidence(
+    handle: &crate::store::persistence::PersistHandle,
+    msg: &MailboxMessageRow,
+) -> Result<Vec<ReceiptEvidenceDto>, crate::store::persistence::PersistError> {
     let uuid_hits = handle
         .launch()
         .fetch_receipt_evidence(
-            to_uuid,
-            &msg_uuid.to_string(),
+            msg.to_session_uuid,
+            &msg.message_uuid.to_string(),
             msg.queued_at,
             RECEIPT_EVIDENCE_LIMIT,
         )
-        .await
-        .map_err(|e| failed(&e))?;
-
-    let mut evidence: Vec<ReceiptEvidenceDto> = uuid_hits
-        .into_iter()
-        .map(|r| ReceiptEvidenceDto {
-            request_id: r.request_id,
-            created_at: r.created_at.to_rfc3339(),
-            match_kind: "message_uuid",
-            excerpt: r.excerpt,
-        })
-        .collect();
-    let mut confidence = if evidence.is_empty() {
-        ReceiptConfidence::None
-    } else {
-        ReceiptConfidence::High
-    };
-
-    if evidence.is_empty() {
+        .await?;
+    let (hits, match_kind) = if uuid_hits.is_empty() {
         let needle: String = msg.body.chars().take(RECEIPT_BODY_NEEDLE_LEN).collect();
-        if needle.trim().len() >= 16 {
-            let body_hits = handle
+        if needle.trim().len() < 16 {
+            return Ok(Vec::new());
+        }
+        (
+            handle
                 .launch()
-                .fetch_receipt_evidence(to_uuid, &needle, msg.queued_at, RECEIPT_EVIDENCE_LIMIT)
-                .await
-                .map_err(|e| failed(&e))?;
-            if !body_hits.is_empty() {
-                confidence = ReceiptConfidence::Medium;
-                evidence = body_hits
-                    .into_iter()
-                    .map(|r| ReceiptEvidenceDto {
-                        request_id: r.request_id,
-                        created_at: r.created_at.to_rfc3339(),
-                        match_kind: "body_text",
-                        excerpt: r.excerpt,
-                    })
-                    .collect();
-            }
+                .fetch_receipt_evidence(
+                    msg.to_session_uuid,
+                    &needle,
+                    msg.queued_at,
+                    RECEIPT_EVIDENCE_LIMIT,
+                )
+                .await?,
+            "body_text",
+        )
+    } else {
+        (uuid_hits, "message_uuid")
+    };
+    Ok(hits
+        .into_iter()
+        .map(|row| ReceiptEvidenceDto {
+            request_id: row.request_id,
+            created_at: row.created_at.to_rfc3339(),
+            match_kind,
+            excerpt: row.excerpt,
+        })
+        .collect())
+}
+
+impl MessageReceiptResponse {
+    fn from_evidence(
+        msg: MailboxMessageRow,
+        receipt_evidence: Vec<ReceiptEvidenceDto>,
+        capture_delivery_evidence: Vec<CaptureDeliveryEvidenceDto>,
+    ) -> Self {
+        let confidence = if msg.consumed_at.is_some() {
+            ReceiptConfidence::Acknowledged
+        } else if receipt_evidence
+            .iter()
+            .any(|evidence| evidence.match_kind == "message_uuid")
+        {
+            ReceiptConfidence::High
+        } else if receipt_evidence.is_empty() {
+            ReceiptConfidence::None
+        } else {
+            ReceiptConfidence::Medium
+        };
+        Self {
+            message_uuid: msg.message_uuid.to_string(),
+            to_session_id: msg.to_session_uuid.to_string(),
+            confidence,
+            delivery_row: DeliveryRowDto {
+                queued_at: msg.queued_at.to_rfc3339(),
+                claimed_at: msg.claimed_at.map(|t| t.to_rfc3339()),
+                sent_at: msg.sent_at.map(|t| t.to_rfc3339()),
+                consumed_at: msg.consumed_at.map(|t| t.to_rfc3339()),
+                dead_lettered_at: msg.dead_lettered_at.map(|t| t.to_rfc3339()),
+                delivery_attempts: msg.delivery_attempts,
+            },
+            receipt_evidence,
+            capture_delivery_evidence,
+            caveat: RECEIPT_CAVEAT,
         }
     }
-
-    if msg.consumed_at.is_some() {
-        confidence = ReceiptConfidence::Acknowledged;
-    }
-
-    Ok(Json(MessageReceiptResponse {
-        message_uuid: msg.message_uuid.to_string(),
-        to_session_id: msg.to_session_uuid.to_string(),
-        confidence,
-        delivery_row: DeliveryRowDto {
-            queued_at: msg.queued_at.to_rfc3339(),
-            claimed_at: msg.claimed_at.map(|t| t.to_rfc3339()),
-            sent_at: msg.sent_at.map(|t| t.to_rfc3339()),
-            consumed_at: msg.consumed_at.map(|t| t.to_rfc3339()),
-            dead_lettered_at: msg.dead_lettered_at.map(|t| t.to_rfc3339()),
-            delivery_attempts: msg.delivery_attempts,
-        },
-        receipt_evidence: evidence,
-        caveat: RECEIPT_CAVEAT,
-    }))
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -151,3 +185,7 @@ pub struct LlmSpendParams {
     #[serde(default)]
     pub until: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "receipts_capture_tests.rs"]
+mod capture_tests;

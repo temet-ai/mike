@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages\n                    SET claimed_at = NULL\n                  WHERE message_uuid = $1\n                    AND sent_request_id IS NULL\n                    AND sent_at IS NULL\n                    AND consumed_at IS NULL\n                    AND dead_lettered_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd94a102ae55f5b222789544a6aa67ddd0e3202f9ee59405d831e07fa884047e"
+}

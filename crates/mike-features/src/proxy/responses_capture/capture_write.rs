@@ -22,22 +22,14 @@ pub(super) async fn persist(
     {
         return Err("capture awaits resolution of its proxy session identity".into());
     }
-    let request_path = decode(directory, "request", manifest).await?;
+    persist_request(persist, directory, manifest).await?;
+    persist_sent(persist, directory, manifest).await?;
     let response_path = if manifest.response_received {
         Some(decode(directory, "response", manifest).await?)
     } else {
         None
     };
     write_manifest(directory, manifest).await?;
-    let predecessor = prepare_request(persist, directory, manifest).await?;
-    document(
-        persist,
-        manifest.exchange.request_document_id,
-        predecessor,
-        &request_path,
-        manifest.request_complete,
-    )
-    .await?;
     if let Some(response_path) = response_path {
         persist_response(persist, directory, manifest, &response_path).await?;
     }
@@ -47,6 +39,63 @@ pub(super) async fn persist(
         .await
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+async fn persist_request(
+    persist: &PersistHandle,
+    directory: &Path,
+    manifest: &mut Manifest,
+) -> Result<(), String> {
+    if manifest.request_persisted {
+        return Ok(());
+    }
+    let path = decode(directory, "request", manifest).await?;
+    write_manifest(directory, manifest).await?;
+    let predecessor = prepare_request(persist, directory, manifest).await?;
+    document(
+        persist,
+        manifest.exchange.request_document_id,
+        predecessor,
+        &path,
+        manifest.request_complete,
+    )
+    .await?;
+    manifest.request_persisted = true;
+    write_manifest(directory, manifest).await
+}
+
+async fn persist_sent(
+    persist: &PersistHandle,
+    directory: &Path,
+    manifest: &mut Manifest,
+) -> Result<(), String> {
+    if manifest.sent_persisted {
+        return Ok(());
+    }
+    if manifest.sent_changed {
+        let predecessor = Some(manifest.exchange.request_document_id);
+        if manifest.exchange.sent_document_id == 0 {
+            manifest.exchange.sent_document_id = persist
+                .runtime()
+                .create_capture_document(predecessor)
+                .await
+                .map_err(|error| error.to_string())?;
+            write_manifest(directory, manifest).await?;
+        }
+        document(
+            persist,
+            manifest.exchange.sent_document_id,
+            predecessor,
+            &directory.join("sent"),
+            manifest.sent_complete,
+        )
+        .await?;
+    } else {
+        manifest.exchange.sent_document_id = manifest.exchange.request_document_id;
+        manifest.sent_complete = manifest.request_complete;
+    }
+    manifest.sent_persisted = true;
+    write_manifest(directory, manifest).await
 }
 
 async fn prepare_request(
@@ -69,7 +118,9 @@ async fn prepare_request(
             .await
             .map_err(|error| error.to_string())?;
         manifest.exchange.request_document_id = id;
-        manifest.exchange.sent_document_id = id;
+        if !manifest.sent_changed {
+            manifest.exchange.sent_document_id = id;
+        }
         manifest.request_predecessor = previous;
         write_manifest(directory, manifest).await?;
     }
@@ -300,7 +351,7 @@ async fn decode(directory: &Path, name: &str, manifest: &mut Manifest) -> Result
         Ok(_) => {
             manifest.exchange.metadata[format!("{name}_stored_encoding")] =
                 serde_json::json!("identity");
-            if name == "request" {
+            if name == "request" && !manifest.sent_changed {
                 manifest.exchange.metadata["sent_stored_encoding"] = serde_json::json!("identity");
             }
             Ok(decoded)

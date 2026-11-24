@@ -133,6 +133,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                     AND m.sent_request_id IS NULL
                     AND m.channel_delivered_at IS NULL
                     AND m.claimed_at IS NOT NULL
+                    AND m.sent_at IS NULL
                     AND m.claimed_at < $2
                     AND m.consumed_at IS NULL
                     AND m.dead_lettered_at IS NULL
@@ -267,6 +268,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
                   WHERE m.sent_request_id IS NULL
                     AND m.channel_delivered_at IS NULL
                     AND m.claimed_at IS NOT NULL
+                    AND m.sent_at IS NULL
                     AND m.claimed_at < $1
                     AND m.consumed_at IS NULL
                     AND m.dead_lettered_at IS NULL

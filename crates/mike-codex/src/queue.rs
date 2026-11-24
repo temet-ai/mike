@@ -19,7 +19,7 @@ pub async fn queue_notification(
     deadline: Duration,
 ) -> QueueOutcome {
     let child = Command::new(program)
-        .args(["queue", "--thread", thread, "--message", notice, "--resume"])
+        .args(["queue", "--thread", thread, "--message", notice])
         .env("CODEX_HOME", home)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -35,60 +35,6 @@ pub async fn queue_notification(
     }
 }
 
-pub async fn local_thread_exists(home: &Path, thread: &str) -> std::io::Result<bool> {
-    if thread.is_empty() || thread.len() > 128 || thread.contains(['/', '\\']) {
-        return Ok(false);
-    }
-    let suffix = format!("{thread}.jsonl");
-    let mut directories = vec![
-        (home.join("sessions"), 0),
-        (home.join("archived_sessions"), 0),
-    ];
-    let mut visited = 0;
-    while let Some((directory, depth)) = directories.pop() {
-        match scan_directory(&directory, depth, &suffix, &mut directories, &mut visited).await? {
-            Scan::Found => return Ok(true),
-            Scan::Limit => return Ok(false),
-            Scan::Next => {}
-        }
-    }
-    Ok(false)
-}
-
-enum Scan {
-    Found,
-    Limit,
-    Next,
-}
-
-async fn scan_directory(
-    directory: &Path,
-    depth: u8,
-    suffix: &str,
-    directories: &mut Vec<(std::path::PathBuf, u8)>,
-    visited: &mut usize,
-) -> std::io::Result<Scan> {
-    let mut entries = match tokio::fs::read_dir(directory).await {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Scan::Next),
-        Err(error) => return Err(error),
-    };
-    while let Some(entry) = entries.next_entry().await? {
-        *visited += 1;
-        if *visited > 20_000 {
-            return Ok(Scan::Limit);
-        }
-        let kind = entry.file_type().await?;
-        if kind.is_file() && entry.file_name().to_string_lossy().ends_with(suffix) {
-            return Ok(Scan::Found);
-        }
-        if kind.is_dir() && depth < 3 {
-            directories.push((entry.path(), depth + 1));
-        }
-    }
-    Ok(Scan::Next)
-}
-
 #[cfg(test)]
 mod tests {
     use std::os::unix::fs::PermissionsExt;
@@ -96,10 +42,11 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn local_queue_exit_means_queued_never_consumed() -> anyhow::Result<()> {
+    async fn queue_notification_uses_the_existing_owner_without_daemon_resume() -> anyhow::Result<()>
+    {
         let home = tempfile::tempdir()?;
         let program = home.path().join("codex");
-        tokio::fs::write(&program, b"#!/bin/sh\n[ \"$1\" = queue ] && [ \"$2\" = --thread ] && [ \"$4\" = --message ] && [ \"$6\" = --resume ]\n").await?;
+        tokio::fs::write(&program, b"#!/bin/sh\n[ \"$#\" = 5 ] && [ \"$1\" = queue ] && [ \"$2\" = --thread ] && [ \"$3\" = thread ] && [ \"$4\" = --message ] && [ \"$5\" = 'static notice' ]\n").await?;
         tokio::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).await?;
         assert_eq!(
             queue_notification(
@@ -135,20 +82,6 @@ mod tests {
             .await,
             QueueOutcome::Uncertain
         );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn queue_requires_existing_local_thread_and_rejects_path_identifiers()
-    -> anyhow::Result<()> {
-        let home = tempfile::tempdir()?;
-        let id = "00000000-0000-0000-0000-000000000001";
-        assert!(!local_thread_exists(home.path(), id).await?);
-        assert!(!local_thread_exists(home.path(), "../../outside").await?);
-        let directory = home.path().join("sessions/2026/11/12");
-        tokio::fs::create_dir_all(&directory).await?;
-        tokio::fs::write(directory.join(format!("rollout-test-{id}.jsonl")), b"").await?;
-        assert!(local_thread_exists(home.path(), id).await?);
         Ok(())
     }
 }

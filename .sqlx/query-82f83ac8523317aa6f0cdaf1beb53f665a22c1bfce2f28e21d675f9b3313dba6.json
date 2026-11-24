@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recorded AS (\n    INSERT INTO mailbox.capture_deliveries AS delivery (message_id, capture_id)\n    SELECT m.id, c.id\n      FROM runtime.capture_exchanges c\n      JOIN sessions.sessions s ON s.id = c.session_id\n      JOIN runtime.capture_documents original ON original.id = c.request_document_id\n      JOIN runtime.capture_documents sent ON sent.id = c.sent_document_id\n      JOIN mailbox.messages m ON m.to_session_id = s.id\n     WHERE s.session_uuid = $1 AND c.exchange_uuid = $2\n       AND m.message_uuid = ANY($3)\n       AND original.id <> sent.id\n       AND original.finished AND original.complete\n       AND sent.finished AND sent.complete\n    ON CONFLICT (message_id, capture_id) DO UPDATE\n        SET delivered_at = delivery.delivered_at\n    RETURNING WITH (OLD AS before, NEW AS after)\n        after.message_id, after.delivered_at, (before.id IS NULL) AS inserted\n), stamped AS (\n    UPDATE mailbox.messages m\n       SET claimed_at = COALESCE(m.claimed_at, r.delivered_at),\n           sent_at = COALESCE(m.sent_at, r.delivered_at),\n           delivery_attempts = m.delivery_attempts + CASE WHEN m.sent_at IS NULL THEN 1 ELSE 0 END\n      FROM recorded r\n     WHERE r.message_id = m.id AND r.inserted\n    RETURNING m.id\n)\nSELECT m.message_uuid AS \"message_uuid!\"\n  FROM recorded r JOIN mailbox.messages m ON m.id = r.message_id\n ORDER BY m.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "82f83ac8523317aa6f0cdaf1beb53f665a22c1bfce2f28e21d675f9b3313dba6"
+}
