@@ -287,7 +287,7 @@ interface RequestOptions {
 }
 
 async function request<T>(
-	method: 'GET' | 'POST' | 'PATCH',
+	method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
 	path: string,
 	options: RequestOptions = {}
 ): Promise<T> {
@@ -315,6 +315,7 @@ async function request<T>(
 		}
 		throw new WrightApiError(message, res.status, path, reason);
 	}
+	if (res.status === 204) return undefined as T;
 	return (await res.json()) as T;
 }
 
@@ -439,6 +440,42 @@ export interface WrightCause {
 	/** When the operator was told the cause had waited. */
 	notified_at: string | null;
 	commented_at: string | null;
+	/** The operator pinned it: pinned causes come before every unpinned one. */
+	pinned: boolean;
+	pinned_at: string | null;
+	/** Set when the operator moved the cause; replaces the formula's `priority` for the order. */
+	operator_priority: number | null;
+	/** The value the order uses: `operator_priority` when set, else `priority`. */
+	rank_priority: number;
+	group_id: number | null;
+	group_name: string | null;
+	/** Merges into this cause, newest first. */
+	absorbed: AbsorbedCause[];
+	/** The engineer's pick would consider this cause. `null` until the server says. */
+	investigable: boolean | null;
+	not_investigated_because: NotInvestigatedBecause | null;
+}
+
+export type NotInvestigatedBecause = 'finding' | 'followup' | 'known_fix' | 'attempts';
+
+export interface AbsorbedCause {
+	merge_id: number;
+	cause_id: number;
+	check_name: string;
+	key: string;
+	/** How many problems moved with the merge. */
+	problems: number;
+	by: 'operator' | 'engineer';
+	created_at: string;
+	/** An operator merge that is not separated yet. */
+	can_separate: boolean;
+}
+
+export interface WrightGroup {
+	id: number;
+	name: string;
+	/** How many causes are in the group. */
+	causes: number;
 }
 
 export interface CausesResponse {
@@ -447,10 +484,129 @@ export interface CausesResponse {
 	/** A cause that nothing has answered for this many hours is "waiting". */
 	waited_hours: number;
 	watch_enabled: boolean;
+	groups: WrightGroup[];
+	/** The engineer's attempt limit per cause; null until the server sends it. */
+	max_attempts: number | null;
 }
 
-export function listCauses(params: { limit?: number } = {}): Promise<CausesResponse> {
-	return request('GET', `/api/wright/causes${query({ ...params })}`);
+/** A cause row as the wire may send it: the operator fields are absent before their backend deploys. */
+type WireCause = Omit<
+	WrightCause,
+	| 'pinned'
+	| 'pinned_at'
+	| 'operator_priority'
+	| 'rank_priority'
+	| 'group_id'
+	| 'group_name'
+	| 'absorbed'
+	| 'investigable'
+	| 'not_investigated_because'
+> &
+	Partial<WrightCause>;
+
+/** Fills the operator fields a running mike that has not deployed them yet leaves out. */
+export function normaliseCause(wire: WireCause): WrightCause {
+	const operatorPriority = wire.operator_priority ?? null;
+	return {
+		...wire,
+		pinned: wire.pinned ?? false,
+		pinned_at: wire.pinned_at ?? null,
+		operator_priority: operatorPriority,
+		rank_priority: wire.rank_priority ?? operatorPriority ?? wire.priority,
+		group_id: wire.group_id ?? null,
+		group_name: wire.group_name ?? null,
+		absorbed: wire.absorbed ?? [],
+		investigable: wire.investigable ?? null,
+		not_investigated_because: wire.not_investigated_because ?? null
+	};
+}
+
+export async function listCauses(params: { limit?: number } = {}): Promise<CausesResponse> {
+	const res = await request<
+		Omit<CausesResponse, 'causes' | 'groups' | 'max_attempts'> & {
+			causes: WireCause[];
+			groups?: WrightGroup[];
+			max_attempts?: number | null;
+		}
+	>('GET', `/api/wright/causes${query({ ...params })}`);
+	return {
+		...res,
+		causes: res.causes.map(normaliseCause),
+		groups: res.groups ?? [],
+		max_attempts: res.max_attempts ?? null
+	};
+}
+
+/** What the operator may change on a cause; at least one field. `null` clears the value. */
+export interface CausePatch {
+	pinned?: boolean;
+	operator_priority?: number | null;
+	group_id?: number | null;
+}
+
+/** Needs the operator token. The answer is the cause as the list shows it. */
+export async function patchCause(id: number, patch: CausePatch): Promise<WrightCause> {
+	const res = await request<{ cause: WireCause }>('PATCH', `/api/wright/causes/${id}`, {
+		body: patch,
+		auth: true
+	});
+	return normaliseCause(res.cause);
+}
+
+/** The merge answer's `causes` and `problems` are not read: the page loads the queue again. */
+export interface MergeResult {
+	causes: unknown;
+	problems: unknown;
+	merge_ids: number[];
+}
+
+/** Needs the operator token. Absorbs `causeIds` into the cause `rootId`. */
+export function mergeCauses(rootId: number, causeIds: number[]): Promise<MergeResult> {
+	return request('POST', `/api/wright/causes/${rootId}/merge`, {
+		body: { cause_ids: causeIds },
+		auth: true
+	});
+}
+
+/** Needs the operator token. A 409 with a `reason` for an engineer merge or one already separated. */
+export function separateMerge(mergeId: number): Promise<{ merge: unknown }> {
+	return request('POST', `/api/wright/cause-merges/${mergeId}/separate`, { body: {}, auth: true });
+}
+
+/** Every open problem of the cause, most observed first. */
+export async function listCauseProblems(id: number): Promise<WrightProblem[]> {
+	const res = await request<{ problems: WrightProblem[] }>(
+		'GET',
+		`/api/wright/causes/${id}/problems`
+	);
+	return res.problems;
+}
+
+export async function listCauseGroups(): Promise<WrightGroup[]> {
+	const res = await request<{ groups: WrightGroup[] }>('GET', '/api/wright/cause-groups');
+	return res.groups;
+}
+
+/** Needs the operator token. A 409 means the name is taken. */
+export async function createCauseGroup(name: string): Promise<WrightGroup> {
+	const res = await request<{ group: WrightGroup }>('POST', '/api/wright/cause-groups', {
+		body: { name },
+		auth: true
+	});
+	return res.group;
+}
+
+export async function renameCauseGroup(id: number, name: string): Promise<WrightGroup> {
+	const res = await request<{ group: WrightGroup }>('PATCH', `/api/wright/cause-groups/${id}`, {
+		body: { name },
+		auth: true
+	});
+	return res.group;
+}
+
+/** The group's causes lose the group. */
+export function deleteCauseGroup(id: number): Promise<void> {
+	return request('DELETE', `/api/wright/cause-groups/${id}`, { auth: true });
 }
 
 export function listMessages(

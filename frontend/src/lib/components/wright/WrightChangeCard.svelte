@@ -1,7 +1,22 @@
 <script lang="ts">
-	import { CirclePlus, Gauge, PauseCircle, Play, SkipForward, Wrench } from '@lucide/svelte';
+	import {
+		ArrowUpDown,
+		CirclePlus,
+		Folder,
+		FolderMinus,
+		Gauge,
+		GitMerge,
+		Link,
+		PauseCircle,
+		Pin,
+		Play,
+		SkipForward,
+		Split,
+		Wrench
+	} from '@lucide/svelte';
 	import type { Component } from 'svelte';
 	import type { SteerChange } from '$lib/api/wright';
+	import LinkChipRow, { type LinkChip } from '$lib/components/shared/LinkChipRow.svelte';
 	import { describeSteer, type ChangeIcon } from '$lib/wright/present';
 	import UndoSlot, { type UndoState } from './UndoSlot.svelte';
 
@@ -22,11 +37,18 @@
 		open: CirclePlus,
 		limit: Gauge,
 		skip: SkipForward,
+		pin: Pin,
+		order: ArrowUpDown,
+		merge: GitMerge,
+		separate: Split,
+		group: Folder,
+		ungroup: FolderMinus,
 		other: Wrench
 	};
 
 	const view = $derived(describeSteer(change));
 	const Icon = $derived(ICON[view.icon]);
+	const links = $derived<LinkChip[]>(view.links.map((l) => ({ icon: Link, ...l })));
 </script>
 
 <div class="edge change" class:change--undone={undo === 'undone'} data-slot="wright-change">
@@ -35,6 +57,7 @@
 		<div class="change__text">
 			<p class="change__title">{view.title}</p>
 			<p class="change__detail">{view.detail}</p>
+			<LinkChipRow items={links} label="Causes named by this change" />
 		</div>
 		<UndoSlot
 			subject={view.title}

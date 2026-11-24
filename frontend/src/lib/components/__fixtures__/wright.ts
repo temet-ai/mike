@@ -1,5 +1,8 @@
 import type {
+	AbsorbedCause,
+	CausePatch,
 	FollowupLimits,
+	WrightGroup,
 	ProblemDetail,
 	WrightAction,
 	WrightCause,
@@ -13,6 +16,7 @@ import type {
 	WrightRepair
 } from '$lib/api/wright';
 import type { ProblemDetailState } from '$lib/wright/store.svelte';
+import { byPriorityDesc } from '$lib/wright/causes';
 import { emptyFeed, type Feed } from '$lib/wright/feed';
 
 /** Fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md and api/wright/problems.rs. */
@@ -55,7 +59,7 @@ export const LONG_RESOURCE =
 	'query 6512464039861100498: WITH own_turn AS ( SELECT max(t.id) AS id FROM memory.operator_turns t WHERE t.session_id = $1 AND t.kind = $2 ), prior AS ( SELECT p.id, p.text FROM memory.operator_turns p JOIN own_turn o ON p.id < o.id WHERE p.session_id = $1 ORDER BY p.id DESC LIMIT 20 ) SELECT * FROM prior';
 
 export function causeFixture(over: Partial<WrightCause> = {}): WrightCause {
-	return {
+	const base: WrightCause = {
 		cause_id: 10,
 		problem_id: 707,
 		check_name: 'decisions_health',
@@ -72,9 +76,39 @@ export function causeFixture(over: Partial<WrightCause> = {}): WrightCause {
 		priority: 90,
 		notified_at: null,
 		commented_at: null,
+		pinned: false,
+		pinned_at: null,
+		operator_priority: null,
+		rank_priority: 90,
+		group_id: null,
+		group_name: null,
+		absorbed: [],
+		investigable: true,
+		not_investigated_because: null,
+		...over
+	};
+	// The order the page and the engineer use: the operator's value, else the formula's.
+	return { ...base, rank_priority: over.rank_priority ?? base.operator_priority ?? base.priority };
+}
+
+/** A merge the operator made, and one the engineer made, for the opened row. */
+export function absorbedFixture(over: Partial<AbsorbedCause> = {}): AbsorbedCause {
+	return {
+		merge_id: 5,
+		cause_id: 31,
+		check_name: 'slow_queries',
+		key: 'query 77: SELECT * FROM wright.problems WHERE state = $1',
+		problems: 4,
+		by: 'operator',
+		created_at: ago(60 * 3),
+		can_separate: true,
 		...over
 	};
 }
+
+export const GROUPS: WrightGroup[] = [{ id: 3, name: 'Mail delivery', causes: 1 }];
+
+export const MAX_ATTEMPTS = 3;
 
 /** One cause in each state, in the server's order (highest priority first). */
 export function causes(): WrightCause[] {
@@ -92,7 +126,9 @@ export function causes(): WrightCause[] {
 			last_attempt_at: ago(60 * 5),
 			finding_id: 5,
 			priority: 80,
-			notified_at: ago(60 * 40)
+			notified_at: ago(60 * 40),
+			investigable: false,
+			not_investigated_because: 'finding'
 		}),
 		causeFixture({
 			cause_id: 21,
@@ -106,7 +142,9 @@ export function causes(): WrightCause[] {
 			last_attempt_at: ago(60 * 3),
 			followup_id: 14,
 			issue_number: 272,
-			priority: 60
+			priority: 60,
+			investigable: false,
+			not_investigated_because: 'followup'
 		}),
 		causeFixture({
 			cause_id: 22,
@@ -117,7 +155,9 @@ export function causes(): WrightCause[] {
 			observations: 6,
 			opened_at: ago(60 * 3),
 			remedied: true,
-			priority: 40
+			priority: 40,
+			investigable: false,
+			not_investigated_because: 'known_fix'
 		}),
 		causeFixture({
 			cause_id: 23,
@@ -498,6 +538,8 @@ export interface WrightScenario {
 	followupLimits: FollowupLimits;
 	/** null: the route answers 404, as before its backend deploys. */
 	causes: WrightCause[] | null;
+	groups: WrightGroup[];
+	maxAttempts: number;
 	/** What undoing an action answers: 200, or the 409 conflict. */
 	undo: 'ok' | 'conflict';
 	watchEnabled: boolean;
@@ -517,6 +559,8 @@ export function normalScenario(): WrightScenario {
 		followups: followups(),
 		followupLimits: followupLimitsFixture(),
 		causes: causes(),
+		groups: [],
+		maxAttempts: MAX_ATTEMPTS,
 		undo: 'ok',
 		watchEnabled: true
 	};
@@ -548,14 +592,131 @@ function json(status: number, body: unknown): Response {
 	});
 }
 
-/** Stubs `fetch` for the Wright routes in the shapes the plan gives; posted bodies are returned. */
-export function installWrightFetch(scenario: WrightScenario): { posted: unknown[] } {
+/** One write the page sent to the triage queue's routes, with the token it carried. */
+export interface TriageCall {
+	method: string;
+	path: string;
+	body: unknown;
+	authorization: string | null;
+}
+
+/**
+ * Stubs `fetch` for the Wright routes in the shapes the plan gives; posted message bodies and
+ * the queue's writes are returned. The queue routes (`TRIAGE_ACTIONS.md`) keep state, so a
+ * pin, a move, a merge or a group shows in the next read as the server would answer it.
+ */
+export function installWrightFetch(scenario: WrightScenario): {
+	posted: unknown[];
+	triage: TriageCall[];
+} {
 	const state = {
 		...scenario,
 		messages: scenario.messages === null ? null : [...scenario.messages],
-		actions: scenario.actions === null ? null : [...scenario.actions]
+		actions: scenario.actions === null ? null : [...scenario.actions],
+		causes: scenario.causes === null ? null : scenario.causes.map((c) => ({ ...c })),
+		groups: scenario.groups.map((g) => ({ ...g }))
 	};
 	const posted: unknown[] = [];
+	const triage: TriageCall[] = [];
+	/** Causes a merge took out of the list, by merge id, so Separate can bring them back. */
+	const mergedAway = new Map<number, WrightCause>();
+	let nextMergeId = 100;
+	let nextGroupId = 50;
+
+	const groupName = (id: number | null): string | null =>
+		id === null ? null : (state.groups.find((g) => g.id === id)?.name ?? null);
+
+	function listCauses(): WrightCause[] {
+		const rows = state.causes ?? [];
+		return rows
+			.map((c) => ({
+				...c,
+				group_name: groupName(c.group_id),
+				rank_priority: c.operator_priority ?? c.priority
+			}))
+			.sort(byPriorityDesc);
+	}
+
+	const groupList = (): WrightGroup[] =>
+		state.groups.map((g) => ({
+			...g,
+			causes: (state.causes ?? []).filter((c) => c.group_id === g.id).length
+		}));
+
+	function record(method: string, path: string, init: RequestInit | undefined): unknown {
+		const body = init?.body === undefined ? undefined : JSON.parse(String(init.body));
+		triage.push({
+			method,
+			path,
+			body,
+			authorization: new Headers(init?.headers).get('authorization')
+		});
+		return body;
+	}
+
+	function patchCause(id: number, patch: CausePatch): Response {
+		const row = state.causes?.find((c) => c.cause_id === id);
+		if (row === undefined) return json(404, { error: 'no such cause' });
+		if (Object.keys(patch).length === 0) return json(400, { error: 'nothing to change' });
+		if (patch.pinned !== undefined) {
+			row.pinned = patch.pinned;
+			row.pinned_at = patch.pinned ? new Date().toISOString() : null;
+		}
+		if (patch.operator_priority !== undefined) row.operator_priority = patch.operator_priority;
+		if (patch.group_id !== undefined) row.group_id = patch.group_id;
+		return json(200, { cause: listCauses().find((c) => c.cause_id === id) });
+	}
+
+	function mergeInto(rootId: number, ids: number[]): Response {
+		const root = state.causes?.find((c) => c.cause_id === rootId);
+		if (state.causes === null || root === undefined) return json(404, { error: 'no such cause' });
+		const mergeIds: number[] = [];
+		for (const id of ids) {
+			const gone: WrightCause | undefined = (state.causes as WrightCause[]).find(
+				(c) => c.cause_id === id
+			);
+			if (gone === undefined || gone === root) continue;
+			const mergeId = nextMergeId++;
+			mergeIds.push(mergeId);
+			mergedAway.set(mergeId, gone);
+			root.absorbed = [
+				absorbedFixture({
+					merge_id: mergeId,
+					cause_id: gone.cause_id,
+					check_name: gone.check_name,
+					key: gone.resource,
+					problems: gone.problems,
+					by: 'operator',
+					created_at: new Date().toISOString(),
+					can_separate: true
+				}),
+				...root.absorbed
+			];
+			root.problems += gone.problems;
+			state.causes = (state.causes as WrightCause[]).filter((c) => c !== gone);
+		}
+		return json(200, { causes: mergeIds.length, problems: 0, merge_ids: mergeIds });
+	}
+
+	function separate(mergeId: number): Response {
+		const root = state.causes?.find((c) => c.absorbed.some((a) => a.merge_id === mergeId));
+		const entry = root?.absorbed.find((a) => a.merge_id === mergeId);
+		const back = mergedAway.get(mergeId);
+		if (root === undefined || entry === undefined || back === undefined) {
+			return json(404, { error: 'no such merge' });
+		}
+		if (!entry.can_separate) {
+			return json(409, {
+				error: 'conflict',
+				reason: 'The engineer made this merge, so it stays.'
+			});
+		}
+		root.absorbed = root.absorbed.filter((a) => a.merge_id !== mergeId);
+		root.problems -= entry.problems;
+		state.causes = [...(state.causes ?? []), back];
+		mergedAway.delete(mergeId);
+		return json(200, { merge: { id: mergeId, separated_at: new Date().toISOString() } });
+	}
 
 	function forProblem<T>(
 		rows: T[] | null,
@@ -591,11 +752,63 @@ export function installWrightFetch(scenario: WrightScenario): { posted: unknown[
 			if (state.causes === null) return json(404, {});
 			const limit = Number(params.get('limit') ?? 50);
 			return json(200, {
-				causes: state.causes.slice(0, limit),
+				causes: listCauses().slice(0, limit),
 				limit,
 				waited_hours: WAITED_HOURS,
-				watch_enabled: state.watchEnabled
+				watch_enabled: state.watchEnabled,
+				groups: groupList(),
+				max_attempts: state.maxAttempts
 			});
+		}
+		const causeOne = /^\/api\/wright\/causes\/(\d+)$/.exec(path);
+		if (method === 'PATCH' && causeOne) {
+			const body = record(method, path, init) as CausePatch;
+			return patchCause(Number(causeOne[1]), body);
+		}
+		const causeMerge = /^\/api\/wright\/causes\/(\d+)\/merge$/.exec(path);
+		if (method === 'POST' && causeMerge) {
+			const body = record(method, path, init) as { cause_ids: number[] };
+			return mergeInto(Number(causeMerge[1]), body.cause_ids);
+		}
+		const causeProblems = /^\/api\/wright\/causes\/(\d+)\/problems$/.exec(path);
+		if (method === 'GET' && causeProblems) {
+			if (state.causes === null) return json(404, {});
+			const row = state.causes.find((c) => c.cause_id === Number(causeProblems[1]));
+			return row === undefined
+				? json(404, { error: 'no such cause' })
+				: json(200, { problems: state.open });
+		}
+		const mergeSeparate = /^\/api\/wright\/cause-merges\/(\d+)\/separate$/.exec(path);
+		if (method === 'POST' && mergeSeparate) {
+			record(method, path, init);
+			return separate(Number(mergeSeparate[1]));
+		}
+		if (method === 'GET' && path === '/api/wright/cause-groups') {
+			return json(200, { groups: groupList() });
+		}
+		if (method === 'POST' && path === '/api/wright/cause-groups') {
+			const body = record(method, path, init) as { name: string };
+			if (state.groups.some((g) => g.name === body.name)) {
+				return json(409, { error: 'conflict', reason: 'A group with that name already exists.' });
+			}
+			const group = { id: nextGroupId++, name: body.name, causes: 0 };
+			state.groups.push(group);
+			return json(200, { group });
+		}
+		const groupOne = /^\/api\/wright\/cause-groups\/(\d+)$/.exec(path);
+		if (method === 'PATCH' && groupOne) {
+			const body = record(method, path, init) as { name: string };
+			const group = state.groups.find((g) => g.id === Number(groupOne[1]));
+			if (group === undefined) return json(404, {});
+			group.name = body.name;
+			return json(200, { group });
+		}
+		if (method === 'DELETE' && groupOne) {
+			record(method, path, init);
+			const id = Number(groupOne[1]);
+			state.groups = state.groups.filter((g) => g.id !== id);
+			for (const c of state.causes ?? []) if (c.group_id === id) c.group_id = null;
+			return new Response(null, { status: 204 });
 		}
 		if (method === 'GET' && path === '/api/wright/followups') {
 			if (state.followups === null) return json(404, {});
@@ -677,5 +890,5 @@ export function installWrightFetch(scenario: WrightScenario): { posted: unknown[
 		}
 		return json(404, { error: 'not stubbed' });
 	}) as typeof fetch;
-	return { posted };
+	return { posted, triage };
 }

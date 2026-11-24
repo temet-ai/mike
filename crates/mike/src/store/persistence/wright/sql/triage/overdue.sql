@@ -1,6 +1,6 @@
 WITH waiting AS (
     SELECT q.cause_id, q.check_name, q.resource, q.problems, q.observations, q.opened_at,
-           q.attempts, q.priority
+           q.attempts, q.priority, q.pinned, q.rank_priority
       FROM wright.cause_queue q
       JOIN wright.causes c ON c.id = q.cause_id
      WHERE q.finding_id IS NULL
@@ -20,4 +20,4 @@ SELECT w.cause_id, w.check_name, w.resource, w.problems, w.observations, w.opene
        w.attempts, w.priority
   FROM waiting w
   JOIN claimed ON claimed.id = w.cause_id
- ORDER BY w.priority DESC, w.cause_id
+ ORDER BY w.pinned DESC, w.rank_priority DESC, w.cause_id

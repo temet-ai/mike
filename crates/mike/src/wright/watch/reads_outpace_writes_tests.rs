@@ -5,7 +5,7 @@ const CHECK: &str = "reads_outpace_writes";
 const LOOKUP: &str = "SELECT id, label FROM public.rare_lookup WHERE id >= $1";
 const VIEW_LOOKUP: &str = "SELECT id, label FROM public.rare_view WHERE id >= $1";
 
-async fn boot() -> anyhow::Result<Db> {
+pub(super) async fn boot() -> anyhow::Result<Db> {
     let db = Db::boot().await?;
     let pool = db.handle.pool();
     sqlx::query("CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
@@ -30,14 +30,14 @@ async fn boot() -> anyhow::Result<Db> {
     Ok(db)
 }
 
-async fn read(db: &Db, sql: &'static str, times: usize) -> anyhow::Result<()> {
+pub(super) async fn read(db: &Db, sql: &'static str, times: usize) -> anyhow::Result<()> {
     for _ in 0..times {
         sqlx::query(sql).bind(0).fetch_all(db.handle.pool()).await?;
     }
     Ok(())
 }
 
-async fn snapshot(
+pub(super) async fn snapshot(
     db: &Db,
     sql: &str,
     ago: &str,
@@ -83,7 +83,7 @@ async fn snapshot(
     Ok(queryid)
 }
 
-async fn reported(db: &Db, queryid: &str) -> anyhow::Result<Vec<Finding>> {
+pub(super) async fn reported(db: &Db, queryid: &str) -> anyhow::Result<Vec<Finding>> {
     Ok(db
         .findings(CHECK)
         .await?

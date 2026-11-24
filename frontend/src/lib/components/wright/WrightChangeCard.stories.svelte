@@ -24,6 +24,20 @@
 		await expect(canvas.getByText('Limit changed: Daily starts')).toBeVisible();
 		await expect(canvas.getByRole('alert')).toHaveTextContent("Couldn't undo: Changed since.");
 		await expect(canvas.getByText('Undone')).toBeVisible();
+
+		// The queue changes name the causes and link to their rows.
+		await expect(canvas.getByText('Pin cause 19')).toBeVisible();
+		await expect(canvas.getByText('Merge causes 298 and 307 into 19')).toBeVisible();
+		await expect(
+			canvas.getByText('Put causes 19 and 318 in the group slow memory queries')
+		).toBeVisible();
+		await expect(canvas.getByText('Reset the order of cause 19')).toBeVisible();
+		await expect(canvas.getByText('Separate merge 5')).toBeVisible();
+		await expect(canvas.getByText('Take cause 7 out of its group')).toBeVisible();
+		await expect(canvas.getByRole('link', { name: /Cause 298/ })).toHaveAttribute(
+			'href',
+			'#cause-298'
+		);
 	}}
 >
 	{#snippet template()}
@@ -44,6 +58,28 @@
 			<WrightChangeCard
 				change={{ type: 'open_problem', check: 'log_errors', resource: 'mike log' }}
 				undo="undone"
+				{onUndo}
+			/>
+			<WrightChangeCard change={{ kind: 'pin_cause', cause_id: 19 }} undo="ready" {onUndo} />
+			<WrightChangeCard
+				change={{ kind: 'merge_causes', into: 19, cause_ids: [298, 307] }}
+				undo="ready"
+				{onUndo}
+			/>
+			<WrightChangeCard
+				change={{ kind: 'group_causes', name: 'slow memory queries', cause_ids: [19, 318] }}
+				undo="ready"
+				{onUndo}
+			/>
+			<WrightChangeCard
+				change={{ kind: 'set_cause_priority', cause_id: 19, priority: null }}
+				undo="ready"
+				{onUndo}
+			/>
+			<WrightChangeCard change={{ kind: 'separate_merge', merge_id: 5 }} undo="ready" {onUndo} />
+			<WrightChangeCard
+				change={{ kind: 'ungroup_causes', cause_ids: [7] }}
+				undo="ready"
 				{onUndo}
 			/>
 		</div>

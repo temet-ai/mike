@@ -10,6 +10,7 @@ import type {
 	WrightEpisode,
 	WrightFinding,
 	WrightFollowup,
+	WrightGroup,
 	WrightInvestigation,
 	WrightMessage,
 	WrightProblem,
@@ -149,6 +150,19 @@ async function allMessages(after: number | null): Promise<MessagesPage> {
 	}
 }
 
+/** What the operator reads when an action on the queue was refused. */
+function triageErrorText(err: unknown): string {
+	if (api.isUnauthorised(err)) return 'The operator token was refused. Pair this browser again.';
+	if (err instanceof api.WrightApiError && err.reason !== null) return err.reason;
+	if (api.isNotDeployed(err)) {
+		return 'That cause is gone, or this part of Wright is not in the running mike yet.';
+	}
+	return errorMessage(err);
+}
+
+/** The new group a cause list is put in: one that exists, or a name to create first. */
+export type GroupTarget = { id: number } | { name: string };
+
 function newClientMessageId(): string {
 	try {
 		return crypto.randomUUID();
@@ -166,6 +180,14 @@ export function createWrightStore() {
 	const followups = $state<Feed<WrightFollowup>>(emptyFeed());
 	const causes = $state<Feed<WrightCause>>(emptyFeed());
 	let waitedHours = $state(DEFAULT_WAITED_HOURS);
+	let groups = $state<WrightGroup[]>([]);
+	let maxAttempts = $state<number | null>(null);
+	/** The open problems of each cause the operator opened, from `GET /causes/{id}/problems`. */
+	const causeProblems = $state<Record<number, Feed<WrightProblem>>>({});
+	let triageBusy = $state(false);
+	let triageError = $state<string | null>(null);
+	/** Counts the operator's actions, so a poll that began before one does not undo it. */
+	let actionSeq = 0;
 	/** Problems fetched for a detail that are not in the open or healthy lists on screen. */
 	const fetchedProblems = $state<Record<number, WrightProblem>>({});
 	let followupFilter = $state<FollowupFilter>('all');
@@ -217,7 +239,170 @@ export function createWrightStore() {
 	async function causePage(): Promise<FeedPage<WrightCause>> {
 		const res = await api.listCauses({ limit: CAUSE_LIMIT });
 		waitedHours = res.waited_hours;
+		groups = res.groups;
+		maxAttempts = res.max_attempts;
 		return { rows: res.causes, cursor: null, total: res.causes.length };
+	}
+
+	/** A poll's answer, dropped when an operator action happened while it was on its way. */
+	async function passiveCausePage(): Promise<FeedPage<WrightCause>> {
+		const seq = actionSeq;
+		const res = await api.listCauses({ limit: CAUSE_LIMIT });
+		if (seq !== actionSeq) return { rows: causes.rows, cursor: null, total: causes.rows.length };
+		waitedHours = res.waited_hours;
+		groups = res.groups;
+		maxAttempts = res.max_attempts;
+		return { rows: res.causes, cursor: null, total: res.causes.length };
+	}
+
+	/** After an operator action the queue is read again and shown in the server's order at once. */
+	async function reloadCauses(): Promise<void> {
+		const seq = actionSeq;
+		try {
+			const res = await api.listCauses({ limit: CAUSE_LIMIT });
+			// A later action reads the queue again itself; this answer is already out of date.
+			if (seq !== actionSeq) return;
+			waitedHours = res.waited_hours;
+			groups = res.groups;
+			maxAttempts = res.max_attempts;
+			causes.rows = [...res.causes].sort(byPriorityDesc);
+			causes.held = [];
+			causes.cursor = null;
+			causes.total = res.causes.length;
+			causes.status = 'ready';
+			causes.error = null;
+		} catch {
+			// The row the action returned is already shown; the next poll reads the rest.
+		}
+		await Promise.all(
+			Object.keys(causeProblems).map((id) => refreshCauseProblems(Number(id), true))
+		);
+	}
+
+	/** The page asks for the last refusal to go, for example when it opens a dialog of its own. */
+	function clearTriageError(): void {
+		triageError = null;
+	}
+
+	/** Runs one operator action: one at a time, its refusal shown on the page. True when it worked. */
+	async function operate(work: () => Promise<void>): Promise<boolean> {
+		if (triageBusy) return false;
+		triageBusy = true;
+		triageError = null;
+		actionSeq++;
+		try {
+			await work();
+			return true;
+		} catch (err) {
+			triageError = triageErrorText(err);
+			return false;
+		} finally {
+			triageBusy = false;
+		}
+	}
+
+	/** The row the server returned replaces the shown one, and the list is in order again. */
+	function applyCause(updated: WrightCause): void {
+		const swap = (row: WrightCause): WrightCause => (row.cause_id === updated.cause_id ? updated : row);
+		causes.rows = causes.rows.map(swap).sort(byPriorityDesc);
+		causes.held = causes.held.map(swap);
+	}
+
+	async function patchCauses(ids: number[], patch: api.CausePatch): Promise<void> {
+		for (const id of ids) applyCause(await api.patchCause(id, patch));
+	}
+
+	const pinCause = (id: number, pinned: boolean): Promise<boolean> =>
+		operate(async () => {
+			await patchCauses([id], { pinned });
+			void reloadCauses();
+		});
+
+	/** `priority` null clears the operator's value; the formula orders the cause again. */
+	const moveCause = (id: number, priority: number | null): Promise<boolean> =>
+		operate(async () => {
+			await patchCauses([id], { operator_priority: priority });
+			void reloadCauses();
+		});
+
+	/** Puts the causes in a group, or takes them out of it (`group` null). */
+	const groupCauses = (ids: number[], group: GroupTarget | null): Promise<boolean> =>
+		operate(async () => {
+			let groupId: number | null = null;
+			if (group !== null) {
+				groupId = 'id' in group ? group.id : (await api.createCauseGroup(group.name)).id;
+			}
+			await patchCauses(ids, { group_id: groupId });
+			await reloadCauses();
+		});
+
+	const renameGroup = (id: number, name: string): Promise<boolean> =>
+		operate(async () => {
+			await api.renameCauseGroup(id, name);
+			await reloadCauses();
+		});
+
+	const deleteGroup = (id: number): Promise<boolean> =>
+		operate(async () => {
+			await api.deleteCauseGroup(id);
+			await reloadCauses();
+		});
+
+	/** Absorbs `ids` into cause `rootId`. */
+	const mergeCauses = (rootId: number, ids: number[]): Promise<boolean> =>
+		operate(async () => {
+			await api.mergeCauses(rootId, ids);
+			await reloadCauses();
+		});
+
+	/** Undoes one merge the operator made; the server refuses an engineer's or a repeated one. */
+	const separateMerge = (mergeId: number): Promise<boolean> =>
+		operate(async () => {
+			await api.separateMerge(mergeId);
+			await reloadCauses();
+		});
+
+	function causeProblemFeed(id: number): Feed<WrightProblem> {
+		const existing = causeProblems[id];
+		if (existing !== undefined) return existing;
+		causeProblems[id] = emptyFeed();
+		return causeProblems[id];
+	}
+
+	const causeProblemsPage = async (id: number): Promise<FeedPage<WrightProblem>> => {
+		const rows = await api.listCauseProblems(id);
+		return { rows, cursor: null, total: rows.length };
+	};
+
+	/** The cause's open problems, read when its row is opened. */
+	async function loadCauseProblems(id: number): Promise<void> {
+		await fillFeed(causeProblemFeed(id), () => causeProblemsPage(id));
+	}
+
+	/** `replace`: after a merge the membership changed on purpose, so the rows are replaced. */
+	async function refreshCauseProblems(id: number, replace = false): Promise<void> {
+		const feed = causeProblems[id];
+		if (feed === undefined) return;
+		if (replace) {
+			try {
+				const page = await causeProblemsPage(id);
+				feed.rows = page.rows;
+				feed.held = [];
+				feed.total = page.total ?? null;
+				feed.status = 'ready';
+			} catch {
+				// Keep what is shown.
+			}
+			return;
+		}
+		await refreshFeed(feed, () => causeProblemsPage(id), problemKey);
+	}
+
+	function showHeldCauseProblems(id: number): void {
+		const feed = causeProblems[id];
+		if (feed === undefined || feed.held.length === 0) return;
+		feed.rows = [...feed.rows, ...feed.held];
+		feed.held = [];
 	}
 
 	async function loadAll(): Promise<void> {
@@ -252,7 +437,8 @@ export function createWrightStore() {
 	async function refresh(): Promise<void> {
 		const filter = followupFilter;
 		await Promise.all([
-			refreshFeed(causes, causePage, causeKey),
+			refreshFeed(causes, passiveCausePage, causeKey),
+			...Object.keys(causeProblems).map((id) => refreshCauseProblems(Number(id))),
 			refreshFeed(
 				followups,
 				async () =>
@@ -461,6 +647,21 @@ export function createWrightStore() {
 		get waitedHours() {
 			return waitedHours;
 		},
+		get groups() {
+			return groups;
+		},
+		get maxAttempts() {
+			return maxAttempts;
+		},
+		get causeProblems() {
+			return causeProblems;
+		},
+		get triageBusy() {
+			return triageBusy;
+		},
+		get triageError() {
+			return triageError;
+		},
 		get fetchedProblems() {
 			return fetchedProblems;
 		},
@@ -491,6 +692,16 @@ export function createWrightStore() {
 		loadAll,
 		refresh,
 		loadDetail,
+		loadCauseProblems,
+		showHeldCauseProblems,
+		clearTriageError,
+		pinCause,
+		moveCause,
+		groupCauses,
+		renameGroup,
+		deleteGroup,
+		mergeCauses,
+		separateMerge,
 		undoAction,
 		undoSteer,
 		send,

@@ -1,5 +1,9 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 
+mod operator;
+
+use super::triage::CauseRow;
+use super::{CausePatch, MergeOutcome, PatchOutcome};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 
@@ -71,6 +75,44 @@ impl Env {
                 .fetch_one(self.persist.pool())
                 .await?,
         )
+    }
+
+    async fn cause(&self, problem: i64) -> anyhow::Result<i64> {
+        self.cause_of(problem)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("problem {problem} has no cause"))
+    }
+
+    async fn queue(&self) -> anyhow::Result<Vec<CauseRow>> {
+        Ok(self.persist.web().list_wright_causes(50).await?)
+    }
+
+    async fn queue_ids(&self) -> anyhow::Result<Vec<i64>> {
+        Ok(self.queue().await?.iter().map(|c| c.cause_id).collect())
+    }
+
+    async fn row(&self, cause: i64) -> anyhow::Result<CauseRow> {
+        self.queue()
+            .await?
+            .into_iter()
+            .find(|c| c.cause_id == cause)
+            .ok_or_else(|| anyhow::anyhow!("cause {cause} is not in the queue"))
+    }
+
+    async fn patch(&self, cause: i64, patch: CausePatch) -> anyhow::Result<PatchOutcome> {
+        Ok(self.persist.web().patch_wright_cause(cause, &patch).await?)
+    }
+
+    async fn operator_merge(&self, root: i64, absorbed: &[i64]) -> anyhow::Result<Vec<i64>> {
+        match self
+            .persist
+            .web()
+            .merge_wright_causes_by_operator(root, absorbed)
+            .await?
+        {
+            MergeOutcome::Merged(merged) => Ok(merged.merge_ids),
+            other => anyhow::bail!("the merge did not run: {other:?}"),
+        }
     }
 
     async fn finding(&self, problem: i64, episode: i64) -> anyhow::Result<()> {
@@ -195,7 +237,7 @@ async fn merging_moves_the_named_causes_problems_into_the_finding_problems_cause
     let merged = env
         .persist
         .web()
-        .merge_wright_causes(root, &[other_cause])
+        .merge_wright_causes(root, &[other_cause], "engineer")
         .await?;
     assert_eq!((merged.causes, merged.problems), (1, 1));
     assert_eq!(env.cause_of(other).await?, env.cause_of(root).await?);
@@ -203,5 +245,20 @@ async fn merging_moves_the_named_causes_problems_into_the_finding_problems_cause
     let (again, _) = env.problem(CHECK, "query 9: SELECT b", run, 1).await?;
     env.persist.web().assign_wright_causes().await?;
     assert_eq!(env.cause_of(again).await?, env.cause_of(root).await?);
+    assert_eq!(
+        env.persist
+            .web()
+            .merge_wright_causes(root, &[other_cause], "engineer")
+            .await?
+            .causes,
+        1
+    );
+    let recorded: Vec<(String, Vec<i64>)> = sqlx::query_as(
+        "SELECT by, problem_ids FROM wright.cause_merges WHERE absorbed_cause_id = $1",
+    )
+    .bind(other_cause)
+    .fetch_all(env.persist.pool())
+    .await?;
+    assert_eq!(recorded, vec![("engineer".to_owned(), vec![other])]);
     env.done().await
 }

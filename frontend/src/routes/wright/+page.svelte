@@ -1,7 +1,7 @@
 <!--
 @component
 Wright: what is wrong in mike now and what was wrong before, what Wright did about each, what a
-fix changed, and the conversation beside it. Design: artifacts/2026-10-16/resident/PAGE_SPEC.md;
+fix changed, with the conversation on top and the queues below it. Design: artifacts/2026-10-16/resident/PAGE_SPEC.md;
 API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 -->
 <script lang="ts">
@@ -15,7 +15,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
 	import WrightActionRow from '$lib/components/wright/WrightActionRow.svelte';
 	import WrightBand from '$lib/components/wright/WrightBand.svelte';
-	import WrightCauseRow from '$lib/components/wright/WrightCauseRow.svelte';
+	import WrightTriage, { type TriageView } from '$lib/components/wright/WrightTriage.svelte';
 	import WrightConversation from '$lib/components/wright/WrightConversation.svelte';
 	import WrightNote from '$lib/components/wright/WrightNote.svelte';
 	import WrightFixRow from '$lib/components/wright/WrightFixRow.svelte';
@@ -37,15 +37,34 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 
 	const store = createWrightStore();
 
+	const TRIAGE_VIEW_KEY = 'mike:wright:triage-view';
+	/** Ranked or By area: remembered in this browser only. */
+	let triageView = $state<TriageView>('ranked');
+
+	function readTriageView(): void {
+		try {
+			const saved = localStorage.getItem(TRIAGE_VIEW_KEY);
+			if (saved === 'ranked' || saved === 'area') triageView = saved;
+		} catch {
+			// Storage blocked: the queue opens on Ranked.
+		}
+	}
+
+	function rememberTriageView(view: TriageView): void {
+		triageView = view;
+		try {
+			localStorage.setItem(TRIAGE_VIEW_KEY, view);
+		} catch {
+			// The choice lasts until the page is closed.
+		}
+	}
+
 	let token = $state<string | null>(null);
 	let requestedProblem = $state<number | null>(null);
 	const paired = $derived(token !== null);
 
 	const problems = $derived<WrightProblem[]>([...store.open.rows, ...store.earlier.rows]);
 	const problemById = (id: number): WrightProblem | undefined => problems.find((p) => p.id === id);
-	/** The representative problem of a cause: from the lists, or fetched when its row was opened. */
-	const causeProblem = (id: number): WrightProblem | undefined =>
-		problemById(id) ?? store.fetchedProblems[id];
 	const waitingCauses = $derived(
 		store.causes.rows.filter((c) => causeState(c, store.waitedHours) === 'waiting').length
 	);
@@ -82,6 +101,7 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 
 	onMount(() => {
 		takePairing();
+		readTriageView();
 		readHash();
 		void store.loadAll();
 		const stop = store.startLive();
@@ -152,44 +172,44 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	{/if}
 {/snippet}
 
+{#snippet problemDetail(problem: WrightProblem)}
+	<WrightProblemDetail
+		{problem}
+		detail={store.details[problem.id]}
+		undo={store.undo}
+		onUndo={(id) => void store.undoAction(id)}
+		onMore={(which) => void store.moreDetail(problem.id, which)}
+		onRetry={() => void store.loadDetail(problem.id)}
+	/>
+{/snippet}
+
 {#snippet causeList()}
-	{#if store.causes.status === 'loading'}
-		<WrightNote>Loading.</WrightNote>
-	{:else if store.causes.status === 'missing'}
-		<WrightNote>Not in the running mike yet.</WrightNote>
-	{:else if store.causes.status === 'error'}
-		<LoadErrorBanner
-			title="Could not load the triage queue"
-			detail={store.causes.error ?? ''}
-			onRetry={() => void store.loadAll()}
-		/>
-	{:else if store.causes.rows.length === 0}
-		<WrightNote>Nothing to triage. Every open problem has an answer.</WrightNote>
-	{:else}
-		<ul class="wr-rows" role="list">
-			{#each store.causes.rows as cause (cause.cause_id)}
-				{@const problem = causeProblem(cause.problem_id)}
-				<WrightCauseRow
-					{cause}
-					waitedHours={store.waitedHours}
-					onOpen={(id) => void store.loadDetail(id)}
-				>
-					{#if problem !== undefined}
-						<WrightProblemDetail
-							{problem}
-							detail={store.details[problem.id]}
-							undo={store.undo}
-							onUndo={(id) => void store.undoAction(id)}
-							onMore={(which) => void store.moreDetail(problem.id, which)}
-							onRetry={() => void store.loadDetail(problem.id)}
-						/>
-					{:else}
-						<WrightNote>Loading.</WrightNote>
-					{/if}
-				</WrightCauseRow>
-			{/each}
-		</ul>
-	{/if}
+	<WrightTriage
+		causes={store.causes.rows}
+		status={store.causes.status}
+		error={store.causes.error}
+		waitedHours={store.waitedHours}
+		groups={store.groups}
+		maxAttempts={store.maxAttempts}
+		causeProblems={store.causeProblems}
+		{paired}
+		busy={store.triageBusy}
+		actionError={store.triageError}
+		initialView={triageView}
+		onView={rememberTriageView}
+		onClearError={store.clearTriageError}
+		onRetry={() => void store.loadAll()}
+		onPin={(id, pinned) => store.pinCause(id, pinned)}
+		onMove={(id, priority) => store.moveCause(id, priority)}
+		onMerge={(rootId, ids) => store.mergeCauses(rootId, ids)}
+		onSeparate={(mergeId) => store.separateMerge(mergeId)}
+		onGroup={(ids, target) => store.groupCauses(ids, target)}
+		onOpenCause={(cause) => void store.loadCauseProblems(cause.cause_id)}
+		onRetryProblems={(id) => void store.loadCauseProblems(id)}
+		onShowHeldProblems={(id) => store.showHeldCauseProblems(id)}
+		onOpenProblem={(id) => void store.loadDetail(id)}
+		problem={problemDetail}
+	/>
 {/snippet}
 
 {#snippet followupList()}
@@ -420,16 +440,14 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 		padding: var(--space-5) var(--space-6) var(--space-8);
 	}
 
+	/* The conversation on top, everything Wright is doing below it, each the full page width. */
 	.wr-body {
-		display: grid;
-		grid-template-columns: minmax(0, 5fr) minmax(22rem, 4fr);
-		gap: var(--space-5);
-		align-items: start;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-6);
 	}
 
 	.wr-convo {
-		position: sticky;
-		top: var(--space-4);
 		min-width: 0;
 	}
 
@@ -467,14 +485,6 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 	@container (max-width: 860px) {
 		.wr {
 			padding: var(--space-4) var(--space-4) var(--space-6);
-		}
-
-		.wr-body {
-			grid-template-columns: minmax(0, 1fr);
-		}
-
-		.wr-convo {
-			position: static;
 		}
 	}
 </style>

@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::wright::{
-    checks, conversation, fix_batches, followups, investigations, problems as api, remedies,
+    causes, checks, conversation, fix_batches, followups, investigations, problems as api, remedies,
     repairs,
 };
 use crate::state::AppState;
@@ -28,6 +28,62 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/wright/causes",
         Coverage::Exempt {
             reason: "Wright's triage queue for the Wright page: open problems grouped by cause and ranked; no session workflow reads it yet",
+        },
+    ),
+    route(
+        "PATCH",
+        "/api/wright/causes/{id}",
+        Coverage::Exempt {
+            reason: "The operator pins a cause, sets its place in the queue or puts it in a group from the Wright page; the engineer takes work in that order, so no session may change it and no tool reaches it",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/causes/{id}/merge",
+        Coverage::Exempt {
+            reason: "Operator-only: merges causes into one in the triage queue from the Wright page; a session must never decide which faults are one, so no tool reaches it",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/causes/{id}/problems",
+        Coverage::Exempt {
+            reason: "Every open problem of one cause, most observed first, for the Wright page's open row; no session workflow reads it yet",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/cause-merges/{id}/separate",
+        Coverage::Exempt {
+            reason: "Operator-only: undoes a merge the operator made in the triage queue; sessions never change the queue",
+        },
+    ),
+    route(
+        "GET",
+        "/api/wright/cause-groups",
+        Coverage::Exempt {
+            reason: "The operator's named groups of causes for the Wright page; no session workflow reads them",
+        },
+    ),
+    route(
+        "POST",
+        "/api/wright/cause-groups",
+        Coverage::Exempt {
+            reason: "Operator-only: creates a named group of causes from the Wright page; sessions never change the queue",
+        },
+    ),
+    route(
+        "PATCH",
+        "/api/wright/cause-groups/{id}",
+        Coverage::Exempt {
+            reason: "Operator-only: renames a named group of causes from the Wright page; sessions never change the queue",
+        },
+    ),
+    route(
+        "DELETE",
+        "/api/wright/cause-groups/{id}",
+        Coverage::Exempt {
+            reason: "Operator-only: deletes a named group of causes from the Wright page; its causes lose the group; sessions never change the queue",
         },
     ),
     route("GET", "/api/wright/checks", Coverage::Tool("wright_checks")),
@@ -192,6 +248,31 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/api/wright/problems", get(api::list_problems))
         .route("/api/wright/causes", get(api::list_causes))
+        .route(
+            "/api/wright/causes/{id}",
+            patch(causes::patch_cause_as_operator),
+        )
+        .route(
+            "/api/wright/causes/{id}/merge",
+            post(causes::merge_causes_as_operator),
+        )
+        .route(
+            "/api/wright/causes/{id}/problems",
+            get(causes::list_cause_problems),
+        )
+        .route(
+            "/api/wright/cause-merges/{id}/separate",
+            post(causes::separate_merge_as_operator),
+        )
+        .route(
+            "/api/wright/cause-groups",
+            get(causes::list_cause_groups).post(causes::create_cause_group_as_operator),
+        )
+        .route(
+            "/api/wright/cause-groups/{id}",
+            patch(causes::rename_cause_group_as_operator)
+                .delete(causes::delete_cause_group_as_operator),
+        )
         .route("/api/wright/problems/{id}", get(api::get_problem))
         .route(
             "/api/wright/checks",

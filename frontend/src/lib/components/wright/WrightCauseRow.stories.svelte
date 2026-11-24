@@ -1,7 +1,14 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { expect, userEvent, within } from 'storybook/test';
-	import { LONG_RESOURCE, WAITED_HOURS, ago, causeFixture, causes } from '../__fixtures__/wright';
+	import { expect, fn, userEvent, within } from 'storybook/test';
+	import {
+		LONG_RESOURCE,
+		WAITED_HOURS,
+		absorbedFixture,
+		ago,
+		causeFixture,
+		causes
+	} from '../__fixtures__/wright';
 	import WrightCauseRow from './WrightCauseRow.svelte';
 
 	const { Story } = defineMeta({
@@ -22,6 +29,32 @@
 
 	const frame =
 		'list-style: none; margin: 0; padding: 0; max-width: 40rem; --edge-surface: var(--surface-card);';
+
+	/** Pinned, moved by the operator, in a group, with two merges: every mark the row can carry. */
+	const OPERATOR = causeFixture({
+		cause_id: 50,
+		check_name: 'slow_queries',
+		resource: 'query 1: SELECT * FROM memory.operator_turns',
+		problems: 3,
+		pinned: true,
+		pinned_at: ago(30),
+		operator_priority: 120,
+		group_id: 3,
+		group_name: 'Mail delivery',
+		absorbed: [absorbedFixture(), absorbedFixture({ merge_id: 6, cause_id: 32, by: 'engineer' })]
+	});
+	const PLAIN = causeFixture({
+		cause_id: 51,
+		check_name: 'slow_queries',
+		resource: 'query 2: SELECT * FROM memory.operator_turns',
+		problems: 3
+	});
+	const onSelect = fn();
+	const onPin = fn();
+	const onMove = fn();
+	const onReset = fn();
+	const onGroup = fn();
+	const WIDE = 'list-style: none; margin: 0; padding: 0; max-width: 64rem; --edge-surface: var(--surface-card);';
 </script>
 
 <Story
@@ -143,7 +176,7 @@
 		await expect(line).toHaveAttribute('title', LONG_RESOURCE);
 		await expect(line.scrollHeight).toBeLessThanOrEqual(line.clientHeight + 1);
 		// The whole text is one click away.
-		await userEvent.click(canvas.getByRole('button', { name: /slow_queries/ }));
+		await userEvent.click(canvas.getByRole('button', { name: /slow_queries/, expanded: false }));
 		const full = canvasElement.querySelector('.cause__full') as HTMLElement;
 		await expect(full.textContent).toBe(LONG_RESOURCE);
 		await expect(canvas.getByText(/^7 problems open · 1733 observations/)).toBeVisible();
@@ -179,5 +212,81 @@
 				/>
 			</ul>
 		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="Operator actions"
+	play={async ({ canvasElement }) => {
+		const pinned = canvasElement.querySelector('#cause-50') as HTMLElement;
+		const plain = canvasElement.querySelector('#cause-51') as HTMLElement;
+		const mine = within(pinned);
+
+		// The marks the operator's actions leave on the row.
+		await expect(mine.getByText('Pinned')).toBeVisible();
+		await expect(mine.getByText('memory tables')).toBeVisible();
+		await expect(mine.getByText('Mail delivery')).toBeVisible();
+		await expect(mine.getByText('Moved by you')).toBeVisible();
+		await expect(mine.getByText('2 merged')).toBeVisible();
+		await expect(pinned).toHaveAttribute('data-pinned');
+		await expect(pinned).toHaveAttribute('data-drop', 'before');
+
+		// The actions sit beside the toggle and each does one thing.
+		await userEvent.click(mine.getByRole('button', { name: 'Unpin slow_queries' }));
+		await expect(onPin).toHaveBeenCalledWith(false);
+		await userEvent.click(mine.getByRole('button', { name: 'Move slow_queries up' }));
+		await expect(onMove).toHaveBeenCalledWith('up');
+		await expect(mine.getByRole('button', { name: 'Move slow_queries down' })).toBeDisabled();
+		await userEvent.click(mine.getByRole('button', { name: 'Reset the order of slow_queries' }));
+		await expect(onReset).toHaveBeenCalled();
+		await userEvent.click(mine.getByRole('button', { name: 'Add slow_queries to a group' }));
+		await expect(onGroup).toHaveBeenCalled();
+		await userEvent.click(mine.getByRole('checkbox', { name: 'Select slow_queries' }));
+		await expect(onSelect).toHaveBeenCalledWith(true);
+
+		// Reset keeps its slot and is off while there is nothing to reset.
+		const reset = plain.querySelector('.cause__act--idle') as HTMLElement;
+		await expect(reset).toHaveAttribute('aria-label', 'Reset the order of slow_queries');
+		await expect(reset).toBeDisabled();
+		await expect(reset).not.toBeVisible();
+
+		// No action is inside the toggle button.
+		const toggle = mine.getByRole('button', { name: /query 1/, expanded: false });
+		await expect(toggle.querySelector('button, input, a')).toBeNull();
+
+		// Pinning or moving a row does not change its height.
+		const main = (row: HTMLElement): number =>
+			(row.querySelector('.cause__main') as HTMLElement).getBoundingClientRect().height;
+		await expect(main(pinned)).toBe(main(plain));
+	}}
+>
+	{#snippet template()}
+		<ul class="edge" style={WIDE}>
+			<WrightCauseRow
+				cause={OPERATOR}
+				waitedHours={WAITED_HOURS}
+				selected={false}
+				{onSelect}
+				canMoveUp={true}
+				canMoveDown={false}
+				{onPin}
+				{onMove}
+				{onReset}
+				{onGroup}
+				draggable={true}
+				dropEdge="before"
+			/>
+			<WrightCauseRow
+				cause={PLAIN}
+				waitedHours={WAITED_HOURS}
+				onSelect={() => {}}
+				canMoveUp={true}
+				canMoveDown={true}
+				{onPin}
+				{onMove}
+				{onReset}
+				{onGroup}
+			/>
+		</ul>
 	{/snippet}
 </Story>

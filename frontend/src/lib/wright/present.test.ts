@@ -135,6 +135,79 @@ describe('steers and evidence refs', () => {
 			detail: 'Until tomorrow'
 		});
 		expect(describeSteer({ type: 'surprise' }).icon).toBe('other');
+		expect(describeSteer({ type: 'pause_remedy', name: 'x' }).links).toEqual([]);
+	});
+
+	it('describes pinning, unpinning and the order of a cause, linking its row', () => {
+		expect(describeSteer({ kind: 'pin_cause', cause_id: 19 })).toEqual({
+			icon: 'pin',
+			title: 'Pin cause 19',
+			detail: 'A pinned cause comes before every unpinned one.',
+			links: [{ text: 'Cause 19', href: '#cause-19' }]
+		});
+		expect(describeSteer({ kind: 'unpin_cause', cause_id: 19 }).title).toBe('Unpin cause 19');
+		expect(describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: 12.5 })).toMatchObject({
+			icon: 'order',
+			title: 'Set the order of cause 19',
+			detail: 'Ranked as 12.5 instead of by the formula.'
+		});
+		expect(describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: null })).toMatchObject({
+			title: 'Reset the order of cause 19',
+			detail: 'The formula decides its place again.'
+		});
+	});
+
+	it('describes a merge and a separate, naming every cause', () => {
+		expect(describeSteer({ kind: 'merge_causes', into: 19, cause_ids: [298, 307] })).toMatchObject({
+			icon: 'merge',
+			title: 'Merge causes 298 and 307 into 19',
+			links: [
+				{ text: 'Cause 19', href: '#cause-19' },
+				{ text: 'Cause 298', href: '#cause-298' },
+				{ text: 'Cause 307', href: '#cause-307' }
+			]
+		});
+		expect(describeSteer({ kind: 'merge_causes', into: 19, cause_ids: [298] }).title).toBe(
+			'Merge cause 298 into 19'
+		);
+		expect(describeSteer({ kind: 'merge_causes', into: 1, cause_ids: [2, 3, 4] }).title).toBe(
+			'Merge causes 2, 3 and 4 into 1'
+		);
+		// A merge id is not a cause id, so there is no row to link.
+		expect(describeSteer({ kind: 'separate_merge', merge_id: 5 })).toMatchObject({
+			icon: 'separate',
+			title: 'Separate merge 5',
+			links: []
+		});
+	});
+
+	it('describes grouping and ungrouping', () => {
+		expect(
+			describeSteer({ kind: 'group_causes', name: 'slow memory queries', cause_ids: [19, 318] })
+		).toMatchObject({
+			icon: 'group',
+			title: 'Put causes 19 and 318 in the group slow memory queries',
+			links: [
+				{ text: 'Cause 19', href: '#cause-19' },
+				{ text: 'Cause 318', href: '#cause-318' }
+			]
+		});
+		expect(describeSteer({ kind: 'group_causes', name: 'mail', cause_ids: [7] }).title).toBe(
+			'Put cause 7 in the group mail'
+		);
+		expect(describeSteer({ kind: 'ungroup_causes', cause_ids: [19, 318] }).title).toBe(
+			'Take causes 19 and 318 out of their group'
+		);
+		expect(describeSteer({ kind: 'ungroup_causes', cause_ids: [19] }).title).toBe(
+			'Take cause 19 out of its group'
+		);
+	});
+
+	it('still reads a cause steer whose ids are missing or malformed', () => {
+		expect(describeSteer({ kind: 'pin_cause' })).toMatchObject({ title: 'Pin causes', links: [] });
+		expect(
+			describeSteer({ kind: 'group_causes', name: 'x', cause_ids: [19, 'a', null] }).title
+		).toBe('Put cause 19 in the group x');
 	});
 
 	it('links sessions, requests and problems, and leaves files as labels', () => {

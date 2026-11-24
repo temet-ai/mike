@@ -6735,6 +6735,7 @@ Changes to the seeded set since then:
 - `20261120166965_idle_polls_one_hour_window.sql` shortens `idle_polls`' window so a statement fixed early in it does not stay flagged on its old rate.
 - `20261120166800_wright_repair_22_superseded.sql` drops repair 22 and closes the two problems it served, because its target statement was replaced.
 - `20261120166990_idle_polls_statement_counters.sql` adds `wright.statement_counters` (`queryid`, `taken_at`, `calls`, `rows`, `total_ms`, `stats_since`; primary key `queryid, taken_at`). The watch runner fills it before each `idle_polls` pass (`watch/counters.rs`): a new snapshot of every statement of a role in `params.roles` once its newest is `min_window_minutes` old or its counters were reset, keeping the two newest per statement and dropping statements not seen for 6 hours. `idle_polls` now judges each statement from its newest snapshot at least `min_window_minutes` old instead of from episode bases, so a statement it never flagged is no longer judged over its whole history; the param `window_hours` goes.
+- `20261124150000_wright_query_checks_full_text.sql` takes every `left(<text>, n)` off the statement text in the stored queries of `slow_queries`, `reads_outpace_writes` and `idle_polls`: a finding's resource is `query <queryid>: ` followed by the whole whitespace-collapsed statement (it was cut at 120 characters), the evidence field `query` is the whole text (it was cut at 160, and at 4000 for `slow_queries`), and `slow_queries` compares whole texts to find a statement that came back under a new queryid (it compared the first 120 characters). A problem is identified by `UNIQUE (check_name, scope, resource)`, so the migration rewrites the resource of every `scope = 'query'` problem of those checks, open or healthy, to the whole text read from `pg_stat_statements` by the queryid in its prefix; a problem whose queryid is gone from `pg_stat_statements`, or whose old text is not the start of the current text, keeps its resource. Triage's cause key is the first 60 characters of the normalised resource, so it is the same before and after.
 - `20261123100000_wright_reads_outpace_writes.sql` adds `wright.table_counters` (`taken_at`, `relid`, `writes`: `n_tup_ins + n_tup_upd + n_tup_del` from `pg_stat_user_tables`; primary key `taken_at, relid`) and the check `reads_outpace_writes`. The runner writes every table's counters in the same transaction as each statement snapshot and deletes a table snapshot once no statement snapshot has its `taken_at`. The check reports a read-only statement run `calls_per_hour` or more times an hour that is read `reads_per_write` or more times per row written to the tables its FROM and JOIN clauses name (through views and partitions), over the `idle_polls` window, whether or not it returns rows.
 
 | Column | Type | Purpose |
@@ -6846,7 +6847,33 @@ ON DELETE SET NULL`, partial index `idx_wright_problems_cause`) is set once per 
 The view `wright.cause_queue` has one row per cause with an open problem: its representative
 problem and episode (most observed), problem and observation counts, attempts, finding, live
 follow-up and issue, whether a remedy answers the check, and `priority = problems + ln(1 +
-observations) + days open`.
+observations) + days open`. Migration `20261124140000_wright_cause_operator.sql` adds the
+operator's controls to `wright.causes`: `pinned_at` (`TIMESTAMPTZ NULL`; a pinned cause comes before
+every unpinned one), `operator_priority` (`DOUBLE PRECISION NULL`, between -1e12 and 1e12; when set
+it replaces `priority` for that cause) and `group_id` (`BIGINT NULL REFERENCES
+wright.cause_groups(id) ON DELETE SET NULL`, partial index `idx_wright_causes_group`; a group only
+changes how the page shows a cause and has no effect on ranking). The view gains, after its
+existing columns, `pinned`, `operator_priority`, `rank_priority` (`COALESCE(operator_priority,
+priority)`) and `group_id`; every reader orders by `pinned DESC, rank_priority DESC, cause_id`.
+
+### `wright.cause_groups`
+
+The operator's named groups of causes (migration `20261124140000_wright_cause_operator.sql`):
+`id` (identity), `name` (`TEXT NOT NULL UNIQUE`, non-blank), `created_at`. Deleting a group sets
+`wright.causes.group_id` to null on its causes.
+
+### `wright.cause_merges`
+
+One row per cause absorbed by a merge (migration `20261124140000_wright_cause_operator.sql`): `id`
+(identity), `root_cause_id` and `absorbed_cause_id` (both `REFERENCES wright.causes(id) ON DELETE
+CASCADE`, different, indexed), `problem_ids` (`BIGINT[] NOT NULL`, the problems moved from the
+absorbed cause), `by` (`operator` or `engineer`), `created_at` and `separated_at`. An engineer
+merge (a finding's `same_cause_as`) and an operator merge (cause to cause, from the Wright page)
+both write rows. Separating is allowed only on an operator merge with `separated_at` null: it
+clears the absorbed cause's `merged_into`, moves the listed problems that still sit in the root
+cause back, and sets `separated_at`. Problems opened after the merge stay in the root, because
+triage assigned them there. The partial index `idx_wright_cause_merges_root` serves the list of
+live merges per root.
 
 ### `wright.followup_limits`
 

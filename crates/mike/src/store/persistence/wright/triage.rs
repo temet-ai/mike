@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::store::persistence::PersistError;
 
@@ -64,6 +64,27 @@ pub(crate) struct CauseRow {
     pub(crate) priority: f64,
     pub(crate) notified_at: Option<DateTime<Utc>>,
     pub(crate) commented_at: Option<DateTime<Utc>>,
+    pub(crate) pinned: bool,
+    pub(crate) pinned_at: Option<DateTime<Utc>>,
+    pub(crate) operator_priority: Option<f64>,
+    pub(crate) rank_priority: f64,
+    pub(crate) group_id: Option<i64>,
+    pub(crate) group_name: Option<String>,
+    pub(crate) absorbed: sqlx::types::Json<Vec<AbsorbedCause>>,
+    pub(crate) investigable: bool,
+    pub(crate) not_investigated_because: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct AbsorbedCause {
+    pub(crate) merge_id: i64,
+    pub(crate) cause_id: i64,
+    pub(crate) check_name: String,
+    pub(crate) key: String,
+    pub(crate) problems: i64,
+    pub(crate) by: String,
+    pub(crate) created_at: DateTime<Utc>,
+    pub(crate) can_separate: bool,
 }
 
 impl crate::store::persistence::web_repo::WebDb<'_> {
@@ -78,10 +99,12 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         self,
         problem_id: i64,
         cause_ids: &[i64],
+        by: &str,
     ) -> Result<Merged, PersistError> {
         let (causes, problems): (i64, i64) = sqlx::query_as(MERGE) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
             .bind(problem_id)
             .bind(cause_ids)
+            .bind(by)
             .fetch_one(self.pool())
             .await?;
         Ok(Merged { causes, problems })
@@ -129,7 +152,18 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         Ok(
             sqlx::query_as(LIST) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .bind(limit)
+                .bind(None::<i64>)
                 .fetch_all(self.pool())
+                .await?,
+        )
+    }
+
+    pub(crate) async fn wright_cause(self, cause_id: i64) -> Result<Option<CauseRow>, PersistError> {
+        Ok(
+            sqlx::query_as(LIST) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
+                .bind(1_i64)
+                .bind(Some(cause_id))
+                .fetch_optional(self.pool())
                 .await?,
         )
     }

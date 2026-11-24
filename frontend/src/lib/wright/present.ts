@@ -225,12 +225,111 @@ export const REPAIR_STOPPED: Partial<Record<RepairState, string>> = {
 	refused: 'Refused: the change touches something Wright may not change.'
 };
 
-export type ChangeIcon = 'pause' | 'resume' | 'open' | 'limit' | 'skip' | 'other';
+export type ChangeIcon =
+	| 'pause'
+	| 'resume'
+	| 'open'
+	| 'limit'
+	| 'skip'
+	| 'pin'
+	| 'order'
+	| 'merge'
+	| 'separate'
+	| 'group'
+	| 'ungroup'
+	| 'other';
 
 export interface SteerView {
 	icon: ChangeIcon;
 	title: string;
 	detail: string;
+	/** Where the change points: the rows of the causes it names, on this page. */
+	links: { text: string; href: string }[];
+}
+
+/** Whole numbers named by a steer field, in the order given; anything else is left out. */
+function idList(value: unknown): number[] {
+	return Array.isArray(value)
+		? value.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+		: [];
+}
+
+/** "19", "19 and 318", "19, 318 and 400". */
+function joinIds(ids: number[]): string {
+	if (ids.length <= 1) return ids.map(String).join('');
+	return `${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}`;
+}
+
+/** "cause 19", "causes 19 and 318", or just "causes" when the steer names none. */
+function causeWords(ids: number[]): string {
+	if (ids.length === 0) return 'causes';
+	return `${ids.length === 1 ? 'cause' : 'causes'} ${joinIds(ids)}`;
+}
+
+const causeLinks = (ids: number[]): SteerView['links'] =>
+	ids.map((id) => ({ text: `Cause ${id}`, href: `#cause-${id}` }));
+
+function causeSteer(kind: string, change: SteerChange): SteerView | null {
+	const one = idList([change.cause_id]);
+	const many = idList(change.cause_ids);
+	const into = idList([change.into]);
+	switch (kind) {
+		case 'pin_cause':
+			return {
+				icon: 'pin',
+				title: `Pin ${causeWords(one)}`,
+				detail: 'A pinned cause comes before every unpinned one.',
+				links: causeLinks(one)
+			};
+		case 'unpin_cause':
+			return {
+				icon: 'pin',
+				title: `Unpin ${causeWords(one)}`,
+				detail: 'It goes back to its place by score.',
+				links: causeLinks(one)
+			};
+		case 'set_cause_priority': {
+			const reset = change.priority === null || change.priority === undefined;
+			return {
+				icon: 'order',
+				title: `${reset ? 'Reset the order of' : 'Set the order of'} ${causeWords(one)}`,
+				detail: reset
+					? 'The formula decides its place again.'
+					: `Ranked as ${text(change.priority)} instead of by the formula.`,
+				links: causeLinks(one)
+			};
+		}
+		case 'merge_causes':
+			return {
+				icon: 'merge',
+				title: `Merge ${causeWords(many)} into ${into.length > 0 ? joinIds(into) : 'one cause'}`,
+				detail: 'Their problems move into it. Separate on the kept cause undoes this.',
+				links: causeLinks([...into, ...many])
+			};
+		case 'separate_merge':
+			return {
+				icon: 'separate',
+				title: `Separate merge ${text(change.merge_id)}`,
+				detail: 'The merged cause comes back as its own cause, with its problems.',
+				links: []
+			};
+		case 'group_causes':
+			return {
+				icon: 'group',
+				title: `Put ${causeWords(many)} in the group ${text(change.name)}`,
+				detail: 'A group only changes how the page lists causes, not their order.',
+				links: causeLinks(many)
+			};
+		case 'ungroup_causes':
+			return {
+				icon: 'ungroup',
+				title: `Take ${causeWords(many)} out of ${many.length === 1 ? 'its' : 'their'} group`,
+				detail: 'A group only changes how the page lists causes, not their order.',
+				links: causeLinks(many)
+			};
+		default:
+			return null;
+	}
 }
 
 function text(value: unknown): string {
@@ -244,6 +343,10 @@ function until(value: unknown): string {
 /** The closed set of steers Wright may propose, as the card that sits under its reply. */
 export function describeSteer(change: SteerChange): SteerView {
 	const kind = text(change.type ?? change.kind ?? change.action);
+	return causeSteer(kind, change) ?? { ...describeRemedySteer(kind, change), links: [] };
+}
+
+function describeRemedySteer(kind: string, change: SteerChange): Omit<SteerView, 'links'> {
 	switch (kind) {
 		case 'pause_remedy':
 			return {
