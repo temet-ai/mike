@@ -69,6 +69,7 @@ pub(crate) struct CauseRow {
     pub(crate) operator_priority: Option<f64>,
     pub(crate) rank_priority: f64,
     pub(crate) group_id: Option<i64>,
+    pub(crate) statement: Option<String>,
     pub(crate) group_name: Option<String>,
     pub(crate) absorbed: sqlx::types::Json<Vec<AbsorbedCause>>,
     pub(crate) investigable: bool,

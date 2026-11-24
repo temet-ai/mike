@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { normaliseCause, type WrightCause } from '$lib/api/wright';
+import {
+	normaliseCause,
+	normaliseProblem,
+	type WireProblem,
+	type WrightCause
+} from '$lib/api/wright';
 import {
 	byPriorityDesc,
 	canMove,
@@ -26,6 +31,7 @@ function cause(over: Partial<WrightCause> = {}): WrightCause {
 		problem_id: 7,
 		check_name: 'slow_queries',
 		resource: 'query 1',
+		statement: null,
 		problems: 1,
 		observations: 1,
 		opened_at: hoursAgo(1),
@@ -192,6 +198,23 @@ describe('causeArea', () => {
 		});
 	});
 
+	it('reads the area from the whole statement when the resource was cut before its table', () => {
+		const text = `SELECT ${'a, '.repeat(60)}x FROM mailbox.messages m JOIN steering.interventions i ON i.id = m.id`;
+		const cut = `query 42: ${text.slice(0, 120)}`;
+		expect(causeArea(cause({ check_name: 'idle_polls', resource: cut }))).toMatchObject({
+			kind: 'check',
+			label: 'idle_polls'
+		});
+		const area = causeArea(
+			cause({ check_name: 'idle_polls', resource: cut, statement: text })
+		);
+		expect(area).toMatchObject({
+			kind: 'tables',
+			label: 'mailbox tables',
+			detail: ['mailbox.messages', 'steering.interventions']
+		});
+	});
+
 	it('puts two checks against the same schema in one area', () => {
 		const slow = causeArea(
 			cause({ check_name: 'slow_queries', resource: 'query 1: SELECT * FROM wright.problems' })
@@ -305,6 +328,13 @@ describe('normaliseCause', () => {
 		expect(engineerLine(row, null)).toBeNull();
 	});
 
+	it('reads the statement as null when absent and keeps it when the server sent one', () => {
+		expect(normaliseCause(REAL_ROWS[0]!).statement).toBeNull();
+		const whole = 'SELECT 1 FROM wright.problems';
+		expect(normaliseCause({ ...REAL_ROWS[0]!, statement: whole }).statement).toBe(whole);
+		expect(normaliseCause({ ...REAL_ROWS[0]!, statement: null }).statement).toBeNull();
+	});
+
 	it('keeps what the server sent, and ranks by the operator value when there is one', () => {
 		const row = normaliseCause({
 			...REAL_ROWS[0]!,
@@ -324,6 +354,31 @@ describe('normaliseCause', () => {
 			kind: 'check',
 			label: 'slow_queries'
 		});
+	});
+});
+
+describe('normaliseProblem', () => {
+	const wire: WireProblem = {
+		id: 4,
+		check_name: 'slow_queries',
+		scope: 'query',
+		source: 'capture_db',
+		resource: 'query 1: SELECT 1',
+		state: 'open',
+		opened_at: '2026-11-24T10:00:00Z',
+		last_seen_at: '2026-11-24T11:00:00Z',
+		healthy_at: null,
+		episodes: 1,
+		latest_evidence: {}
+	};
+
+	it('reads the statement as null when a running mike does not send it', () => {
+		expect(normaliseProblem(wire).statement).toBeNull();
+	});
+
+	it('keeps the whole statement the server sent', () => {
+		const whole = `SELECT ${'x, '.repeat(9000)}y FROM wright.problems`;
+		expect(normaliseProblem({ ...wire, statement: whole }).statement).toBe(whole);
 	});
 });
 

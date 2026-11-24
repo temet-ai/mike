@@ -16,13 +16,23 @@ export interface WrightProblem {
 	check_name: string;
 	scope: string;
 	source: string;
+	/** What tells one problem from another. For a query it is cut after 120 characters of SQL. */
 	resource: string;
+	/** The whole SQL text of a query problem; null for a check that is not about a statement. */
+	statement: string | null;
 	state: ProblemState;
 	opened_at: string;
 	last_seen_at: string;
 	healthy_at: string | null;
 	episodes: number;
 	latest_evidence: Record<string, unknown>;
+}
+
+/** A problem as the wire may send it: `statement` is absent before its backend deploys. */
+export type WireProblem = Omit<WrightProblem, 'statement'> & { statement?: string | null };
+
+export function normaliseProblem(wire: WireProblem): WrightProblem {
+	return { ...wire, statement: wire.statement ?? null };
 }
 
 export interface ProblemsPage {
@@ -336,15 +346,23 @@ export interface ListProblemsParams {
 	offset?: number;
 }
 
-export function listProblems(params: ListProblemsParams = {}): Promise<ProblemsPage> {
-	return request('GET', `/api/wright/problems${query({ ...params })}`);
+export async function listProblems(params: ListProblemsParams = {}): Promise<ProblemsPage> {
+	const res = await request<Omit<ProblemsPage, 'problems'> & { problems: WireProblem[] }>(
+		'GET',
+		`/api/wright/problems${query({ ...params })}`
+	);
+	return { ...res, problems: res.problems.map(normaliseProblem) };
 }
 
-export function getProblem(
+export async function getProblem(
 	id: number,
 	params: { episode_limit?: number; episode_offset?: number } = {}
 ): Promise<ProblemDetail> {
-	return request('GET', `/api/wright/problems/${id}${query(params)}`);
+	const res = await request<Omit<ProblemDetail, 'problem'> & { problem: WireProblem }>(
+		'GET',
+		`/api/wright/problems/${id}${query(params)}`
+	);
+	return { ...res, problem: normaliseProblem(res.problem) };
 }
 
 export function listRemedies(): Promise<RemediesResponse> {
@@ -424,8 +442,10 @@ export interface WrightCause {
 	cause_id: number;
 	problem_id: number;
 	check_name: string;
-	/** Can be long SQL text. */
+	/** Can be long SQL text; for a query it is cut after 120 characters of the SQL. */
 	resource: string;
+	/** The whole SQL text of the cause's most-observed problem; null when it is not a statement. */
+	statement: string | null;
 	problems: number;
 	observations: number;
 	opened_at: string;
@@ -492,6 +512,7 @@ export interface CausesResponse {
 /** A cause row as the wire may send it: the operator fields are absent before their backend deploys. */
 type WireCause = Omit<
 	WrightCause,
+	| 'statement'
 	| 'pinned'
 	| 'pinned_at'
 	| 'operator_priority'
@@ -509,6 +530,7 @@ export function normaliseCause(wire: WireCause): WrightCause {
 	const operatorPriority = wire.operator_priority ?? null;
 	return {
 		...wire,
+		statement: wire.statement ?? null,
 		pinned: wire.pinned ?? false,
 		pinned_at: wire.pinned_at ?? null,
 		operator_priority: operatorPriority,
@@ -575,11 +597,11 @@ export function separateMerge(mergeId: number): Promise<{ merge: unknown }> {
 
 /** Every open problem of the cause, most observed first. */
 export async function listCauseProblems(id: number): Promise<WrightProblem[]> {
-	const res = await request<{ problems: WrightProblem[] }>(
+	const res = await request<{ problems: WireProblem[] }>(
 		'GET',
 		`/api/wright/causes/${id}/problems`
 	);
-	return res.problems;
+	return res.problems.map(normaliseProblem);
 }
 
 export async function listCauseGroups(): Promise<WrightGroup[]> {

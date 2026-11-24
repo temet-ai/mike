@@ -9,11 +9,13 @@ use crate::wright::{CheckOutcome, CheckRun, Finding};
 const MIGRATION: &str = include_str!(
     "../../../../mike-base/src/store/persistence/migrations/20261124150000_wright_query_checks_full_text.sql"
 );
+const RESOURCE_TEXT_CHARS: usize = 120;
+const HUGE: usize = 25_000;
 
-fn long_statement(tag: &str) -> String {
+fn long_statement(tag: &str, padding: usize) -> String {
     format!(
         "SELECT p.id,   p.check_name,\n       p.scope\n  FROM wright.problems p\n WHERE p.id < $4 AND p.check_name <> $1 AND p.scope <> $2 AND p.resource <> $3\n   AND p.state <> p.scope /* {tag}: padding that keeps the statement far over 160 characters {} */",
-        "w".repeat(300)
+        "w".repeat(padding)
     )
 }
 
@@ -51,6 +53,11 @@ async fn collapsed(db: &Db, sql: &str) -> anyhow::Result<String> {
             .fetch_one(db.handle.pool())
             .await?,
     )
+}
+
+fn named(id: &str, whole: &str) -> String {
+    let cut: String = whole.chars().take(RESOURCE_TEXT_CHARS).collect();
+    format!("query {id}: {cut}")
 }
 
 async fn queryid(db: &Db, sql: &str) -> anyhow::Result<String> {
@@ -102,26 +109,17 @@ async fn record(db: &Db, findings: Vec<Finding>) -> anyhow::Result<(i64, i64, i6
     ))
 }
 
-fn finding(resource: &str) -> Finding {
+fn finding(scope: &str, resource: &str, evidence: serde_json::Value) -> Finding {
     Finding {
-        scope: "query".to_owned(),
+        scope: scope.to_owned(),
         resource: resource.to_owned(),
-        evidence: json!({"queryid": "x"}),
+        evidence,
     }
 }
 
-async fn resource_of(db: &Db, problem: i64) -> anyhow::Result<String> {
+async fn statement_of(db: &Db, resource: &str) -> anyhow::Result<Option<String>> {
     Ok(
-        sqlx::query_scalar("SELECT resource FROM wright.problems WHERE id = $1")
-            .bind(problem)
-            .fetch_one(db.handle.pool())
-            .await?,
-    )
-}
-
-async fn problem_id(db: &Db, resource: &str) -> anyhow::Result<i64> {
-    Ok(
-        sqlx::query_scalar("SELECT id FROM wright.problems WHERE resource = $1")
+        sqlx::query_scalar("SELECT statement FROM wright.problems WHERE resource = $1")
             .bind(resource)
             .fetch_one(db.handle.pool())
             .await?,
@@ -129,10 +127,11 @@ async fn problem_id(db: &Db, resource: &str) -> anyhow::Result<i64> {
 }
 
 #[tokio::test]
-async fn idle_polls_reports_the_whole_statement_in_resource_and_evidence() -> anyhow::Result<()> {
+async fn idle_polls_keeps_the_resource_short_and_puts_the_whole_statement_in_the_evidence()
+-> anyhow::Result<()> {
     let db = Db::boot().await?;
     with_statements(&db).await?;
-    let sql = long_statement("idle_polls full text");
+    let sql = long_statement("idle_polls full text", 300);
     run(&db, &sql, 600).await?;
     idle_snapshot(&db, &sql).await?;
     let id = queryid(&db, &sql).await?;
@@ -145,7 +144,7 @@ async fn idle_polls_reports_the_whole_statement_in_resource_and_evidence() -> an
         .filter(|f| f.evidence["queryid"] == id)
         .collect();
     assert_eq!(found.len(), 1);
-    assert_eq!(found[0].resource, format!("query {id}: {whole}"));
+    assert_eq!(found[0].resource, named(&id, &whole));
     assert_eq!(found[0].evidence["query"], whole);
     db.cleanup().await
 }
@@ -153,7 +152,7 @@ async fn idle_polls_reports_the_whole_statement_in_resource_and_evidence() -> an
 const LONG_LOOKUP: &str = "SELECT l.id,   l.label\n  FROM public.rare_lookup l /* written long so that the statement is far over the old 120 and 160 character cuts of the resource and the evidence */\n WHERE l.id >= $1\n ORDER BY l.id";
 
 #[tokio::test]
-async fn reads_outpace_writes_reports_the_whole_statement_in_resource_and_evidence()
+async fn reads_outpace_writes_keeps_the_resource_short_and_puts_the_whole_statement_in_the_evidence()
 -> anyhow::Result<()> {
     let db = reads::boot().await?;
     reads::read(&db, LONG_LOOKUP, 600).await?;
@@ -162,13 +161,14 @@ async fn reads_outpace_writes_reports_the_whole_statement_in_resource_and_eviden
     assert!(whole.len() > 160, "{}", whole.len());
     let found = reads::reported(&db, &id).await?;
     assert_eq!(found.len(), 1);
-    assert_eq!(found[0].resource, format!("query {id}: {whole}"));
+    assert_eq!(found[0].resource, named(&id, &whole));
     assert_eq!(found[0].evidence["query"], whole);
     db.cleanup().await
 }
 
 #[tokio::test]
-async fn slow_queries_reports_a_statement_over_4000_characters_whole() -> anyhow::Result<()> {
+async fn slow_queries_reports_a_statement_over_20000_characters_whole_in_the_evidence()
+-> anyhow::Result<()> {
     let db = Db::boot().await?;
     with_statements(&db).await?;
     sqlx::query(
@@ -177,12 +177,11 @@ async fn slow_queries_reports_a_statement_over_4000_characters_whole() -> anyhow
     )
     .execute(db.handle.pool())
     .await?;
-    let mut sql = long_statement("slow_queries full text");
-    sql.push_str(&format!(" /* {} */", "z".repeat(4400)));
+    let sql = long_statement("slow_queries full text", HUGE);
     run(&db, &sql, 25).await?;
     let id = queryid(&db, &sql).await?;
     let whole = collapsed(&db, &sql).await?;
-    assert!(whole.len() > 4400, "{}", whole.len());
+    assert!(whole.len() > 20_000, "{}", whole.len());
     let found: Vec<Finding> = db
         .findings("slow_queries")
         .await?
@@ -190,84 +189,136 @@ async fn slow_queries_reports_a_statement_over_4000_characters_whole() -> anyhow
         .filter(|f| f.evidence["queryid"] == id)
         .collect();
     assert_eq!(found.len(), 1);
-    assert_eq!(found[0].resource, format!("query {id}: {whole}"));
+    assert_eq!(found[0].resource, named(&id, &whole));
     assert_eq!(found[0].evidence["query"], sql);
     db.cleanup().await
 }
 
 #[tokio::test]
-async fn no_stored_check_cuts_the_statement_text() -> anyhow::Result<()> {
+async fn no_stored_check_cuts_the_statement_in_the_evidence_or_the_comparison_text()
+-> anyhow::Result<()> {
     let db = Db::boot().await?;
     let cutting: Vec<String> = sqlx::query_scalar(
         "SELECT name FROM wright.checks
-          WHERE query ~ 'left\\(regexp_replace\\(btrim\\(\\w+\\.query\\)|left\\(\\w+\\.query, '
+          WHERE query LIKE '%''query'', left(%' OR query LIKE '%), 120) AS text_key%'
           ORDER BY name",
     )
     .fetch_all(db.handle.pool())
     .await?;
     assert_eq!(cutting, Vec::<String>::new());
+    let resource_cut: Vec<String> = sqlx::query_scalar(
+        "SELECT name FROM wright.checks
+          WHERE name IN ('slow_queries', 'idle_polls', 'reads_outpace_writes')
+            AND query NOT LIKE '%|| left(regexp_replace(btrim(%'
+          ORDER BY name",
+    )
+    .fetch_all(db.handle.pool())
+    .await?;
+    assert_eq!(resource_cut, Vec::<String>::new());
     db.cleanup().await
 }
 
 #[tokio::test]
-async fn the_migration_rewrites_a_truncated_query_problem_so_the_next_pass_keeps_it()
+async fn a_pass_stores_a_statement_over_20000_characters_on_the_problem_and_follows_a_change()
+-> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let whole = collapsed(&db, &long_statement("stored statement", HUGE)).await?;
+    assert!(whole.len() > 20_000, "{}", whole.len());
+    let resource = named("-621548", &whole);
+    let evidence = |text: &str| json!({"queryid": "-621548", "query": text});
+    let first = record(&db, vec![finding("query", &resource, evidence(&whole))]).await?;
+    assert_eq!(first, (1, 0, 0, 0));
+    assert_eq!(statement_of(&db, &resource).await?, Some(whole.clone()));
+    let again = record(&db, vec![finding("query", &resource, evidence(&whole))]).await?;
+    assert_eq!(again, (0, 0, 1, 0));
+    let changed = format!("{whole} AND p.id > 0");
+    record(&db, vec![finding("query", &resource, evidence(&changed))]).await?;
+    assert_eq!(statement_of(&db, &resource).await?, Some(changed));
+    let other = record(
+        &db,
+        vec![
+            finding("query", &resource, json!({"queryid": "-621548"})),
+            finding("capture", "not a statement", json!({"query": "SELECT 1"})),
+        ],
+    )
+    .await?;
+    assert_eq!(other, (1, 0, 1, 0));
+    assert!(statement_of(&db, &resource).await?.is_some());
+    assert_eq!(statement_of(&db, "not a statement").await?, None);
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn the_queue_and_the_problem_lists_carry_the_statement() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let whole = collapsed(&db, &long_statement("queue statement", HUGE)).await?;
+    let resource = named("812345", &whole);
+    record(
+        &db,
+        vec![finding(
+            "query",
+            &resource,
+            json!({"queryid": "812345", "query": whole}),
+        )],
+    )
+    .await?;
+    db.handle.web().assign_wright_causes().await?;
+    let causes = db.handle.web().list_wright_causes(10).await?;
+    assert_eq!(causes.len(), 1);
+    assert_eq!(causes[0].statement.as_deref(), Some(whole.as_str()));
+    assert_eq!(causes[0].resource, resource);
+    let problems = db
+        .handle
+        .web()
+        .wright_cause_problems(causes[0].cause_id)
+        .await?
+        .unwrap_or_default();
+    assert_eq!(problems.len(), 1);
+    assert_eq!(problems[0].statement.as_deref(), Some(whole.as_str()));
+    let one = db.handle.web().wright_problem(problems[0].id).await?;
+    assert_eq!(
+        one.and_then(|p| p.statement).as_deref(),
+        Some(whole.as_str())
+    );
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn the_migration_fills_the_statement_of_a_query_problem_over_20000_characters()
 -> anyhow::Result<()> {
     let db = Db::boot().await?;
     with_statements(&db).await?;
-    let sql = long_statement("migration rewrite");
+    let sql = long_statement("migration fill", HUGE);
     run(&db, &sql, 3).await?;
     let id = queryid(&db, &sql).await?;
     let whole = collapsed(&db, &sql).await?;
-    let cut: String = whole.chars().take(120).collect();
-    let old = format!("query {id}: {cut}");
-    let gone = "query 4242424242: SELECT something that pg_stat_statements no longer holds".to_owned();
-    record(&db, vec![finding(&old), finding(&gone)]).await?;
-    let (kept, left_alone) = (problem_id(&db, &old).await?, problem_id(&db, &gone).await?);
+    assert!(whole.len() > 20_000, "{}", whole.len());
+    let old = named(&id, &whole);
+    let gone = "query 4242424242: SELECT something that pg_stat_statements no longer holds";
+    let kept = "query 77: SELECT already stored";
+    record(
+        &db,
+        vec![
+            finding("query", &old, json!({"queryid": id})),
+            finding("query", gone, json!({"queryid": "4242424242"})),
+            finding("query", kept, json!({"queryid": "77", "query": "SELECT already stored"})),
+        ],
+    )
+    .await?;
+    assert_eq!(statement_of(&db, &old).await?, None);
 
     sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
 
-    let full = format!("query {id}: {whole}");
-    assert_eq!(resource_of(&db, kept).await?, full);
-    assert_eq!(resource_of(&db, left_alone).await?, gone);
-    let (opened, recurred, still_open, healed) = record(&db, vec![finding(&full)]).await?;
-    assert_eq!((opened, recurred, still_open, healed), (0, 0, 1, 1));
-    assert_eq!(problem_id(&db, &full).await?, kept);
-    let open_episodes: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM wright.episodes WHERE problem_id = $1 AND closed_at IS NULL",
-    )
-    .bind(kept)
-    .fetch_one(db.handle.pool())
-    .await?;
-    assert_eq!(open_episodes, 1);
-    sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
-    assert_eq!(resource_of(&db, kept).await?, full);
-    db.cleanup().await
-}
-
-#[tokio::test]
-async fn triage_gives_the_full_text_the_cause_the_truncated_text_already_has() -> anyhow::Result<()> {
-    let db = Db::boot().await?;
-    let whole = collapsed(&db, &long_statement("triage key")).await?;
-    let cut: String = whole.chars().take(120).collect();
-    let truncated = format!("query -621548: {cut}");
-    let full = format!("query 812345: {whole}");
-    record(&db, vec![finding(&truncated)]).await?;
-    db.handle.web().assign_wright_causes().await?;
-    record(&db, vec![finding(&truncated), finding(&full)]).await?;
-    db.handle.web().assign_wright_causes().await?;
-    let causes: Vec<Option<i64>> = sqlx::query_scalar(
-        "SELECT cause_id FROM wright.problems WHERE resource IN ($1, $2) ORDER BY resource",
-    )
-    .bind(&truncated)
-    .bind(&full)
-    .fetch_all(db.handle.pool())
-    .await?;
-    assert_eq!(causes.len(), 2);
-    assert!(causes[0].is_some());
-    assert_eq!(causes[0], causes[1]);
-    let keys: i64 = sqlx::query_scalar("SELECT count(DISTINCT key) FROM wright.causes")
-        .fetch_one(db.handle.pool())
+    assert_eq!(statement_of(&db, &old).await?, Some(whole.clone()));
+    assert_eq!(statement_of(&db, gone).await?, None);
+    assert_eq!(
+        statement_of(&db, kept).await?.as_deref(),
+        Some("SELECT already stored")
+    );
+    let again = record(&db, vec![finding("query", &old, json!({"queryid": id, "query": whole}))])
         .await?;
-    assert_eq!(keys, 1);
+    assert_eq!(again, (0, 0, 1, 2));
+    sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
+    assert_eq!(statement_of(&db, &old).await?, Some(whole));
     db.cleanup().await
 }

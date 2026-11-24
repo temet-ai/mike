@@ -107,6 +107,7 @@ pub(crate) struct ProblemRow {
     pub(crate) source: String,
     pub(crate) scope: String,
     pub(crate) resource: String,
+    pub(crate) statement: Option<String>,
     pub(crate) state: String,
     pub(crate) opened_at: DateTime<Utc>,
     pub(crate) last_seen_at: DateTime<Utc>,

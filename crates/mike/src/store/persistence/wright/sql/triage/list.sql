@@ -1,7 +1,7 @@
 SELECT q.cause_id, q.problem_id, q.check_name, q.resource, q.problems, q.observations,
        q.opened_at, q.attempts, q.last_attempt_at, q.finding_id, q.followup_id, q.issue_number,
        q.remedied, q.priority, c.notified_at, c.commented_at,
-       q.pinned, c.pinned_at, q.operator_priority, q.rank_priority, q.group_id,
+       q.pinned, c.pinned_at, q.operator_priority, q.rank_priority, q.group_id, q.statement,
        g.name AS group_name,
        ab.absorbed,
        (w.why IS NULL) AS investigable,

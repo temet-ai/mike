@@ -94,6 +94,10 @@
 	</div>
 {/snippet}
 
+{#snippet statementBody()}
+	<p class="detail__statement" data-slot="wright-problem-statement">{problem.statement}</p>
+{/snippet}
+
 {#snippet evidenceBody()}
 	<WrightFacts facts={problem.latest_evidence} label="Latest evidence" />
 {/snippet}
@@ -226,6 +230,9 @@
 {/snippet}
 
 <div class="detail" data-slot="wright-problem-detail">
+	{#if problem.statement !== null}
+		{@render section('Statement', statementBody)}
+	{/if}
 	{@render section('Latest evidence', evidenceBody)}
 	{@render section('What Wright found', findingsBody)}
 	{@render section('Engineer runs', runsBody)}
@@ -291,6 +298,16 @@
 
 	.detail__text {
 		display: block;
+	}
+
+	.detail__statement {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		line-height: 1.5;
+		color: var(--text-1);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	.detail__meta,

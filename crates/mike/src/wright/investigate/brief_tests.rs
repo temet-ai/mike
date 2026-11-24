@@ -19,6 +19,7 @@ fn problem(resource: &str) -> ProblemRow {
         source: "mcp_tools".to_owned(),
         scope: "tool".to_owned(),
         resource: resource.to_owned(),
+        statement: None,
         state: "open".to_owned(),
         opened_at: Utc::now(),
         last_seen_at: Utc::now(),

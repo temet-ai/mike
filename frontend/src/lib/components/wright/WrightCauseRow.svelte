@@ -345,8 +345,8 @@ in place. A waiting cause carries the warning border; the border is always reser
 	{#if open}
 		<div class="cause__detail" id="cause-{cause.cause_id}-detail">
 			<div class="cause__section">
-				<h3 class="machine cause__h">Resource</h3>
-				<p class="cause__full">{cause.resource}</p>
+				<h3 class="machine cause__h">{cause.statement === null ? 'Resource' : 'Statement'}</h3>
+				<p class="cause__full">{cause.statement ?? cause.resource}</p>
 			</div>
 			<div class="cause__section">
 				<h3 class="machine cause__h">Where it stands</h3>

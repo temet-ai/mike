@@ -2,10 +2,16 @@ WITH f AS (
     SELECT * FROM unnest($3::text[], $4::text[], $5::jsonb[]) AS f(scope, resource, evidence)
 ),
 p AS (
-    INSERT INTO wright.problems (check_name, source, scope, resource, state, last_seen_at)
-    SELECT $1, $2, f.scope, f.resource, 'open', now() FROM f
+    INSERT INTO wright.problems AS pr (check_name, source, scope, resource, state, last_seen_at, statement)
+    SELECT $1, $2, f.scope, f.resource, 'open', now(),
+           CASE WHEN f.scope = 'query' THEN f.evidence ->> 'query' END
+      FROM f
     ON CONFLICT (check_name, scope, resource)
-    DO UPDATE SET state = 'open', healthy_at = NULL, last_seen_at = now()
+    DO UPDATE SET state = 'open', healthy_at = NULL, last_seen_at = now(),
+                  statement = CASE WHEN EXCLUDED.statement IS NOT NULL
+                                    AND EXCLUDED.statement IS DISTINCT FROM pr.statement
+                                   THEN EXCLUDED.statement
+                                   ELSE pr.statement END
     RETURNING id, scope, resource, (xmax = 0) AS inserted
 ),
 seen AS (
