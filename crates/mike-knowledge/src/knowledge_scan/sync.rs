@@ -99,36 +99,47 @@ pub fn encode_project_dir(root_path: &str) -> String {
         .collect()
 }
 
-fn builtin_specs(root_path: &str, claude_home: &Path) -> [Spec; 3] {
-    [
-        Spec {
-            name: MEMORY_SOURCE.to_owned(),
-            kind: SourceKind::Memory,
-            root: claude_home
-                .join("projects")
-                .join(encode_project_dir(root_path))
-                .join("memory"),
-            scope: Scope::default(),
-            declared: false,
+fn builtin_specs(root_path: &str, claude_home: &Path) -> Vec<Spec> {
+    let home_of_claude = Path::new(root_path).join(".claude") == claude_home;
+    let memory = Spec {
+        name: MEMORY_SOURCE.to_owned(),
+        kind: SourceKind::Memory,
+        root: claude_home
+            .join("projects")
+            .join(encode_project_dir(root_path))
+            .join("memory"),
+        scope: Scope::default(),
+        declared: false,
+    };
+    let instructions = Spec {
+        name: INSTRUCTIONS_SOURCE.to_owned(),
+        kind: SourceKind::Instructions,
+        root: PathBuf::from(root_path),
+        scope: Scope {
+            includes: location_instructions(home_of_claude),
+            ..Scope::default()
         },
-        Spec {
-            name: SKILLS_SOURCE.to_owned(),
-            kind: SourceKind::Skills,
-            root: Path::new(root_path).join(".claude").join("skills"),
-            scope: Scope::default(),
-            declared: false,
-        },
-        Spec {
-            name: INSTRUCTIONS_SOURCE.to_owned(),
-            kind: SourceKind::Instructions,
-            root: PathBuf::from(root_path),
-            scope: Scope {
-                includes: CHECKOUT_INSTRUCTIONS.map(str::to_owned).to_vec(),
-                ..Scope::default()
-            },
-            declared: false,
-        },
-    ]
+        declared: false,
+    };
+    if home_of_claude {
+        return vec![memory, instructions];
+    }
+    let skills = Spec {
+        name: SKILLS_SOURCE.to_owned(),
+        kind: SourceKind::Skills,
+        root: Path::new(root_path).join(".claude").join("skills"),
+        scope: Scope::default(),
+        declared: false,
+    };
+    vec![memory, skills, instructions]
+}
+
+fn location_instructions(home_of_claude: bool) -> Vec<String> {
+    CHECKOUT_INSTRUCTIONS
+        .iter()
+        .filter(|path| !(home_of_claude && path.starts_with(".claude/")))
+        .map(|path| (*path).to_owned())
+        .collect()
 }
 
 fn source_inputs<'a>(targets: impl Iterator<Item = &'a (Uuid, Spec)>) -> Vec<SourceInput> {
@@ -290,7 +301,7 @@ async fn plan_sources(
 ) -> Result<Plan, PersistError> {
     let mut plan = Plan::default();
     for location in persist.knowledge().locations_on_machine(machine).await? {
-        let mut specs = Vec::from(builtin_specs(&location.root_path, claude_home));
+        let mut specs = builtin_specs(&location.root_path, claude_home);
         match declared::read(&location.root_path).await {
             Ok(found) => specs.extend(found.into_iter().map(Spec::from)),
             Err(error) => {
@@ -415,6 +426,21 @@ mod tests {
                     ".claude/agents".to_owned(),
                 ]
             ))
+        );
+    }
+
+    #[test]
+    fn builtin_specs_home_location_leaves_machine_sources_to_the_machine() {
+        let specs = builtin_specs("/home/x", Path::new("/home/x/.claude"));
+        let names: Vec<&str> = specs.iter().map(|spec| spec.name.as_str()).collect();
+        assert_eq!(names, vec!["claude-memory", "instructions"]);
+        assert_eq!(
+            specs[1].scope.includes,
+            vec!["CLAUDE.md".to_owned(), "AGENTS.md".to_owned()]
+        );
+        assert_eq!(
+            specs[0].root,
+            Path::new("/home/x/.claude/projects/-home-x/memory")
         );
     }
 

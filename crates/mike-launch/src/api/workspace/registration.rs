@@ -1,3 +1,4 @@
+mod cwd_project;
 pub mod flow;
 
 use flow::FlowAdmissionDto;
@@ -130,6 +131,9 @@ pub async fn register_session(
         location_project,
     )
     .await?;
+    if body.location_uuid.is_none() && registered.project_resolution == "unresolved" {
+        cwd_project::resolve_from_cwd(&state, handle, &mut registered, body.session_id, cwd).await;
+    }
 
     let busy_ids = state.in_flight.busy_session_ids();
     let (briefing, roster) = build_workspace_briefing(BriefingBuildRequest {

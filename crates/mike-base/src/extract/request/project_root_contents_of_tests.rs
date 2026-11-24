@@ -121,6 +121,19 @@ fn primary_working_directory_marker_is_equivalent() {
 }
 
 #[test]
+fn primary_working_directory_in_parent_scratchpad_is_kept_whole() {
+    let cwd = "/home/u/.claude/.cache/tmp/claude-1000/-repo/96f346df-32ec-4e11-9157-e9e8b51f6244/scratchpad/run";
+    let sys = format!("Primary working directory: {cwd}\n");
+    assert_eq!(
+        extract_project(ProjectSignals {
+            system_prompt: Some(&sys),
+            message_sources: vec![],
+        }),
+        Some(cwd.to_string())
+    );
+}
+
+#[test]
 fn extract_project_rejects_root_containing_escaped_newline_artifact() {
     let sys = "Working directory: /ai/tools/proxy\\n\\";
     assert_eq!(

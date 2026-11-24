@@ -95,11 +95,18 @@ impl PersistHandle {
             "SELECT l.location_uuid
              FROM sessions.sessions s
              JOIN projects.locations l ON l.machine_uuid = $2
+             JOIN projects.projects lp ON lp.id = l.project_id
              WHERE s.session_uuid = $1
                AND s.location_uuid IS NULL
                AND s.project_resolution <> 'operator'
                AND (rtrim(l.root_path, '/') = rtrim($3, '/')
-                    OR starts_with($3, rtrim(l.root_path, '/') || '/'))
+                    OR (starts_with($3, rtrim(l.root_path, '/') || '/')
+                        AND NOT starts_with(lp.project_path, 'machine:')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM projects.locations held
+                             WHERE held.machine_uuid = l.machine_uuid
+                               AND held.project_id <> l.project_id
+                               AND starts_with(held.root_path, rtrim(l.root_path, '/') || '/'))))
                AND ($4::text IS NULL
                     OR length(rtrim(l.root_path, '/')) >= length(rtrim($4::text, '/')))
              ORDER BY length(l.root_path) DESC, l.location_uuid

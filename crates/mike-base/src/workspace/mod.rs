@@ -4,6 +4,7 @@ pub mod boot_id;
 pub mod checkout_watch;
 pub mod checkouts;
 pub mod git_repo;
+pub mod home_folder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegisteredVia {

@@ -1,3 +1,5 @@
+use crate::store::persistence::session_parent::scratchpad_parent_session;
+
 use super::project_scan::{
     ProjectSignals, find_working_directory_path, has_unsafe_path_chars,
     trusted_working_directory_sources,
@@ -29,7 +31,11 @@ fn extract_from_working_directory_marker(
 ) -> Option<String> {
     let trusted = trusted_working_directory_sources(system_prompt, message_sources);
     let path = find_working_directory_path(&trusted)?;
-    let root = compute_project_root(path);
+    let root = if scratchpad_parent_session(path).is_some() {
+        path.trim_end_matches('/')
+    } else {
+        compute_project_root(path)
+    };
     root.split('/').find(|s| !s.is_empty())?;
     if has_unsafe_path_chars(root) {
         return None;

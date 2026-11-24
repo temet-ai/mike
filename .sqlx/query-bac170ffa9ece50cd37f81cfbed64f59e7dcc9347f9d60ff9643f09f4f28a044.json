@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH homed AS (\n                 SELECT s.machine_uuid, s.project_resolution, s.location_uuid, s.cwd,\n                        substring(s.cwd from '^(/home/[^/]+|/Users/[^/]+|/root)(/|$)') AS home_root\n                   FROM sessions.sessions s\n                  WHERE s.cwd IS NOT NULL\n               ), known AS (\n                 SELECT home_root, (array_agg(DISTINCT machine_uuid))[1] AS machine_uuid\n                   FROM homed\n                  WHERE home_root IS NOT NULL AND machine_uuid IS NOT NULL\n                  GROUP BY home_root\n                 HAVING count(DISTINCT machine_uuid) = 1\n               ), placed AS (\n                 SELECT COALESCE(h.machine_uuid, k.machine_uuid) AS machine_uuid, h.home_root\n                   FROM homed h\n                   LEFT JOIN known k ON k.home_root = h.home_root\n                  WHERE h.home_root IS NOT NULL\n                    AND h.cwd !~ '(/\\.cache/|/\\.local/state/|/warm/cwd(/|$))'\n                    AND h.project_resolution = 'unresolved'\n                    AND h.location_uuid IS NULL\n               )\n               SELECT p.machine_uuid AS \"machine_uuid!\", m.name AS machine_name,\n                      p.home_root AS \"home_root!\", count(*) AS \"sessions!\"\n                 FROM placed p\n                 JOIN projects.machines m ON m.machine_uuid = p.machine_uuid\n                GROUP BY p.machine_uuid, m.name, p.home_root\n                ORDER BY m.name, p.home_root",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "machine_uuid!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "machine_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.machines",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "home_root!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "bac170ffa9ece50cd37f81cfbed64f59e7dcc9347f9d60ff9643f09f4f28a044"
+}

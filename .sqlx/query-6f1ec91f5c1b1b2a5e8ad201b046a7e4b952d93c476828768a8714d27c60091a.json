@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.location_uuid\n             FROM sessions.sessions s\n             JOIN projects.locations l ON l.machine_uuid = $2\n             JOIN projects.projects lp ON lp.id = l.project_id\n             WHERE s.session_uuid = $1\n               AND s.location_uuid IS NULL\n               AND s.project_resolution <> 'operator'\n               AND (rtrim(l.root_path, '/') = rtrim($3, '/')\n                    OR (starts_with($3, rtrim(l.root_path, '/') || '/')\n                        AND NOT starts_with(lp.project_path, 'machine:')\n                        AND NOT EXISTS (\n                            SELECT 1 FROM projects.locations held\n                             WHERE held.machine_uuid = l.machine_uuid\n                               AND held.project_id <> l.project_id\n                               AND starts_with(held.root_path, rtrim(l.root_path, '/') || '/'))))\n               AND ($4::text IS NULL\n                    OR length(rtrim(l.root_path, '/')) >= length(rtrim($4::text, '/')))\n             ORDER BY length(l.root_path) DESC, l.location_uuid\n             LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6f1ec91f5c1b1b2a5e8ad201b046a7e4b952d93c476828768a8714d27c60091a"
+}

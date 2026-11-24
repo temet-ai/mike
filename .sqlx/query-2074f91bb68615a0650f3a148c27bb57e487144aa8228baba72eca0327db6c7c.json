@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH m AS (\n                 SELECT name FROM projects.machines WHERE machine_uuid = $1\n               ), p AS (\n                 INSERT INTO projects.projects (project_path, display_name, first_seen, last_seen)\n                 SELECT $2, m.name || ' home', now(), now() FROM m\n                 ON CONFLICT (project_path) DO UPDATE SET last_seen = now()\n                 RETURNING COALESCE(merged_into_id, id) AS id\n               )\n               INSERT INTO projects.locations (project_id, machine_uuid, root_path)\n               SELECT p.id, $1, $3 FROM p\n               ON CONFLICT (machine_uuid, root_path) DO UPDATE SET last_seen = now()\n               RETURNING location_uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2074f91bb68615a0650f3a148c27bb57e487144aa8228baba72eca0327db6c7c"
+}

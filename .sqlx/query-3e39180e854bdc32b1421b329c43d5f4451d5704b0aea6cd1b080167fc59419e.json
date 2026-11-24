@@ -1,0 +1,75 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH unresolved AS (\n                 SELECT s.session_uuid, s.cwd, s.machine_uuid\n                   FROM sessions.sessions s\n                  WHERE s.project_resolution = 'unresolved' AND s.location_uuid IS NULL\n               ), scratch AS (\n                 SELECT u.session_uuid, 1 AS priority, 'parent_scratchpad' AS rule, u.cwd,\n                        parent.project_id, parent.location_uuid, parent.project_resolution AS resolution\n                   FROM unresolved u\n                   JOIN sessions.sessions parent\n                     ON parent.session_uuid = substring(u.cwd from\n                          '/claude-[0-9]+/[^/]+/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/scratchpad(/|$)')::uuid\n                   JOIN projects.projects p ON p.id = parent.project_id\n                  WHERE parent.project_resolution <> 'unresolved'\n                    AND (starts_with(p.project_path, 'machine:') OR NOT EXISTS (\n                      SELECT 1 FROM projects.locations pl\n                        JOIN projects.locations held ON held.machine_uuid = pl.machine_uuid\n                         AND held.project_id <> pl.project_id\n                         AND starts_with(held.root_path, rtrim(pl.root_path, '/') || '/')\n                       WHERE pl.project_id = p.id))\n                    AND parent.session_uuid <> u.session_uuid\n               ), candidates AS (\n                 SELECT u.session_uuid, u.cwd, u.machine_uuid, l.project_id, l.location_uuid, l.root_path\n                   FROM unresolved u\n                   JOIN projects.locations l\n                     ON (u.machine_uuid IS NULL OR l.machine_uuid = u.machine_uuid)\n                   JOIN projects.projects lp ON lp.id = l.project_id\n                    AND (rtrim(l.root_path, '/') = rtrim(u.cwd, '/')\n                         OR (starts_with(u.cwd, rtrim(l.root_path, '/') || '/')\n                             AND ((starts_with(lp.project_path, 'machine:')\n                                   AND u.cwd !~ '(/\\.cache/|/\\.local/state/|/warm/cwd(/|$))'\n                                   AND NOT EXISTS (\n                                       SELECT 1 FROM projects.locations other\n                                        WHERE other.machine_uuid = l.machine_uuid\n                                          AND other.project_id <> l.project_id\n                                          AND starts_with(other.root_path || '/',\n                                                rtrim(l.root_path, '/') || '/'\n                                                || split_part(substr(u.cwd, length(rtrim(l.root_path, '/')) + 2), '/', 1)\n                                                || '/')))\n                                  OR NOT EXISTS (\n                                 SELECT 1 FROM projects.locations held\n                                  WHERE held.machine_uuid = l.machine_uuid\n                                    AND held.project_id <> l.project_id\n                                    AND starts_with(held.root_path, rtrim(l.root_path, '/') || '/')))))\n                  WHERE u.cwd IS NOT NULL\n               ), unambiguous AS (\n                 SELECT session_uuid FROM candidates\n                  GROUP BY session_uuid, machine_uuid\n                 HAVING machine_uuid IS NOT NULL OR count(DISTINCT project_id) = 1\n               ), located AS (\n                 SELECT DISTINCT ON (c.session_uuid) c.session_uuid, 2 AS priority, 'location' AS rule,\n                        c.cwd, c.project_id, c.location_uuid, 'operator' AS resolution\n                   FROM candidates c\n                   JOIN unambiguous a ON a.session_uuid = c.session_uuid\n                  ORDER BY c.session_uuid, length(c.root_path) DESC, c.location_uuid\n               ), wright AS (\n                 SELECT u.session_uuid, 3 AS priority, 'wright_engineer' AS rule, u.cwd,\n                        $1::bigint AS project_id, main.location_uuid, 'operator' AS resolution\n                   FROM unresolved u\n                   JOIN wright.investigations i ON i.session_uuid = u.session_uuid\n                   LEFT JOIN LATERAL (\n                     SELECT l.location_uuid FROM projects.locations l\n                      WHERE l.project_id = $1::bigint AND l.machine_uuid = i.machine_uuid\n                        AND l.parent_location_uuid IS NULL AND l.gone_at IS NULL\n                      ORDER BY length(l.root_path), l.location_uuid\n                      LIMIT 1\n                   ) main ON true\n                  WHERE $1::bigint IS NOT NULL\n               ), proposals AS (\n                 SELECT * FROM scratch UNION ALL SELECT * FROM located UNION ALL SELECT * FROM wright\n               )\n               SELECT DISTINCT ON (x.session_uuid)\n                      x.session_uuid AS \"session_uuid!\", x.rule AS \"rule!\", x.cwd,\n                      p.id AS \"project_id!\", p.project_path AS \"project_path!\",\n                      x.location_uuid, x.resolution AS \"resolution!\"\n                 FROM proposals x\n                 JOIN projects.projects named ON named.id = x.project_id\n                 JOIN projects.projects p ON p.id = COALESCE(named.merged_into_id, named.id)\n                ORDER BY x.session_uuid, x.priority",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "rule!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "cwd",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "resolution!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "3e39180e854bdc32b1421b329c43d5f4451d5704b0aea6cd1b080167fc59419e"
+}

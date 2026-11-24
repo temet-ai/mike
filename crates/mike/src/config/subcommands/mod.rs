@@ -33,6 +33,7 @@ mod print_config;
 mod reclaim_space;
 mod semantic;
 mod semantic_backtest;
+mod session_projects;
 mod sent_content;
 mod sidecar_origins;
 mod steer_questions;
@@ -85,6 +86,7 @@ pub enum ConfigCommand {
     Learning(learning::LearningCommand),
     LearningAudit(learning_audit::LearningAuditArgs),
     OriginBackfill(OriginBackfillArgs),
+    ResolveSessionProjects(session_projects::ResolveSessionProjectsArgs),
 }
 
 pub async fn run(cmd: ConfigCommand, cli: CliOverrides) -> Result<()> {
@@ -164,6 +166,9 @@ async fn run_judgement_command(cmd: ConfigCommand, cli: CliOverrides) -> Result<
         ConfigCommand::Learning(command) => learning::run(command, cli).await,
         ConfigCommand::LearningAudit(args) => learning_audit::learning_audit(args, cli).await,
         ConfigCommand::OriginBackfill(args) => origin_backfill::origin_backfill(args, cli).await,
+        ConfigCommand::ResolveSessionProjects(args) => {
+            session_projects::resolve_session_projects(args, cli).await
+        }
         cmd => unreachable!(
             "run_judgement_command received a variant run() should have handled directly: {cmd:?}"
         ),

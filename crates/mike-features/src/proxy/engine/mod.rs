@@ -26,6 +26,7 @@ pub mod request_pipeline;
 pub mod workspace_location;
 pub mod workspace_register;
 pub mod workspace_repo;
+pub mod wright_engineer;
 
 pub use finalize::finalize_and_respond;
 pub use request_pipeline::run_request_pipeline;
@@ -141,7 +142,7 @@ pub async fn accept(state: &AppState, req: Request<Body>) -> Result<AcceptOutcom
     workspace_register::maybe_register_workspace_session(
         state,
         &signals.session_id,
-        &signals.project_path,
+        &wright_engineer::registration_path(&parts.headers, &signals.project_path),
         session_toggles.workspace_capture_registration,
     );
 

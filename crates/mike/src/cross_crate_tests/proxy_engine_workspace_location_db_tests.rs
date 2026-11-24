@@ -277,3 +277,51 @@ async fn first_request_upstream_still_receives_the_request() -> anyhow::Result<(
     assert_eq!(received.len(), 1);
     env.cleanup().await
 }
+
+#[tokio::test]
+async fn first_request_in_parent_scratchpad_binds_the_parents_location() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let project = env.project("Parent").await?;
+    let location = env.location(&project, env.host, "/home/dev/kit").await?;
+    let parent = Uuid::new_v4();
+    env.first_request(parent, "/home/dev/kit").await?;
+    env.settled_registration(parent).await?;
+    let child = Uuid::new_v4();
+    let scratch = format!("/home/dev/.claude/.cache/tmp/claude-1000/-home-dev-kit/{parent}/scratchpad/run");
+
+    env.first_request(child, &scratch).await?;
+
+    let registered = env.settled_registration(child).await?;
+    assert_eq!(registered.project_id, project.id);
+    assert_eq!(
+        env.session_row(child).await?,
+        (Some(location), project.id, "operator".to_string())
+    );
+    env.cleanup().await
+}
+
+#[tokio::test]
+async fn first_request_in_plain_home_folder_binds_the_machine_home() -> anyhow::Result<()> {
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return Ok(());
+    };
+    let env = Env::boot().await?;
+    env.persist.ensure_machine(env.host, "host").await?;
+    let session = Uuid::new_v4();
+    let cwd = home.join(format!("no-such-folder-{}", Uuid::new_v4().simple()));
+
+    env.first_request(session, &cwd.to_string_lossy()).await?;
+
+    env.settled_registration(session).await?;
+    let (bound, _, resolution) = env.session_row(session).await?;
+    let project: String = sqlx::query_scalar(
+        "SELECT p.project_path FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id
+          WHERE l.location_uuid = $1",
+    )
+    .bind(bound)
+    .fetch_one(env.persist.pool())
+    .await?;
+    assert_eq!(project, format!("machine:{}", env.host));
+    assert_eq!(resolution, "operator");
+    env.cleanup().await
+}

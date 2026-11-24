@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                 SELECT 1 FROM projects.locations l\n                   JOIN projects.projects p ON p.id = l.project_id\n                  WHERE l.machine_uuid = $1\n                    AND NOT starts_with(p.project_path, 'machine:')\n                    AND starts_with(l.root_path || '/', rtrim($2, '/') || '/')\n               ) AS \"held!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "held!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b838be5307a8e7915e6a66acb494e59155dca20aed2c16f18896b5bdac8b48a1"
+}
