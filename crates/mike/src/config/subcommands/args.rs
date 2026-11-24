@@ -61,6 +61,12 @@ pub struct CompactRequestBodiesArgs {
     pub min_idle_days: i32,
     #[arg(long, default_value_t = DEFAULT_COMPACTION_BATCH_SIZE)]
     pub batch_size: i64,
+    /// First request id to consider; with --to, runners on disjoint ranges can run side by side.
+    #[arg(long, default_value_t = 0)]
+    pub from: i64,
+    /// Last request id to consider (inclusive).
+    #[arg(long, default_value_t = i64::MAX)]
+    pub to: i64,
     #[arg(long, conflicts_with = "execute")]
     pub dry_run: bool,
     #[arg(long)]

@@ -97,7 +97,7 @@ async fn compaction_keeps_the_final_request_of_a_session() -> anyhow::Result<()>
     assert_eq!(survey.sessions_affected, 1);
     assert_eq!(survey.refused_no_envelope_rows, 0);
 
-    let outcome = handle.compact_request_bodies(14, 100).await?;
+    let outcome = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!(outcome.cleared_rows, 2);
     assert!(outcome.reclaimed_bytes > 0);
 
@@ -135,7 +135,7 @@ async fn compaction_keeps_bodies_of_recently_active_sessions() -> anyhow::Result
     assert_eq!(survey.candidate_rows, 0);
     assert_eq!(survey.reclaimable_bytes, 0);
 
-    let outcome = handle.compact_request_bodies(14, 100).await?;
+    let outcome = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!(outcome.cleared_rows, 0);
     assert_eq!(outcome.batches, 0, "an empty first batch must not loop");
 
@@ -164,7 +164,7 @@ async fn compaction_refuses_a_row_without_an_envelope() -> anyhow::Result<()> {
         "the refusal must report the bytes it is leaving on disk"
     );
 
-    let outcome = handle.compact_request_bodies(14, 100).await?;
+    let outcome = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!(outcome.cleared_rows, 1);
 
     assert!(
@@ -192,11 +192,11 @@ async fn compaction_rerun_is_a_noop() -> anyhow::Result<()> {
 
     seed_session(&handle.pool, 30, &[true, true, true]).await?;
 
-    let first = handle.compact_request_bodies(14, 1).await?;
+    let first = handle.compact_request_bodies(14, 1, 0..=i64::MAX).await?;
     assert_eq!(first.cleared_rows, 2);
     assert_eq!(first.batches, 2, "a batch size of 1 must commit per row");
 
-    let second = handle.compact_request_bodies(14, 1).await?;
+    let second = handle.compact_request_bodies(14, 1, 0..=i64::MAX).await?;
     assert_eq!(second.cleared_rows, 0);
     assert_eq!(second.reclaimed_bytes, 0);
     assert_eq!(second.batches, 0);
@@ -241,7 +241,7 @@ async fn compaction_leaves_delta_rows_untouched() -> anyhow::Result<()> {
     .execute(&handle.pool)
     .await?;
 
-    let outcome = handle.compact_request_bodies(14, 100).await?;
+    let outcome = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!(outcome.cleared_rows, 1);
     assert!(body_of(&handle.pool, compacted).await?.is_none());
 

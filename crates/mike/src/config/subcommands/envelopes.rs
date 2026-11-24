@@ -129,7 +129,7 @@ pub(super) async fn compact_request_bodies(
 
     println!("\nClearing (batch size {})...", args.batch_size);
     let outcome = handle
-        .compact_request_bodies(args.min_idle_days, args.batch_size)
+        .compact_request_bodies(args.min_idle_days, args.batch_size, args.from..=args.to)
         .await
         .context("compact-request-bodies: batch clear failed")?;
 

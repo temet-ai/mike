@@ -76,12 +76,14 @@ impl PersistHandle {
         &self,
         min_idle_days: i32,
         batch_size: i64,
+        ids: std::ops::RangeInclusive<i64>,
     ) -> Result<CompactionOutcome, PersistError> {
         let mut total = CompactionOutcome::default();
-        let mut cursor: i64 = 0;
+        let mut cursor: i64 = *ids.start();
+        let last = *ids.end();
         loop {
             let Some(batch) = self
-                .compact_request_bodies_batch(min_idle_days, batch_size, cursor)
+                .compact_request_bodies_batch(min_idle_days, batch_size, cursor, last)
                 .await?
             else {
                 return Ok(total);
@@ -99,6 +101,7 @@ impl PersistHandle {
         min_idle_days: i32,
         batch_size: i64,
         cursor: i64,
+        last: i64,
     ) -> Result<Option<CompactionBatchOutcome>, PersistError> {
         crate::metrics::time_db("compact_request_bodies_batch", async move {
             let mut tx = self.background_pool().begin().await?;
@@ -107,7 +110,7 @@ impl PersistHandle {
                 .await?;
 
             let candidates =
-                compaction_candidates(&mut tx, min_idle_days, batch_size, cursor).await?;
+                compaction_candidates(&mut tx, min_idle_days, batch_size, cursor, last).await?;
             let Some(watermark) = candidates.last().map(|c| c.id) else {
                 tx.rollback().await?;
                 return Ok(None);
@@ -146,6 +149,7 @@ async fn compaction_candidates(
     min_idle_days: i32,
     batch_size: i64,
     cursor: i64,
+    last: i64,
 ) -> Result<Vec<sent_content::ClearCandidate>, PersistError> {
     let rows = sqlx::query!(
         r#"SELECT r.id,
@@ -154,6 +158,7 @@ async fn compaction_candidates(
              FROM requests.requests r
              JOIN sessions.sessions s ON s.id = r.session_id
             WHERE r.id >= $1
+              AND r.id <= $4
               AND r.request_body IS NOT NULL
               AND r.request_envelope IS NOT NULL
               AND s.last_seen < now() - make_interval(days => $2)
@@ -168,6 +173,7 @@ async fn compaction_candidates(
         cursor,
         min_idle_days,
         batch_size,
+        last,
     )
     .fetch_all(&mut *conn)
     .await?;

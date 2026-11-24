@@ -60,7 +60,7 @@ async fn compaction_keeps_a_body_whose_sent_version_does_not_rebuild() -> anyhow
     .execute(&handle.pool)
     .await?;
 
-    let outcome = handle.compact_request_bodies(14, 100).await?;
+    let outcome = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!((outcome.cleared_rows, outcome.refused_rows), (1, 1));
     assert!(
         !body_kept(&handle, plain).await?,
@@ -80,7 +80,7 @@ async fn compaction_keeps_a_body_whose_sent_version_does_not_rebuild() -> anyhow
         .await?
         .context("the refused row is a backfill candidate")?;
     assert_eq!((backfilled.verified, backfilled.failures.len()), (1, 0));
-    let again = handle.compact_request_bodies(14, 100).await?;
+    let again = handle.compact_request_bodies(14, 100, 0..=i64::MAX).await?;
     assert_eq!((again.cleared_rows, again.refused_rows), (1, 0));
     assert!(
         !body_kept(&handle, spaced).await?,
