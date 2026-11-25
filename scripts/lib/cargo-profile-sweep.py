@@ -29,7 +29,8 @@ def superseded(folder, age):
     for path in entries:
         if path.is_symlink() or OBJECT.fullmatch(path.name):
             continue
-        match = HASH.search(path.name) or INCREMENTAL.search(path.name)
+        match = HASH.search(path.name) or (
+            folder.name == 'incremental' and INCREMENTAL.search(path.name))
         if not match:
             continue
         key = path.name[:match.start()] + '|' + path.name[match.end():]

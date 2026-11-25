@@ -306,10 +306,13 @@ mkdir -p "$t/debug"; touch "$t/debug/.cargo-build-lock"
 touch_unit 0123456789abcdef lib-mike 202001010000
 touch_unit fedcba9876543210 lib-mike 202601010000
 touch_unit 00112233aabbccdd test-lib-mike 202001010000
+mkdir -p "$t/debug/build/unicode-segmentation" "$t/debug/build/unicode-foldablexyz"
+touch -t 202001010000 "$t/debug/build/unicode-segmentation"
 "$SWEEP" --cap 40 --age 3 "$t" >/dev/null
 [[ ! -d "$t/debug/build/mike/0123456789abcdef" ]] && chk pass "the older unit of a kind goes" || chk fail "the older unit of a kind goes"
 [[ -d "$t/debug/build/mike/fedcba9876543210" && -d "$t/debug/build/mike/00112233aabbccdd" ]] \
   && chk pass "the newest unit of each kind is kept" || chk fail "the newest unit of each kind is kept"
+[[ -d "$t/debug/build/unicode-segmentation" ]] && chk pass "a package name that looks like an incremental id is kept" || chk fail "a package name that looks like an incremental id is kept"
 "$SWEEP" --empty "$t" >/dev/null
 [[ ! -d "$t/debug/build" && -f "$t/debug/.cargo-build-lock" ]] \
   && chk pass "a finished checkout's units go and its lock stays" || chk fail "a finished checkout's units go and its lock stays"
