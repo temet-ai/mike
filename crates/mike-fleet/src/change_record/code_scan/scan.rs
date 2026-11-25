@@ -5,6 +5,7 @@ use mike_code::{Scan, new_findings, scan};
 use super::project_rules::ActiveRules;
 
 use crate::change_record::watch::Git;
+use crate::change_record::watch::git::STORE_LIMIT;
 use crate::store::persistence::change_record::code_scan::{NewCodeScan, NewFinding, PendingChange};
 
 const SCAN_TIMEOUT: Duration = Duration::from_secs(2);
@@ -28,6 +29,10 @@ pub async fn scan_change(
     };
     let after = match git.run(&["cat-file", "blob", after_sha]).await {
         Ok(bytes) => bytes,
+        Err(_) if too_large_to_store(git, &change.path) => {
+            record.skipped = Some("too_large".to_string());
+            return record;
+        }
         Err(err) => {
             record.error = Some(err.to_string());
             return record;
@@ -54,6 +59,10 @@ pub async fn scan_change(
     }
     record.duration_us = i32::try_from(started.elapsed().as_micros()).unwrap_or(i32::MAX);
     record
+}
+
+fn too_large_to_store(git: &Git, path: &str) -> bool {
+    std::fs::symlink_metadata(git.absolute(path)).is_ok_and(|m| m.len() > STORE_LIMIT)
 }
 
 pub fn fill(record: &mut NewCodeScan, old: &Scan, new: &Scan) {

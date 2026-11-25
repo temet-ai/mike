@@ -8,7 +8,8 @@ pub mod pure;
 pub mod pushes;
 pub mod refs_moves;
 pub mod scope;
-pub mod supervision;
+pub mod shell;
+mod supervision;
 pub mod wakes;
 
 use std::sync::atomic::Ordering;

@@ -143,6 +143,15 @@ pub struct OpenChange {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ShellCommand {
+    pub command: String,
+    pub cwd: String,
+    pub project_id: i64,
+    pub session: uuid::Uuid,
+    pub at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkingCheckout {
     pub checkout: String,
     pub project_id: i64,

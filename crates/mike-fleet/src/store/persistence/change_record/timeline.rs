@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::{Duration, Utc};
 
 use super::open_memo::Watermark;
-use crate::change_record::{OpenChange, WorkingCheckout};
+use crate::change_record::{OpenChange, ShellCommand, WorkingCheckout};
 use crate::store::persistence::PersistError;
 
 impl crate::store::persistence::fleet_repo::FleetDb<'_> {
@@ -59,6 +59,23 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             let rows = sqlx::query_file_as!(
                 WorkingCheckout,
                 "src/store/persistence/change_record/checkouts_with_working_sessions.sql",
+                since,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            Ok(rows)
+        })
+        .await
+    }
+
+    pub async fn shell_commands_since(
+        self,
+        since: chrono::DateTime<Utc>,
+    ) -> Result<Vec<ShellCommand>, PersistError> {
+        crate::metrics::time_db("change_record_shell_commands_since", async move {
+            let rows = sqlx::query_file_as!(
+                ShellCommand,
+                "src/store/persistence/change_record/shell_commands_since.sql",
                 since,
             )
             .fetch_all(&self.pool)

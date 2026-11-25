@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT left(u.input->>'command', 8000) AS \"command!\",\n       s.cwd AS \"cwd!\",\n       s.project_id AS \"project_id!\",\n       s.session_uuid AS \"session!\",\n       u.created_at AS \"at!\"\n  FROM tools.uses u\n  JOIN sessions.sessions s ON s.id = u.session_id\n WHERE u.created_at >= $1\n   AND u.tool_name = 'Bash'\n   AND u.input->>'command' IS NOT NULL\n   AND s.cwd IS NOT NULL\n   AND s.project_id IS NOT NULL\n ORDER BY u.created_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "command!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "cwd!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "cwd"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "session!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ef7c766cde186218fef4e881fa8e7873053b55627aedc55f01e6382424559f6c"
+}

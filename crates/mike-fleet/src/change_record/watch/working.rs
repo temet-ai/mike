@@ -27,6 +27,7 @@ pub(super) struct Working {
     known: HashSet<String>,
     stamp: Option<Vec<Generation>>,
     expires: Option<DateTime<Utc>>,
+    requested: bool,
 }
 
 pub(super) struct Stamp(Vec<Generation>);
@@ -40,6 +41,7 @@ impl Working {
             known: HashSet::new(),
             stamp: None,
             expires: None,
+            requested: false,
         }
     }
 
@@ -57,6 +59,7 @@ impl Working {
 
     pub(super) fn due(&mut self, now: DateTime<Utc>) -> bool {
         let drained = self.requests.drain();
+        self.requested |= drained.everything || !drained.sessions.is_empty();
         let unknown = drained
             .sessions
             .iter()
@@ -87,6 +90,18 @@ impl Working {
     pub(super) fn forget(&mut self) {
         self.stamp = None;
         self.expires = None;
+    }
+
+    pub(super) fn requested(&self) -> bool {
+        self.requested
+    }
+
+    pub(super) fn requests_read(&mut self) {
+        self.requested = false;
+    }
+
+    pub(super) fn expire(&mut self, at: Option<DateTime<Utc>>) {
+        self.expires = at;
     }
 
     pub(super) fn expires(&self) -> Option<DateTime<Utc>> {

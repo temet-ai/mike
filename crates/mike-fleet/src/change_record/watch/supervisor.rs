@@ -8,6 +8,7 @@ use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use tokio_util::sync::CancellationToken;
 
+use super::shell_folders::ShellFolders;
 use super::working::{WAKES, Working, expiry, worked_within};
 use super::{Checkout, Git, Running, WatchConfig, key, start};
 use crate::base_state::BaseState;
@@ -40,6 +41,8 @@ pub struct Supervisor {
     persist: PersistHandle,
     config: WatchConfig,
     working: Working,
+    placed: Vec<WorkingCheckout>,
+    shell: ShellFolders,
     running: BTreeMap<String, Running>,
     roots: HashMap<String, Option<String>>,
     failures: u32,
@@ -56,6 +59,8 @@ impl Supervisor {
             persist,
             config,
             working: Working::new(feed),
+            placed: Vec::new(),
+            shell: ShellFolders::default(),
             running: BTreeMap::new(),
             roots: HashMap::new(),
             failures: 0,
@@ -74,6 +79,7 @@ impl Supervisor {
             } else {
                 self.stop_all();
                 self.working.forget();
+                self.shell.forget();
                 None
             };
             let wait = pause.unwrap_or_else(|| self.working.wait(Utc::now(), TOGGLE_CHECK));
@@ -88,10 +94,45 @@ impl Supervisor {
     }
 
     async fn step(&mut self, shutdown: &CancellationToken) -> Option<Duration> {
-        if !self.working.due(Utc::now()) {
+        if self.working.due(Utc::now()) {
+            return self.tick(shutdown).await;
+        }
+        if !self.working.requested() {
             return None;
         }
-        self.tick(shutdown).await
+        let wait = self.shell.wait();
+        if !wait.is_zero() {
+            return Some(wait);
+        }
+        self.read_shell(shutdown).await;
+        None
+    }
+
+    pub async fn read_shell(&mut self, shutdown: &CancellationToken) {
+        if self.take_in_shell_commands().await {
+            let wanted = self.wanted().await;
+            self.working.expire(expiry(&wanted.newest));
+            self.apply(&wanted.projects, shutdown);
+        }
+    }
+
+    async fn take_in_shell_commands(&mut self) -> bool {
+        self.working.requests_read();
+        let now = Utc::now();
+        let since = self.shell.since(now);
+        match self.persist.fleet().shell_commands_since(since).await {
+            Ok(commands) => self.shell.add(&commands, now),
+            Err(err) => {
+                tracing::warn!(error = %err, "change record: new shell commands could not be read");
+                false
+            }
+        }
+    }
+
+    async fn wanted(&mut self) -> Wanted {
+        let mut rows = self.placed.clone();
+        rows.extend(self.shell.rows());
+        self.resolve(&rows).await
     }
 
     pub async fn tick(&mut self, shutdown: &CancellationToken) -> Option<Duration> {
@@ -104,8 +145,11 @@ impl Supervisor {
         {
             Ok(rows) => {
                 self.failures = 0;
-                let wanted = self.resolve(&rows).await;
-                self.working.read(stamp, &rows, expiry(&wanted.newest));
+                self.placed = rows;
+                self.take_in_shell_commands().await;
+                let wanted = self.wanted().await;
+                self.working
+                    .read(stamp, &self.placed, expiry(&wanted.newest));
                 self.apply(&wanted.projects, shutdown);
                 None
             }

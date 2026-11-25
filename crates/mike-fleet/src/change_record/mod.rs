@@ -7,5 +7,5 @@ pub mod writers;
 
 pub use types::{
     ChangeEvent, ChangeKind, ChangeQuery, NewChangeEvent, OpenChange, SeenPath, SessionIdentity,
-    ShellRun, ToolCallNaming, WorkingCheckout,
+    ShellCommand, ShellRun, ToolCallNaming, WorkingCheckout,
 };

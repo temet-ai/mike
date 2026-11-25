@@ -6,6 +6,7 @@ pub mod git;
 pub mod notifications;
 pub mod record;
 pub mod refs;
+pub mod shell_folders;
 pub mod skip;
 pub mod supervisor;
 pub mod tree;

@@ -75,6 +75,23 @@ async fn a_deleted_file_and_an_unknown_blob_are_recorded_not_dropped() -> Result
     Ok(())
 }
 
+#[tokio::test]
+async fn a_file_over_the_store_limit_is_skipped_and_is_no_error() -> Result<()> {
+    let (dir, git, _) = repo_with(&[]).await?;
+    let file = std::fs::File::create(dir.path().join("big.pdf"))?;
+    file.set_len(crate::change_record::watch::git::STORE_LIMIT + 1)?;
+    let change = PendingChange {
+        id: 1,
+        path: "big.pdf".to_string(),
+        before_sha: None,
+        after_sha: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
+    };
+    let record = scan_change(&git, active()?, git.root(), &change).await;
+    assert_eq!(record.skipped.as_deref(), Some("too_large"));
+    assert_eq!(record.error, None);
+    Ok(())
+}
+
 #[test]
 fn a_file_without_a_grammar_is_skipped_with_its_reason() -> Result<()> {
     let rules = rules()?;
