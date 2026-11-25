@@ -198,8 +198,7 @@ async fn before_commits_since(git: &Git, since: chrono::DateTime<chrono::Utc>) -
     String::from_utf8_lossy(&log)
         .lines()
         .filter_map(|line| line.split_once(' '))
-        .filter(|(_, action)| action.starts_with("commit: "))
-        .last()
+        .rfind(|(_, action)| action.starts_with("commit: "))
         .map_or_else(|| "HEAD".to_owned(), |(sha, _)| format!("{sha}^"))
 }
 

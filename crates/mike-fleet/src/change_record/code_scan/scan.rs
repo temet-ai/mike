@@ -60,16 +60,21 @@ pub async fn scan_change(
         Ok(Err(_)) => record.error = Some("the scan panicked".to_string()),
         Err(_) => record.error = Some(format!("the scan took longer than {SCAN_TIMEOUT:?}")),
     }
-    if !record.added.is_empty() {
-        match inherited(git, rules, &change.path).await {
-            Ok(known) => record.added.retain(|f| !known.contains(&f.fingerprint)),
-            Err(err) => {
-                tracing::warn!(root = %git.root(), path = %change.path, error = %err, "code scan: what git brought into a file could not be read");
-            }
-        }
-    }
+    drop_inherited(git, rules, &change.path, &mut record).await;
     record.duration_us = i32::try_from(started.elapsed().as_micros()).unwrap_or(i32::MAX);
     record
+}
+
+async fn drop_inherited(git: &Git, rules: ActiveRules, path: &str, record: &mut NewCodeScan) {
+    if record.added.is_empty() {
+        return;
+    }
+    match inherited(git, rules, path).await {
+        Ok(known) => record.added.retain(|f| !known.contains(&f.fingerprint)),
+        Err(err) => {
+            tracing::warn!(root = %git.root(), path = %path, error = %err, "code scan: what git brought into a file could not be read");
+        }
+    }
 }
 
 fn too_large_to_store(git: &Git, path: &str) -> bool {

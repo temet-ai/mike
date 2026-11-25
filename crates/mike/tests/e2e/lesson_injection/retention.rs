@@ -72,6 +72,17 @@ async fn run_gc_scenario(state: &AppState, pool: &PgPool) -> anyhow::Result<()> 
     Ok(())
 }
 
+async fn active_lessons(pool: &PgPool, project_id: i64) -> anyhow::Result<i64> {
+    Ok(sqlx::query_scalar(
+        "SELECT COUNT(*) FROM memory.lessons l
+           JOIN memory.lesson_stages ls ON ls.id = l.stage_id
+          WHERE l.project_id = $1 AND ls.code != 'archived'",
+    )
+    .bind(project_id)
+    .fetch_one(pool)
+    .await?)
+}
+
 async fn run_trim_scenario(state: &AppState, pool: &PgPool) -> anyhow::Result<()> {
     let project_path = "trim-proj";
     let project_id: i64 = sqlx::query_scalar(
@@ -95,17 +106,23 @@ async fn run_trim_scenario(state: &AppState, pool: &PgPool) -> anyhow::Result<()
     }
 
     mike::lesson_worker::nightly_once(state).await;
+    assert_eq!(
+        active_lessons(pool, project_id).await?,
+        4,
+        "a lesson that was never tried is kept while it is new"
+    );
 
-    let active: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM memory.lessons l
-           JOIN memory.lesson_stages ls ON ls.id = l.stage_id
-          WHERE l.project_id = $1 AND ls.code != 'archived'",
+    sqlx::query(
+        "UPDATE memory.lessons SET created_at = created_at - interval '40 days'
+          WHERE project_id = $1",
     )
     .bind(project_id)
-    .fetch_one(pool)
+    .execute(pool)
     .await?;
+    mike::lesson_worker::nightly_once(state).await;
     assert_eq!(
-        active, 2,
+        active_lessons(pool, project_id).await?,
+        2,
         "trim must cap active lessons at max_lessons_per_project"
     );
 
