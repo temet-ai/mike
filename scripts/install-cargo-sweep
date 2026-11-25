@@ -3,7 +3,7 @@
 
 Usage: scripts/install-cargo-sweep [--dry-run]
 Copies a versioned runtime, backs up the previous launcher and LaunchAgent,
-then reloads and starts the existing six-hour cleanup job. Its exit status and
+then reloads and starts the hourly cleanup job. Its exit status and
 output are available through launchctl and ~/.local/state/mike/cargo-sweep/.
 """
 
@@ -80,7 +80,7 @@ def configuration(old, home, launcher, state):
         ProgramArguments=[str(launcher)],
         WorkingDirectory=str(state),
         EnvironmentVariables=env,
-        StartInterval=config.get("StartInterval", 21600),
+        StartInterval=3600,
         RunAtLoad=True,
         ProcessType="Background",
         LowPriorityIO=True,

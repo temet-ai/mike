@@ -61,7 +61,7 @@ class Installation(unittest.TestCase):
     def test_migrates_live_job_to_complete_branch_independent_runtime(self):
         self.install()
         config = plistlib.loads(self.plist.read_bytes())
-        self.assertEqual(config["StartInterval"], 21600)
+        self.assertEqual(config["StartInterval"], 3600)
         env = config["EnvironmentVariables"]
         self.assertEqual(env["CARGO_SWEEP_MAXSIZE_GB"], "25")
         self.assertNotIn("CARGO_TARGET_DIR", env)

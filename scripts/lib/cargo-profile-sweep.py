@@ -88,7 +88,7 @@ def macho_references(profile):
                 if stream.read(4) not in MACHO:
                     continue
             result = subprocess.run(['nm', '-ap', str(path)], capture_output=True,
-                                    text=True, errors='replace', timeout=60)
+                                    text=True, errors='replace', timeout=600)
             if result.returncode:
                 raise RuntimeError(f'cannot inspect debug references in {path}: {result.stderr.strip()}')
             for line in result.stdout.splitlines():
