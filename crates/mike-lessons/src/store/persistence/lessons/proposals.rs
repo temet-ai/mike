@@ -247,6 +247,40 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         .await
     }
 
+    pub async fn waiting_judge_candidates(
+        self,
+        min_evidence: i64,
+        limit: i64,
+    ) -> Result<Vec<i64>, PersistError> {
+        if min_evidence <= 0 {
+            return Ok(Vec::new());
+        }
+        crate::metrics::time_db("waiting_judge_candidates", async move {
+            Ok(sqlx::query_scalar(
+                "SELECT l.id
+                   FROM memory.lessons l
+                   JOIN memory.lesson_stages st ON st.id = l.stage_id AND st.code = 'raw'
+                   JOIN memory.lesson_sources so ON so.id = l.source_id AND so.code = 'judge'
+                   JOIN (SELECT lesson_id, count(*) AS n
+                           FROM memory.lesson_proposal_evidence
+                          WHERE lesson_id IS NOT NULL
+                          GROUP BY lesson_id) e ON e.lesson_id = l.id
+                  WHERE l.archived_at IS NULL AND l.retired_at IS NULL
+                    AND l.duplicate_of_id IS NULL
+                    AND e.n >= $1
+                    AND NOT EXISTS (SELECT 1 FROM memory.lesson_shape_findings f
+                                     WHERE f.lesson_id = l.id AND f.resolution IS NULL)
+                  ORDER BY l.id DESC
+                  LIMIT $2",
+            )
+            .bind(min_evidence)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+        })
+        .await
+    }
+
     pub async fn approve_lesson_candidate(
         self,
         lesson_id: i64,

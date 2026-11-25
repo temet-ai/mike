@@ -60,7 +60,7 @@ pub fn entries() -> Vec<SettingMeta> {
             kind: SettingKind::Int,
             scope: SettingScope::Global,
             applies: SettingApplies::NextCycle,
-            default: serde_json::Value::Number(serde_json::Number::from(2u64)),
+            default: serde_json::Value::Number(serde_json::Number::from(1u64)),
             label: "Corrections needed to inject automatically",
             description: "How many corrections must back a candidate before the proposer \
                 injects it itself. 0 means every candidate waits for the operator; 1 means \

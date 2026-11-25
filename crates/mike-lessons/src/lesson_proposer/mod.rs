@@ -72,7 +72,7 @@ impl Default for ProposerSettings {
             max_per_day: 40,
             maintenance_max_per_day: 400,
             quiet: QuietBudget::default(),
-            auto_promote_min_evidence: 2,
+            auto_promote_min_evidence: 1,
             max_chars: crate::lesson_shape::DEFAULT_MAX_CHARS,
             prompts: ProposerPrompts::default(),
         }
@@ -248,6 +248,13 @@ pub async fn run_tick(deps: &ProposerDeps<'_>) -> ProposerReport {
     report.shape = shape_pass::run_pass(deps).await;
     report.placement = placement_pass::run_pass(deps).await;
     report.purpose = purpose::run_pass(deps).await;
+    match write::promote_waiting(deps.persist, &deps.settings).await {
+        Ok(promoted) => report.promoted += promoted,
+        Err(error) => {
+            tracing::warn!(%error, "lesson_proposer: promoting waiting candidates failed");
+            report.errors += 1;
+        }
+    }
     report
 }
 

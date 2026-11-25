@@ -220,6 +220,25 @@ async fn create(
     })
 }
 
+const WAITING_BATCH: i64 = 50;
+
+pub async fn promote_waiting(
+    persist: &PersistHandle,
+    settings: &ProposerSettings,
+) -> Result<u64, PersistError> {
+    let waiting = persist
+        .lessons()
+        .waiting_judge_candidates(settings.auto_promote_min_evidence, WAITING_BATCH)
+        .await?;
+    let mut promoted = 0;
+    for lesson_id in waiting {
+        if maybe_promote(persist, settings, lesson_id).await? {
+            promoted += 1;
+        }
+    }
+    Ok(promoted)
+}
+
 async fn maybe_promote(
     persist: &PersistHandle,
     settings: &ProposerSettings,

@@ -146,14 +146,16 @@ retires the shipped skill with the fewest loads in the last 30 days (then the ol
 shipped in the last seven days, and holds the new skill back when none can be retired. The audit
 reports lessons by placement and each project's skill count against the cap.
 
-**Automatic promotion:** a lesson candidate starts at stage `raw` — it sits on the Improvement
-page waiting for the operator. Once its backing evidence (the original correction plus every
-reinforcing one) reaches `judge_lessons.auto_promote_min_evidence` (default `2`), the proposer
-promotes it to `daily` itself, with a `config.change_log` row recording that the decision was the
-judge's, not the operator's. A repeated correction is treated as strong enough evidence to act on
-without waiting; a single correction only proposes. Setting this value to `0` makes every
-candidate wait for the operator regardless of reinforcement; `1` promotes every candidate
-immediately. All of this is on `/settings` under "Lesson proposer" (`judge_lessons.*`, defined in
+**Automatic promotion:** a lesson candidate starts at stage `raw`. Once its backing evidence (the
+original correction plus every reinforcing one) reaches `judge_lessons.auto_promote_min_evidence`
+(default `1`), the proposer promotes it to `daily` itself, with a `config.change_log` row recording
+that the decision was the judge's. With the default a lesson is tried in matching sessions as soon
+as it is written, and each proposer tick promotes candidates that were left waiting. A value of `0`
+makes every candidate wait for the operator on the Improvement page.
+
+**Trimming:** a project over `lesson_worker.max_lessons_per_project` loses only lessons that were
+tried without being used (five or more judged deliveries, none used) and lessons that were never
+supplied in 30 days and are in no standing file. All of this is on `/settings` under "Lesson proposer" (`judge_lessons.*`, defined in
 `settings/meta_improvement.rs`).
 
 **Cost control:** `judge_lessons.max_per_day` (default `40`) caps how many corrections the
@@ -327,7 +329,7 @@ live under it (`/sessions/labelling/accuracy`).
 | Feature toggle `judge_lessons` | off |
 | `judge_lessons.min_confidence` | 0.7 |
 | `judge_lessons.max_per_day` | 40 |
-| `judge_lessons.auto_promote_min_evidence` | 2 |
+| `judge_lessons.auto_promote_min_evidence` | 1 |
 | `judge_lessons.maintenance_max_per_day` | 400 |
 | `lessons.shape.max_chars` | 500 |
 | `lessons.skills.max_per_project` | 12 |

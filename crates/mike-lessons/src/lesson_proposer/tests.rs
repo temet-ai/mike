@@ -9,7 +9,7 @@ fn settings_fall_back_to_every_default_with_no_rows() {
     assert!((settings.min_confidence - 0.7).abs() < f32::EPSILON);
     assert_eq!(settings.max_per_day, 40);
     assert_eq!(settings.maintenance_max_per_day, 400);
-    assert_eq!(settings.auto_promote_min_evidence, 2);
+    assert_eq!(settings.auto_promote_min_evidence, 1);
 }
 
 #[test]

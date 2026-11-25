@@ -172,14 +172,19 @@ async fn trim_lessons_to_max_records_rank_detail() -> anyhow::Result<()> {
         &pool,
         project_id,
         None,
-        "older, gets trimmed",
+        "never came up in 30 days, gets trimmed",
         &unit_vec(0),
     )
     .await?;
-    let newer =
-        seed_daily_lesson_with_embedding(&pool, project_id, None, "newer, survives", &unit_vec(1))
-            .await?;
-    sqlx::query("UPDATE memory.lessons SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
+    let newer = seed_daily_lesson_with_embedding(
+        &pool,
+        project_id,
+        None,
+        "not tried yet, survives",
+        &unit_vec(1),
+    )
+    .await?;
+    sqlx::query("UPDATE memory.lessons SET created_at = NOW() - INTERVAL '31 days' WHERE id = $1")
         .bind(older)
         .execute(&pool)
         .await?;
@@ -193,6 +198,11 @@ async fn trim_lessons_to_max_records_rank_detail() -> anyhow::Result<()> {
         .trim_lessons_to_max(project_id, 1, run_id)
         .await?;
     assert_eq!(trimmed, 1, "exactly one excess lesson must be trimmed");
+    let untried = handle
+        .lessons()
+        .trim_lessons_to_max(project_id, 0, run_id)
+        .await?;
+    assert_eq!(untried, 0, "a lesson nobody has tried yet is never trimmed");
 
     let rank_detail: serde_json::Value = sqlx::query_scalar(
         "SELECT rank_detail FROM memory.consolidation_actions
