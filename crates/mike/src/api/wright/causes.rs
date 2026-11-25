@@ -225,9 +225,7 @@ pub(crate) async fn separate_merge(
         SeparateOutcome::EngineerMerge => Err(conflict(
             "the engineer made this merge, because a finding named the causes as one fault; only a merge the operator made can be separated",
         )),
-        SeparateOutcome::AlreadySeparated => {
-            Err(conflict("this merge was already separated"))
-        }
+        SeparateOutcome::AlreadySeparated => Err(conflict("this merge was already separated")),
     }
 }
 

@@ -155,9 +155,13 @@ describe('causeArea', () => {
 			queryTables('SELECT EXTRACT(epoch FROM t.created_at) AS s FROM wright.problems t')
 		).toEqual(['wright.problems']);
 		expect(
-			queryTables('select substring(p.text from x.y for 3), trim(both $1 from p.name) from memory.turns p')
+			queryTables(
+				'select substring(p.text from x.y for 3), trim(both $1 from p.name) from memory.turns p'
+			)
 		).toEqual(['memory.turns']);
-		expect(queryTables('SELECT TRIM(LEADING FROM t.name), OVERLAY(a.b PLACING c FROM d.e) FROM prior t')).toEqual([]);
+		expect(
+			queryTables('SELECT TRIM(LEADING FROM t.name), OVERLAY(a.b PLACING c FROM d.e) FROM prior t')
+		).toEqual([]);
 		expect(queryTables('SELECT extract ( day FROM  t.opened ) FROM sessions.sessions t')).toEqual([
 			'sessions.sessions'
 		]);
@@ -173,7 +177,9 @@ describe('causeArea', () => {
 
 	it('does not take IS DISTINCT FROM for a table', () => {
 		expect(
-			queryTables('SELECT 1 FROM wright.causes c WHERE c.a IS DISTINCT FROM p.b AND c.x IS NOT DISTINCT FROM q.y')
+			queryTables(
+				'SELECT 1 FROM wright.causes c WHERE c.a IS DISTINCT FROM p.b AND c.x IS NOT DISTINCT FROM q.y'
+			)
 		).toEqual(['wright.causes']);
 		expect(queryTables('SELECT 1 FROM prior c WHERE c.a IS DISTINCT FROM p.b')).toEqual([]);
 	});
@@ -187,7 +193,9 @@ describe('causeArea', () => {
 	});
 
 	it('names the area of a long full statement whose first table is far into the text', () => {
-		const columns = Array.from({ length: 30 }, (_, i) => `COALESCE(t.col_${i}, 0) AS c${i}`).join(', ');
+		const columns = Array.from({ length: 30 }, (_, i) => `COALESCE(t.col_${i}, 0) AS c${i}`).join(
+			', '
+		);
 		const sql = `query 42: WITH own_turn AS ( SELECT ${columns}, EXTRACT(epoch FROM t.created_at) AS age FROM prior t ) SELECT * FROM own_turn o JOIN mailbox.messages m ON m.id = o.c0 JOIN steering.interventions i ON i.id = m.id`;
 		expect(sql.search(/mailbox\.messages/)).toBeGreaterThan(200);
 		const area = causeArea(cause({ check_name: 'idle_polls', resource: sql }));
@@ -205,9 +213,7 @@ describe('causeArea', () => {
 			kind: 'check',
 			label: 'idle_polls'
 		});
-		const area = causeArea(
-			cause({ check_name: 'idle_polls', resource: cut, statement: text })
-		);
+		const area = causeArea(cause({ check_name: 'idle_polls', resource: cut, statement: text }));
 		expect(area).toMatchObject({
 			kind: 'tables',
 			label: 'mailbox tables',
@@ -243,9 +249,9 @@ describe('causeArea', () => {
 			label: 'mike_features::proxy::responses_capture',
 			detail: ['mike_features::proxy::responses_capture::record']
 		});
-		expect(
-			causeArea(cause({ check_name: 'log_errors', resource: 'plain text error' })).label
-		).toBe('log_errors');
+		expect(causeArea(cause({ check_name: 'log_errors', resource: 'plain text error' })).label).toBe(
+			'log_errors'
+		);
 	});
 
 	it('names a failed scheduled job by its name', () => {
@@ -460,7 +466,9 @@ describe('scoreBreakdown', () => {
 
 describe('engineerLine', () => {
 	it('says the engineer takes an investigable cause, and that a pin puts it first', () => {
-		expect(engineerLine(cause(), 3)).toBe('The engineer takes it when it reaches the top of the queue.');
+		expect(engineerLine(cause(), 3)).toBe(
+			'The engineer takes it when it reaches the top of the queue.'
+		);
 		expect(engineerLine(cause({ pinned: true }), 3)).toBe(
 			'Pinned. The engineer takes it before the unpinned causes.'
 		);
@@ -476,7 +484,9 @@ describe('engineerLine', () => {
 			'The engineer will not take it: a follow-up is already filed for it.'
 		);
 		expect(no('known_fix')).toBe('The engineer will not take it: a known fix already answers it.');
-		expect(no('attempts')).toBe('The engineer will not take it: it has used all 3 of its attempts.');
+		expect(no('attempts')).toBe(
+			'The engineer will not take it: it has used all 3 of its attempts.'
+		);
 	});
 
 	it('says nothing while the server has not said', () => {

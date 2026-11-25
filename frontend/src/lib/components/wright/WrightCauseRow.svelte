@@ -213,10 +213,7 @@ in place. A waiting cause carries the warning border; the border is always reser
 	<div class="cause__main">
 		<span class="cause__select">
 			{#if onSelect}
-				<Checkbox
-					checked={selected}
-					onchange={(event) => onSelect(event.currentTarget.checked)}
-				>
+				<Checkbox checked={selected} onchange={(event) => onSelect(event.currentTarget.checked)}>
 					{#snippet label()}
 						<span class="sr-only">Select {cause.check_name}</span>
 					{/snippet}

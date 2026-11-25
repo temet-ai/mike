@@ -352,10 +352,10 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 						{#if store.actions.status === 'loading'}
 							<WrightNote>Loading.</WrightNote>
 						{:else if store.actions.status === 'missing'}
-							<WrightNote
-								>Not in the running mike yet. Wright's known fixes appear here once they are
-								deployed.</WrightNote
-							>
+							<WrightNote>
+								Not in the running mike yet. Wright's known fixes appear here once they are
+								deployed.
+							</WrightNote>
 						{:else if store.actions.status === 'error'}
 							<LoadErrorBanner
 								title="Could not load what Wright did"
@@ -408,9 +408,9 @@ API: artifacts/2026-11-14/wright/BUILD_PLAN.md.
 								onRetry={() => void store.loadAll()}
 							/>
 						{:else if store.remedies.rows.length === 0}
-							<WrightNote
-								>None yet. Wright adds one each time it solves a problem that will come back.</WrightNote
-							>
+							<WrightNote>
+								None yet. Wright adds one each time it solves a problem that will come back.
+							</WrightNote>
 						{:else}
 							<ul class="wr-rows" role="list">
 								{#each store.remedies.rows as remedy (remedy.name)}

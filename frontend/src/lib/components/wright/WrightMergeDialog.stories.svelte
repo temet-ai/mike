@@ -52,7 +52,9 @@
 		await expect(within(group).getByRole('radio', { name: /slow_queries/ })).toBeChecked();
 		await expect(dialog.getByText(/3 problems move into slow_queries\./)).toBeVisible();
 		// What Separate can and cannot undo is said before the button.
-		await expect(dialog.getByText(/Separate on the kept cause moves those problems back/)).toBeVisible();
+		await expect(
+			dialog.getByText(/Separate on the kept cause moves those problems back/)
+		).toBeVisible();
 		await expect(dialog.getByText(/cannot be separated/)).toBeVisible();
 
 		// Picking another cause changes who keeps the rest and what moves.

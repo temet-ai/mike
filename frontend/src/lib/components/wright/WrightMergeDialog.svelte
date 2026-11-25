@@ -70,7 +70,10 @@ chosen to begin with. It closes when the merge worked.
 		<p class="merge__error" role="alert">{error ?? ''}</p>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-			<Button disabled={busy || root === undefined || others.length === 0} onclick={() => void confirm()}>
+			<Button
+				disabled={busy || root === undefined || others.length === 0}
+				onclick={() => void confirm()}
+			>
 				Merge
 			</Button>
 		</Dialog.Footer>

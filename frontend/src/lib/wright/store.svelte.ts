@@ -303,7 +303,8 @@ export function createWrightStore() {
 
 	/** The row the server returned replaces the shown one, and the list is in order again. */
 	function applyCause(updated: WrightCause): void {
-		const swap = (row: WrightCause): WrightCause => (row.cause_id === updated.cause_id ? updated : row);
+		const swap = (row: WrightCause): WrightCause =>
+			row.cause_id === updated.cause_id ? updated : row;
 		causes.rows = causes.rows.map(swap).sort(byPriorityDesc);
 		causes.held = causes.held.map(swap);
 	}

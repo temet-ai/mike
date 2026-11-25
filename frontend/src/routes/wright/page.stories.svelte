@@ -197,7 +197,9 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 		await userEvent.click(
 			within(root).getByRole('button', { name: /undelivered_mail/, expanded: false })
 		);
-		await userEvent.click(await within(root).findByRole('button', { name: 'Separate log_warnings' }));
+		await userEvent.click(
+			await within(root).findByRole('button', { name: 'Separate log_warnings' })
+		);
 		const sep = within(await openDialog('Separate this merge'));
 		await userEvent.click(sep.getByRole('button', { name: 'Separate' }));
 		await waitFor(() => expect(band).toHaveTextContent('1 waiting · 5 causes'));
@@ -213,7 +215,9 @@ fixtures in the shapes of artifacts/2026-11-14/wright/BUILD_PLAN.md (installWrig
 			expect(within(queue).getAllByRole('button', { name: /^Pin / })).not.toHaveLength(0)
 		);
 		// The reason is on the page once, and every action is off.
-		await expect(within(queue).getByText(/This browser is not paired, so you can read the queue/)).toBeVisible();
+		await expect(
+			within(queue).getByText(/This browser is not paired, so you can read the queue/)
+		).toBeVisible();
 		for (const button of within(queue).getAllByRole('button', { name: /^(Pin|Add) / })) {
 			await expect(button).toBeDisabled();
 		}

@@ -2,8 +2,8 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 
 use crate::api::wright::{
-    causes, checks, conversation, fix_batches, followups, investigations, problems as api, remedies,
-    repairs,
+    causes, checks, conversation, fix_batches, followups, investigations, problems as api,
+    remedies, repairs,
 };
 use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};

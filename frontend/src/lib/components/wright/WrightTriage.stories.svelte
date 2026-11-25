@@ -109,7 +109,9 @@
 		const canvas = within(canvasElement);
 
 		// Ranked: the engineer's order, the pinned cause first.
-		const ranked = canvas.getByRole('list', { name: 'Causes in the order the engineer takes them' });
+		const ranked = canvas.getByRole('list', {
+			name: 'Causes in the order the engineer takes them'
+		});
 		await expect(names(ranked)).toEqual([
 			'cause-2',
 			'cause-1',
@@ -143,7 +145,9 @@
 		// Group on one row opens the group dialog for that cause.
 		await userEvent.click(canvas.getByRole('button', { name: 'Add log_errors to a group' }));
 		await openDialog('Group this cause');
-		await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+		await userEvent.click(
+			within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' })
+		);
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
 		// Move up and down work from the keyboard, inside the pin state of the row.
@@ -204,7 +208,10 @@
 	}}
 >
 	{#snippet template()}
-		<div class="edge" style="--edge-line: var(--border-subtle); --edge-surface: var(--surface-card); padding: var(--space-3); max-inline-size: 64rem;">
+		<div
+			class="edge"
+			style="--edge-line: var(--border-subtle); --edge-surface: var(--surface-card); padding: var(--space-3); max-inline-size: 64rem;"
+		>
 			<WrightTriage
 				causes={CAUSES}
 				status="ready"
