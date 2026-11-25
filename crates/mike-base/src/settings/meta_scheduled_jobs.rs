@@ -114,12 +114,12 @@ pub fn entries() -> Vec<SettingMeta> {
             "Daily, once between 02:15 and 04:59 UTC, run scripts/kit-reviews from the \
             checkout this proxy was started in. It updates the ask-kit kits on this machine \
             and the others, labels new lookups, and starts one Claude Code session (claude -p, \
-            Opus, through this proxy) for each of the three kits with the most open questions. \
+            Sonnet, through this proxy) for each of the three kits with the most open questions. \
             Each session works in a new git worktree of that kit's repository, commits there \
             and never pushes. Each session sends the kit's journal text, which holds the \
             questions sessions asked, to Anthropic, and the labelling step sends them to the \
-            model ask-kit is configured with. One machine per database runs it (the job \
-            lease). Off by default. Read on every check, once a minute; a run already under \
+            model ask-kit is configured with. The machine whose ask-kit config names the other \
+            machines runs it. Off by default. Read on every check, once a minute; a run already under \
             way finishes.",
         ),
     ]
