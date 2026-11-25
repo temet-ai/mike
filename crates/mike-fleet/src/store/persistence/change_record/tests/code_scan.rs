@@ -414,3 +414,20 @@ async fn a_new_file_is_matched_to_the_file_it_was_moved_from() -> anyhow::Result
     f.db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn a_checkout_never_scanned_starts_before_the_changes_of_the_last_minute()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let project_id = project(f.handle.pool()).await?;
+    let mut old = event(project_id, ChangeKind::ShellChange, &["old.rs"]);
+    old.at = Utc::now() - Duration::minutes(10);
+    let mut new = event(project_id, ChangeKind::ShellChange, &["new.rs"]);
+    new.at = Utc::now();
+    let ids = f.handle.fleet().insert_change_events(&[old, new]).await?;
+    assert_eq!(f.handle.fleet().code_scan_cursor(CHECKOUT).await?, ids[0]);
+    f.db.cleanup().await?;
+    Ok(())
+}

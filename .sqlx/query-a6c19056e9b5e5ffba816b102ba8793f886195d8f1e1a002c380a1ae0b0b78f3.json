@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(\n         (SELECT max(s.change_event_id) FROM workspace.code_scans s WHERE s.checkout = $1),\n         (SELECT max(e.id) FROM workspace.change_events e\n           WHERE e.checkout = $1 AND e.at < now() - interval '1 minute'),\n         0\n       ) AS \"cursor!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cursor!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a6c19056e9b5e5ffba816b102ba8793f886195d8f1e1a002c380a1ae0b0b78f3"
+}

@@ -144,6 +144,7 @@ pub struct OpenChange {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShellCommand {
+    pub id: i64,
     pub command: String,
     pub cwd: String,
     pub project_id: i64,

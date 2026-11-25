@@ -71,12 +71,14 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
     pub async fn shell_commands_since(
         self,
         since: chrono::DateTime<Utc>,
+        after_id: i64,
     ) -> Result<Vec<ShellCommand>, PersistError> {
         crate::metrics::time_db("change_record_shell_commands_since", async move {
             let rows = sqlx::query_file_as!(
                 ShellCommand,
                 "src/store/persistence/change_record/shell_commands_since.sql",
                 since,
+                after_id,
             )
             .fetch_all(&self.pool)
             .await?;

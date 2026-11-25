@@ -29,6 +29,7 @@ fn folders_named_are_those_a_command_enters_absolute_or_under_the_session_folder
 
 fn command(text: &str, at: chrono::DateTime<Utc>) -> ShellCommand {
     ShellCommand {
+        id: 900,
         command: text.to_owned(),
         cwd: "/w/a".to_owned(),
         project_id: 1,
@@ -42,10 +43,10 @@ fn shell_folders_join_once_and_leave_after_thirty_minutes() {
     let mut shell = ShellFolders::default();
     let now = Utc::now();
     let enter = [command("cd /w/b && ls", now)];
-    assert_eq!(shell.since(now), now - Duration::minutes(30));
+    assert_eq!(shell.since(now), (now - Duration::minutes(30), 0));
     assert!(shell.add(&enter, now));
     assert!(!shell.add(&enter, now));
-    assert_eq!(shell.since(now), now - Duration::seconds(30));
+    assert_eq!(shell.since(now), (now - Duration::minutes(30), 700));
     assert!(!shell.wait().is_zero());
     assert_eq!(shell.rows().len(), 1);
     shell.add(&[], now + Duration::minutes(31));

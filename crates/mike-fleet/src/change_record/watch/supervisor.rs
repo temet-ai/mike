@@ -121,8 +121,13 @@ impl Supervisor {
     async fn take_in_shell_commands(&mut self) -> bool {
         self.working.requests_read();
         let now = Utc::now();
-        let since = self.shell.since(now);
-        match self.persist.fleet().shell_commands_since(since).await {
+        let (since, after_id) = self.shell.since(now);
+        match self
+            .persist
+            .fleet()
+            .shell_commands_since(since, after_id)
+            .await
+        {
             Ok(commands) => self.shell.add(&commands, now),
             Err(err) => {
                 tracing::warn!(error = %err, "change record: new shell commands could not be read");

@@ -11,14 +11,12 @@ use crate::change_record::{ShellCommand, WorkingCheckout};
 
 const READ_EVERY: Duration = Duration::from_secs(1);
 
-fn overlap() -> chrono::Duration {
-    chrono::Duration::seconds(30)
-}
+const LATE_ROWS: i64 = 200;
 
 #[derive(Default)]
 pub(super) struct ShellFolders {
     folders: HashMap<String, WorkingCheckout>,
-    newest: Option<DateTime<Utc>>,
+    newest_id: i64,
     read_at: Option<Instant>,
 }
 
@@ -28,11 +26,9 @@ impl ShellFolders {
             .map_or(Duration::ZERO, |at| READ_EVERY.saturating_sub(at.elapsed()))
     }
 
-    pub(super) fn since(&mut self, now: DateTime<Utc>) -> DateTime<Utc> {
+    pub(super) fn since(&mut self, now: DateTime<Utc>) -> (DateTime<Utc>, i64) {
         self.read_at = Some(Instant::now());
-        let window = now - worked_within();
-        self.newest
-            .map_or(window, |at| (at - overlap()).max(window))
+        (now - worked_within(), (self.newest_id - LATE_ROWS).max(0))
     }
 
     pub(super) fn add(&mut self, commands: &[ShellCommand], now: DateTime<Utc>) -> bool {
@@ -41,7 +37,7 @@ impl ShellFolders {
             .retain(|_, folder| folder.newest_request_at >= window);
         let mut joined = false;
         for command in commands {
-            self.newest = Some(self.newest.map_or(command.at, |at| at.max(command.at)));
+            self.newest_id = self.newest_id.max(command.id);
             for folder in folders_named(&command.command, &command.cwd) {
                 joined |= self.touch(folder, command);
             }

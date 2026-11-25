@@ -392,3 +392,49 @@ async fn shell_commands_running_keeps_a_background_call_until_its_task_notificat
     f.db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn shell_commands_running_starts_a_call_when_its_block_arrived() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let now = micros_now()?;
+    let project_id = project(pool).await?;
+    let worker = session(pool, project_id, Some("/work/alpha")).await?;
+    let req = request(pool, worker, project_id, now - Duration::seconds(60)).await?;
+    response(pool, req, now).await?;
+    let call = tool_use(
+        pool,
+        &ToolUse {
+            session_id: worker,
+            request_id: req,
+            name: "Bash",
+            file_path: None,
+            at: now - Duration::seconds(60),
+        },
+    )
+    .await?;
+    let at = now - Duration::seconds(10);
+    let running = || {
+        f.handle
+            .fleet()
+            .shell_commands_running("/work/alpha", at - Duration::seconds(1), at)
+    };
+    assert!(running().await?.is_empty(), "the response had not ended");
+    sqlx::query(
+        "INSERT INTO responses.stream_blocks
+           (request_id, session_id, block_type_id, seq_ord, content, content_sha256, byte_size, wire_tool_use_id, arrived_at)
+         SELECT $1, $2, (SELECT id FROM responses.stream_block_types WHERE code = 'tool_use'), 0, '', repeat('0', 64), 0, wire_tool_use_id, $4
+           FROM tools.uses WHERE id = $3",
+    )
+    .bind(req)
+    .bind(worker)
+    .bind(call)
+    .bind(at - Duration::seconds(5))
+    .execute(pool)
+    .await?;
+    assert_eq!(running().await?.len(), 1);
+    f.db.cleanup().await?;
+    Ok(())
+}

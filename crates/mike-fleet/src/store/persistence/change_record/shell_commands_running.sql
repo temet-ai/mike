@@ -1,7 +1,7 @@
 WITH calls AS (
     SELECT u.id,
            u.session_id,
-           coalesce(rs.completed_at, u.created_at) AS started,
+           coalesce(b0.arrived_at, rs.completed_at, u.created_at) AS started,
            CASE WHEN b.backgrounded
                 THEN (SELECT min(q.created_at)
                         FROM requests.requests q
@@ -25,6 +25,7 @@ WITH calls AS (
       FROM tools.uses u
       JOIN sessions.sessions s ON s.id = u.session_id
       LEFT JOIN responses.responses rs ON rs.request_id = u.request_id
+      LEFT JOIN responses.stream_blocks b0 ON b0.request_id = u.request_id AND b0.wire_tool_use_id = u.wire_tool_use_id
       LEFT JOIN tools.results r ON r.tool_use_id = u.id
       CROSS JOIN LATERAL (
           SELECT t.task, t.task IS NOT NULL AS backgrounded
@@ -40,7 +41,7 @@ WITH calls AS (
             OR strpos(u.input->>'command', $1) > 0
             OR (starts_with($1, s.cwd || '/')
                 AND strpos(u.input->>'command', substr($1, length(s.cwd) + 2)) > 0))
-       AND coalesce(rs.completed_at, u.created_at) <= $3
+       AND coalesce(b0.arrived_at, rs.completed_at, u.created_at) <= $3
        AND (r.created_at IS NULL OR r.created_at >= $2 OR b.backgrounded)
 ),
 overdue AS (
