@@ -7,9 +7,10 @@ WITH pending AS (
            SELECT 1 FROM memory.supplied_item_verdicts v WHERE v.supplied_item_id = i.id)
 ),
 ready AS (
-    SELECT p.id,
-           row_number() OVER (ORDER BY p.supplied_at, p.id) AS from_oldest,
-           row_number() OVER (ORDER BY p.supplied_at DESC, p.id DESC) AS from_newest
+    SELECT p.id, p.supplied_at,
+           row_number() OVER (
+               PARTITION BY i.item_kind, i.route
+               ORDER BY p.supplied_at DESC, p.id DESC) AS from_newest
       FROM pending p
       JOIN memory.supplied_items i ON i.id = p.id
       JOIN requests.requests r ON r.id = i.request_id
@@ -21,8 +22,8 @@ ready AS (
 ),
 chosen AS (
     SELECT id FROM ready
-     WHERE from_oldest <= ($1::bigint + 1) / 2
-        OR from_newest <= $1::bigint / 2
+     ORDER BY from_newest, supplied_at DESC, id DESC
+     LIMIT $1::bigint
 )
 SELECT i.id, i.item_kind, i.route, i.item_text, i.session_id, ot.id AS turn_id,
        ot.user_prompt, ot.final_assistant_text, ot.tools_used, ot.files_touched,

@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::json;
 
+use crate::lesson_delivery::prompt_context::PromptContext;
 use crate::llm::decisions::point::Decider;
 use crate::llm::decisions::record::DecisionSubject;
 pub use compose::{FLOOR, Supply, compose};
@@ -48,10 +49,12 @@ fn remember_holds(session: &str, ids: &[i64]) {
     }
 }
 
+#[derive(Default)]
 pub struct Context<'a> {
     pub session: &'a str,
     pub request_id: i64,
     pub text: &'a str,
+    pub earlier: PromptContext,
 }
 
 impl<'a> Context<'a> {
@@ -64,6 +67,7 @@ impl<'a> Context<'a> {
             session,
             request_id: i64::try_from(request_id.as_u64()).unwrap_or(0),
             text,
+            earlier: PromptContext::default(),
         }
     }
 }
@@ -117,7 +121,7 @@ pub async fn apply(
     let asked = decider
         .ask(
             QUESTION_SET,
-            state::state(context.text, lessons),
+            state::state(context.text, &context.earlier, lessons),
             questions::questions(lessons),
             subject,
             json!({ "floor": FLOOR }),

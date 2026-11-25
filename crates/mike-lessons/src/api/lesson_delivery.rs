@@ -7,8 +7,10 @@ use uuid::Uuid;
 use crate::lesson_delivery::holdings::{
     spawn_forget_holdings, spawn_record_call, spawn_record_holdings,
 };
+use crate::lesson_delivery::prompt_context::PromptContext;
 use crate::lesson_delivery::{self, CLIENT_ROUTE, DeliveredLesson, PromptLessons};
 use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_worker::relevance::embed_now;
 use crate::memory_keeper::block::Block;
 use crate::memory_keeper::deliver::{CardAsk, card_for, serves_cards};
 use crate::memory_keeper::supply::Carrier;
@@ -60,15 +62,19 @@ pub async fn post_for_prompt(
     let Ok(session) = Uuid::parse_str(&request.session) else {
         return Err(StatusCode::BAD_REQUEST);
     };
-    let mut lessons = lessons(&state, &request);
-    lessons.lessons = above_floor(&state, &request, lessons.lessons).await;
+    let context = PromptContext::load(state.persist(), session).await;
+    let query = match_text(&state, &context, &request.prompt).await;
+    let mut lessons = lessons(&state, &request, &query);
+    lessons.lessons = above_floor(&state, &request, context, lessons.lessons).await;
     if lessons.arm == CLIENT_ROUTE {
-        record_given(
-            &state,
-            &state.lesson_cache.load(),
+        let snapshot = state.lesson_cache.load();
+        lesson_delivery::mark_delivered(
+            &snapshot,
             &request.session,
+            &request.project,
             &lessons.lessons,
         );
+        record_given(&state, &snapshot, &request.session, &lessons.lessons);
     }
     let card = if request.card {
         card(&state, session, &request).await
@@ -89,17 +95,23 @@ pub async fn post_for_prompt(
     }))
 }
 
+async fn match_text(state: &AppState, context: &PromptContext, prompt: &str) -> String {
+    let query = context.query(prompt);
+    let snapshot = state.lesson_cache.load_full();
+    if embed_now(&snapshot.relevance, &state.embedding_service, &query).await {
+        query
+    } else {
+        prompt.to_owned()
+    }
+}
+
 async fn above_floor(
     state: &AppState,
     request: &ForPromptRequest,
+    earlier: PromptContext,
     chosen: Vec<DeliveredLesson>,
 ) -> Vec<DeliveredLesson> {
     use crate::reminders::supply_floor::{self, Candidate, Context};
-    let session = request.session.as_str();
-    let chosen: Vec<DeliveredLesson> = chosen
-        .into_iter()
-        .filter(|l| !supply_floor::is_held(session, l.id))
-        .collect();
     let Some(decider) = state
         .decider(supply_floor::POINT)
         .map(crate::llm::decisions::point::Decider::inline)
@@ -115,9 +127,10 @@ async fn above_floor(
         })
         .collect();
     let context = Context {
-        session,
+        session: request.session.as_str(),
         request_id: 0,
         text: &request.prompt,
+        earlier,
     };
     let kept = supply_floor::apply(&decider, &context, &asked).await;
     chosen
@@ -143,7 +156,7 @@ async fn card(state: &AppState, session: Uuid, request: &ForPromptRequest) -> Op
     .await
 }
 
-fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
+fn lessons(state: &AppState, request: &ForPromptRequest, query: &str) -> Lessons {
     let toggles = state.feature_toggle_overlay.load();
     let settings = state
         .settings_overlay
@@ -168,7 +181,7 @@ fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
         snapshot: &snapshot,
         session_id: session,
         project_path: &request.project,
-        prompt: &request.prompt,
+        prompt: query,
         held: &request.held,
         held_versions: request.held_versions.as_ref(),
         held_tags: &[],

@@ -1,22 +1,14 @@
 use serde_json::{Map, Value, json};
 
 use super::Candidate;
+use crate::lesson_delivery::prompt_context::PromptContext;
 use crate::llm::decisions::text::{head_chars, tail_chars};
 use crate::memory_keeper::resolve_text::typed_words;
 
 const CONTEXT_CHARS: usize = 1_500;
-const ACTION_CHARS: usize = 300;
 const LESSON_CHARS: usize = 700;
 
-pub fn state(context: &str, lessons: &[Candidate<'_>]) -> Value {
-    state_with_action(context, None, lessons)
-}
-
-pub fn state_with_action(
-    context: &str,
-    last_assistant_text: Option<&str>,
-    lessons: &[Candidate<'_>],
-) -> Value {
+pub fn state(context: &str, earlier: &PromptContext, lessons: &[Candidate<'_>]) -> Value {
     let by_id: Map<String, Value> = lessons
         .iter()
         .map(|lesson| {
@@ -30,8 +22,11 @@ pub fn state_with_action(
         "task": tail_chars(&typed_words(context), CONTEXT_CHARS),
         "lessons": by_id,
     });
-    if let Some(action) = last_assistant_text.map(str::trim).filter(|a| !a.is_empty()) {
-        state["last_assistant_action"] = json!(tail_chars(action, ACTION_CHARS));
+    if !earlier.earlier_ask.is_empty() {
+        state["earlier_ask"] = json!(earlier.earlier_ask);
+    }
+    if !earlier.last_action.is_empty() {
+        state["last_assistant_action"] = json!(earlier.last_action);
     }
     state
 }

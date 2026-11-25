@@ -253,7 +253,7 @@ pub async fn run_tick(deps: &ProposerDeps<'_>) -> ProposerReport {
 }
 
 async fn promote_waiting(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {
-    match write::promote_waiting(deps.persist, &deps.settings).await {
+    match write::promote_waiting(deps.persist, deps.settings).await {
         Ok(promoted) => report.promoted += promoted,
         Err(error) => {
             tracing::warn!(%error, "lesson_proposer: promoting waiting candidates failed");

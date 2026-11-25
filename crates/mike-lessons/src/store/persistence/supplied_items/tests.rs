@@ -184,6 +184,56 @@ async fn supplied_items_for_request_lists_lessons_and_cards_with_route_score_and
 }
 
 #[tokio::test]
+async fn pending_verdict_full_batch_takes_the_newest_of_each_kind() -> anyhow::Result<()> {
+    let f = Fixture::boot().await?;
+    f.keeper_supply("aaaaaaaaaaaa", "mod").await?;
+    let lessons = [
+        lesson(f.lessons[0], "proxy", Some(0.75)),
+        lesson(f.lessons[1], "proxy", Some(0.75)),
+    ];
+    f.handle
+        .lessons()
+        .record_supplied_lessons(f.requests[0], f.session, &lessons)
+        .await?;
+    f.handle
+        .lessons()
+        .record_supplied_cards(f.requests[0], f.session, &[card("aaaaaaaaaaaa", false)])
+        .await?;
+    sqlx::query(
+        "UPDATE memory.supplied_items SET supplied_at = supplied_at - interval '1 day'
+          WHERE lesson_id = $1",
+    )
+    .bind(f.lessons[0])
+    .execute(f.handle.pool())
+    .await?;
+    sqlx::query(
+        "UPDATE memory.supplied_items SET supplied_at = supplied_at - interval '2 days'
+          WHERE item_kind = 'card' AND session_id =
+                (SELECT id FROM sessions.sessions WHERE session_uuid = $1)",
+    )
+    .bind(f.session)
+    .execute(f.handle.pool())
+    .await?;
+    let items = f
+        .handle
+        .lessons()
+        .supplied_items_for_request(f.requests[0], 10, 0)
+        .await?;
+    let older = items.iter().find(|i| i.lesson_id == Some(f.lessons[0]));
+    let older = older.ok_or_else(|| anyhow::anyhow!("older lesson missing"))?;
+    let now = Utc::now() + Duration::hours(1);
+    let pending = f
+        .handle
+        .lessons()
+        .supplied_items_pending_verdict(2, now - Duration::days(14), now)
+        .await?;
+    assert_eq!(pending.len(), 2);
+    assert!(pending.iter().any(|p| p.item_kind == "card"));
+    assert!(pending.iter().all(|p| p.item_id != older.id));
+    Ok(())
+}
+
+#[tokio::test]
 async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyhow::Result<()> {
     let f = Fixture::boot().await?;
     let lessons = [

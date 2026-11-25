@@ -183,8 +183,11 @@ fn lessons_for_a_prompt_carry_their_ids_and_are_given_once() {
     let snapshot = snapshot();
     let first = select_for_prompt(request(&snapshot, &[]));
     assert_eq!(first.len(), 2);
+    assert_eq!(select_for_prompt(request(&snapshot, &[])).len(), 2);
+    mark_delivered(&snapshot, "s1", "/repo", &first[..1]);
     let second = select_for_prompt(request(&snapshot, &[]));
-    assert!(second.is_empty());
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].id, first[1].id);
 }
 
 #[test]

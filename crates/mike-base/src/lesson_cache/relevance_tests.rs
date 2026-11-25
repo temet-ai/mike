@@ -90,6 +90,25 @@ async fn cached_semantics_retrieves_without_word_overlap() {
     );
 }
 
+#[tokio::test]
+async fn word_overlap_with_another_meaning_supplies_nothing_once_the_query_is_embedded() {
+    let snapshot = LessonSnapshot::from_pairs([(
+        "project".into(),
+        vec![("correction".into(), "Grid charging of the battery".into())],
+    )]);
+    let candidates = snapshot.for_project("project").iter().collect::<Vec<_>>();
+    let cache = LessonRelevance::default();
+    assert_eq!(cache.select(&candidates, "session", "grid", 1).len(), 1);
+    assert!(cache.query_to_embed("grid").await.is_some());
+    {
+        let mut state = cache.state.lock().await;
+        state.queries.insert(fingerprint("grid"), vec![1.0, 0.0]);
+        state.documents.insert(candidates[0].id, vec![0.3, 1.0]);
+    }
+    assert!(cache.query_to_embed("grid").await.is_none());
+    assert!(cache.select(&candidates, "session", "grid", 1).is_empty());
+}
+
 #[test]
 fn pending_queries_are_bounded_and_repeated_queries_are_coalesced() {
     let mut state = State::default();

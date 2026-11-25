@@ -18,6 +18,7 @@ const SESSION_CAPACITY: usize = 1024;
 const MAX_QUERY_BYTES: usize = 8192;
 const ABSOLUTE_FLOOR: f32 = 0.05;
 const RELATIVE_FLOOR: f32 = 0.5;
+const SEMANTIC_FLOOR: f32 = 0.40;
 const RESEND_AFTER_REQUESTS: u64 = 40;
 
 #[derive(Debug, Default)]
@@ -125,6 +126,14 @@ impl LessonRelevance {
         state.queries.contains_key(&key)
     }
 
+    pub async fn query_to_embed(&self, query: &str) -> Option<(String, String)> {
+        let key = fingerprint(query);
+        if query.is_empty() || self.state.lock().await.queries.contains_key(&key) {
+            return None;
+        }
+        Some((key, newest_chunks(query)))
+    }
+
     pub fn delivered(&self, session: &str, lessons: &[&InjectableLesson]) {
         let Ok(mut state) = self.state.try_lock() else {
             return;
@@ -217,15 +226,19 @@ fn queue_query(state: &mut State, session: &str, key: &str, query: &str) {
     {
         return;
     }
+    state
+        .pending
+        .push_back((session.to_owned(), key.to_owned(), newest_chunks(query)));
+}
+
+fn newest_chunks(query: &str) -> String {
     let mut chunks: Vec<_> = crate::analysis::embeddings::chunk_text(query, MAX_QUERY_BYTES / 8)
         .into_iter()
         .rev()
         .take(8)
         .collect();
     chunks.reverse();
-    state
-        .pending
-        .push_back((session.to_owned(), key.to_owned(), chunks.join("\n")));
+    chunks.join("\n")
 }
 
 fn already_delivered(state: Option<&State>, session: &str, lesson: &InjectableLesson) -> bool {
@@ -311,9 +324,12 @@ fn score(
     let lexical = matching / total.max(1.0) / (1.0 + words.len() as f32 / 40.0);
     let semantic = state
         .and_then(|s| Some((s.queries.get(key)?, s.documents.get(&lesson.id)?)))
-        .map(|(query, document)| cosine(query, document))
-        .unwrap_or(0.0);
-    let matched = lexical + if semantic >= 0.55 { semantic } else { 0.0 };
+        .map(|(query, document)| cosine(query, document));
+    let matched = match semantic {
+        Some(meaning) if meaning >= SEMANTIC_FLOOR => lexical + meaning,
+        Some(_) => 0.0,
+        None => lexical,
+    };
     matched * state.map_or(1.0, |s| s.outcomes.weight(lesson.id))
 }
 

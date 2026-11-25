@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT left(t.user_prompt, 8000) AS ask,\n                          right(t.final_assistant_text, 4000) AS answer\n                     FROM memory.operator_turns t\n                     JOIN sessions.sessions s ON s.id = t.session_id\n                    WHERE s.session_uuid = $1\n                      AND t.closed_at IS NOT NULL\n                      AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n                    ORDER BY t.created_at DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ask",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "answer",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "2031802a541059551aaebe2cbacaf1d25451846b1795e4957eab9864f279a74a"
+}

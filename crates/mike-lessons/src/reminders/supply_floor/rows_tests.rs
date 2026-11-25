@@ -96,6 +96,7 @@ async fn keep_rows_without_a_decider_returns_every_row() {
         session: "supply-rows-off",
         request_id: 1,
         text: "editing the parser",
+        ..Context::default()
     };
     let kept = keep_rows(None, &context, rows(), row_candidate).await;
     assert_eq!(ids(&kept), vec![1, 2]);
@@ -114,6 +115,7 @@ async fn keep_rows_on_keeps_rows_at_the_floor_and_holds_the_rest() -> anyhow::Re
         session: &session,
         request_id: 1,
         text: "editing the parser",
+        ..Context::default()
     };
     let kept = keep_rows(Some(&decider), &context, rows(), row_candidate).await;
     assert_eq!(ids(&kept), vec![1]);
@@ -136,6 +138,7 @@ async fn keep_rows_failing_call_returns_every_row() -> anyhow::Result<()> {
         session: &session,
         request_id: 1,
         text: "editing the parser",
+        ..Context::default()
     };
     let kept = keep_rows(Some(&decider), &context, rows(), row_candidate).await;
     assert_eq!(ids(&kept), vec![1, 2]);
@@ -157,6 +160,7 @@ async fn keep_rows_does_not_ask_again_about_a_held_row() -> anyhow::Result<()> {
         session: &session,
         request_id: 1,
         text: "editing the parser",
+        ..Context::default()
     };
     keep_rows(Some(&decider), &context, rows(), row_candidate).await;
     let second = keep_rows(Some(&decider), &context, rows(), row_candidate).await;

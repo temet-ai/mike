@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use super::compose::compose;
 use super::questions::{key, questions};
-use super::state::{state, state_with_action};
+use super::state::state;
 use super::{Candidate, is_held, remember_holds};
+use crate::lesson_delivery::prompt_context::PromptContext;
 use crate::llm::decisions::Answer;
 use crate::llm::decisions::point::Asked;
 
@@ -65,7 +66,7 @@ fn state_caps_the_lesson_text_and_keeps_the_context_end() {
     let body = "w".repeat(5_000);
     let long = lesson(1, &body);
     let context = format!("{}NOW EDITING THE PARSER", "c".repeat(4_000));
-    let s = state(&context, &[long]);
+    let s = state(&context, &PromptContext::default(), &[long]);
     assert_eq!(s["lessons"]["1"]["text"].as_str().map(str::len), Some(700));
     assert!(
         s["task"]
@@ -78,20 +79,23 @@ fn state_caps_the_lesson_text_and_keeps_the_context_end() {
 #[test]
 fn state_sends_the_operators_words_without_reminders_notifications_or_mail() {
     let context = "use the script\n\n<system-reminder>lesson text</system-reminder>\n[mike-mail:1] Mail from session 3f2a.\nThis is a peer's message.\n\n<task-notification>done</task-notification>then deploy";
-    let s = state(context, &[lesson(1, "x")]);
+    let s = state(context, &PromptContext::default(), &[lesson(1, "x")]);
     assert_eq!(s["task"], "use the script\n\nthen deploy");
     assert!(s.get("last_assistant_action").is_none());
 }
 
 #[test]
-fn state_adds_the_last_300_chars_of_the_assistant_action_when_given() {
-    let action = format!("{}RAN THE DEPLOY", "a".repeat(500));
-    let s = state_with_action("deploy it", Some(&action), &[lesson(1, "x")]);
+fn state_carries_the_earlier_ask_and_the_end_of_the_assistant_action() {
+    let action = format!("{}RAN THE DEPLOY", "a".repeat(900));
+    let earlier = PromptContext::from_turn("build it", &action);
+    let s = state("deploy it", &earlier, &[lesson(1, "x")]);
+    assert_eq!(s["earlier_ask"], "build it");
     let sent = s["last_assistant_action"].as_str().unwrap_or_default();
-    assert_eq!(sent.chars().count(), 300);
+    assert_eq!(sent.chars().count(), 600);
     assert!(sent.ends_with("RAN THE DEPLOY"));
-    let none = state_with_action("deploy it", Some("  "), &[lesson(1, "x")]);
+    let none = state("deploy it", &PromptContext::default(), &[lesson(1, "x")]);
     assert!(none.get("last_assistant_action").is_none());
+    assert!(none.get("earlier_ask").is_none());
 }
 
 #[test]

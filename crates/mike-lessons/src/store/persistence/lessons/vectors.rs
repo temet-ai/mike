@@ -26,6 +26,30 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         .await
     }
 
+    pub async fn latest_turn_texts(
+        self,
+        session: uuid::Uuid,
+    ) -> Result<Option<(String, String)>, PersistError> {
+        crate::metrics::time_db("latest_turn_texts", async move {
+            let row = sqlx::query!(
+                r#"SELECT left(t.user_prompt, 8000) AS ask,
+                          right(t.final_assistant_text, 4000) AS answer
+                     FROM memory.operator_turns t
+                     JOIN sessions.sessions s ON s.id = t.session_id
+                    WHERE s.session_uuid = $1
+                      AND t.closed_at IS NOT NULL
+                      AND (t.opened_by IS NULL OR t.opened_by = 'operator')
+                    ORDER BY t.created_at DESC
+                    LIMIT 1"#,
+                session
+            )
+            .fetch_optional(self.pool())
+            .await?;
+            Ok(row.map(|r| (r.ask.unwrap_or_default(), r.answer.unwrap_or_default())))
+        })
+        .await
+    }
+
     pub async fn injectable_lesson_vectors(
         self,
         model: &str,

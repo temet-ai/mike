@@ -82,6 +82,7 @@ pub async fn apply_session_lessons_with_floor(
                 session: session_id,
                 request_id: i64::try_from(request_id.as_u64()).unwrap_or(0),
                 text: &query,
+                ..Default::default()
             };
             super::supply_floor::keep_above_floor(decider, &context, selected).await
         }

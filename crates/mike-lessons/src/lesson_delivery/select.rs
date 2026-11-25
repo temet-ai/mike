@@ -131,12 +131,12 @@ pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
             )
         })
         .filter(|lesson| !content_only || !snapshot.withholds_content(lesson))
+        .filter(|lesson| !crate::reminders::supply_floor::is_held(session_id, lesson.id))
         .filter(|lesson| seen.insert(lesson.id))
         .collect();
     let chosen = snapshot
         .relevance
         .select(&candidates, session_id, prompt, limit);
-    snapshot.relevance.delivered(session_id, &chosen);
     chosen
         .into_iter()
         .map(|lesson| DeliveredLesson {
@@ -147,6 +147,18 @@ pub fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
             rev: lesson.revision,
         })
         .collect()
+}
+
+pub fn mark_delivered(
+    snapshot: &LessonSnapshot,
+    session_id: &str,
+    project_path: &str,
+    sent: &[DeliveredLesson],
+) {
+    let lessons: Vec<_> = project_pool(snapshot, session_id, project_path)
+        .filter(|lesson| sent.iter().any(|given| given.id == lesson.id))
+        .collect();
+    snapshot.relevance.delivered(session_id, &lessons);
 }
 
 fn revision(lesson: &InjectableLesson) -> String {

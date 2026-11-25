@@ -5,6 +5,7 @@ pub mod held;
 pub mod holdings;
 pub mod hooks;
 pub mod origin;
+pub mod prompt_context;
 pub mod select;
 pub mod supplied;
 
@@ -16,7 +17,7 @@ pub use held::{HeldTag, REVISION_MARK, held_lesson_ids, held_lesson_tags, is_hel
 pub use origin::label_mod_lessons;
 pub use select::catalog_for_prompt;
 pub use select::{
-    DeliveredLesson, PromptLessons, already_present_ids, client_held, revisions_of,
+    DeliveredLesson, PromptLessons, already_present_ids, client_held, mark_delivered, revisions_of,
     select_for_prompt, tagged_in_body,
 };
 

@@ -8,6 +8,8 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 pub use crate::lesson_cache::outcome;
 
+const EMBED_NOW_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
+
 async fn refresh_outcomes(
     relevance: &LessonRelevance,
     persist: &PersistHandle,
@@ -50,6 +52,34 @@ pub async fn refresh(
     };
     let pending = relevance.take_pending(&model, changed).await;
     embed_pending_queries(relevance, service, &model, pending).await;
+}
+
+pub async fn embed_now(
+    relevance: &LessonRelevance,
+    service: &EmbeddingService,
+    query: &str,
+) -> bool {
+    if query.is_empty() || !service.is_available() {
+        return false;
+    }
+    let Some((key, text)) = relevance.query_to_embed(query).await else {
+        return true;
+    };
+    let model = format!("{}:{}", service.url(), service.model_name());
+    match tokio::time::timeout(EMBED_NOW_TIMEOUT, service.embed_query(&text)).await {
+        Ok(Ok(vector)) => {
+            let current = format!("{}:{}", service.url(), service.model_name());
+            relevance.cache_query(&current, &model, key, vector).await
+        }
+        Ok(Err(error)) => {
+            tracing::warn!(%error, "prompt embedding failed; matching lessons by words");
+            false
+        }
+        Err(_) => {
+            tracing::warn!("prompt embedding timed out; matching lessons by words");
+            false
+        }
+    }
 }
 
 async fn load_changed_vectors(
