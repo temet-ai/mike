@@ -38,7 +38,7 @@ async fn rebuild_with_no_change_writes_no_rows() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn no_op_build_moves_built_at_forward() -> anyhow::Result<()> {
+async fn no_op_build_moves_built_at_forward_for_a_pending_turn_only() -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
     };
@@ -49,21 +49,22 @@ async fn no_op_build_moves_built_at_forward() -> anyhow::Result<()> {
     let later = first_at + Duration::minutes(3);
     let report = build_sessions(&f.handle, &[f.session_id], later, &cfg()).await?;
     assert_eq!(report.rows_written(), 0, "report: {report:?}");
-    assert_eq!(report.stamped, 2, "report: {report:?}");
+    assert_eq!(report.stamped, 1, "only the pending turn: {report:?}");
     let after = facts(&f).await?;
+    let mut moved = 0;
     for row in &after {
         let old = before
             .iter()
             .find(|b| b.operator_turn_id == row.operator_turn_id)
             .ok_or_else(|| anyhow::anyhow!("row {} vanished", row.operator_turn_id))?;
-        assert!(
-            row.built_at > old.built_at,
-            "turn {}: built_at {} did not move past {}",
-            row.operator_turn_id,
-            row.built_at,
-            old.built_at
-        );
+        if row.next_state == "pending" {
+            assert!(row.built_at > old.built_at, "turn {}", row.operator_turn_id);
+            moved += 1;
+        } else {
+            assert_eq!(row.built_at, old.built_at, "turn {}", row.operator_turn_id);
+        }
     }
+    assert_eq!(moved, 1);
     f.db.cleanup().await?;
     Ok(())
 }

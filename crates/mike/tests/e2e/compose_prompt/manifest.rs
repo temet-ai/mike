@@ -93,9 +93,9 @@ async fn templated_composition_stamps_ledger_altered_true() -> anyhow::Result<()
 async fn fetch_manifest_row(
     pool: &sqlx::PgPool,
     session_id: &str,
-) -> anyhow::Result<(Option<Vec<u8>>, Option<Vec<u8>>, Option<Value>)> {
-    let row: (Option<Vec<u8>>, Option<Vec<u8>>, Option<Value>) = sqlx::query_as(
-        "SELECT r.request_body, r.filtered_request_body, r.transformation_manifest
+) -> anyhow::Result<(Option<Vec<u8>>, Option<Value>)> {
+    let row: (Option<Vec<u8>>, Option<Value>) = sqlx::query_as(
+        "SELECT r.filtered_request_body, r.transformation_manifest
          FROM requests.requests r
          JOIN sessions.sessions s ON s.id = r.session_id
          WHERE s.session_uuid = $1::uuid
@@ -106,6 +106,26 @@ async fn fetch_manifest_row(
     .fetch_one(pool)
     .await?;
     Ok(row)
+}
+
+async fn served_request_body(
+    client: &reqwest::Client,
+    inspect_url: &str,
+    request_id: u64,
+) -> anyhow::Result<Vec<u8>> {
+    let payload: Value = client
+        .get(format!(
+            "{inspect_url}/api/requests/{request_id}/body/request"
+        ))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let text = payload["text"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("request body missing text"))?;
+    Ok(text.as_bytes().to_vec())
 }
 
 async fn fetch_sent_envelope(
@@ -283,9 +303,8 @@ async fn templated_composition_stores_exact_sent_body_with_closed_manifest() -> 
         "sanity: upstream must have seen the templated body"
     );
 
-    let (request_body, filtered_request_body, manifest) =
-        fetch_manifest_row(&pool, session_id).await?;
-    let original_bytes = request_body.ok_or_else(|| anyhow::anyhow!("request_body missing"))?;
+    let (filtered_request_body, manifest) = fetch_manifest_row(&pool, session_id).await?;
+    let original_bytes = served_request_body(&client, &inspect_url, request_id).await?;
     assert!(
         filtered_request_body.is_none(),
         "the sent-body storage fix retires the full-body column: filtered_request_body \
@@ -338,9 +357,8 @@ async fn continuation_request_stores_no_sent_body_and_only_unchanged_stages() ->
     assert_eq!(received.len(), 2);
     let forwarded_bytes_r2 = received[1].body.clone();
 
-    let (request_body, filtered_request_body, manifest) =
-        fetch_manifest_row(&pool, session_id).await?;
-    let original_bytes = request_body.ok_or_else(|| anyhow::anyhow!("request_body missing"))?;
+    let (filtered_request_body, manifest) = fetch_manifest_row(&pool, session_id).await?;
+    let original_bytes = served_request_body(&client, &inspect_url, r2_id).await?;
 
     assert_eq!(
         original_bytes, forwarded_bytes_r2,

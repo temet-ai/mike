@@ -70,7 +70,9 @@ impl Fixture {
             if payload["table"] == "consolidation_runs" && payload["id"] == marker.as_str() {
                 return Ok(seen);
             }
-            seen.push(payload);
+            if payload["table"] != "change_generations" {
+                seen.push(payload);
+            }
         }
     }
 

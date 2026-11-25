@@ -81,6 +81,7 @@ Defaults below are the ones in this build. "Rewrites" means the request mike for
 | `proxy_tools` | Gives a session mike's own tools and answers their calls itself. |
 | `repeated_notices` | Removes repeats of Claude Code's standard notices from the copy sent on. |
 | `compression_dedup.enabled` (Read dedup, **Rewrite duplicate reads**) | When Claude reads the same file twice and nothing has changed, replaces the repeat with a one-line note that names the earlier read and says to read again after an edit. An `Edit`, `Write` or notebook edit of that file makes the next read count as new. It looks at `Read` and plain `cat <file>` commands only. With it off, mike still counts duplicates and records what it could save, and forwards the request unchanged. Your capture keeps the full original either way. |
+| `codex_diagnostic_capture` | Nothing: no part of this build reads it. Codex traffic is captured with it on or off. |
 | `reminder_on_token` | Replaces a marker some hooks add with a note. |
 | `code_findings` | Adds a note naming the code-check findings in the session's own recent edits. Needs `code_scan`. |
 

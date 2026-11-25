@@ -13,6 +13,7 @@ import time
 LOCKS = ('.cargo-lock', '.cargo-build-lock', '.cargo-artifact-lock')
 OBJECT = re.compile(r'.+-[0-9a-f]{16}\..+\.rcgu\.o$')
 HASH = re.compile(r'-[0-9a-f]{16}')
+UNIT = re.compile(r'[0-9a-f]{16}')
 INCREMENTAL = re.compile(r'-[0-9a-z]{11,13}$')
 MACHO = {bytes.fromhex(value) for value in (
     'feedface', 'cefaedfe', 'feedfacf', 'cffaedfe',
@@ -35,6 +36,32 @@ def superseded(folder, age):
         if key in seen and (age == 0 or time.time() - path.stat().st_mtime >= (age + 1) * 86400):
             old.append(path)
         seen.add(key)
+    return old
+
+
+def superseded_units(build, age):
+    """Cargo's build-dir layout: build/<package>/<hash>/{out,run,fingerprint}. A unit is
+    superseded when a newer one of the same package has the same fingerprint names."""
+    if not build.is_dir():
+        return []
+    old = []
+    for package in build.iterdir():
+        if package.is_symlink() or not package.is_dir():
+            continue
+        units = []
+        for unit in package.iterdir():
+            records = unit / 'fingerprint'
+            if unit.is_symlink() or not UNIT.fullmatch(unit.name) or not records.is_dir():
+                continue
+            files = list(records.iterdir())
+            key = frozenset(path.name for path in files if path.suffix == '.json')
+            if key:
+                units.append((max(path.lstat().st_mtime for path in files), key, unit))
+        seen = set()
+        for built, key, unit in sorted(units, key=lambda item: item[0], reverse=True):
+            if key in seen and (age == 0 or time.time() - built >= (age + 1) * 86400):
+                old.append(unit)
+            seen.add(key)
     return old
 
 
@@ -120,6 +147,7 @@ def sweep(profile, mode, age, dry):
             return (remove(paths, dry), 0, 0)
         obsolete = [path for name in ('deps', '.fingerprint', 'build', 'incremental')
                     for path in superseded(profile / name, age)]
+        obsolete += superseded_units(profile / 'build', age)
         objects = unused_objects(profile, age)
         # Preserve both unpacked objects and archives containing debug objects,
         # even when their crate/hash would otherwise be treated as superseded.

@@ -49,7 +49,7 @@ async fn whole_bodies_text_resent_in_later_requests_is_reported_once_per_request
     let Some(mut fx) = fixture().await? else {
         return Ok(());
     };
-    let history = format!("history {NEEDLE}");
+    let history = json!({"system": format!("history {NEEDLE}")}).to_string();
     for _ in 0..4 {
         fx.add_request(&history).await?;
     }

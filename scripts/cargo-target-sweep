@@ -109,7 +109,11 @@ size_kb() {
 human() { awk -v k="${1:-0}" 'BEGIN{ if (k>=1048576) printf "%.1fG", k/1048576; else if (k>=1024) printf "%.1fM", k/1024; else printf "%dK", k }'; }
 
 profiles_of() {
-  find "$1" -mindepth 1 -maxdepth 3 -type d \( -name deps -o -name .fingerprint \) -print 2>/dev/null | sed 's#/[^/]*$##' | sort -u
+  {
+    find "$1" -mindepth 1 -maxdepth 3 -type d \( -name deps -o -name .fingerprint \) -print 2>/dev/null
+    # Cargo's newer layout keeps everything in build/<package>/<hash>, beside its lock files.
+    find "$1" -mindepth 2 -maxdepth 3 -type d -name build -exec test -f '{}/../.cargo-build-lock' \; -print 2>/dev/null
+  } | sed 's#/[^/]*$##' | sort -u
 }
 
 busy_profiles=0

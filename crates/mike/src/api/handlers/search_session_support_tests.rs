@@ -79,7 +79,7 @@ impl Fixture {
             "INSERT INTO requests.requests (
                 session_id, project_id, method_id, path, is_streaming, message_count,
                 is_tool_loop, status_id, params, last_user_message, human_prompt,
-                turn_type_id, turn_origin_id, request_body, created_at
+                turn_type_id, turn_origin_id, request_envelope, created_at
              )
              SELECT $1, $2, rm.id, '/v1/messages', false, 0, false, rs.id, '{}'::jsonb,
                     '', '', rtt.id, rto.id, $3, $4
@@ -91,7 +91,9 @@ impl Fixture {
         )
         .bind(self.session_db_id)
         .bind(self.project_id)
-        .bind(body.as_bytes())
+        .bind(crate::store::persistence::reconstruct::strip_bulk_arrays(
+            body.as_bytes(),
+        ))
         .bind(created_at)
         .fetch_one(self.pool()?)
         .await?;

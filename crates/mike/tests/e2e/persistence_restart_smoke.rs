@@ -32,12 +32,12 @@ async fn send_request(
     Ok(response.bytes().await?)
 }
 
-async fn fetch_request_body_presence(
+async fn fetch_request_envelope_presence(
     pool: &sqlx::PgPool,
     session_id: &str,
 ) -> anyhow::Result<Vec<(i64, bool)>> {
     let rows: Vec<(i64, bool)> = sqlx::query_as(
-        "SELECT r.id, (r.request_body IS NOT NULL) AS has_body
+        "SELECT r.id, (r.request_envelope IS NOT NULL) AS has_body
          FROM requests.requests r
          JOIN sessions.sessions s ON s.id = r.session_id
          WHERE s.session_uuid = $1::uuid
@@ -155,10 +155,10 @@ async fn persistence_restart_smoke() -> anyhow::Result<()> {
     .await?;
     assert_eq!(ids_before.len(), 3);
 
-    let presence_before = fetch_request_body_presence(&pool, &session_id).await?;
+    let presence_before = fetch_request_envelope_presence(&pool, &session_id).await?;
     assert_eq!(presence_before.len(), 3, "3 persisted rows expected");
     for (id, has_body) in &presence_before {
-        assert!(has_body, "request_body must be non-NULL for id {id}");
+        assert!(has_body, "request_envelope must be non-NULL for id {id}");
     }
 
     shutdown_1.cancel();
@@ -183,7 +183,7 @@ async fn persistence_restart_smoke() -> anyhow::Result<()> {
 
     assert_still_pinned(&detail_after)?;
 
-    let presence_after = fetch_request_body_presence(&pool, &session_id).await?;
+    let presence_after = fetch_request_envelope_presence(&pool, &session_id).await?;
     assert_eq!(
         presence_after, presence_before,
         "body presence must not change across restart"

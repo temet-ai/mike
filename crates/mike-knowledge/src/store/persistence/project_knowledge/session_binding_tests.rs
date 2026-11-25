@@ -269,7 +269,7 @@ async fn session_binding_registering_a_root_owned_by_another_project_is_refused(
 }
 
 #[tokio::test]
-async fn local_root_binding_picks_the_longest_matching_root() -> anyhow::Result<()> {
+async fn local_root_holding_another_project_matches_only_its_exact_root() -> anyhow::Result<()> {
     let world = World::boot().await?;
     let outer = world.project("Outer").await?;
     let inner = world.project("Inner").await?;
@@ -290,9 +290,15 @@ async fn local_root_binding_picks_the_longest_matching_root() -> anyhow::Result<
         .await?;
 
     assert_eq!(bound.map(|p| p.id), Some(inner.id));
-    assert_eq!(other.map(|p| p.id), Some(outer.id));
+    assert!(other.is_none(), "{other:?}");
     assert_eq!(world.state(nested).await?.1, inner.id);
-    assert_eq!(world.state(sibling).await?.1, outer.id);
+    assert_eq!(world.state(sibling).await?.0, None);
+    let exact = world
+        .handle
+        .knowledge()
+        .bind_session_to_local_root(sibling, machine, "/work")
+        .await?;
+    assert_eq!(exact.map(|p| p.id), Some(outer.id));
     world.cleanup().await
 }
 

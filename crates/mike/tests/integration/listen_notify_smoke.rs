@@ -17,21 +17,28 @@ async fn open_listener(database_url: &str) -> anyhow::Result<PgListener> {
 }
 
 async fn recv_payload(listener: &mut PgListener) -> anyhow::Result<Value> {
-    let n = timeout(RECV_TIMEOUT, listener.recv())
-        .await
-        .map_err(|_| anyhow::anyhow!("timed out waiting for notification (>500ms)"))??;
-    let parsed: Value = serde_json::from_str(n.payload())?;
-    Ok(parsed)
+    loop {
+        let n = timeout(RECV_TIMEOUT, listener.recv())
+            .await
+            .map_err(|_| anyhow::anyhow!("timed out waiting for notification (>500ms)"))??;
+        let parsed: Value = serde_json::from_str(n.payload())?;
+        if parsed["table"] != "change_generations" {
+            return Ok(parsed);
+        }
+    }
 }
 
 async fn assert_no_more(listener: &mut PgListener) -> anyhow::Result<()> {
-    match timeout(Duration::from_millis(100), listener.recv()).await {
-        Err(_) => Ok(()),
-        Ok(Err(e)) => Err(e.into()),
-        Ok(Ok(n)) => Err(anyhow::anyhow!(
-            "expected no further notification, but got payload {:?}",
-            n.payload()
-        )),
+    loop {
+        let n = match timeout(Duration::from_millis(100), listener.recv()).await {
+            Err(_) => return Ok(()),
+            Ok(received) => received?,
+        };
+        let parsed: Value = serde_json::from_str(n.payload())?;
+        anyhow::ensure!(
+            parsed["table"] == "change_generations",
+            "expected no further notification, but got payload {parsed:?}"
+        );
     }
 }
 

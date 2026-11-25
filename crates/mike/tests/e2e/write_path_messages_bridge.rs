@@ -219,13 +219,13 @@ async fn assert_canonical_body_strips_cache_control(
     Ok(())
 }
 
-async fn assert_wire_body_persisted_independent_of_bridge(
+async fn assert_envelope_persisted_independent_of_bridge(
     pool: &PgPool,
     req1_id: i64,
     req1_created: chrono::DateTime<chrono::Utc>,
 ) -> anyhow::Result<()> {
-    let req1_body: Option<Vec<u8>> = sqlx::query_scalar(
-        "SELECT request_body FROM requests.requests
+    let req1_envelope: Option<Vec<u8>> = sqlx::query_scalar(
+        "SELECT request_envelope FROM requests.requests
           WHERE id = $1 AND created_at = $2",
     )
     .bind(req1_id)
@@ -233,8 +233,8 @@ async fn assert_wire_body_persisted_independent_of_bridge(
     .fetch_one(pool)
     .await?;
     assert!(
-        req1_body.is_some(),
-        "wire-form body bytes must still be persisted alongside the bridge"
+        req1_envelope.is_some(),
+        "the request envelope must be persisted alongside the bridge"
     );
     Ok(())
 }
@@ -281,7 +281,7 @@ async fn snapshot_request_populates_messages_bridge_with_dedup_across_requests()
     assert_dedup_produces_three_unique_messages(&pool, req1_id, req2_id).await?;
     assert_no_orphan_bridge_rows(&pool, req1_id, req2_id).await?;
     assert_canonical_body_strips_cache_control(&pool, req1_id).await?;
-    assert_wire_body_persisted_independent_of_bridge(&pool, req1_id, req1_created).await?;
+    assert_envelope_persisted_independent_of_bridge(&pool, req1_id, req1_created).await?;
     assert_isolated_db_has_exactly_expected_messages(&pool, 3).await?;
 
     pool.close().await;
@@ -328,15 +328,15 @@ async fn snapshot_request_skips_bridge_when_messages_missing() -> anyhow::Result
         "empty messages[] must result in 0 bridge rows; the request row itself still persisted"
     );
 
-    let body_bytes: Option<Vec<u8>> = sqlx::query_scalar(
-        "SELECT request_body FROM requests.requests
+    let envelope: Option<Vec<u8>> = sqlx::query_scalar(
+        "SELECT request_envelope FROM requests.requests
           WHERE id = $1 AND created_at = $2",
     )
     .bind(req_id)
     .bind(req_created)
     .fetch_one(&pool)
     .await?;
-    assert!(body_bytes.is_some());
+    assert!(envelope.is_some());
     let _ = req_id;
     let _ = req_created;
 

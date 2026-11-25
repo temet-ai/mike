@@ -84,7 +84,7 @@ fn sql_check(name: &str, query: &str) -> Value {
     })
 }
 
-const SEEDED: usize = 22;
+const SEEDED: usize = 23;
 
 const GOOD_QUERY: &str =
     "SELECT 'job'::text, job_name, jsonb_build_object('failures', consecutive_failures)

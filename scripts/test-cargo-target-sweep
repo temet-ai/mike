@@ -296,6 +296,25 @@ if [[ "$(uname -s)" == Darwin ]]; then
   rm -rf "$t"
 fi
 
+echo "cargo-target-sweep — units in build/<package>/<hash> are swept, the newest of each kind kept"
+t="$(mktemp -d)"
+touch_unit() {
+  mkdir -p "$t/debug/build/mike/$1/fingerprint" "$t/debug/build/mike/$1/out"
+  touch -t "$3" "$t/debug/build/mike/$1/fingerprint/$2.json"
+}
+mkdir -p "$t/debug"; touch "$t/debug/.cargo-build-lock"
+touch_unit 0123456789abcdef lib-mike 202001010000
+touch_unit fedcba9876543210 lib-mike 202601010000
+touch_unit 00112233aabbccdd test-lib-mike 202001010000
+"$SWEEP" --cap 40 --age 3 "$t" >/dev/null
+[[ ! -d "$t/debug/build/mike/0123456789abcdef" ]] && chk pass "the older unit of a kind goes" || chk fail "the older unit of a kind goes"
+[[ -d "$t/debug/build/mike/fedcba9876543210" && -d "$t/debug/build/mike/00112233aabbccdd" ]] \
+  && chk pass "the newest unit of each kind is kept" || chk fail "the newest unit of each kind is kept"
+"$SWEEP" --empty "$t" >/dev/null
+[[ ! -d "$t/debug/build" && -f "$t/debug/.cargo-build-lock" ]] \
+  && chk pass "a finished checkout's units go and its lock stays" || chk fail "a finished checkout's units go and its lock stays"
+rm -rf "$t"
+
 echo "cargo-sweep-all — deeply nested worktrees are discovered"
 roots="$(mktemp -d)"
 deep="$roots/a/b/c/d/e/f/g/h/project/.claude/worktrees/active/target"

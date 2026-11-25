@@ -21,7 +21,8 @@ async fn text_search_with_a_caller_logs_one_row_with_the_matching_requests() -> 
         return Ok(());
     };
     for _ in 0..2 {
-        fx.add_request(&format!("history {NEEDLE}")).await?;
+        fx.add_request(&json!({"system": format!("history {NEEDLE}")}).to_string())
+            .await?;
     }
 
     let answer = run_find(
@@ -55,7 +56,8 @@ async fn text_search_without_a_caller_logs_no_row() -> anyhow::Result<()> {
     let Some(mut fx) = fixture().await? else {
         return Ok(());
     };
-    fx.add_request(&format!("history {NEEDLE}")).await?;
+    fx.add_request(&json!({"system": format!("history {NEEDLE}")}).to_string())
+        .await?;
 
     run_find(
         &fx.state,

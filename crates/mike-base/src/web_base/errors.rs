@@ -13,18 +13,22 @@ pub fn persist_error_response(e: crate::store::persistence::PersistError) -> Res
     if let crate::store::persistence::capture_retry::WriteFailure::Temporary(reason) =
         crate::store::persistence::capture_retry::classify(&e)
     {
-        tracing::warn!(error = %e, reason, "database temporarily unavailable; request refused with 503");
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            [(axum::http::header::RETRY_AFTER, "5")],
-            format!("database temporarily unavailable: {reason}"),
-        )
-            .into_response();
+        return temporarily_unavailable(&e, &reason);
     }
     tracing::warn!(error = %e, "persistence operation failed");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         "persistence operation failed",
+    )
+        .into_response()
+}
+
+fn temporarily_unavailable(e: &crate::store::persistence::PersistError, reason: &str) -> Response {
+    tracing::warn!(error = %e, reason, "database temporarily unavailable; request refused with 503");
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        [(axum::http::header::RETRY_AFTER, "5")],
+        format!("database temporarily unavailable: {reason}"),
     )
         .into_response()
 }
