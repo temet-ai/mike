@@ -113,7 +113,9 @@ async fn run_trim_scenario(state: &AppState, pool: &PgPool) -> anyhow::Result<()
     );
 
     sqlx::query(
-        "UPDATE memory.lessons SET created_at = created_at - interval '40 days'
+        "UPDATE memory.lessons
+            SET created_at = created_at - interval '40 days',
+                stage_id = (SELECT id FROM memory.lesson_stages WHERE code = 'daily')
           WHERE project_id = $1",
     )
     .bind(project_id)

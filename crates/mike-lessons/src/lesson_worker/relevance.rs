@@ -66,20 +66,22 @@ pub async fn embed_now(
         return true;
     };
     let model = format!("{}:{}", service.url(), service.model_name());
-    match tokio::time::timeout(EMBED_NOW_TIMEOUT, service.embed_query(&text)).await {
-        Ok(Ok(vector)) => {
-            let current = format!("{}:{}", service.url(), service.model_name());
-            relevance.cache_query(&current, &model, key, vector).await
-        }
-        Ok(Err(error)) => {
-            tracing::warn!(%error, "prompt embedding failed; matching lessons by words");
-            false
-        }
-        Err(_) => {
-            tracing::warn!("prompt embedding timed out; matching lessons by words");
-            false
-        }
-    }
+    let Some(vector) = embed_in_time(service, &text).await else {
+        return false;
+    };
+    let current = format!("{}:{}", service.url(), service.model_name());
+    relevance.cache_query(&current, &model, key, vector).await
+}
+
+async fn embed_in_time(service: &EmbeddingService, text: &str) -> Option<Vec<f32>> {
+    tokio::time::timeout(EMBED_NOW_TIMEOUT, service.embed_query(text))
+        .await
+        .map_err(|_| "no answer in time".to_owned())
+        .and_then(|answer| answer.map_err(|error| error.to_string()))
+        .inspect_err(|error| {
+            tracing::warn!(%error, "prompt not embedded; matching lessons by words");
+        })
+        .ok()
 }
 
 async fn load_changed_vectors(
