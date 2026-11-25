@@ -12,6 +12,7 @@ use crate::store::persistence::supplied_items::{PendingVerdict, SuppliedLesson};
 struct FakeJudge {
     answers: Mutex<Vec<Result<Answer, JudgeError>>>,
     seen: Mutex<Vec<String>>,
+    without_model: bool,
 }
 
 impl FakeJudge {
@@ -19,6 +20,14 @@ impl FakeJudge {
         Self {
             answers: Mutex::new(answers),
             seen: Mutex::new(Vec::new()),
+            without_model: false,
+        }
+    }
+
+    fn deciding_without_model(answers: Vec<Result<Answer, JudgeError>>) -> Self {
+        Self {
+            without_model: true,
+            ..Self::new(answers)
         }
     }
 }
@@ -26,6 +35,10 @@ impl FakeJudge {
 impl SupplyJudge for FakeJudge {
     fn model(&self) -> &str {
         "fake-judge"
+    }
+
+    fn decides_without_model(&self) -> bool {
+        self.without_model
     }
 
     async fn judge(&self, _item: &PendingVerdict, user: &str) -> Result<Answer, JudgeError> {
@@ -135,6 +148,55 @@ async fn judge_batch_waits_for_the_turn_to_settle() -> anyhow::Result<()> {
         pass.judged, 0,
         "a turn closed under 30 minutes ago is not judged yet"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn judge_batch_refused_item_with_decisions_left_judges_the_rest_and_waits_its_turn()
+-> anyhow::Result<()> {
+    let f = Fixture::boot().await?;
+    sqlx::query("ALTER TABLE memory.supplied_items ALTER COLUMN id RESTART WITH 9000001")
+        .execute(f.handle.pool())
+        .await?;
+    let lessons = [
+        SuppliedLesson {
+            lesson_id: f.lessons[0],
+            route: "proxy",
+            score: None,
+        },
+        SuppliedLesson {
+            lesson_id: f.lessons[1],
+            route: "proxy",
+            score: None,
+        },
+    ];
+    for request in [f.requests[0], f.requests[1]] {
+        f.handle
+            .lessons()
+            .record_supplied_lessons(request, f.session, &lessons)
+            .await?;
+    }
+    let refused = Err(JudgeError::from(LlmError::RateLimited { limit: 30 }));
+    let judge = FakeJudge::deciding_without_model(vec![
+        answer("used"),
+        answer("ignored"),
+        answer("used"),
+        refused,
+    ]);
+    let now = Utc::now() + Duration::hours(1);
+
+    let pass = judge_batch(&f.handle, &judge, now).await;
+
+    assert_eq!((pass.judged, pass.rate_limited), (3, true));
+    let soon = FakeJudge::new(vec![answer("used")]);
+    let again = judge_batch(&f.handle, &soon, now + Duration::minutes(10)).await;
+    assert_eq!(
+        again.judged, 0,
+        "the refused item is set aside for two hours"
+    );
+    let later = FakeJudge::new(vec![answer("used")]);
+    let after = judge_batch(&f.handle, &later, now + Duration::hours(3)).await;
+    assert_eq!(after.judged, 1, "then it is judged");
     Ok(())
 }
 

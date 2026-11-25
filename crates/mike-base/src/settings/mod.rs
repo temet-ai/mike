@@ -234,16 +234,6 @@ pub struct SettingsOverlay {
 
     pub session_judge_rejudge_daily_call_cap: i64,
 
-    pub session_end_shadow_bundle_id: i64,
-
-    pub session_end_shadow_sample_rate: f64,
-
-    pub session_end_shadow_batch_size: i64,
-
-    pub session_end_shadow_lookback_hours: i64,
-
-    pub session_end_shadow_interval_secs: i64,
-
     pub turn_judge_immediate: bool,
 
     pub turn_judge_immediate_delay_ms: i64,
@@ -318,11 +308,6 @@ impl Default for SettingsOverlay {
             session_judge_live_bundle_id: 0,
             session_judge_v3_lookback_hours: 72,
             session_judge_rejudge_daily_call_cap: 200,
-            session_end_shadow_bundle_id: 0,
-            session_end_shadow_sample_rate: 0.2,
-            session_end_shadow_batch_size: 10,
-            session_end_shadow_lookback_hours: 72,
-            session_end_shadow_interval_secs: 300,
             turn_judge_immediate: false,
             turn_judge_immediate_delay_ms: meta_turn_judge::DEFAULT_IMMEDIATE_DELAY_MS,
             turn_judge_live_window_days: meta_turn_judge::DEFAULT_LIVE_WINDOW_DAYS,

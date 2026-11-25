@@ -170,7 +170,7 @@ Each of the following sends data elsewhere, and each is off by default:
 
 | Enable this | And this leaves the machine | To |
 |---|---|---|
-| `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`, `turn_guard`, `steerer.refocus.enabled`, `lesson_relations.enabled` | Conversation text — prompts, assistant turns, tool-call summaries, and stored lessons — as the body of an LLM call | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
+| `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `turn_guard`, `steerer.refocus.enabled`, `lesson_relations.enabled` | Conversation text — prompts, assistant turns, tool-call summaries, and stored lessons — as the body of an LLM call | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
 | `embedding.enabled` with a **remote or hosted** `embedding.url` | The text being embedded: turns, lessons, project context, recall queries | Whatever that URL names. A local embedding server on `127.0.0.1` sends nothing off the machine. |
 | `mike verifier-replay --execute --out <file>` (flags `--set`, `--arm`, `--max-usd` default 15, `--model`, `--reasoning-effort`, `--prompt-file`); without `--execute` it is a dry run that sends nothing | Rebuilt verifier inputs of past turns: conversation text, tool-call lists, and the notes the session had been sent with the operator's recent replies. Per-call records go to `<out>.calls.jsonl` and reports to `--out`, never to `llm.calls` | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
 | `otel_endpoint` set | Trace spans. mike's spans carry ids, sizes and counts; no prompt or response body was found on a span attribute | Your OTel collector |
@@ -195,7 +195,7 @@ A fresh install is already in this state. To confirm or restore it:
    `/settings` in the browser shows the same thing, and `mike features watch-only` sets every
    switch to its default. The ones that rewrite traffic or call out default off:
    `reminders`, `recall_injector`, `weasel_intercept`, `reminder_on_token`, `mailbox_redelivery`,
-   `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`,
+   `steerer`, `judge_worker`, `session_judge`, `judge_lessons`,
    `turn_guard`, `agent_lessons`,
    `proxy_tools`, `self_identity_reminder`, `repeated_notices`, `workspace_briefing`,
    `native_peer_mail`, `mod_lesson_delivery` and `context_focus_question`;

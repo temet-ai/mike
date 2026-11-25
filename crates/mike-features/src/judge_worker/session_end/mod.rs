@@ -5,7 +5,6 @@ pub mod rejudge;
 pub mod rubric;
 pub mod run;
 pub mod schema;
-pub mod shadow;
 
 use serde::Serialize;
 

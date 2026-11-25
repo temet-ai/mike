@@ -6,6 +6,8 @@ mod prompt_settings_tests;
 #[cfg(test)]
 mod tests;
 
+use std::collections::{HashMap, HashSet};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::Duration;
 
 use chrono::{DateTime, Timelike, Utc};
@@ -28,6 +30,7 @@ const TICK_INTERVAL: Duration = Duration::from_secs(600);
 const BATCH: i64 = 25;
 const LOOKBACK_DAYS: i64 = 14;
 const SETTLE_MINUTES: i64 = 30;
+const DEFER_HOURS: i64 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
@@ -84,6 +87,9 @@ impl From<LlmError> for JudgeError {
 
 pub trait SupplyJudge {
     fn model(&self) -> &str;
+    fn decides_without_model(&self) -> bool {
+        false
+    }
     fn judge(
         &self,
         item: &PendingVerdict,
@@ -248,16 +254,33 @@ enum Judged {
     RateLimited,
 }
 
+static DEFERRED: LazyLock<Mutex<HashMap<i64, DateTime<Utc>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn deferred_ids(now: DateTime<Utc>) -> HashSet<i64> {
+    let mut deferred = DEFERRED.lock().unwrap_or_else(PoisonError::into_inner);
+    deferred.retain(|_, until| *until > now);
+    deferred.keys().copied().collect()
+}
+
+fn defer(item_id: i64, now: DateTime<Utc>) {
+    DEFERRED
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .insert(item_id, now + chrono::Duration::hours(DEFER_HOURS));
+}
+
 pub async fn judge_batch(
     persist: &PersistHandle,
     judge: &impl SupplyJudge,
     now: DateTime<Utc>,
 ) -> Pass {
     let mut pass = Pass::default();
+    let held = deferred_ids(now);
     let items = match persist
         .lessons()
         .supplied_items_pending_verdict(
-            BATCH,
+            BATCH.saturating_add(i64::try_from(held.len().saturating_mul(2)).unwrap_or(BATCH)),
             now - chrono::Duration::days(LOOKBACK_DAYS),
             now - chrono::Duration::minutes(SETTLE_MINUTES),
         )
@@ -270,13 +293,21 @@ pub async fn judge_batch(
             return pass;
         }
     };
-    for item in items {
+    let batch = usize::try_from(BATCH).unwrap_or(usize::MAX);
+    let ready = items
+        .into_iter()
+        .filter(|item| !held.contains(&item.item_id))
+        .take(batch);
+    for item in ready {
         match judge_one(persist, judge, &item).await {
             Ok(Judged::Stored) => pass.judged += 1,
             Ok(Judged::Failed) => pass.failed += 1,
             Ok(Judged::RateLimited) => {
                 pass.rate_limited = true;
-                break;
+                if !judge.decides_without_model() {
+                    break;
+                }
+                defer(item.item_id, now);
             }
             Err(()) => {
                 pass.database_failed = true;
@@ -312,7 +343,7 @@ fn rate_limited(item: i64, error: &str) -> Judged {
     tracing::info!(
         item,
         %error,
-        "supply_verdict: the call limiter refused; the rest of the batch waits for the next pass"
+        "supply_verdict: no model answered; the item waits for a later pass"
     );
     Judged::RateLimited
 }

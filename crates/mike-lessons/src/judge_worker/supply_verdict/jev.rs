@@ -169,6 +169,7 @@ pub struct JevJudge<'a, J> {
     decider: Decider,
     model: String,
     tripped: AtomicBool,
+    inner_refused: AtomicBool,
     last_was_jev: AtomicBool,
 }
 
@@ -180,8 +181,22 @@ impl<'a, J: SupplyJudge> JevJudge<'a, J> {
             decider: env.decider(POINT)?,
             model: env.model(),
             tripped: AtomicBool::new(false),
+            inner_refused: AtomicBool::new(false),
             last_was_jev: AtomicBool::new(false),
         })
+    }
+
+    async fn ask_inner(&self, item: &PendingVerdict, user: &str) -> Result<Answer, JudgeError> {
+        if self.inner_refused.load(Ordering::Relaxed) {
+            return Err(JudgeError::RateLimited(
+                "the model refused earlier in this pass".to_owned(),
+            ));
+        }
+        let outcome = self.inner.judge(item, user).await;
+        if matches!(outcome, Err(JudgeError::RateLimited(_))) {
+            self.inner_refused.store(true, Ordering::Relaxed);
+        }
+        outcome
     }
 
     async fn ask(&self, item: &PendingVerdict) -> Outcome {
@@ -251,6 +266,10 @@ impl<J: SupplyJudge + Sync> SupplyJudge for JevJudge<'_, J> {
         }
     }
 
+    fn decides_without_model(&self) -> bool {
+        !self.tripped.load(Ordering::Relaxed) && self.decider.applies()
+    }
+
     async fn judge(&self, item: &PendingVerdict, user: &str) -> Result<Answer, JudgeError> {
         self.last_was_jev.store(false, Ordering::Relaxed);
         if self.tripped.load(Ordering::Relaxed) {
@@ -261,7 +280,7 @@ impl<J: SupplyJudge + Sync> SupplyJudge for JevJudge<'_, J> {
                 self.last_was_jev.store(true, Ordering::Relaxed);
                 Ok(answer)
             }
-            Outcome::Unsure | Outcome::Model => self.inner.judge(item, user).await,
+            Outcome::Unsure | Outcome::Model => self.ask_inner(item, user).await,
         }
     }
 }

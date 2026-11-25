@@ -53,7 +53,6 @@ FEATURES = {
     "seat_memory_index": ("global", "live_disable"),
     "semantic_context": ("global", "immediate"),
     "self_identity_reminder": ("session", "new_sessions"),
-    "session_end_shadow": ("global", "live_disable"),
     "session_judge": ("global", "live_disable"),
     "steerer": ("global", "live_disable"),
     "turn_guard": ("global", "live_disable"),

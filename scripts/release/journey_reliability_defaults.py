@@ -31,7 +31,6 @@ WORKER_CONDITIONS = {
     "quiescence_worker::spawn_quiescence_worker": "compiled_feature_disabled",
     "steerer::reply_label::demotion::spawn_steerer_demotion": "owned_database_without_operator_steerers",
     "judge_worker::spawn_session_judge_worker": "compiled_feature_disabled",
-    "judge_worker::spawn_session_end_shadow": "compiled_feature_disabled",
     "mailbox_reaper::spawn_mailbox_reaper": "owned_database_without_operator_mail",
     "work_registry_worker::spawn_work_registry_worker": "owned_database_without_operator_work_items_or_file_paths",
     "eval_metrics::spawn_eval_metrics_worker": "owned_database_and_compiled_settings",

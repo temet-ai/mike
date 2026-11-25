@@ -99,7 +99,7 @@ All of these need a model provider, such as an OpenRouter key, except where note
 | `steerer` | Runs steerers that judge drift and queue corrections for the next turn. See [Steering](steering.md). |
 | `judge_worker` | Judges each turn. See [Judge](judge.md). |
 | `session_judge` | Judges whole sessions. |
-| `judge_lessons`, `session_end_shadow` | Further judging jobs. The settings page describes each; treat them as sending captured text to your provider when on. |
+| `judge_lessons` | A further judging job. The settings page describes it; treat it as sending captured text to your provider when on. |
 | `turn_guard` | Checks a turn's closing text against a few questions. |
 | `decisions` | Asks a small model, Jev, narrow yes or no questions at mike's decision points, such as whether a turn-guard nudge is worth sending. Sends your ask, the end of the answer and what changed to OpenRouter. Each point has its own mode of off, shadow or on. See [Decisions](decisions.md). |
 | `steerer.correction.enabled` | Decides whether you were correcting the model. |

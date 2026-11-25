@@ -223,11 +223,6 @@ semantic.retrieval_k
 semantic.retrieval_scope
 semantic.sweep_interval_secs
 semantic.tagger_min_score
-session_end_shadow.batch_size
-session_end_shadow.bundle_id
-session_end_shadow.interval_secs
-session_end_shadow.lookback_hours
-session_end_shadow.sample_rate
 session_judge.batch_size
 session_judge.live_bundle_id
 session_judge.max_attempts_per_day

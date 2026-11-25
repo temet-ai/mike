@@ -171,7 +171,7 @@ Also off by default, and described on the settings page (`featureCopy.ts`):
 | `native_peer_mail` | Delivers mail from another session the way Claude Code delivers a message from one of your other sessions. Off, mail arrives as a mike channel message. |
 | `mod_lesson_delivery` | Lets the mike mod add lessons when a prompt is sent; mike stops adding lessons to a session once it holds tagged ones. One session in five keeps mike adding them, so the two ways can be compared. |
 | `context_focus_question` | Asks the model to add one short line to every tool call except file edits, saying what it wants; mike removes the field before Claude Code sees the call. |
-| `judge_lessons`, `session_end_shadow` | Further judging jobs that call a model; they send captured text to your provider when on. |
+| `judge_lessons` | A further judging job that calls a model; it sends captured text to your provider when on. |
 | `client_serves_*` (ten switches other than `client_serves_self_identity`) | Each tells mike to stand aside for one stage on a session when a client such as tether does that stage itself. |
 
 ## Things that are not feature toggles

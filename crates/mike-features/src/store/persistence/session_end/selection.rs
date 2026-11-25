@@ -32,15 +32,6 @@ pub struct V3Selection<'a> {
     pub limit: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ShadowSelection<'a> {
-    pub judge_model: &'a str,
-    pub bundle_id: i64,
-    pub lookback_hours: i32,
-    pub max_attempts_per_day: i64,
-    pub limit: i64,
-}
-
 impl crate::store::persistence::eval_repo::EvalDb<'_> {
     pub async fn fetch_sessions_needing_v3(
         self,
@@ -50,26 +41,6 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
             Ok(sqlx::query_file_as!(
                 V3Candidate,
                 "src/store/persistence/session_end/v3_candidates.sql",
-                q.judge_model,
-                q.bundle_id,
-                q.lookback_hours,
-                q.max_attempts_per_day,
-                q.limit,
-            )
-            .fetch_all(&self.pool)
-            .await?)
-        })
-        .await
-    }
-
-    pub async fn fetch_sessions_needing_shadow(
-        self,
-        q: &ShadowSelection<'_>,
-    ) -> Result<Vec<V3Candidate>, PersistError> {
-        crate::metrics::time_db("fetch_sessions_needing_shadow", async move {
-            Ok(sqlx::query_file_as!(
-                V3Candidate,
-                "src/store/persistence/session_end/shadow_candidates.sql",
                 q.judge_model,
                 q.bundle_id,
                 q.lookback_hours,

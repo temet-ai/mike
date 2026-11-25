@@ -85,8 +85,6 @@ pub struct FeatureToggles {
 
     pub directive_proposer: bool,
 
-    pub session_end_shadow: bool,
-
     pub judge_lessons: bool,
 
     pub change_record: bool,
@@ -178,7 +176,6 @@ impl Default for FeatureToggles {
             side_calls: false,
             conditions: true,
             directive_proposer: false,
-            session_end_shadow: false,
             judge_lessons: false,
             change_record: false,
             change_record_tail: false,
@@ -294,7 +291,6 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "conditions" => Some(toggles.conditions),
         "directive_proposer" => Some(toggles.directive_proposer),
         "self_identity_reminder" => Some(toggles.self_identity_reminder),
-        "session_end_shadow" => Some(toggles.session_end_shadow),
         "session_judge" => Some(toggles.session_judge),
         "steerer" => Some(toggles.steerer),
         "weasel_intercept" => Some(toggles.weasel_intercept),
@@ -365,7 +361,6 @@ pub fn set_toggle_enabled(
         "conditions" => updated.conditions = enabled,
         "directive_proposer" => updated.directive_proposer = enabled,
         "self_identity_reminder" => updated.self_identity_reminder = enabled,
-        "session_end_shadow" => updated.session_end_shadow = enabled,
         "session_judge" => updated.session_judge = enabled,
         "steerer" => updated.steerer = enabled,
         "weasel_intercept" => updated.weasel_intercept = enabled,

@@ -12,7 +12,7 @@ struct NotLiveRead {
     reason: &'static str,
 }
 
-const NOT_LIVE_READS: [NotLiveRead; 3] = [
+const NOT_LIVE_READS: [NotLiveRead; 2] = [
     NotLiveRead {
         file: "store/persistence/session_end/history_all.sql",
         scope: "v.session_id = $1",
@@ -23,11 +23,6 @@ const NOT_LIVE_READS: [NotLiveRead; 3] = [
         file: "store/persistence/session_end/refresh_run.sql",
         scope: "v.mode = 'eval'",
         reason: "totals the cost of an eval run from that run's own eval verdicts",
-    },
-    NotLiveRead {
-        file: "store/persistence/session_end/shadow_candidates.sql",
-        scope: "v.mode = 'shadow'",
-        reason: "skips end turns the shadow judge has already judged under this bundle",
     },
 ];
 

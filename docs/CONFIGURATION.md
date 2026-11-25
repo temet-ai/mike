@@ -322,8 +322,8 @@ not (an explicit `openrouter/<vendor>/<model>` name is accepted for OpenRouter).
 
 A change to the provider or to a tier model applies on the next cycle and moves the live turn judge
 and session judge bundles to the new models, the way a change to `judge_worker.model` does; the
-settings response lists the swaps in `live_bundle_swaps`. Evaluation runs (`mike eval`, the
-session-end shadow worker) keep the model they were asked to test whatever the provider says.
+settings response lists the swaps in `live_bundle_swaps`. Evaluation runs (`mike eval`) keep the
+model they were asked to test whatever the provider says.
 
 `claude` and `codex` use the login already on the machine, so no OpenRouter key is needed for the
 workers to start. If the chosen provider's login or key is missing, the `llm_role_health` row on

@@ -54,8 +54,6 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::judge_worker::spawn_session_judge_worker(state);
 
-    crate::judge_worker::spawn_session_end_shadow(state);
-
     crate::mailbox_reaper::spawn_mailbox_reaper(state);
 
     crate::mail_outbox::spawn_mail_outbox(state);

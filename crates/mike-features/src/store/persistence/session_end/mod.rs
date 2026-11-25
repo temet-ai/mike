@@ -9,7 +9,5 @@ pub use eval_items::{NewSessionEndItem, SessionEndItemRow};
 pub use eval_labels::SessionEndLabelItem;
 pub use facts::SessionEndFacts;
 pub use reads::{EndLabelRow, SessionVerdictFull};
-pub use selection::{
-    RejudgeCandidate, SessionRejudgeWindow, ShadowSelection, V3Candidate, V3Selection,
-};
+pub use selection::{RejudgeCandidate, SessionRejudgeWindow, V3Candidate, V3Selection};
 pub use verdict_insert::SessionVerdictV3Row;

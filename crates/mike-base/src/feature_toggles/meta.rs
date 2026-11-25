@@ -196,11 +196,6 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::NewSessions,
     },
     ToggleMeta {
-        key: "session_end_shadow",
-        scope: ToggleScope::Global,
-        applies: ToggleApplies::Immediate,
-    },
-    ToggleMeta {
         key: "session_judge",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,

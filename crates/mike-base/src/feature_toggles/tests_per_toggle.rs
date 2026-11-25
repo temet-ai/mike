@@ -37,36 +37,6 @@ fn decisions_defaults_off_and_applies_immediately() {
 }
 
 #[test]
-fn session_end_shadow_defaults_off() {
-    assert!(!FeatureToggles::default().session_end_shadow);
-    assert_eq!(
-        get_toggle_enabled(&FeatureToggles::default(), "session_end_shadow"),
-        Some(false)
-    );
-}
-
-#[test]
-fn session_end_shadow_meta_is_global_immediate() {
-    let meta = TOGGLE_META.iter().find(|m| m.key == "session_end_shadow");
-    assert!(
-        meta.is_some_and(
-            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::Immediate
-        )
-    );
-}
-
-#[test]
-fn set_toggle_enabled_session_end_shadow_round_trips() -> anyhow::Result<()> {
-    let t = FeatureToggles::default();
-    let on = set_toggle_enabled(&t, "session_end_shadow", true).ok_or_else(|| {
-        anyhow::anyhow!("set_toggle_enabled must return Some for session_end_shadow")
-    })?;
-    assert_eq!(get_toggle_enabled(&on, "session_end_shadow"), Some(true));
-    assert_eq!(get_toggle_enabled(&t, "session_end_shadow"), Some(false));
-    Ok(())
-}
-
-#[test]
 fn launch_brief_defaults_on_and_round_trips() -> anyhow::Result<()> {
     let t = FeatureToggles::default();
     assert_eq!(get_toggle_enabled(&t, "launch_brief"), Some(true));

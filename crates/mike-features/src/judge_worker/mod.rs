@@ -29,7 +29,6 @@ pub mod ownership_tests;
 #[cfg(test)]
 pub mod turn_sweep_tests;
 
-pub use session_end::shadow::spawn_session_end_shadow;
 pub use session_poll::spawn_session_judge_worker;
 pub use spawn::spawn_judge_worker;
 
