@@ -4,12 +4,12 @@ use std::time::{Duration, Instant};
 
 use uuid::Uuid;
 
-const PER_SESSION: usize = 20;
+const PER_SESSION: usize = 500;
+pub const QUIET_FOR: Duration = Duration::from_secs(20);
+pub const BETWEEN_NOTES: Duration = Duration::from_secs(300);
 const SENT_LIMIT: usize = 1024;
-const PUSHED_UNBOUND_AFTER: Duration = Duration::from_secs(600);
 
 pub const VIA_REQUEST: &str = "request";
-pub const VIA_PUSH: &str = "push";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeNote {
@@ -32,29 +32,18 @@ pub struct Delivered {
 struct Waiting {
     note: CodeNote,
     posted: Instant,
-    pushable: bool,
-}
-
-#[derive(Debug)]
-struct Pushed {
-    at: Instant,
-    ids: Vec<i64>,
 }
 
 #[derive(Debug, Default)]
 pub struct CodeNotes {
     waiting: Mutex<HashMap<Uuid, Vec<Waiting>>>,
     sent: Mutex<HashMap<u64, Vec<i64>>>,
-    pushed: Mutex<HashMap<Uuid, Vec<Pushed>>>,
+    given: Mutex<HashMap<Uuid, Instant>>,
     delivered: Mutex<Vec<Delivered>>,
 }
 
 impl CodeNotes {
     pub fn post(&self, session: Uuid, notes: Vec<CodeNote>) {
-        self.queue(session, notes, true);
-    }
-
-    fn queue(&self, session: Uuid, notes: Vec<CodeNote>, pushable: bool) {
         let Ok(mut waiting) = self.waiting.lock() else {
             return;
         };
@@ -64,7 +53,6 @@ impl CodeNotes {
                 queue.push(Waiting {
                     note,
                     posted: Instant::now(),
-                    pushable,
                 });
             }
         }
@@ -82,51 +70,36 @@ impl CodeNotes {
         }
     }
 
-    pub fn take(&self, session: Uuid, max: usize) -> Vec<CodeNote> {
-        let Ok(mut waiting) = self.waiting.lock() else {
-            return Vec::new();
-        };
-        let Some(queue) = waiting.get_mut(&session) else {
-            return Vec::new();
-        };
-        let taken: Vec<CodeNote> = queue
-            .drain(..max.min(queue.len()))
-            .map(|w| w.note)
-            .collect();
-        if queue.is_empty() {
-            waiting.remove(&session);
-        }
-        taken
+    pub fn take(&self, session: Uuid) -> Vec<CodeNote> {
+        self.take_settled(session, QUIET_FOR, BETWEEN_NOTES)
     }
 
-    pub fn take_unread(&self, older_than: Duration, max: usize) -> Vec<(Uuid, Vec<CodeNote>)> {
-        let Ok(mut waiting) = self.waiting.lock() else {
+    pub fn take_settled(&self, session: Uuid, quiet: Duration, between: Duration) -> Vec<CodeNote> {
+        let (Ok(mut waiting), Ok(mut given)) = (self.waiting.lock(), self.given.lock()) else {
             return Vec::new();
         };
-        let mut out = Vec::new();
-        for (session, queue) in waiting.iter_mut() {
-            let ready = queue
-                .iter()
-                .any(|w| w.pushable && w.posted.elapsed() >= older_than);
-            if !ready {
-                continue;
-            }
-            let taken: Vec<CodeNote> = queue
-                .drain(..max.min(queue.len()))
-                .map(|w| w.note)
-                .collect();
-            out.push((*session, taken));
+        let settled = waiting
+            .get(&session)
+            .is_some_and(|queue| queue.iter().all(|w| w.posted.elapsed() >= quiet));
+        let recent = given.get(&session).is_some_and(|at| at.elapsed() < between);
+        if !settled || recent {
+            return Vec::new();
         }
-        waiting.retain(|_, queue| !queue.is_empty());
-        out
+        given.retain(|_, at| at.elapsed() < between);
+        given.insert(session, Instant::now());
+        waiting
+            .remove(&session)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|w| w.note)
+            .collect()
     }
 
     pub fn put_back(&self, session: Uuid, notes: Vec<CodeNote>) {
-        self.queue(session, notes, true);
-    }
-
-    pub fn put_back_unpushable(&self, session: Uuid, notes: Vec<CodeNote>) {
-        self.queue(session, notes, false);
+        if let Ok(mut given) = self.given.lock() {
+            given.remove(&session);
+        }
+        self.post(session, notes);
     }
 
     pub fn mark_sent(&self, ids: &[i64], pipeline_request: u64) {
@@ -135,15 +108,6 @@ impl CodeNotes {
                 sent.clear();
             }
             sent.insert(pipeline_request, ids.to_vec());
-        }
-    }
-
-    pub fn mark_pushed(&self, session: Uuid, ids: &[i64]) {
-        if let Ok(mut pushed) = self.pushed.lock() {
-            pushed.entry(session).or_default().push(Pushed {
-                at: Instant::now(),
-                ids: ids.to_vec(),
-            });
         }
     }
 
@@ -159,20 +123,6 @@ impl CodeNotes {
         self.deliver(&ids, Some(capture_request_id), VIA_REQUEST);
     }
 
-    pub fn bind_session_request(&self, session: Uuid, capture_request_id: i64) {
-        let Some(batches) = self
-            .pushed
-            .lock()
-            .ok()
-            .and_then(|mut pushed| pushed.remove(&session))
-        else {
-            return;
-        };
-        for batch in batches {
-            self.deliver(&batch.ids, Some(capture_request_id), VIA_PUSH);
-        }
-    }
-
     fn deliver(&self, ids: &[i64], request_id: Option<i64>, via: &'static str) {
         if let Ok(mut delivered) = self.delivered.lock() {
             delivered.extend(ids.iter().map(|finding_id| Delivered {
@@ -183,29 +133,7 @@ impl CodeNotes {
         }
     }
 
-    fn expire_pushed(&self) {
-        let expired: Vec<i64> = match self.pushed.lock() {
-            Ok(mut pushed) => {
-                let mut ids = Vec::new();
-                for batches in pushed.values_mut() {
-                    batches.retain(|batch| {
-                        let keep = batch.at.elapsed() < PUSHED_UNBOUND_AFTER;
-                        if !keep {
-                            ids.extend(batch.ids.iter().copied());
-                        }
-                        keep
-                    });
-                }
-                pushed.retain(|_, batches| !batches.is_empty());
-                ids
-            }
-            Err(_) => return,
-        };
-        self.deliver(&expired, None, VIA_PUSH);
-    }
-
     pub fn drain_delivered(&self) -> Vec<Delivered> {
-        self.expire_pushed();
         self.delivered
             .lock()
             .map(|mut delivered| std::mem::take(&mut *delivered))

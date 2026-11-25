@@ -13,7 +13,6 @@ pub enum ReminderSource {
     Recall,
     SelfIdentity,
     WorkspaceBriefing,
-    CodeFindings,
     SessionMailbox {
         message_uuid: uuid::Uuid,
         from_session_uuid: Option<String>,

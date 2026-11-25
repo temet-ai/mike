@@ -56,7 +56,6 @@ pub async fn get_code_findings(
     Ok(Json(json!({
         "scanning": scanning,
         "delivering": scanning && toggles.code_findings,
-        "pushing": scanning && toggles.code_findings && toggles.code_findings_push,
         "grammars": mike_code::grammars(),
         "rules_version": rule_set.map(mike_code::RuleSet::version),
         "rule_ids": rule_set.map(mike_code::RuleSet::ids),

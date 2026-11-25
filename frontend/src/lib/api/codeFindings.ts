@@ -85,7 +85,6 @@ export interface CodeProjectRules {
 export interface CodeFindingsResponse {
 	scanning: boolean;
 	delivering: boolean;
-	pushing: boolean;
 	grammars: string[];
 	rules_version: string | null;
 	rule_ids: string[] | null;

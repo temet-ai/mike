@@ -222,7 +222,7 @@ async fn told(handle: &crate::store::persistence::PersistHandle) -> anyhow::Resu
         .map(|id| Delivered {
             finding_id: *id,
             request_id: None,
-            via: mike_base::code_notes::VIA_PUSH,
+            via: "push",
         })
         .collect();
     handle

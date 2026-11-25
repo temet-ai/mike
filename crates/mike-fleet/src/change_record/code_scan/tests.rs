@@ -122,12 +122,37 @@ fn findings_wait_below_an_unnamed_change_and_are_posted_once() {
     let mut poster = Poster::new(notes.clone());
     let session = uuid::Uuid::new_v4();
     poster.hand_over(vec![ready(5, session), ready(9, session)], Some(7));
-    assert_eq!(notes.take(session, 10).len(), 2);
+    assert_eq!(
+        notes
+            .take_settled(
+                session,
+                std::time::Duration::ZERO,
+                std::time::Duration::ZERO
+            )
+            .len(),
+        2
+    );
     poster.hand_over(vec![ready(9, session), ready(8, session)], None);
-    let again: Vec<i64> = notes.take(session, 10).iter().map(|n| n.id).collect();
+    let again: Vec<i64> = notes
+        .take_settled(
+            session,
+            std::time::Duration::ZERO,
+            std::time::Duration::ZERO,
+        )
+        .iter()
+        .map(|n| n.id)
+        .collect();
     assert_eq!(again, vec![8], "9 was already posted; 8 was named later");
     poster.hand_over(Vec::new(), None);
-    assert!(notes.take(session, 10).is_empty());
+    assert!(
+        notes
+            .take_settled(
+                session,
+                std::time::Duration::ZERO,
+                std::time::Duration::ZERO
+            )
+            .is_empty()
+    );
 }
 
 #[test]

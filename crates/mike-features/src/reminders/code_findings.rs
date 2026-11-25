@@ -8,24 +8,69 @@ use crate::wire::manifest::AppliedStage;
 
 use super::{RemindersOutcome, try_append_reminder};
 
-pub const HEADING: &str = "mike (the proxy) scanned the files your last edit changed and found code a rule flags (mike-code):";
-pub const ASK: &str = "Fix it in this session, or say in one line why the code should stay.";
-const PER_REQUEST: usize = 3;
+pub const HEADING: &str = "mike checked the code your recent edits added. Fix these, or say why a line should stay. If one is not your change, say so and leave the file alone.";
+const GROUPS: usize = 8;
+const LINES: usize = 5;
+
+struct Group<'a> {
+    first: &'a CodeNote,
+    lines: Vec<i32>,
+}
+
+fn grouped(notes: &[CodeNote]) -> Vec<Group<'_>> {
+    let mut groups: Vec<Group<'_>> = Vec::new();
+    for note in notes {
+        match groups
+            .iter_mut()
+            .find(|g| g.first.path == note.path && g.first.rule_id == note.rule_id)
+        {
+            Some(group) => group.lines.push(note.line),
+            None => groups.push(Group {
+                first: note,
+                lines: vec![note.line],
+            }),
+        }
+    }
+    groups
+}
+
+fn group_line(group: &Group<'_>) -> String {
+    let shown: Vec<String> = group
+        .lines
+        .iter()
+        .take(LINES)
+        .map(ToString::to_string)
+        .collect();
+    let count = group.lines.len();
+    let more = if count > LINES {
+        format!(" and {} more", count - LINES)
+    } else {
+        String::new()
+    };
+    let word = if count == 1 { "line" } else { "lines" };
+    let first = group.first;
+    let mut text = format!(
+        "- {} {word} {}{more}, {}: {}",
+        first.path,
+        shown.join(", "),
+        first.rule_id,
+        first.message
+    );
+    if let Some(fix) = first.fix.as_deref().filter(|fix| !fix.is_empty()) {
+        text.push_str(&format!(" Fix: `{fix}`"));
+    }
+    text
+}
 
 pub fn note_text(notes: &[CodeNote]) -> String {
-    let mut text = format!("{HEADING}\n");
-    for note in notes {
-        text.push_str(&format!(
-            "- {}:{} {}: {}",
-            note.path, note.line, note.rule_id, note.message
-        ));
-        if let Some(fix) = note.fix.as_deref().filter(|fix| !fix.is_empty()) {
-            text.push_str(&format!(" Fix: `{fix}`"));
-        }
-        text.push('\n');
+    let groups = grouped(notes);
+    let mut lines = vec![HEADING.to_owned()];
+    lines.extend(groups.iter().take(GROUPS).map(group_line));
+    let rest: usize = groups.iter().skip(GROUPS).map(|g| g.lines.len()).sum();
+    if rest > 0 {
+        lines.push(format!("- and {rest} more findings, not listed."));
     }
-    text.push_str(ASK);
-    text
+    lines.join("\n")
 }
 
 pub fn reminder_text(notes: &[CodeNote]) -> String {
@@ -53,7 +98,7 @@ impl RequestStage for CodeFindingsStage {
             body.record_unchanged("code_findings", "code_findings", "code_findings_no_session");
             return;
         };
-        let notes = ctx.state.code_notes.take(session, PER_REQUEST);
+        let notes = ctx.state.code_notes.take(session);
         if notes.is_empty() {
             body.record_unchanged(
                 "code_findings",
@@ -102,5 +147,42 @@ impl RequestStage for CodeFindingsStage {
                 detail: Some(format!("injected {} bytes", reminder_text.len())),
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn note(id: i64, path: &str, line: i32) -> CodeNote {
+        CodeNote {
+            id,
+            path: path.to_owned(),
+            line,
+            rule_id: "sh-fixed-tmp-path".to_owned(),
+            message: "A fixed path.".to_owned(),
+            fix: None,
+        }
+    }
+
+    #[test]
+    fn findings_of_one_rule_in_one_file_are_one_line() {
+        let notes: Vec<CodeNote> = (1..=12)
+            .map(|n| note(n, "a.sh", i32::try_from(n).unwrap_or(0)))
+            .collect();
+        assert_eq!(
+            note_text(&notes),
+            format!(
+                "{HEADING}\n- a.sh lines 1, 2, 3, 4, 5 and 7 more, sh-fixed-tmp-path: A fixed path."
+            )
+        );
+    }
+
+    #[test]
+    fn a_large_change_is_one_bounded_note() {
+        let notes: Vec<CodeNote> = (1..=469).map(|n| note(n, &format!("f{n}.sh"), 1)).collect();
+        let text = note_text(&notes);
+        assert_eq!(text.lines().count(), GROUPS + 2);
+        assert!(text.ends_with("- and 461 more findings, not listed."));
     }
 }

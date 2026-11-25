@@ -126,8 +126,7 @@
 			{#if data && !data.scanning}
 				Scanning is off. Nothing is recorded.
 			{:else if data}
-				Scanning {onOff(data.scanning)}, telling sessions {onOff(data.delivering)}, pushing
-				{onOff(data.pushing)}.
+				Scanning {onOff(data.scanning)}, telling sessions {onOff(data.delivering)}.
 			{/if}
 			{#if data}
 				<a class="cf-link" href={resolve('/settings')}>Settings</a>

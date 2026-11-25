@@ -181,7 +181,8 @@ at which commit, and its paths are the failing files.
 
 With `code_scan` on (the default) and `change_record` on, each file change event is scanned
 with ast-grep by the machine that recorded it, using the rules built into `crates/mike-code/rules/`
-and the checkout's own rules.
+and the checkout's own rules. A built-in rule holds in any repository; one project's style
+(comments, file length, naming) belongs in that project's rules. mike's own are in `code-rules/`.
 
 - **Languages.** Rust, TypeScript/TSX (`.js` and `.jsx` too), Bash (and extensionless scripts
   by shebang), Python, Go, C, C++, Java, Kotlin, Lua, Ruby, Swift, Elixir and Zig. OCaml, Gleam,
@@ -207,18 +208,16 @@ and the checkout's own rules.
   `superseded` (the file was deleted). `reply` holds the session's answer on the request that
   delivered the finding, copied whole a minute after delivery: when a session keeps flagged code
   it says why here, which is where a rule's false positives show.
-- With `code_findings` on, the stage of that name adds up to three of the session's open
-  warnings and errors from the last hour to its next request, tool loops included, and sets
-  `delivered_request_id` with `delivered_via = 'request'`. Hints are recorded and never
-  delivered.
-- With `code_findings_push` on too (the default), findings the session has not taken 8 s after
-  they are ready (its turn has ended) are pushed to it over Remote Control, five at most per
-  push, as a message asking it to fix them or say why not. They are recorded with
-  `delivered_via = 'push'` against the session's next captured request, or with no request if
-  none comes within 10 minutes. A session with no Remote Control stream gets them on its next
-  request instead, and they are not offered for a push again.
+- With `code_findings` on, the stage of that name adds one note to the session's next request,
+  tool loops included: its open warnings and errors from the last hour, grouped by file and rule
+  (eight groups, then a count). It waits until nothing was added for 20 s, and a session gets at
+  most one note in five minutes. Nothing is pushed and no session is woken. Hints are recorded
+  and never delivered.
+- **Code git brought in.** A finding already present in a version of the file that was committed
+  outside this worktree (a merge, rebase, pull or checkout) is not the session's and is not
+  recorded. Commits made here are told apart by the worktree's `HEAD` reflog.
 - `GET /api/code-findings?hours=24&session=<uuid>&limit=200` returns whether scanning,
-  delivering and pushing are on, the grammars, the built-in rule catalogue (each rule's
+  and delivering are on, the grammars, the built-in rule catalogue (each rule's
   language, severity and the lesson or instruction it replaces), each checkout's project rules
   and load error, the watched checkouts, the session's counts when `session` is given, the
   summary (scans, skipped, failed, added, fixed, median and longest scan), per-rule counts

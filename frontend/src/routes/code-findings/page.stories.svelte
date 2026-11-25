@@ -53,7 +53,7 @@
 		await waitFor(() => expect(canvas.getByText('1,710')).toBeVisible());
 		await expect(canvas.getByText('640 µs')).toBeVisible();
 		await expect(canvas.getByText('48 ms')).toBeVisible();
-		await expect(canvas.getByText(/Scanning on, telling sessions on, pushing off\./)).toBeVisible();
+		await expect(canvas.getByText(/Scanning on, telling sessions on\./)).toBeVisible();
 		await expect(requested[0]).toContain('hours=168');
 		await expect(canvas.getByRole('table', { name: 'Rules that fired' })).toBeVisible();
 		await expect(canvas.getByText('4 rules · 171 found')).toBeVisible();

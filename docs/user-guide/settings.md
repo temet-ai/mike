@@ -140,7 +140,6 @@ These are off, and none of the first four sends text to another service:
 | `launch_brief` | Sends a started session's long brief as mail from mike and keeps it as the session's note. Off, the brief is written to a file the session is told to read. |
 | `client_serves_self_identity` | When a client such as a Claude Code mod supplies a session's identity note, mike stands aside for that session. |
 | `code_scan` | Checks each edit a session records with ast-grep and keeps the scans and findings. Nothing leaves the machine. |
-| `code_findings_push` | When a session has stopped before reading the code findings its edit added, sends them over Remote Control so it fixes them now rather than on its next turn. Needs `code_scan` and `code_findings`. |
 
 A switch can be on in this list and still do nothing. `semantic_context` needs an embedding service, and `embedding.enabled` is off in the boot defaults. If the settings page shows `embedding.enabled` or `lesson_relations.enabled` as on in a fresh install, that is the page's own default and the capability panel says whether it works.
 

@@ -158,14 +158,8 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 	code_findings: {
 		label: 'Tell sessions what their edit added',
 		description:
-			'Adds a short note naming each warning or error a session’s own edit just added, with the fix when the rule has one. Off, findings are only recorded.',
+			'Adds one note, grouped by file and rule, naming what a session’s own edits just added. It waits for the session’s next request and never wakes it. Off, findings are only recorded.',
 		find: 'mike-code ast-grep findings reminder fix'
-	},
-	code_findings_push: {
-		label: 'Push findings to idle sessions',
-		description:
-			'When a session has stopped before reading what its edit added, sends the findings over Remote Control so it fixes them now instead of on its next turn.',
-		find: 'mike-code findings remote control push idle wake'
 	},
 	context_focus_question: {
 		label: 'Reason recorded with each tool call',

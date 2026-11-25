@@ -224,7 +224,6 @@ export function buildCodeFindingsResponse(
 	return {
 		scanning: true,
 		delivering: true,
-		pushing: false,
 		grammars: ['bash', 'python', 'rust', 'typescript'],
 		rules_version: '9c3b21e07a54',
 		rule_ids: CODE_CATALOGUE.map((rule) => rule.id),

@@ -243,7 +243,6 @@ fn toggle_meta_covers_all_keys() {
             "client_serves_weasel_guard",
             "client_serves_workspace_briefing",
             "code_findings",
-            "code_findings_push",
             "code_scan",
             "conditions",
             "context_focus_question",
