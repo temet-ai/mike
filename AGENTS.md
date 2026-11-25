@@ -1,5 +1,37 @@
 # mike — Claude Proxy · Project Instructions
 
+## Purpose
+
+mike is a system that improves over time, and improves the sessions it sees. It captures work so
+that the operator and the sessions can take it apart together: a turn, a session, a thread, a
+fleet or a whole project. They look at the asks and answers, the tool use, what was wasted, what
+failed and what went well, work out what could be better, change it, and see what came of the
+change in later work. The operator's corrections are one source of this. A session that was never
+corrected can be improved as well.
+
+The parts work together:
+
+- Capture, turn facts, judges, search and kit journals show what happened.
+- Memory review, the lesson proposer, the learning observer and the operator with a session work
+  out what to change.
+- Lessons, rules, skills, agents, kits, hooks, filter rules and prompts carry the change to
+  sessions. Steerers, the turn guard, recall and thread cards help while work is under way.
+- Wright does the same for mike itself: its checks find a fault, the engineer finds the cause and
+  a repair fixes it. Trouble that sessions keep having with mike is work for Wright.
+- Verdicts on what was supplied, live measures and later sessions show whether a change helped.
+
+How to work on mike:
+
+- Before building or changing a part, name what it takes in, who uses what it produces, and how we
+  will see that it helped. Give it the best information mike has about the session.
+- Ask "what came of this?" of a verdict, lesson, steer, finding or repair. If nothing used it,
+  connect it or remove it, and tell the operator which.
+- Work is finished when it is in use on the operator's machines and its effect has been seen in
+  real work. Merged code, a passing test and a worker that runs do not show that.
+- Make a change small enough to be in use the same day, replace the old behaviour in the same
+  change, and improve it from what real work shows.
+- When you finish a piece of work, look back at how you did it, including your tool use. Record
+  what would have made it better where it belongs: a lesson, a kit, a skill or an issue on mike.
 
 ## Links
 Web UI <http://localhost:9990/> · settings <http://localhost:9990/settings> ·
