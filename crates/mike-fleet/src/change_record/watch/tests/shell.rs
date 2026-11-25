@@ -68,6 +68,9 @@ async fn a_worktree_a_session_entered_in_its_shell_is_watched() -> anyhow::Resul
     assert_eq!(supervisor.watching().len(), 1);
 
     other.write("src/a.txt", "before the watch")?;
+    other.write("src/b.txt", "committed before the watch")?;
+    other.git(&["add", "src/b.txt"]).await?;
+    other.git(&["commit", "-q", "-m", "quick"]).await?;
     sqlx::query(
         "INSERT INTO tools.uses (wire_tool_use_id, request_id, ord, tool_name, input, session_id)
          VALUES ('shell-1', $1, 0, 'Bash', jsonb_build_object('command', $2::text), $3)",
@@ -82,7 +85,7 @@ async fn a_worktree_a_session_entered_in_its_shell_is_watched() -> anyhow::Resul
     let mut recorded = Vec::new();
     for _ in 0..100 {
         recorded = sqlx::query_scalar::<_, String>(
-            "SELECT paths[1] FROM workspace.change_events WHERE checkout = $1",
+            "SELECT paths[1] FROM workspace.change_events WHERE checkout = $1 ORDER BY 1",
         )
         .bind(&other.root)
         .fetch_all(&pool)
@@ -92,7 +95,7 @@ async fn a_worktree_a_session_entered_in_its_shell_is_watched() -> anyhow::Resul
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    assert_eq!(recorded, ["src/a.txt"]);
+    assert_eq!(recorded, ["src/a.txt", "src/b.txt"]);
 
     shutdown.cancel();
     db.db.cleanup().await

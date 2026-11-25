@@ -72,10 +72,12 @@ impl KnownTree {
     pub async fn written_since(
         &self,
         git: &Git,
-        since: std::time::SystemTime,
+        since: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<FileDelta>, GitError> {
+        let base = before_commits_since(git, since).await;
+        let since = std::time::SystemTime::from(since);
         let head = git
-            .run(&["ls-tree", "-r", "-z", "HEAD"])
+            .run(&["ls-tree", "-r", "-z", &base])
             .await
             .map(|raw| parse_tree(&raw))
             .unwrap_or_default();
@@ -185,6 +187,20 @@ impl KnownTree {
             })
             .collect()
     }
+}
+
+async fn before_commits_since(git: &Git, since: chrono::DateTime<chrono::Utc>) -> String {
+    let after = format!("--since={}", since.to_rfc3339());
+    let log = git
+        .run(&["log", "-g", &after, "--format=%H %gs", "HEAD"])
+        .await
+        .unwrap_or_default();
+    String::from_utf8_lossy(&log)
+        .lines()
+        .filter_map(|line| line.split_once(' '))
+        .filter(|(_, action)| action.starts_with("commit: "))
+        .last()
+        .map_or_else(|| "HEAD".to_owned(), |(sha, _)| format!("{sha}^"))
 }
 
 fn parse_tree(raw: &[u8]) -> BTreeMap<String, String> {

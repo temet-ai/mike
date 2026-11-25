@@ -9,7 +9,7 @@ use regex::Regex;
 use super::working::worked_within;
 use crate::change_record::{ShellCommand, WorkingCheckout};
 
-const READ_EVERY: Duration = Duration::from_secs(5);
+const READ_EVERY: Duration = Duration::from_secs(1);
 
 fn overlap() -> chrono::Duration {
     chrono::Duration::seconds(30)

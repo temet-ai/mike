@@ -140,7 +140,7 @@ impl Watch {
             return;
         };
         let at = Utc::now();
-        match self.tree.written_since(&self.git, since.into()).await {
+        match self.tree.written_since(&self.git, since).await {
             Ok(deltas) => {
                 let back = (at - since).to_std().unwrap_or_default();
                 self.record_files(deltas, at, Source::Backstop, back).await;

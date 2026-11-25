@@ -334,3 +334,61 @@ async fn shell_commands_running_ignores_a_timeout_input_that_is_not_a_number() -
     f.db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn shell_commands_running_keeps_a_background_call_until_its_task_notification()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let now = micros_now()?;
+    let project_id = project(pool).await?;
+    let worker = session(pool, project_id, Some("/work/alpha")).await?;
+    let started = now - Duration::minutes(20);
+    let req = request(pool, worker, project_id, started).await?;
+    response(pool, req, started).await?;
+    let call = tool_use(
+        pool,
+        &ToolUse {
+            session_id: worker,
+            request_id: req,
+            name: "Bash",
+            file_path: None,
+            at: started,
+        },
+    )
+    .await?;
+    tool_result(pool, call, req, worker, started + Duration::seconds(8)).await?;
+    let running = || {
+        f.handle
+            .fleet()
+            .shell_commands_running("/work/alpha", now - Duration::minutes(1), now)
+    };
+    assert!(running().await?.is_empty(), "its result came back");
+    sqlx::query(
+        "UPDATE tools.results SET content = to_jsonb('Command running in background with ID: b1'::text) WHERE tool_use_id = $1",
+    )
+    .bind(call)
+    .execute(pool)
+    .await?;
+    assert!(running().await?.is_empty(), "it names no checkout");
+    sqlx::query("UPDATE tools.uses SET input = jsonb_build_object('command', 'cd /work/alpha && make') WHERE id = $1")
+        .bind(call)
+        .execute(pool)
+        .await?;
+    assert_eq!(running().await?.len(), 1, "it runs on in the background");
+    let told = request(pool, worker, project_id, now - Duration::minutes(5)).await?;
+    sqlx::query(
+        "UPDATE requests.requests SET last_user_message =
+           (SELECT '<tool-use-id>' || wire_tool_use_id || '</tool-use-id>' FROM tools.uses WHERE id = $2)
+         WHERE id = $1",
+    )
+    .bind(told)
+    .bind(call)
+    .execute(pool)
+    .await?;
+    assert!(running().await?.is_empty(), "the session was told it ended");
+    f.db.cleanup().await?;
+    Ok(())
+}
