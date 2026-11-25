@@ -4248,7 +4248,7 @@ Grain: one row per judge run per session. Re-runs under the same `(session_id, j
 | `mode` | `TEXT NOT NULL DEFAULT 'live'` | `live` (the production judge; every row before migration `20260925000500`), `shadow` or `eval` (a `mike eval run --role session_judge` item). Every reader of "the session's verdict" filters `mode = 'live'`; `tests/schema/session_verdict_readers.rs` keeps it so |
 | `end_turn_id` | `BIGINT NULL` | The ending turn (the last settled genuine operator turn) the end label applies to; no FK |
 | `end_label` | `TEXT NULL` | `done`, `closed_in_frustration`, `cut_off_neutral`, `fleet_seat` or `unclear`; an operator gold `session_end` label in `eval.labels` wins at read time |
-| `end_source`, `end_rule`, `end_confidence`, `end_evidence` | `TEXT NULL` | `llm` or `deterministic`; the rule (`fleet-seat-v1`, `done-v1`) that decided it; the confidence; the full evidence quote |
+| `end_source`, `end_rule`, `end_confidence`, `end_evidence` | `TEXT NULL` | `llm` or `deterministic`; the rule that decided it (`fleet-seat-v1`; `done-v1` only on rows written before 2026-11-25, since the judge no longer applies it); the confidence; the full evidence quote |
 | `failure`, `failure_tags`, `severity` | `TEXT`, `TEXT[]`, `TEXT` | What went wrong, up to three tags from the labelling-rubric vocabulary, and how badly |
 | `rubric_id`, `slices`, `as_of`, `digest_version`, `input_text`, `llm_output` | | The v3 judge's rubric, the dossier render it read (whole) and its raw output |
 | `generation_id`, `cost_usd`, `prompt_tokens`, `completion_tokens`, `latency_ms` | | The call's usage |

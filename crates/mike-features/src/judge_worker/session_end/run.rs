@@ -2,7 +2,7 @@ use crate::store::persistence::eval_repo::EvalPersist as _;
 use chrono::{DateTime, Utc};
 
 use crate::dossier::render::render;
-use crate::dossier::view::types::{AsOf, Audience, Budget, SessionSlices};
+use crate::dossier::view::types::{AsOf, Audience, Budget};
 use crate::llm::{CallUsage, LlmRuntimeSettings, OpenRouterClient};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_end::SessionEndFacts;
@@ -12,6 +12,10 @@ use super::defaults::{EndVerdict, apply_rules};
 use super::rubric::system_prompt;
 use super::schema::{SessionVerdictV3, session_verdict_v3_schema};
 use super::{EndRule, SessionEndLabel, normalise_tags};
+
+#[cfg(test)]
+#[path = "run_tests.rs"]
+mod tests;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SessionSubject {
@@ -87,14 +91,11 @@ async fn digest(
     cfg: &SessionJudgeV3Config,
     subject: &SessionSubject,
 ) -> Result<(String, String), SessionJudgeFailure> {
-    let audience = Audience::SessionJudge {
-        slices: SessionSlices::default(),
-    };
     let rendered = render(
         persist,
         subject.session_db_id,
         subject.as_of,
-        &audience,
+        &Audience::SessionJudge,
         Budget::Chars(cfg.digest_budget_chars),
     )
     .await

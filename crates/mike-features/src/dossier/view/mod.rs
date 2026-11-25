@@ -12,6 +12,5 @@ pub use full::{DossierView, full_view};
 pub use load::load;
 pub use types::{
     AsOf, AsOfMode, Audience, AudienceCode, Budget, CorrectionItem, CorrectionSource, DossierError,
-    DossierInputs, Exclusion, Needs, Polarity, Reaction, ReactionItem, SessionSlices,
-    SteererSection,
+    DossierInputs, Exclusion, Needs, Polarity, Reaction, ReactionItem, SteererSection,
 };

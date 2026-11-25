@@ -1,5 +1,5 @@
 use mike::dossier::render::{TypedView, render};
-use mike::dossier::view::types::{AsOf, Audience, Budget, SessionSlices, SteererSection};
+use mike::dossier::view::types::{AsOf, Audience, Budget, SteererSection};
 
 use super::seeded;
 use crate::seed::database_now;
@@ -36,10 +36,8 @@ async fn the_session_judge_render_lists_every_genuine_turn() -> anyhow::Result<(
         &f.handle,
         f.session_id,
         AsOf::knowledge(chrono::Utc::now()),
-        &Audience::SessionJudge {
-            slices: SessionSlices::default(),
-        },
-        Budget::Chars(24_000),
+        &Audience::SessionJudge,
+        Budget::Chars(60_000),
     )
     .await?;
     let turns = rendered

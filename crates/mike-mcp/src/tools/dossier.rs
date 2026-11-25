@@ -47,10 +47,6 @@ fn get_session_dossier_tool() -> Tool {
             ("audience", text("none, judge, session_judge or steerer.")),
             ("turn_id", integer("The subject turn for judge or steerer.")),
             (
-                "slices",
-                text("session_judge slices: reactions,promises,directives."),
-            ),
-            (
                 "sections",
                 text(
                     "steerer sections: ending,reactions,directives,promises,asks,corrections,notes,opening,turns.",
@@ -58,7 +54,9 @@ fn get_session_dossier_tool() -> Tool {
             ),
             (
                 "budget_chars",
-                integer("Character budget for session_judge and steerer; default 24000."),
+                integer(
+                    "Character budget for session_judge (default 60000) and steerer (default 24000).",
+                ),
             ),
             ("section", text("Limit the view to one section.")),
             ("limit", integer("Items per section page; default 500.")),
@@ -108,13 +106,12 @@ struct TurnFactsArgs {
 }
 
 fn query_pairs(query: &Map<String, Value>) -> Vec<(&'static str, String)> {
-    const KEYS: [&str; 11] = [
+    const KEYS: [&str; 10] = [
         "as_of",
         "as_of_turn",
         "mode",
         "audience",
         "turn_id",
-        "slices",
         "sections",
         "budget_chars",
         "section",

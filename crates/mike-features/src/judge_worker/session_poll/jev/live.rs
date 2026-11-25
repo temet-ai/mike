@@ -1,6 +1,7 @@
 use serde_json::{Value, json};
 
 use super::{SessionDecision, SessionJev, decide};
+use crate::dossier::render::session_judge::turns_text;
 use crate::judge_worker::session_end::run::SessionJudgementV3;
 use crate::llm::decisions::point::Decider;
 use crate::store::persistence::PersistHandle;
@@ -24,7 +25,12 @@ pub async fn decide_live(
         .await
         .ok()?;
     let asks: Vec<&str> = turns.iter().map(|t| t.user_prompt.as_str()).collect();
-    decide(decider, session_db_id, &judged.input_text, &asks).await
+    let session_end = turns_text(&judged.input_text);
+    decide(decider, session_db_id, session_end, &asks).await
+}
+
+pub fn keeps_model(decision: &SessionDecision) -> bool {
+    decision.outcome == "unknown" && decision.quality.is_none()
 }
 
 pub fn apply_live(judged: &mut SessionJudgementV3, decision: &SessionDecision) -> ModelView {
@@ -32,6 +38,9 @@ pub fn apply_live(judged: &mut SessionJudgementV3, decision: &SessionDecision) -
         outcome: judged.verdict.outcome.clone(),
         quality: judged.verdict.quality_score,
     };
+    if keeps_model(decision) {
+        return before;
+    }
     judged.verdict.outcome = decision.outcome.to_owned();
     judged.verdict.quality_score = decision.quality.unwrap_or(0.0);
     judged.quality_unknown = decision.quality.is_none();
@@ -45,6 +54,7 @@ pub fn composed_live(decision: &SessionDecision, before: &ModelView) -> Value {
             "model_view".to_owned(),
             json!({ "outcome": before.outcome, "quality": before.quality }),
         );
+        map.insert("kept_model".to_owned(), json!(keeps_model(decision)));
     }
     verdict
 }

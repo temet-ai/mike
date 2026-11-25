@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 
-use super::types::{AsOf, Audience, Budget, SessionSlices, SteererSection};
+use super::types::{AsOf, Audience, Budget, SteererSection};
+use crate::judge_worker::session_end::config::DEFAULT_DIGEST_BUDGET_CHARS;
+
+pub const STEERER_DEFAULT_BUDGET_CHARS: usize = 24_000;
 
 pub fn parse_as_of(at: DateTime<Utc>, mode: Option<&str>) -> Result<AsOf, String> {
     match mode.unwrap_or("knowledge") {
@@ -20,23 +23,6 @@ fn split(list: Option<&str>) -> Vec<&str> {
             .collect()
     })
     .unwrap_or_default()
-}
-
-pub fn parse_slices(list: Option<&str>) -> Result<SessionSlices, String> {
-    let mut slices = SessionSlices::default();
-    for name in split(list) {
-        match name {
-            "reactions" => slices.reactions = true,
-            "promises" => slices.promises = true,
-            "directives" => slices.directives = true,
-            other => {
-                return Err(format!(
-                    "unknown slice {other:?}; use reactions, promises, directives"
-                ));
-            }
-        }
-    }
-    Ok(slices)
 }
 
 pub fn parse_sections(list: Option<&str>) -> Result<Vec<SteererSection>, String> {
@@ -76,13 +62,11 @@ pub fn parse_sections(list: Option<&str>) -> Result<Vec<SteererSection>, String>
 pub struct AudienceArgs<'a> {
     pub audience: &'a str,
     pub turn_id: Option<i64>,
-    pub slices: Option<&'a str>,
     pub sections: Option<&'a str>,
-    pub budget_chars: usize,
+    pub budget_chars: Option<usize>,
 }
 
 pub fn parse_audience_parts(args: &AudienceArgs<'_>) -> Result<Option<(Audience, Budget)>, String> {
-    let budget = Budget::Chars(args.budget_chars);
     match args.audience {
         "none" => Ok(None),
         "judge" => {
@@ -92,17 +76,15 @@ pub fn parse_audience_parts(args: &AudienceArgs<'_>) -> Result<Option<(Audience,
             Ok(Some((Audience::Judge { turn_id }, Budget::JudgeSlices)))
         }
         "session_judge" | "session-judge" => Ok(Some((
-            Audience::SessionJudge {
-                slices: parse_slices(args.slices)?,
-            },
-            budget,
+            Audience::SessionJudge,
+            Budget::Chars(args.budget_chars.unwrap_or(DEFAULT_DIGEST_BUDGET_CHARS)),
         ))),
         "steerer" => Ok(Some((
             Audience::Steerer {
                 turn_id: args.turn_id,
                 sections: parse_sections(args.sections)?,
             },
-            budget,
+            Budget::Chars(args.budget_chars.unwrap_or(STEERER_DEFAULT_BUDGET_CHARS)),
         ))),
         other => Err(format!(
             "audience must be none, judge, session_judge or steerer, got {other:?}"

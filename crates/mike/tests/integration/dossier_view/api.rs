@@ -55,7 +55,7 @@ async fn the_dossier_route_returns_whole_items_and_pages() -> anyhow::Result<()>
         "{base}/api/sessions/{uuid}/dossier?limit=2&audience=steerer&turn_id={third}"
     ))
     .await?;
-    assert_eq!(body["renderer_version"], "dossier-r1");
+    assert_eq!(body["renderer_version"], "dossier-r2");
     assert_eq!(body["view"]["stream"]["total"], 3);
     assert_eq!(
         body["view"]["stream"]["items"].as_array().map(Vec::len),

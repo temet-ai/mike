@@ -26,4 +26,17 @@ mod tests {
         assert!(p.contains("CLOSED_IN_FRUSTRATION"));
         assert!(system_prompt("session-v2").is_none());
     }
+
+    #[test]
+    fn the_v3_prompt_explains_the_digest_sections_and_that_did_wins() {
+        let p = system_prompt(RUBRIC_ID).unwrap_or_default();
+        for word in [
+            "STOPPED WITH",
+            "DID wins",
+            "RECAPS",
+            "Background and wakeup",
+        ] {
+            assert!(p.contains(word), "{word}");
+        }
+    }
 }

@@ -2,11 +2,13 @@ pub mod goals;
 pub mod labels;
 pub mod ledger;
 pub mod open_turn;
+pub mod record;
 pub mod stream;
 pub mod turns;
 pub mod verdicts;
 
 pub use labels::CorrectionLabelRow;
+pub use record::{RecapRow, RecordTurnRow, SessionRecord, SuppliedLessonRow};
 pub use turns::TurnLocator;
 pub use verdicts::LiveVerdictRow;
 

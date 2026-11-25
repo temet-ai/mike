@@ -4,6 +4,8 @@ mod api;
 mod as_of;
 #[path = "dossier_view/audiences.rs"]
 mod audiences;
+#[path = "dossier_view/record.rs"]
+mod record;
 #[path = "dossier_view/sections.rs"]
 mod sections;
 #[path = "dossier_view/verdicts.rs"]

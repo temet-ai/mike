@@ -3,7 +3,7 @@ use crate::store::persistence::dossier_entries::{
     DIRECTIVES_VERSION, DossierEntryRow, PROMISES_VERSION,
 };
 use crate::store::persistence::dossier_repo::DossierPersist as _;
-use crate::store::persistence::dossier_view::{GoalsRow, OpenTextRow};
+use crate::store::persistence::dossier_view::{GoalsRow, OpenTextRow, SessionRecord};
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 use crate::store::persistence::steering::SessionNote;
 
@@ -68,6 +68,21 @@ async fn open_turn(
         .fetch_open_turn_text(turn_id, as_of.at)
         .await?;
     Ok(Some((turn_id, rows)))
+}
+
+async fn session_record(
+    persist: &PersistHandle,
+    session_db_id: i64,
+    as_of: AsOf,
+    wanted: bool,
+) -> Result<SessionRecord, DossierError> {
+    if !wanted {
+        return Ok(SessionRecord::default());
+    }
+    Ok(persist
+        .dossier()
+        .fetch_session_record(session_db_id, as_of.at)
+        .await?)
 }
 
 const NOTES_READ: i64 = 20;
@@ -182,7 +197,7 @@ pub async fn load(
             Ok(Vec::new())
         }
     };
-    let (stream, turns, ledger, entries, goals, open_turn, notes) = tokio::try_join!(
+    let (stream, turns, ledger, entries, goals, open_turn, notes, record) = tokio::try_join!(
         stream_fut,
         turns_fut,
         ledger_fut,
@@ -190,6 +205,7 @@ pub async fn load(
         goals(persist, session_db_id, as_of, needs.goals),
         open_turn(persist, as_of, needs.open_turn),
         notes_oldest_first(persist, session_db_id, as_of, needs.notes_window),
+        session_record(persist, session_db_id, as_of, needs.session_record),
     )?;
     let mut inputs = DossierInputs {
         session,
@@ -203,6 +219,7 @@ pub async fn load(
         corrections: Vec::new(),
         reactions: Vec::new(),
         exclusions: standing_exclusions(),
+        record,
         steering_facts: None,
         semantic: None,
         notes,

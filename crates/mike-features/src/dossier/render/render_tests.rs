@@ -3,8 +3,8 @@ use chrono::Duration;
 use super::judge::{ASK_CAP, JudgeSectionId};
 use super::{RenderedDossier, TypedView, render_inputs};
 use crate::dossier::view::digest::inputs_digest;
-use crate::dossier::view::full_tests::{base_time, fixture, stream_row, turn_row};
-use crate::dossier::view::types::{Audience, Budget, DossierError, SessionSlices, SteererSection};
+use crate::dossier::view::full_tests::{base_time, fixture, stream_row};
+use crate::dossier::view::types::{Audience, Budget, DossierError, SteererSection};
 
 fn judge(turn_id: i64) -> Result<RenderedDossier, DossierError> {
     render_inputs(
@@ -87,44 +87,6 @@ fn an_open_subject_turn_is_refused() {
 }
 
 #[test]
-fn the_session_judge_lists_every_genuine_turn_even_on_a_tight_budget() -> anyhow::Result<()> {
-    let mut inputs = fixture();
-    for i in 0..60 {
-        let id = 100 + i;
-        let text = format!("step {i}: continue the migration");
-        inputs
-            .stream
-            .push(stream_row(id, 40 + i, &text, "operator", Some(id)));
-        inputs
-            .turns
-            .push(turn_row(id, id, 40 + i, &text, &"done. ".repeat(400)));
-    }
-    let rendered = render_inputs(
-        &inputs,
-        &Audience::SessionJudge {
-            slices: SessionSlices::default(),
-        },
-        Budget::Chars(4_000),
-    )?;
-    let turns = rendered
-        .sections
-        .iter()
-        .find(|s| s.id == "turns")
-        .ok_or_else(|| anyhow::anyhow!("no turns report"))?;
-    assert_eq!(turns.items_total, 63);
-    assert_eq!(
-        turns.items_full + turns.items_compressed + turns.items_in_spans,
-        turns.items_total
-    );
-    assert!(
-        turns.items_in_spans > 0,
-        "a tight budget folds old turns into spans"
-    );
-    assert!(!rendered.text.contains("reaction="));
-    Ok(())
-}
-
-#[test]
 fn the_steerer_render_fills_its_typed_fields() -> anyhow::Result<()> {
     let rendered = render_inputs(
         &fixture(),
@@ -193,7 +155,7 @@ fn the_same_inputs_give_the_same_digest_and_bytes() -> anyhow::Result<()> {
     let mut later = fixture();
     later.as_of.at += Duration::minutes(1);
     assert_ne!(inputs_digest(&later), a.inputs_digest);
-    assert_eq!(a.digest_version(), "dossier-r1/judge/slices");
+    assert_eq!(a.digest_version(), "dossier-r2/judge/slices");
     let _ = base_time();
     Ok(())
 }

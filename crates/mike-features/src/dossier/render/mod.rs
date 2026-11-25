@@ -3,6 +3,8 @@ pub mod cut;
 pub mod judge;
 pub mod sentences;
 pub mod session_judge;
+pub mod session_sections;
+pub mod session_turn;
 pub mod steerer;
 pub mod steerer_facts;
 pub mod steerer_notes;
@@ -11,6 +13,8 @@ pub mod steerer_notes;
 pub mod allocate_tests;
 #[cfg(test)]
 pub mod render_tests;
+#[cfg(test)]
+pub mod session_judge_tests;
 
 use serde::Serialize;
 
@@ -20,7 +24,7 @@ use crate::dossier::view::types::{
 };
 use crate::store::persistence::PersistHandle;
 
-pub const RENDERER_VERSION: &str = "dossier-r1";
+pub const RENDERER_VERSION: &str = "dossier-r2";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SectionReport {
@@ -96,8 +100,8 @@ pub fn render_inputs(
                 None,
             )
         }
-        (Audience::SessionJudge { slices }, Budget::Chars(n)) => {
-            let rendered = session_judge::render_session_judge(inputs, *slices, n);
+        (Audience::SessionJudge, Budget::Chars(n)) => {
+            let rendered = session_judge::render_session_judge(inputs, n);
             (
                 rendered.text,
                 rendered.reports,

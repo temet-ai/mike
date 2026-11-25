@@ -3,14 +3,17 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use super::SectionReport;
-use super::cut::{char_count, cut, cut_front, head_chars};
-use crate::dossier::view::full::effective_by_request;
-use crate::dossier::view::types::{DossierInputs, SessionSlices};
-use crate::store::persistence::dossier_view::DossierTurnRow;
-use crate::wire::genuine::PromptKind;
+use super::cut::{char_count, keep_last};
+use super::session_sections::{
+    DIRECTIVES_HEADING, LESSONS_HEADING, Numbers, PROMISES_HEADING, RECAPS_HEADING,
+    directive_lines, lesson_lines, promise_lines, recap_lines, section,
+};
+use super::session_turn::{
+    Detail, MIN_ENDING_STOP_CAP, SHORT_STOP_CAP, STOP_CAP, TurnStyle, is_operator, render_turn,
+};
+use crate::dossier::view::types::DossierInputs;
+use crate::store::persistence::dossier_view::RecordTurnRow;
 
-pub const RESPONSE_TAIL_CAP: usize = 3_000;
-const COMPRESSED_HEAD: usize = 200;
 const SEPARATOR: &str = "\n\n";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -33,102 +36,10 @@ pub struct SessionJudgeRender {
     pub text: String,
 }
 
-fn collapse(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn hhmm(turn: &DossierTurnRow) -> String {
-    turn.created_at.format("%H:%M").to_string()
-}
-
-fn checks(turn: &DossierTurnRow) -> String {
-    format!(
-        "checks {}/{}",
-        turn.checks_count.unwrap_or(0),
-        turn.checks_failed.unwrap_or(0)
-    )
-}
-
-fn reaction_suffix(reactions: &HashMap<i64, String>, turn: &DossierTurnRow) -> String {
-    reactions
-        .get(&turn.turn_id)
-        .map(|r| format!(" reaction={r}"))
-        .unwrap_or_default()
-}
-
-fn response_of(turn: &DossierTurnRow, cap: usize) -> String {
-    let cut_at = turn
-        .text_cut_at
-        .and_then(|n| usize::try_from(n).ok())
-        .unwrap_or(usize::MAX);
-    let body = head_chars(&turn.final_text, cut_at);
-    cut_front(body, cap)
-}
-
-fn full_form(n: usize, turn: &DossierTurnRow, budget: usize, cap: usize, suffix: &str) -> String {
-    let prompt_cap = (budget / 4).max(1);
-    let prompt = if char_count(&turn.prompt) > prompt_cap {
-        format!(
-            "{} (prompt_chars_total={})",
-            cut(&turn.prompt, prompt_cap),
-            char_count(&turn.prompt)
-        )
-    } else {
-        turn.prompt.clone()
-    };
-    format!(
-        "#{n} {}\nPROMPT:\n{prompt}\nRESPONSE:\n{}\nFACTS: stop_reason={}, aborted={}, interrupted={}, {}, ended_on={}{suffix}",
-        hhmm(turn),
-        response_of(turn, cap),
-        turn.stop_reason.as_deref().unwrap_or("unknown"),
-        turn.aborted.unwrap_or(false),
-        turn.interrupted.unwrap_or(false),
-        checks(turn),
-        turn.ended_on.as_deref().unwrap_or("none"),
-    )
-}
-
-fn compressed_form(n: usize, turn: &DossierTurnRow, suffix: &str) -> String {
-    format!(
-        "#{n} {} {} → ended_on={}, {}{suffix}",
-        hhmm(turn),
-        head_chars(&collapse(&turn.prompt), COMPRESSED_HEAD),
-        turn.ended_on.as_deref().unwrap_or("none"),
-        checks(turn)
-    )
-}
-
-fn span_form(first: usize, last: usize, turns: &[&DossierTurnRow]) -> String {
-    let aborted = turns.iter().filter(|t| t.aborted.unwrap_or(false)).count();
-    let failed = turns
-        .iter()
-        .filter(|t| t.checks_failed.unwrap_or(0) > 0)
-        .count();
-    format!(
-        "turns {first}-{last}: {} turns, {aborted} aborted, {failed} with failed checks",
-        turns.len()
-    )
-}
-
-fn genuine_turns(inputs: &DossierInputs) -> Vec<&DossierTurnRow> {
-    let effective = effective_by_request(inputs);
-    inputs
-        .turns
-        .iter()
-        .filter(|t| {
-            effective
-                .get(&t.start_request_id)
-                .is_some_and(|e| e.kind == PromptKind::Genuine)
-        })
-        .collect()
-}
-
-fn header(inputs: &DossierInputs, genuine: &[&DossierTurnRow]) -> String {
-    let machine = inputs
-        .turns
-        .iter()
-        .filter(|t| matches!(t.opened_by.as_deref(), Some("machine" | "agent")))
-        .count();
+fn header(inputs: &DossierInputs) -> String {
+    let turns = &inputs.record.turns;
+    let genuine: Vec<&RecordTurnRow> = turns.iter().filter(|t| is_operator(t)).collect();
+    let machine = turns.len() - genuine.len();
     let facts = inputs
         .turns
         .iter()
@@ -143,10 +54,10 @@ fn header(inputs: &DossierInputs, genuine: &[&DossierTurnRow]) -> String {
             .unwrap_or("(no project)"),
         genuine
             .first()
-            .map_or("-".to_owned(), |t| t.created_at.to_rfc3339()),
+            .map_or("-".to_owned(), |t| t.opened_at.to_rfc3339()),
         genuine
             .last()
-            .map_or("-".to_owned(), |t| t.created_at.to_rfc3339()),
+            .map_or("-".to_owned(), |t| t.opened_at.to_rfc3339()),
         genuine.len(),
         facts
             .and_then(|t| t.session_class.as_deref())
@@ -160,52 +71,48 @@ fn header(inputs: &DossierInputs, genuine: &[&DossierTurnRow]) -> String {
     )
 }
 
-struct Layout<'a> {
-    turns: Vec<&'a DossierTurnRow>,
-    reactions: HashMap<i64, String>,
-    budget: usize,
+pub fn turns_text(text: &str) -> &str {
+    let marker = format!("{SEPARATOR}{RECAPS_HEADING}");
+    text.rfind(&marker).map_or(text, |at| &text[..at])
 }
 
-impl Layout<'_> {
-    fn line(&self, index: usize, form: TurnForm) -> String {
-        let turn = self.turns[index];
-        let suffix = reaction_suffix(&self.reactions, turn);
-        match form {
-            TurnForm::Full => full_form(index + 1, turn, self.budget, RESPONSE_TAIL_CAP, &suffix),
-            TurnForm::Compressed => compressed_form(index + 1, turn, &suffix),
-            TurnForm::Span => String::new(),
-        }
-    }
+fn span_line(first: usize, last: usize, turns: &[RecordTurnRow]) -> String {
+    let aborted = turns.iter().filter(|t| t.aborted.unwrap_or(false)).count();
+    let failed = turns
+        .iter()
+        .filter(|t| t.checks_failed.unwrap_or(0) > 0)
+        .count();
+    let commits: i32 = turns.iter().map(|t| t.commit_count).sum();
+    format!(
+        "turns {first}-{last}: {} turns, {aborted} aborted, {failed} with failed checks, {commits} commits",
+        turns.len()
+    )
+}
 
-    fn render(&self, forms: &[TurnForm], ending_cap: usize) -> Vec<String> {
-        let mut out = Vec::new();
-        let mut i = 0;
-        let last = self.turns.len().saturating_sub(1);
-        while i < forms.len() {
-            if forms[i] == TurnForm::Span {
-                let start = i;
-                while i < forms.len() && forms[i] == TurnForm::Span {
-                    i += 1;
-                }
-                out.push(span_form(start + 1, i, &self.turns[start..i]));
-                continue;
-            }
-            if i == last && forms[i] == TurnForm::Full {
-                let suffix = reaction_suffix(&self.reactions, self.turns[i]);
-                out.push(full_form(
-                    i + 1,
-                    self.turns[i],
-                    self.budget,
-                    ending_cap,
-                    &suffix,
-                ));
-            } else {
-                out.push(self.line(i, forms[i]));
-            }
-            i += 1;
-        }
-        out
-    }
+#[derive(Debug, Clone, Copy)]
+struct Shape {
+    shortened: usize,
+    merged: usize,
+    recaps: usize,
+    lessons: usize,
+    ending_cap: usize,
+}
+
+struct Plan<'a> {
+    turns: &'a [RecordTurnRow],
+    head: String,
+    reactions: HashMap<i64, String>,
+    recaps: Vec<String>,
+    lessons: Vec<String>,
+    promises: String,
+    promise_items: usize,
+    directives: String,
+    directive_items: usize,
+    full: Vec<String>,
+    short: Vec<String>,
+    full_len: Vec<usize>,
+    short_len: Vec<usize>,
+    budget: usize,
 }
 
 fn total(parts: &[String]) -> usize {
@@ -213,150 +120,234 @@ fn total(parts: &[String]) -> usize {
     chars + SEPARATOR.len() * parts.len().saturating_sub(1)
 }
 
-fn fits(layout: &Layout<'_>, head: &str, forms: &[TurnForm], cap: usize) -> bool {
-    let mut parts = vec![head.to_owned()];
-    parts.extend(layout.render(forms, cap));
-    total(&parts) <= layout.budget
-}
-
-fn allocate(layout: &Layout<'_>, head: &str) -> (Vec<TurnForm>, usize) {
-    let n = layout.turns.len();
-    let mut forms = vec![TurnForm::Compressed; n];
-    if n == 0 {
-        return (forms, RESPONSE_TAIL_CAP);
+impl<'a> Plan<'a> {
+    fn new(inputs: &'a DossierInputs, budget: usize) -> Self {
+        let turns = inputs.record.turns.as_slice();
+        let numbers = Numbers::new(turns.iter().map(|t| t.turn_id));
+        let reactions: HashMap<i64, String> = inputs
+            .reactions
+            .iter()
+            .map(|r| (r.turn_id, r.reaction.clone()))
+            .collect();
+        let promises = promise_lines(&inputs.entries, &numbers);
+        let directives = directive_lines(&inputs.entries);
+        let mut plan = Self {
+            turns,
+            head: header(inputs),
+            reactions,
+            recaps: recap_lines(&inputs.record.recaps),
+            lessons: lesson_lines(&inputs.record.lessons, &numbers),
+            promise_items: promises.len(),
+            promises: section(PROMISES_HEADING, promises),
+            directive_items: directives.len(),
+            directives: section(DIRECTIVES_HEADING, directives),
+            full: Vec::new(),
+            short: Vec::new(),
+            full_len: Vec::new(),
+            short_len: Vec::new(),
+            budget,
+        };
+        plan.full = (0..turns.len())
+            .map(|i| plan.turn_text(i, Detail::Full, STOP_CAP))
+            .collect();
+        plan.short = (0..turns.len())
+            .map(|i| plan.turn_text(i, Detail::Short, SHORT_STOP_CAP))
+            .collect();
+        plan.full_len = plan.full.iter().map(|t| char_count(t)).collect();
+        plan.short_len = plan.short.iter().map(|t| char_count(t)).collect();
+        plan
     }
-    forms[n - 1] = TurnForm::Full;
-    if fits(layout, head, &forms, RESPONSE_TAIL_CAP) {
-        for i in (0..n - 1).rev() {
-            forms[i] = TurnForm::Full;
-            if !fits(layout, head, &forms, RESPONSE_TAIL_CAP) {
-                forms[i] = TurnForm::Compressed;
+
+    fn turn_text(&self, index: usize, detail: Detail, stop_cap: usize) -> String {
+        let turn = &self.turns[index];
+        let style = TurnStyle {
+            number: index + 1,
+            detail,
+            stop_cap,
+            budget: self.budget,
+            reaction: self.reactions.get(&turn.turn_id).map(String::as_str),
+        };
+        render_turn(turn, &style)
+    }
+
+    fn detail_of(&self, index: usize, shape: &Shape) -> Detail {
+        if index < shape.shortened {
+            Detail::Short
+        } else {
+            Detail::Full
+        }
+    }
+
+    fn turn_part(&self, index: usize, shape: &Shape) -> String {
+        let detail = self.detail_of(index, shape);
+        if index + 1 == self.turns.len() {
+            let cap = detail.stop_cap().min(shape.ending_cap);
+            return self.turn_text(index, detail, cap);
+        }
+        match detail {
+            Detail::Full => self.full[index].clone(),
+            Detail::Short => self.short[index].clone(),
+        }
+    }
+
+    fn turn_parts(&self, shape: &Shape) -> Vec<String> {
+        let mut parts = Vec::new();
+        if shape.merged > 0 {
+            parts.push(span_line(1, shape.merged, &self.turns[..shape.merged]));
+        }
+        for index in shape.merged..self.turns.len() {
+            parts.push(self.turn_part(index, shape));
+        }
+        parts
+    }
+
+    fn list_section(&self, heading: &str, lines: &[String], keep: usize, noun: &str) -> String {
+        section(heading, keep_last(lines.to_vec(), keep, noun))
+    }
+
+    fn section_texts(&self, shape: &Shape) -> [String; 4] {
+        [
+            self.list_section(RECAPS_HEADING, &self.recaps, shape.recaps, "recaps are"),
+            self.list_section(LESSONS_HEADING, &self.lessons, shape.lessons, "lessons are"),
+            self.promises.clone(),
+            self.directives.clone(),
+        ]
+    }
+
+    fn size(&self, shape: &Shape) -> usize {
+        let n = self.turns.len();
+        let mut chars = char_count(&self.head);
+        let mut parts = 1;
+        if shape.merged > 0 {
+            chars += char_count(&span_line(1, shape.merged, &self.turns[..shape.merged]));
+            parts += 1;
+        }
+        for index in shape.merged..n {
+            chars += match (index + 1 == n, self.detail_of(index, shape)) {
+                (true, _) => char_count(&self.turn_part(index, shape)),
+                (false, Detail::Full) => self.full_len[index],
+                (false, Detail::Short) => self.short_len[index],
+            };
+            parts += 1;
+        }
+        let sections = self.section_texts(shape);
+        chars += sections.iter().map(|s| char_count(s)).sum::<usize>();
+        parts += sections.len();
+        chars + SEPARATOR.len() * (parts - 1)
+    }
+
+    fn fits(&self, shape: &Shape) -> bool {
+        self.size(shape) <= self.budget
+    }
+
+    fn allocate(&self) -> Shape {
+        let n = self.turns.len();
+        let mut shape = Shape {
+            shortened: 0,
+            merged: 0,
+            recaps: self.recaps.len(),
+            lessons: self.lessons.len(),
+            ending_cap: usize::MAX,
+        };
+        while !self.fits(&shape) {
+            if !step(&mut shape, n) {
                 break;
             }
         }
-        return (forms, RESPONSE_TAIL_CAP);
+        shape
     }
-    for i in 0..n - 1 {
-        forms[i] = TurnForm::Span;
-        if fits(layout, head, &forms, RESPONSE_TAIL_CAP) {
-            return (forms, RESPONSE_TAIL_CAP);
+}
+
+fn step(shape: &mut Shape, turns: usize) -> bool {
+    if shape.shortened < turns {
+        shape.shortened += 1;
+    } else if shape.lessons > 0 {
+        shape.lessons -= 1;
+    } else if shape.recaps > 0 {
+        shape.recaps -= 1;
+    } else if shape.merged + 1 < turns {
+        shape.merged += 1;
+    } else {
+        let current = shape.ending_cap.min(SHORT_STOP_CAP);
+        if current <= MIN_ENDING_STOP_CAP {
+            return false;
         }
+        shape.ending_cap = (current / 2).max(MIN_ENDING_STOP_CAP);
     }
-    let mut cap = RESPONSE_TAIL_CAP;
-    while cap > 0 && !fits(layout, head, &forms, cap) {
-        cap /= 2;
-    }
-    (forms, cap)
+    true
 }
 
 fn count(forms: &[TurnForm], form: TurnForm) -> u32 {
     u32::try_from(forms.iter().filter(|f| **f == form).count()).unwrap_or(u32::MAX)
 }
 
-pub fn render_session_judge(
-    inputs: &DossierInputs,
-    slices: SessionSlices,
-    budget: usize,
-) -> SessionJudgeRender {
-    let genuine = genuine_turns(inputs);
-    let head = header(inputs, &genuine);
-    let reactions: HashMap<i64, String> = if slices.reactions {
-        inputs
-            .reactions
-            .iter()
-            .map(|r| (r.turn_id, r.reaction.clone()))
-            .collect()
-    } else {
-        HashMap::new()
-    };
-    let layout = Layout {
-        turns: genuine,
-        reactions,
-        budget,
-    };
-    let (forms, cap) = allocate(&layout, &head);
-    let turn_lines = layout.render(&forms, cap);
-    let mut parts = vec![head.clone()];
-    parts.extend(turn_lines.iter().cloned());
-    let mut reports = vec![
-        SectionReport::whole("session", 1, char_count(&head)),
+fn forms_of(turns: usize, shape: &Shape) -> Vec<TurnForm> {
+    (0..turns)
+        .map(|i| {
+            if i < shape.merged {
+                TurnForm::Span
+            } else if i < shape.shortened {
+                TurnForm::Compressed
+            } else {
+                TurnForm::Full
+            }
+        })
+        .collect()
+}
+
+fn list_report(id: &str, total_items: usize, kept: usize, text: &str) -> SectionReport {
+    let kept = kept.min(total_items);
+    SectionReport {
+        id: id.to_owned(),
+        items_total: u32::try_from(total_items).unwrap_or(u32::MAX),
+        items_full: u32::try_from(kept).unwrap_or(u32::MAX),
+        items_compressed: 0,
+        items_in_spans: u32::try_from(total_items - kept).unwrap_or(u32::MAX),
+        chars: u32::try_from(char_count(text)).unwrap_or(u32::MAX),
+    }
+}
+
+fn reports(
+    plan: &Plan<'_>,
+    shape: &Shape,
+    forms: &[TurnForm],
+    turn_parts: &[String],
+    sections: &[String; 4],
+) -> Vec<SectionReport> {
+    let [recaps, lessons, promises, directives] = sections;
+    vec![
+        SectionReport::whole("session", 1, char_count(&plan.head)),
         SectionReport {
             id: "turns".to_owned(),
             items_total: u32::try_from(forms.len()).unwrap_or(u32::MAX),
-            items_full: count(&forms, TurnForm::Full),
-            items_compressed: count(&forms, TurnForm::Compressed),
-            items_in_spans: count(&forms, TurnForm::Span),
-            chars: u32::try_from(total(&turn_lines)).unwrap_or(u32::MAX),
+            items_full: count(forms, TurnForm::Full),
+            items_compressed: count(forms, TurnForm::Compressed),
+            items_in_spans: count(forms, TurnForm::Span),
+            chars: u32::try_from(total(turn_parts)).unwrap_or(u32::MAX),
         },
-    ];
-    for (id, lines) in slice_sections(inputs, slices) {
-        let text = lines.join("\n");
-        reports.push(SectionReport::whole(
-            id,
-            lines.len().saturating_sub(1),
-            char_count(&text),
-        ));
-        parts.push(text);
-    }
+        list_report("recaps", plan.recaps.len(), shape.recaps, recaps),
+        list_report("lessons", plan.lessons.len(), shape.lessons, lessons),
+        SectionReport::whole("promises", plan.promise_items, char_count(promises)),
+        SectionReport::whole("directives", plan.directive_items, char_count(directives)),
+    ]
+}
+
+pub fn render_session_judge(inputs: &DossierInputs, budget: usize) -> SessionJudgeRender {
+    let plan = Plan::new(inputs, budget);
+    let shape = plan.allocate();
+    let turn_parts = plan.turn_parts(&shape);
+    let sections = plan.section_texts(&shape);
+    let forms = forms_of(plan.turns.len(), &shape);
+    let reports = reports(&plan, &shape, &forms, &turn_parts, &sections);
+    let mut parts = vec![plan.head.clone()];
+    parts.extend(turn_parts);
+    parts.extend(sections);
     SessionJudgeRender {
         view: SessionJudgeView {
-            ending_turn_id: layout.turns.last().map(|t| t.turn_id),
-            forms: layout.turns.iter().map(|t| t.turn_id).zip(forms).collect(),
+            ending_turn_id: plan.turns.last().map(|t| t.turn_id),
+            forms: plan.turns.iter().map(|t| t.turn_id).zip(forms).collect(),
         },
         reports,
         text: parts.join(SEPARATOR),
     }
-}
-
-fn slice_sections(
-    inputs: &DossierInputs,
-    slices: SessionSlices,
-) -> Vec<(&'static str, Vec<String>)> {
-    let mut out = Vec::new();
-    if slices.promises {
-        let mut lines = vec!["PROMISES (open or broken as of now):".to_owned()];
-        lines.extend(
-            inputs
-                .entries
-                .iter()
-                .filter(|e| e.kind == "promise" && matches!(e.status.as_str(), "open" | "broken"))
-                .map(|e| {
-                    format!(
-                        "- turn {} {}: {}",
-                        e.operator_turn_id.unwrap_or(0),
-                        e.status,
-                        e.data
-                    )
-                }),
-        );
-        out.push(("promises", lines));
-    }
-    if slices.directives {
-        let mut lines = vec!["DIRECTIVES IN FORCE:".to_owned()];
-        lines.extend(
-            inputs
-                .entries
-                .iter()
-                .filter(|e| e.kind == "directive" && e.status == "open")
-                .map(|e| {
-                    format!(
-                        "- {} {} ({})",
-                        e.data.get("class").and_then(|v| v.as_str()).unwrap_or("?"),
-                        e.data
-                            .get("polarity")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?"),
-                        e.source_ref
-                    )
-                }),
-        );
-        out.push(("directives", lines));
-    }
-    if slices.reactions {
-        out.push((
-            "reactions",
-            vec!["REACTIONS: shown on each turn's line.".to_owned()],
-        ));
-    }
-    out
 }

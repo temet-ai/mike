@@ -76,13 +76,20 @@ pub fn first_rule(f: &SessionEndFacts) -> Option<EndVerdict> {
     fleet_seat_v1(f).or_else(|| done_v1(f))
 }
 
+fn overrides_model(rule: EndRule) -> bool {
+    matches!(rule, EndRule::FleetSeatV1)
+}
+
 pub fn apply_rules(
     f: &SessionEndFacts,
     enabled: &[EndRule],
 ) -> (Option<EndRule>, Option<EndVerdict>) {
     let fired = first_rule(f);
     let rule = fired.as_ref().and_then(|v| v.deterministic);
-    let applied = fired.filter(|v| v.deterministic.is_some_and(|r| enabled.contains(&r)));
+    let applied = fired.filter(|v| {
+        v.deterministic
+            .is_some_and(|r| overrides_model(r) && enabled.contains(&r))
+    });
     (rule, applied)
 }
 

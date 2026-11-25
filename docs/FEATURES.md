@@ -120,7 +120,7 @@ All of these are inert without an OpenRouter API key
 |---|---|---|---|---|
 | Steerer fleet | `steerer` | off | yes | Prompts, assistant text, tool-call summaries and trajectory digests, to `openrouter.ai`. |
 | Turn judge | `judge_worker` | off | yes | Each turn's user prompt plus the final assistant text. |
-| Session judge | `session_judge` | off | yes | A multi-turn digest: each turn's prompt and final response. |
+| Session judge | `session_judge` | off | yes | A record of the whole session: each turn's prompt, how it stopped and what mike saw it do, plus recaps, supplied lessons, promises and directives. |
 | Turn guard | `turn_guard` | off | yes | At each turn end and after quiescence, the turn's closing text, its dossier facts and (with `guard.calibration.input_mode = live`) a calibration block, to four guard questions. Every question starts in `shadow`: rows are recorded, nothing is delivered. A question the operator promotes to `append` or `wake` delivers a nudge, which changes traffic. |
 | Semantic context | `semantic_context` | on, loopback only | no | Operator-turn prompts, endings and anchors, to the registered embedder. Each call is refused unless the embedder URL is loopback, so nothing leaves the machine without an operator changing the embedder. |
 | Verifier input budget | `steerer.verifier.input_budget` (setting) | `verifier-input-v1` | yes | Narrows what the already-enabled verifier sends: each section of its message is capped and older tool calls are listed as counts. `uncapped` sends everything. It enables nothing by itself. |

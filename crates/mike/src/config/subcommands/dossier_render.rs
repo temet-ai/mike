@@ -9,8 +9,6 @@ use crate::dossier::view::parse::{AudienceArgs, parse_as_of, parse_audience_part
 use crate::dossier::view::types::Needs;
 use crate::store::persistence::PersistHandle;
 
-const DEFAULT_BUDGET: usize = 24_000;
-
 async fn connect(cli: CliOverrides) -> Result<PersistHandle> {
     let config = load::load(cli).context("failed to resolve config for dossier-render")?;
     let Some(database_url) = config.database_url.as_deref() else {
@@ -54,9 +52,8 @@ pub(super) async fn dossier_render(args: DossierRenderArgs, cli: CliOverrides) -
     let audience = parse_audience_parts(&AudienceArgs {
         audience: &args.audience,
         turn_id: args.turn,
-        slices: args.slices.as_deref(),
         sections: args.sections.as_deref(),
-        budget_chars: args.budget_chars.unwrap_or(DEFAULT_BUDGET),
+        budget_chars: args.budget_chars,
     })
     .map_err(anyhow::Error::msg)?;
     let needs = Needs::for_inspection(audience.as_ref().map(|(audience, _)| audience));

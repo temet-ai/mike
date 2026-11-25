@@ -4,7 +4,9 @@ use serde_json::json;
 use super::full::full_view;
 use super::types::{AsOf, DossierInputs};
 use crate::store::persistence::dossier_entries::DossierEntryRow;
-use crate::store::persistence::dossier_view::{DossierStreamRow, DossierTurnRow, SessionHeaderRow};
+use crate::store::persistence::dossier_view::{
+    DossierStreamRow, DossierTurnRow, SessionHeaderRow, SessionRecord,
+};
 
 pub fn base_time() -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2026, 9, 20, 10, 0, 0)
@@ -138,6 +140,7 @@ pub fn fixture() -> DossierInputs {
         corrections: Vec::new(),
         reactions: Vec::new(),
         exclusions: Vec::new(),
+        record: SessionRecord::default(),
         steering_facts: None,
         semantic: None,
         notes: Vec::new(),

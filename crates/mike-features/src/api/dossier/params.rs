@@ -4,7 +4,6 @@ use serde::Deserialize;
 pub use crate::dossier::view::parse::parse_as_of;
 use crate::dossier::view::parse::{AudienceArgs, parse_audience_parts};
 
-pub const DEFAULT_BUDGET: usize = 24_000;
 pub const DEFAULT_LIMIT: usize = 500;
 
 pub const SECTIONS: [&str; 10] = [
@@ -27,7 +26,6 @@ pub struct DossierParams {
     pub mode: Option<String>,
     pub audience: Option<String>,
     pub turn_id: Option<i64>,
-    pub slices: Option<String>,
     pub sections: Option<String>,
     pub budget_chars: Option<usize>,
     pub section: Option<String>,
@@ -47,9 +45,8 @@ pub fn parse_audience(
     parse_audience_parts(&AudienceArgs {
         audience: params.audience.as_deref().unwrap_or("none"),
         turn_id: params.turn_id,
-        slices: params.slices.as_deref(),
         sections: params.sections.as_deref(),
-        budget_chars: params.budget_chars.unwrap_or(DEFAULT_BUDGET),
+        budget_chars: params.budget_chars,
     })
 }
 

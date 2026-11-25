@@ -677,7 +677,7 @@ Every command below reads the database named by the boot config. Commands that l
 | `mike eval show <id> [--gate] [--items] [--json]` | Prints a run (or, with `--gate`, a gate) whole, optionally with every item |
 | `mike eval rejudge ...` | See the turn judge promotion section above |
 | `mike eval session-end-defaults [--source fleet_mirror/session_ends] [--tiers seed,gold] [--json]` | Scores the rule-based session-end label against the seed and gold labels, with Wilson intervals |
-| `mike dossier-render --session <uuid> [--as-of T] [--mode knowledge] [--audience none\|turn_judge\|session_judge\|steerer] [--turn N] [--slices ...] [--sections ...] [--budget-chars N] [--full-view] [--out F]` | Renders the dossier view a model would read for a session, read-only; `--e-parity <file>` instead checks the renderer against a recorded judge input |
+| `mike dossier-render --session <uuid> [--as-of T] [--mode knowledge] [--audience none\|turn_judge\|session_judge\|steerer] [--turn N] [--sections ...] [--budget-chars N] [--full-view] [--out F]` | Renders the dossier view a model would read for a session, read-only; `--e-parity <file>` instead checks the renderer against a recorded judge input |
 
 `mike eval run --bundle N` evaluates the selected bundle's stored configuration and records that exact bundle ID on the run. Do not combine it with `--rubric`, `--builder`, `--slices`, `--prompt-file`, or `--model`; those options construct a configuration when no bundle is selected. `--resume RUN` uses the original run's frozen bundle and cannot be combined with `--bundle`. Choose the matching `--role` for the bundle.
 

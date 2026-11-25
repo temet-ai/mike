@@ -228,14 +228,58 @@ fn live_apply_on_replaces_outcome_and_quality_but_keeps_the_models_text() {
 }
 
 #[test]
-fn live_apply_unknown_outcome_stores_no_quality() {
+fn live_apply_unknown_choice_keeps_the_models_outcome_and_quality() {
     let Some(decision) = compose(&asked(outcome("unknown", 0.9), quality(4))) else {
         panic!("no decision");
     };
     let mut judged = judged_by_model();
+    let before = super::live::apply_live(&mut judged, &decision);
+    assert_eq!(judged.verdict.outcome, "partial");
+    assert!((judged.verdict.quality_score - 0.4).abs() < 1e-9);
+    assert!(!judged.quality_unknown);
+    assert_eq!(before.outcome, "partial");
+}
+
+#[test]
+fn live_apply_in_progress_choice_keeps_the_models_outcome_and_quality() {
+    let Some(decision) = compose(&asked(outcome("in_progress", 0.9), quality(4))) else {
+        panic!("no decision");
+    };
+    let mut judged = judged_by_model();
     super::live::apply_live(&mut judged, &decision);
-    assert_eq!(judged.verdict.outcome, "unknown");
-    assert!(judged.quality_unknown);
+    assert_eq!(judged.verdict.outcome, "partial");
+    assert!(!judged.quality_unknown);
+}
+
+#[test]
+fn live_apply_choice_under_the_bar_keeps_the_models_outcome_and_quality() {
+    let Some(decision) = compose(&asked(outcome("success", 0.3), quality(4))) else {
+        panic!("no decision");
+    };
+    let mut judged = judged_by_model();
+    super::live::apply_live(&mut judged, &decision);
+    assert_eq!(judged.verdict.outcome, "partial");
+    assert!((judged.verdict.quality_score - 0.4).abs() < 1e-9);
+}
+
+#[test]
+fn live_composed_record_says_whether_the_model_was_kept() {
+    let Some(unknown) = compose(&asked(outcome("unknown", 0.9), quality(4))) else {
+        panic!("no decision");
+    };
+    let Some(definite) = compose(&asked(outcome("success", 0.9), quality(4))) else {
+        panic!("no decision");
+    };
+    let mut judged = judged_by_model();
+    let before = super::live::apply_live(&mut judged, &unknown);
+    assert_eq!(
+        super::live::composed_live(&unknown, &before)["kept_model"],
+        true
+    );
+    assert_eq!(
+        super::live::composed_live(&definite, &before)["kept_model"],
+        false
+    );
 }
 
 #[test]

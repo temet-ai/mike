@@ -69,7 +69,7 @@ pub fn verdict_row<'a>(
         failure: end.map(|e| e.failure.as_str()),
         failure_tags: end.map(|e| e.failure_tags.clone()).unwrap_or_default(),
         severity: end.map(|e| e.severity),
-        slices: cfg.slices.clone(),
+        slices: Vec::new(),
         as_of: j.as_of,
         digest_version: &j.digest_version,
         input_text: &j.input_text,

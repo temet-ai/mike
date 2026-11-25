@@ -272,8 +272,6 @@ pub struct DossierRenderArgs {
     #[arg(long)]
     pub turn: Option<i64>,
     #[arg(long)]
-    pub slices: Option<String>,
-    #[arg(long)]
     pub sections: Option<String>,
     #[arg(long)]
     pub budget_chars: Option<usize>,

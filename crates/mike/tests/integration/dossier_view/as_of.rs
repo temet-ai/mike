@@ -1,6 +1,6 @@
 use chrono::Duration;
 use mike::dossier::render::render_inputs;
-use mike::dossier::view::types::{AsOf, Audience, Budget, Needs, SessionSlices};
+use mike::dossier::view::types::{AsOf, Audience, Budget, Needs};
 
 use super::{after, seeded};
 use crate::seed::database_now;
@@ -13,9 +13,7 @@ async fn two_renders_of_the_same_moment_have_the_same_digest() -> anyhow::Result
     };
     seeded(&f).await?;
     let at = chrono::Utc::now();
-    let audience = Audience::SessionJudge {
-        slices: SessionSlices::default(),
-    };
+    let audience = Audience::SessionJudge;
     let load = || async {
         mike::dossier::view::load(
             &f.handle,

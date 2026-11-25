@@ -5,16 +5,10 @@ use crate::store::persistence::PersistError;
 use crate::store::persistence::dossier_entries::DossierEntryRow;
 use crate::store::persistence::dossier_view::{
     DossierStreamRow, DossierTurnRow, GoalsRow, LedgerAsOfRow, OpenTextRow, SessionHeaderRow,
+    SessionRecord,
 };
 
 pub use crate::dossier::as_of::{AsOf, AsOfMode};
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct SessionSlices {
-    pub reactions: bool,
-    pub promises: bool,
-    pub directives: bool,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SteererSection {
@@ -38,9 +32,7 @@ pub enum Audience {
     Judge {
         turn_id: i64,
     },
-    SessionJudge {
-        slices: SessionSlices,
-    },
+    SessionJudge,
     Steerer {
         turn_id: Option<i64>,
         sections: Vec<SteererSection>,
@@ -69,7 +61,7 @@ impl Audience {
     pub fn code(&self) -> AudienceCode {
         match self {
             Audience::Judge { .. } => AudienceCode::Judge,
-            Audience::SessionJudge { .. } => AudienceCode::SessionJudge,
+            Audience::SessionJudge => AudienceCode::SessionJudge,
             Audience::Steerer { .. } => AudienceCode::Steerer,
         }
     }
@@ -91,6 +83,7 @@ pub struct Needs {
     pub open_turn: Option<i64>,
     pub labels: bool,
     pub verdicts: bool,
+    pub session_record: bool,
     pub steering_facts: Option<i64>,
     pub semantic: Option<i64>,
     pub notes_window: Option<chrono::Duration>,
@@ -116,6 +109,7 @@ impl Needs {
             open_turn: self.open_turn.or(other.open_turn),
             labels: self.labels || other.labels,
             verdicts: self.verdicts || other.verdicts,
+            session_record: self.session_record || other.session_record,
             steering_facts: self.steering_facts.or(other.steering_facts),
             semantic: self.semantic.or(other.semantic),
             notes_window: self.notes_window.or(other.notes_window),
@@ -190,6 +184,10 @@ impl Needs {
                 notes_window: default_notes_window(sections),
                 ..Self::everything(*turn_id)
             },
+            Some(Audience::SessionJudge) => Self {
+                session_record: true,
+                ..Self::everything(None)
+            },
             _ => Self::everything(None),
         }
     }
@@ -204,6 +202,7 @@ impl Needs {
             open_turn,
             labels: true,
             verdicts: true,
+            session_record: false,
             steering_facts: None,
             semantic: None,
             notes_window: None,
@@ -220,11 +219,11 @@ impl Needs {
                 labels: true,
                 ..Self::default()
             },
-            Audience::SessionJudge { slices } => Self {
-                stream: true,
+            Audience::SessionJudge => Self {
                 turns: true,
-                entries: slices.promises || slices.directives,
-                verdicts: slices.reactions,
+                entries: true,
+                verdicts: true,
+                session_record: true,
                 ..Self::default()
             },
             Audience::Steerer { turn_id, sections } => Self {
@@ -338,6 +337,8 @@ pub struct DossierInputs {
     pub corrections: Vec<CorrectionItem>,
     pub reactions: Vec<ReactionItem>,
     pub exclusions: Vec<Exclusion>,
+    #[serde(skip_serializing_if = "SessionRecord::is_empty")]
+    pub record: SessionRecord,
     pub steering_facts: Option<crate::dossier::steering_facts::SteeringFacts>,
     pub semantic: Option<crate::semantic::sections::SemanticSections>,
     #[serde(skip_serializing_if = "Vec::is_empty")]

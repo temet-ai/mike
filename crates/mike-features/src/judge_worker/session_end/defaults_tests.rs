@@ -116,3 +116,10 @@ fn rule_fired_is_recorded_even_when_the_rule_is_not_applied() {
     assert_eq!(fired, Some(EndRule::FleetSeatV1));
     assert!(applied.is_some());
 }
+
+#[test]
+fn apply_rules_done_v1_enabled_fires_but_never_overrides_the_model() {
+    let (fired, applied) = apply_rules(&facts(), &[EndRule::FleetSeatV1, EndRule::DoneV1]);
+    assert_eq!(fired, Some(EndRule::DoneV1));
+    assert!(applied.is_none());
+}
