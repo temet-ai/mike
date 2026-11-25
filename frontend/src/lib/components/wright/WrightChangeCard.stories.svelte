@@ -45,7 +45,11 @@
 			style="display: flex; flex-direction: column; gap: 8px; padding: 16px; max-inline-size: 40rem; background: var(--surface-card);"
 		>
 			<WrightChangeCard
-				change={{ type: 'pause_remedy', name: 'tell_undelivered_senders', until: 'the fleet closes' }}
+				change={{
+					type: 'pause_remedy',
+					name: 'tell_undelivered_senders',
+					until: 'the fleet closes'
+				}}
 				undo="ready"
 				{onUndo}
 			/>
@@ -77,11 +81,7 @@
 				{onUndo}
 			/>
 			<WrightChangeCard change={{ kind: 'separate_merge', merge_id: 5 }} undo="ready" {onUndo} />
-			<WrightChangeCard
-				change={{ kind: 'ungroup_causes', cause_ids: [7] }}
-				undo="ready"
-				{onUndo}
-			/>
+			<WrightChangeCard change={{ kind: 'ungroup_causes', cause_ids: [7] }} undo="ready" {onUndo} />
 		</div>
 	{/snippet}
 </Story>

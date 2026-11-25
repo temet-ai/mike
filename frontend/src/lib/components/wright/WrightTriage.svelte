@@ -252,8 +252,7 @@ holds it still while Wright refreshes and reorders it after an action.
 						size="sm"
 						disabled={off || selected.length === 0}
 						title={reason ?? undefined}
-						onclick={() =>
-							openGroup(selected.map((c) => c.cause_id))}
+						onclick={() => openGroup(selected.map((c) => c.cause_id))}
 					>
 						<FolderPlus aria-hidden="true" />
 						Group
@@ -283,7 +282,11 @@ holds it still while Wright refreshes and reorders it after an action.
 
 			<Tabs.Content value="ranked">
 				{#if view === 'ranked'}
-					<ul class="tri__rows" role="list" aria-label="Causes in the order the engineer takes them">
+					<ul
+						class="tri__rows"
+						role="list"
+						aria-label="Causes in the order the engineer takes them"
+					>
 						{#each causes as cause (cause.cause_id)}
 							{@render causeRow(cause, causes, paired)}
 						{/each}

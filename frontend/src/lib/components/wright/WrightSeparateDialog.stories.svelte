@@ -26,7 +26,9 @@
 	play={async () => {
 		const dialog = within(await openDialog('Separate this merge'));
 		// What comes back, and what stays where it is.
-		await expect(dialog.getByText(/with the 4 problems that moved when you merged it/)).toBeVisible();
+		await expect(
+			dialog.getByText(/with the 4 problems that moved when you merged it/)
+		).toBeVisible();
 		await expect(
 			dialog.getByText(/Problems opened after the merge stay with idle_polls/)
 		).toBeVisible();

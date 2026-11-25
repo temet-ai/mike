@@ -23,13 +23,13 @@ pub(crate) mod token;
 pub(crate) mod worker;
 
 #[cfg(test)]
-pub(crate) mod fakes_tests;
-#[cfg(test)]
 mod cause_steers_groups_tests;
 #[cfg(test)]
 mod cause_steers_merge_tests;
 #[cfg(test)]
 pub(super) mod cause_steers_tests;
+#[cfg(test)]
+pub(crate) mod fakes_tests;
 #[cfg(test)]
 mod followup_tests;
 #[cfg(test)]
@@ -39,9 +39,9 @@ mod steer_causes_tests;
 #[cfg(test)]
 mod steer_tests;
 #[cfg(test)]
-mod worker_tests;
-#[cfg(test)]
 mod token_tests;
+#[cfg(test)]
+mod worker_tests;
 
 pub use worker::spawn_conversation_worker;
 

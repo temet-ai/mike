@@ -77,7 +77,9 @@
 
 		// Every open problem, and the ones that arrived while it was open wait to be asked for.
 		const list = canvas.getByRole('list', { name: 'Open problems of cause 50' });
-		await expect(list.querySelectorAll(':scope > [data-slot="wright-problem-row"]')).toHaveLength(2);
+		await expect(list.querySelectorAll(':scope > [data-slot="wright-problem-row"]')).toHaveLength(
+			2
+		);
 		await userEvent.click(canvas.getByRole('button', { name: '1 new' }));
 		await expect(onShowHeld).toHaveBeenCalled();
 		await userEvent.click(within(list).getAllByRole('button')[0]!);
@@ -89,7 +91,9 @@
 		await expect(canvas.getAllByRole('button', { name: /^Separate / })).toHaveLength(1);
 		await userEvent.click(canvas.getByRole('button', { name: 'Separate slow_queries' }));
 		const dialog = within(await openDialog('Separate this merge'));
-		await expect(dialog.getByText(/Problems opened after the merge stay with slow_queries/)).toBeVisible();
+		await expect(
+			dialog.getByText(/Problems opened after the merge stay with slow_queries/)
+		).toBeVisible();
 		await userEvent.click(dialog.getByRole('button', { name: 'Separate' }));
 		await expect(onSeparate).toHaveBeenCalledWith(5);
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

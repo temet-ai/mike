@@ -301,7 +301,11 @@ async fn the_migration_fills_the_statement_of_a_query_problem_over_20000_charact
         vec![
             finding("query", &old, json!({"queryid": id})),
             finding("query", gone, json!({"queryid": "4242424242"})),
-            finding("query", kept, json!({"queryid": "77", "query": "SELECT already stored"})),
+            finding(
+                "query",
+                kept,
+                json!({"queryid": "77", "query": "SELECT already stored"}),
+            ),
         ],
     )
     .await?;
@@ -315,8 +319,15 @@ async fn the_migration_fills_the_statement_of_a_query_problem_over_20000_charact
         statement_of(&db, kept).await?.as_deref(),
         Some("SELECT already stored")
     );
-    let again = record(&db, vec![finding("query", &old, json!({"queryid": id, "query": whole}))])
-        .await?;
+    let again = record(
+        &db,
+        vec![finding(
+            "query",
+            &old,
+            json!({"queryid": id, "query": whole}),
+        )],
+    )
+    .await?;
     assert_eq!(again, (0, 0, 1, 2));
     sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
     assert_eq!(statement_of(&db, &old).await?, Some(whole));

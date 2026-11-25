@@ -159,7 +159,10 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         )
     }
 
-    pub(crate) async fn wright_cause(self, cause_id: i64) -> Result<Option<CauseRow>, PersistError> {
+    pub(crate) async fn wright_cause(
+        self,
+        cause_id: i64,
+    ) -> Result<Option<CauseRow>, PersistError> {
         Ok(
             sqlx::query_as(LIST) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .bind(1_i64)

@@ -3,6 +3,7 @@
 	import { expect, fn, userEvent, within } from 'storybook/test';
 	import {
 		LONG_RESOURCE,
+		LONG_STATEMENT,
 		WAITED_HOURS,
 		absorbedFixture,
 		ago,
@@ -54,7 +55,8 @@
 	const onMove = fn();
 	const onReset = fn();
 	const onGroup = fn();
-	const WIDE = 'list-style: none; margin: 0; padding: 0; max-width: 64rem; --edge-surface: var(--surface-card);';
+	const WIDE =
+		'list-style: none; margin: 0; padding: 0; max-width: 64rem; --edge-surface: var(--surface-card);';
 </script>
 
 <Story
@@ -178,7 +180,7 @@
 		// The whole text is one click away.
 		await userEvent.click(canvas.getByRole('button', { name: /slow_queries/, expanded: false }));
 		const full = canvasElement.querySelector('.cause__full') as HTMLElement;
-		await expect(full.textContent).toBe(LONG_RESOURCE);
+		await expect(full.textContent).toBe(LONG_STATEMENT);
 		await expect(canvas.getByText(/^7 problems open · 1733 observations/)).toBeVisible();
 	}}
 >

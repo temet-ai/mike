@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::triage::CauseRow;
 use super::ProblemRow;
+use super::triage::CauseRow;
 use crate::store::persistence::PersistError;
 
 const MERGE_CAUSES: &str = include_str!("sql/triage/merge_causes.sql");

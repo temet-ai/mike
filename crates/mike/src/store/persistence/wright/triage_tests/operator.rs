@@ -20,7 +20,12 @@ async fn shared_and_lone(env: &Env) -> anyhow::Result<(i64, i64, i64, i64)> {
         shared = problem;
     }
     env.persist.web().assign_wright_causes().await?;
-    Ok((env.cause(lone).await?, env.cause(shared).await?, lone, shared))
+    Ok((
+        env.cause(lone).await?,
+        env.cause(shared).await?,
+        lone,
+        shared,
+    ))
 }
 
 #[tokio::test]
@@ -91,7 +96,10 @@ async fn a_patch_of_an_unknown_cause_or_group_changes_nothing() -> anyhow::Resul
         pinned: Some(true),
         ..CausePatch::default()
     };
-    assert_eq!(env.patch(lone_cause + 1000, pin).await?, PatchOutcome::NoCause);
+    assert_eq!(
+        env.patch(lone_cause + 1000, pin).await?,
+        PatchOutcome::NoCause
+    );
     let group = CausePatch {
         group_id: Some(Some(424_242)),
         ..CausePatch::default()
@@ -110,7 +118,11 @@ async fn an_operator_merge_then_separate_restores_the_problems_and_keeps_later_o
     let (b, _) = env.problem(CHECK, "query 2: SELECT b", run, 1).await?;
     let (c, _) = env.problem(CHECK, "query 3: SELECT c", run, 1).await?;
     env.persist.web().assign_wright_causes().await?;
-    let (ca, cb, cc) = (env.cause(a).await?, env.cause(b).await?, env.cause(c).await?);
+    let (ca, cb, cc) = (
+        env.cause(a).await?,
+        env.cause(b).await?,
+        env.cause(c).await?,
+    );
     let merge_ids = env.operator_merge(ca, &[cb, cc]).await?;
     assert_eq!(merge_ids.len(), 2);
     assert_eq!((env.cause(b).await?, env.cause(c).await?), (ca, ca));
@@ -120,7 +132,12 @@ async fn an_operator_merge_then_separate_restores_the_problems_and_keeps_later_o
     let row = env.row(ca).await?;
     assert_eq!(row.problems, 4);
     assert_eq!(row.absorbed.0.len(), 2);
-    assert!(row.absorbed.0.iter().all(|a| a.by == "operator" && a.can_separate));
+    assert!(
+        row.absorbed
+            .0
+            .iter()
+            .all(|a| a.by == "operator" && a.can_separate)
+    );
     assert_eq!(row.absorbed.0.iter().map(|a| a.problems).sum::<i64>(), 2);
     let cb_merge = row
         .absorbed
@@ -129,7 +146,11 @@ async fn an_operator_merge_then_separate_restores_the_problems_and_keeps_later_o
         .find(|a| a.cause_id == cb)
         .map(|a| a.merge_id)
         .ok_or_else(|| anyhow::anyhow!("no merge row names cause {cb}"))?;
-    let outcome = env.persist.web().separate_wright_cause_merge(cb_merge).await?;
+    let outcome = env
+        .persist
+        .web()
+        .separate_wright_cause_merge(cb_merge)
+        .await?;
     let SeparateOutcome::Separated(merge) = outcome else {
         anyhow::bail!("the merge was not separated: {outcome:?}");
     };
@@ -140,7 +161,11 @@ async fn an_operator_merge_then_separate_restores_the_problems_and_keeps_later_o
     assert_eq!(env.cause(later).await?, ca);
     assert_eq!(env.row(ca).await?.absorbed.0.len(), 1);
     assert!(env.queue_ids().await?.contains(&cb));
-    let again = env.persist.web().separate_wright_cause_merge(cb_merge).await?;
+    let again = env
+        .persist
+        .web()
+        .separate_wright_cause_merge(cb_merge)
+        .await?;
     assert_eq!(again, SeparateOutcome::AlreadySeparated);
     env.done().await
 }
@@ -153,12 +178,20 @@ async fn separating_a_cause_gives_back_the_causes_it_had_absorbed() -> anyhow::R
     let (b, _) = env.problem(CHECK, "query 2: SELECT b", run, 1).await?;
     let (c, _) = env.problem(CHECK, "query 3: SELECT c", run, 1).await?;
     env.persist.web().assign_wright_causes().await?;
-    let (ca, cb, cc) = (env.cause(a).await?, env.cause(b).await?, env.cause(c).await?);
+    let (ca, cb, cc) = (
+        env.cause(a).await?,
+        env.cause(b).await?,
+        env.cause(c).await?,
+    );
     env.operator_merge(ca, &[cb]).await?;
     let into_c = env.operator_merge(cc, &[ca]).await?;
     assert_eq!(env.cause(a).await?, cc);
     assert_eq!(env.cause(b).await?, cc);
-    let outcome = env.persist.web().separate_wright_cause_merge(into_c[0]).await?;
+    let outcome = env
+        .persist
+        .web()
+        .separate_wright_cause_merge(into_c[0])
+        .await?;
     assert!(matches!(outcome, SeparateOutcome::Separated(_)));
     assert_eq!(env.cause(a).await?, ca);
     assert_eq!(env.cause(b).await?, ca);
@@ -181,10 +214,18 @@ async fn separate_refuses_an_engineer_merge_and_an_unknown_one() -> anyhow::Resu
     let merge_id: i64 = sqlx::query_scalar("SELECT id FROM wright.cause_merges")
         .fetch_one(env.persist.pool())
         .await?;
-    let refused = env.persist.web().separate_wright_cause_merge(merge_id).await?;
+    let refused = env
+        .persist
+        .web()
+        .separate_wright_cause_merge(merge_id)
+        .await?;
     assert_eq!(refused, SeparateOutcome::EngineerMerge);
     assert_eq!(env.cause(other).await?, env.cause(root).await?);
-    let unknown = env.persist.web().separate_wright_cause_merge(merge_id + 1000).await?;
+    let unknown = env
+        .persist
+        .web()
+        .separate_wright_cause_merge(merge_id + 1000)
+        .await?;
     assert_eq!(unknown, SeparateOutcome::NotFound);
     let row = env.row(env.cause(root).await?).await?;
     assert_eq!(row.absorbed.0.len(), 1);
@@ -211,7 +252,8 @@ async fn an_operator_merge_refuses_a_merged_away_or_unknown_cause() -> anyhow::R
         MergeOutcome::Unknown(vec![cb])
     );
     assert_eq!(
-        web.merge_wright_causes_by_operator(ca, &[ca + 1000]).await?,
+        web.merge_wright_causes_by_operator(ca, &[ca + 1000])
+            .await?,
         MergeOutcome::Unknown(vec![ca + 1000])
     );
     env.done().await
@@ -234,7 +276,8 @@ async fn deleting_a_group_clears_it_from_its_causes_and_a_duplicate_name_is_refu
         anyhow::bail!("the second group was not created");
     };
     assert_eq!(
-        web.rename_wright_cause_group(other.id, "wright tables").await?,
+        web.rename_wright_cause_group(other.id, "wright tables")
+            .await?,
         GroupWrite::NameTaken
     );
     let into = CausePatch {
@@ -248,11 +291,24 @@ async fn deleting_a_group_clears_it_from_its_causes_and_a_duplicate_name_is_refu
     assert_eq!(row.group_name.as_deref(), Some("wright tables"));
     let listed = env.persist.web().list_wright_cause_groups().await?;
     assert_eq!(
-        listed.iter().map(|g| (g.name.as_str(), g.causes)).collect::<Vec<_>>(),
+        listed
+            .iter()
+            .map(|g| (g.name.as_str(), g.causes))
+            .collect::<Vec<_>>(),
         vec![("steering", 0), ("wright tables", 2)]
     );
-    assert!(env.persist.web().delete_wright_cause_group(group.id).await?);
-    assert!(!env.persist.web().delete_wright_cause_group(group.id).await?);
+    assert!(
+        env.persist
+            .web()
+            .delete_wright_cause_group(group.id)
+            .await?
+    );
+    assert!(
+        !env.persist
+            .web()
+            .delete_wright_cause_group(group.id)
+            .await?
+    );
     let row = env.row(lone_cause).await?;
     assert_eq!((row.group_id, row.group_name), (None, None));
     env.patch(

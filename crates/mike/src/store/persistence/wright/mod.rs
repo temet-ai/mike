@@ -20,9 +20,9 @@ mod triage;
 mod triage_operator;
 
 #[cfg(test)]
-mod followups_tests;
-#[cfg(test)]
 mod followups_memo_tests;
+#[cfg(test)]
+mod followups_tests;
 #[cfg(test)]
 mod triage_tests;
 

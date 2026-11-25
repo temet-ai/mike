@@ -146,12 +146,16 @@ describe('steers and evidence refs', () => {
 			links: [{ text: 'Cause 19', href: '#cause-19' }]
 		});
 		expect(describeSteer({ kind: 'unpin_cause', cause_id: 19 }).title).toBe('Unpin cause 19');
-		expect(describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: 12.5 })).toMatchObject({
+		expect(
+			describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: 12.5 })
+		).toMatchObject({
 			icon: 'order',
 			title: 'Set the order of cause 19',
 			detail: 'Ranked as 12.5 instead of by the formula.'
 		});
-		expect(describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: null })).toMatchObject({
+		expect(
+			describeSteer({ kind: 'set_cause_priority', cause_id: 19, priority: null })
+		).toMatchObject({
 			title: 'Reset the order of cause 19',
 			detail: 'The formula decides its place again.'
 		});

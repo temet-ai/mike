@@ -321,7 +321,11 @@ export function messages(): WrightMessage[] {
 			body: 'Paused. It stays off until the fleet closes.',
 			steer: {
 				id: 9,
-				change: { type: 'pause_remedy', name: 'tell_undelivered_senders', until: 'the fleet closes' },
+				change: {
+					type: 'pause_remedy',
+					name: 'tell_undelivered_senders',
+					until: 'the fleet closes'
+				},
 				applied_at: ago(7),
 				undone_at: null,
 				can_undo: true,
