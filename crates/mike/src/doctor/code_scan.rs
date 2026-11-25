@@ -15,7 +15,6 @@ pub(crate) struct BuiltinRules {
 pub(crate) struct CodeScanFacts {
     pub(crate) scanning: bool,
     pub(crate) delivering: bool,
-    pub(crate) pushing: bool,
     pub(crate) grammars: Vec<String>,
     pub(crate) rules: Option<BuiltinRules>,
     pub(crate) scans_24h: i64,
@@ -46,7 +45,6 @@ impl CodeScanFacts {
         Some(Self {
             scanning: flag("scanning")?,
             delivering: flag("delivering")?,
-            pushing: flag("pushing")?,
             grammars: text_list("grammars"),
             rules,
             scans_24h: body.pointer("/summary/scans").and_then(Value::as_i64)?,
@@ -69,10 +67,9 @@ impl CodeScanFacts {
         };
         let last = self.last_scan_at.as_deref().unwrap_or("never");
         format!(
-            "change record and scan {}; telling sessions {}; push to idle sessions {}; {} grammars ({}); {rules}; last scan {last}; {} scans in 24 h",
+            "change record and scan {}; telling sessions {}; {} grammars ({}); {rules}; last scan {last}; {} scans in 24 h",
             on(self.scanning),
             on(self.delivering),
-            on(self.pushing),
             self.grammars.len(),
             self.grammars.join(", "),
             self.scans_24h,

@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n    UPDATE workspace.code_findings f\n       SET reminded_at = now()\n     WHERE f.checkout = ANY($1::text[])\n       AND f.outcome = 'ignored'\n       AND (f.answer IS NULL OR f.answer = 'refused')\n       AND f.reminded_at IS NULL\n       AND f.delivered_at IS NOT NULL\n       AND f.outcome_at > now() - interval '1 day'\n       AND EXISTS (SELECT 1\n                     FROM workspace.change_events c\n                    WHERE c.checkout = f.checkout\n                      AND c.kind = 'commit'\n                      AND c.id > f.change_event_id\n                      AND c.at > f.delivered_at\n                      AND f.path = ANY(c.paths))\n    RETURNING f.id, f.change_event_id, f.path, f.line, f.rule_id, f.message, f.fix\n)\nSELECT d.id AS \"id!\", s.session_uuid AS \"session!\", d.path AS \"path!\", d.line AS \"line!\",\n       d.rule_id AS \"rule_id!\", d.message AS \"message!\", d.fix\n  FROM due d\n  JOIN workspace.change_events e ON e.id = d.change_event_id\n  JOIN sessions.sessions s ON s.id = e.session_id\n ORDER BY d.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "line!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "line"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rule_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "rule_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "message!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "fix",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "fix"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4aa906a6c196720205d11631271f1b8859c45da760cf8141f0df8258bc4f0f59"
+}

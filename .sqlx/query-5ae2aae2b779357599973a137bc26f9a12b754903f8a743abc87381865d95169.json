@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT f.id AS \"id!\", f.scan_id AS \"scan_id!\", f.change_event_id AS \"change_event_id!\",\n       s.session_uuid AS \"session_id?\", f.checkout AS \"checkout!\", f.path AS \"path!\",\n       f.rule_id AS \"rule_id!\", f.rule_source AS \"rule_source!\", f.severity AS \"severity!\",\n       f.message AS \"message!\", f.line AS \"line!\", f.col AS \"col!\", f.matched AS \"matched!\", f.fix,\n       f.found_at AS \"found_at!\", f.delivered_request_id, f.delivered_via, f.delivered_at,\n       f.outcome AS \"outcome!\", f.outcome_at, f.reply\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  LEFT JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.found_at >= $1\n   AND ($2::uuid IS NULL OR s.session_uuid = $2)\n ORDER BY f.id DESC\n LIMIT $3\n",
+  "query": "SELECT f.id AS \"id!\", f.scan_id AS \"scan_id!\", f.change_event_id AS \"change_event_id!\",\n       s.session_uuid AS \"session_id?\", f.checkout AS \"checkout!\", f.path AS \"path!\",\n       f.rule_id AS \"rule_id!\", f.rule_source AS \"rule_source!\", f.severity AS \"severity!\",\n       f.message AS \"message!\", f.line AS \"line!\", f.col AS \"col!\", f.matched AS \"matched!\", f.fix,\n       f.found_at AS \"found_at!\", f.delivered_request_id, f.delivered_via, f.delivered_at,\n       f.outcome AS \"outcome!\", f.outcome_at, f.reply, f.answer, f.answer_reason, f.answer_ruling\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  LEFT JOIN sessions.sessions s ON s.id = e.session_id\n WHERE f.found_at >= $1\n   AND ($2::uuid IS NULL OR s.session_uuid = $2)\n ORDER BY f.id DESC\n LIMIT $3\n",
   "describe": {
     "columns": [
       {
@@ -233,6 +233,39 @@
             "name": "reply"
           }
         }
+      },
+      {
+        "ordinal": 21,
+        "name": "answer",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "answer"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "answer_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "answer_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "answer_ruling",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "answer_ruling"
+          }
+        }
       }
     ],
     "parameters": {
@@ -263,8 +296,11 @@
       true,
       false,
       true,
+      true,
+      true,
+      true,
       true
     ]
   },
-  "hash": "d8507ed965d0309f05e8c6a30635bb24d1b287c8cbaaaeaeec12efbd0db05c71"
+  "hash": "5ae2aae2b779357599973a137bc26f9a12b754903f8a743abc87381865d95169"
 }

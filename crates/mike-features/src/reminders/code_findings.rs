@@ -8,7 +8,7 @@ use crate::wire::manifest::AppliedStage;
 
 use super::{RemindersOutcome, try_append_reminder};
 
-pub const HEADING: &str = "mike checked the code your recent edits added. Fix these, or say why a line should stay. If one is not your change, say so and leave the file alone.";
+pub const HEADING: &str = "mike checked the code your recent edits added. Fix these when you reach a stopping point; a fix needs no answer. Where the code is right as it is, run `mike findings keep <number> --reason \"...\"` with the fact about the code that makes it so; weak reasons are refused. For a change that is not yours, run `mike findings not-mine <number>` and leave the file alone. One number covers its whole line.";
 const GROUPS: usize = 8;
 const LINES: usize = 5;
 
@@ -50,7 +50,8 @@ fn group_line(group: &Group<'_>) -> String {
     let word = if count == 1 { "line" } else { "lines" };
     let first = group.first;
     let mut text = format!(
-        "- {} {word} {}{more}, {}: {}",
+        "- [{}] {} {word} {}{more}, {}: {}",
+        first.id,
         first.path,
         shown.join(", "),
         first.rule_id,
@@ -173,7 +174,7 @@ mod tests {
         assert_eq!(
             note_text(&notes),
             format!(
-                "{HEADING}\n- a.sh lines 1, 2, 3, 4, 5 and 7 more, sh-fixed-tmp-path: A fixed path."
+                "{HEADING}\n- [1] a.sh lines 1, 2, 3, 4, 5 and 7 more, sh-fixed-tmp-path: A fixed path."
             )
         );
     }

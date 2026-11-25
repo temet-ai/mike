@@ -7,7 +7,6 @@ fn report_body(rules_version: serde_json::Value) -> serde_json::Value {
     json!({
         "scanning": true,
         "delivering": true,
-        "pushing": false,
         "grammars": ["bash", "rust"],
         "rules_version": rules_version,
         "rule_ids": ["a", "b", "c"],
@@ -19,7 +18,7 @@ fn report_body(rules_version: serde_json::Value) -> serde_json::Value {
 fn the_api_body_becomes_facts_with_the_rule_count_and_version() -> anyhow::Result<()> {
     let facts = CodeScanFacts::from_json(&report_body(json!("abc123")))
         .ok_or_else(|| anyhow::anyhow!("the body did not parse"))?;
-    assert!(facts.scanning && facts.delivering && !facts.pushing);
+    assert!(facts.scanning && facts.delivering);
     assert_eq!(facts.grammars, vec!["bash", "rust"]);
     assert_eq!(
         facts.rules.map(|r| (r.count, r.version)),
@@ -44,7 +43,6 @@ fn the_check_is_informational_and_names_switches_grammars_rules_and_last_scan() 
     for part in [
         "change record and scan on",
         "telling sessions off",
-        "push to idle sessions off",
         "2 grammars (bash, rust)",
         "42 built-in rules, version abc123",
         "last scan 2026-11-14T09:00:00Z",

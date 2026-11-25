@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(DISTINCT (f.checkout, f.path, f.answered_at)) AS \"keeps!\"\n  FROM workspace.code_findings f\n  JOIN workspace.change_events e ON e.id = f.change_event_id\n  JOIN sessions.sessions s ON s.id = e.session_id\n WHERE s.session_uuid = $1\n   AND f.rule_id = $2\n   AND f.answer = 'kept'\n   AND f.answered_at > now() - interval '24 hours'\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "keeps!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8e1c23eeba7aed809b64d048e31caba506e228a5b22102627b392bc00c4c5cae"
+}

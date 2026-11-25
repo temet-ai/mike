@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.code_findings f\n   SET answer = $2,\n       answer_reason = $3,\n       answer_ruling = $4,\n       answered_at = now(),\n       answer_refusals = f.answer_refusals + CASE WHEN $2 = 'refused' THEN 1 ELSE 0 END,\n       outcome = CASE WHEN $2 IN ('kept', 'not_mine') THEN $2\n                      WHEN $2 = 'waiting' THEN 'open'\n                      ELSE f.outcome END,\n       outcome_at = CASE WHEN $2 IN ('kept', 'not_mine') THEN now() ELSE f.outcome_at END\n WHERE f.id = ANY($1::bigint[])\n   AND f.outcome IN ('open', 'ignored')\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d5cdf1cf3c2575ea347ff4c60595b30bef096f7ccc10f410eafd28925d3d51e5"
+}

@@ -1,5 +1,6 @@
 pub mod checkout_edits_notice;
-pub mod code_scan;
+pub mod code_answers;
+mod code_scan;
 pub mod errors;
 pub mod events;
 pub mod places;

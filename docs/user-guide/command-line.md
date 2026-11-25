@@ -101,6 +101,9 @@ Setup runs these for you.
 | `mike spawn kill --session <UUID> [--json]` | Stops one of them. |
 | `mike spawn doctor [--json]` | Opens and closes a scratch workspace to check that the terminal you chose works. |
 | `mike spawn warm`, `fork`, `templates`, `reap` | Keep a named, already-loaded session and fork new sessions from it; `reap [--yes]` cleans up finished ones. Used by fleets. |
+| `mike findings list` | Lists this session's open code findings. Run it inside a Claude Code session. |
+| `mike findings keep <id> --reason <text>` | Keeps flagged code, with the fact that makes it right. A weak reason is refused; an error-level finding, a fourth keep of one rule in a day and a third try after two refusals go to you on the code findings page. |
+| `mike findings not-mine <id>` | Says a flagged change is not this session's. Refused when mike recorded the session making it. |
 | `mike fleet list` | Lists defined fleets, newest first. |
 | `mike fleet status <FLEET> [--watch <SECONDS>] [--json]` | Shows where a fleet stands: tasks, seats, verdicts and what is blocked. |
 | `mike fleet start <FLEET>` | Starts a fleet that is ready and waiting for your go-ahead. |

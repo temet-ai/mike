@@ -203,7 +203,8 @@ and the checkout's own rules. A built-in rule holds in any repository; one proje
   added: a file's older findings are not repeated). Its session is the change event's session.
   `rule_source` is `builtin` or `project`. `outcome` is `open`, `fixed` (a later scan of the
   file no longer has it), `fixed_by_other` (that later change was another session's),
-  `ignored` (the session was told and the finding was still there when the path was
+  `kept` or `not_mine` (the session answered with `mike findings` and the answer was
+  accepted; see `code_scan/answer.rs`), `ignored` (the session was told and the finding was still there when the path was
   committed, or 30 minutes after it was told; a later fix still moves it to `fixed`) or
   `superseded` (the file was deleted). `reply` holds the session's answer on the request that
   delivered the finding, copied whole a minute after delivery: when a session keeps flagged code

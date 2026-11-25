@@ -6,6 +6,7 @@
 	import { RefreshCw, ScanSearch } from '@lucide/svelte';
 	import { ApiError } from '$lib/api';
 	import { getCodeFindings, type CodeFindingsResponse } from '$lib/api/codeFindings';
+	import OperatorFindings from '$lib/components/code-findings/OperatorFindings.svelte';
 	import RuleOutcomeTable from '$lib/components/code-findings/RuleOutcomeTable.svelte';
 	import RuleCatalogueTable from '$lib/components/code-findings/RuleCatalogueTable.svelte';
 	import CheckoutRulesTable from '$lib/components/code-findings/CheckoutRulesTable.svelte';
@@ -134,6 +135,23 @@
 		</OverviewBand>
 
 		<div class="edge mech-group" data-slot="code-findings-bands">
+			{#if data && data.for_operator.length > 0}
+				<SectionCard
+					title="Waiting for you"
+					titleIcon={ScanSearch}
+					collapsible
+					bordered={false}
+					sectionKey="code-findings:operator"
+					titleTooltip="Findings a session may not close itself, and findings committed without a fix."
+				>
+					<OperatorFindings
+						findings={data.for_operator}
+						now={loadedAt}
+						onAccepted={() => void load()}
+					/>
+				</SectionCard>
+			{/if}
+
 			<SectionCard
 				title="Rules that fired"
 				titleIcon={ScanSearch}
@@ -146,8 +164,9 @@
 					{#if data}
 						<span
 							class="font-mono text-[length:var(--text-caption)] text-[var(--text-3)] whitespace-nowrap"
-							>{rules.length} rules · {totals.found.toLocaleString('en-US')} found</span
 						>
+							{rules.length} rules · {totals.found.toLocaleString('en-US')} found
+						</span>
 					{/if}
 				{/snippet}
 				{#if loading && !data}
@@ -179,8 +198,9 @@
 					{#if data?.catalogue}
 						<span
 							class="font-mono text-[length:var(--text-caption)] text-[var(--text-3)] whitespace-nowrap"
-							>{data.catalogue.length} rules · version {data.rules_version ?? '—'}</span
 						>
+							{data.catalogue.length} rules · version {data.rules_version ?? '—'}
+						</span>
 					{/if}
 				{/snippet}
 				{#if data?.catalogue}
@@ -206,10 +226,13 @@
 					{#if data}
 						<span
 							class="font-mono text-[length:var(--text-caption)] text-[var(--text-3)] whitespace-nowrap"
-							>{data.watched_checkouts.length} watched{#if erroring > 0}&nbsp;<span
-									class="cf-meta-bad">· {erroring} with errors</span
-								>{/if}</span
 						>
+							{data.watched_checkouts.length} watched{#if erroring > 0}&nbsp;<span
+									class="cf-meta-bad"
+								>
+									· {erroring} with errors
+								</span>{/if}
+						</span>
 					{/if}
 				{/snippet}
 				{#if data && data.watched_checkouts.length === 0 && data.project_rules.length === 0}

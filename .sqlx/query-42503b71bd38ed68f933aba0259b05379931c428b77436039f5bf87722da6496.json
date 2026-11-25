@@ -1,0 +1,158 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.id AS \"id!\", f.line AS \"line!\", f.severity AS \"severity!\", f.message AS \"message!\",\n       f.matched AS \"matched!\", f.checkout AS \"checkout!\", f.path AS \"path!\", f.rule_id AS \"rule_id!\",\n       f.answer_refusals AS \"refusals!\", e.detail->>'author' AS author,\n       e.detail->>'tool_name' AS tool_name,\n       (e.detail->>'named_by_tool_use_id') IS NOT NULL AS \"named!\",\n       e.at AS \"at!\"\n  FROM workspace.code_findings one\n  JOIN workspace.change_events oe ON oe.id = one.change_event_id\n  JOIN sessions.sessions s ON s.id = oe.session_id\n  JOIN workspace.code_findings f\n    ON f.checkout = one.checkout AND f.path = one.path AND f.rule_id = one.rule_id\n  JOIN workspace.change_events e ON e.id = f.change_event_id AND e.session_id = oe.session_id\n WHERE one.id = $1\n   AND s.session_uuid = $2\n   AND f.outcome IN ('open', 'ignored')\n ORDER BY f.line\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "line!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "line"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "severity!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "message!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "matched!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "matched"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "checkout!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "checkout"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "rule_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "rule_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "refusals!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "answer_refusals"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "author",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "named!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "42503b71bd38ed68f933aba0259b05379931c428b77436039f5bf87722da6496"
+}

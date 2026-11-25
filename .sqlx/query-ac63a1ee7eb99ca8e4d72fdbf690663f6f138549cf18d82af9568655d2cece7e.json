@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.code_findings f\n   SET answer = 'kept',\n       answer_ruling = 'accepted by the operator',\n       outcome = 'kept',\n       outcome_at = now()\n  FROM workspace.code_findings one\n WHERE one.id = $1\n   AND one.answer = 'waiting'\n   AND f.checkout = one.checkout\n   AND f.path = one.path\n   AND f.rule_id = one.rule_id\n   AND f.answered_at = one.answered_at\n   AND f.answer = 'waiting'\n   AND f.outcome = 'open'\nRETURNING f.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ac63a1ee7eb99ca8e4d72fdbf690663f6f138549cf18d82af9568655d2cece7e"
+}

@@ -123,6 +123,7 @@ export const CODE_RULE_COUNTS: CodeRuleCount[] = [
 		fixed_untold: 4,
 		fixed_by_other: 3,
 		ignored: 6,
+		kept: 0,
 		open: 7,
 		median_lag_s: 18.4
 	},
@@ -137,6 +138,7 @@ export const CODE_RULE_COUNTS: CodeRuleCount[] = [
 		fixed_untold: 6,
 		fixed_by_other: 10,
 		ignored: 22,
+		kept: 0,
 		open: 18,
 		median_lag_s: 95
 	},
@@ -151,6 +153,7 @@ export const CODE_RULE_COUNTS: CodeRuleCount[] = [
 		fixed_untold: 0,
 		fixed_by_other: 0,
 		ignored: 0,
+		kept: 0,
 		open: 7,
 		median_lag_s: null
 	},
@@ -165,6 +168,7 @@ export const CODE_RULE_COUNTS: CodeRuleCount[] = [
 		fixed_untold: 0,
 		fixed_by_other: 0,
 		ignored: 1,
+		kept: 0,
 		open: 0,
 		median_lag_s: 3700
 	}
@@ -244,6 +248,7 @@ export function buildCodeFindingsResponse(
 			last_scan_at: '2026-11-14T09:58:00Z'
 		},
 		rules: CODE_RULE_COUNTS,
+		for_operator: [],
 		findings: CODE_FINDINGS,
 		findings_truncated: false,
 		...overrides

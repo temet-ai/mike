@@ -113,7 +113,6 @@ fn healthy_code_scan() -> CodeScanFacts {
     CodeScanFacts {
         scanning: true,
         delivering: false,
-        pushing: false,
         grammars: vec!["bash".to_string(), "rust".to_string()],
         rules: Some(BuiltinRules {
             count: 42,

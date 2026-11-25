@@ -91,6 +91,9 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             let code = mike::feature_presets::run(args, cli.overrides).await;
             std::process::exit(code)
         }
+        Some(Command::Findings(args)) => {
+            std::process::exit(mike::findings::run(args, cli.overrides).await?)
+        }
         Some(Command::Uninstall(args)) => {
             let code = mike::uninstall::run(args, cli.overrides).await;
             std::process::exit(code)

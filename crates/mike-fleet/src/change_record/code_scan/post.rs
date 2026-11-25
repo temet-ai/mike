@@ -89,6 +89,26 @@ impl Poster {
         self.posted.retain(|id| *id > cursor);
     }
 
+    pub async fn remind(&self, persist: &PersistHandle, roots: &[String]) {
+        if roots.is_empty() {
+            return;
+        }
+        match persist.fleet().code_findings_to_remind(roots).await {
+            Ok(rows) => {
+                for row in rows {
+                    let session = row.session;
+                    let mut reminder = note(row);
+                    reminder.message =
+                        format!("{} Committed with no answer to mike.", reminder.message);
+                    self.notes.post(session, vec![reminder]);
+                }
+            }
+            Err(err) => {
+                tracing::warn!(error = %err, "code findings: committed findings could not be read");
+            }
+        }
+    }
+
     pub async fn record_delivered(&mut self, persist: &PersistHandle) {
         let delivered = self.notes.drain_delivered();
         if delivered.is_empty() {

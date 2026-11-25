@@ -17,6 +17,7 @@ WITH by_other AS (
        SET outcome = 'ignored',
            outcome_at = now()
      WHERE f.outcome = 'open'
+       AND f.answer IS DISTINCT FROM 'waiting'
        AND f.delivered_at IS NOT NULL
        AND (f.delivered_at < now() - interval '30 minutes'
             OR EXISTS (SELECT 1

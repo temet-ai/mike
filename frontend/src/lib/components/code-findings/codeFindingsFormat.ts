@@ -30,6 +30,8 @@ export const OUTCOME_MARKS: Record<CodeOutcome, MarkSpec> = {
 	fixed: { icon: CircleCheck, label: 'fixed', tone: 'success' },
 	fixed_by_other: { icon: UserCheck, label: 'fixed by other', tone: 'success' },
 	ignored: { icon: EyeOff, label: 'ignored', tone: 'strong' },
+	kept: { icon: CircleCheck, label: 'kept', tone: 'quiet' },
+	not_mine: { icon: CircleCheck, label: 'not its change', tone: 'quiet' },
 	open: { icon: CircleDashed, label: 'open', tone: 'quiet' },
 	superseded: { icon: FileX, label: 'file deleted', tone: 'quiet' }
 };

@@ -1,7 +1,8 @@
 import { ApiError } from '$lib/api';
 
 export type CodeSeverity = 'error' | 'warning' | 'hint';
-export type CodeOutcome = 'open' | 'fixed' | 'fixed_by_other' | 'ignored' | 'superseded';
+export type CodeOutcome =
+	'open' | 'fixed' | 'fixed_by_other' | 'ignored' | 'superseded' | 'kept' | 'not_mine';
 export type CodeDeliveredVia = 'request' | 'push';
 export type CodeRuleSource = 'builtin' | 'project';
 
@@ -51,6 +52,7 @@ export interface CodeRuleCount {
 	fixed_untold: number;
 	fixed_by_other: number;
 	ignored: number;
+	kept: number;
 	open: number;
 	median_lag_s: number | null;
 }
@@ -82,6 +84,21 @@ export interface CodeProjectRules {
 	error: string | null;
 }
 
+export interface CodeFindingForOperator {
+	id: number;
+	session_id: string | null;
+	checkout: string;
+	path: string;
+	rule_id: string;
+	severity: CodeSeverity;
+	message: string;
+	lines: number[];
+	answer: string;
+	answer_reason: string | null;
+	answer_ruling: string | null;
+	since: string;
+}
+
 export interface CodeFindingsResponse {
 	scanning: boolean;
 	delivering: boolean;
@@ -95,6 +112,7 @@ export interface CodeFindingsResponse {
 	hours: number;
 	summary: CodeScanSummary;
 	rules: CodeRuleCount[];
+	for_operator: CodeFindingForOperator[];
 	findings: CodeFinding[];
 	findings_truncated: boolean;
 }
@@ -119,4 +137,12 @@ export async function getCodeFindings(
 		throw new ApiError(`GET ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
 	}
 	return (await res.json()) as CodeFindingsResponse;
+}
+
+export async function acceptCodeFinding(id: number): Promise<void> {
+	const path = `/api/code-findings/${id}/accept`;
+	const res = await fetch(path, { method: 'POST', headers: { accept: 'application/json' } });
+	if (!res.ok) {
+		throw new ApiError(`POST ${path} failed: ${res.status} ${res.statusText}`, res.status, path);
+	}
 }

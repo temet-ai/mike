@@ -36,6 +36,8 @@ pub enum Command {
 
     Features(crate::feature_presets::FeaturesArgs),
 
+    Findings(crate::findings::FindingsArgs),
+
     Uninstall(crate::uninstall::UninstallArgs),
 
     Spawn(crate::launch::cli::SpawnArgs),

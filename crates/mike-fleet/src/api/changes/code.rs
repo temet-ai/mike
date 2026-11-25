@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use chrono::{Duration, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 use super::ChangesError;
 use crate::base_state::BaseState;
+use crate::change_record::code_scan::answer::{self, Claim, Ruling};
+use crate::change_record::code_scan::judge;
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 const DEFAULT_HOURS: i64 = 24;
@@ -46,6 +48,7 @@ pub async fn get_code_findings(
         .into_iter()
         .take(usize::try_from(limit).unwrap_or(usize::MAX))
         .collect();
+    let for_operator = persist.fleet().code_findings_for_operator().await?;
     let session_counts = match session {
         Some(id) => Some(persist.fleet().session_code_counts(id).await?),
         None => None,
@@ -66,7 +69,51 @@ pub async fn get_code_findings(
         "hours": hours,
         "summary": summary,
         "rules": rules,
+        "for_operator": for_operator,
         "findings": findings,
         "findings_truncated": truncated,
     })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AnswerRequest {
+    pub session: Uuid,
+    pub claim: Claim,
+    #[serde(default)]
+    pub reason: String,
+}
+
+pub async fn post_code_answer(
+    State(state): State<BaseState>,
+    Path(id): Path<i64>,
+    Json(request): Json<AnswerRequest>,
+) -> Result<Json<Ruling>, ChangesError> {
+    let persist = state.persist().ok_or(ChangesError::Unavailable)?;
+    let decider = state
+        .decision_env()
+        .and_then(|env| env.decider(judge::POINT));
+    let ruling = answer::answer(
+        persist,
+        decider.as_ref(),
+        id,
+        request.session,
+        request.claim,
+        &request.reason,
+    )
+    .await?;
+    Ok(Json(ruling))
+}
+
+pub async fn post_code_accept(
+    State(state): State<BaseState>,
+    Path(id): Path<i64>,
+) -> Result<Json<Value>, ChangesError> {
+    let persist = state.persist().ok_or(ChangesError::Unavailable)?;
+    let accepted = persist.fleet().accept_waiting_code_answer(id).await?;
+    if accepted.is_empty() {
+        return Err(ChangesError::Invalid(format!(
+            "finding {id} is not waiting for you"
+        )));
+    }
+    Ok(Json(json!({ "accepted": accepted })))
 }

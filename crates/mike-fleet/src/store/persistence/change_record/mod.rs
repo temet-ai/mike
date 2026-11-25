@@ -1,4 +1,5 @@
 pub use mike_launch::store::persistence::change_record::*;
+pub mod code_answers;
 pub mod code_scan;
 pub mod events;
 mod newest_memo;

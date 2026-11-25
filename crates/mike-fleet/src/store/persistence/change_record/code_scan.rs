@@ -83,6 +83,9 @@ pub struct CodeFindingRow {
     pub outcome: String,
     pub outcome_at: Option<DateTime<Utc>>,
     pub reply: Option<String>,
+    pub answer: Option<String>,
+    pub answer_reason: Option<String>,
+    pub answer_ruling: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -110,6 +113,7 @@ pub struct RuleCount {
     pub fixed_untold: i64,
     pub fixed_by_other: i64,
     pub ignored: i64,
+    pub kept: i64,
     pub open: i64,
     pub median_lag_s: Option<f64>,
 }

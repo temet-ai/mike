@@ -8,7 +8,7 @@ use crate::change_record::ChangeKind;
 use crate::store::persistence::change_record::code_scan::{NewCodeScan, NewFinding};
 use mike_base::code_notes::Delivered;
 
-fn finding(rule: &str, fingerprint: &str) -> NewFinding {
+pub(super) fn finding(rule: &str, fingerprint: &str) -> NewFinding {
     NewFinding {
         rule_id: rule.to_owned(),
         severity: "warning".to_owned(),
@@ -22,7 +22,7 @@ fn finding(rule: &str, fingerprint: &str) -> NewFinding {
     }
 }
 
-fn scan_of(event_id: i64, present: &[&str], added: Vec<NewFinding>) -> NewCodeScan {
+pub(super) fn scan_of(event_id: i64, present: &[&str], added: Vec<NewFinding>) -> NewCodeScan {
     NewCodeScan {
         change_event_id: event_id,
         checkout: CHECKOUT.to_owned(),

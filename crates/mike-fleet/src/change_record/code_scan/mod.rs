@@ -1,4 +1,6 @@
+pub mod answer;
 mod inherited;
+pub mod judge;
 mod post;
 pub mod project_rules;
 mod scan;
@@ -100,15 +102,18 @@ impl Worker {
             self.poster.mark_stale();
         }
         self.poster.record_delivered(&self.persist).await;
-        self.settle().await;
+        self.settle(&roots).await;
     }
 
-    async fn settle(&mut self) {
+    async fn settle(&mut self, roots: &[String]) {
         if self.settled.is_some_and(|at| at.elapsed() < SETTLE_EVERY) {
             return;
         }
         self.settled = Some(Instant::now());
         log_settled(self.persist.fleet().settle_code_findings().await);
+        if self.toggles.load().code_findings {
+            self.poster.remind(&self.persist, roots).await;
+        }
         self.poster.record_replies(&self.persist).await;
     }
 
