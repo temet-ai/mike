@@ -3,6 +3,14 @@ use std::sync::{Mutex, OnceLock};
 use chrono::{DateTime, Utc};
 
 pub const DOWN_AFTER_CONSECUTIVE_READINGS: u32 = 2;
+pub const DOWN_AFTER_SLOW_READINGS: u32 = 5;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutageReading {
+    Healthy,
+    Slow,
+    Failing(&'static str),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CaptureOutageEvent {
@@ -42,10 +50,37 @@ impl CaptureOutageEvent {
 pub struct CaptureOutageTracker {
     since: Option<DateTime<Utc>>,
     readings: u32,
+    slow_since: Option<DateTime<Utc>>,
+    slow_readings: u32,
     announced: bool,
 }
 
 impl CaptureOutageTracker {
+    pub fn read(
+        &mut self,
+        reading: OutageReading,
+        now: DateTime<Utc>,
+    ) -> Option<CaptureOutageEvent> {
+        match reading {
+            OutageReading::Healthy => self.observe(None, now),
+            OutageReading::Slow => self.observe_slow(now),
+            OutageReading::Failing(reason) => self.observe(Some(reason), now),
+        }
+    }
+
+    fn observe_slow(&mut self, now: DateTime<Utc>) -> Option<CaptureOutageEvent> {
+        let slow_since = *self.slow_since.get_or_insert(now);
+        self.slow_readings = self.slow_readings.saturating_add(1);
+        if self.announced || self.slow_readings < DOWN_AFTER_SLOW_READINGS {
+            return None;
+        }
+        self.announced = true;
+        Some(CaptureOutageEvent::Down {
+            since: *self.since.get_or_insert(slow_since),
+            reason: "the database keeps timing out".to_owned(),
+        })
+    }
+
     pub fn observe(
         &mut self,
         failure: Option<&str>,
@@ -81,12 +116,12 @@ impl CaptureOutageTracker {
 
 static TRACKER: OnceLock<Mutex<CaptureOutageTracker>> = OnceLock::new();
 
-pub fn note_reading(failure: Option<&str>) {
+pub fn note_reading(reading: OutageReading) {
     let tracker = TRACKER.get_or_init(Mutex::default);
     let event = tracker
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .observe(failure, Utc::now());
+        .read(reading, Utc::now());
     if let Some(event) = event {
         announce(&event);
     }
@@ -122,6 +157,10 @@ fn deliver_to_test_sink(_message: &str) -> bool {
 fn announce(event: &CaptureOutageEvent) {
     let (urgency, message) = (urgency(event), event.message());
     log_notice(event, &message);
+    if matches!(event, CaptureOutageEvent::Down { .. }) {
+        let pressure = mike_base::web_base::db_pressure::describe();
+        tracing::warn!(pressure, "health: capture pool state at the outage notice");
+    }
     if deliver_to_test_sink(&message) {
         return;
     }

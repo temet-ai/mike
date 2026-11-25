@@ -10,10 +10,8 @@ pub fn persist_unavailable_response() -> Response {
 }
 
 pub fn persist_error_response(e: crate::store::persistence::PersistError) -> Response {
-    if let crate::store::persistence::capture_retry::WriteFailure::Temporary(reason) =
-        crate::store::persistence::capture_retry::classify(&e)
-    {
-        return temporarily_unavailable(&e, &reason);
+    if let Some(response) = temporary_response(&e) {
+        return response;
     }
     tracing::warn!(error = %e, "persistence operation failed");
     (
@@ -24,13 +22,25 @@ pub fn persist_error_response(e: crate::store::persistence::PersistError) -> Res
 }
 
 fn temporarily_unavailable(e: &crate::store::persistence::PersistError, reason: &str) -> Response {
-    tracing::warn!(error = %e, reason, "database temporarily unavailable; request refused with 503");
+    let pressure = super::db_pressure::describe();
+    tracing::warn!(error = %e, reason, pressure, "database temporarily unavailable; request refused with 503");
     (
         StatusCode::SERVICE_UNAVAILABLE,
         [(axum::http::header::RETRY_AFTER, "5")],
-        format!("database temporarily unavailable: {reason}"),
+        axum::Json(serde_json::json!({
+            "error": format!("database temporarily unavailable: {reason}")
+        })),
     )
         .into_response()
+}
+
+pub fn temporary_response(e: &crate::store::persistence::PersistError) -> Option<Response> {
+    match crate::store::persistence::capture_retry::classify(e) {
+        crate::store::persistence::capture_retry::WriteFailure::Temporary(reason) => {
+            Some(temporarily_unavailable(e, &reason))
+        }
+        _ => None,
+    }
 }
 
 pub fn knowledge_error(error: crate::store::persistence::PersistError) -> Response {

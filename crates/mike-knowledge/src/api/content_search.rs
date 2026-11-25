@@ -181,8 +181,13 @@ async fn fetch_search_totals(
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "content_search: totals query failed");
-            content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
+            lookup_failed(&e)
         })
+}
+
+fn lookup_failed(error: &crate::store::persistence::PersistError) -> Response {
+    mike_base::web_base::errors::temporary_response(error)
+        .unwrap_or_else(|| content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed"))
 }
 
 async fn fetch_search_page(
@@ -196,7 +201,7 @@ async fn fetch_search_page(
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "content_search: page query failed");
-            content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
+            lookup_failed(&e)
         })
 }
 

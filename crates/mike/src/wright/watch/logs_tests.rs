@@ -22,6 +22,7 @@ fn params(value: Value) -> LogParams {
         level: String::new(),
         repeats: 0,
         window_minutes: 0,
+        min_minutes: 1,
     })
 }
 
@@ -266,4 +267,55 @@ async fn read_tail_reads_only_the_last_bounded_bytes_from_a_line_start() -> anyh
     assert!(u64::try_from(tail.len())? <= TAIL_BYTES);
     assert!(tail.lines().all(|l| l == filler));
     Ok(())
+}
+
+fn failed_response(path: &str, status: &str) -> Option<LogLine> {
+    parse_line(
+        &json!({
+            "timestamp": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            "level": "ERROR",
+            "fields": {"message": "response failed", "classification": status},
+            "target": "tower_http::trace::on_failure",
+            "span": {"method": "GET", "path": path},
+        })
+        .to_string(),
+    )
+}
+
+#[tokio::test]
+async fn failed_responses_group_by_route_and_classification() {
+    let lines: Vec<LogLine> = (0..3)
+        .flat_map(|n| {
+            [
+                failed_response(&format!("/api/a/{n}x"), "Status code: 500"),
+                failed_response("/api/b", "Status code: 500"),
+                failed_response("/api/b", "Status code: 503"),
+            ]
+        })
+        .flatten()
+        .collect();
+    let resources: Vec<String> = findings_with(None, &lines, Utc::now(), &errors())
+        .await
+        .into_iter()
+        .map(|f| f.resource)
+        .collect();
+    assert_eq!(resources.len(), 3, "{resources:?}");
+    assert!(
+        resources.iter().any(|r| r.contains("GET /api/a/:id")),
+        "{resources:?}"
+    );
+}
+
+#[tokio::test]
+async fn warnings_in_one_burst_below_min_minutes_are_not_a_finding() {
+    let now = Utc::now();
+    let params =
+        params(json!({"level": "WARN", "repeats": 5, "window_minutes": 60, "min_minutes": 5}));
+    let at = |step: i64| -> Vec<LogLine> {
+        (0..5)
+            .map(|n| parsed(now - Duration::seconds(n * step), "WARN", "t", "slow"))
+            .collect()
+    };
+    assert!(findings_with(None, &at(1), now, &params).await.is_empty());
+    assert_eq!(findings_with(None, &at(60), now, &params).await.len(), 1);
 }

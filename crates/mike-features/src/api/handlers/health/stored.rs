@@ -200,18 +200,24 @@ pub async fn note_capture_outage(state: &AppState) {
     capture_outage::note_reading(outage_reading(reachable, persistence.capture_stalled));
 }
 
-fn outage_reading(reachable: probe::ProbeState, capture_stalled: bool) -> Option<&'static str> {
+fn outage_reading(
+    reachable: probe::ProbeState,
+    capture_stalled: bool,
+) -> capture_outage::OutageReading {
+    use capture_outage::OutageReading;
     match reachable {
-        probe::ProbeState::Failed => Some("the database does not answer"),
-        _ if capture_stalled => Some("captures are not being written"),
+        probe::ProbeState::Failed => OutageReading::Failing("the database does not answer"),
+        _ if capture_stalled => OutageReading::Failing("captures are not being written"),
         probe::ProbeState::TimedOut => {
+            let pressure = mike_base::web_base::db_pressure::describe();
             tracing::warn!(
                 pool = "capture",
-                "health: the database is slow to answer; captures are still being written"
+                pressure,
+                "health: the database is slow to answer"
             );
-            None
+            OutageReading::Slow
         }
-        _ => None,
+        _ => OutageReading::Healthy,
     }
 }
 

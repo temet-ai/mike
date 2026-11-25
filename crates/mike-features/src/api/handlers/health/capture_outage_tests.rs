@@ -1,6 +1,6 @@
 use chrono::{Duration, TimeZone, Utc};
 
-use super::{CaptureOutageEvent, CaptureOutageTracker};
+use super::{CaptureOutageEvent, CaptureOutageTracker, DOWN_AFTER_SLOW_READINGS, OutageReading};
 
 #[test]
 fn outage_notice_fires_once_then_recovery_once() -> anyhow::Result<()> {
@@ -57,4 +57,35 @@ fn down_message_says_nothing_is_refused_and_names_the_doc() {
     assert!(message.contains("no request is refused"), "{message}");
     assert!(message.contains("disk full"), "{message}");
     assert!(message.contains("docs/CAPTURE_OUTAGES.md"), "{message}");
+}
+
+#[test]
+fn slow_readings_below_the_limit_stay_silent() {
+    let mut tracker = CaptureOutageTracker::default();
+    for _ in 1..DOWN_AFTER_SLOW_READINGS {
+        assert_eq!(tracker.read(OutageReading::Slow, Utc::now()), None);
+    }
+    assert_eq!(tracker.read(OutageReading::Healthy, Utc::now()), None);
+}
+
+#[test]
+fn slow_readings_that_persist_announce_an_outage_once() {
+    let mut tracker = CaptureOutageTracker::default();
+    let events = (0..DOWN_AFTER_SLOW_READINGS * 2)
+        .filter_map(|_| tracker.read(OutageReading::Slow, Utc::now()))
+        .count();
+    assert_eq!(events, 1);
+}
+
+#[test]
+fn slow_reading_during_an_outage_does_not_announce_recovery() {
+    let mut tracker = CaptureOutageTracker::default();
+    let now = Utc::now();
+    tracker.read(OutageReading::Failing("refused"), now);
+    tracker.read(OutageReading::Failing("refused"), now);
+    assert_eq!(tracker.read(OutageReading::Slow, now), None);
+    assert_eq!(
+        tracker.read(OutageReading::Healthy, now),
+        Some(CaptureOutageEvent::Recovered { since: now })
+    );
 }

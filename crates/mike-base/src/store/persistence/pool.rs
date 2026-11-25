@@ -151,6 +151,7 @@ pub fn shaped_pool_options(shape: &PoolShape) -> PgPoolOptions {
         .max_connections(shape.max_connections.max(1))
         .min_connections(0)
         .acquire_timeout(shape.acquire_timeout)
+        .acquire_slow_threshold(shape.acquire_timeout / 2)
         .idle_timeout(Some(Duration::from_secs(300)))
 }
 

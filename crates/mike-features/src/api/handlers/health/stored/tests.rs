@@ -123,15 +123,18 @@ async fn a_read_that_finishes_before_its_deadline_keeps_its_value() {
 }
 
 #[test]
-fn outage_reading_slow_probe_with_captures_flowing_is_no_outage() {
-    assert_eq!(outage_reading(probe::ProbeState::TimedOut, false), None);
+fn outage_reading_timed_out_probe_is_slow() {
+    assert_eq!(
+        outage_reading(probe::ProbeState::TimedOut, false),
+        capture_outage::OutageReading::Slow
+    );
 }
 
 #[test]
 fn outage_reading_refused_probe_is_an_outage() {
     assert_eq!(
         outage_reading(probe::ProbeState::Failed, false),
-        Some("the database does not answer")
+        capture_outage::OutageReading::Failing("the database does not answer")
     );
 }
 
@@ -140,7 +143,7 @@ fn outage_reading_stalled_captures_is_an_outage_whatever_the_probe() {
     for state in [probe::ProbeState::Ok, probe::ProbeState::TimedOut] {
         assert_eq!(
             outage_reading(state, true),
-            Some("captures are not being written")
+            capture_outage::OutageReading::Failing("captures are not being written")
         );
     }
 }

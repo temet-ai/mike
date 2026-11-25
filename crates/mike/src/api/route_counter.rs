@@ -97,6 +97,7 @@ pub(crate) async fn count(request: Request, next: Next) -> Response {
         method,
         client,
     } = labels;
+    let _running = mike_base::web_base::db_pressure::InFlight::start(&method, &route);
     metrics::counter!(
         COUNTER_INSPECT_REQUESTS,
         "route" => route,

@@ -2,6 +2,7 @@ pub mod body_search;
 pub mod capability;
 pub mod change_source;
 pub mod client_serves;
+pub mod db_pressure;
 pub mod detail;
 pub mod errors;
 pub mod host_guard;

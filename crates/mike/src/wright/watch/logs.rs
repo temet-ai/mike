@@ -23,6 +23,7 @@ pub(crate) struct LogParams {
     pub(crate) level: String,
     pub(crate) repeats: usize,
     pub(crate) window_minutes: i64,
+    pub(crate) min_minutes: usize,
 }
 
 impl LogParams {
@@ -39,7 +40,12 @@ impl LogParams {
                 )
             })?;
         let repeats = int_param(params, "repeats", 1, 1_000_000)?;
+        let min_minutes = match params.get("min_minutes") {
+            Some(_) => int_param(params, "min_minutes", 1, 1440)?,
+            None => 1,
+        };
         Ok(Self {
+            min_minutes: usize::try_from(min_minutes).map_err(|e| e.to_string())?,
             level: level.to_owned(),
             repeats: usize::try_from(repeats).map_err(|e| e.to_string())?,
             window_minutes: int_param(params, "window_minutes", 1, 1440)?,
@@ -131,6 +137,45 @@ fn is_slow_statement(line: &LogLine) -> bool {
     line.target == "sqlx::query" && line.message.starts_with("slow statement:")
 }
 
+fn route_of(path: &str) -> String {
+    path.split('/')
+        .map(|part| {
+            if part.contains(|c: char| c.is_ascii_digit()) {
+                ":id"
+            } else {
+                part
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn failed_response(line: &LogLine) -> Option<String> {
+    if line.target != "tower_http::trace::on_failure" {
+        return None;
+    }
+    let value: Value = serde_json::from_str(&line.raw).ok()?;
+    let text = |pointer: &str| value.pointer(pointer).and_then(Value::as_str);
+    Some(format!(
+        "{}: {} {} {}",
+        line.message,
+        text("/span/method").unwrap_or(""),
+        route_of(text("/span/path")?),
+        text("/fields/classification").unwrap_or("")
+    ))
+}
+
+fn group_message(line: &LogLine) -> String {
+    failed_response(line).unwrap_or_else(|| shape(&line.message))
+}
+
+fn minutes_seen(hits: &[&LogLine]) -> usize {
+    hits.iter()
+        .map(|l| l.at.timestamp().div_euclid(60))
+        .collect::<BTreeSet<_>>()
+        .len()
+}
+
 pub(crate) fn group_lines<'a>(
     lines: &'a [LogLine],
     now: DateTime<Utc>,
@@ -143,7 +188,7 @@ pub(crate) fn group_lines<'a>(
         .filter(|l| l.level == params.level && l.at >= since && !is_slow_statement(l))
     {
         grouped
-            .entry((line.target.clone(), shape(&line.message)))
+            .entry((line.target.clone(), group_message(line)))
             .or_default()
             .push(line);
     }
@@ -176,7 +221,10 @@ fn origins(hits: &[&LogLine]) -> (BTreeSet<String>, BTreeSet<Uuid>) {
 fn findings_of(grouped: Groups<'_>, params: &LogParams) -> Vec<Finding> {
     grouped
         .into_iter()
-        .filter(|(_, hits)| hits.len() >= params.repeats || hits.iter().any(|l| is_panic(l)))
+        .filter(|(_, hits)| {
+            (hits.len() >= params.repeats && minutes_seen(hits) >= params.min_minutes)
+                || hits.iter().any(|l| is_panic(l))
+        })
         .map(|((target, message), hits)| {
             let (sources, machines) = origins(&hits);
             Finding {

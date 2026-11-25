@@ -49,6 +49,7 @@ pub fn spawn_db_pool_gauge_updater(
     pools: Vec<(&'static str, PgPool)>,
     cancel: CancellationToken,
 ) -> tokio::task::JoinHandle<()> {
+    crate::web_base::db_pressure::register_pools(&pools);
     tokio::spawn(async move {
         let mut ticker = interval(Duration::from_secs(2));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);

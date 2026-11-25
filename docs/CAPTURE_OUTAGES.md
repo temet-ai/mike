@@ -25,8 +25,9 @@ saved again. It is produced by the health refresher
 (`crates/mike-features/src/api/handlers/health/capture_outage.rs`), which reads the same
 reachability and `capture_stalled` signals `/api/health` reports, so the page and the
 notice agree. Reachability is probed on the capture pool, the one capture writes use. A probe
-that refuses counts as an outage reading; a probe that only runs past its deadline while
-captures are still being written logs a WARN that the database is slow and is not an outage. Delivery is the desktop notification the worker-failure notice uses
+that refuses counts as an outage reading; a probe that runs past its deadline logs a WARN
+with each pool's size and the routes in flight, and five of them without a healthy reading
+between raise the notice. A slow reading never announces recovery. Delivery is the desktop notification the worker-failure notice uses
 (`omarchy-notification-send`, then `notify-send`); with neither installed the error log is
 the notice.
 
