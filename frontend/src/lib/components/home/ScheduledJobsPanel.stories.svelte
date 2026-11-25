@@ -135,6 +135,7 @@
 			'lesson_relations',
 			'learning_audit',
 			'lessons_commit',
+			'kit_reviews',
 			'memory_review',
 			'usage_audit',
 			'cargo_sweep',
@@ -166,10 +167,10 @@
 		) as HTMLElement;
 		await expect(pct(relations, 'left')).toBeCloseTo(41.67, 1);
 		await expect(pct(relations, 'width')).toBeCloseTo(8.33, 1);
-		await expect(canvas.getAllByText('ok')).toHaveLength(9);
+		await expect(canvas.getAllByText('ok')).toHaveLength(10);
 		await expectGridInsideLanes(canvasElement);
 		const loopLinks = canvas.getAllByRole('link', { name: 'See it in the loop' });
-		await expect(loopLinks).toHaveLength(5);
+		await expect(loopLinks).toHaveLength(6);
 		await expect(loopLinks[0]).toHaveAttribute('href', expect.stringMatching(/\/memory$/));
 		await expect(
 			within(row(canvasElement, 'cargo_sweep')).queryByRole('link', { name: 'See it in the loop' })

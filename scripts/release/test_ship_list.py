@@ -24,6 +24,7 @@ SESSION_COMMAND = "text of a command the operator or a fleet seat runs in a chec
 ALLOWED = {
     "scripts/lessons-commit": CHECKOUT_JOB,
     "scripts/memory-review": CHECKOUT_JOB,
+    "scripts/kit-reviews": "checkout-only scheduled job: it starts sessions that commit in kit repositories",
     "scripts/usage-audit.sh": "checkout-only scheduled job: reads this repository's capture database and docs",
     "scripts/six-hourly-fixture": "test fixture job; no script of that name exists",
     "scripts/gate": SESSION_COMMAND + " (a command name the fleet floor recognises in a seat's work)",

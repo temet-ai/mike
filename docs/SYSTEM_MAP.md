@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-24
+updated: 2026-11-25
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -176,7 +176,7 @@ recorded in `llm.calls`.
 | Directive proposals | `directive_proposer` (off) | no | Proposes standing directives from corrections the operator restated across sessions, by SQL over captured data; also calibrates guard thresholds across sessions. Proposals wait on `/memory`; nothing is injected | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
 | Change record | `change_record` (off) | no | Watches checkouts for file changes, commits, pushes and checks so `what_changed` answers without git | MCP `what_changed`; REST `/api/changes` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | Retention sweep, mailbox reaper, workspace reaper, channel-link sweep, work registry, health refresher, DB cost monitor, resync | `retention_sweep`, `channel_link_sweep`, `db_resync` (on); the rest always | no | Local housekeeping: TTL deletes (365 d default), expired mail, lapsed roster rows, channel links, DB statement budgets, fallback-to-primary resync | REST `/api/sync/status`, `/api/db-cost` | [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md) |
-| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule (none runs Python; `learning_promote` and `learning_audit` are `sh` wrappers for `mike learning promote`, `mike learning-audit`): `learning_promote`, `learning_audit`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
+| Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule (none runs Python; `learning_promote` and `learning_audit` are `sh` wrappers for `mike learning promote`, `mike learning-audit`): `learning_promote`, `learning_audit`, `lessons_commit`, `usage_audit`, `lesson_relations`, `memory_review`, `kit_reviews` (off by default; `scripts/kit-reviews`, tested by `scripts/test-kit-reviews`) | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 
 #### Jev decisions layer
 

@@ -2,7 +2,7 @@
 title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
-updated: 2026-11-20
+updated: 2026-11-25
 summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.5 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
@@ -210,7 +210,7 @@ jobs, lesson sync and the Codex hook installer) under `share/mike/scripts/`, pac
 the same way. `scripts/release/script_assets.py` holds the one ship list
 (`SCRIPTS`); the manifest records it as `script_assets`, and `--verify` requires
 exactly that payload in the mike archive (a candidate without the key must carry
-none). Checkout-only jobs (`lessons-commit`, `memory-review`, `usage-audit.sh`) are
+none). Checkout-only jobs (`lessons-commit`, `memory-review`, `kit-reviews`, `usage-audit.sh`) are
 not shipped. `test_ship_list.py` fails when non-test Rust names a `scripts/` or
 `.claude/` path that is neither shipped nor allow-listed with a reason.
 The forward proxy is the `mike forward` subcommand in the Mike binary.

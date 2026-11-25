@@ -174,7 +174,7 @@ An installed mike (Homebrew, mise or an archive) runs the four jobs whose script
 | `learning_audit` | Runs `mike learning-audit` weekly: reviews last week's sessions, lessons and tool use and writes a report under `artifacts/learning-audit`. |
 | `lesson_relations` | Finds lessons that repeat or contradict each other, daily, before consolidation. |
 
-None of them needs Python or `psql`; they run mike's own commands. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.
+None of them needs Python or `psql`; they run mike's own commands. If a job fails, its row in the panel says what to check. `lessons_commit`, `memory_review`, `kit_reviews` and `usage_audit` work on a mike source checkout. On an installed mike they show "needs a mike source checkout" and are not scheduled; that is expected, and nothing is wrong.
 
 `mike doctor` has a `scheduled_jobs` line that says how many jobs can run here and names the ones that need a checkout. It warns, with a fix, if a job's script is missing, for example when mike was installed without its `share/mike/scripts` folder.
 

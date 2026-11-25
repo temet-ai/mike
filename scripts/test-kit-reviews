@@ -1,0 +1,298 @@
+#!/usr/bin/env bash
+# scripts/kit-reviews test suite: a stub ask-kit (a package.json beside a symlinked bin, as an
+# npm install leaves it) and a stub claude stand in for the real ones, and git repositories in a
+# scratch folder stand in for the kits. No network, no model, no proxy.
+#
+# Usage: scripts/test-kit-reviews     Exit: 0 = no FAIL (a case without its prerequisite is NOT RUN).
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+JOB="$ROOT/scripts/kit-reviews"
+pass=0; fail=0; notrun=0
+ok() { echo "PASS: $1"; pass=$((pass+1)); }
+bad() { echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; fail=$((fail+1)); }
+skip() { echo "NOT RUN: $1 ($2)"; notrun=$((notrun+1)); }
+check() { if [[ "$3" == *"$2"* ]]; then ok "$1"; else bad "$1" "wanted '$2'; got: ${3:0:400}"; fi; }
+lacks() { if [[ "$3" != *"$2"* ]]; then ok "$1"; else bad "$1" "did not want '$2'; got: ${3:0:400}"; fi; }
+
+for need in git jq; do
+  command -v "$need" >/dev/null 2>&1 || { skip "every case" "$need is missing"; echo "kit-reviews: $pass passed, $fail failed, $notrun not run"; exit 0; }
+done
+[[ -n "$(command -v gtimeout || command -v timeout)" ]] || { skip "every case" "timeout is missing"; echo "kit-reviews: $pass passed, $fail failed, $notrun not run"; exit 0; }
+
+SCRATCH="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/test-kit-reviews.XXXXXX")" && pwd -P)" || exit 1
+cleanup() { rm -rf "$SCRATCH"; }
+trap cleanup EXIT
+
+TODAY="$(date -u +%F)"
+HOME_DIR="$SCRATCH/home"
+mkdir -p "$HOME_DIR"
+FIX="$SCRATCH/fix"
+mkdir -p "$FIX"
+
+mkrepo() {
+  mkdir -p "$1"
+  git -C "$1" init -q
+  git -C "$1" -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit -q --allow-empty -m init
+}
+
+make_ask_kit() {
+  local version="$1" root="$SCRATCH/pkg-$1"
+  mkdir -p "$root/bin" "$SCRATCH/bin-$version"
+  printf '{"name":"@temet-ai/ask-kit","version":"%s"}\n' "$version" >"$root/package.json"
+  cat >"$root/bin/ask-kit.mjs" <<'STUB'
+#!/usr/bin/env bash
+echo "ask-kit $*" >>"$STUB_DIR/calls.log"
+case "$1 $2" in
+  "kit update") cat "$STUB_DIR/update.json"; exit "$(cat "$STUB_DIR/update.rc" 2>/dev/null || echo 0)" ;;
+  "improve --label") cat "$STUB_DIR/label.json"; exit "$(cat "$STUB_DIR/label.rc" 2>/dev/null || echo 0)" ;;
+  "improve --json") cat "$STUB_DIR/queue.json"; exit "$(cat "$STUB_DIR/queue.rc" 2>/dev/null || echo 0)" ;;
+esac
+echo "unexpected: $*" >&2
+exit 9
+STUB
+  chmod +x "$root/bin/ask-kit.mjs"
+  ln -s "../pkg-$version/bin/ask-kit.mjs" "$SCRATCH/bin-$version/ask-kit"
+}
+make_ask_kit 0.8.0
+make_ask_kit 0.7.0
+make_ask_kit 0.10.2
+
+mkdir -p "$SCRATCH/claude-bin"
+cat >"$SCRATCH/claude-bin/claude" <<'STUB'
+#!/usr/bin/env bash
+n=$(( $(ls "$STUB_DIR"/claude-*.txt 2>/dev/null | wc -l) + 1 ))
+{
+  echo "pwd=$(pwd -P)"
+  echo "base=${ANTHROPIC_BASE_URL:-}"
+  echo "args=$*"
+  echo "stdin=$(cat 2>/dev/null | wc -c | tr -d ' ')"
+} >"$STUB_DIR/claude-$n.txt"
+kit="$(basename "$(pwd -P)")"
+[[ -f "$STUB_DIR/claude-sleep-$kit" ]] && exec sleep 30
+exit "$(cat "$STUB_DIR/claude-rc-$kit" 2>/dev/null || echo 0)"
+STUB
+chmod +x "$SCRATCH/claude-bin/claude"
+
+reset_fix() {
+  rm -rf "$FIX"; mkdir -p "$FIX"
+  echo '{"kits":[{"kit":"mike","state":"current"}],"machines":[{"host":"mac","kits":[{"kit":"mike","state":"updated"}]}]}' >"$FIX/update.json"
+  echo '{"labelled":[{"kit":"mike","labelled":12,"waiting":3,"errors":[]}]}' >"$FIX/label.json"
+  echo '{"kits":[]}' >"$FIX/queue.json"
+}
+
+queue() {
+  jq -n --arg a "$1" '{kits: ($a | fromjson)}' >"$FIX/queue.json"
+}
+
+OUT=""; ERR=""; RC=0
+run_job() {
+  rm -rf "$SCRATCH/state"
+  OUT="$(cd "$SCRATCH" && env -i PATH="$SCRATCH/nobin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" HOME="$HOME_DIR" \
+    STUB_DIR="$FIX" KIT_REVIEWS_STATE="$SCRATCH/state" "$@" 2>"$SCRATCH/err" </dev/null)"
+  RC=$?
+  ERR="$(cat "$SCRATCH/err")"
+}
+JOBCMD=(env ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB")
+calls() { cat "$FIX/calls.log" 2>/dev/null; }
+claude_runs() { ls "$FIX"/claude-[0-9]*.txt 2>/dev/null | wc -l | tr -d ' '; }
+
+for kit in mike fleet docs extra ops; do mkrepo "$SCRATCH/kits/$kit"; done
+mkdir -p "$SCRATCH/cache/node_modules/@temet-ai/ask-kit/domains/code"
+mkrepo "$SCRATCH/askkit-checkout"
+mkdir -p "$SCRATCH/askkit-checkout/domains/code"
+mkdir -p "$SCRATCH/askkit-checkout/domains/sessions"
+mkdir -p "$SCRATCH/nobin"
+
+RANKED='[
+ {"kit":"code","source":"'"$SCRATCH"'/cache/node_modules/@temet-ai/ask-kit/domains/code","questions":9,"signals":40,"state":"pending"},
+ {"kit":"mike","source":"'"$SCRATCH"'/kits/mike","questions":3,"signals":5,"state":"pending"},
+ {"kit":"fleet","source":"'"$SCRATCH"'/kits/fleet","questions":2,"signals":1,"state":"pending"},
+ {"kit":"docs","source":"'"$SCRATCH"'/kits/docs","questions":2,"signals":9,"state":"pending"},
+ {"kit":"extra","source":"'"$SCRATCH"'/kits/extra","questions":0,"signals":4,"state":"pending"},
+ {"kit":"ops","source":"'"$SCRATCH"'/kits/ops","questions":0,"signals":0,"state":"no-new-evidence"}
+]'
+
+# --print runs nothing.
+reset_fix
+run_job "${JOBCMD[@]}" --print
+[[ $RC -eq 0 ]] && ok "--print exits 0" || bad "--print exits 0" "rc=$RC $OUT $ERR"
+check "--print shows the brief" "Do not push, merge, tag, release" "$OUT"
+check "--print names the model" "model:   opus" "$OUT"
+[[ -z "$(calls)" && "$(claude_runs)" == 0 ]] && ok "--print calls neither ask-kit nor claude" || bad "--print calls neither ask-kit nor claude" "$(calls)"
+run_job "${JOBCMD[@]}" --bogus
+[[ $RC -eq 2 ]] && ok "an unknown argument exits 2" || bad "an unknown argument exits 2" "rc=$RC"
+
+# Step 1: ask-kit resolution and version.
+reset_fix
+run_job env -u ASK_KIT_BIN CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 1 ]] && ok "no ask-kit anywhere fails" || bad "no ask-kit anywhere fails" "rc=$RC"
+check "no ask-kit names how to supply one" "no ask-kit binary (set ASK_KIT_BIN" "$ERR"
+run_job env ASK_KIT_BIN="$SCRATCH/bin-0.7.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 1 ]] && ok "ask-kit 0.7.0 fails" || bad "ask-kit 0.7.0 fails" "rc=$RC"
+check "the old version is named" "ask-kit 0.7.0" "$ERR"
+check "the old version says what is needed" "older than 0.8.0" "$ERR"
+[[ -z "$(calls)" ]] && ok "an old ask-kit is not run" || bad "an old ask-kit is not run" "$(calls)"
+reset_fix
+queue '[]'
+run_job env ASK_KIT_BIN="$SCRATCH/bin-0.10.2/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 0 ]] && ok "0.10.2 counts as newer than 0.8.0" || bad "0.10.2 counts as newer than 0.8.0" "rc=$RC $ERR"
+mkdir -p "$SCRATCH/pathbin"; ln -sf "$SCRATCH/bin-0.8.0/ask-kit" "$SCRATCH/pathbin/ask-kit"
+reset_fix
+run_job env PATH="$SCRATCH/pathbin:/usr/bin:/bin" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 0 ]] && ok "ask-kit is found on PATH" || bad "ask-kit is found on PATH" "rc=$RC $ERR"
+mkdir -p "$HOME_DIR/.local/bin"; ln -sf "$SCRATCH/bin-0.8.0/ask-kit" "$HOME_DIR/.local/bin/ask-kit"
+reset_fix
+run_job env CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 0 ]] && ok "ask-kit is found in ~/.local/bin" || bad "ask-kit is found in ~/.local/bin" "rc=$RC $ERR"
+rm -rf "$HOME_DIR/.local"
+
+# The whole run: three kits, ranked by open questions then signals.
+reset_fix
+queue "$RANKED"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 0 ]] && ok "a clean run exits 0" || bad "a clean run exits 0" "rc=$RC $ERR"
+check "the last stderr line is ok" "kit-reviews: ok" "$ERR"
+check "update ran with --machines --json" "ask-kit kit update --machines --json" "$(calls)"
+check "labelling ran with --max 400" "ask-kit improve --label --max 400" "$(calls)"
+check "the queue was read offline" "ask-kit improve --json --offline" "$(calls)"
+[[ "$(claude_runs)" == 3 ]] && ok "three claude sessions ran" || bad "three claude sessions ran" "$(claude_runs)"
+first="$(cat "$FIX/claude-1.txt")"; second="$(cat "$FIX/claude-2.txt")"; third="$(cat "$FIX/claude-3.txt")"
+check "the kit with the most questions goes first, from its source" "pwd=$SCRATCH/kits/mike" "$first"
+check "a tie on questions goes to the kit with more signals" "pwd=$SCRATCH/kits/docs" "$second"
+check "then the next kit" "pwd=$SCRATCH/kits/fleet" "$third"
+check "claude goes through the proxy" "base=http://localhost:9988" "$first"
+check "claude runs headless on the default model" "--model opus" "$first"
+check "claude runs with bypassPermissions" "--permission-mode bypassPermissions" "$first"
+check "claude is started with -p and a brief" "args=-p Today is $TODAY." "$first"
+check "claude gets no stdin" "stdin=0" "$first"
+check "the brief names the kit" 'Review the ask-kit kit "mike"' "$first"
+check "the brief names the branch" "review-$TODAY" "$first"
+check "the brief forbids pushing and paid tests" "Do not push, merge, tag, release, or run paid tests" "$first"
+check "the brief forbids the phone" "Do not touch the phone, adb or scrcpy" "$first"
+check "the brief asks for a session note" 'titled "Kit review: mike"' "$first"
+check "the brief gives the no-change record command" "improve mike --record" "$first"
+lacks "the kit with no questions or signals is not reviewed" "pwd=$SCRATCH/kits/ops" "$first$second$third"
+lacks "a fourth kit is not reviewed" "pwd=$SCRATCH/kits/extra" "$first$second$third"
+check "a kit whose source is an installed copy is skipped with a reason" "skipping code" "$OUT"
+check "the summary names the skipped kit" "skipped code (installed copy, KIT_REVIEWS_ASK_KIT unset)" "$ERR"
+check "the summary names the reviewed kits" "reviewed 3 kit(s) (mike docs fleet)" "$ERR"
+[[ -f "$SCRATCH/state/$TODAY/review-mike.log" ]] && ok "each session's output goes to its log" || bad "each session's output goes to its log"
+
+# An installed copy is reviewed from the ask-kit checkout.
+reset_fix
+queue "$RANKED"
+run_job env KIT_REVIEWS_ASK_KIT="$SCRATCH/askkit-checkout" ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 0 ]] && ok "a run with the ask-kit checkout exits 0" || bad "a run with the ask-kit checkout exits 0" "rc=$RC $ERR"
+check "the code kit runs from the checkout's domain folder" "pwd=$SCRATCH/askkit-checkout/domains/code" "$(cat "$FIX/claude-1.txt")"
+check "the brief names the checkout as the repository" "in the repository $SCRATCH/askkit-checkout" "$(cat "$FIX/claude-1.txt")"
+[[ "$(claude_runs)" == 3 ]] && ok "the skipped kit no longer takes one of the three slots" || bad "the skipped kit no longer takes one of the three slots" "$(claude_runs)"
+reset_fix
+queue '[{"kit":"sessions2","source":"'"$SCRATCH"'/cache/node_modules/x/domains/sessions2","questions":1,"signals":0}]'
+run_job env KIT_REVIEWS_ASK_KIT="$SCRATCH/askkit-checkout" ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+check "a kit missing from the checkout is skipped and said so" "skipped sessions2 (not in KIT_REVIEWS_ASK_KIT)" "$ERR"
+[[ $RC -eq 0 && "$(claude_runs)" == 0 ]] && ok "a skip is not a failure" || bad "a skip is not a failure" "rc=$RC runs=$(claude_runs)"
+reset_fix
+mkdir -p "$SCRATCH/plain/notgit"
+queue '[{"kit":"notgit","source":"'"$SCRATCH"'/plain/notgit","questions":1,"signals":0}]'
+run_job "${JOBCMD[@]}"
+check "a source outside git is skipped and said so" "skipped notgit (not a git checkout)" "$ERR"
+
+# Nothing to review.
+reset_fix
+queue '[{"kit":"ops","source":"'"$SCRATCH"'/kits/ops","questions":0,"signals":0}]'
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 0 && "$(claude_runs)" == 0 ]] && ok "an empty queue starts no session and exits 0" || bad "an empty queue starts no session and exits 0" "rc=$RC"
+check "an empty queue says so" "no kit has open questions or signals" "$ERR"
+
+# Step 2: each unupdated state fails the job at the end, after the rest ran.
+for state in "diverged" "has changes" "updated, packages not installed" "not fetched" "failed"; do
+  reset_fix
+  queue "$RANKED"
+  jq -n --arg s "$state" '{kits:[{kit:"mike",state:$s,why:"x"}],machines:[]}' >"$FIX/update.json"
+  run_job "${JOBCMD[@]}"
+  [[ $RC -eq 1 ]] && ok "a kit that is '$state' ends the job non-zero" || bad "a kit that is '$state' ends the job non-zero" "rc=$RC"
+  check "'$state' is named in the summary" "step 2: kit update left 1 kit(s)" "$ERR"
+  [[ "$(claude_runs)" == 3 ]] && ok "'$state' does not stop the reviews" || bad "'$state' does not stop the reviews" "$(claude_runs)"
+done
+reset_fix
+queue "$RANKED"
+echo '{"kits":[],"machines":[{"host":"mac","error":"its ask-kit is older than 0.8.0"},{"host":"infra","kits":[{"kit":"ops","state":"diverged"}]}]}' >"$FIX/update.json"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 ]] && ok "a machine that could not be updated ends the job non-zero" || bad "a machine that could not be updated ends the job non-zero" "rc=$RC"
+check "the machine and its reason are named" "mac: NOT UPDATED: its ask-kit is older than 0.8.0" "$ERR"
+check "a diverged kit on another machine is named with its host" "infra ops: diverged" "$ERR"
+reset_fix
+queue "$RANKED"
+echo '{"kits":[{"kit":"a","state":"not a checkout"},{"kit":"b","state":"no upstream"},{"kit":"c","state":"unpushed"},{"kit":"d","state":"current"},{"kit":"e","state":"updated"}],"machines":[]}' >"$FIX/update.json"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 0 ]] && ok "not a checkout, no upstream, unpushed, current and updated are not failures" || bad "not a checkout, no upstream, unpushed, current and updated are not failures" "rc=$RC $ERR"
+check "the updated count is in the summary" "1 kit(s) updated" "$ERR"
+reset_fix
+queue "$RANKED"
+echo 'not json' >"$FIX/update.json"; echo 1 >"$FIX/update.rc"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 ]] && ok "an update that gives no JSON fails" || bad "an update that gives no JSON fails" "rc=$RC"
+[[ "$(claude_runs)" == 3 ]] && ok "an unreadable update still lets the reviews run" || bad "an unreadable update still lets the reviews run" "$(claude_runs)"
+reset_fix
+queue "$RANKED"
+echo 2 >"$FIX/update.rc"
+run_job "${JOBCMD[@]}"
+check "a non-zero update exit with good JSON still fails" "step 2: kit update exit 2" "$ERR"
+
+# Step 3.
+reset_fix
+queue "$RANKED"
+echo 1 >"$FIX/label.rc"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 ]] && ok "a labelling error ends the job non-zero" || bad "a labelling error ends the job non-zero" "rc=$RC"
+check "the labelling failure is in the summary" "step 3: improve --label exit 1 after 12 chains labelled" "$ERR"
+[[ "$(claude_runs)" == 3 ]] && ok "a labelling error does not stop the reviews" || bad "a labelling error does not stop the reviews" "$(claude_runs)"
+reset_fix
+queue "$RANKED"
+run_job "${JOBCMD[@]}"
+check "labelling success is in the summary" "step 3: improve --label labelled 12 chain(s)" "$ERR"
+
+# Step 4 failures.
+reset_fix
+queue "$RANKED"
+echo 3 >"$FIX/claude-rc-mike"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 ]] && ok "a failed session ends the job non-zero" || bad "a failed session ends the job non-zero" "rc=$RC"
+check "the failed kit is named with its exit code" "step 4: mike review exit 3" "$ERR"
+[[ "$(claude_runs)" == 3 ]] && ok "a failed session does not stop the next kit" || bad "a failed session does not stop the next kit" "$(claude_runs)"
+check "the other kits are still counted as reviewed" "reviewed 2 kit(s) (docs fleet)" "$ERR"
+reset_fix
+queue "$RANKED"
+touch "$FIX/claude-sleep-mike"
+run_job env KIT_REVIEWS_KIT_TIMEOUT=1 KIT_REVIEWS_MIN_KIT_SECS=1 ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 1 ]] && ok "a session over its time limit fails the job" || bad "a session over its time limit fails the job" "rc=$RC"
+check "the timeout is named" "step 4: mike review timed out after 1s" "$ERR"
+[[ "$(claude_runs)" == 3 ]] && ok "a timed-out session does not stop the next kit" || bad "a timed-out session does not stop the next kit" "$(claude_runs)"
+reset_fix
+queue "$RANKED"
+run_job env KIT_REVIEWS_BUDGET=100 ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
+[[ $RC -eq 1 && "$(claude_runs)" == 0 ]] && ok "a kit is not started without time left to finish it" || bad "a kit is not started without time left to finish it" "rc=$RC runs=$(claude_runs)"
+check "the missing time is named" "not reviewed: " "$ERR"
+reset_fix
+queue "$RANKED"
+mkdir -p "$SCRATCH/toolbin"
+for tool in env bash jq git date mkdir readlink dirname basename tail tr cut grep cat head sed sleep timeout gtimeout wc; do
+  found="$(command -v "$tool" || true)"
+  [[ -n "$found" && ! -e "$SCRATCH/toolbin/$tool" ]] && ln -s "$found" "$SCRATCH/toolbin/$tool"
+done
+run_job env PATH="$SCRATCH/toolbin" ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" "$(command -v bash)" "$JOB"
+[[ $RC -eq 1 ]] && ok "no claude binary fails the job" || bad "no claude binary fails the job" "rc=$RC"
+check "the missing claude says how to supply it" "no claude binary (set CLAUDE_BIN" "$ERR"
+check "steps 2 and 3 still ran without claude" "ask-kit improve --label --max 400" "$(calls)"
+reset_fix
+queue '[{"kit":"../evil","source":"'"$SCRATCH"'/kits/mike","questions":3,"signals":0}]'
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 && "$(claude_runs)" == 0 ]] && ok "a kit name that is not a plain name is refused" || bad "a kit name that is not a plain name is refused" "rc=$RC"
+reset_fix
+echo '{"unexpected":true}' >"$FIX/queue.json"
+run_job "${JOBCMD[@]}"
+[[ $RC -eq 1 ]] && ok "an unreadable queue fails the job" || bad "an unreadable queue fails the job" "rc=$RC"
+check "the unreadable queue is named" "step 4: improve --json --offline gave no queue" "$ERR"
+
+echo "kit-reviews: $pass passed, $fail failed, $notrun not run"
+[[ $fail -eq 0 ]]

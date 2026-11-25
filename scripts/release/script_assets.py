@@ -4,7 +4,7 @@ SCRIPTS is the one ship list. An entry is a tracked file ("scripts/learning-prom
 directory ending in "/" (every tracked file under it except tests). The archive, the
 candidate verifier and the Rust ship-list check (test_ship_list.py) all read it.
 
-Checkout-only jobs are deliberately absent: lessons-commit, memory-review, usage-audit.sh
+Checkout-only jobs are deliberately absent: lessons-commit, memory-review, kit-reviews, usage-audit.sh
 and six-hourly-fixture commit into the repository, edit its threads or are test fixtures.
 """
 

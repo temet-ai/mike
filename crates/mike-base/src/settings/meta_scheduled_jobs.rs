@@ -6,6 +6,7 @@ pub const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
 pub const DECISIONS_LOOP_ENABLED_KEY: &str = "decisions_loop.enabled";
+pub const KIT_REVIEWS_ENABLED_KEY: &str = "kit_reviews.enabled";
 
 pub fn enabled_entry(
     key: &'static str,
@@ -27,6 +28,17 @@ pub fn enabled_entry(
         max_f64: None,
         max_len: None,
         enum_variants: None,
+    }
+}
+
+pub fn enabled_entry_off_by_default(
+    key: &'static str,
+    label: &'static str,
+    description: &'static str,
+) -> SettingMeta {
+    SettingMeta {
+        default: serde_json::Value::Bool(false),
+        ..enabled_entry(key, label, description)
     }
 }
 
@@ -95,6 +107,20 @@ pub fn entries() -> Vec<SettingMeta> {
             and files a finding on the jev-decisions thread for a point below its bar. It \
             reads and writes the capture database only and makes no model call. One machine \
             per database runs it (the job lease). Read on every check, once a minute.",
+        ),
+        enabled_entry_off_by_default(
+            KIT_REVIEWS_ENABLED_KEY,
+            "Daily kit reviews",
+            "Daily, once between 02:15 and 04:59 UTC, run scripts/kit-reviews from the \
+            checkout this proxy was started in. It updates the ask-kit kits on this machine \
+            and the others, labels new lookups, and starts one Claude Code session (claude -p, \
+            Opus, through this proxy) for each of the three kits with the most open questions. \
+            Each session works in a new git worktree of that kit's repository, commits there \
+            and never pushes. Each session sends the kit's journal text, which holds the \
+            questions sessions asked, to Anthropic, and the labelling step sends them to the \
+            model ask-kit is configured with. One machine per database runs it (the job \
+            lease). Off by default. Read on every check, once a minute; a run already under \
+            way finishes.",
         ),
     ]
 }

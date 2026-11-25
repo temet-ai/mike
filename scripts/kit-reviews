@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+# kit-reviews — once a day, bring every ask-kit kit up to date on this machine and the others,
+# label the new lookups with their questions, and have a Claude Code session review each of the
+# three kits with the most open questions, following the ask-kit-improve skill.
+#
+# The scheduled job kit_reviews runs this script (switch: kit_reviews.enabled, off by default).
+# Steps, each logged under $KIT_REVIEWS_STATE/<date>/:
+#   1. find ask-kit (ASK_KIT_BIN, else PATH, else ~/.local/bin/ask-kit); it must be 0.8.0 or newer
+#   2. ask-kit kit update --machines --json
+#   3. ask-kit improve --label --max 400
+#   4. ask-kit improve --json --offline, then one `claude -p` per kit (at most three)
+# A session starts from the kit's source checkout, through this machine's proxy so the run is
+# captured like any other session. It works in a new git worktree of the kit's repository on a
+# branch review-<date>, commits there and pushes, merges, tags and releases nothing. The fix is
+# not live until a person merges it, so a review that changed nothing is recorded as no-change
+# and any other review stays unrecorded, with its prepared record named in a mike session note.
+#
+# The code and sessions kits live in the ask-kit repository. When their source is an installed
+# copy (the Claude plugin cache or node_modules), the checkout in KIT_REVIEWS_ASK_KIT is used;
+# without it the kit is skipped and the skip is logged.
+#
+# Exit 0: every step finished. Exit 1: a step failed; one summary line per step is the last
+# thing written to stderr, so the job history shows why. A failing step never stops the next.
+#
+# Usage: scripts/kit-reviews [--print]   --print shows the commands and the brief, runs nothing.
+# Environment: ASK_KIT_BIN, CLAUDE_BIN, KIT_REVIEWS_MODEL (default opus), KIT_REVIEWS_ASK_KIT,
+# KIT_REVIEWS_STATE (default ~/.local/state/mike-kit-reviews), KIT_REVIEWS_KIT_TIMEOUT (seconds
+# per kit, default 2100), KIT_REVIEWS_BUDGET (seconds for the whole run, default 7200, the job's
+# timeout), KIT_REVIEWS_MIN_KIT_SECS (a kit with less time left is not started, default 300),
+# KIT_REVIEWS_UPDATE_TIMEOUT (default 600), KIT_REVIEWS_LABEL_TIMEOUT (default 1500),
+# ANTHROPIC_BASE_URL (default http://localhost:9988).
+set -uo pipefail
+
+model="${KIT_REVIEWS_MODEL:-opus}"
+state_root="${KIT_REVIEWS_STATE:-$HOME/.local/state/mike-kit-reviews}"
+kit_timeout="${KIT_REVIEWS_KIT_TIMEOUT:-2100}"
+budget="${KIT_REVIEWS_BUDGET:-7200}"
+update_timeout="${KIT_REVIEWS_UPDATE_TIMEOUT:-600}"
+label_timeout="${KIT_REVIEWS_LABEL_TIMEOUT:-1500}"
+min_kit_secs="${KIT_REVIEWS_MIN_KIT_SECS:-300}"
+min_ask_kit="0.8.0"
+max_kits=3
+today="$(date -u +%F)"
+print=0
+for arg in "$@"; do
+  case "$arg" in
+    --print) print=1 ;;
+    *) echo "kit-reviews: unknown argument $arg" >&2; exit 2 ;;
+  esac
+done
+
+tmo="$(command -v gtimeout || command -v timeout || true)"
+summary=()
+failures=0
+say() { printf 'kit-reviews: %s\n' "$*"; }
+note() { summary+=("$1"); }
+fail() { failures=$((failures + 1)); summary+=("FAILED $1"); }
+
+finish() {
+  local line
+  for line in ${summary[@]+"${summary[@]}"}; do printf 'kit-reviews: %s\n' "$line" >&2; done
+  if (( failures )); then
+    printf 'kit-reviews: %d step(s) failed\n' "$failures" >&2
+    exit 1
+  fi
+  printf 'kit-reviews: ok\n' >&2
+  exit 0
+}
+
+version_at_least() {
+  local have want i
+  IFS=. read -r -a have <<<"${1%%[-+]*}"
+  IFS=. read -r -a want <<<"${2%%[-+]*}"
+  for i in 0 1 2; do
+    (( ${have[i]:-0} > ${want[i]:-0} )) && return 0
+    (( ${have[i]:-0} < ${want[i]:-0} )) && return 1
+  done
+  return 0
+}
+
+resolve_link() {
+  local path="$1" target hops=0
+  while [[ -L "$path" && $hops -lt 40 ]]; do
+    target="$(readlink "$path")" || return 1
+    case "$target" in
+      /*) path="$target" ;;
+      *) path="$(dirname "$path")/$target" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  (cd "$(dirname "$path")" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$path")")
+}
+
+ask_kit_version() {
+  local real dir
+  real="$(resolve_link "$1")" || return 1
+  dir="$(dirname "$real")"
+  while [[ "$dir" != "/" && -n "$dir" ]]; do
+    if [[ -f "$dir/package.json" ]] &&
+      [[ "$(jq -r '.name // empty' "$dir/package.json" 2>/dev/null)" == "@temet-ai/ask-kit" ]]; then
+      jq -r '.version // empty' "$dir/package.json"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+
+claude_bin="${CLAUDE_BIN:-$(command -v claude || true)}"
+[[ -z "$claude_bin" && -x "$HOME/.local/bin/claude" ]] && claude_bin="$HOME/.local/bin/claude"
+
+ask_kit="${ASK_KIT_BIN:-$(command -v ask-kit || true)}"
+[[ -z "$ask_kit" && -x "$HOME/.local/bin/ask-kit" ]] && ask_kit="$HOME/.local/bin/ask-kit"
+
+log_dir="$state_root/$today"
+record_dir="$log_dir/records"
+worktree_root="$log_dir/worktrees"
+
+brief_for() {
+  local kit="$1" source="$2" repo="$3" questions="$4" signals="$5"
+  cat <<EOF
+Today is $today.
+
+Review the ask-kit kit "$kit", and only that kit, by following the ask-kit-improve skill. Its evidence is \`$ask_kit improve $kit\`. The kit's source is $source in the repository $repo. It has $questions open questions and $signals signals.
+
+- Work in a new git worktree of $repo on a new branch review-$today (review-$today-2 if that exists), made with \`git -C $repo worktree add -b <branch> $worktree_root/$kit HEAD\`. Never edit the live checkout. Commit your changes in the worktree.
+- Do not push, merge, tag, release, or run paid tests (\`kit test\`, benchmarks, model replays). Do not touch the phone, adb or scrcpy.
+- Save the completion record as $record_dir/$kit.json, outside the repository.
+- The fix is not live until a person merges the branch, so do not record a changed review. If nothing needed changing, record it with outcome no-change: \`$ask_kit improve $kit --record $record_dir/$kit.json\`. Otherwise leave the review unrecorded, with the record prepared at that path.
+- Finish by writing a mike session note of kind report titled "Kit review: $kit" (the write_session_note tool, or ask about mike). It states the outcome (recorded no-change, or changes prepared and not recorded), the prepared record path, the branch and worktree path, the questions addressed in their own words, and each check run with its result.
+EOF
+}
+
+if (( print )); then
+  echo "ask-kit: ${ask_kit:-not found} ($([[ -n "$ask_kit" ]] && ask_kit_version "$ask_kit" || echo unknown))"
+  echo "claude:  ${claude_bin:-not found}"
+  echo "model:   $model"
+  echo "logs:    $log_dir"
+  echo "limits:  $kit_timeout s per kit, $budget s in all, at most $max_kits kits"
+  echo "step 2:  ask-kit kit update --machines --json"
+  echo "step 3:  ask-kit improve --label --max 400"
+  echo "step 4:  ask-kit improve --json --offline; per kit: ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-http://localhost:9988} claude -p <brief> --model $model --permission-mode bypassPermissions"
+  echo "asking:  ${KIT_REVIEWS_ASK_KIT:-KIT_REVIEWS_ASK_KIT unset: kits whose source is an installed copy are skipped}"
+  echo
+  brief_for "<kit>" "<source>" "<repository>" "<n>" "<n>"
+  exit 0
+fi
+
+started_at=$SECONDS
+mkdir -p "$log_dir" "$record_dir" "$worktree_root" 2>/dev/null
+
+if ! command -v jq >/dev/null 2>&1; then
+  fail "step 1: jq is not on PATH, and this script reads ask-kit's JSON with it"
+  finish
+fi
+if [[ -z "$tmo" ]]; then
+  fail "step 1: neither timeout nor gtimeout is on PATH"
+  finish
+fi
+if [[ -z "$ask_kit" || ! -x "$ask_kit" ]]; then
+  fail "step 1: no ask-kit binary (set ASK_KIT_BIN, put ask-kit on PATH, or install it at ~/.local/bin/ask-kit)"
+  finish
+fi
+version="$(ask_kit_version "$ask_kit")"
+if [[ -z "$version" ]]; then
+  fail "step 1: cannot read the version of $ask_kit (no @temet-ai/ask-kit package.json above it); it must be $min_ask_kit or newer"
+  finish
+fi
+if ! version_at_least "$version" "$min_ask_kit"; then
+  fail "step 1: ask-kit $version at $ask_kit is older than $min_ask_kit; update it (npm install -g @temet-ai/ask-kit)"
+  finish
+fi
+note "step 1: ask-kit $version at $ask_kit"
+say "ask-kit $version at $ask_kit"
+
+update_json="$log_dir/kit-update.json"
+update_err="$log_dir/kit-update.err"
+"$tmo" -k 30 "$update_timeout" "$ask_kit" kit update --machines --json >"$update_json" 2>"$update_err" </dev/null
+update_rc=$?
+if ! jq -e . "$update_json" >/dev/null 2>&1; then
+  fail "step 2: kit update exit $update_rc and no JSON: $(tail -n 1 "$update_err")"
+else
+  bad_kits="$(jq -r '
+    def row: "\(.kit): \(.state)\(if .why then " (\(.why))" else "" end)";
+    def bad: select(.state | IN("failed", "diverged", "has changes", "updated, packages not installed", "not fetched"));
+    ((.kits // [])[] | bad | row),
+    ((.machines // [])[] | . as $m |
+      if .error then "\(.host): NOT UPDATED: \(.error)"
+      else ($m.kits // [])[] | bad | "\($m.host) \(row)" end)' "$update_json")"
+  updated="$(jq -r '[(.kits // [])[], ((.machines // [])[] | (.kits // [])[]) | select(.state == "updated")] | length' "$update_json")"
+  if [[ -n "$bad_kits" ]]; then
+    while IFS= read -r line; do say "kit update: $line"; done <<<"$bad_kits"
+    fail "step 2: kit update left $(grep -c . <<<"$bad_kits") kit(s) or machine(s) not updated: $(tr '\n' ';' <<<"$bad_kits" | cut -c1-300)"
+  elif (( update_rc != 0 )); then
+    fail "step 2: kit update exit $update_rc: $(tail -n 1 "$update_err")"
+  else
+    note "step 2: kit update ok, $updated kit(s) updated"
+  fi
+fi
+
+label_json="$log_dir/improve-label.json"
+label_err="$log_dir/improve-label.err"
+"$tmo" -k 30 "$label_timeout" "$ask_kit" improve --label --max 400 >"$label_json" 2>"$label_err" </dev/null
+label_rc=$?
+labelled="$(jq -r '[(.labelled // [])[] | .labelled // 0] | add // 0' "$label_json" 2>/dev/null || echo "?")"
+if (( label_rc == 124 )); then
+  fail "step 3: improve --label timed out after ${label_timeout}s ($labelled chains labelled)"
+elif (( label_rc != 0 )); then
+  fail "step 3: improve --label exit $label_rc after $labelled chains labelled: $(tail -n 1 "$label_err")"
+else
+  note "step 3: improve --label labelled $labelled chain(s)"
+fi
+
+queue_json="$log_dir/improve-queue.json"
+if ! "$ask_kit" improve --json --offline >"$queue_json" 2>"$log_dir/improve-queue.err" </dev/null ||
+  ! jq -e '.kits | arrays' "$queue_json" >/dev/null 2>&1; then
+  fail "step 4: improve --json --offline gave no queue: $(tail -n 1 "$log_dir/improve-queue.err")"
+  finish
+fi
+
+candidates="$(jq -c '[.kits[] | select((.questions // 0) > 0 or (.signals // 0) > 0)]
+  | sort_by([-(.questions // 0), -(.signals // 0)]) | .[]' "$queue_json")"
+if [[ -z "$candidates" ]]; then
+  note "step 4: no kit has open questions or signals"
+  finish
+fi
+
+installed_copy() {
+  case "$1" in
+    */plugins/cache/* | */.claude/plugins/* | */node_modules/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+reviewed=()
+skipped=()
+started_kits=0
+while IFS= read -r row; do
+  (( started_kits >= max_kits )) && break
+  kit="$(jq -r '.kit' <<<"$row")"
+  source="$(jq -r '.source // empty' <<<"$row")"
+  questions="$(jq -r '.questions // 0' <<<"$row")"
+  signals="$(jq -r '.signals // 0' <<<"$row")"
+  if [[ ! "$kit" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    fail "step 4: kit name '$kit' is not a plain name; not reviewed"
+    continue
+  fi
+  if [[ -z "$source" ]]; then
+    say "skipping $kit: the queue names no source"
+    skipped+=("$kit (no source)")
+    continue
+  fi
+  if installed_copy "$source"; then
+    if [[ -z "${KIT_REVIEWS_ASK_KIT:-}" ]]; then
+      say "skipping $kit: its source $source is an installed copy and KIT_REVIEWS_ASK_KIT is unset"
+      skipped+=("$kit (installed copy, KIT_REVIEWS_ASK_KIT unset)")
+      continue
+    fi
+    if [[ ! -d "$KIT_REVIEWS_ASK_KIT/domains/$kit" ]]; then
+      say "skipping $kit: $KIT_REVIEWS_ASK_KIT/domains/$kit does not exist"
+      skipped+=("$kit (not in KIT_REVIEWS_ASK_KIT)")
+      continue
+    fi
+    source="$KIT_REVIEWS_ASK_KIT/domains/$kit"
+  fi
+  repo="$(git -C "$source" rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -z "$repo" ]]; then
+    say "skipping $kit: $source is not in a git checkout"
+    skipped+=("$kit (not a git checkout)")
+    continue
+  fi
+  started_kits=$((started_kits + 1))
+  if [[ -z "$claude_bin" ]]; then
+    fail "step 4: $kit not reviewed: no claude binary (set CLAUDE_BIN or put claude on PATH)"
+    continue
+  fi
+  remaining=$((budget - (SECONDS - started_at) - 60))
+  allowed=$(( remaining < kit_timeout ? remaining : kit_timeout ))
+  if (( allowed < min_kit_secs )); then
+    fail "step 4: $kit not reviewed: ${remaining}s of the ${budget}s run left"
+    continue
+  fi
+  brief="$(brief_for "$kit" "$source" "$repo" "$questions" "$signals")"
+  session_log="$log_dir/review-$kit.log"
+  say "reviewing $kit ($questions questions, $signals signals, up to ${allowed}s); log $session_log"
+  (
+    cd "$source" || exit 1
+    ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://localhost:9988}" \
+      "$tmo" -k 30 "$allowed" "$claude_bin" -p "$brief" \
+        --model "$model" \
+        --permission-mode bypassPermissions
+  ) >"$session_log" 2>&1 </dev/null
+  rc=$?
+  if (( rc == 124 )); then
+    fail "step 4: $kit review timed out after ${allowed}s (log $session_log)"
+  elif (( rc != 0 )); then
+    fail "step 4: $kit review exit $rc: $(tail -n 1 "$session_log" | cut -c1-200)"
+  else
+    reviewed+=("$kit")
+  fi
+done <<<"$candidates"
+
+line="step 4: reviewed ${#reviewed[@]} kit(s)"
+(( ${#reviewed[@]} )) && line="$line (${reviewed[*]})"
+(( ${#skipped[@]} )) && line="$line; skipped ${skipped[*]}"
+note "$line"
+finish

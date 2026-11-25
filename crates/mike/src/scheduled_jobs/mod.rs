@@ -66,7 +66,7 @@ pub(crate) fn spawn_scheduled_jobs(state: &AppState) {
         status::update(job.name, |s| {
             s.started = true;
             s.process_started_at = Some(now);
-            s.enabled = true;
+            s.enabled = job.enabled_by_default;
             s.root = located.root.clone();
             s.script_dir_missing = no_scripts && !needs_checkout;
             s.needs_checkout = needs_checkout;
@@ -80,7 +80,7 @@ pub(crate) fn spawn_scheduled_jobs(state: &AppState) {
                 machine: None,
                 shutdown: state.shutdown(),
                 schedule: Schedule::default(),
-                enabled: true,
+                enabled: job.enabled_by_default,
             };
             let first_tick = first_tick_after(index);
             state
@@ -247,7 +247,11 @@ impl Worker {
     async fn refresh_enabled(&mut self) {
         if let Some(persist) = &self.persist {
             match persist.setting_value(self.job.enabled_key).await {
-                Ok(value) => self.enabled = value.and_then(|v| v.as_bool()).unwrap_or(true),
+                Ok(value) => {
+                    self.enabled = value
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(self.job.enabled_by_default)
+                }
                 Err(e) => log_setting_unreadable(self.job, &e),
             }
         }

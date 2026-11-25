@@ -77,6 +77,7 @@ run_script_tests() {
     phase "Rust lint policy" "$SCRIPT_DIR/test-rust-lint-policy" &&
     phase "Call-site lookup" "$SCRIPT_DIR/test-callsites" &&
     phase "Reference fleet script" "$SCRIPT_DIR/test-fleet-ref" &&
+    phase "Kit reviews job script" "$SCRIPT_DIR/test-kit-reviews" &&
     phase "Deploy fleet guard" "$SCRIPT_DIR/test-fleet-deploy-guard" &&
     phase "Deploy and heavy build decisions" "$SCRIPT_DIR/test-deploy-build" &&
     phase "Deploy migration guard" "$SCRIPT_DIR/test-migration-guard" &&

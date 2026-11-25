@@ -2,7 +2,7 @@
 title: Security and trust boundary
 status: active
 created: 2026-09-17
-updated: 2026-11-06
+updated: 2026-11-25
 summary: What each mike bind exposes, what the Host/Origin guard does and does not stop, where captured data lives, what leaves the machine when a feature is enabled, and how to run with nothing enabled.
 ---
 
@@ -171,6 +171,7 @@ Each of the following sends data elsewhere, and each is off by default:
 | Enable this | And this leaves the machine | To |
 |---|---|---|
 | `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `turn_guard`, `steerer.refocus.enabled`, `lesson_relations.enabled` | Conversation text — prompts, assistant turns, tool-call summaries, and stored lessons — as the body of an LLM call | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
+| `kit_reviews.enabled` (scheduled job `kit_reviews`, `scripts/kit-reviews`; checkout only, on the machine whose ask-kit config names `machines`) | Text from the ask-kit kit journals, which hold the questions your sessions asked `ask` and the answers: to the model ask-kit's labelling step is configured with (`ask-kit improve --label`), and, through up to three `claude -p` sessions a day started with `--permission-mode bypassPermissions` through this proxy, to Anthropic. Those sessions also run commands and commit in a git worktree of each reviewed kit's repository on the branch `review-<date>`; the brief forbids pushing, merging, tagging, releasing and paid tests, but nothing enforces that beyond the brief. The step before them runs `ask-kit kit update --machines`, which fast-forwards the kit checkouts on this and the other machines you configured | Anthropic (the Claude login on this machine), and whatever backend ask-kit is configured to use. The commits stay on the machine. |
 | `embedding.enabled` with a **remote or hosted** `embedding.url` | The text being embedded: turns, lessons, project context, recall queries | Whatever that URL names. A local embedding server on `127.0.0.1` sends nothing off the machine. |
 | `mike verifier-replay --execute --out <file>` (flags `--set`, `--arm`, `--max-usd` default 15, `--model`, `--reasoning-effort`, `--prompt-file`); without `--execute` it is a dry run that sends nothing | Rebuilt verifier inputs of past turns: conversation text, tool-call lists, and the notes the session had been sent with the operator's recent replies. Per-call records go to `<out>.calls.jsonl` and reports to `--out`, never to `llm.calls` | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
 | `otel_endpoint` set | Trace spans. mike's spans carry ids, sizes and counts; no prompt or response body was found on a span attribute | Your OTel collector |

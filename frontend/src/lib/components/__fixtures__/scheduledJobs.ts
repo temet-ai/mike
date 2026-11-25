@@ -109,6 +109,20 @@ const SPECS: Spec[] = [
 		fix: 'Check that claude is logged in on this machine and that the proxy answers.'
 	},
 	{
+		id: 'kit_reviews',
+		label: 'Daily kit reviews',
+		description:
+			'Updates the ask-kit kits, labels new lookups, and has a Claude Code session review each of the three kits with the most open questions in a git worktree.',
+		schedule: 'daily, once between 02:15 and 04:59 UTC (04:15 to 06:59 in Johannesburg)',
+		group: 'learning_and_memory',
+		window: win('day', [2, 3, 4], 15),
+		lastStart: '2026-11-13T02:15:00Z',
+		minutes: 55,
+		next: '2026-11-14T02:15:00Z',
+		enabled_key: 'kit_reviews.enabled',
+		fix: 'Check that ask-kit 0.8.0 or newer and claude are on this machine and that the proxy answers.'
+	},
+	{
 		id: 'usage_audit',
 		label: 'Weekly usage audit',
 		description:
@@ -194,12 +208,12 @@ function build(spec: Spec, now: number): ScheduledJob {
 	};
 }
 
-/** The nine real jobs, healthy as of `now` (NOW_DAY by default); no run is later than `now`. */
+/** The real jobs, healthy as of `now` (NOW_DAY by default); no run is later than `now`. */
 export function realJobs(now: number = NOW_DAY): ScheduledJob[] {
 	return SPECS.map((spec) => build(spec, now));
 }
 
-/** One of the nine, with changes. */
+/** One of the real jobs, with changes. */
 export function realJob(
 	id: string,
 	overrides: Partial<ScheduledJob> = {},
@@ -210,7 +224,7 @@ export function realJob(
 	return { ...build(spec, now), ...overrides };
 }
 
-/** The nine jobs with some replaced by id. */
+/** The real jobs with some replaced by id. */
 export function realJobsWith(
 	changes: Record<string, Partial<ScheduledJob>>,
 	now: number = NOW_DAY

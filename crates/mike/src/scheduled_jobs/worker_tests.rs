@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use tokio_util::sync::CancellationToken;
 
-use super::jobs::{Job, PROMOTE};
+use super::jobs::{JOBS, Job, KIT_REVIEWS, PROMOTE};
 use super::schedule::Cadence;
 use super::status::{self, JobStatus, Trigger};
 use super::{Schedule, Worker, run_now};
@@ -119,4 +119,43 @@ fn first_tick_after_spreads_every_job_across_one_tick() {
     assert_eq!(offsets.first().copied(), Some(std::time::Duration::ZERO));
     assert!(offsets.windows(2).all(|pair| pair[0] < pair[1]));
     assert!(offsets.iter().all(|offset| *offset < super::TICK));
+}
+
+#[test]
+fn a_job_starts_on_or_off_as_its_setting_defaults() -> anyhow::Result<()> {
+    for job in JOBS.iter() {
+        let Some(meta) = crate::settings::SETTINGS_META
+            .iter()
+            .find(|meta| meta.key == job.enabled_key)
+        else {
+            continue;
+        };
+        assert_eq!(
+            meta.default,
+            serde_json::Value::Bool(job.enabled_by_default),
+            "{} starts differently from its setting default",
+            job.name
+        );
+    }
+    let kit_reviews = crate::settings::SETTINGS_META
+        .iter()
+        .find(|meta| meta.key == KIT_REVIEWS.enabled_key)
+        .ok_or_else(|| anyhow::anyhow!("kit_reviews.enabled is not a registered setting"))?;
+    assert_eq!(kit_reviews.default, serde_json::Value::Bool(false));
+    assert!(JOBS.iter().filter(|job| !job.enabled_by_default).count() == 1);
+    Ok(())
+}
+
+#[test]
+fn kit_reviews_runs_once_a_day_between_0215_and_0459_utc() {
+    let cadence = &KIT_REVIEWS.cadence;
+    assert_eq!(cadence.hours, &[2, 3, 4]);
+    assert_eq!(cadence.minute, 15);
+    assert_eq!(cadence.period, super::schedule::Period::Day);
+    assert_eq!(KIT_REVIEWS.timeout, std::time::Duration::from_secs(7200));
+    assert_eq!(
+        (KIT_REVIEWS.checkout_only, KIT_REVIEWS.leased),
+        (true, true)
+    );
+    assert_eq!(KIT_REVIEWS.nice, 19);
 }

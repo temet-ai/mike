@@ -5,8 +5,9 @@ use chrono::Weekday;
 use super::schedule::{Cadence, Period};
 use crate::lessons_settings::meta_memory_loop::MEMORY_REVIEW_ENABLED_KEY;
 use crate::settings::meta_scheduled_jobs::{
-    DECISIONS_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY, LEARNING_PROMOTE_ENABLED_KEY,
-    LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    DECISIONS_LOOP_ENABLED_KEY, KIT_REVIEWS_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
+    LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
+    USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -23,6 +24,7 @@ pub(crate) struct Job {
     pub(super) leased: bool,
     pub(super) alarm_exit: Option<i32>,
     pub(crate) enabled_key: &'static str,
+    pub(crate) enabled_by_default: bool,
     pub(crate) schedule_text: &'static str,
     pub(crate) failure_hint: &'static str,
 }
@@ -46,6 +48,7 @@ pub(super) const PROMOTE: Job = Job {
     leased: false,
     alarm_exit: Some(3),
     enabled_key: LEARNING_PROMOTE_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "hourly at :30 from 20:30 to 03:30 UTC",
     failure_hint: "It runs `mike learning promote` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike). Exit code 3 means generated files conflict with manual edits; any other non-zero code is a failure; the conflicts are in ~/.local/state/mike-learning-promotion/latest.json.",
 };
@@ -69,6 +72,7 @@ pub(super) const AUDIT: Job = Job {
     leased: true,
     alarm_exit: None,
     enabled_key: LEARNING_AUDIT_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "weekly, once on Monday between 01:00 and 06:59 UTC",
     failure_hint: "It runs `mike learning-audit` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand to see the error.",
 };
@@ -93,6 +97,7 @@ pub(super) const SIX_HOURLY_FIXTURE: Job = Job {
     leased: false,
     alarm_exit: None,
     enabled_key: "six_hourly_fixture.enabled",
+    enabled_by_default: true,
     schedule_text: "every six hours, at 00:00, 06:00, 12:00 and 18:00 UTC",
     failure_hint: "A fixture.",
 };
@@ -116,6 +121,7 @@ pub(super) const LESSONS_COMMIT: Job = Job {
     leased: false,
     alarm_exit: None,
     enabled_key: LESSONS_COMMIT_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "daily, once between 01:30 and 03:59 UTC (03:30 in Johannesburg)",
     failure_hint: "It commits only .claude/lessons on main, and stands aside while another git operation is in progress, so check that git status works in the checkout.",
 };
@@ -139,6 +145,7 @@ pub(super) const USAGE_AUDIT: Job = Job {
     leased: true,
     alarm_exit: Some(1),
     enabled_key: USAGE_AUDIT_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "weekly, once on Sunday between 06:00 and 10:59 UTC (08:00 in Johannesburg)",
     failure_hint: "The audit reads the database with psql, so check that MIKE_DATABASE_URL in the checkout's .env answers. Exit code 1 is an alarm, not a failure.",
 };
@@ -162,6 +169,7 @@ pub(super) const LESSON_RELATIONS: Job = Job {
     leased: true,
     alarm_exit: None,
     enabled_key: LESSON_RELATIONS_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "daily, once between 22:00 and 23:59 UTC, before the nightly lesson consolidation",
     failure_hint: "It runs `mike detect-lesson-relations` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) and calls the proposer and adjudicator models, so check that both models answer and that lesson_relations.enabled is on.",
 };
@@ -185,6 +193,7 @@ pub(super) const MEMORY_REVIEW: Job = Job {
     leased: true,
     alarm_exit: None,
     enabled_key: MEMORY_REVIEW_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "daily, once between 05:15 and 07:59 UTC, after the overnight supply verdicts",
     failure_hint: "It runs `claude -p` (CLAUDE_BIN, else claude on PATH, else ~/.local/bin/claude) through the proxy on localhost:9988, so check that claude is logged in on this machine and that the proxy answers.",
 };
@@ -210,11 +219,36 @@ pub(super) const DECISIONS_LOOP: Job = Job {
     leased: true,
     alarm_exit: None,
     enabled_key: DECISIONS_LOOP_ENABLED_KEY,
+    enabled_by_default: true,
     schedule_text: "every hour at :40, at any hour; it runs only when no run finished in the last 24 hours",
     failure_hint: "It runs `mike decisions loop` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) against the capture database; run it by hand with --force to see the error.",
 };
 
-pub(crate) static JOBS: [Job; 7] = [
+pub(super) const KIT_REVIEWS: Job = Job {
+    name: "kit_reviews",
+    label: "Daily kit reviews",
+    description: "Updates the ask-kit kits on this and the other machines, labels new lookups, and has a Claude Code session review each of the three kits with the most open questions in a git worktree of the kit's repository, committing there without pushing.",
+    script: "scripts/kit-reviews",
+    checkout_only: true,
+    mike_command: None,
+    args: &[],
+    timeout: Duration::from_secs(2 * 60 * 60),
+    cadence: Cadence {
+        weekday: None,
+        hours: &[2, 3, 4],
+        minute: 15,
+        period: Period::Day,
+    },
+    nice: 19,
+    leased: true,
+    alarm_exit: None,
+    enabled_key: KIT_REVIEWS_ENABLED_KEY,
+    enabled_by_default: false,
+    schedule_text: "daily, once between 02:15 and 04:59 UTC (04:15 to 06:59 in Johannesburg)",
+    failure_hint: "It runs `ask-kit` (ASK_KIT_BIN, else ask-kit on PATH, else ~/.local/bin/ask-kit, version 0.8.0 or newer) and `claude -p` (CLAUDE_BIN, else claude on PATH, else ~/.local/bin/claude) through the proxy on localhost:9988. The last lines say which step failed: a kit or machine that could not be updated, labelling that could not reach its model, or a kit whose review session failed or timed out.",
+};
+
+pub(crate) static JOBS: [Job; 8] = [
     PROMOTE,
     AUDIT,
     LESSONS_COMMIT,
@@ -222,4 +256,5 @@ pub(crate) static JOBS: [Job; 7] = [
     LESSON_RELATIONS,
     MEMORY_REVIEW,
     DECISIONS_LOOP,
+    KIT_REVIEWS,
 ];
