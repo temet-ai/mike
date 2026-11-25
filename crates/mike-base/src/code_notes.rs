@@ -70,6 +70,18 @@ impl CodeNotes {
         }
     }
 
+    pub fn withdraw(&self, ids: &[i64]) {
+        if ids.is_empty() {
+            return;
+        }
+        if let Ok(mut waiting) = self.waiting.lock() {
+            for queue in waiting.values_mut() {
+                queue.retain(|w| !ids.contains(&w.note.id));
+            }
+            waiting.retain(|_, queue| !queue.is_empty());
+        }
+    }
+
     pub fn take(&self, session: Uuid, max: usize) -> Vec<CodeNote> {
         let Ok(mut waiting) = self.waiting.lock() else {
             return Vec::new();

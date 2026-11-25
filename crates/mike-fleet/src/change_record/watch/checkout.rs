@@ -109,6 +109,7 @@ impl Watch {
         };
         let mut backstop = tokio::time::interval_at(Instant::now() + every, every);
         backstop.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        self.catch_up().await;
         self.stats.ready.store(true, Ordering::Release);
         loop {
             let due = self.pending.front().map(|(due, _)| *due);
@@ -131,6 +132,20 @@ impl Watch {
                 }
                 () = sleep_until(due) => self.name_due().await,
             }
+        }
+    }
+
+    async fn catch_up(&mut self) {
+        let Some(since) = self.config.catch_up else {
+            return;
+        };
+        let at = Utc::now();
+        match self.tree.written_since(&self.git, since.into()).await {
+            Ok(deltas) => {
+                let back = (at - since).to_std().unwrap_or_default();
+                self.record_files(deltas, at, Source::Backstop, back).await;
+            }
+            Err(err) => self.warn("files written before the watch could not be read", &err),
         }
     }
 

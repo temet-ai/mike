@@ -6,7 +6,7 @@ use super::{db, quick, repo};
 use crate::change_feed::ChangeFeed;
 use crate::change_record::ShellCommand;
 use crate::change_record::watch::shell_folders::{ShellFolders, folders_named};
-use crate::change_record::watch::supervisor::Supervisor;
+use crate::change_record::watch::supervisor::{Supervisor, still_there};
 use crate::store::persistence::change_record::test_seed::{request, session};
 
 #[test]
@@ -67,6 +67,7 @@ async fn a_worktree_a_session_entered_in_its_shell_is_watched() -> anyhow::Resul
     supervisor.tick(&shutdown).await;
     assert_eq!(supervisor.watching().len(), 1);
 
+    other.write("src/a.txt", "before the watch")?;
     sqlx::query(
         "INSERT INTO tools.uses (wire_tool_use_id, request_id, ord, tool_name, input, session_id)
          VALUES ('shell-1', $1, 0, 'Bash', jsonb_build_object('command', $2::text), $3)",
@@ -78,7 +79,34 @@ async fn a_worktree_a_session_entered_in_its_shell_is_watched() -> anyhow::Resul
     .await?;
     supervisor.read_shell(&shutdown).await;
     assert!(supervisor.watching().contains(&other.root));
+    let mut recorded = Vec::new();
+    for _ in 0..100 {
+        recorded = sqlx::query_scalar::<_, String>(
+            "SELECT paths[1] FROM workspace.change_events WHERE checkout = $1",
+        )
+        .bind(&other.root)
+        .fetch_all(&pool)
+        .await?;
+        if !recorded.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert_eq!(recorded, ["src/a.txt"]);
 
     shutdown.cancel();
     db.db.cleanup().await
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_root_replaced_by_a_link_to_its_new_place_is_not_there() -> anyhow::Result<()> {
+    let moved = repo().await?;
+    assert!(still_there(&moved.root));
+    let link = format!("{}-old", moved.root);
+    std::os::unix::fs::symlink(&moved.root, &link)?;
+    let held = still_there(&link);
+    std::fs::remove_file(&link)?;
+    assert!(!held);
+    Ok(())
 }

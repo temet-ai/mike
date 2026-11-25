@@ -43,6 +43,10 @@ impl Poster {
         self.last_delivery.is_some()
     }
 
+    pub fn withdraw(&self, ids: &[i64]) {
+        self.notes.withdraw(ids);
+    }
+
     pub async fn post(&mut self, persist: &PersistHandle, roots: &[String]) {
         if roots.is_empty() || !self.stale {
             return;

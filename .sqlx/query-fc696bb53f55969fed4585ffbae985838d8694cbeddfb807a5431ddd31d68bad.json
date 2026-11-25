@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.code_findings f\n   SET outcome = 'superseded',\n       outcome_at = now()\n WHERE f.checkout = $1\n   AND f.path = ANY($2::text[])\n   AND f.outcome IN ('open', 'ignored')\nRETURNING f.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.code_findings",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fc696bb53f55969fed4585ffbae985838d8694cbeddfb807a5431ddd31d68bad"
+}

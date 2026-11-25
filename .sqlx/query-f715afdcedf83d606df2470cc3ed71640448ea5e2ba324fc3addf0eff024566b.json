@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.before_sha AS \"before_sha!\"\n  FROM workspace.change_events c\n  JOIN workspace.change_events e\n    ON e.id BETWEEN c.id - 2000 AND c.id + 2000\n   AND e.at BETWEEN c.at - interval '1 minute' AND c.at + interval '1 minute'\n WHERE c.id = $1\n   AND e.kind IN ('edit', 'shell_change')\n   AND e.after_sha IS NULL\n   AND e.before_sha IS NOT NULL\n   AND cardinality(e.paths) = 1\n   AND (e.before_sha = c.after_sha\n        OR (e.checkout = c.checkout\n            AND regexp_replace(e.paths[1], '^.*/', '') = regexp_replace(c.paths[1], '^.*/', '')))\n ORDER BY (e.before_sha = c.after_sha) DESC, abs(e.id - c.id)\n LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "before_sha!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "before_sha"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "f715afdcedf83d606df2470cc3ed71640448ea5e2ba324fc3addf0eff024566b"
+}

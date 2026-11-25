@@ -35,7 +35,6 @@ impl ShellFolders {
             .map_or(window, |at| (at - overlap()).max(window))
     }
 
-    /// Takes in newly read commands; true when they name a folder not held before.
     pub(super) fn add(&mut self, commands: &[ShellCommand], now: DateTime<Utc>) -> bool {
         let window = now - worked_within();
         self.folders
@@ -86,7 +85,6 @@ fn pattern() -> Option<&'static Regex> {
         .as_ref()
 }
 
-/// The folders a shell command enters, or sets a variable to, as absolute paths.
 pub fn folders_named(command: &str, cwd: &str) -> Vec<String> {
     let Some(pattern) = pattern() else {
         return Vec::new();

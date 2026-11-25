@@ -69,6 +69,27 @@ impl KnownTree {
         })
     }
 
+    pub async fn written_since(
+        &self,
+        git: &Git,
+        since: std::time::SystemTime,
+    ) -> Result<Vec<FileDelta>, GitError> {
+        let head = git
+            .run(&["ls-tree", "-r", "-z", "HEAD"])
+            .await
+            .map(|raw| parse_tree(&raw))
+            .unwrap_or_default();
+        Ok(differences(&head, &self.known)
+            .into_iter()
+            .filter(|delta| delta.after_sha.is_some())
+            .filter(|delta| {
+                std::fs::symlink_metadata(git.absolute(&delta.path))
+                    .and_then(|meta| meta.modified())
+                    .is_ok_and(|at| at >= since)
+            })
+            .collect())
+    }
+
     pub fn directories(&self) -> BTreeSet<String> {
         let mut dirs = BTreeSet::new();
         for path in self.known.keys() {
@@ -164,6 +185,17 @@ impl KnownTree {
             })
             .collect()
     }
+}
+
+fn parse_tree(raw: &[u8]) -> BTreeMap<String, String> {
+    super::git::split_nul(raw)
+        .iter()
+        .filter_map(|entry| {
+            let (meta, path) = entry.split_once('\t')?;
+            let sha = meta.split(' ').nth(2)?;
+            Some((path.to_owned(), sha.to_owned()))
+        })
+        .collect()
 }
 
 fn on_disk(git: &Git, path: &str) -> OnDisk {

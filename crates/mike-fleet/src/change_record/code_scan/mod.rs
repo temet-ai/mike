@@ -197,14 +197,33 @@ impl Worker {
         root: &str,
         change: &PendingChange,
     ) -> bool {
-        let record = scan_change(git, rules, root, change).await;
+        let change = self.with_moved_from(change).await;
+        let record = scan_change(git, rules, root, &change).await;
         match self.persist.fleet().record_code_scan(&record).await {
-            Ok(_) => true,
+            Ok(recorded) => {
+                if let Some(recorded) = recorded {
+                    self.poster.withdraw(&recorded.fixed);
+                }
+                true
+            }
             Err(err) => {
                 tracing::warn!(%root, path = %change.path, error = %err, "code scan: the scan could not be recorded");
                 false
             }
         }
+    }
+
+    async fn with_moved_from(&self, change: &PendingChange) -> PendingChange {
+        let mut change = change.clone();
+        if change.before_sha.is_none() && change.after_sha.is_some() {
+            match self.persist.fleet().code_scan_moved_from(change.id).await {
+                Ok(before) => change.before_sha = before,
+                Err(err) => {
+                    tracing::warn!(path = %change.path, error = %err, "code scan: where a new file came from could not be read");
+                }
+            }
+        }
+        change
     }
 
     async fn supersede(&self, root: &str, deleted: &mut Vec<String>) -> bool {
@@ -219,7 +238,8 @@ impl Worker {
             .supersede_deleted_paths(root, deleted)
             .await
         {
-            Ok(_) => {
+            Ok(superseded) => {
+                self.poster.withdraw(&superseded);
                 deleted.clear();
                 true
             }

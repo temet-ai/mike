@@ -12,4 +12,4 @@ WITH closed AS (
 UPDATE workspace.code_scans s
    SET findings_fixed = (SELECT count(*) FROM closed)
  WHERE s.id = $3
-RETURNING s.findings_fixed AS "fixed!"
+RETURNING ARRAY(SELECT id FROM closed) AS "closed!"

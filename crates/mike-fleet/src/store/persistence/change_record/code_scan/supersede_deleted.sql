@@ -4,3 +4,4 @@ UPDATE workspace.code_findings f
  WHERE f.checkout = $1
    AND f.path = ANY($2::text[])
    AND f.outcome IN ('open', 'ignored')
+RETURNING f.id

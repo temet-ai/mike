@@ -46,7 +46,7 @@ pub struct NewCodeScan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordedScan {
     pub scan_id: i64,
-    pub fixed: i64,
+    pub fixed: Vec<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -167,6 +167,22 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         .await
     }
 
+    pub async fn code_scan_moved_from(
+        self,
+        change_event_id: i64,
+    ) -> Result<Option<String>, PersistError> {
+        crate::metrics::time_db("code_scan_moved_from", async move {
+            let sha = sqlx::query_file_scalar!(
+                "src/store/persistence/change_record/code_scan/moved_from.sql",
+                change_event_id,
+            )
+            .fetch_optional(&self.pool)
+            .await?;
+            Ok(sha)
+        })
+        .await
+    }
+
     pub async fn record_code_scan(
         self,
         scan: &NewCodeScan,
@@ -199,7 +215,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
             let fixed = if read_whole_file {
                 close_fixed(&mut tx, scan, scan_id).await?
             } else {
-                0
+                Vec::new()
             };
             insert_findings(&mut tx, scan, scan_id).await?;
             tx.commit().await?;
@@ -212,19 +228,19 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
         self,
         checkout: &str,
         paths: &[String],
-    ) -> Result<u64, PersistError> {
+    ) -> Result<Vec<i64>, PersistError> {
         if paths.is_empty() {
-            return Ok(0);
+            return Ok(Vec::new());
         }
         crate::metrics::time_db("code_findings_supersede_deleted", async move {
-            let done = sqlx::query_file!(
+            let superseded = sqlx::query_file_scalar!(
                 "src/store/persistence/change_record/code_scan/supersede_deleted.sql",
                 checkout,
                 paths,
             )
-            .execute(&self.pool)
+            .fetch_all(&self.pool)
             .await?;
-            Ok(done.rows_affected())
+            Ok(superseded)
         })
         .await
     }
@@ -380,7 +396,7 @@ async fn close_fixed(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     scan: &NewCodeScan,
     scan_id: i64,
-) -> Result<i64, PersistError> {
+) -> Result<Vec<i64>, PersistError> {
     let fixed = sqlx::query_file_scalar!(
         "src/store/persistence/change_record/code_scan/close_fixed.sql",
         scan.checkout,
@@ -390,7 +406,7 @@ async fn close_fixed(
     )
     .fetch_one(&mut **tx)
     .await?;
-    Ok(i64::from(fixed))
+    Ok(fixed)
 }
 
 async fn insert_findings(

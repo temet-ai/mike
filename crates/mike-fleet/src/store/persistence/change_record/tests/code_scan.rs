@@ -112,7 +112,7 @@ async fn a_scan_records_findings_closes_fixed_ones_and_delivers_to_the_author() 
         .record_code_scan(&scan_of(*e1, &["fp-a", "fp-b"], added))
         .await?
         .context("first scan not recorded")?;
-    assert_eq!(first_scan.fixed, 0);
+    assert!(first_scan.fixed.is_empty());
     let again = f
         .handle
         .fleet()
@@ -135,7 +135,7 @@ async fn a_scan_records_findings_closes_fixed_ones_and_delivers_to_the_author() 
         .record_code_scan(&scan_of(*e2, &["fp-b"], Vec::new()))
         .await?
         .context("second scan not recorded")?;
-    assert_eq!(second_scan.fixed, 1, "fp-a is gone from the file");
+    assert_eq!(second_scan.fixed.len(), 1, "fp-a is gone from the file");
 
     let (summary, rules) = f.handle.fleet().code_scan_summary(since).await?;
     assert_eq!(
@@ -188,13 +188,13 @@ async fn a_skipped_scan_closes_nothing_and_a_deleted_file_supersedes() -> anyhow
         .record_code_scan(&skipped)
         .await?
         .context("skipped")?;
-    assert_eq!(recorded.fixed, 0);
+    assert!(recorded.fixed.is_empty());
     let superseded = f
         .handle
         .fleet()
         .supersede_deleted_paths(CHECKOUT, &["src/a.rs".to_owned()])
         .await?;
-    assert_eq!(superseded, 1);
+    assert_eq!(superseded.len(), 1);
     let rows = f
         .handle
         .fleet()
@@ -377,5 +377,40 @@ async fn a_delivered_finding_gets_its_reply_read_once_after_a_minute() -> anyhow
     .fetch_one(pool)
     .await?;
     assert_eq!((reply, read), (None, true));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_new_file_is_matched_to_the_file_it_was_moved_from() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let project_id = project(f.handle.pool()).await?;
+    let file = |path: &str, before: Option<&str>, after: Option<&str>| {
+        let mut e = event(project_id, ChangeKind::ShellChange, &[path]);
+        e.before_sha = before.map(str::to_owned);
+        e.after_sha = after.map(str::to_owned);
+        e
+    };
+    let mut long_ago = file("old/lone.rs", Some("eee"), None);
+    long_ago.at -= Duration::hours(1);
+    let events = vec![
+        long_ago,
+        file("new/same.rs", None, Some("aaa")),
+        file("new/edited.rs", None, Some("bbb")),
+        file("new/lone.rs", None, Some("ccc")),
+        file("old/other_name.rs", Some("aaa"), None),
+        file("old/edited.rs", Some("ddd"), None),
+    ];
+    let ids = f.handle.fleet().insert_change_events(&events).await?;
+    let mut found = Vec::new();
+    for id in &ids[1..4] {
+        found.push(f.handle.fleet().code_scan_moved_from(*id).await?);
+    }
+    assert_eq!(
+        found,
+        [Some("aaa".to_owned()), Some("ddd".to_owned()), None]
+    );
+    f.db.cleanup().await?;
     Ok(())
 }

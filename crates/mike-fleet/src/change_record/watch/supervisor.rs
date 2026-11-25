@@ -46,6 +46,7 @@ pub struct Supervisor {
     running: BTreeMap<String, Running>,
     roots: HashMap<String, Option<String>>,
     failures: u32,
+    started: bool,
 }
 
 struct Wanted {
@@ -64,6 +65,7 @@ impl Supervisor {
             running: BTreeMap::new(),
             roots: HashMap::new(),
             failures: 0,
+            started: false,
         }
     }
 
@@ -112,7 +114,7 @@ impl Supervisor {
         if self.take_in_shell_commands().await {
             let wanted = self.wanted().await;
             self.working.expire(expiry(&wanted.newest));
-            self.apply(&wanted.projects, shutdown);
+            self.apply(&wanted, shutdown);
         }
     }
 
@@ -150,7 +152,7 @@ impl Supervisor {
                 let wanted = self.wanted().await;
                 self.working
                     .read(stamp, &self.placed, expiry(&wanted.newest));
-                self.apply(&wanted.projects, shutdown);
+                self.apply(&wanted, shutdown);
                 None
             }
             Err(err) => {
@@ -196,8 +198,7 @@ impl Supervisor {
         if self.config.skip_temporary && is_temporary(checkout) {
             return None;
         }
-        let gone =
-            matches!(self.roots.get(checkout), Some(Some(root)) if !Path::new(root).is_dir());
+        let gone = matches!(self.roots.get(checkout), Some(Some(root)) if !still_there(root));
         if gone || !self.roots.contains_key(checkout) {
             let root = repository_root(checkout).await;
             self.roots.insert(checkout.to_owned(), root);
@@ -205,10 +206,10 @@ impl Supervisor {
         self.roots.get(checkout).cloned().flatten()
     }
 
-    fn apply(&mut self, wanted: &BTreeMap<String, i64>, shutdown: &CancellationToken) {
+    fn apply(&mut self, wanted: &Wanted, shutdown: &CancellationToken) {
         self.running.retain(|_, run| !run.handle.is_finished());
         let running = self.watching();
-        let (begin, end) = plan(&running, wanted);
+        let (begin, end) = plan(&running, &wanted.projects);
         for root in end {
             if let Some(run) = self.running.remove(&root) {
                 run.token.cancel();
@@ -222,11 +223,20 @@ impl Supervisor {
             let run = start(
                 self.persist.clone(),
                 checkout,
-                self.config,
+                WatchConfig {
+                    catch_up: self.catch_up(wanted.newest.get(&root)),
+                    ..self.config
+                },
                 shutdown.child_token(),
             );
             self.running.insert(root, run);
         }
+        self.started = true;
+    }
+
+    fn catch_up(&self, newest: Option<&DateTime<Utc>>) -> Option<DateTime<Utc>> {
+        let newest = newest.filter(|_| self.started)?;
+        Some(*newest - chrono::Duration::seconds(5))
     }
 
     fn stop_all(&mut self) {
@@ -256,6 +266,11 @@ pub async fn repository_root(folder: &str) -> Option<String> {
     }
     tracing::info!(%folder, %root, "change record: the folder holds nothing the enclosing repository tracks, so that repository is not watched");
     None
+}
+
+pub fn still_there(root: &str) -> bool {
+    Path::new(root).is_dir()
+        && std::fs::canonicalize(root).is_ok_and(|real| real == Path::new(root))
 }
 
 fn same_folder(root: &str, folder: &str) -> bool {

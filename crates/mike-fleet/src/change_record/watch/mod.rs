@@ -43,6 +43,7 @@ pub struct WatchConfig {
     pub edit_window: Duration,
     pub hold_retries: bool,
     pub skip_temporary: bool,
+    pub catch_up: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Default for WatchConfig {
@@ -56,6 +57,7 @@ impl Default for WatchConfig {
             edit_window: Duration::from_secs(30),
             hold_retries: false,
             skip_temporary: true,
+            catch_up: None,
         }
     }
 }

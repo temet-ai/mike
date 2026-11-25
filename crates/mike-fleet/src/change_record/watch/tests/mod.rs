@@ -96,6 +96,7 @@ pub fn quick(notifications: bool) -> WatchConfig {
         edit_window: Duration::from_secs(30),
         hold_retries: false,
         skip_temporary: false,
+        catch_up: None,
     }
 }
 

@@ -39,6 +39,7 @@ pub async fn scan_change(
         }
     };
     let before = match change.before_sha.as_deref() {
+        Some(sha) if sha == after_sha => after.clone(),
         Some(sha) => git
             .run(&["cat-file", "blob", sha])
             .await

@@ -85,3 +85,13 @@ fn a_pushed_note_is_delivered_with_the_sessions_next_request() {
     notes.bind_session_request(session, 800_101);
     assert!(notes.drain_delivered().is_empty());
 }
+
+#[test]
+fn a_withdrawn_note_is_not_handed_out() {
+    let notes = CodeNotes::default();
+    let session = Uuid::new_v4();
+    notes.post(session, vec![note(1), note(2)]);
+    notes.withdraw(&[1]);
+    let left: Vec<i64> = notes.take(session, 10).iter().map(|n| n.id).collect();
+    assert_eq!(left, vec![2]);
+}
