@@ -161,26 +161,15 @@ impl PersistHandle {
         )
         .await
     }
-    pub async fn search_content_totals(
-        &self,
-        query: &content_search::ContentQuery,
-        project_id: Option<i64>,
-    ) -> Result<content_search::ContentSearchTotals, PersistError> {
-        crate::metrics::time_db(
-            "search_content_totals",
-            content_search::search_content_totals(&self.pool, query, project_id),
-        )
-        .await
-    }
-    pub async fn search_content_page(
+    pub async fn search_content(
         &self,
         query: &content_search::ContentQuery,
         project_id: Option<i64>,
         page: &content_search::PageRequest,
-    ) -> Result<Vec<content_search::ContentSearchRow>, PersistError> {
+    ) -> Result<content_search::ContentSearchPage, PersistError> {
         crate::metrics::time_db(
-            "search_content_page",
-            content_search::search_content_page(&self.pool, query, project_id, page),
+            "search_content",
+            content_search::search_content(&self.pool, query, project_id, page),
         )
         .await
     }

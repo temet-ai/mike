@@ -6,7 +6,7 @@ fn phrase_query_keeps_the_whole_text_as_one_pattern() {
 
     assert_eq!(query.mode(), SearchMode::Phrase);
     assert_eq!(query.words(), ["Executor install"]);
-    assert_eq!(query.patterns, ["%Executor install%"]);
+    assert_eq!(query.patterns, ["%executor install%"]);
     assert_eq!(query.min_words, 1);
 }
 
@@ -15,7 +15,7 @@ fn all_mode_requires_every_distinct_word_ignoring_case_and_repeats() -> anyhow::
     let query = ContentQuery::new("Executor  install executor", SearchMode::All)?;
 
     assert_eq!(query.words(), ["Executor", "install"]);
-    assert_eq!(query.patterns, ["%Executor%", "%install%"]);
+    assert_eq!(query.patterns, ["%executor%", "%install%"]);
     assert_eq!(query.min_words, 2);
     Ok(())
 }
@@ -60,4 +60,26 @@ fn search_mode_parses_the_three_names_and_nothing_else() {
     assert_eq!(SearchMode::parse("all"), Some(SearchMode::All));
     assert_eq!(SearchMode::parse("any"), Some(SearchMode::Any));
     assert_eq!(SearchMode::parse("ALL"), None);
+}
+
+#[test]
+fn patterns_fold_each_letter_to_lower_case() {
+    let query = ContentQuery::phrase("ÉCOLE İ ΣΑΣ");
+
+    assert_eq!(query.patterns, ["%école i σασ%"]);
+}
+
+#[test]
+fn a_word_shorter_than_a_trigram_scans_every_chunk() -> anyhow::Result<()> {
+    assert!(ContentQuery::new("find a name", SearchMode::Any)?.scan_all);
+    assert!(!ContentQuery::new("find the name", SearchMode::Any)?.scan_all);
+    Ok(())
+}
+
+#[test]
+fn wildcards_and_non_ascii_words_are_not_literal() {
+    assert!(ContentQuery::phrase("plain words").matches_are_literal());
+    for q in ["session_id", "100%", "back\\slash", "école"] {
+        assert!(!ContentQuery::phrase(q).matches_are_literal(), "{q}");
+    }
 }

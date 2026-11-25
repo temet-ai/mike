@@ -1,0 +1,187 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matches AS MATERIALIZED (\n    SELECT\n        c.id AS chunk_id, c.turn_id, c.chunk_idx, c.chunk_role_id,\n        t.session_id AS session_pk, t.project_id, t.start_request_id AS request_id, t.created_at,\n          CASE WHEN f.folded LIKE ($1::text[])[1] THEN   1 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[2] THEN   2 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[3] THEN   4 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[4] THEN   8 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[5] THEN  16 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[6] THEN  32 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[7] THEN  64 ELSE 0 END\n        | CASE WHEN f.folded LIKE ($1::text[])[8] THEN 128 ELSE 0 END AS words\n    FROM memory.operator_turn_chunks c\n    JOIN memory.operator_turns t ON t.id = c.turn_id\n    CROSS JOIN LATERAL (SELECT lower(c.chunk_text COLLATE \"pg_c_utf8\") AS folded OFFSET 0) f\n    WHERE ($3::bool OR lower(c.chunk_text COLLATE \"pg_c_utf8\") LIKE ANY ($1::text[]))\n      AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n      AND ($4::bigint IS NULL OR t.project_id = $4)\n),\nturn_agg AS (\n    SELECT\n        m.session_pk, m.project_id, m.turn_id, m.created_at,\n        bit_or(m.words) AS words,\n        COUNT(*) AS match_count,\n        COUNT(*) FILTER (WHERE cr.code = 'prompt') AS prompt_match_count\n    FROM matches m\n    JOIN memory.chunk_roles cr ON cr.id = m.chunk_role_id\n    WHERE m.words <> 0\n    GROUP BY m.session_pk, m.project_id, m.turn_id, m.created_at\n),\nsession_agg AS (\n    SELECT\n        ta.session_pk, ta.project_id,\n        bit_count(bit_or(bit_or(ta.words)) OVER (PARTITION BY ta.session_pk)::bit(8)) AS words_matched,\n        SUM(ta.match_count)::bigint        AS match_count,\n        SUM(ta.prompt_match_count)::bigint AS prompt_match_count,\n        COUNT(*)                           AS turn_count,\n        MAX(ta.created_at)                 AS last_match_at\n    FROM turn_agg ta\n    GROUP BY ta.session_pk, ta.project_id\n),\npaged_sessions AS (\n    SELECT\n        sa.session_pk, sa.project_id, sa.words_matched, sa.match_count, sa.prompt_match_count,\n        sa.turn_count, sa.last_match_at, s.session_uuid::text AS session_id, s.title,\n        SUM(sa.match_count) OVER ()::bigint AS total_matches,\n        COUNT(*) OVER ()                    AS total_sessions,\n        ROW_NUMBER() OVER (\n            ORDER BY\n                sa.words_matched DESC,\n                CASE WHEN $7::text = 'matches' THEN sa.match_count END DESC NULLS LAST,\n                CASE WHEN $7::text = 'matches' THEN sa.prompt_match_count END DESC NULLS LAST,\n                sa.last_match_at DESC, s.session_uuid::text DESC\n        ) AS session_rank\n    FROM session_agg sa\n    JOIN sessions.sessions s ON s.id = sa.session_pk\n    WHERE sa.words_matched >= $2::int\n    ORDER BY session_rank\n    LIMIT $5 OFFSET $6\n),\nshown AS (\n    SELECT\n        ps.session_rank, m.chunk_id, m.turn_id, m.chunk_idx, m.chunk_role_id, m.request_id, m.created_at,\n        ROW_NUMBER() OVER (\n            PARTITION BY ps.session_rank ORDER BY m.created_at DESC, m.chunk_idx ASC, m.chunk_id ASC\n        ) AS match_rank\n    FROM paged_sessions ps\n    JOIN matches m ON m.session_pk = ps.session_pk\n    WHERE m.words <> 0\n)\nSELECT\n    ps.total_matches AS \"total_matches!\", ps.total_sessions AS \"total_sessions!\",\n    ps.session_id AS \"session_id!\", p.project_path AS \"project_path!\",\n    p.display_name AS \"project_display_name!\",\n    ps.title AS \"title?\", ps.words_matched AS \"words_matched!\", ps.match_count AS \"match_count!\",\n    ps.prompt_match_count AS \"prompt_match_count!\", ps.turn_count AS \"turn_count!\",\n    ps.last_match_at AS \"last_match_at!\",\n    sh.turn_id AS \"turn_id!\", sh.request_id AS \"request_id!\", cr.code AS \"role!\",\n    sh.chunk_idx AS \"chunk_idx!\", c.chunk_text AS \"chunk_text!\", sh.created_at AS \"created_at!\"\nFROM shown sh\nJOIN paged_sessions ps ON ps.session_rank = sh.session_rank\nJOIN projects.projects p ON p.id = ps.project_id\nJOIN memory.chunk_roles cr ON cr.id = sh.chunk_role_id\nJOIN memory.operator_turn_chunks c ON c.id = sh.chunk_id\nWHERE $8::bigint IS NULL OR sh.match_rank <= $8\nORDER BY sh.session_rank, sh.match_rank\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_matches!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_display_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "words_matched!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "match_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "prompt_match_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "turn_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "last_match_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_chunks",
+            "name": "turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "start_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.chunk_roles",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "chunk_idx!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_chunks",
+            "name": "chunk_idx"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "chunk_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_chunks",
+            "name": "chunk_text"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int4",
+        "Bool",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      false,
+      false,
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ceb2b20bb74f7c3c7f32bcec8cc624f225910ea58b8484a881fedf7e2845cdd4"
+}

@@ -353,3 +353,68 @@ async fn content_search_word_mode_over_the_word_cap_is_a_400() -> anyhow::Result
     );
     harness.cleanup().await
 }
+
+#[tokio::test]
+async fn content_search_all_mode_matches_words_too_short_for_the_index() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let words = seed_words(&harness).await?;
+
+    let (status, answer) = search(&harness, &format!("q={}+he&mode=all", words.first)).await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(session_ids(&answer), vec![words.apart.to_string()]);
+    assert_eq!(answer["total_matches"], 2, "{answer}");
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_shows_fifty_matches_of_a_session_and_counts_the_rest() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let unique = Uuid::new_v4().simple().to_string();
+    let needle = format!("needle{unique}");
+    let project_id = seed_project(harness.handle.pool(), &format!("/csc/{unique}")).await?;
+    let busy = session(&harness, project_id, 60).await?;
+    for _ in 0..60 {
+        chunk(&harness, busy, "prompt", &format!("the {needle} again")).await?;
+    }
+
+    let (status, answer) = search(&harness, &format!("q={needle}")).await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    let shown = &answer["sessions"][0];
+    assert_eq!(shown["match_count"], 60);
+    assert_eq!(shown["matches_truncated"], true);
+    assert_eq!(shown["matches"].as_array().map(Vec::len), Some(50));
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_ignores_case_in_words_and_text() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let unique = Uuid::new_v4().simple().to_string();
+    let project_id = seed_project(harness.handle.pool(), &format!("/csi/{unique}")).await?;
+    let found = session(&harness, project_id, 1).await?;
+    chunk(&harness, found, "prompt", &format!("École{unique}")).await?;
+
+    let (status, answer) =
+        search(&harness, &format!("q=%C3%89COLE{}", unique.to_uppercase())).await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(session_ids(&answer), vec![found.to_string()]);
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_past_the_last_page_still_returns_the_totals() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed(&harness).await?;
+
+    let (status, answer) = search(&harness, &format!("q={}&offset=5", seeded.needle)).await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["total_sessions"], 2, "{answer}");
+    assert_eq!(answer["total_matches"], 4, "{answer}");
+    assert!(session_ids(&answer).is_empty());
+    harness.cleanup().await
+}

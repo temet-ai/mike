@@ -31,6 +31,7 @@ impl SessionOrder {
 }
 
 pub const MAX_QUERY_WORDS: usize = 8;
+const TRIGRAM_CHARS: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchMode {
@@ -72,16 +73,12 @@ pub struct ContentQuery {
     words: Vec<String>,
     patterns: Vec<String>,
     min_words: i32,
+    scan_all: bool,
 }
 
 impl ContentQuery {
     pub fn phrase(q: &str) -> Self {
-        Self {
-            mode: SearchMode::Phrase,
-            words: vec![q.to_owned()],
-            patterns: vec![like_pattern(q)],
-            min_words: 1,
-        }
+        Self::from_words(SearchMode::Phrase, vec![q.to_owned()], 1)
     }
 
     pub fn new(q: &str, mode: SearchMode) -> Result<Self, ContentQueryError> {
@@ -104,13 +101,17 @@ impl ContentQuery {
         } else {
             1
         };
-        let patterns = words.iter().map(|w| like_pattern(w)).collect();
-        Ok(Self {
+        Ok(Self::from_words(mode, words, min_words))
+    }
+
+    fn from_words(mode: SearchMode, words: Vec<String>, min_words: i32) -> Self {
+        Self {
             mode,
-            words,
-            patterns,
+            patterns: words.iter().map(|w| like_pattern(w)).collect(),
             min_words,
-        })
+            scan_all: words.iter().any(|w| w.chars().count() < TRIGRAM_CHARS),
+            words,
+        }
     }
 
     pub fn mode(&self) -> SearchMode {
@@ -120,10 +121,20 @@ impl ContentQuery {
     pub fn words(&self) -> &[String] {
         &self.words
     }
+
+    pub fn matches_are_literal(&self) -> bool {
+        self.words
+            .iter()
+            .all(|w| w.is_ascii() && !w.contains(['%', '_', '\\']))
+    }
 }
 
 fn like_pattern(word: &str) -> String {
-    format!("%{word}%")
+    let folded: String = word
+        .chars()
+        .filter_map(|c| c.to_lowercase().next())
+        .collect();
+    format!("%{folded}%")
 }
 
 fn distinct_words(q: &str) -> Vec<String> {
@@ -134,14 +145,22 @@ fn distinct_words(q: &str) -> Vec<String> {
         .collect()
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ContentSearchTotals {
     pub total_matches: i64,
     pub total_sessions: i64,
 }
 
+#[derive(Debug)]
+pub struct ContentSearchPage {
+    pub totals: ContentSearchTotals,
+    pub rows: Vec<ContentSearchRow>,
+}
+
 #[derive(Debug, sqlx::FromRow)]
 pub struct ContentSearchRow {
+    pub total_matches: i64,
+    pub total_sessions: i64,
     pub session_id: String,
     pub project_path: String,
     pub project_display_name: String,
@@ -159,78 +178,68 @@ pub struct ContentSearchRow {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PageRequest {
     pub order: SessionOrder,
     pub limit: i64,
     pub offset: i64,
+    pub matches_per_session: Option<i64>,
 }
 
-pub async fn search_content_totals(
+pub async fn search_content(
     pool: &PgPool,
     query: &ContentQuery,
     project_id: Option<i64>,
-) -> Result<ContentSearchTotals, PersistError> {
-    let totals = match project_id {
-        Some(project_id) => {
-            sqlx::query_file_as!(
-                ContentSearchTotals,
-                "src/store/persistence/content_search/totals_in_project.sql",
-                &query.patterns,
-                query.min_words,
-                project_id,
-            )
-            .fetch_one(pool)
-            .await?
-        }
-        None => {
-            sqlx::query_file_as!(
-                ContentSearchTotals,
-                "src/store/persistence/content_search/totals.sql",
-                &query.patterns,
-                query.min_words,
-            )
-            .fetch_one(pool)
-            .await?
-        }
-    };
-    Ok(totals)
+    page: &PageRequest,
+) -> Result<ContentSearchPage, PersistError> {
+    let rows = search_content_rows(pool, query, project_id, page).await?;
+    if rows.is_empty() && page.offset > 0 {
+        let first = PageRequest {
+            limit: 1,
+            offset: 0,
+            matches_per_session: Some(1),
+            ..*page
+        };
+        let counted = search_content_rows(pool, query, project_id, &first).await?;
+        return Ok(ContentSearchPage {
+            totals: totals_of(&counted),
+            rows,
+        });
+    }
+    Ok(ContentSearchPage {
+        totals: totals_of(&rows),
+        rows,
+    })
 }
 
-pub async fn search_content_page(
+fn totals_of(rows: &[ContentSearchRow]) -> ContentSearchTotals {
+    rows.first()
+        .map(|row| ContentSearchTotals {
+            total_matches: row.total_matches,
+            total_sessions: row.total_sessions,
+        })
+        .unwrap_or_default()
+}
+
+async fn search_content_rows(
     pool: &PgPool,
     query: &ContentQuery,
     project_id: Option<i64>,
     page: &PageRequest,
 ) -> Result<Vec<ContentSearchRow>, PersistError> {
-    let order = page.order.as_str();
-    let rows = match project_id {
-        Some(project_id) => {
-            sqlx::query_file_as!(
-                ContentSearchRow,
-                "src/store/persistence/content_search/page_in_project.sql",
-                &query.patterns,
-                query.min_words,
-                project_id,
-                page.limit,
-                page.offset,
-                order,
-            )
-            .fetch_all(pool)
-            .await?
-        }
-        None => {
-            sqlx::query_file_as!(
-                ContentSearchRow,
-                "src/store/persistence/content_search/page.sql",
-                &query.patterns,
-                query.min_words,
-                page.limit,
-                page.offset,
-                order,
-            )
-            .fetch_all(pool)
-            .await?
-        }
-    };
+    let rows = sqlx::query_file_as!(
+        ContentSearchRow,
+        "src/store/persistence/content_search/page.sql",
+        &query.patterns,
+        query.min_words,
+        query.scan_all,
+        project_id,
+        page.limit,
+        page.offset,
+        page.order.as_str(),
+        page.matches_per_session,
+    )
+    .fetch_all(pool)
+    .await?;
     Ok(rows)
 }

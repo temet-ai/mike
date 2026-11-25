@@ -9,7 +9,7 @@ pub(super) const EXPECTED_INDEXES: &[(&str, &str)] = &[
     ("requests", "idx_requests_status_created_at"),
     ("sessions", "idx_sessions_title_trgm"),
     ("requests", "idx_request_tools_request"),
-    ("memory", "idx_otc_chunk_text_trgm"),
+    ("memory", "idx_otc_folded_text_trgm"),
     ("memory", "idx_operator_turns_search_tsv"),
     ("requests", "idx_rsp_firing_rules_request_system_prompt_id"),
 ];

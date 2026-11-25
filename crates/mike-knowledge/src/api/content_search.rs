@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::content_search::{
-    ContentQuery, ContentQueryError, ContentSearchRow, MAX_QUERY_WORDS, PageRequest, SearchMode,
-    SessionOrder,
+    ContentQuery, ContentQueryError, ContentSearchPage, ContentSearchRow, MAX_QUERY_WORDS,
+    PageRequest, SearchMode, SessionOrder,
 };
 
 const CONTENT_SEARCH_MAX_QUERY_BYTES: usize = 8192;
@@ -171,20 +171,6 @@ async fn resolve_project(
         .map_err(crate::api::project_knowledge::knowledge_error)
 }
 
-async fn fetch_search_totals(
-    handle: &PersistHandle,
-    query: &ContentQuery,
-    project_id: Option<i64>,
-) -> Result<crate::store::persistence::content_search::ContentSearchTotals, Response> {
-    handle
-        .search_content_totals(query, project_id)
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, "content_search: totals query failed");
-            lookup_failed(&e)
-        })
-}
-
 fn lookup_failed(error: &crate::store::persistence::PersistError) -> Response {
     mike_base::web_base::errors::temporary_response(error)
         .unwrap_or_else(|| content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed"))
@@ -195,12 +181,12 @@ async fn fetch_search_page(
     query: &ContentQuery,
     project_id: Option<i64>,
     page: &PageRequest,
-) -> Result<Vec<ContentSearchRow>, Response> {
+) -> Result<ContentSearchPage, Response> {
     handle
-        .search_content_page(query, project_id, page)
+        .search_content(query, project_id, page)
         .await
         .map_err(|e| {
-            tracing::warn!(error = %e, "content_search: page query failed");
+            tracing::warn!(error = %e, "content_search: query failed");
             lookup_failed(&e)
         })
 }
@@ -329,13 +315,16 @@ async fn run_search(
         .clamp(1, MAX_SESSION_LIMIT);
     let offset = params.offset.unwrap_or(0);
     let project_id = resolve_project(handle, params.project.as_deref()).await?;
-    let totals = fetch_search_totals(handle, &query, project_id).await?;
     let page = PageRequest {
         order,
         limit: i64::from(limit),
         offset: i64::from(offset),
+        matches_per_session: query
+            .matches_are_literal()
+            .then_some(MAX_MATCHES_PER_SESSION as i64),
     };
-    let rows = fetch_search_page(handle, &query, project_id, &page).await?;
+    let ContentSearchPage { totals, rows } =
+        fetch_search_page(handle, &query, project_id, &page).await?;
     let sessions = group_rows_by_session(rows, &query);
 
     let returned_sessions = sessions.len() as u32;
