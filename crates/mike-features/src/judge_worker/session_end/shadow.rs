@@ -23,8 +23,7 @@ use super::live::verdict_row;
 use super::rubric::RUBRIC_VERSION;
 use super::run::{SessionJudgeFailure, SessionSubject, judge_session_v3};
 
-const POOL_MULTIPLIER: i64 = 5;
-const MAX_POOL: i64 = 200;
+const POOL_SIZE: i64 = 200;
 
 pub fn spawn_session_end_shadow(state: &AppState) {
     let Some(persist) = state.persist.clone() else {
@@ -90,6 +89,35 @@ fn log_spawned() {
 
 fn log_shutdown_signalled() {
     tracing::debug!("session_end_shadow: shutdown signalled, exiting");
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CandidateProblem {
+    NotConfigured,
+    SameAsLive,
+}
+
+fn candidate_problem(shadow_bundle_id: i64, live_bundle_id: i64) -> Option<CandidateProblem> {
+    if shadow_bundle_id <= 0 {
+        Some(CandidateProblem::NotConfigured)
+    } else if shadow_bundle_id == live_bundle_id {
+        Some(CandidateProblem::SameAsLive)
+    } else {
+        None
+    }
+}
+
+fn log_no_candidate() {
+    tracing::warn!(
+        "session_end_shadow is on but session_end_shadow.bundle_id is 0: no candidate to judge with"
+    );
+}
+
+fn log_same_as_live(bundle_id: i64) {
+    tracing::warn!(
+        bundle_id,
+        "session_end_shadow.bundle_id is the live session-judge bundle: nothing to compare"
+    );
 }
 
 fn log_client_not_built() {
@@ -187,7 +215,18 @@ async fn tick(
     breaker: &mut CircuitBreaker,
 ) -> usize {
     let bundle_id = settings.session_end_shadow_bundle_id;
-    if bundle_id <= 0 || breaker.should_skip(Instant::now()) {
+    match candidate_problem(bundle_id, settings.session_judge_live_bundle_id) {
+        Some(CandidateProblem::NotConfigured) => {
+            log_no_candidate();
+            return 0;
+        }
+        Some(CandidateProblem::SameAsLive) => {
+            log_same_as_live(bundle_id);
+            return 0;
+        }
+        None => {}
+    }
+    if breaker.should_skip(Instant::now()) {
         return 0;
     }
     let Some(llm) = crate::llm::key::keyed_client(&deps.llm, &deps.key_slot) else {
@@ -318,14 +357,12 @@ impl ShadowPoll<'_> {
             return 0;
         };
         let shadow_key = format!("shadow:{}", cfg.model);
-        let pool_size =
-            (self.batch.saturating_mul(POOL_MULTIPLIER)).clamp(self.batch.max(1), MAX_POOL);
         let selection = ShadowSelection {
             judge_model: &shadow_key,
             bundle_id: self.bundle_id,
             lookback_hours: i32::try_from(self.lookback_hours).unwrap_or(72),
             max_attempts_per_day: self.max_attempts_per_day,
-            limit: pool_size,
+            limit: POOL_SIZE,
         };
         let Some(candidates) = ok_or_warn(
             self.persist
@@ -372,7 +409,28 @@ pub fn should_sample(end_turn_id: i64, sample_rate: f64) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{sample_point, should_sample};
+    use super::{CandidateProblem, candidate_problem, sample_point, should_sample};
+
+    #[test]
+    fn candidate_problem_unset_bundle_is_not_configured() {
+        assert_eq!(
+            candidate_problem(0, 95),
+            Some(CandidateProblem::NotConfigured)
+        );
+    }
+
+    #[test]
+    fn candidate_problem_live_bundle_is_same_as_live() {
+        assert_eq!(
+            candidate_problem(95, 95),
+            Some(CandidateProblem::SameAsLive)
+        );
+    }
+
+    #[test]
+    fn candidate_problem_other_bundle_is_none() {
+        assert_eq!(candidate_problem(96, 95), None);
+    }
 
     #[test]
     fn zero_rate_never_samples() {
