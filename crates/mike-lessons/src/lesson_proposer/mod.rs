@@ -248,6 +248,11 @@ pub async fn run_tick(deps: &ProposerDeps<'_>) -> ProposerReport {
     report.shape = shape_pass::run_pass(deps).await;
     report.placement = placement_pass::run_pass(deps).await;
     report.purpose = purpose::run_pass(deps).await;
+    promote_waiting(deps, &mut report).await;
+    report
+}
+
+async fn promote_waiting(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {
     match write::promote_waiting(deps.persist, &deps.settings).await {
         Ok(promoted) => report.promoted += promoted,
         Err(error) => {
@@ -255,7 +260,6 @@ pub async fn run_tick(deps: &ProposerDeps<'_>) -> ProposerReport {
             report.errors += 1;
         }
     }
-    report
 }
 
 async fn examine_candidates(deps: &ProposerDeps<'_>, report: &mut ProposerReport) {

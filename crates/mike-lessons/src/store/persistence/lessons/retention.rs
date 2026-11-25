@@ -74,8 +74,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                  tried AS (
                      SELECT i.lesson_id, count(*) AS supplied,
                             count(v.supplied_item_id) AS judged,
-                            count(*) FILTER (
-                                WHERE COALESCE(v.hand_verdict, v.verdict) = 'used') AS used
+                            count(*) FILTER (WHERE COALESCE(v.hand_verdict, v.verdict) = 'used') AS used
                        FROM memory.supplied_items i
                        JOIN memory.lessons l ON l.id = i.lesson_id AND l.project_id = $1
                        LEFT JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id
@@ -83,9 +82,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                  ),
                  active AS (
                      SELECT l.id, l.stage_id, l.consolidation_count, l.created_at,
-                            ROW_NUMBER() OVER (
-                                ORDER BY COALESCE(t.judged, 0) DESC, l.created_at ASC
-                            ) AS rn
+                            ROW_NUMBER() OVER (ORDER BY COALESCE(t.judged, 0) DESC, l.created_at) AS rn
                        FROM memory.lessons l
                        CROSS JOIN archived_stage
                        LEFT JOIN tried t ON t.lesson_id = l.id
@@ -95,9 +92,8 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                         AND (t.judged >= 5
                              OR (COALESCE(t.supplied, 0) = 0
                                  AND l.created_at < now() - interval '30 days'
-                                 AND NOT EXISTS (
-                                     SELECT 1 FROM memory.lesson_routes r
-                                      WHERE r.lesson_id = l.id AND r.route = 'standing')))
+                                 AND NOT EXISTS (SELECT 1 FROM memory.lesson_routes r
+                                                  WHERE r.lesson_id = l.id AND r.route = 'standing')))
                  ),
                  excess AS (
                      SELECT GREATEST(0, COUNT(*)::bigint - $2) AS n
