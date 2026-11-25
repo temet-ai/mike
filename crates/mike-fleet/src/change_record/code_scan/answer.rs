@@ -15,7 +15,7 @@ const REASON_MIN: usize = 15;
 const GONE: &str = "No open finding of yours has this number. It may be fixed already.";
 const TO_OPERATOR_ERROR: &str = "An error-level finding is not a session's to close. Your reason is with the operator and the finding stays open; fix it if you can.";
 const TO_OPERATOR_KEEPS: &str = "This session has kept findings of this rule three times in 24 hours, so this one is with the operator. The finding stays open; fix it if you can.";
-const TO_OPERATOR_REFUSED: &str = "Two reasons were refused, so this one is with the operator. The finding stays open; fix it if you can.";
+const TO_OPERATOR_REFUSED: &str = "Two answers were refused, so this one is with the operator. The finding stays open; fix it if you can.";
 const TO_OPERATOR_UNJUDGED: &str =
     "The reason could not be judged now, so it is with the operator. The finding stays open.";
 const ACCEPTED: &str = "Accepted and closed.";
@@ -34,6 +34,8 @@ pub struct Ruling {
     pub answer: &'static str,
     pub message: String,
     pub findings: usize,
+    #[serde(skip)]
+    pub ids: Vec<i64>,
 }
 
 impl Ruling {
@@ -42,6 +44,7 @@ impl Ruling {
             answer,
             message: message.to_owned(),
             findings,
+            ids: Vec::new(),
         }
     }
 }
@@ -115,7 +118,7 @@ pub async fn answer(
     let Some(first) = group.first() else {
         return Ok(Ruling::new("gone", GONE, 0));
     };
-    let ruling = match claim {
+    let mut ruling = match claim {
         Claim::NotMine => not_mine(&group),
         Claim::Keep => {
             let keeps = persist
@@ -136,6 +139,7 @@ pub async fn answer(
         .fleet()
         .record_code_answer(&ids, ruling.answer, reason, &ruling.message)
         .await?;
+    ruling.ids = ids;
     Ok(ruling)
 }
 

@@ -101,6 +101,9 @@ pub async fn post_code_answer(
         &request.reason,
     )
     .await?;
+    if ruling.answer != "refused" {
+        state.code_notes.withdraw(&ruling.ids);
+    }
     Ok(Json(ruling))
 }
 
