@@ -129,6 +129,7 @@ Review the ask-kit kit "$kit", and only that kit, by following the ask-kit-impro
 
 - Work in a new git worktree of $repo on a new branch review-$today (review-$today-2 if that exists), made with \`git -C $repo worktree add -b <branch> $worktree_root/$kit HEAD\`. Never edit the live checkout. Commit your changes in the worktree.
 - Do not push, merge, tag, release, or run paid tests (\`kit test\`, benchmarks, model replays). Do not touch the phone, adb or scrcpy.
+- Give a cause only to a chain you worked out from its transcript, and leave the rest out of the record. Run a new or changed script live and read-only before you name a question it answers; a fixture does not show that it works.
 - Save the completion record as $record_dir/$kit.json, outside the repository.
 - The fix is not live until a person merges the branch, so do not record a changed review. If nothing needed changing, record it with outcome no-change: \`$ask_kit improve $kit --record $record_dir/$kit.json\`. Otherwise leave the review unrecorded, with the record prepared at that path.
 - Finish by writing a mike session note of kind report titled "Kit review: $kit" (the write_session_note tool, or ask about mike). It states the outcome (recorded no-change, or changes prepared and not recorded), the prepared record path, the branch and worktree path, the questions addressed in their own words, and each check run with its result.
