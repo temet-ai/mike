@@ -240,7 +240,7 @@ pub(super) const KIT_REVIEWS: Job = Job {
         period: Period::Day,
     },
     nice: 19,
-    leased: true,
+    leased: false,
     alarm_exit: None,
     enabled_key: KIT_REVIEWS_ENABLED_KEY,
     enabled_by_default: false,

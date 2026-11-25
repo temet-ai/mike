@@ -25,7 +25,8 @@ trap cleanup EXIT
 
 TODAY="$(date -u +%F)"
 HOME_DIR="$SCRATCH/home"
-mkdir -p "$HOME_DIR"
+mkdir -p "$HOME_DIR/.config/ask-kit"
+printf '{"machines":["uberwald"]}\n' >"$HOME_DIR/.config/ask-kit/config.json"
 FIX="$SCRATCH/fix"
 mkdir -p "$FIX"
 
@@ -124,6 +125,12 @@ run_job "${JOBCMD[@]}" --bogus
 
 # Step 1: ask-kit resolution and version.
 reset_fix
+printf '{"machines":[]}\n' >"$HOME_DIR/.config/ask-kit/config.json"
+run_job "${JOBCMD[@]}"
+check "a machine that names no others stands aside" "stood aside" "$ERR"
+check "standing aside is not a failure" "kit-reviews: ok" "$ERR"
+printf '{"machines":["uberwald"]}\n' >"$HOME_DIR/.config/ask-kit/config.json"
+
 run_job env -u ASK_KIT_BIN CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
 [[ $RC -eq 1 ]] && ok "no ask-kit anywhere fails" || bad "no ask-kit anywhere fails" "rc=$RC"
 check "no ask-kit names how to supply one" "no ask-kit binary (set ASK_KIT_BIN" "$ERR"

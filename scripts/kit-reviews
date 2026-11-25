@@ -15,6 +15,9 @@
 # not live until a person merges it, so a review that changed nothing is recorded as no-change
 # and any other review stays unrecorded, with its prepared record named in a mike session note.
 #
+# Every machine with a checkout runs the job, and one does the work: the machine whose ask-kit config
+# names the others (`machines`). The rest stand aside, exit 0.
+#
 # The code and sessions kits live in the ask-kit repository. When their source is an installed
 # copy (the Claude plugin cache or node_modules), the checkout in KIT_REVIEWS_ASK_KIT is used;
 # without it the kit is skipped and the skip is logged.
@@ -153,6 +156,12 @@ if ! command -v jq >/dev/null 2>&1; then
   fail "step 1: jq is not on PATH, and this script reads ask-kit's JSON with it"
   finish
 fi
+ask_kit_config="${ASK_KIT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ask-kit}/config.json"
+if ! jq -e '(.machines // []) | length > 0' "$ask_kit_config" >/dev/null 2>&1; then
+  note "stood aside: $ask_kit_config names no machines, so reviews run on the machine whose config does"
+  finish
+fi
+
 if [[ -z "$tmo" ]]; then
   fail "step 1: neither timeout nor gtimeout is on PATH"
   finish

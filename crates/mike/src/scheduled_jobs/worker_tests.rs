@@ -155,7 +155,7 @@ fn kit_reviews_runs_once_a_day_between_0215_and_0459_utc() {
     assert_eq!(KIT_REVIEWS.timeout, std::time::Duration::from_secs(7200));
     assert_eq!(
         (KIT_REVIEWS.checkout_only, KIT_REVIEWS.leased),
-        (true, true)
+        (true, false)
     );
     assert_eq!(KIT_REVIEWS.nice, 19);
 }
