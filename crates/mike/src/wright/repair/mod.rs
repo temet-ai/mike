@@ -13,6 +13,7 @@ use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 use crate::store::persistence::{PersistError, PersistHandle};
 
+pub(crate) mod already_fixed;
 pub(crate) mod attempt;
 pub(crate) mod batch;
 pub(crate) mod batch_blame;
@@ -34,9 +35,13 @@ pub(crate) mod runner;
 pub(crate) mod worktree;
 
 #[cfg(test)]
+mod already_fixed_tests;
+#[cfg(test)]
 mod batch_refusal_tests;
 #[cfg(test)]
 mod batch_tests;
+#[cfg(test)]
+mod effect_tests;
 #[cfg(test)]
 mod fixtures_tests;
 #[cfg(test)]
@@ -72,7 +77,8 @@ pub(crate) mod states {
     pub(crate) const LANDED: &str = "landed";
     pub(crate) const DEPLOYED: &str = "deployed";
     pub(crate) const HEALTHY: &str = "healthy";
-    pub(crate) const ALL: [&str; 10] = [
+    pub(crate) const INEFFECTIVE: &str = "ineffective";
+    pub(crate) const ALL: [&str; 11] = [
         EDITING,
         PREPARED,
         GATING,
@@ -83,6 +89,7 @@ pub(crate) mod states {
         LANDED,
         DEPLOYED,
         HEALTHY,
+        INEFFECTIVE,
     ];
 }
 
@@ -125,6 +132,7 @@ pub(crate) struct TickReport {
     pub(crate) batches: Vec<(i64, BatchEnd)>,
     pub(crate) deployed: Vec<i64>,
     pub(crate) healthy: Vec<i64>,
+    pub(crate) ineffective: Vec<i64>,
     pub(crate) following: bool,
 }
 
@@ -180,6 +188,7 @@ where
         let followed = follow::follow(ctx).await?;
         report.deployed = followed.deployed;
         report.healthy = followed.healthy;
+        report.ineffective = followed.ineffective;
         report.following = followed.pending;
     }
     Ok(report)
@@ -374,12 +383,14 @@ fn log_tick(report: &TickReport) {
         || !report.batches.is_empty()
         || !report.deployed.is_empty()
         || !report.healthy.is_empty()
+        || !report.ineffective.is_empty()
     {
         tracing::info!(
             attempted = ?report.attempted,
             batches = ?report.batches,
             deployed = ?report.deployed,
             healthy = ?report.healthy,
+            ineffective = ?report.ineffective,
             "wright repair: tick"
         );
     }

@@ -1,6 +1,7 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 
-use super::attempt::{AttemptEnd, Fix, Next, abandon, job};
+use super::already_fixed;
+use super::attempt::{AttemptEnd, Fix, Next, abandon, job, release, rewind};
 use super::feedback::{self, Refused};
 use super::perf::Perf;
 use super::port::{RepairEngineer, RepairRun};
@@ -60,21 +61,34 @@ where
         })
         .await?;
     log_round(fix, round, &refused.reason);
-    let job = feedback::feedback_job(&job(fix.claim, fix.path), round, refused);
+    let job = feedback::feedback_job(
+        &job(fix.claim, fix.path, already_fixed::IN_FIRST_ROUND),
+        round,
+        refused,
+    );
     match ctx.engineer.run_in_worktree(&job).await {
         RepairRun {
             not_started: None,
             failure: None,
             perf,
+            ..
         } => Ok(Next::Go(perf)),
         RepairRun {
-            failure: Some(why), ..
-        }
-        | RepairRun {
             not_started: Some(why),
             ..
+        } => {
+            log_round_waits(fix, round, &why);
+            rewind(ctx, fix).await;
+            Ok(Next::Stop(release(ctx, fix.claim).await?))
+        }
+        RepairRun {
+            failure: Some(why), ..
         } => round_failed(ctx, fix, refused, round, &why).await,
     }
+}
+
+fn log_round_waits(fix: &Fix<'_>, round: u32, why: &str) {
+    tracing::info!(repair = fix.claim.id, finding = fix.claim.finding_id, round, %why, "wright repair: the round could not start; the finding is repaired again later");
 }
 
 fn log_round(fix: &Fix<'_>, round: u32, reason: &str) {

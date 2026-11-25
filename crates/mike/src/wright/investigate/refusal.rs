@@ -4,6 +4,8 @@ use serde_json::Value;
 
 pub(crate) const STDOUT_FILE: &str = "stdout.log";
 
+pub(crate) const REFUSED_BY_API: &str = "the Claude API refused the run";
+
 pub(crate) fn api_refusal(stdout: &Path) -> Option<String> {
     let text = std::fs::read_to_string(stdout).ok()?;
     let result: Value = text
@@ -19,7 +21,7 @@ pub(crate) fn api_refusal(stdout: &Path) -> Option<String> {
         .unwrap_or("api_error");
     let said = result.get("result").and_then(Value::as_str).unwrap_or("");
     Some(format!(
-        "the Claude API refused the run ({status} {kind}): {said}"
+        "{REFUSED_BY_API} ({status} {kind}): {said}"
     ))
 }
 

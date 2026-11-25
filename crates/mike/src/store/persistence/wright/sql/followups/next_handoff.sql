@@ -2,18 +2,15 @@ WITH repair_owned AS (
     SELECT ff.followup_id
       FROM wright.followup_findings ff
       JOIN wright.followups fu ON fu.id = ff.followup_id AND fu.kind = 'code_defect'
-      JOIN wright.findings fd ON fd.id = ff.finding_id
-      LEFT JOIN wright.problems p ON p.id = fd.problem_id
-      LEFT JOIN wright.repairs r ON r.finding_id = fd.id
-     WHERE (r.id IS NOT NULL
-            AND (r.state NOT IN ('gate_failed', 'refused', 'dropped') OR r.interrupted)
-            AND btrim(COALESCE(fu.owning_part, r.owning_part)) = btrim(r.owning_part))
-        OR (r.id IS NULL
-            AND p.state = 'open'
-            AND fd.kind = 'code_defect'
-            AND fd.cause_established
-            AND btrim(COALESCE(fd.owning_part, '')) <> ''
-            AND btrim(COALESCE(fu.owning_part, '')) = btrim(fd.owning_part))
+      JOIN wright.repairs r ON r.finding_id = ff.finding_id
+     WHERE r.state NOT IN ('gate_failed', 'refused', 'dropped', 'ineffective')
+       AND btrim(COALESCE(fu.owning_part, r.owning_part)) = btrim(r.owning_part)
+    UNION
+    SELECT ff.followup_id
+      FROM wright.followup_findings ff
+      JOIN wright.followups fu ON fu.id = ff.followup_id AND fu.kind = 'code_defect'
+      JOIN wright.repairable_findings rf ON rf.finding_id = ff.finding_id
+     WHERE btrim(COALESCE(fu.owning_part, rf.owning_part)) = rf.owning_part
 ),
 answered_root_causes AS (
     SELECT root.followup_id

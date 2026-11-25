@@ -13,6 +13,7 @@ const FAILED_RUNS: &str = include_str!("sql/repairs_failed_runs.sql");
 const FOLLOWING: &str = include_str!("sql/repairs_following.sql");
 const MARK_DEPLOYED: &str = include_str!("sql/repairs_mark_deployed.sql");
 const MARK_HEALTHY: &str = include_str!("sql/repairs_mark_healthy.sql");
+const MARK_INEFFECTIVE: &str = include_str!("sql/repairs_mark_ineffective.sql");
 const LIST: &str = include_str!("sql/repairs_list.sql");
 const ONE: &str = include_str!("sql/repairs_one.sql");
 const INTERRUPTED: &str = include_str!("sql/repairs_interrupted.sql");
@@ -60,6 +61,7 @@ pub(crate) struct ClaimedRepair {
     pub(crate) check_name: String,
     pub(crate) symptom: Option<String>,
     pub(crate) confirmed_cause: Option<String>,
+    pub(crate) earlier: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -170,6 +172,12 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
 
     pub(crate) async fn mark_wright_repairs_healthy(self) -> Result<Vec<i64>, PersistError> {
         Ok(sqlx::query_scalar(MARK_HEALTHY)
+            .fetch_all(self.pool())
+            .await?)
+    }
+
+    pub(crate) async fn mark_wright_repairs_ineffective(self) -> Result<Vec<i64>, PersistError> {
+        Ok(sqlx::query_scalar(MARK_INEFFECTIVE)
             .fetch_all(self.pool())
             .await?)
     }

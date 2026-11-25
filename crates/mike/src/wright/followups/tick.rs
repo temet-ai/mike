@@ -5,6 +5,7 @@ use super::context::FollowupContext;
 use super::file::{FileReport, file};
 use super::follow::{FollowReport, follow};
 use super::handoff::{Handoff, hand_off};
+use super::landed::close_landed;
 use super::recurring::comment_recurrences;
 use super::runner::CommandRunner;
 use super::sessions::FixerSessions;
@@ -58,6 +59,10 @@ where
     match recurrence(ctx, limits).await {
         Ok(opened) => report.root_causes = opened,
         Err(e) => failed("recurrence", &e),
+    }
+    match close_landed(ctx, limits).await {
+        Ok(failures) => log_rows("close landed", &failures),
+        Err(e) => failed("close landed", &e),
     }
     match file(ctx, limits).await {
         Ok(filed) => {

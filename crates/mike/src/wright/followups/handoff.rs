@@ -1,6 +1,7 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ pub(crate) enum Handoff {
     RepairLive,
     NoBatch,
     Capped,
+    Limited(DateTime<Utc>),
     NothingFiled,
     NoQuietMachine(Vec<String>),
     HandedOff {
@@ -51,10 +53,17 @@ where
     if web.wright_handoffs_today().await? >= i64::from(limits.daily_handoffs) {
         return Ok(Handoff::Capped);
     }
+    if let Some(until) = web
+        .wright_engineer_blocked_until()
+        .await?
+        .filter(|until| *until > Utc::now())
+    {
+        return Ok(Handoff::Limited(until));
+    }
     if web.wright_repair_editing().await? {
         return Ok(Handoff::RepairLive);
     }
-    let today = chrono::Utc::now().date_naive();
+    let today = Utc::now().date_naive();
     let Some(batch) = web.open_wright_fix_batch(Some(today)).await? else {
         return Ok(Handoff::NoBatch);
     };
@@ -96,12 +105,7 @@ where
     R: CommandRunner,
 {
     let mut reasons = Vec::new();
-    let held = ctx
-        .here
-        .targets(fixers)
-        .into_iter()
-        .filter(|target| target.machine.eq_ignore_ascii_case(fix_host.trim()));
-    for target in held {
+    for target in ctx.here.fix_targets(fixers, fix_host) {
         match quiet(&ctx.runner, &ctx.here, &target).await {
             Ok(()) => return Ok(target),
             Err(reason) => reasons.push(format!("{}: {reason}", target.machine)),

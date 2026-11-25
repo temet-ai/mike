@@ -6833,6 +6833,14 @@ unique per problem over `editing`, `prepared`, `batched`, `landed` and `deployed
 `repairs_ended_has_reason` also requires a reason for `dropped`. `wright.cause_queue` counts a
 `batched` follow-up as known.
 
+The view `wright.repairable_findings` (`20261125200000_wright_own_path.sql`) lists the findings a
+repair run may take: established code defects with an owning part, whose problem is open or whose
+finding is under 14 days old and not answered elsewhere, with no attempt yet or with fewer than
+three attempts that all ended `interrupted` (a stop of mike, or a conflict with main).
+`repair_live` marks a problem that already has a live repair. The repair state `ineffective` ends a
+deployed repair whose problem opened again over 6 hours after the deploy or stayed open 8 days;
+`healthy` needs 24 quiet hours and a later run of the problem's check.
+
 ### `wright.followup_findings`
 
 The engineer findings that evidence a follow-up: `(followup_id, finding_id)` primary key, both
@@ -6843,8 +6851,8 @@ serves the per-problem read.
 ### `wright.inbox`
 
 Events for Wright's engineer (temet-ai/mike#321), written as they happen by statement-level
-`AFTER UPDATE` triggers on `wright.repairs` (`gate_failed`, `refused`, `landed`, `deployed`,
-`healthy`), `wright.actions` (`verified`, `failed`, `refused`, `ineffective`, `undone`,
+`AFTER UPDATE` triggers on `wright.repairs` (`gate_failed`, `refused`, `dropped`,
+`landed`, `deployed`, `healthy`, `ineffective`), `wright.actions` (`verified`, `failed`, `refused`, `ineffective`, `undone`,
 `undo_conflict`) and `wright.followups` (`filed`, `handed_off`, `fixed`, `dropped`, `stuck`), so
 every writer posts without a call site. Columns: `check_name`, `problem_id` (null for a
 follow-up), `kind` (`remedy`, `repair`, `followup`), `ref_id`, `state`, `summary`, `created_at`,
@@ -6866,7 +6874,10 @@ ON DELETE SET NULL`, partial index `idx_wright_problems_cause`) is set once per 
 The view `wright.cause_queue` has one row per cause with an open problem: its representative
 problem and episode (most observed), problem and observation counts, attempts, finding, live
 follow-up and issue, whether a remedy answers the check, and `priority = problems + ln(1 +
-observations) + days open`. Migration `20261124140000_wright_cause_operator.sql` adds the
+observations) + days open + impact + ln(1 + amount)` (migration `20261125200000_wright_own_path.sql`:
+`impact` is `wright.checks.impact`, 0 to 100, 8 for checks of undone or lost work and 4 for
+`log_errors`; `amount` sums the `left_undone`, `lessons` and `failed` counts in the open episodes'
+evidence). A finding whose repair ended `ineffective` no longer answers its cause. Migration `20261124140000_wright_cause_operator.sql` adds the
 operator's controls to `wright.causes`: `pinned_at` (`TIMESTAMPTZ NULL`; a pinned cause comes before
 every unpinned one), `operator_priority` (`DOUBLE PRECISION NULL`, between -1e12 and 1e12; when set
 it replaces `priority` for that cause) and `group_id` (`BIGINT NULL REFERENCES

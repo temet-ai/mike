@@ -48,6 +48,7 @@ fn log_remove_failed(batch: i64, error: &str) {
 
 pub(super) struct Lost {
     pub(super) fix: BatchFix,
+    pub(super) rebuild: bool,
     pub(super) reason: String,
 }
 
@@ -83,12 +84,17 @@ pub(super) fn split_fixes(
             kept.push((fix, commit.sha.clone()));
             continue;
         }
-        let reason = if locate(dropped, &fix).is_some() {
+        let rebuild = locate(dropped, &fix).is_some();
+        let reason = if rebuild {
             format!("it conflicts with main {main}, so the rebase dropped it")
         } else {
             format!("no commit on the branch carries its trailer after the rebase onto main {main}")
         };
-        lost.push(Lost { fix, reason });
+        lost.push(Lost {
+            fix,
+            rebuild,
+            reason,
+        });
     }
     (kept, lost)
 }
@@ -271,6 +277,7 @@ where
                     to: states::DROPPED,
                     from: &[states::BATCHED],
                     reason: Some(item.reason.clone()),
+                    interrupted: item.rebuild,
                     ..RepairUpdate::default()
                 })
                 .await?;

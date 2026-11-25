@@ -212,8 +212,15 @@ const REPAIR_PATH: { state: RepairState; label: string }[] = [
 
 /** A repair is a path from prepared to healthy; it can also stop at `gate_failed` or `refused`. */
 export function repairSteps(state: RepairState): RepairStep[] {
-	const at = REPAIR_PATH.findIndex((step) => step.state === state);
-	const reached = state === 'gate_failed' ? 1 : state === 'refused' || state === 'editing' ? 0 : at;
+	const stoppedAt: Partial<Record<RepairState, number>> = {
+		editing: 0,
+		refused: 0,
+		gate_failed: 1,
+		batched: 1,
+		dropped: 1,
+		ineffective: 3
+	};
+	const reached = stoppedAt[state] ?? REPAIR_PATH.findIndex((step) => step.state === state);
 	return REPAIR_PATH.map((step, i) => ({
 		...step,
 		status: i < reached ? 'done' : i === reached ? 'current' : 'todo'
@@ -222,7 +229,9 @@ export function repairSteps(state: RepairState): RepairStep[] {
 
 export const REPAIR_STOPPED: Partial<Record<RepairState, string>> = {
 	gate_failed: 'The push hook failed on this change, so it was not landed.',
-	refused: 'Refused: the change touches something Wright may not change.'
+	refused: 'Refused: the change touches something Wright may not change.',
+	dropped: 'Taken off the day\'s branch before it landed.',
+	ineffective: 'Deployed, but the problem came back or never went away.'
 };
 
 export type ChangeIcon =

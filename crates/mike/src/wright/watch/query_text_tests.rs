@@ -6,6 +6,7 @@ use super::reads_outpace_writes_tests as reads;
 use crate::store::persistence::web_repo::WebPersist as _;
 use crate::wright::{CheckOutcome, CheckRun, Finding};
 
+const REPLAY_FROM_OLD_VIEW: &str = "DROP VIEW IF EXISTS wright.cause_queue";
 const MIGRATION: &str = include_str!(
     "../../../../mike-base/src/store/persistence/migrations/20261124150000_wright_query_checks_full_text.sql"
 );
@@ -311,6 +312,9 @@ async fn the_migration_fills_the_statement_of_a_query_problem_over_20000_charact
     .await?;
     assert_eq!(statement_of(&db, &old).await?, None);
 
+    sqlx::raw_sql(REPLAY_FROM_OLD_VIEW)
+        .execute(db.handle.pool())
+        .await?;
     sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
 
     assert_eq!(statement_of(&db, &old).await?, Some(whole.clone()));
@@ -329,6 +333,9 @@ async fn the_migration_fills_the_statement_of_a_query_problem_over_20000_charact
     )
     .await?;
     assert_eq!(again, (0, 0, 1, 2));
+    sqlx::raw_sql(REPLAY_FROM_OLD_VIEW)
+        .execute(db.handle.pool())
+        .await?;
     sqlx::raw_sql(MIGRATION).execute(db.handle.pool()).await?;
     assert_eq!(statement_of(&db, &old).await?, Some(whole));
     db.cleanup().await

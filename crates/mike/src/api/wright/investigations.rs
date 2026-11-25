@@ -148,7 +148,17 @@ pub(crate) async fn get_limits(State(state): State<AppState>) -> Result<Json<Val
         .wright_engineer_limits()
         .await
         .map_err(persist_error_response)?;
-    Ok(Json(json!({"limits": limits, "ranges": ranges()})))
+    let waiting_until = handle
+        .web()
+        .wright_engineer_blocked_until()
+        .await
+        .map_err(persist_error_response)?
+        .filter(|until| *until > chrono::Utc::now());
+    Ok(Json(json!({
+        "limits": limits,
+        "ranges": ranges(),
+        "waiting_until": waiting_until,
+    })))
 }
 
 #[derive(Debug, Default, Deserialize)]

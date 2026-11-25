@@ -1,5 +1,6 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::web_repo::WebPersist as _;
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::store::persistence::wright::WaitingCause;
@@ -22,7 +23,7 @@ fn cause_line(cause: &WaitingCause) -> String {
     )
 }
 
-pub(crate) fn notice(waiting: &[WaitingCause]) -> String {
+pub(crate) fn notice(waiting: &[WaitingCause], limited: Option<DateTime<Utc>>) -> String {
     let mut out = format!(
         "[Wright] {n} cause(s) have waited over {WAITED_HOURS} hours with no finding, highest priority first:\n",
         n = waiting.len()
@@ -33,6 +34,12 @@ pub(crate) fn notice(waiting: &[WaitingCause]) -> String {
     }
     if waiting.len() > LISTED {
         out.push_str(&format!("- and {} more\n", waiting.len() - LISTED));
+    }
+    if let Some(until) = limited {
+        out.push_str(&format!(
+            "The engineer waits for the Claude limit until {} and then goes on by itself.\n",
+            until.format("%Y-%m-%d %H:%M UTC")
+        ));
     }
     out.push_str(&format!("Open {PAGE_URL} to see the queue."));
     out
@@ -49,9 +56,14 @@ async fn tell_operator(persist: &PersistHandle) -> Result<(), PersistError> {
     if waiting.is_empty() {
         return Ok(());
     }
+    let limited = persist
+        .web()
+        .wright_engineer_blocked_until()
+        .await?
+        .filter(|until| *until > Utc::now());
     persist
         .launch()
-        .insert_message(Uuid::new_v4(), recipient, None, &notice(&waiting))
+        .insert_message(Uuid::new_v4(), recipient, None, &notice(&waiting, limited))
         .await?;
     Ok(())
 }

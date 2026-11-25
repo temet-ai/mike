@@ -81,6 +81,12 @@ async fn repair_states_move_in_order_and_the_problem_closes_only_through_its_che
 
     bench.problems(&[]).await?;
     let report = tick(&bench.ctx, false, true).await?;
+    assert!(
+        report.healthy.is_empty(),
+        "a problem quiet for a moment does not show the repair worked"
+    );
+    bench.age(problem, 30).await?;
+    let report = tick(&bench.ctx, false, true).await?;
     assert_eq!(report.healthy, vec![landed.id]);
     let healthy = bench.repair_of(finding).await?;
     let problem_row = bench.problem_state(problem).await?;

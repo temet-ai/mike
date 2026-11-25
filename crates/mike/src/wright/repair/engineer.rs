@@ -1,6 +1,8 @@
+use super::already_fixed::AlreadyFixed;
 use super::perf::Perf;
 use super::port::{RepairEngineer, RepairJob, RepairRun};
 use crate::state::AppState;
+use crate::wright::investigate::refusal::REFUSED_BY_API;
 use crate::wright::investigate::{self, EngineerContext, RunEnd, RunMode, RunRequest};
 
 pub(crate) struct InvestigateEngineer {
@@ -18,12 +20,16 @@ impl InvestigateEngineer {
 fn not_started(reason: String) -> RepairRun {
     RepairRun {
         not_started: Some(reason),
-        failure: None,
-        perf: Perf::default(),
+        ..RepairRun::default()
     }
 }
 
 fn ended(end: &RunEnd, output: &Result<serde_json::Value, String>) -> RepairRun {
+    if let Err(reason) = output
+        && reason.starts_with(REFUSED_BY_API)
+    {
+        return not_started(reason.clone());
+    }
     let failure = match (end, output) {
         (RunEnd::Killed { reason }, _) => Some(format!("the repair run was stopped: {reason}")),
         (RunEnd::Exited { code }, _) if *code != Some(0) => {
@@ -33,10 +39,12 @@ fn ended(end: &RunEnd, output: &Result<serde_json::Value, String>) -> RepairRun 
         _ => None,
     };
     let perf = output.as_ref().map(Perf::from_output).unwrap_or_default();
+    let already_fixed = output.as_ref().ok().and_then(AlreadyFixed::from_output);
     RepairRun {
         not_started: None,
         failure,
         perf,
+        already_fixed,
     }
 }
 

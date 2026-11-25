@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+use super::already_fixed::AlreadyFixed;
 use super::perf::Perf;
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,7 @@ pub(crate) struct RepairRun {
     pub(crate) not_started: Option<String>,
     pub(crate) failure: Option<String>,
     pub(crate) perf: Perf,
+    pub(crate) already_fixed: Option<AlreadyFixed>,
 }
 
 pub(crate) trait RepairEngineer: Send + Sync {

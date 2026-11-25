@@ -247,6 +247,31 @@ impl Bench {
         self.defect_in("src/calc.sh").await
     }
 
+    pub(super) async fn age(&self, problem: i64, hours: i32) -> anyhow::Result<()> {
+        sqlx::query(
+            "WITH p AS (
+                 UPDATE wright.problems
+                    SET healthy_at = healthy_at - make_interval(hours => $2)
+                  WHERE id = $1 RETURNING id
+             ), e AS (
+                 UPDATE wright.episodes
+                    SET opened_at = opened_at - make_interval(hours => $2)
+                  WHERE problem_id = $1 AND closed_at IS NOT NULL RETURNING id
+             )
+             UPDATE wright.repairs
+                SET created_at = created_at - make_interval(hours => $2),
+                    prepared_at = prepared_at - make_interval(hours => $2),
+                    landed_at = landed_at - make_interval(hours => $2),
+                    deployed_at = deployed_at - make_interval(hours => $2)
+              WHERE problem_id = $1",
+        )
+        .bind(problem)
+        .bind(hours)
+        .execute(self.ctx.persist.pool())
+        .await?;
+        Ok(())
+    }
+
     pub(super) async fn problem_state(&self, id: i64) -> anyhow::Result<ProblemRow> {
         self.ctx
             .persist

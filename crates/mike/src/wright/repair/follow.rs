@@ -12,10 +12,11 @@ use crate::store::persistence::wright::{Following, RepairRow, RepairUpdate};
 pub(crate) struct Followed {
     pub(crate) deployed: Vec<i64>,
     pub(crate) healthy: Vec<i64>,
+    pub(crate) ineffective: Vec<i64>,
     pub(crate) pending: bool,
 }
 
-async fn contains<R: CommandRunner>(
+pub(super) async fn contains<R: CommandRunner>(
     runner: &R,
     root: &std::path::Path,
     merge: &str,
@@ -70,15 +71,21 @@ where
     let deployed_before = deployed;
     let landed_count = landed.len();
     let deployed = self::deployed(ctx, landed).await?;
-    let healthy = if deployed_before > 0 || !deployed.is_empty() {
-        ctx.persist.web().mark_wright_repairs_healthy().await?
+    let web = ctx.persist.web();
+    let (healthy, ineffective) = if deployed_before > 0 || !deployed.is_empty() {
+        (
+            web.mark_wright_repairs_healthy().await?,
+            web.mark_wright_repairs_ineffective().await?,
+        )
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
-    let pending = landed_count > deployed.len() || deployed_before + deployed.len() > healthy.len();
+    let settled = healthy.len() + ineffective.len();
+    let pending = landed_count > deployed.len() || deployed_before + deployed.len() > settled;
     Ok(Followed {
         deployed,
         healthy,
+        ineffective,
         pending,
     })
 }

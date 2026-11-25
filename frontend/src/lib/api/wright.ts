@@ -165,7 +165,17 @@ export interface EngineerLimits {
 }
 
 export type RepairState =
-	'editing' | 'prepared' | 'gating' | 'gate_failed' | 'refused' | 'landed' | 'deployed' | 'healthy';
+	| 'editing'
+	| 'prepared'
+	| 'gating'
+	| 'batched'
+	| 'dropped'
+	| 'gate_failed'
+	| 'refused'
+	| 'landed'
+	| 'deployed'
+	| 'healthy'
+	| 'ineffective';
 
 export interface WrightRepair {
 	id: number;

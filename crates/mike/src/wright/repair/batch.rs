@@ -1,7 +1,7 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::Path;
 
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 
 use super::batch_land::{BatchEnd, land};
 use super::port::RepairEngineer;
@@ -33,6 +33,17 @@ where
     Ok(closed.len())
 }
 
+pub(super) async fn limited<R, E, B>(
+    ctx: &RepairContext<R, E, B>,
+) -> Result<Option<DateTime<Utc>>, PersistError> {
+    let until = ctx.persist.web().wright_engineer_blocked_until().await?;
+    Ok(until.filter(|until| *until > Utc::now()))
+}
+
+fn needs_engineer(row: &FixBatchRow) -> bool {
+    row.state == batch_states::GATING && row.gate_exit.is_some_and(|exit| exit != 0)
+}
+
 pub(super) async fn land_due<R, E, B>(
     ctx: &RepairContext<R, E, B>,
 ) -> Result<Vec<(i64, BatchEnd)>, PersistError>
@@ -45,8 +56,12 @@ where
         .web()
         .wright_fix_batches_to_land(ctx.machine)
         .await?;
+    let waiting = due.iter().any(needs_engineer) && limited(ctx).await?.is_some();
     let mut ended = Vec::new();
     for row in due {
+        if waiting && needs_engineer(&row) {
+            continue;
+        }
         if ctx.stopping() && !ended.is_empty() {
             break;
         }

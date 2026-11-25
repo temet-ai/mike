@@ -6,7 +6,7 @@ use super::runner::{Cmd, CommandRunner, Program, StepError, git, output};
 
 pub(crate) const REMOTE: &str = "origin";
 pub(crate) const MAIN: &str = "main";
-const MAIN_TRACKING: &str = "refs/remotes/origin/main";
+pub(crate) const MAIN_TRACKING: &str = "refs/remotes/origin/main";
 const MAIN_REFSPEC: &str = "+refs/heads/main:refs/remotes/origin/main";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,6 +70,21 @@ pub(crate) async fn fetch_main<R: CommandRunner>(
 ) -> Result<String, StepError> {
     git(runner, cwd, &["fetch", "--quiet", REMOTE, MAIN_REFSPEC]).await?;
     git(runner, cwd, &["rev-parse", MAIN_TRACKING]).await
+}
+
+pub(crate) async fn follow_main<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+) -> Result<String, StepError> {
+    fetch_main(runner, &repo.root).await?;
+    let cmd = Cmd::new(
+        Program::Git,
+        path,
+        &["merge", "--ff-only", "--quiet", MAIN_TRACKING],
+    );
+    let _ = output(runner, &cmd).await;
+    git(runner, path, &["rev-parse", "HEAD"]).await
 }
 
 async fn branch_exists<R: CommandRunner>(

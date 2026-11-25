@@ -98,9 +98,21 @@ impl Here {
             .collect()
     }
 
-    pub(crate) fn unreachable(&self, fixers: &[Fixer]) -> Option<String> {
-        if !self.targets(fixers).is_empty() {
+    pub(crate) fn fix_targets(&self, fixers: &[Fixer], fix_host: &str) -> Vec<Target> {
+        let mut targets = self.targets(fixers);
+        targets.retain(|target| target.machine.eq_ignore_ascii_case(fix_host.trim()));
+        targets
+    }
+
+    pub(crate) fn unreachable(&self, fixers: &[Fixer], fix_host: &str) -> Option<String> {
+        if !self.fix_targets(fixers, fix_host).is_empty() {
             return None;
+        }
+        if !self.targets(fixers).is_empty() {
+            return Some(format!(
+                "{} cannot start a fixer on the fix host {fix_host}; the follow-up work is left to a machine that can",
+                self.host
+            ));
         }
         Some(if fixers.is_empty() {
             format!(

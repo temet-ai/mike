@@ -74,7 +74,13 @@ fn targets_empty_list_is_the_local_checkout_or_nothing() {
     assert_eq!(local[0].place, Place::Local);
     assert_eq!(local[0].folder, "/srv/mike");
     assert!(here(None).targets(&[]).is_empty());
-    assert!(here(None).unreachable(&[]).is_some());
+    assert!(here(None).unreachable(&[], "omit").is_some());
+    let omit = here(Some("/srv/mike"));
+    assert_eq!(omit.unreachable(&[], "omit"), None);
+    assert!(
+        omit.unreachable(&[], "mac").is_some(),
+        "a machine that cannot reach the fix host does not take the work"
+    );
 }
 
 #[test]

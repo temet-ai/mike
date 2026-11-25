@@ -1,6 +1,7 @@
 use crate::store::persistence::web_repo::WebPersist as _;
 use serde_json::json;
 
+use super::batch::limited;
 use super::batch_blame::attribute;
 use super::batch_git::{self, Commit, locate, trailer_id};
 use super::batch_land::{BatchEnd, Gated, Lander, Lost, split_fixes};
@@ -135,6 +136,7 @@ where
                 not_started: None,
                 failure: None,
                 perf,
+                ..
             } => Ok(perf),
             RepairRun {
                 failure: Some(why), ..
@@ -157,7 +159,14 @@ where
         }
         let perf = match self.run_round(round, output).await? {
             Ok(perf) => perf,
-            Err(why) => return Ok(self.round_failed(round, &why)),
+            Err(why) => {
+                if let Some(until) = limited(self.ctx).await? {
+                    let reason =
+                        format!("{why}; the batch waits for the Claude limit until {until}");
+                    return Ok(Round::Stop(self.stalled(&reason).await?));
+                }
+                return Ok(self.round_failed(round, &why));
+            }
         };
         let Some(sha) = self.commit_round_change(round, cand, &perf).await else {
             return Ok(Round::Idle);
@@ -325,6 +334,7 @@ where
             .into_iter()
             .map(|(fix, _)| Lost {
                 fix,
+                rebuild: false,
                 reason: "reverted from the day's branch: the push hook's output names its files"
                     .to_owned(),
             })

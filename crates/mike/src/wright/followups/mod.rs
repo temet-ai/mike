@@ -15,6 +15,7 @@ pub(crate) mod context;
 pub(crate) mod file;
 pub(crate) mod follow;
 pub(crate) mod handoff;
+pub(crate) mod landed;
 pub(crate) mod prompt;
 pub(crate) mod quiet;
 pub(crate) mod recurring;
@@ -30,6 +31,8 @@ mod file_tests;
 mod follow_tests;
 #[cfg(test)]
 mod handoff_tests;
+#[cfg(test)]
+mod landed_tests;
 #[cfg(test)]
 mod parse_tests;
 
@@ -90,7 +93,10 @@ impl Worker {
             });
         }
         match &self.ctx {
-            Some(ctx) => ctx.here.unreachable(&limits.fixers).map_or(Ok(()), Err),
+            Some(ctx) => ctx
+                .here
+                .unreachable(&limits.fixers, &limits.fix_host)
+                .map_or(Ok(()), Err),
             None => Err("the follow-up context was not built".to_owned()),
         }
     }
