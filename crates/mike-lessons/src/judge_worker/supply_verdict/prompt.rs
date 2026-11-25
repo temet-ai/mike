@@ -7,7 +7,13 @@ const PROMPT_CHARS: usize = 4000;
 const REPLY_CHARS: usize = 6000;
 const NEXT_CHARS: usize = 2000;
 
-pub const VERDICTS: [&str; 3] = ["used", "corrected_anyway", "ignored"];
+pub const VERDICTS: [&str; 5] = [
+    "used",
+    "came_back",
+    "corrected_anyway",
+    "ignored",
+    "not_applicable",
+];
 
 pub use crate::lessons_settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT as SYSTEM;
 

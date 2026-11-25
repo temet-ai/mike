@@ -1,11 +1,12 @@
 WITH judged AS (
     SELECT i.lesson_id, i.session_id,
            bool_or(COALESCE(v.hand_verdict, v.verdict) = 'used') AS used,
-           bool_or(COALESCE(v.hand_verdict, v.verdict) = 'corrected_anyway') AS corrected
+           bool_or(COALESCE(v.hand_verdict, v.verdict) IN ('corrected_anyway', 'came_back')) AS corrected
       FROM memory.supplied_items i
       JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id
       JOIN memory.lessons l ON l.id = i.lesson_id AND l.retired_at IS NULL AND l.archived_at IS NULL
      WHERE i.item_kind = 'lesson'
+       AND COALESCE(v.hand_verdict, v.verdict) <> 'not_applicable'
      GROUP BY i.lesson_id, i.session_id
 ), counts AS (
     SELECT j.lesson_id, count(*) AS judged,

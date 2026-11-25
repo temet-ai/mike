@@ -31,6 +31,7 @@ const BATCH: i64 = 25;
 const LOOKBACK_DAYS: i64 = 14;
 const SETTLE_MINUTES: i64 = 30;
 const DEFER_HOURS: i64 = 2;
+const STANDING_LOOKBACK_DAYS: i64 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
@@ -270,12 +271,26 @@ fn defer(item_id: i64, now: DateTime<Utc>) {
         .insert(item_id, now + chrono::Duration::hours(DEFER_HOURS));
 }
 
+async fn attach_standing(persist: &PersistHandle, now: DateTime<Utc>) {
+    let attached = persist
+        .lessons()
+        .record_standing_lessons(
+            now - chrono::Duration::days(STANDING_LOOKBACK_DAYS),
+            now - chrono::Duration::minutes(SETTLE_MINUTES),
+        )
+        .await;
+    if let Err(error) = attached {
+        tracing::warn!(%error, "supply_verdict: standing lessons not matched");
+    }
+}
+
 pub async fn judge_batch(
     persist: &PersistHandle,
     judge: &impl SupplyJudge,
     now: DateTime<Utc>,
 ) -> Pass {
     let mut pass = Pass::default();
+    attach_standing(persist, now).await;
     let held = deferred_ids(now);
     let items = match persist
         .lessons()

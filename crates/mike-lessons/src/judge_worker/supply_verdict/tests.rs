@@ -131,6 +131,92 @@ async fn judge_batch_writes_one_verdict_per_supplied_item_and_skips_bad_answers(
 }
 
 #[tokio::test]
+async fn record_standing_lessons_near_turn_attaches_once_and_far_lesson_never() -> anyhow::Result<()>
+{
+    let f = Fixture::boot().await?;
+    let pool = f.handle.pool();
+    let near = format!("[1{}]", ",0".repeat(767));
+    let far = format!("[0,1{}]", ",0".repeat(766));
+    sqlx::query(
+        "UPDATE memory.lessons l
+            SET embedding = u.vector::vector, embedding_model = 'm', embedded_at = now(),
+                created_at = now() - interval '2 days'
+           FROM unnest($1::bigint[], $2::text[]) AS u(id, vector)
+          WHERE l.id = u.id",
+    )
+    .bind(&f.lessons[..2])
+    .bind(vec![near.clone(), far])
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO memory.lesson_routes (lesson_id, project_id, route, revision)
+         SELECT id, project_id, 'standing', 1 FROM memory.lessons WHERE id = ANY($1)",
+    )
+    .bind(&f.lessons[..2])
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO memory.turn_facts
+            (operator_turn_id, session_id, builder_version, built_at, max_request_id,
+             prompt_kind, prompt_kind_at_close, next_state, next_state_at_close,
+             text_chars, text_cut_at, aborted, interrupted, close_cause, ended_on,
+             ended_on_version, session_class, session_class_rule)
+         SELECT id, session_id, 'test', now(), start_request_id, 'genuine', 'genuine',
+                'none_session_settled', 'none_session_settled',
+                0, 0, false, false, 'next_prompt', 'none', 'test', 'operator', 'test'
+           FROM memory.operator_turns
+         ON CONFLICT (operator_turn_id) DO NOTHING",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO memory.semantic_embedders
+                (embedder_key, model, dim, chunk_max_chars, prefix_version, urls_seen,
+                 canary_version, canary_vectors, status)
+         VALUES ('m|768', 'm', 768, 1024, 'doc-prefix-v1', '{}', 'v1', '{}'::jsonb, 'retired')",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO memory.semantic_items
+                (kind, session_id, operator_turn_id, project_id, source_ref, text, text_chars,
+                 embedding, embedder_key, vector_source, builder_version, effective_at)
+         SELECT 'turn_prompt', t.session_id, t.id, s.project_id,
+                'memory.operator_turns:' || t.id, 'fix it', 6, $1::text::vector,
+                'm|768', 'embedded', 'test', now()
+           FROM memory.operator_turns t JOIN sessions.sessions s ON s.id = t.session_id",
+    )
+    .bind(&near)
+    .execute(pool)
+    .await?;
+    let from = Utc::now() - Duration::days(3);
+    let before = Utc::now() + Duration::hours(1);
+
+    let first = f
+        .handle
+        .lessons()
+        .record_standing_lessons(from, before)
+        .await?;
+    let second = f
+        .handle
+        .lessons()
+        .record_standing_lessons(from, before)
+        .await?;
+
+    assert_eq!(
+        (first, second),
+        (1, 0),
+        "once for the session, the close lesson only"
+    );
+    let stored: (i64, String) =
+        sqlx::query_as("SELECT lesson_id, route FROM memory.supplied_items")
+            .fetch_one(pool)
+            .await?;
+    assert_eq!(stored, (f.lessons[0], "standing".to_owned()));
+    Ok(())
+}
+
+#[tokio::test]
 async fn judge_batch_waits_for_the_turn_to_settle() -> anyhow::Result<()> {
     let f = Fixture::boot().await?;
     let lessons = [SuppliedLesson {

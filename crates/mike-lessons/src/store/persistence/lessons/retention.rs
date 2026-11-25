@@ -73,7 +73,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
                  ),
                  tried AS (
                      SELECT i.lesson_id, count(*) AS supplied,
-                            count(v.supplied_item_id) AS judged,
+                            count(*) FILTER (WHERE v.verdict <> 'not_applicable') AS judged,
                             count(*) FILTER (WHERE COALESCE(v.hand_verdict, v.verdict) = 'used') AS used
                        FROM memory.supplied_items i
                        JOIN memory.lessons l ON l.id = i.lesson_id AND l.project_id = $1

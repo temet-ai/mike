@@ -41,9 +41,11 @@ fn unsure(acted: f64, subject: f64, reaction: Option<&str>) -> bool {
 }
 
 #[test]
-fn compose_acted_is_used_whatever_the_reaction() -> anyhow::Result<()> {
+fn compose_acted_is_used_unless_the_turn_was_corrected_on_its_subject() -> anyhow::Result<()> {
     assert_eq!(verdict_for(0.9, 0.1, None)?, "used");
-    assert_eq!(verdict_for(0.9, 0.9, Some("corrected"))?, "used");
+    assert_eq!(verdict_for(0.9, 0.9, Some("accepted"))?, "used");
+    assert_eq!(verdict_for(0.9, 0.2, Some("corrected"))?, "used");
+    assert_eq!(verdict_for(0.9, 0.9, Some("corrected"))?, "came_back");
     Ok(())
 }
 
@@ -57,8 +59,10 @@ fn compose_not_acted_matching_subject_and_corrected_is_corrected_anyway() -> any
 }
 
 #[test]
-fn compose_corrected_turn_with_unrelated_memory_is_ignored() -> anyhow::Result<()> {
-    assert_eq!(verdict_for(0.1, 0.2, Some("corrected"))?, "ignored");
+fn compose_unrelated_memory_is_not_applicable() -> anyhow::Result<()> {
+    assert_eq!(verdict_for(0.1, 0.2, Some("corrected"))?, "not_applicable");
+    assert_eq!(verdict_for(0.1, 0.49, None)?, "not_applicable");
+    assert_eq!(verdict_for(0.1, 0.5, None)?, "ignored");
     Ok(())
 }
 
@@ -77,7 +81,7 @@ fn compose_probability_is_the_chance_of_the_chosen_verdict() {
     assert!((p - 0.6).abs() < 1e-9);
     let (v, p) = verdict_of(0.2, 0.75, None).unwrap_or(("none", 0.0));
     assert_eq!(v, "ignored");
-    assert!((p - 0.8).abs() < 1e-9);
+    assert!((p - 0.6).abs() < 1e-9);
 }
 
 #[test]
@@ -91,12 +95,12 @@ fn compose_acted_in_the_middle_band_writes_no_verdict() {
 #[test]
 fn compose_band_edges_count_at_seven_tenths_and_at_three_tenths() -> anyhow::Result<()> {
     assert_eq!(verdict_for(0.7, 0.1, None)?, "used");
-    assert_eq!(verdict_for(0.3, 0.1, None)?, "ignored");
+    assert_eq!(verdict_for(0.3, 0.9, None)?, "ignored");
     assert_eq!(
         verdict_for(0.1, 0.7, Some("corrected"))?,
         "corrected_anyway"
     );
-    assert_eq!(verdict_for(0.1, 0.3, Some("corrected"))?, "ignored");
+    assert_eq!(verdict_for(0.1, 0.3, Some("corrected"))?, "not_applicable");
     Ok(())
 }
 

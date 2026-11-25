@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::judge_worker::supply_verdict::prompt::VERDICTS;
 use crate::judge_worker::supply_verdict::{Tick, run_now};
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
@@ -19,7 +20,6 @@ const DEFAULT_SAMPLE: i64 = 150;
 const MAX_SAMPLE: i64 = 200;
 const MIN_SAMPLE: i64 = 100;
 const MAX_DAYS: i64 = 90;
-const VERDICTS: [&str; 3] = ["used", "corrected_anyway", "ignored"];
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ListQuery {
@@ -247,8 +247,9 @@ pub async fn post_hand_check(
         return refuse(
             StatusCode::BAD_REQUEST,
             format!(
-                "verdict `{}` is not one of used, corrected_anyway, ignored",
-                body.verdict
+                "verdict `{}` is not one of {}",
+                body.verdict,
+                VERDICTS.join(", ")
             ),
         );
     }

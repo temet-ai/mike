@@ -24,6 +24,7 @@ const MAX_FILES: usize = 30;
 
 pub const YES_AT: f64 = 0.7;
 pub const NO_AT: f64 = 0.3;
+pub const APPLIES_AT: f64 = 0.5;
 
 const CARD_TAGS: [&str; 3] = ["[thread:", "[entry:", "[keeper:"];
 const REMINDER_OPEN: &str = "<system-reminder";
@@ -117,22 +118,26 @@ pub fn state(item: &PendingVerdict) -> Value {
 }
 
 pub fn verdict_of(acted: f64, subject: f64, reaction: Option<&str>) -> Option<(&'static str, f64)> {
+    let corrected = reaction == Some("corrected");
     if acted >= YES_AT {
-        return Some(("used", acted));
+        return Some(if corrected && subject >= YES_AT {
+            ("came_back", acted * subject)
+        } else {
+            ("used", acted)
+        });
     }
     if acted > NO_AT {
         return None;
     }
     let not_acted = 1.0 - acted;
-    if reaction != Some("corrected") {
-        return Some(("ignored", not_acted));
-    }
-    if subject >= YES_AT {
+    if corrected && subject >= YES_AT {
         Some(("corrected_anyway", not_acted * subject))
-    } else if subject <= NO_AT {
-        Some(("ignored", not_acted * (1.0 - subject)))
-    } else {
+    } else if corrected && subject > NO_AT {
         None
+    } else if subject >= APPLIES_AT {
+        Some(("ignored", not_acted * subject))
+    } else {
+        Some(("not_applicable", not_acted * (1.0 - subject)))
     }
 }
 

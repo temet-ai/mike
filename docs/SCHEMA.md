@@ -2563,7 +2563,7 @@ route, on the first request that carried it; a proxy-added item is recorded on e
 | `lesson_id` | `BIGINT NULL` | FK → `memory.lessons(id)` ON DELETE CASCADE; set exactly for a lesson |
 | `thread_id` | `BIGINT NULL` | FK → `work.threads(id)` ON DELETE SET NULL; a card's thread when it named one |
 | `card_hash` | `TEXT NULL` | The card's marker hash; set exactly for a card; not indexed |
-| `route` | `TEXT NOT NULL` | CHECK `IN ('proxy', 'mod', 'tether')` |
+| `route` | `TEXT NOT NULL` | CHECK `IN ('proxy', 'mod', 'tether', 'standing')`; `standing` rows are added by the supply-verdict pass for the standing-file lessons closest to a turn (`record_standing.sql`), once per session and lesson |
 | `score` | `DOUBLE PRECISION NULL` | Lesson: the ranker relevance that chose it, remembered in process (`lesson_delivery::remember_scores`). Card: the resolver score. NULL when not known |
 | `chance` | `DOUBLE PRECISION NULL` | Probability that a request like this is given the item: 1 for a lesson (no lesson holdout, deterministic ranker), the keeper arm share for a card; CHECK 0 to 1 |
 | `item_text` | `TEXT NOT NULL` | The text supplied, whole |
@@ -2580,8 +2580,11 @@ Added in the same migration. One verdict per supplied item from the overnight pa
 `judge_lessons.quiet_*` window and only while no primary request came in during the idle period, up to 25
 items a tick every 10 minutes, model `judge_lessons.model`, LLM role `judge_worker`). An item is judged once
 its turn closed 30 minutes ago and its next genuine message is resolved, within 14 days of the supply.
-`used`: the turn acted on it; `corrected_anyway`: the operator corrected the turn on what it covered;
-`ignored`: no sign it was used, counted as a cost (`bytes_ignored` in `/api/supplied-items/figures`).
+`used`: the turn followed it; `came_back`: it was followed and the operator corrected the turn on what it
+covers; `corrected_anyway`: it applied, was not followed, and the operator corrected the turn on it;
+`ignored`: it applied and was not followed; `not_applicable`: what it covers did not come up, which counts
+neither for nor against a lesson. `/api/supplied-items/figures` counts the last two as a cost
+(`bytes_ignored`). Verdicts from before 2026-11-25 use `ignored` for both.
 `input_text` is the exact message sent to the model. `hand_verdict`, `hand_checked_by` and
 `hand_checked_at` hold a person's check of the weekly sample (`GET /api/supplied-items/hand-check?week=`,
 100 to 200 verdicts of that week chosen by `md5(id || week)`, with the agreement rate; written by
@@ -2590,7 +2593,7 @@ its turn closed 30 minutes ago and its next genuine message is resolved, within 
 | Column | Type | Purpose |
 |---|---|---|
 | `supplied_item_id` | `BIGINT PRIMARY KEY` | FK → `memory.supplied_items(id)` ON DELETE CASCADE |
-| `verdict` | `TEXT NOT NULL` | CHECK `IN ('used', 'corrected_anyway', 'ignored')` |
+| `verdict` | `TEXT NOT NULL` | CHECK `IN ('used', 'came_back', 'corrected_anyway', 'ignored', 'not_applicable')` |
 | `rationale`, `evidence` | `TEXT NOT NULL` | The model's reason and the words that decided it |
 | `model`, `input_text` | `TEXT NOT NULL` | The model and the exact input |
 | `judged_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |

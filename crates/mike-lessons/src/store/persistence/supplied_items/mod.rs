@@ -98,7 +98,29 @@ pub struct HandCheckRow {
     pub hand_checked_at: Option<DateTime<Utc>>,
 }
 
+const RECORD_STANDING: &str = include_str!("record_standing.sql");
+const STANDING_MAX_DISTANCE: f64 = 0.55;
+const STANDING_PER_TURN: i64 = 2;
+
 impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
+    pub async fn record_standing_lessons(
+        self,
+        closed_from: DateTime<Utc>,
+        closed_before: DateTime<Utc>,
+    ) -> Result<u64, PersistError> {
+        crate::metrics::time_db("record_standing_lessons", async move {
+            let done = sqlx::query(RECORD_STANDING)
+                .bind(closed_from)
+                .bind(closed_before)
+                .bind(STANDING_MAX_DISTANCE)
+                .bind(STANDING_PER_TURN)
+                .execute(self.pool())
+                .await?;
+            Ok(done.rows_affected())
+        })
+        .await
+    }
+
     pub async fn record_supplied_lessons(
         self,
         request_id: i64,

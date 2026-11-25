@@ -3,9 +3,10 @@ SELECT i.item_kind, i.route,
        coalesce(sum(octet_length(i.item_text)), 0)::bigint AS "bytes!",
        count(v.supplied_item_id) AS "judged!",
        count(*) FILTER (WHERE v.verdict = 'used') AS "used!",
-       count(*) FILTER (WHERE v.verdict = 'corrected_anyway') AS "corrected_anyway!",
-       count(*) FILTER (WHERE v.verdict = 'ignored') AS "ignored!",
-       coalesce(sum(octet_length(i.item_text)) FILTER (WHERE v.verdict = 'ignored'), 0)::bigint
+       count(*) FILTER (WHERE v.verdict IN ('corrected_anyway', 'came_back')) AS "corrected_anyway!",
+       count(*) FILTER (WHERE v.verdict IN ('ignored', 'not_applicable')) AS "ignored!",
+       coalesce(sum(octet_length(i.item_text))
+                    FILTER (WHERE v.verdict IN ('ignored', 'not_applicable')), 0)::bigint
            AS "bytes_ignored!"
   FROM memory.supplied_items i
   LEFT JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id

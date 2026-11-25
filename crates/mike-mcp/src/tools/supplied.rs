@@ -21,9 +21,9 @@ pub fn supplied_tools() -> Vec<Tool> {
         Cow::Borrowed(
             "List every lesson and work-thread card mike supplied with a request (`request_id`) \
              or across a session (`session_id`), oldest first: the item and its full text, the \
-             route that delivered it (proxy, mod, tether), the score that chose it, its chance \
-             of being supplied (1 for a lesson; the keeper arm share for a card), and the \
-             overnight verdict (used, corrected_anyway, ignored) with its rationale once judged. \
+             route that delivered it (proxy, mod, tether, standing), the score that chose it, its chance \
+             of being supplied (1 for a lesson; the keeper arm share for a card), and the verdict \
+             (used, came_back, corrected_anyway, ignored, not_applicable) with its rationale once judged. \
              Paged with `limit` and `offset`; `has_more` and `next_offset` say whether more rows \
              wait. Use it to answer what memory a turn was given and whether it helped.",
         ),

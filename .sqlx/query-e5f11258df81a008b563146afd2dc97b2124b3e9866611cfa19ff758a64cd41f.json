@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT i.item_kind, i.route,\n       count(*) AS \"supplied!\",\n       coalesce(sum(octet_length(i.item_text)), 0)::bigint AS \"bytes!\",\n       count(v.supplied_item_id) AS \"judged!\",\n       count(*) FILTER (WHERE v.verdict = 'used') AS \"used!\",\n       count(*) FILTER (WHERE v.verdict = 'corrected_anyway') AS \"corrected_anyway!\",\n       count(*) FILTER (WHERE v.verdict = 'ignored') AS \"ignored!\",\n       coalesce(sum(octet_length(i.item_text)) FILTER (WHERE v.verdict = 'ignored'), 0)::bigint\n           AS \"bytes_ignored!\"\n  FROM memory.supplied_items i\n  LEFT JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id\n WHERE i.supplied_at >= $1\n GROUP BY i.item_kind, i.route\n ORDER BY i.item_kind, i.route\n",
+  "query": "SELECT i.item_kind, i.route,\n       count(*) AS \"supplied!\",\n       coalesce(sum(octet_length(i.item_text)), 0)::bigint AS \"bytes!\",\n       count(v.supplied_item_id) AS \"judged!\",\n       count(*) FILTER (WHERE v.verdict = 'used') AS \"used!\",\n       count(*) FILTER (WHERE v.verdict IN ('corrected_anyway', 'came_back')) AS \"corrected_anyway!\",\n       count(*) FILTER (WHERE v.verdict IN ('ignored', 'not_applicable')) AS \"ignored!\",\n       coalesce(sum(octet_length(i.item_text))\n                    FILTER (WHERE v.verdict IN ('ignored', 'not_applicable')), 0)::bigint\n           AS \"bytes_ignored!\"\n  FROM memory.supplied_items i\n  LEFT JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id\n WHERE i.supplied_at >= $1\n GROUP BY i.item_kind, i.route\n ORDER BY i.item_kind, i.route\n",
   "describe": {
     "columns": [
       {
@@ -85,5 +85,5 @@
       null
     ]
   },
-  "hash": "d27b6ff9a8014e7befb30690e56a7aad59b21c6fa3e9638b07a53f3ba67f5b34"
+  "hash": "e5f11258df81a008b563146afd2dc97b2124b3e9866611cfa19ff758a64cd41f"
 }
