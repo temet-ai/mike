@@ -45,9 +45,6 @@ pub struct FeatureToggles {
 
     pub retention_sweep: bool,
 
-    #[serde(default)]
-    pub codex_diagnostic_capture: bool,
-
     pub channel_link_sweep: bool,
 
     pub proxy_tools: bool,
@@ -163,7 +160,6 @@ impl Default for FeatureToggles {
             session_judge: false,
             agent_lessons: false,
             retention_sweep: true,
-            codex_diagnostic_capture: false,
             channel_link_sweep: true,
             proxy_tools: false,
             workspace_capture_registration: true,
@@ -291,7 +287,6 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "reminders" => Some(toggles.reminders),
         "repeated_notices" => Some(toggles.repeated_notices),
         "retention_sweep" => Some(toggles.retention_sweep),
-        "codex_diagnostic_capture" => Some(toggles.codex_diagnostic_capture),
         "semantic_context" => Some(toggles.semantic_context),
         "turn_guard" => Some(toggles.turn_guard),
         "decisions" => Some(toggles.decisions),
@@ -363,7 +358,6 @@ pub fn set_toggle_enabled(
         "reminders" => updated.reminders = enabled,
         "repeated_notices" => updated.repeated_notices = enabled,
         "retention_sweep" => updated.retention_sweep = enabled,
-        "codex_diagnostic_capture" => updated.codex_diagnostic_capture = enabled,
         "semantic_context" => updated.semantic_context = enabled,
         "turn_guard" => updated.turn_guard = enabled,
         "decisions" => updated.decisions = enabled,

@@ -27,12 +27,6 @@ pub(super) async fn harness(openai: &str, chatgpt: &str) -> anyhow::Result<Optio
         chatgpt: chatgpt.to_string(),
     };
     let mut state = ResponsesState::new(reqwest::Client::new(), upstreams, Some(persist.clone()));
-    state.toggles.store(std::sync::Arc::new(
-        crate::feature_toggles::FeatureToggles {
-            codex_diagnostic_capture: true,
-            ..Default::default()
-        },
-    ));
     let home = tempfile::tempdir()?;
     state.capture_root = Some(std::sync::Arc::new(home.path().join("capture")));
     let (tx, rx) = mpsc::unbounded_channel();

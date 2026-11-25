@@ -73,8 +73,8 @@ Codex versions without native queue support still receive mail on an eligible re
 ## Check capture
 
 Run `mike doctor`, send a prompt in the launched session, then open that session in
-Mike. The capture list shows each exchange and its completion status. The old
-`codex_diagnostic_capture` switch is not required for complete proxy capture.
+Mike. The capture list shows each exchange and its completion status.
+Capture needs no switch.
 
 For compressed requests, Mike keeps the complete decoded payload and the original
 headers. It forwards the original bytes when no context is added; when Mike adds

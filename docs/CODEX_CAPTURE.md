@@ -80,8 +80,7 @@ quota. Sessions with captures are excluded from automatic session expiry. Retent
 and deletion policy are separate operator decisions. Existing bounded metadata
 projections and legacy diagnostic retention do not govern these documents.
 
-`codex_diagnostic_capture` is not required for full proxy capture. The old diagnostic
-record remains a metadata projection; it does not add a second copy of these bodies.
+Full proxy capture needs no switch. The old diagnostic record remains a metadata projection; it does not add a second copy of these bodies.
 Missing usage stays unknown, and a completed response is separate from mail receipt
 or fleet acceptance.
 

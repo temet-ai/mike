@@ -227,7 +227,6 @@ fn toggle_meta_covers_all_keys() {
     assert_eq!(
         keys,
         vec![
-            "codex_diagnostic_capture",
             "agent_lessons",
             "change_record",
             "change_record_tail",
