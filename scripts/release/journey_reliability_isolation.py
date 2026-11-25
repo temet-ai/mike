@@ -29,7 +29,6 @@ FEATURES = {
     "client_serves_self_identity": ("global", "immediate"),
     "client_serves_weasel_guard": ("global", "immediate"),
     "client_serves_workspace_briefing": ("global", "immediate"),
-    "context_focus_question": ("session", "new_sessions"),
     "db_resync": ("global", "on_restart"),
     "directive_proposer": ("global", "live_disable"),
     "dossier_builder": ("global", "immediate"),

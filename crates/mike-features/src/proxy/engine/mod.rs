@@ -172,7 +172,6 @@ pub struct PipelineResult {
     pub project_path: String,
     pub carrier_eligible: bool,
     pub proxy_tools_declared: bool,
-    pub context_focus_asked: bool,
 }
 
 pub enum PipelineOutcome {

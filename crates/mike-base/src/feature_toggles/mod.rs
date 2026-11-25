@@ -98,9 +98,6 @@ pub struct FeatureToggles {
     pub code_findings: bool,
 
     #[serde(default)]
-    pub context_focus_question: bool,
-
-    #[serde(default)]
     pub memory_keeper: bool,
 
     #[serde(default)]
@@ -178,7 +175,6 @@ impl Default for FeatureToggles {
             change_record_tail: false,
             code_scan: true,
             code_findings: false,
-            context_focus_question: false,
             memory_keeper: false,
             seat_memory_index: false,
             wright: false,
@@ -205,7 +201,6 @@ pub struct ResolvedToggles {
     pub weasel_intercept: bool,
     pub agent_lessons: bool,
     pub proxy_tools: bool,
-    pub context_focus_question: bool,
     pub workspace_capture_registration: bool,
     pub self_identity_reminder: bool,
     pub workspace_briefing: bool,
@@ -221,7 +216,6 @@ impl ResolvedToggles {
             weasel_intercept: overlay.weasel_intercept,
             agent_lessons: overlay.agent_lessons,
             proxy_tools: overlay.proxy_tools,
-            context_focus_question: overlay.context_focus_question,
             workspace_capture_registration: overlay.workspace_capture_registration,
             self_identity_reminder: overlay.self_identity_reminder,
             workspace_briefing: overlay.workspace_briefing,
@@ -257,7 +251,6 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "code_findings" => Some(toggles.code_findings),
         "code_scan" => Some(toggles.code_scan),
         "channel_link_sweep" => Some(toggles.channel_link_sweep),
-        "context_focus_question" => Some(toggles.context_focus_question),
         "db_resync" => Some(toggles.db_resync),
         "dossier_builder" => Some(toggles.dossier_builder),
         "fleet_auto_start" => Some(toggles.fleet_auto_start),
@@ -326,7 +319,6 @@ pub fn set_toggle_enabled(
         "code_findings" => updated.code_findings = enabled,
         "code_scan" => updated.code_scan = enabled,
         "channel_link_sweep" => updated.channel_link_sweep = enabled,
-        "context_focus_question" => updated.context_focus_question = enabled,
         "db_resync" => updated.db_resync = enabled,
         "dossier_builder" => updated.dossier_builder = enabled,
         "fleet_auto_start" => updated.fleet_auto_start = enabled,

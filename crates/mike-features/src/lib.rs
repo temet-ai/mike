@@ -5,7 +5,6 @@ pub mod capture;
 pub mod channel_link_settings;
 pub mod channel_link_sweep;
 pub mod compose_prompt;
-pub mod context_focus;
 pub mod cross_session;
 pub mod db_cost;
 pub mod dossier;

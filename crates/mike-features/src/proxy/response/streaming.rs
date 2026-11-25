@@ -30,7 +30,6 @@ pub async fn forward_streaming(ctx: ResponseCtx) -> Result<Response, ProxyError>
         resp_headers,
         project_path,
         proxy_tools_declared,
-        context_focus_asked,
         ..
     } = ctx;
 
@@ -74,24 +73,12 @@ pub async fn forward_streaming(ctx: ResponseCtx) -> Result<Response, ProxyError>
     } else {
         spawn_plain_tee(&state, request_id, upstream_resp)
     };
-    let body = if context_focus_asked {
-        Body::from_stream(crate::context_focus::strip::strip_stream(
-            body.into_data_stream(),
-        ))
-    } else {
-        body
-    };
     in_flight_guard.forget();
 
     let ttfb_ms = handler_start.elapsed().as_millis() as u64;
     broadcast_streaming_started(&state, request_id, status, ttfb_ms, streaming_model);
 
-    build_streaming_response(
-        status,
-        &resp_headers,
-        body,
-        body_may_be_replaced || context_focus_asked,
-    )
+    build_streaming_response(status, &resp_headers, body, body_may_be_replaced)
 }
 
 fn server_holds_the_answer(sent_body: &[u8], session_id: &str, request_id: RequestId) -> bool {

@@ -107,7 +107,6 @@ judge_worker.max_output_tokens
 judge_worker.model
 judge_worker.reasoning_effort
 judge_worker.system_prompt
-context_focus_question.mode
 knowledge_embedding.batch_sources
 knowledge_embedding.budget_secs
 knowledge_embedding.chunks_per_call

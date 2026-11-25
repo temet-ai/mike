@@ -30,7 +30,6 @@ pub async fn finalize_and_respond(
         project_path,
         carrier_eligible,
         proxy_tools_declared,
-        context_focus_asked,
         ..
     } = pipeline;
     let ForwardOutcome {
@@ -97,7 +96,6 @@ pub async fn finalize_and_respond(
         is_sse_response,
         project_path,
         proxy_tools_declared,
-        context_focus_asked,
     })
     .await
 }

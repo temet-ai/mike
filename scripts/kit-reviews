@@ -19,14 +19,15 @@
 # names the others (`machines`). The rest stand aside, exit 0.
 #
 # The code and sessions kits live in the ask-kit repository. When their source is an installed
-# copy (the Claude plugin cache or node_modules), the checkout in KIT_REVIEWS_ASK_KIT is used;
+# copy (the Claude plugin cache or node_modules), the checkout in KIT_REVIEWS_ASK_KIT is used,
+# brought up to origin/main first (a checkout that cannot fast-forward is skipped and fails the step);
 # without it the kit is skipped and the skip is logged.
 #
 # Exit 0: every step finished. Exit 1: a step failed; one summary line per step is the last
 # thing written to stderr, so the job history shows why. A failing step never stops the next.
 #
 # Usage: scripts/kit-reviews [--print]   --print shows the commands and the brief, runs nothing.
-# Environment: ASK_KIT_BIN, CLAUDE_BIN, KIT_REVIEWS_MODEL (default opus), KIT_REVIEWS_ASK_KIT,
+# Environment: ASK_KIT_BIN, CLAUDE_BIN, KIT_REVIEWS_MODEL (default sonnet), KIT_REVIEWS_ASK_KIT,
 # KIT_REVIEWS_STATE (default ~/.local/state/mike-kit-reviews), KIT_REVIEWS_KIT_TIMEOUT (seconds
 # per kit, default 2100), KIT_REVIEWS_BUDGET (seconds for the whole run, default 7200, the job's
 # timeout), KIT_REVIEWS_MIN_KIT_SECS (a kit with less time left is not started, default 300),
@@ -34,7 +35,7 @@
 # ANTHROPIC_BASE_URL (default http://localhost:9988).
 set -uo pipefail
 
-model="${KIT_REVIEWS_MODEL:-opus}"
+model="${KIT_REVIEWS_MODEL:-sonnet}"
 state_root="${KIT_REVIEWS_STATE:-$HOME/.local/state/mike-kit-reviews}"
 kit_timeout="${KIT_REVIEWS_KIT_TIMEOUT:-2100}"
 budget="${KIT_REVIEWS_BUDGET:-7200}"
@@ -241,6 +242,11 @@ installed_copy() {
   esac
 }
 
+ask_kit_current() {
+  "$tmo" -k 10 60 git -C "$KIT_REVIEWS_ASK_KIT" fetch -q origin main </dev/null >/dev/null 2>&1 &&
+    git -C "$KIT_REVIEWS_ASK_KIT" merge -q --ff-only origin/main </dev/null >/dev/null 2>&1
+}
+
 reviewed=()
 skipped=()
 started_kits=0
@@ -268,6 +274,10 @@ while IFS= read -r row; do
     if [[ ! -d "$KIT_REVIEWS_ASK_KIT/domains/$kit" ]]; then
       say "skipping $kit: $KIT_REVIEWS_ASK_KIT/domains/$kit does not exist"
       skipped+=("$kit (not in KIT_REVIEWS_ASK_KIT)")
+      continue
+    fi
+    if ! ask_kit_current; then
+      fail "step 4: $kit not reviewed: $KIT_REVIEWS_ASK_KIT cannot fast-forward to origin/main"
       continue
     fi
     source="$KIT_REVIEWS_ASK_KIT/domains/$kit"

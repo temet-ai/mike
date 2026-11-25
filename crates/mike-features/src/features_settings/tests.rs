@@ -69,7 +69,6 @@ fn features_settings_registered_meta_holds_moved_keys() {
         "reminders.inject_lessons",
         "weasel_intercept.correction_prompt",
         "compression_dedup.enabled",
-        "context_focus_question.mode",
         super::meta_dossier::ENTRIES_ENABLED_KEY,
         super::meta_eval::HOLDOUT_PERCENT_KEY,
         super::meta_eval_alarms::EVAL_ROLLUP_ENABLED,

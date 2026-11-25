@@ -122,7 +122,7 @@ These are off, and none of the first four sends text to another service:
 | `seat_memory_index` | Knowledge search also finds fleet seats' briefs, reports and mail, labelled by seat and run and ranked below your own material. Turning it back on needs a restart. |
 | `wright` | Wright watches mike's own signals (tool errors, hook errors, failed jobs) and records each recurring fault as a problem with its episodes. Reads only this machine's database. Known fixes tidy known leftovers by themselves, inside daily limits. For a problem with no known fix, one sandboxed Claude run traces it to the part of mike that owns it and records a finding; a finding that names a code defect gets a narrow fix that reaches `main` only through the push hook, and Wright never deploys. The `/wright` page shows problems, findings, actions with undo, repairs and a conversation; posting and undoing need a browser paired with `mike wright pair --open`. Turning it off stops the checks at once. The checks are stored rows, not code: list, add, change, disable and remove them while mike runs with the `wright_checks` tool. |
 
-`workspace_briefing`, `context_focus_question`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
+`workspace_briefing`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
 
 ### On by default
 

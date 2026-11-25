@@ -24,7 +24,6 @@ pub struct MutationOutcome {
     pub manifest: ManifestBuilder,
     pub injected_reminders: Vec<SystemReminder>,
     pub proxy_tools_declared: bool,
-    pub context_focus_asked: bool,
 }
 
 fn exempt_outcome(body_bytes: &Bytes) -> MutationOutcome {
@@ -36,7 +35,6 @@ fn exempt_outcome(body_bytes: &Bytes) -> MutationOutcome {
         manifest: ManifestBuilder::new(sha256_hex(body_bytes.as_ref())),
         injected_reminders: Vec::new(),
         proxy_tools_declared: false,
-        context_focus_asked: false,
     }
 }
 
@@ -139,7 +137,6 @@ pub async fn run_mutation_stages(params: MutationStageParams<'_>) -> MutationOut
         firing_rule_ids,
         injected_lesson_ids,
         proxy_tools_declared: manifest.applied("proxy_tools"),
-        context_focus_asked: manifest.applied(crate::context_focus::STAGE),
         manifest,
         injected_reminders,
     }

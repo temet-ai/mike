@@ -35,7 +35,6 @@ fn stage_order_matches_documented_pipeline_sequence() {
             "repeated_notices",
             "read_dedup",
             "proxy_tools",
-            "context_focus_question",
             "proxy_tool_thread",
         ]
     );

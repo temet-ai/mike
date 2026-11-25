@@ -19,7 +19,7 @@ from a checkout.
 |---|---|---|
 | [`mike-overview.svg`](mike-overview.svg) | One turn end to end: proxy, Anthropic, capture, web UI, MCP | [`README.md`](../../README.md) |
 | [`system-map.svg`](system-map.svg) | Every port a turn touches, including the `proxy-forward` sidecar | [`ARCHITECTURE.md` §2](../ARCHITECTURE.md#2-system-map) |
-| [`mutation-stages.svg`](mutation-stages.svg) | Twelve of the nineteen `pipeline::STAGE_ORDER` stages with four armed; the forwarded body changes and the capture does not | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#mutation-gates-and-default-behaviour), [`ARCHITECTURE.md` §4](../ARCHITECTURE.md#4-request-modification-pipeline) |
+| [`mutation-stages.svg`](mutation-stages.svg) | Twelve of the eighteen `pipeline::STAGE_ORDER` stages with four armed; the forwarded body changes and the capture does not | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#mutation-gates-and-default-behaviour), [`ARCHITECTURE.md` §4](../ARCHITECTURE.md#4-request-modification-pipeline) |
 | [`answer-replaced.svg`](answer-replaced.svg) | The buffered forwarder on a weasel-intercept hit | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#the-gated-forwarder-two-ways-a-reply-gets-cut-and-continued) |
 | [`two-phase-write.svg`](two-phase-write.svg) | The Phase-1 stub, per-event rows, and the Phase-2 terminal snapshot | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#two-phase-db-write) |
 | [`boot-and-shutdown.svg`](boot-and-shutdown.svg) | `mike serve` from the first fast paths to exit: workers, listeners, drain deadlines | [`STARTUP_FLOW.md`](../STARTUP_FLOW.md) |

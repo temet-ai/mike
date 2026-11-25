@@ -428,7 +428,6 @@
   "compress": "proxy",
   "config": "model",
   "config/subcommands": "cli",
-  "context_focus": "proxy",
   "cross_session": "steerer",
   "db_cost": "state",
   "db_listener": "serve",

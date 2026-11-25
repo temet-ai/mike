@@ -161,12 +161,6 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			'Adds one note, grouped by file and rule, naming what a session’s own edits just added. It waits for the session’s next request and never wakes it. Off, findings are only recorded.',
 		find: 'mike-code ast-grep findings reminder fix'
 	},
-	context_focus_question: {
-		label: 'Reason recorded with each tool call',
-		description:
-			"Asks the model to add one short line to every tool call except file edits, saying what it wants from the call. mike adds a context_focus_question field to the session's tool schemas, records each answer with its tool call, and removes the field before Claude Code sees the call. Costs a few output tokens per call. New sessions pick this up when they start.",
-		find: 'cfq focus question intent why tool call reason schema'
-	},
 	proxy_tools: {
 		label: 'Mike tools in every session',
 		description:

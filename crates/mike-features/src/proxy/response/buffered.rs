@@ -18,7 +18,6 @@ pub async fn forward_buffered(ctx: ResponseCtx) -> Result<Response, ProxyError> 
         in_flight_guard,
         handler_start,
         resp_headers,
-        context_focus_asked,
         ..
     } = ctx;
 
@@ -89,17 +88,11 @@ pub async fn forward_buffered(ctx: ResponseCtx) -> Result<Response, ProxyError> 
         "request complete"
     );
 
-    let client_body = context_focus_asked
-        .then(|| crate::context_focus::strip::strip_json_body(&resp_body))
-        .flatten();
     let mut builder = Response::builder().status(status);
     for (name, value) in resp_headers.iter() {
-        if client_body.is_some() && name == axum::http::header::CONTENT_LENGTH {
-            continue;
-        }
         builder = builder.header(name, value);
     }
     builder
-        .body(Body::from(client_body.unwrap_or(resp_body)))
+        .body(Body::from(resp_body))
         .map_err(|e| ProxyError::Internal(e.to_string()))
 }

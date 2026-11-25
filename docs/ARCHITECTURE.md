@@ -152,11 +152,10 @@ run_mutation_stages — phase 3, pipeline::stages_after_steerer()
 15. repeated_notices        (keep the first copy of each notice Claude Code adds to a delivered message, drop later copies)
 16. read_dedup              (collapse repeated file-read results)
 17. proxy_tools             (declare the proxy's own tools into body.tools[])
-18. context_focus_question  (add a focus field to the session's tool definitions)
-19. proxy_tool_thread       (continue a thread under the id of mike's last proxy-tool follow-up)
+18. proxy_tool_thread       (continue a thread under the id of mike's last proxy-tool follow-up)
 
 then, in request_pipeline.rs
-20. composer                (byte-splice system[2] for the first composable request of a session)
+19. composer                (byte-splice system[2] for the first composable request of a session)
 20. capture-admission guard (shed → forward_without_capture, no row written)
 21. DB stub insert          ← Phase 1 of the two-phase write; the INSERT ... RETURNING id
                               is where the canonical RequestId comes from
@@ -183,9 +182,9 @@ For the symbol-cited walkthrough of the proxy bind and the async capture pipelin
 
 ## 4. Request Modification Pipeline
 
-![Animated pipeline: a request passes twelve of the nineteen stages and the composer; four armed stages add to the forwarded body while the captured stored_body stays the same](animations/mutation-stages.svg)
+![Animated pipeline: a request passes twelve of the eighteen stages and the composer; four armed stages add to the forwarded body while the captured stored_body stays the same](animations/mutation-stages.svg)
 
-Nineteen stages plus the composer sit on the request path (the animation above predates some of them and shows twelve), and two can replace the response. They run in the fixed order declared by `pipeline::STAGE_ORDER`, listed in §3, each able to fail-closed without bringing the others down. Most can alter what Anthropic sees. The sections below describe the ones with non-obvious design rationale.
+Eighteen stages plus the composer sit on the request path (the animation above predates some of them and shows twelve), and two can replace the response. They run in the fixed order declared by `pipeline::STAGE_ORDER`, listed in §3, each able to fail-closed without bringing the others down. Most can alter what Anthropic sees. The sections below describe the ones with non-obvious design rationale.
 
 Most mutation features default off. The filter and `lazy_sections` instead depend on operator-authored rule rows; composition has its boot gate and per-class mode. The shared steerer/mailbox drain runs on Primary/PrimaryFirst requests and applies source-specific delivery checks. Explicitly authored mailbox messages do not require the autonomous steerer toggle.
 
@@ -322,7 +321,6 @@ A client such as tether can take a stage over for one session: it reads from a m
 | `steerer` (drain: mailbox and launch briefs) | `POST /api/sessions/{id}/mail/claim` | `client_serves_mail` | `mailbox_served_by_client` | steerer notes still drain: they are mike's own |
 | `repeated_notices`, `read_dedup` | none | none | none | they rewrite the request's history, which only the wire carries |
 | `proxy_tools` | `GET /api/sessions/{id}/proxy-tools`, calls through `POST /api/sessions/{id}/proxy-tools/{name}` | `client_serves_proxy_tools` | `proxy_tools_served_by_client` | |
-| `context_focus_question` | none | none | none | it edits the tool definitions in the request, which only the wire carries |
 | compositions (`compose_prompt`, before the pipeline) | none: tether applies none | none | none | they replace Claude Code's own system blocks, which only the wire carries |
 | `weasel_intercept` (response side) | `POST /api/sessions/{id}/weasel-guard` | `client_serves_weasel_guard` | `weasel_served_by_client`, at request time | |
 

@@ -99,7 +99,10 @@ claude_runs() { ls "$FIX"/claude-[0-9]*.txt 2>/dev/null | wc -l | tr -d ' '; }
 
 for kit in mike fleet docs extra ops; do mkrepo "$SCRATCH/kits/$kit"; done
 mkdir -p "$SCRATCH/cache/node_modules/@temet-ai/ask-kit/domains/code"
-mkrepo "$SCRATCH/askkit-checkout"
+mkrepo "$SCRATCH/askkit-origin"
+git -C "$SCRATCH/askkit-origin" branch -q -M main
+git clone -q "$SCRATCH/askkit-origin" "$SCRATCH/askkit-checkout"
+git -C "$SCRATCH/askkit-origin" -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit -q --allow-empty -m newer
 mkdir -p "$SCRATCH/askkit-checkout/domains/code"
 mkdir -p "$SCRATCH/askkit-checkout/domains/sessions"
 mkdir -p "$SCRATCH/nobin"
@@ -118,7 +121,7 @@ reset_fix
 run_job "${JOBCMD[@]}" --print
 [[ $RC -eq 0 ]] && ok "--print exits 0" || bad "--print exits 0" "rc=$RC $OUT $ERR"
 check "--print shows the brief" "Do not push, merge, tag, release" "$OUT"
-check "--print names the model" "model:   opus" "$OUT"
+check "--print names the model" "model:   sonnet" "$OUT"
 [[ -z "$(calls)" && "$(claude_runs)" == 0 ]] && ok "--print calls neither ask-kit nor claude" || bad "--print calls neither ask-kit nor claude" "$(calls)"
 run_job "${JOBCMD[@]}" --bogus
 [[ $RC -eq 2 ]] && ok "an unknown argument exits 2" || bad "an unknown argument exits 2" "rc=$RC"
@@ -168,7 +171,7 @@ check "the kit with the most questions goes first, from its source" "pwd=$SCRATC
 check "a tie on questions goes to the kit with more signals" "pwd=$SCRATCH/kits/docs" "$second"
 check "then the next kit" "pwd=$SCRATCH/kits/fleet" "$third"
 check "claude goes through the proxy" "base=http://localhost:9988" "$first"
-check "claude runs headless on the default model" "--model opus" "$first"
+check "claude runs headless on the default model" "--model sonnet" "$first"
 check "claude runs with bypassPermissions" "--permission-mode bypassPermissions" "$first"
 check "claude is started with -p and a brief" "args=-p Today is $TODAY." "$first"
 check "claude gets no stdin" "stdin=0" "$first"
@@ -191,6 +194,7 @@ queue "$RANKED"
 run_job env KIT_REVIEWS_ASK_KIT="$SCRATCH/askkit-checkout" ASK_KIT_BIN="$SCRATCH/bin-0.8.0/ask-kit" CLAUDE_BIN="$SCRATCH/claude-bin/claude" "$JOB"
 [[ $RC -eq 0 ]] && ok "a run with the ask-kit checkout exits 0" || bad "a run with the ask-kit checkout exits 0" "rc=$RC $ERR"
 check "the code kit runs from the checkout's domain folder" "pwd=$SCRATCH/askkit-checkout/domains/code" "$(cat "$FIX/claude-1.txt")"
+[[ "$(git -C "$SCRATCH/askkit-checkout" log -1 --format=%s)" == newer ]] && ok "the checkout is brought up to origin/main" || bad "the checkout is brought up to origin/main"
 check "the brief names the checkout as the repository" "in the repository $SCRATCH/askkit-checkout" "$(cat "$FIX/claude-1.txt")"
 [[ "$(claude_runs)" == 3 ]] && ok "the skipped kit no longer takes one of the three slots" || bad "the skipped kit no longer takes one of the three slots" "$(claude_runs)"
 reset_fix

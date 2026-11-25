@@ -28,7 +28,6 @@ pub struct ResponseCtx {
     pub is_sse_response: bool,
     pub project_path: String,
     pub proxy_tools_declared: bool,
-    pub context_focus_asked: bool,
 }
 
 pub async fn forward(ctx: ResponseCtx) -> Result<Response, ProxyError> {

@@ -245,7 +245,6 @@ fn toggle_meta_covers_all_keys() {
             "code_findings",
             "code_scan",
             "conditions",
-            "context_focus_question",
             "db_resync",
             "decisions",
             "directive_proposer",

@@ -66,11 +66,6 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::Immediate,
     },
     ToggleMeta {
-        key: "context_focus_question",
-        scope: ToggleScope::Session,
-        applies: ToggleApplies::NewSessions,
-    },
-    ToggleMeta {
         key: "db_resync",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,

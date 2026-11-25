@@ -131,7 +131,6 @@ replayed first so the prompt cache prefix stays stable (`injected_replay/`).
 | 12 | Repeated notices | `repeated_notices` (off) | Sends each Claude Code boilerplate notice once per session | [`FEATURES.md`](FEATURES.md) |
 | 13 | Read dedup | setting `compression_dedup.enabled` (off) | Replaces duplicate Read results | [`FEATURES`](FEATURES.md) |
 | 14 | Proxy-declared tools | `proxy_tools` (off) | Adds mike's own tools (`mike_session_roster`) to `tools[]` and answers them in-process | [`ARCHITECTURE.md` §4.5](ARCHITECTURE.md#45-weasel-intercept) |
-| 15 | Context-focus question | `context_focus_question` (off) | Asks for one line per tool call; stripped from the response | [`FEATURES.md`](FEATURES.md) |
 
 After the stages: prompt composition (`compose_prompt/`; `composition_enabled`
 exists in config but the stage does not read it), a cache-scope tripwire
@@ -232,7 +231,7 @@ wins over a code default, so an upgrade never changes what an install does.
   `agent_lessons`, `self_identity_reminder`, `workspace_briefing`,
   `mailbox_redelivery`, `repeated_notices`, `reminder_on_token`,
   `proxy_tools`,
-  `context_focus_question`, `change_record_tail`, `weasel_intercept`, and the
+  `change_record_tail`, `weasel_intercept`, and the
   settings `reminders.inject_lessons`, `compression_dedup.enabled`.
 - **Off by default, call a model:** `steerer`, `judge_worker`,
   `session_judge`, `turn_guard`, `judge_lessons`.

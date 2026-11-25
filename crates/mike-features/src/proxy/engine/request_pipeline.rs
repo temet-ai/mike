@@ -47,7 +47,6 @@ pub async fn run_request_pipeline(
         mut manifest,
         injected_reminders,
         proxy_tools_declared,
-        context_focus_asked,
     } = mutation_stages::run_mutation_stages(MutationStageParams {
         state,
         body_bytes: &body_bytes,
@@ -119,7 +118,7 @@ pub async fn run_request_pipeline(
         session_toggles,
         tail,
         (observed_composition_applied, composed_system_text),
-        (carrier_eligible, proxy_tools_declared, context_focus_asked),
+        (carrier_eligible, proxy_tools_declared),
     ))
 }
 
@@ -128,7 +127,7 @@ fn continue_with(
     session_toggles: Arc<ResolvedToggles>,
     tail: capture_register::CapturedPipelineTail,
     (observed_composition_applied, composed_system_text): (bool, Option<String>),
-    (carrier_eligible, proxy_tools_declared, context_focus_asked): (bool, bool, bool),
+    (carrier_eligible, proxy_tools_declared): (bool, bool),
 ) -> PipelineOutcome {
     PipelineOutcome::Continue(Box::new(PipelineResult {
         parts,
@@ -144,7 +143,6 @@ fn continue_with(
         project_path: tail.project_path,
         carrier_eligible,
         proxy_tools_declared,
-        context_focus_asked,
     }))
 }
 

@@ -1,9 +1,7 @@
 use serde_json::Value;
 
 use super::sections::weasel_intercept::DEFAULT_CORRECTION_PROMPT;
-use crate::settings::overlay_apply::{
-    set_bool, set_prompt, set_string, set_string_list, set_usize,
-};
+use crate::settings::overlay_apply::{set_bool, set_prompt, set_string_list, set_usize};
 use crate::settings::{FeatureOverlays, OverlaySection};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,19 +38,9 @@ impl Default for WeaselOverlay {
 
 impl OverlaySection for WeaselOverlay {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ContextShapingOverlay {
     pub compression_dedup_enabled: bool,
-    pub context_focus_question_mode: String,
-}
-
-impl Default for ContextShapingOverlay {
-    fn default() -> Self {
-        Self {
-            compression_dedup_enabled: false,
-            context_focus_question_mode: "plain".to_owned(),
-        }
-    }
 }
 
 impl OverlaySection for ContextShapingOverlay {}
@@ -73,9 +61,6 @@ pub fn apply_overlay(overlays: &mut FeatureOverlays, key: &str, value: &Value) -
         }),
         "compression_dedup.enabled" => overlays.update::<ContextShapingOverlay>(|o| {
             set_bool(&mut o.compression_dedup_enabled, key, value);
-        }),
-        "context_focus_question.mode" => overlays.update::<ContextShapingOverlay>(|o| {
-            set_string(&mut o.context_focus_question_mode, key, value);
         }),
         _ => return false,
     }

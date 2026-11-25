@@ -4,27 +4,7 @@ use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 pub fn entries() -> Vec<SettingMeta> {
     let mut v = session_toggle_entries();
     v.extend(read_dedup_entries());
-    v.push(context_focus_mode_entry());
     v
-}
-
-fn context_focus_mode_entry() -> SettingMeta {
-    SettingMeta {
-        key: "context_focus_question.mode",
-        group: "Reason recorded with each tool call",
-        kind: SettingKind::Enum,
-        scope: SettingScope::Session,
-        applies: SettingApplies::NewSessions,
-        default: serde_json::Value::String("plain".to_owned()),
-        label: "How the field is asked for",
-        description: "Plain adds the field with a short description. Emphatic says it is required on every call, Read included. Strict also marks Read strict, so the API makes the model fill it there; more strict tools exceed the API's grammar limit. Length and number limits are removed from the copy of Read's schema sent upstream, and Claude Code still checks its own.",
-        min_i64: None,
-        max_i64: None,
-        min_f64: None,
-        max_f64: None,
-        max_len: None,
-        enum_variants: Some(&["plain", "emphatic", "strict"]),
-    }
 }
 
 fn session_toggle_entries() -> Vec<SettingMeta> {
