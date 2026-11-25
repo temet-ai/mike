@@ -41,8 +41,12 @@ async fn next_armed_condition_at_names_the_earliest_start_including_retries() ->
     let mut retrying = time_condition();
     retrying.machine_uuid = machine;
     let retrying = fleet.insert_condition(&retrying).await?;
-    fleet.mark_condition_failed_attempt(retrying.id, "x").await?;
-    fleet.mark_condition_failed_attempt(retrying.id, "x").await?;
+    fleet
+        .mark_condition_failed_attempt(retrying.id, "x")
+        .await?;
+    fleet
+        .mark_condition_failed_attempt(retrying.id, "x")
+        .await?;
 
     let at = fleet
         .next_armed_condition_at(machine)

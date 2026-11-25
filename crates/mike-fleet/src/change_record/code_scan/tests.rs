@@ -29,13 +29,10 @@ fn active() -> Result<super::ActiveRules> {
 #[tokio::test]
 async fn an_edit_records_only_the_findings_it_added() -> Result<()> {
     let (_dir, git, shas) = repo_with(&[
-        ("old.rs", "fn a() { unsafe { f() } }\n"),
+        ("old.rs", "fn a() -> P { std::env::temp_dir() }\n"),
         (
             "new.rs",
-            concat!(
-                "fn a() { unsafe { f() } }\nfn b(err: E) { tracing::warn!(%e",
-                "rr, \"x\"); }\n"
-            ),
+            "fn a() -> P { std::env::temp_dir() }\nfn b(c: C) -> C { c.danger_accept_invalid_certs(true) }\n",
         ),
     ])
     .await?;
@@ -50,7 +47,7 @@ async fn an_edit_records_only_the_findings_it_added() -> Result<()> {
     assert_eq!(record.language.as_deref(), Some("rust"));
     assert_eq!((record.findings_before, record.findings_after), (1, 2));
     let added: Vec<&str> = record.added.iter().map(|f| f.rule_id.as_str()).collect();
-    assert_eq!(added, vec!["rust-log-field-names"]);
+    assert_eq!(added, vec!["rust-tls-verification-off"]);
     assert_eq!(record.present.len(), 2);
     Ok(())
 }
@@ -220,6 +217,107 @@ async fn a_checkout_without_rule_files_uses_the_builtin_rules() -> Result<()> {
         super::project_rules_status()
             .iter()
             .all(|s| s.checkout != root)
+    );
+    Ok(())
+}
+
+const UNSAFE_TEMP: &str = "fn a() -> P { std::env::temp_dir() }\n";
+const NO_TLS: &str = "fn b(c: C) -> C { c.danger_accept_invalid_certs(true) }\n";
+
+async fn commit(git: &Git, text: &str) -> Result<String> {
+    std::fs::write(git.absolute("a.rs"), text)?;
+    git.run(&["add", "a.rs"]).await?;
+    git.run(&[
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "-m",
+        "x",
+    ])
+    .await?;
+    blob(git).await
+}
+
+async fn blob(git: &Git) -> Result<String> {
+    let out = git.run(&["hash-object", "-w", "a.rs"]).await?;
+    Ok(String::from_utf8(out)?.trim().to_string())
+}
+
+struct Branches {
+    _dir: tempfile::TempDir,
+    main: Git,
+    other: Git,
+    base: String,
+}
+
+async fn two_worktrees() -> Result<Branches> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().join("main");
+    std::fs::create_dir(&root)?;
+    let main = Git::new(root.to_str().context("path")?);
+    main.run(&["init", "-q", "-b", "main"]).await?;
+    let base = commit(&main, "fn z() {}\n").await?;
+    let other_root = dir.path().join("other");
+    let other_root = other_root.to_str().context("path")?;
+    main.run(&["worktree", "add", "-q", "-b", "other", other_root])
+        .await?;
+    let other = Git::new(other_root);
+    Ok(Branches {
+        _dir: dir,
+        main,
+        other,
+        base,
+    })
+}
+
+async fn added_in(git: &Git, before: &str, after: &str) -> Result<Vec<String>> {
+    let change = PendingChange {
+        id: 1,
+        path: "a.rs".to_string(),
+        before_sha: Some(before.to_string()),
+        after_sha: Some(after.to_string()),
+    };
+    let record = scan_change(git, active()?, git.root(), &change).await;
+    assert_eq!(record.error, None);
+    Ok(record.added.into_iter().map(|f| f.rule_id).collect())
+}
+
+#[tokio::test]
+async fn code_a_merge_brings_in_is_not_the_merging_sessions() -> Result<()> {
+    let b = two_worktrees().await?;
+    commit(&b.main, UNSAFE_TEMP).await?;
+    b.other.run(&["merge", "-q", "--ff-only", "main"]).await?;
+    let after = blob(&b.other).await?;
+    assert!(added_in(&b.other, &b.base, &after).await?.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_line_written_on_top_of_a_merge_is_the_sessions() -> Result<()> {
+    let b = two_worktrees().await?;
+    commit(&b.main, UNSAFE_TEMP).await?;
+    b.other
+        .run(&["merge", "-q", "--no-commit", "--no-ff", "main"])
+        .await?;
+    std::fs::write(b.other.absolute("a.rs"), format!("{UNSAFE_TEMP}{NO_TLS}"))?;
+    let after = blob(&b.other).await?;
+    assert_eq!(
+        added_in(&b.other, &b.base, &after).await?,
+        vec!["rust-tls-verification-off"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_edit_committed_before_the_scan_is_still_the_sessions() -> Result<()> {
+    let b = two_worktrees().await?;
+    let after = commit(&b.main, UNSAFE_TEMP).await?;
+    assert_eq!(
+        added_in(&b.main, &b.base, &after).await?,
+        vec!["rust-temp-dir"]
     );
     Ok(())
 }

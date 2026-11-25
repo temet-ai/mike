@@ -62,6 +62,7 @@ pub mod gate_text;
 pub mod goals;
 pub mod here;
 pub mod host_memory;
+pub mod idle;
 pub mod introduce;
 pub mod issue_close;
 pub mod leaves;
@@ -95,7 +96,6 @@ pub mod retrospective_outcome;
 pub mod retrospective_outcome_tests;
 #[cfg(test)]
 pub mod retrospective_tests;
-pub mod idle;
 pub mod retrospective_worker;
 pub mod reuse;
 pub mod rule_audit;

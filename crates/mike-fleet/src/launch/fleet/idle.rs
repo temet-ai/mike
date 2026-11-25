@@ -12,8 +12,10 @@ use crate::store::models::proxy_event::RowChangedTable;
 /// How long an idle loop sleeps when nothing changes, in case a change
 /// notice was missed.
 pub const BACKSTOP: Duration = Duration::from_secs(600);
-pub const WATCHED: [RowChangedTable; 2] =
-    [RowChangedTable::LaunchFleets, RowChangedTable::LaunchLaunches];
+pub const WATCHED: [RowChangedTable; 2] = [
+    RowChangedTable::LaunchFleets,
+    RowChangedTable::LaunchLaunches,
+];
 
 /// Waits before a fleet loop's next tick. `since` is the feed generation read
 /// before the tick, so a change made during the tick wakes the loop at once.

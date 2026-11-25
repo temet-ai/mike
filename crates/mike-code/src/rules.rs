@@ -6,10 +6,9 @@ use ast_grep_language::SupportLang;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-const BUILTIN: [(&str, &str); 7] = [
+const BUILTIN: [(&str, &str); 6] = [
     ("rust.yml", include_str!("../rules/rust.yml")),
     ("rust-sql.yml", include_str!("../rules/rust-sql.yml")),
-    ("rust-tests.yml", include_str!("../rules/rust-tests.yml")),
     ("shell.yml", include_str!("../rules/shell.yml")),
     ("python.yml", include_str!("../rules/python.yml")),
     ("typescript.yml", include_str!("../rules/typescript.yml")),

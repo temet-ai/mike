@@ -1,13 +1,45 @@
+use std::sync::OnceLock;
+
 use anyhow::{Context, Result};
 
 use crate::{RuleSet, new_findings, scan};
+
+const MIKE_RULES: [(&str, &str); 5] = [
+    ("rust.yml", include_str!("../../../code-rules/rust.yml")),
+    (
+        "rust-sql.yml",
+        include_str!("../../../code-rules/rust-sql.yml"),
+    ),
+    (
+        "rust-tests.yml",
+        include_str!("../../../code-rules/rust-tests.yml"),
+    ),
+    ("shell.yml", include_str!("../../../code-rules/shell.yml")),
+    (
+        "typescript.yml",
+        include_str!("../../../code-rules/typescript.yml"),
+    ),
+];
 
 fn builtin() -> Result<&'static RuleSet> {
     RuleSet::builtin().map_err(|err| anyhow::anyhow!("{err}"))
 }
 
+fn with_mike_rules() -> Result<&'static RuleSet> {
+    static RULES: OnceLock<RuleSet> = OnceLock::new();
+    if let Some(rules) = RULES.get() {
+        return Ok(rules);
+    }
+    let own: Vec<(String, String)> = MIKE_RULES
+        .iter()
+        .map(|(file, text)| ((*file).to_string(), (*text).to_string()))
+        .collect();
+    let rules = RuleSet::with_project(&own).map_err(|err| anyhow::anyhow!("{err}"))?;
+    Ok(RULES.get_or_init(|| rules))
+}
+
 fn rules_hit(path: &str, source: &str) -> Result<Vec<String>> {
-    let found = scan(builtin()?, path, source.as_bytes());
+    let found = scan(with_mike_rules()?, path, source.as_bytes());
     Ok(found.findings.into_iter().map(|f| f.rule_id).collect())
 }
 
@@ -16,17 +48,26 @@ fn builtin_rules_load_with_a_stable_version() -> Result<()> {
     let rules = builtin()?;
     assert!(rules.ids().len() >= 25, "{} rules", rules.ids().len());
     assert_eq!(rules.version().len(), 12);
-    let comments = rules
+    Ok(())
+}
+
+#[test]
+fn builtin_rules_never_carry_one_projects_style() -> Result<()> {
+    let found = scan(
+        builtin()?,
+        "src/a.rs",
+        b"// a comment\nfn a(b: B) { unsafe { f() } }\n",
+    );
+    assert!(found.findings.is_empty(), "{:?}", found.findings);
+    let house: Vec<&str> = builtin()?
         .catalogue()
         .iter()
-        .find(|r| r.id == "rust-no-comments")
-        .context("rust-no-comments missing")?;
-    assert_eq!(comments.language, "rust");
+        .filter(|rule| rule.replaces.is_some())
+        .map(|rule| rule.id.as_str())
+        .collect();
     assert!(
-        comments
-            .replaces
-            .as_deref()
-            .is_some_and(|u| u.contains("rust-database-reliability"))
+        house.is_empty(),
+        "built-in rules that restate one project's instructions: {house:?}"
     );
     Ok(())
 }
@@ -236,7 +277,7 @@ fn unknown_and_oversized_files_are_skipped_with_a_reason() -> Result<()> {
 
 #[test]
 fn new_findings_counts_only_what_the_edit_added() -> Result<()> {
-    let rules = builtin()?;
+    let rules = with_mike_rules()?;
     let before = scan(rules, "a.rs", b"fn a() { unsafe { f() } }\n// one\n");
     let after = scan(
         rules,
@@ -256,7 +297,11 @@ fn new_findings_counts_only_what_the_edit_added() -> Result<()> {
 
 #[test]
 fn a_fix_is_rendered_for_rules_that_have_one() -> Result<()> {
-    let found = scan(builtin()?, "a.rs", b"#[ignore]\n#[test]\nfn a_b_c() {}\n");
+    let found = scan(
+        with_mike_rules()?,
+        "a.rs",
+        b"#[ignore]\n#[test]\nfn a_b_c() {}\n",
+    );
     let fix = found
         .findings
         .iter()

@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use mike_code::{Scan, new_findings, scan};
 
+use super::inherited::inherited;
 use super::project_rules::ActiveRules;
 
 use crate::change_record::watch::Git;
@@ -49,14 +50,23 @@ pub async fn scan_change(
     record.bytes = i32::try_from(after.len()).unwrap_or(i32::MAX);
     let path = change.path.clone();
     let started = Instant::now();
+    let for_job = rules.clone();
     let job = tokio::task::spawn_blocking(move || {
-        let set = rules.get();
+        let set = for_job.get();
         (scan(set, &path, &before), scan(set, &path, &after))
     });
     match tokio::time::timeout(SCAN_TIMEOUT, job).await {
         Ok(Ok((old, new))) => fill(&mut record, &old, &new),
         Ok(Err(_)) => record.error = Some("the scan panicked".to_string()),
         Err(_) => record.error = Some(format!("the scan took longer than {SCAN_TIMEOUT:?}")),
+    }
+    if !record.added.is_empty() {
+        match inherited(git, rules, &change.path).await {
+            Ok(known) => record.added.retain(|f| !known.contains(&f.fingerprint)),
+            Err(err) => {
+                tracing::warn!(root = %git.root(), path = %change.path, error = %err, "code scan: what git brought into a file could not be read");
+            }
+        }
     }
     record.duration_us = i32::try_from(started.elapsed().as_micros()).unwrap_or(i32::MAX);
     record

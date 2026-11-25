@@ -3,7 +3,6 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-
 use super::definition::FleetDefinition;
 use super::here;
 use super::shutdown::{self, RUNNING, STOPPING};

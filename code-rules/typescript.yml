@@ -1,0 +1,10 @@
+id: ts-no-import-actual-api
+url: '.claude/rules/frontend-development.md'
+language: typescript
+severity: warning
+rule:
+  any:
+    - pattern: vi.importActual('$lib/api')
+    - pattern: vi.importActual("$lib/api")
+    - pattern: vi.importActual<$T>('$lib/api')
+message: Use mocked modules, not vi.importActual('$lib/api').

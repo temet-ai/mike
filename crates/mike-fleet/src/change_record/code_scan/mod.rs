@@ -1,3 +1,4 @@
+mod inherited;
 mod post;
 pub mod project_rules;
 mod scan;
