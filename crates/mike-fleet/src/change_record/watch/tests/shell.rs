@@ -44,8 +44,9 @@ fn shell_folders_join_once_and_leave_after_thirty_minutes() {
     let now = Utc::now();
     let enter = [command("cd /w/b && ls", now)];
     assert_eq!(shell.since(now), (now - Duration::minutes(30), 0));
-    assert!(shell.add(&enter, now));
-    assert!(!shell.add(&enter, now));
+    shell.add(&enter, now);
+    shell.add(&[command("cd /w/b", now + Duration::seconds(9))], now);
+    assert_eq!(shell.entered("/w/b"), Some(now));
     assert_eq!(shell.since(now), (now - Duration::minutes(30), 700));
     assert!(!shell.wait().is_zero());
     assert_eq!(shell.rows().len(), 1);
@@ -113,4 +114,42 @@ async fn a_root_replaced_by_a_link_to_its_new_place_is_not_there() -> anyhow::Re
     std::fs::remove_file(&link)?;
     assert!(!held);
     Ok(())
+}
+
+#[tokio::test]
+async fn a_folder_that_becomes_a_repository_after_it_was_entered_is_watched() -> anyhow::Result<()>
+{
+    let home = repo().await?;
+    let Some(db) = db(&home.root).await? else {
+        return Ok(());
+    };
+    let pool = db.persist.pool().clone();
+    let worker = session(&pool, db.project_id, Some(&home.root)).await?;
+    let req = request(&pool, worker, db.project_id, Utc::now()).await?;
+    let place = tempfile::tempdir()?;
+    let late = std::fs::canonicalize(place.path())?.join("late");
+    let late = late.to_string_lossy().into_owned();
+    sqlx::query(
+        "INSERT INTO tools.uses (wire_tool_use_id, request_id, ord, tool_name, input, session_id)
+         VALUES ('shell-late', $1, 0, 'Bash', jsonb_build_object('command', $2::text), $3)",
+    )
+    .bind(req)
+    .bind(format!("mkdir {late} && cd {late} && git init"))
+    .bind(worker)
+    .execute(&pool)
+    .await?;
+    let shutdown = CancellationToken::new();
+    let mut supervisor = Supervisor::new(db.persist.clone(), ChangeFeed::new(), quick(true));
+    supervisor.tick(&shutdown).await;
+    assert!(!supervisor.watching().contains(&late));
+    std::fs::create_dir(&late)?;
+    supervisor.read_shell(&shutdown).await;
+    assert!(!supervisor.watching().contains(&late));
+    crate::change_record::watch::Git::new(late.clone())
+        .run(&["init", "-q"])
+        .await?;
+    supervisor.read_shell(&shutdown).await;
+    assert!(supervisor.watching().contains(&late));
+    shutdown.cancel();
+    db.db.cleanup().await
 }

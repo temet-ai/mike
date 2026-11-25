@@ -52,6 +52,7 @@ pub struct Supervisor {
 struct Wanted {
     projects: BTreeMap<String, i64>,
     newest: BTreeMap<String, DateTime<Utc>>,
+    entered: BTreeMap<String, DateTime<Utc>>,
 }
 
 impl Supervisor {
@@ -111,14 +112,13 @@ impl Supervisor {
     }
 
     pub async fn read_shell(&mut self, shutdown: &CancellationToken) {
-        if self.take_in_shell_commands().await {
-            let wanted = self.wanted().await;
-            self.working.expire(expiry(&wanted.newest));
-            self.apply(&wanted, shutdown);
-        }
+        self.take_in_shell_commands().await;
+        let wanted = self.wanted().await;
+        self.working.expire(expiry(&wanted.newest));
+        self.apply(&wanted, shutdown);
     }
 
-    async fn take_in_shell_commands(&mut self) -> bool {
+    async fn take_in_shell_commands(&mut self) {
         self.working.requests_read();
         let now = Utc::now();
         let (since, after_id) = self.shell.since(now);
@@ -131,7 +131,6 @@ impl Supervisor {
             Ok(commands) => self.shell.add(&commands, now),
             Err(err) => {
                 tracing::warn!(error = %err, "change record: new shell commands could not be read");
-                false
             }
         }
     }
@@ -184,6 +183,7 @@ impl Supervisor {
         let mut wanted = Wanted {
             projects: BTreeMap::new(),
             newest: BTreeMap::new(),
+            entered: BTreeMap::new(),
         };
         for row in rows {
             let Some(root) = self.root_of(&row.checkout).await else {
@@ -193,6 +193,12 @@ impl Supervisor {
                 .projects
                 .entry(root.clone())
                 .or_insert(row.project_id);
+            let entered = self
+                .shell
+                .entered(&row.checkout)
+                .unwrap_or(row.newest_request_at);
+            let first = wanted.entered.entry(root.clone()).or_insert(entered);
+            *first = (*first).min(entered);
             let newest = wanted.newest.entry(root).or_insert(row.newest_request_at);
             *newest = (*newest).max(row.newest_request_at);
         }
@@ -201,6 +207,10 @@ impl Supervisor {
 
     async fn root_of(&mut self, checkout: &str) -> Option<String> {
         if self.config.skip_temporary && is_temporary(checkout) {
+            return None;
+        }
+        if !in_repository(checkout) {
+            self.roots.remove(checkout);
             return None;
         }
         let gone = matches!(self.roots.get(checkout), Some(Some(root)) if !still_there(root));
@@ -229,7 +239,7 @@ impl Supervisor {
                 self.persist.clone(),
                 checkout,
                 WatchConfig {
-                    catch_up: self.catch_up(wanted.newest.get(&root)),
+                    catch_up: self.catch_up(wanted.entered.get(&root)),
                     ..self.config
                 },
                 shutdown.child_token(),
@@ -239,9 +249,9 @@ impl Supervisor {
         self.started = true;
     }
 
-    fn catch_up(&self, newest: Option<&DateTime<Utc>>) -> Option<DateTime<Utc>> {
-        let newest = newest.filter(|_| self.started)?;
-        Some(*newest - chrono::Duration::seconds(5))
+    fn catch_up(&self, entered: Option<&DateTime<Utc>>) -> Option<DateTime<Utc>> {
+        let entered = entered.filter(|_| self.started)?;
+        Some(*entered - chrono::Duration::seconds(5))
     }
 
     fn stop_all(&mut self) {
@@ -271,6 +281,11 @@ pub async fn repository_root(folder: &str) -> Option<String> {
     }
     tracing::info!(%folder, %root, "change record: the folder holds nothing the enclosing repository tracks, so that repository is not watched");
     None
+}
+
+fn in_repository(folder: &str) -> bool {
+    let folder = Path::new(folder);
+    folder.is_dir() && folder.ancestors().any(|above| above.join(".git").exists())
 }
 
 pub fn still_there(root: &str) -> bool {

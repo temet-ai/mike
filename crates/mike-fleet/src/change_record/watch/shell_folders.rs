@@ -16,6 +16,7 @@ const LATE_ROWS: i64 = 200;
 #[derive(Default)]
 pub(super) struct ShellFolders {
     folders: HashMap<String, WorkingCheckout>,
+    entered: HashMap<String, DateTime<Utc>>,
     newest_id: i64,
     read_at: Option<Instant>,
 }
@@ -31,33 +32,37 @@ impl ShellFolders {
         (now - worked_within(), (self.newest_id - LATE_ROWS).max(0))
     }
 
-    pub(super) fn add(&mut self, commands: &[ShellCommand], now: DateTime<Utc>) -> bool {
+    pub(super) fn add(&mut self, commands: &[ShellCommand], now: DateTime<Utc>) {
         let window = now - worked_within();
-        self.folders
-            .retain(|_, folder| folder.newest_request_at >= window);
-        let mut joined = false;
         for command in commands {
             self.newest_id = self.newest_id.max(command.id);
             for folder in folders_named(&command.command, &command.cwd) {
-                joined |= self.touch(folder, command);
+                self.touch(folder, command);
             }
         }
-        joined
+        self.folders
+            .retain(|_, folder| folder.newest_request_at >= window);
+        let held = &self.folders;
+        self.entered.retain(|folder, _| held.contains_key(folder));
     }
 
-    fn touch(&mut self, folder: String, command: &ShellCommand) -> bool {
-        if let Some(held) = self.folders.get_mut(&folder) {
-            held.newest_request_at = held.newest_request_at.max(command.at);
-            return false;
-        }
-        let checkout = WorkingCheckout {
-            checkout: folder.clone(),
-            project_id: command.project_id,
-            newest_request_at: command.at,
-            sessions: vec![command.session],
-        };
-        self.folders.insert(folder, checkout);
-        true
+    fn touch(&mut self, folder: String, command: &ShellCommand) {
+        let entered = self.entered.entry(folder.clone()).or_insert(command.at);
+        *entered = (*entered).min(command.at);
+        let held = self
+            .folders
+            .entry(folder)
+            .or_insert_with_key(|folder| WorkingCheckout {
+                checkout: folder.clone(),
+                project_id: command.project_id,
+                newest_request_at: command.at,
+                sessions: vec![command.session],
+            });
+        held.newest_request_at = held.newest_request_at.max(command.at);
+    }
+
+    pub(super) fn entered(&self, folder: &str) -> Option<DateTime<Utc>> {
+        self.entered.get(folder).copied()
     }
 
     pub(super) fn rows(&self) -> Vec<WorkingCheckout> {
