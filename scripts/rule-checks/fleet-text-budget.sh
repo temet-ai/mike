@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # fleet-text-budget.sh - the words every fleet seat must read, held to a ratchet.
 #
-# Each seat reads the fleet rules, its own role file (the observer its contract and
-# inspector brief too), this repository's .claude/fleet/project.md and the brief mike
-# writes for it; fleet_text.py counts them, the briefs' fixed text read from the Rust
+# Each seat reads the fleet rules, its own role file, this repository's
+# .claude/fleet/project.md and the brief mike writes for it; fleet_text.py counts them, the briefs' fixed text read from the Rust
 # that builds them. This check fails when the total grows past the number in
 # fleet-text-budget.baseline. fleet_text.py overlap is the companion check that fails
 # when one seat reads the same instruction twice.

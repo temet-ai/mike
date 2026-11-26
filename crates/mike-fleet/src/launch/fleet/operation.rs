@@ -146,10 +146,13 @@ pub fn adoption(def: &FleetDefinition) -> serde_json::Value {
 }
 
 pub fn context(def: &FleetDefinition) -> String {
-    let mut lines = vec![
-        "Run a declared operation with fleet_check(command: exact command) and carry on until its result mail; run in your own shell, no other seat can reuse its result. An undeclared command proves only that it finished."
-            .to_string(),
-    ];
+    let mut lines = Vec::new();
+    if !def.execution.operations.is_empty() {
+        lines.push(
+            "Run a declared operation with fleet_check(command: exact command) and carry on until its result mail; run in your own shell, no other seat can reuse its result. An undeclared command proves only that it finished."
+                .to_string(),
+        );
+    }
     for (name, op) in &def.execution.operations {
         let line = format!(
             "- {name}: `{}` — {}. Exclusive host resources: {}. Completed-result reuse: {}.",

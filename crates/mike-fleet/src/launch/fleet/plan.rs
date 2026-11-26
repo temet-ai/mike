@@ -240,11 +240,7 @@ pub fn facts_block_reading(
         "Fleet: {slug}\nFleet definition in mike: {fleet}\nRun id: {run}\nGoal: {goal}\nRepository, the one checkout every seat works in: {repo}\nBranch, the one branch every seat commits to: {branch}\n\
          {ONE_CHECKOUT}\n\
          Rules every seat works under: {rules}\n{project}\
-         Comms thread: {fleet}. Mail between this fleet's seats is filed there by itself, under each seat's name (seat and session), so the operator and later runs can read the run's conversation. To leave a note for the whole fleet, post with send_session_message thread_id={fleet} and no `to`; a post reaches no one's turn, so mail a seat by its session when it must act.\n\
-         {read_the_fleet}\n\
-         Read the seats: get_workspace_roster project_path={repo} select \
-         [\"/roster/roster/*/name\", \"/roster/roster/*/role\", \"/roster/roster/*/session_id\", \
-         \"/roster/roster/*/liveness\", \"/roster/roster/*/session_state\", \"/roster/roster/*/reply_channel_open\"]",
+         {read_the_fleet}",
         slug = facts.slug,
         fleet = facts.fleet,
         run = facts.run_id,

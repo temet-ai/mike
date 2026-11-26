@@ -51,7 +51,7 @@ def read(path):
 
 def rust_literals(src):
     out = []
-    for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', src):
+    for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', src, re.S):
         s = m.group(1)
         s = re.sub(r"\\\n\s*", "", s)
         s = s.replace("\\n", "\n").replace('\\"', '"')

@@ -109,7 +109,7 @@ fn a_worker_is_told_its_task_and_who_to_talk_to() {
     assert!(seat.prompt.contains("- C2: the page lists proposals"));
     assert!(!seat.prompt.contains("- C1:"));
     assert!(seat.prompt.contains("- frontend/src/routes/improvement/**"));
-    assert!(seat.prompt.contains("mike's problem-solver decides it"));
+    assert!(seat.prompt.contains("blocked true when you cannot go on"));
     assert!(seat.prompt.contains("runs the task's floor at that commit"));
     assert!(worker(&def, &facts(), "P99", session).is_none());
 }
