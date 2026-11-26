@@ -205,3 +205,20 @@ async fn finding_with_a_repair_that_ended_for_its_own_reasons_is_not_claimed_aga
     assert_eq!(repairs_of(&bench, finding).await?.len(), 1);
     bench.cleanup().await
 }
+
+#[tokio::test]
+async fn repair_waiting_with_a_live_fixer_is_false_so_investigations_go_on() -> anyhow::Result<()> {
+    let bench = Bench::boot(WritesFiles::new(&[])).await?;
+    bench.defect().await?;
+    let web = bench.ctx.persist.web();
+    assert!(web.wright_repair_waiting().await?);
+    sqlx::query(
+        "INSERT INTO wright.followups (kind, title, body, state, issue_number, fixer_session, fixer_machine, handed_off_at)
+         VALUES ('code_defect', 'live fixer', 'a fixer holds the day worktree', 'handed_off', 9001, $1, 'omit', now())",
+    )
+    .bind(uuid::Uuid::new_v4())
+    .execute(bench.ctx.persist.pool())
+    .await?;
+    assert!(!web.wright_repair_waiting().await?);
+    bench.cleanup().await
+}
