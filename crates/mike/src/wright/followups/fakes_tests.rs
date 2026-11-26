@@ -238,7 +238,7 @@ impl Env {
             .ensure_wright_fix_batch(
                 today,
                 &format!("wright/fixes-{today}"),
-                &format!("/srv/mike/.claude/worktrees/wright-fixes-{today}"),
+                "/srv/mike/.claude/worktrees/wright-fixes",
                 None,
             )
             .await?)

@@ -295,7 +295,7 @@ impl Bench {
     }
 
     pub(super) fn batch_dir(&self) -> PathBuf {
-        self.ctx.repo.batch_dir(Utc::now().date_naive())
+        self.ctx.repo.batch_dir()
     }
 
     pub(super) fn batch_branch(&self) -> String {
@@ -356,12 +356,8 @@ impl Bench {
             .pred_opt()
             .ok_or_else(|| anyhow::anyhow!("no day before {}", row.day))?;
         let branch = super::worktree::batch_branch(day);
-        let path = self.ctx.repo.batch_dir(day).display().to_string();
+        let path = self.ctx.repo.batch_dir().display().to_string();
         sh(&self.scratch.root, &["branch", "-m", &row.branch, &branch])?;
-        sh(
-            &self.scratch.root,
-            &["worktree", "move", &row.worktree, &path],
-        )?;
         sqlx::query(
             "UPDATE wright.fix_batches
                 SET day = $2, branch = $3, branches = ARRAY[$3::text], worktree = $4

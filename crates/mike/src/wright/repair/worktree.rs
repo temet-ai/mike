@@ -8,6 +8,7 @@ pub(crate) const REMOTE: &str = "origin";
 pub(crate) const MAIN: &str = "main";
 pub(crate) const MAIN_TRACKING: &str = "refs/remotes/origin/main";
 const MAIN_REFSPEC: &str = "+refs/heads/main:refs/remotes/origin/main";
+const BATCH_DIR: &str = "wright-fixes";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RepoLayout {
@@ -55,8 +56,8 @@ impl RepoLayout {
         Ok(Self { root, hooks })
     }
 
-    pub(crate) fn batch_dir(&self, day: NaiveDate) -> PathBuf {
-        self.worktrees().join(format!("wright-fixes-{day}"))
+    pub(crate) fn batch_dir(&self) -> PathBuf {
+        self.worktrees().join(BATCH_DIR)
     }
 }
 
@@ -122,6 +123,22 @@ fn same_path(listed: &str, path: &Path) -> bool {
         )
 }
 
+fn listed_at(porcelain: &str, path: &Path) -> bool {
+    porcelain.split("\n\n").any(|block| {
+        block
+            .lines()
+            .find_map(|line| line.strip_prefix("worktree "))
+            .is_some_and(|at| same_path(at, path))
+    })
+}
+
+pub(crate) fn is_dated_batch_dir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix(BATCH_DIR))
+        .is_some_and(|rest| rest.starts_with('-'))
+}
+
 pub(crate) fn listed_as_ours(porcelain: &str, path: &Path, first_branch: &str) -> bool {
     porcelain.split("\n\n").any(|block| {
         let mut at = None;
@@ -153,11 +170,41 @@ pub(crate) async fn open_batch<R: CommandRunner>(
         .await
         .map_err(step("could not list worktrees"))?;
     if !listed_as_ours(&list, path, first_branch) {
-        create_batch(runner, repo, path, branch).await?;
+        if listed_at(&list, path) && !is_dated_batch_dir(path) {
+            switch_batch(runner, repo, path, branch).await?;
+        } else {
+            create_batch(runner, repo, path, branch).await?;
+        }
     }
     git(runner, path, &["rev-parse", "HEAD"])
         .await
         .map_err(step("could not read the batch head"))
+}
+
+async fn switch_batch<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+    branch: &str,
+) -> Result<(), String> {
+    restore(runner, path, "HEAD")
+        .await
+        .map_err(|e| format!("could not clean the shared batch worktree: {e}"))?;
+    let base = fetch_main(runner, &repo.root)
+        .await
+        .map_err(|e| format!("could not read origin/main: {e}"))?;
+    let exists = branch_exists(runner, &repo.root, branch)
+        .await
+        .map_err(|e| e.to_string())?;
+    let args: Vec<&str> = if exists {
+        vec!["checkout", "--quiet", branch]
+    } else {
+        vec!["checkout", "--quiet", "-b", branch, &base]
+    };
+    git(runner, path, &args)
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("could not switch the shared batch worktree: {e}"))
 }
 
 async fn create_batch<R: CommandRunner>(
@@ -235,6 +282,22 @@ pub(crate) async fn close<R: CommandRunner>(
     Ok(true)
 }
 
+async fn release<R: CommandRunner>(
+    runner: &R,
+    repo: &RepoLayout,
+    path: &Path,
+    first_branch: &str,
+) -> Result<bool, StepError> {
+    let list = git(runner, &repo.root, &["worktree", "list", "--porcelain"]).await?;
+    if !listed_as_ours(&list, path, first_branch) {
+        return Ok(false);
+    }
+    restore(runner, path, "HEAD").await?;
+    let main = fetch_main(runner, &repo.root).await?;
+    git(runner, path, &["checkout", "--quiet", "--detach", &main]).await?;
+    Ok(true)
+}
+
 pub(crate) async fn remove_batch<R: CommandRunner>(
     runner: &R,
     repo: &RepoLayout,
@@ -244,7 +307,11 @@ pub(crate) async fn remove_batch<R: CommandRunner>(
     let Some(first) = branches.first() else {
         return Ok(());
     };
-    close(runner, repo, path, first).await?;
+    if is_dated_batch_dir(path) {
+        close(runner, repo, path, first).await?;
+    } else {
+        release(runner, repo, path, first).await?;
+    }
     for branch in branches {
         output(
             runner,

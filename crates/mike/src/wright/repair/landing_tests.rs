@@ -32,8 +32,9 @@ pub(super) async fn three_batched(bench: &Bench) -> anyhow::Result<[i64; 3]> {
     Ok(findings)
 }
 
-const ALLOWED: [&str; 24] = [
+const ALLOWED: [&str; 25] = [
     "git fetch",
+    "git checkout",
     "git rev-parse",
     "git config",
     "git worktree",

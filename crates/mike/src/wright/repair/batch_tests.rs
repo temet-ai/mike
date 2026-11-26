@@ -118,19 +118,26 @@ async fn batch_closes_at_the_utc_day_boundary_before_any_claim() -> anyhow::Resu
 }
 
 #[tokio::test]
-async fn empty_batch_at_the_day_boundary_is_removed_without_a_gate() -> anyhow::Result<()> {
+async fn empty_batch_at_the_day_boundary_is_closed_without_a_gate() -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[])).await?;
     let empty = bench.open_batch().await?;
     bench.backdate(empty.id).await?;
-    let old_dir = bench
-        .ctx
-        .repo
-        .batch_dir(empty.day.pred_opt().unwrap_or(empty.day));
-    assert!(old_dir.exists());
+    let dir = bench.batch_dir();
+    super::shared_worktree_tests::ignore_target(&bench)?;
+    std::fs::create_dir_all(dir.join("target"))?;
+    std::fs::write(dir.join("target/kept"), "build output")?;
+    let old_branch = sh(&dir, &["rev-parse", "--abbrev-ref", "HEAD"])?;
 
     let report = tick(&bench.ctx, true, true).await?;
     assert!(report.batches.is_empty());
-    assert!(!old_dir.exists(), "the empty batch's worktree is removed");
+    assert!(
+        dir.join("target/kept").exists(),
+        "the shared worktree and its build output stay for the next batch"
+    );
+    assert!(
+        sh(&bench.ctx.repo.root, &["branch", "--list", &old_branch])?.is_empty(),
+        "the empty batch's branch is deleted"
+    );
     let ids: Vec<i64> = bench.batches().await?.iter().map(|b| b.id).collect();
     assert!(!ids.contains(&empty.id));
     assert_eq!(bench.scratch.gate_log(), "");

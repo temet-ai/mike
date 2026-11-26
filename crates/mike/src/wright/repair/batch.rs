@@ -83,15 +83,23 @@ where
     if older.is_some_and(|batch| batch.day < today) {
         return Ok(None);
     }
+    let shared = ctx.repo.batch_dir().display().to_string();
+    let landing = web.wright_fix_batches_to_land(ctx.machine).await?;
+    if landing
+        .iter()
+        .any(|batch| batch.day < today && batch.worktree == shared)
+    {
+        return Ok(None);
+    }
     let branch = batch_branch(today);
-    let path = ctx.repo.batch_dir(today);
     let row = web
-        .ensure_wright_fix_batch(today, &branch, &path.display().to_string(), ctx.machine)
+        .ensure_wright_fix_batch(today, &branch, &shared, ctx.machine)
         .await?;
     if row.state != batch_states::OPEN {
         return Ok(None);
     }
-    match worktree::open_batch(&ctx.runner, &ctx.repo, &path, &branch, &row.branch).await {
+    let path = Path::new(&row.worktree);
+    match worktree::open_batch(&ctx.runner, &ctx.repo, path, &branch, &row.branch).await {
         Ok(_) => Ok(Some(row)),
         Err(reason) => {
             tracing::warn!(batch = row.id, %reason, "wright repair: today's batch worktree could not be opened");

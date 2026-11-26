@@ -57,6 +57,8 @@ mod refusal_tests;
 #[cfg(test)]
 mod scratch_tests;
 #[cfg(test)]
+mod shared_worktree_tests;
+#[cfg(test)]
 mod states_tests;
 
 use attempt::AttemptEnd;
