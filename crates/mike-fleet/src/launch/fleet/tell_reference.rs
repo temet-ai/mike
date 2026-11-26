@@ -257,6 +257,20 @@ mod tests {
     }
 
     #[test]
+    fn a_fail_names_the_seat_the_run_records_when_the_definition_names_none() {
+        let mut stored = def();
+        for task in stored.tasks.values_mut() {
+            task.seat = None;
+            task.session = None;
+        }
+        let filled = crate::launch::fleet::definition::with_status_seats(stored, &status());
+        assert_eq!(
+            seats_of(&filled, &["P1".to_string()]),
+            format!("db-dev-P1 (session {})", Uuid::from_u128(11))
+        );
+    }
+
+    #[test]
     fn no_seat_is_called_quiet_unless_the_definition_sets_quiet_minutes() {
         let mut unset = def();
         unset.reference.quiet_minutes = None;

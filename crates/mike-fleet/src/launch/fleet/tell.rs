@@ -258,6 +258,7 @@ pub async fn tell(persist: &PersistHandle, row: &FleetRow, status: &FleetStatus)
     ) else {
         return;
     };
+    let def = super::definition::with_status_seats(def, status);
     let seats = ControlSeats::recorded(&def);
     let fleet = row.fleet_uuid.to_string();
     let rows = commands(persist, run).await;

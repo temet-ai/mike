@@ -346,6 +346,22 @@ pub fn task_run(status: &super::status::FleetStatus, task: &str) -> Option<TaskR
     })
 }
 
+pub fn with_status_seats(
+    mut def: FleetDefinition,
+    status: &super::status::FleetStatus,
+) -> FleetDefinition {
+    for (id, task) in &mut def.tasks {
+        if let Some(run) = task_run(status, id) {
+            task.seat = run.seat.or_else(|| task.seat.take());
+            task.session = run
+                .session
+                .map(|session| session.to_string())
+                .or_else(|| task.session.take());
+        }
+    }
+    def
+}
+
 pub async fn task_session(
     persist: &crate::store::persistence::PersistHandle,
     run: &str,
