@@ -34,7 +34,7 @@ streak AS (
 )
 SELECT CASE
            WHEN last.state <> 'unavailable' THEN NULL
-           WHEN reset.at IS NOT NULL THEN reset.at
+           WHEN reset.at IS NOT NULL THEN LEAST(reset.at, last.ended_at + interval '6 hours')
            ELSE last.ended_at + LEAST(interval '6 hours', interval '10 minutes' * power(2, streak.refused - 1))
        END AS until
   FROM last CROSS JOIN reset CROSS JOIN streak

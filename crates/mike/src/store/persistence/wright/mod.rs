@@ -24,6 +24,8 @@ mod followups_memo_tests;
 #[cfg(test)]
 mod followups_tests;
 #[cfg(test)]
+mod investigations_backoff_tests;
+#[cfg(test)]
 mod triage_tests;
 
 pub(crate) use cause_groups::GroupWrite;
