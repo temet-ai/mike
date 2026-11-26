@@ -7,7 +7,7 @@ rule:
     - kind: line_comment
     - kind: block_comment
   not:
-    regex: 'grader-allow:'
+    regex: 'grader-allow:|mike-keep:'
 message: Rust files carry no comments, doc comments, disabled code or TODOs. Say it with names, types and tests; put the reason in the commit message.
 ---
 id: rust-log-field-names

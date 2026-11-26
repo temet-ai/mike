@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use mike_code::{Scan, new_findings, scan};
+use mike_code::{Finding, Scan, new_findings, scan};
 
 use super::inherited::inherited;
 use super::project_rules::ActiveRules;
@@ -88,20 +88,55 @@ pub fn fill(record: &mut NewCodeScan, old: &Scan, new: &Scan) {
     record.findings_before = count(old.findings.len());
     record.findings_after = count(new.findings.len());
     record.present = new.findings.iter().map(|f| f.fingerprint.clone()).collect();
-    record.added = new_findings(&old.findings, &new.findings)
-        .into_iter()
-        .map(|f| NewFinding {
-            rule_id: f.rule_id,
-            rule_source: f.source.to_string(),
-            severity: f.severity.to_string(),
-            message: f.message,
-            line: i32::try_from(f.line).unwrap_or(i32::MAX),
-            col: i32::try_from(f.column).unwrap_or(i32::MAX),
-            matched: f.matched,
-            fix: f.fix,
-            fingerprint: f.fingerprint,
-        })
+    record.kept = new
+        .kept
+        .iter()
+        .map(|k| (k.finding.fingerprint.clone(), k.reason.clone()))
         .collect();
+    let was: Vec<Finding> = old
+        .findings
+        .iter()
+        .chain(old.kept.iter().map(|k| &k.finding))
+        .cloned()
+        .collect();
+    let added = new_findings(&was, &new.findings)
+        .into_iter()
+        .map(|f| (f, None));
+    let kept = new_findings(
+        &was,
+        &new.kept
+            .iter()
+            .map(|k| k.finding.clone())
+            .collect::<Vec<_>>(),
+    )
+    .into_iter()
+    .map(|f| {
+        let reason = new
+            .kept
+            .iter()
+            .find(|k| k.finding.fingerprint == f.fingerprint)
+            .map(|k| k.reason.clone());
+        (f, reason)
+    });
+    record.added = added
+        .chain(kept)
+        .map(|(f, kept)| new_finding(f, kept))
+        .collect();
+}
+
+fn new_finding(f: Finding, kept: Option<String>) -> NewFinding {
+    NewFinding {
+        rule_id: f.rule_id,
+        rule_source: f.source.to_string(),
+        severity: f.severity.to_string(),
+        message: f.message,
+        line: i32::try_from(f.line).unwrap_or(i32::MAX),
+        col: i32::try_from(f.column).unwrap_or(i32::MAX),
+        matched: f.matched,
+        fix: f.fix,
+        fingerprint: f.fingerprint,
+        kept,
+    }
 }
 
 fn count(n: usize) -> i32 {

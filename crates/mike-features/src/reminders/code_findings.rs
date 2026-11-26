@@ -8,7 +8,7 @@ use crate::wire::manifest::AppliedStage;
 
 use super::{RemindersOutcome, try_append_reminder};
 
-pub const HEADING: &str = "mike checked the code your recent edits added. Fix these when you reach a stopping point; a fix needs no answer. Where the code is right as it is, run `mike findings keep <number> --reason \"...\"` with the fact about the code that makes it so; weak reasons are refused. For a change that is not yours, run `mike findings not-mine <number>` and leave the file alone. One number covers its whole line.";
+pub const HEADING: &str = "mike checked the code your recent edits added. Fix these when you reach a stopping point; a fix needs no answer. Where the code is right as it is, put a comment on that line or the line above, `mike-keep: <rule> <reason>`, with the fact about the code that makes it so; it closes the finding wherever that line goes, and the reader of the diff sees it. Errors cannot be kept this way. `mike findings keep <number> --reason \"...\"` does the same without touching the file; weak reasons are refused. For a change that is not yours, run `mike findings not-mine <number>` and leave the file alone. One number covers its whole line.";
 const GROUPS: usize = 8;
 const LINES: usize = 5;
 

@@ -9,11 +9,14 @@ WITH due AS (
 ), answered AS (
     SELECT due.id, t.text
       FROM due
+      LEFT JOIN requests.requests r ON r.id = due.delivered_request_id
       LEFT JOIN LATERAL (
           SELECT string_agg(b.content, '' ORDER BY b.seq_ord) AS text
             FROM responses.stream_blocks b
             JOIN responses.stream_block_types bt ON bt.id = b.block_type_id
            WHERE b.request_id = due.delivered_request_id AND bt.code = 'text'
+             AND r.turn_origin_id IN (SELECT o.id FROM requests.turn_origins o
+                                       WHERE o.code IN ('primary', 'primary_first', 'subagent', 'workflow_subagent'))
       ) t ON true
 )
 UPDATE workspace.code_findings f

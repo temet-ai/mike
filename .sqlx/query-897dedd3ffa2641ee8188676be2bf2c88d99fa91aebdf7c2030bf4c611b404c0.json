@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.code_findings\n       (scan_id, change_event_id, checkout, path, rule_id, rule_source, severity, message, line, col,\n        matched, fix, fingerprint, outcome, outcome_at, answer, answer_reason, answer_ruling, answered_at)\nSELECT $1, $2, $3, $4, f.rule_id, f.rule_source, f.severity, f.message, f.line, f.col, f.matched, f.fix, f.fingerprint,\n       CASE WHEN f.kept IS NULL THEN 'open' ELSE 'kept' END,\n       CASE WHEN f.kept IS NULL THEN NULL ELSE now() END,\n       CASE WHEN f.kept IS NULL THEN NULL ELSE 'kept' END,\n       f.kept,\n       CASE WHEN f.kept IS NULL THEN NULL ELSE 'Kept by the reason written beside the code.' END,\n       CASE WHEN f.kept IS NULL THEN NULL ELSE now() END\n  FROM unnest($5::text[], $6::text[], $7::text[], $8::text[], $9::int[], $10::int[], $11::text[], $12::text[], $13::text[], $14::text[])\n       AS f(rule_id, rule_source, severity, message, line, col, matched, fix, fingerprint, kept)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Int4Array",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "897dedd3ffa2641ee8188676be2bf2c88d99fa91aebdf7c2030bf4c611b404c0"
+}

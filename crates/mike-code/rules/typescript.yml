@@ -18,8 +18,24 @@ rule:
   any:
     - pattern: $E.innerHTML = $X
     - pattern: $E.outerHTML = $X
-    - pattern: $E.insertAdjacentHTML($$$)
-    - pattern: document.write($$$)
+    - pattern: $E.insertAdjacentHTML($P, $X)
+    - pattern: document.write($X)
+constraints:
+  X:
+    not:
+      any:
+        - kind: string
+        - all:
+            - kind: template_string
+            - not:
+                has:
+                  kind: template_substitution
+                  not:
+                    has:
+                      kind: call_expression
+                      has:
+                        field: function
+                        regex: '^(esc|escape|escapeHtml|escapeHTML)$'
 message: A value is written into the page as HTML. Render it as text, or sanitise it first if any part can come from outside.
 ---
 id: ts-tls-verification-off

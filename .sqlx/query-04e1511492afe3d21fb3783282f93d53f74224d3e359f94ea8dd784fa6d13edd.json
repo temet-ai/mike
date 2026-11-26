@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH kept AS (\n    UPDATE workspace.code_findings f\n       SET outcome = 'kept',\n           outcome_scan_id = $3,\n           outcome_at = now(),\n           answer = 'kept',\n           answer_reason = k.reason,\n           answer_ruling = 'Kept by the reason written beside the code.',\n           answered_at = now()\n      FROM unnest($5::text[], $6::text[]) AS k(fingerprint, reason)\n     WHERE f.checkout = $1\n       AND f.path = $2\n       AND f.outcome IN ('open', 'ignored')\n       AND f.severity <> 'error'\n       AND f.fingerprint = k.fingerprint\n    RETURNING f.id\n), closed AS (\n    UPDATE workspace.code_findings f\n       SET outcome = 'fixed',\n           outcome_scan_id = $3,\n           outcome_at = now()\n     WHERE f.checkout = $1\n       AND f.path = $2\n       AND f.outcome IN ('open', 'ignored')\n       AND NOT (f.fingerprint = ANY($4::text[]))\n       AND NOT (f.fingerprint = ANY($5::text[]))\n    RETURNING f.id\n)\nUPDATE workspace.code_scans s\n   SET findings_fixed = (SELECT count(*) FROM closed)\n WHERE s.id = $3\nRETURNING ARRAY(SELECT id FROM closed UNION ALL SELECT id FROM kept) AS \"closed!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "closed!",
+        "type_info": "Int8Array",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "04e1511492afe3d21fb3783282f93d53f74224d3e359f94ea8dd784fa6d13edd"
+}

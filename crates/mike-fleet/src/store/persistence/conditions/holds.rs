@@ -117,7 +117,7 @@ impl FleetDb<'_> {
             .await?;
         sqlx::query(SQL_TIMEOUT).execute(&mut *tx).await?; // grader-allow: SET LOCAL statement_timeout, the 2 s guard for the runtime sql condition below
         let wrapped = format!("SELECT EXISTS (\n{query}\n)");
-        sqlx::query_scalar::<_, bool>(sqlx::AssertSqlSafe(wrapped)) // nosemgrep: mike.rust.sql-from-string grader-allow: a sql condition is a query the registering session supplies at runtime; it runs in a READ ONLY transaction with a 2 s timeout, and insert refuses an empty query, a `;` or more than 4000 characters
+        sqlx::query_scalar::<_, bool>(sqlx::AssertSqlSafe(wrapped)) // nosemgrep: mike.rust.sql-from-string grader-allow: mike-keep: rust-sql-from-string a sql condition is a query the registering session supplies at runtime; it runs in a READ ONLY transaction with a 2 s timeout, and insert refuses an empty query, a `;` or more than 4000 characters
             .fetch_one(&mut *tx)
             .await
     }

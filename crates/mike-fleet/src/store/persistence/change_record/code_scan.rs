@@ -23,6 +23,7 @@ pub struct NewFinding {
     pub matched: String,
     pub fix: Option<String>,
     pub fingerprint: String,
+    pub kept: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -40,6 +41,7 @@ pub struct NewCodeScan {
     pub findings_before: i32,
     pub findings_after: i32,
     pub present: Vec<String>,
+    pub kept: Vec<(String, String)>,
     pub added: Vec<NewFinding>,
 }
 
@@ -401,12 +403,16 @@ async fn close_fixed(
     scan: &NewCodeScan,
     scan_id: i64,
 ) -> Result<Vec<i64>, PersistError> {
+    let (kept_fingerprints, kept_reasons): (Vec<String>, Vec<String>) =
+        scan.kept.iter().cloned().unzip();
     let fixed = sqlx::query_file_scalar!(
         "src/store/persistence/change_record/code_scan/close_fixed.sql",
         scan.checkout,
         scan.path,
         scan_id,
         &scan.present,
+        &kept_fingerprints,
+        &kept_reasons,
     )
     .fetch_one(&mut **tx)
     .await?;
@@ -431,6 +437,7 @@ async fn insert_findings(
     let fixes: Vec<Option<String>> = scan.added.iter().map(|f| f.fix.clone()).collect();
     let lines: Vec<i32> = scan.added.iter().map(|f| f.line).collect();
     let cols: Vec<i32> = scan.added.iter().map(|f| f.col).collect();
+    let kept: Vec<Option<String>> = scan.added.iter().map(|f| f.kept.clone()).collect();
     sqlx::query_file!(
         "src/store/persistence/change_record/code_scan/insert_findings.sql",
         scan_id,
@@ -446,6 +453,7 @@ async fn insert_findings(
         &matched,
         &fixes as &[Option<String>],
         &fingerprints,
+        &kept as &[Option<String>],
     )
     .execute(&mut **tx)
     .await?;

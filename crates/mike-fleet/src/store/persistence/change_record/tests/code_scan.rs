@@ -19,6 +19,7 @@ pub(super) fn finding(rule: &str, fingerprint: &str) -> NewFinding {
         fix: None,
         fingerprint: fingerprint.to_owned(),
         rule_source: "builtin".to_owned(),
+        kept: None,
     }
 }
 
@@ -331,6 +332,53 @@ async fn a_told_finding_still_there_at_commit_is_ignored_until_it_is_fixed() -> 
         .record_code_scan(&scan_of(more[1], &[], Vec::new()))
         .await?;
     assert_eq!(outcomes(&f.handle).await?, vec!["fixed"]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_reason_written_beside_the_code_keeps_the_finding_with_that_reason() -> anyhow::Result<()>
+{
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let pool = f.handle.pool();
+    let project_id = project(pool).await?;
+    let ids = f
+        .handle
+        .fleet()
+        .insert_change_events(&[
+            event(project_id, ChangeKind::Edit, &["src/a.rs"]),
+            event(project_id, ChangeKind::Edit, &["src/a.rs"]),
+        ])
+        .await?;
+    f.handle
+        .fleet()
+        .record_code_scan(&scan_of(
+            ids[0],
+            &["fp-k"],
+            vec![finding("rust-unsafe", "fp-k")],
+        ))
+        .await?;
+    let reason = "the pointer comes from the arena two lines up";
+    let mut marked = scan_of(ids[1], &[], Vec::new());
+    marked.kept = vec![("fp-k".to_owned(), reason.to_owned())];
+    let mut fresh = finding("rust-unsafe", "fp-n");
+    fresh.kept = Some(reason.to_owned());
+    marked.added = vec![fresh];
+    let recorded = f.handle.fleet().record_code_scan(&marked).await?;
+    assert_eq!(recorded.map(|r| r.fixed.len()), Some(1));
+    let rows: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT outcome, answer, answer_reason FROM workspace.code_findings WHERE checkout = $1 ORDER BY id",
+    )
+    .bind(CHECKOUT)
+    .fetch_all(pool)
+    .await?;
+    let kept = (
+        "kept".to_owned(),
+        Some("kept".to_owned()),
+        Some(reason.to_owned()),
+    );
+    assert_eq!(rows, vec![kept.clone(), kept]);
     Ok(())
 }
 

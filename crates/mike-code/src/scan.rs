@@ -8,6 +8,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::MAX_SCAN_BYTES;
+use crate::keep::reason_beside;
 use crate::language::{language_for, language_name};
 use crate::rules::RuleSet;
 
@@ -30,6 +31,13 @@ pub struct Scan {
     pub rules_run: usize,
     pub skipped: Option<&'static str>,
     pub findings: Vec<Finding>,
+    pub kept: Vec<Kept>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Kept {
+    pub finding: Finding,
+    pub reason: String,
 }
 
 impl Scan {
@@ -39,6 +47,7 @@ impl Scan {
             rules_run: 0,
             skipped: Some(reason),
             findings: Vec::new(),
+            kept: Vec::new(),
         }
     }
 }
@@ -62,12 +71,30 @@ pub fn scan(rules: &RuleSet, path: &str, bytes: &[u8]) -> Scan {
         }
     }
     findings.sort_by(|a, b| (a.line, a.column, &a.rule_id).cmp(&(b.line, b.column, &b.rule_id)));
+    let (findings, kept) = set_aside_kept(source, findings);
     Scan {
         language: Some(language_name(language)),
         rules_run: applicable.len(),
         skipped: None,
         findings,
+        kept,
     }
+}
+
+fn set_aside_kept(source: &str, found: Vec<Finding>) -> (Vec<Finding>, Vec<Kept>) {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut findings = Vec::new();
+    let mut kept = Vec::new();
+    for finding in found {
+        let reason = (finding.severity != "error")
+            .then(|| reason_beside(&lines, finding.line, &finding.rule_id))
+            .flatten();
+        match reason {
+            Some(reason) => kept.push(Kept { finding, reason }),
+            None => findings.push(finding),
+        }
+    }
+    (findings, kept)
 }
 
 pub fn new_findings(before: &[Finding], after: &[Finding]) -> Vec<Finding> {

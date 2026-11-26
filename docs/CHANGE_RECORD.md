@@ -204,11 +204,15 @@ and the checkout's own rules. A built-in rule holds in any repository; one proje
   `rule_source` is `builtin` or `project`. `outcome` is `open`, `fixed` (a later scan of the
   file no longer has it), `fixed_by_other` (that later change was another session's),
   `kept` or `not_mine` (the session answered with `mike findings` and the answer was
-  accepted; see `code_scan/answer.rs`), `ignored` (the session was told and the finding was still there when the path was
+  accepted, see `code_scan/answer.rs`; or a comment `mike-keep: <rule> <reason>` of at least five
+  words sits on the flagged line or the line above it, see `mike-code/src/keep.rs`: the finding is
+  stored as `kept` with that reason and is never sent, in every checkout the line reaches; an
+  error-level finding is never kept by a comment), `ignored` (the session was told and the finding was still there when the path was
   committed, or 30 minutes after it was told; a later fix still moves it to `fixed`) or
-  `superseded` (the file was deleted). `reply` holds the session's answer on the request that
-  delivered the finding, copied whole a minute after delivery: when a session keeps flagged code
-  it says why here, which is where a rule's false positives show.
+  `superseded` (the file was deleted). `reply` holds the text of the session's answer on the request that
+  delivered the finding, a minute after delivery, when that request is the session's own turn
+  (or a subagent's); a side call such as a status summary leaves it empty. The answer may be
+  about something else: it is what the session said next, not a verdict on the rule.
 - With `code_findings` on, the stage of that name adds one note to the session's next request,
   tool loops included: its open warnings and errors from the last hour, grouped by file and rule
   (eight groups, then a count). It waits until nothing was added for 20 s, and a session gets at
