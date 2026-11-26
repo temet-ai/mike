@@ -42,6 +42,8 @@ mod logs_tests;
 #[cfg(test)]
 mod logs_text_tests;
 #[cfg(test)]
+mod mcp_tool_errors_tests;
+#[cfg(test)]
 mod problems_tests;
 #[cfg(test)]
 mod query_text_tests;
