@@ -105,13 +105,14 @@ fn is_authentication(segments: &[&str]) -> bool {
     })
 }
 
+const CREDENTIAL_STEMS: [&str; 4] = ["credential", "credentials", "secret", "secrets"];
+
 fn is_credentials(path: &str, segments: &[&str]) -> bool {
     let lower = path.to_ascii_lowercase();
     segments.iter().any(|segment| {
         let segment = segment.to_ascii_lowercase();
         segment.starts_with(".env")
-            || segment.starts_with("secrets")
-            || segment.starts_with("credential")
+            || CREDENTIAL_STEMS.contains(&stem(&segment))
             || segment == ".git-crypt"
     }) || lower.ends_with(".pem")
         || lower.ends_with(".key")
