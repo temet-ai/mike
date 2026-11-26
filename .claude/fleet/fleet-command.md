@@ -14,9 +14,9 @@ Write the definition with `define_fleet`; mike starts it. Do not coordinate, lau
 
 ## Ground rules
 
-- **Read only:** this file; `.claude/fleet/rules.md` (fallback: `~/.local/state/mike/fleet/rules.md`); the project's instructions and source needed to trace criterion paths.
+- **Read only:** this file; `.claude/fleet/rules.md` (fallback: `~/.local/state/mike/fleet/rules.md`); the project's instructions and source needed to trace criterion paths. Ask fleet questions with `ask` (`about: "fleet"`).
 - **Create the fleet within your first five tool calls,** then fill it in a few items to a call.
-- **A fleet needs at least two tasks that can run at the same time on files that do not overlap.** Otherwise say so and stop: that is one session, not a fleet.
+- **A fleet needs at least two tasks that can run at the same time on files that do not overlap.** Otherwise say so and stop.
 
 ## The steps
 
