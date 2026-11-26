@@ -53,6 +53,8 @@ mod reads_outpace_writes_tests;
 mod repeated_messages_tests;
 #[cfg(test)]
 mod schedule_tests;
+#[cfg(test)]
+mod scheduled_job_checks_tests;
 
 pub(crate) use catalogue::{WatchContext, run_check};
 

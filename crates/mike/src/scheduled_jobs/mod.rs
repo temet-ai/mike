@@ -24,6 +24,8 @@ pub(crate) use root::{Presence, locate};
 pub(crate) use run_now::{RefusalReason, RunRefusal, request_run};
 pub(crate) use status::snapshot;
 #[cfg(test)]
+pub(crate) use jobs::leased_job_names;
+#[cfg(test)]
 pub(crate) use status::{JobStatus, replace_for_tests};
 pub(crate) use view::{JobState, JobView, build_view};
 
