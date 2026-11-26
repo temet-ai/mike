@@ -6833,13 +6833,21 @@ unique per problem over `editing`, `prepared`, `batched`, `landed` and `deployed
 `repairs_ended_has_reason` also requires a reason for `dropped`. `wright.cause_queue` counts a
 `batched` follow-up as known.
 
-The view `wright.repairable_findings` (`20261125200000_wright_own_path.sql`) lists the findings a
+The view `wright.repairable_findings` (`20261125200000_wright_own_path.sql`, made set-based without
+correlated subqueries in `20261126095000_wright_repairable_findings_set_based.sql`) lists the findings a
 repair run may take: established code defects with an owning part, whose problem is open or whose
 finding is under 14 days old and not answered elsewhere, with no attempt yet or with fewer than
 three attempts that all ended `interrupted` (a stop of mike, or a conflict with main).
 `repair_live` marks a problem that already has a live repair. The repair state `ineffective` ends a
 deployed repair whose problem opened again over 6 hours after the deploy or stayed open 8 days;
 `healthy` needs 24 quiet hours and a later run of the problem's check.
+
+The view `wright.followups_for_fixer` (`20261126100000_wright_followups_for_fixer.sql`) lists the
+ids of `filed` follow-ups a fixer may take: it leaves out a `code_defect` the repair path owns (a
+repair of its finding on the same part not ended `gate_failed`, `refused`, `dropped` or
+`ineffective`, or a finding in `wright.repairable_findings`) and a `root_cause` answered by another
+follow-up of its finding, each as a `NOT EXISTS` the planner turns into an anti-join. The hand-off picks from it, and the check `wright_followups` counts
+"issues waiting for a fixer" from it.
 
 ### `wright.followup_findings`
 
