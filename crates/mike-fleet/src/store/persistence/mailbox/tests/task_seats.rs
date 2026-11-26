@@ -58,7 +58,7 @@ fn a_seat_known_only_from_its_launch_event_is_reachable_by_task_owner_and_fleet(
     let raw = definition()?;
     assert!(matches!(
         seat_of_task(&raw, "T1"),
-        Err(TargetError::NoSeatYet(_))
+        Err(TargetError::NoSeatYet { .. })
     ));
     let def = with_task_seats(raw, &events);
     assert_eq!(seat_of_task(&def, "T1")?, seat(successor, "T1"));
@@ -69,7 +69,7 @@ fn a_seat_known_only_from_its_launch_event_is_reachable_by_task_owner_and_fleet(
     assert_eq!(seat_of_task(&def, "T2")?, seat(ended, "T2"));
     assert!(matches!(
         seat_of_task(&def, "T3"),
-        Err(TargetError::NoSeatYet(_))
+        Err(TargetError::NoSeatYet { .. })
     ));
     assert!(seat_sessions(&def).contains(&successor));
     assert_eq!(recorded_task_of(&events, first).as_deref(), Some("T1"));
@@ -85,5 +85,26 @@ fn a_definition_session_stays_when_the_record_has_no_seat_for_the_task() -> anyh
     }
     let def = with_task_seats(raw, &[]);
     assert_eq!(seat_of_task(&def, "T3")?, seat(held, "T3"));
+    Ok(())
+}
+
+#[test]
+fn a_task_with_no_seat_says_what_it_waits_on_and_that_mail_is_not_held() -> anyhow::Result<()> {
+    let mut def = definition()?;
+    if let Some(task) = def.tasks.get_mut("T3") {
+        task.after = vec!["T1".into(), "T2".into()];
+    }
+    let Err(waiting) = seat_of_task(&def, "T3") else {
+        anyhow::bail!("T3 has no seat and must be refused");
+    };
+    let text = waiting.to_string();
+    assert!(text.starts_with("task T3 has no seat yet: nothing has been started for it"));
+    assert!(text.contains("starts after T1, T2"), "{text}");
+    assert!(text.contains("refused, not held"), "{text}");
+    assert!(text.contains("ask task:T3 again once its seat has started"), "{text}");
+    let Err(slot) = seat_of_task(&def, "T2") else {
+        anyhow::bail!("T2 has no seat and must be refused");
+    };
+    assert!(slot.to_string().contains("free seat slot"), "{slot}");
     Ok(())
 }

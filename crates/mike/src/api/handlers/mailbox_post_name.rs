@@ -100,7 +100,7 @@ pub(crate) fn fleet_target_error_response(
         TargetError::NotInFleet(_) => (StatusCode::BAD_REQUEST, "not_in_fleet"),
         TargetError::Empty(_) => (StatusCode::BAD_REQUEST, "invalid_fleet_target"),
         TargetError::UnknownTask { .. } => (StatusCode::NOT_FOUND, "unknown_task"),
-        TargetError::NoSeatYet(_) => (StatusCode::NOT_FOUND, "no_seat_yet"),
+        TargetError::NoSeatYet { .. } => (StatusCode::NOT_FOUND, "no_seat_yet"),
         TargetError::NoOpenSeats => (StatusCode::NOT_FOUND, "no_open_seat"),
         TargetError::Persist(e) => {
             tracing::warn!(error = %e, "fleet mail target resolution failed");

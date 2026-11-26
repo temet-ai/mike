@@ -25,8 +25,8 @@ pub enum TargetError {
     Empty(&'static str),
     #[error("the fleet has no task `{given}`; its tasks are {known}")]
     UnknownTask { given: String, known: String },
-    #[error("{0} has no seat yet: nothing has been started for it")]
-    NoSeatYet(String),
+    #[error("{who} has no seat yet: nothing has been started for it. {why}")]
+    NoSeatYet { who: String, why: String },
     #[error("no other seat of the fleet is open")]
     NoOpenSeats,
     #[error(transparent)]
@@ -87,7 +87,24 @@ pub fn seat_of_task(
             session,
             task: Some(task_id.to_owned()),
         })
-        .ok_or_else(|| TargetError::NoSeatYet(format!("task {task_id}")))
+        .ok_or_else(|| TargetError::NoSeatYet {
+            who: format!("task {task_id}"),
+            why: why_no_task_seat(task_id, &task.after),
+        })
+}
+
+fn why_no_task_seat(task_id: &str, after: &[String]) -> String {
+    let waits = if after.is_empty() {
+        "It is waiting for a free seat slot, or its launch has not been confirmed yet".to_owned()
+    } else {
+        format!(
+            "It starts after {}: its seat is launched once those are done and a seat slot is free",
+            after.join(", ")
+        )
+    };
+    format!(
+        "{waits}. Mail to it is refused, not held, until its seat starts: ask the coordinator now, or ask task:{task_id} again once its seat has started"
+    )
 }
 
 pub fn coordinator_seat(definition: &FleetDefinition) -> Result<FleetTarget, TargetError> {
@@ -96,7 +113,10 @@ pub fn coordinator_seat(definition: &FleetDefinition) -> Result<FleetTarget, Tar
             session,
             task: None,
         })
-        .ok_or_else(|| TargetError::NoSeatYet("the coordinator".to_owned()))
+        .ok_or_else(|| TargetError::NoSeatYet {
+            who: "the coordinator".to_owned(),
+            why: "The coordinator is launched when the fleet starts; send again once it has started, or address a session by id".to_owned(),
+        })
 }
 
 pub fn seat_of_owner(definition: &FleetDefinition, path: &str) -> Result<FleetTarget, TargetError> {
