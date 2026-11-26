@@ -6,7 +6,7 @@
 # past 150GB and a machine with a few projects and fleet clones fills its disk
 # (2026-10-07: 925 of 930GB used on omit, the test Postgres crashed mid-write).
 #
-# Usage: cargo-target-sweep [--cap GB] [--age DAYS] [--remove-idle DAYS] [--dry-run] [DIR ...]
+# Usage: cargo-target-sweep [--cap GB] [--age DAYS] [--remove-idle DAYS] [--empty | --floor] [--dry-run] [DIR ...]
 #
 #   DIR        Build directories to sweep. Default: $CARGO_TARGET_DIR, else this
 #              checkout's target/. A DIR may be a target dir or a cargo build-dir.
@@ -21,6 +21,9 @@
 #   --empty    The DIRs belong to finished checkouts: remove every build in each
 #              profile, keeping only its Cargo lock files (taken without waiting,
 #              so a profile a build holds is skipped).
+#   --floor    The disk is under cargo-sweep-all's free-space floor: empty each DIR
+#              as --empty does, but only its own profiles. A build folder nested in
+#              it (target/mbx-deploy, target/fleet) is a DIR of its own and stays.
 #   --dry-run  Report sizes and what would go, delete nothing.
 #
 # Otherwise, for each DIR:
@@ -64,6 +67,7 @@ cap_gb="${CARGO_SWEEP_MAXSIZE_GB:-40}"
 age_days="${CARGO_SWEEP_AGE_DAYS:-3}"
 dry_run=0
 empty=0
+floor=0
 idle_days=""
 dirs=()
 
@@ -73,8 +77,9 @@ while [[ $# -gt 0 ]]; do
     --age)     age_days="${2:?--age needs a value}"; shift 2 ;;
     --dry-run) dry_run=1; shift ;;
     --empty)   empty=1; shift ;;
+    --floor)   empty=1; floor=1; shift ;;
     --remove-idle) idle_days="${2:?--remove-idle needs a number of days}"; shift 2 ;;
-    -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*)        echo "cargo-target-sweep: unknown option $1" >&2; exit 2 ;;
     *)         dirs+=("$1"); shift ;;
   esac
@@ -113,7 +118,20 @@ profiles_of() {
     find "$1" -mindepth 1 -maxdepth 3 -type d \( -name deps -o -name .fingerprint \) -print 2>/dev/null
     # Cargo's newer layout keeps everything in build/<package>/<hash>, beside its lock files.
     find "$1" -mindepth 2 -maxdepth 3 -type d -name build -exec test -f '{}/../.cargo-build-lock' \; -print 2>/dev/null
-  } | sed 's#/[^/]*$##' | sort -u
+  } | sed 's#/[^/]*$##' | sort -u | own_profiles "$1"
+}
+
+# Under --floor, a profile inside a nested build folder belongs to that folder.
+own_profiles() {
+  local dir="$1" profile first
+  while IFS= read -r profile; do
+    if (( floor )); then
+      first="${profile#"$dir"/}"
+      first="${first%%/*}"
+      [[ -f "$dir/$first/CACHEDIR.TAG" || "$first" == mbx-* ]] && continue
+    fi
+    printf '%s\n' "$profile"
+  done
 }
 
 busy_profiles=0
@@ -144,7 +162,9 @@ empty_dir() {
   after="$(size_kb "$dir")"
   local verb="emptied" detail
   (( dry_run )) && verb="would empty"
-  detail="$(human "$before") -> $(human "$after"), ${removed} item(s), its checkout is finished"
+  local why="its checkout is finished"
+  (( floor )) && why="the disk is under the free-space floor"
+  detail="$(human "$before") -> $(human "$after"), ${removed} item(s), ${why}"
   (( busy_profiles > 0 )) && detail="${detail}; ${busy_profiles} profile(s) skipped because a cargo build holds them"
   if (( sweep_failed )); then
     echo "$(ts) [cargo-sweep] $dir: FAILED: $detail"

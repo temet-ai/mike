@@ -139,21 +139,26 @@ built_in_minutes() {
   [[ -n "$(find "$1" -maxdepth 3 -mmin -"$2" -print 2>/dev/null | head -1)" ]]
 }
 
+# The nightly test run and the deploy build keep their build folders warm between runs,
+# which may be more than a day apart; they are kept under the cap, never emptied.
+warm() {
+  case "$1" in
+    */.claude/worktrees/nightly/target | */.claude/worktrees/nightly/target/* | \
+      */.claude/worktrees/deploy/target | */.claude/worktrees/deploy/target/* | \
+      */target/mbx-deploy | */target/deploy-cargo) return 0 ;;
+  esac
+  return 1
+}
+
 kept=()
 for dir in "${targets[@]+"${targets[@]}"}"; do
   [[ -d "${dir}" ]] || continue
   tree="$(dirname "${dir}")"
   why=""
-  # The nightly test run and the deploy build keep their build folders warm between runs,
-  # which may be more than a day apart; they are kept under the cap, never emptied.
-  case "${dir}" in
-    */.claude/worktrees/nightly/target | */.claude/worktrees/nightly/target/* | \
-      */.claude/worktrees/deploy/target | */.claude/worktrees/deploy/target/* | \
-      */target/mbx-deploy | */target/deploy-cargo)
-      kept+=("${dir}")
-      continue
-      ;;
-  esac
+  if warm "${dir}"; then
+    kept+=("${dir}")
+    continue
+  fi
   if [[ -f "${tree}/CACHEDIR.TAG" ]]; then
     why=""   # a target folder inside a target folder goes with its parent
     # A session's mbx folder (scripts/cx builds in target/mbx-<session>) holds hard
@@ -215,22 +220,42 @@ if [[ ${#finished[@]} -gt 0 ]]; then
   "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" --empty "${finished[@]}" || status=1
 fi
 
+# Under the floor, build folders no build holds are emptied, largest first, until the
+# volume is back over it. Superseded builds alone cannot get there: one full mike test
+# build is 37GB of current artifacts, over the 25GB cap, and the Mac sat at 18GB free
+# while every hourly run only reported it (2026-11-26). A profile a cargo build holds
+# is skipped, so a running build is never touched; the warm nightly and deploy folders
+# are left to the cap.
 floor_gb="${CARGO_SWEEP_FLOOR_GB:-30}"
+floor_kb=$((floor_gb * 1024 * 1024))
 swept=("${targets[@]+"${targets[@]}"}" "${owned[@]+"${owned[@]}"}" "${unowned[@]+"${unowned[@]}"}" "${finished[@]+"${finished[@]}"}")
+volume_of() { df -Pk "$1" 2>/dev/null | awk 'NR==2 {print $6}'; }
+free_kb_of() { df -Pk "$1" 2>/dev/null | awk 'NR==2 {print $4}'; }
+largest_on() {
+  local volume="$1" t
+  for t in "${swept[@]+"${swept[@]}"}"; do
+    [[ -d "${t}" ]] || continue
+    [[ "$(volume_of "${t}")" == "${volume}" ]] && du -sk "${t}" 2>/dev/null
+  done | sort -rn
+}
 checked=" "
 for dir in "${swept[@]+"${swept[@]}"}"; do
   [[ -d "${dir}" ]] || continue
-  volume="$(df -Pk "${dir}" 2>/dev/null | awk 'NR==2 {print $6}')"
+  volume="$(volume_of "${dir}")"
   [[ -n "${volume}" ]] || continue
   case "${checked}" in *" ${volume} "*) continue ;; esac
   checked="${checked}${volume} "
-  free_kb="$(df -Pk "${dir}" | awk 'NR==2 {print $4}')"
-  if (( free_kb < floor_gb * 1024 * 1024 )); then
+  (( $(free_kb_of "${volume}") < floor_kb )) || continue
+  echo "cargo-sweep-all: ${volume} has $(( $(free_kb_of "${volume}") / 1024 / 1024 ))GB free, under the ${floor_gb}GB floor; emptying idle build folders, largest first"
+  while IFS=$'\t' read -r _ t; do
+    (( dry )) || (( $(free_kb_of "${volume}") < floor_kb )) || break
+    warm "${t}" && continue
+    "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" --floor "${t}" < /dev/null || status=1
+  done < <(largest_on "${volume}")
+  free_kb="$(free_kb_of "${volume}")"
+  if (( free_kb < floor_kb )); then
     echo "cargo-sweep-all: ${volume} has $((free_kb / 1024 / 1024))GB free after the sweep, under the ${floor_gb}GB floor; largest build folders on it:"
-    for t in "${swept[@]}"; do
-      [[ -d "${t}" ]] || continue
-      [[ "$(df -Pk "${t}" | awk 'NR==2 {print $6}')" == "${volume}" ]] && du -sk "${t}" 2>/dev/null
-    done | sort -rn | head -5 | awk '{printf "  %dGB %s\n", $1 / 1048576, $2}'
+    largest_on "${volume}" | head -5 | awk '{printf "  %dGB %s\n", $1 / 1048576, $2}'
     status=1
   fi
 done
