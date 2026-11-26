@@ -12,8 +12,8 @@ use super::definition::FleetDefinition;
 use super::events::{EventPayload, NewFleetEvent, QuestionAnswered, QuestionAsked};
 use super::plan_tests::{coordinator, facts};
 use super::questions::{
-    answered_event, asked_event, blocked_waiting, blocked_waiting_since, digest_line,
-    escalate_after, escalate_run, escalation_mail,
+    answered_event, ask_and_mail, asked_event, blocked_waiting, blocked_waiting_since,
+    deliver_held, digest_line, escalate_after, escalate_run, escalation_mail,
 };
 use super::tests::{complete, parsed};
 use crate::store::persistence::PersistHandle;
@@ -408,4 +408,45 @@ async fn only_a_part_of_a_brief_can_be_amended() -> anyhow::Result<()> {
     assert!(refused.is_err_and(|m| m.contains("not a part of a brief")));
     db.cleanup().await?;
     Ok(())
+}
+
+#[tokio::test]
+async fn a_question_to_a_task_with_no_seat_is_held_and_mailed_when_the_seat_starts()
+-> anyhow::Result<()> {
+    let Some(db) = acquire_ephemeral_db().await? else {
+        eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
+        return Ok(());
+    };
+    let persist = PersistHandle::connect(&db.database_url).await?;
+    let (asker, seat, other) = (
+        Uuid::from_u128(41),
+        Uuid::from_u128(42),
+        Uuid::from_u128(43),
+    );
+    for session in [asker, seat, other] {
+        open_session(&persist, session).await?;
+    }
+    run_row(&persist, "run-held").await?;
+    let held = AskedQuestion {
+        asker,
+        to_session: None,
+        to_task: Some("T7"),
+        run_id: Some("run-held"),
+        about_note: None,
+        question: "which table holds the seat rows?",
+        blocked: true,
+    };
+    let (row, mailed) = ask_and_mail(&persist, &held, None).await?;
+    assert!(!mailed && row.to_session.is_none());
+    deliver_held(&persist, "run-held", &[("T8".to_owned(), other)]).await;
+    assert!(inbox(&persist, other).await?.is_empty());
+    deliver_held(&persist, "run-held", &[("T7".to_owned(), seat)]).await;
+    let mail = inbox(&persist, seat).await?;
+    assert_eq!(mail.len(), 1, "{mail:?}");
+    assert!(mail[0].contains("which table holds the seat rows?"), "{mail:?}");
+    let given = persist.launch().question_by_uuid(row.question_uuid).await?;
+    assert_eq!(given.and_then(|q| q.to_session), Some(seat));
+    deliver_held(&persist, "run-held", &[("T7".to_owned(), seat)]).await;
+    assert_eq!(inbox(&persist, seat).await?.len(), 1, "a held question is mailed once");
+    db.cleanup().await
 }

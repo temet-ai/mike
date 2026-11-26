@@ -26,7 +26,11 @@ pub enum TargetError {
     #[error("the fleet has no task `{given}`; its tasks are {known}")]
     UnknownTask { given: String, known: String },
     #[error("{who} has no seat yet: nothing has been started for it. {why}")]
-    NoSeatYet { who: String, why: String },
+    NoSeatYet {
+        who: String,
+        task: Option<String>,
+        why: String,
+    },
     #[error("no other seat of the fleet is open")]
     NoOpenSeats,
     #[error(transparent)]
@@ -89,6 +93,7 @@ pub fn seat_of_task(
         })
         .ok_or_else(|| TargetError::NoSeatYet {
             who: format!("task {task_id}"),
+            task: Some(task_id.to_owned()),
             why: why_no_task_seat(task_id, &task.after),
         })
 }
@@ -103,7 +108,7 @@ fn why_no_task_seat(task_id: &str, after: &[String]) -> String {
         )
     };
     format!(
-        "{waits}. Mail to it is refused, not held, until its seat starts: ask the coordinator now, or ask task:{task_id} again once its seat has started"
+        "{waits}. Send it as a question instead (the `ask` tool, to task:{task_id}): mike holds a question and mails it to the seat when the seat starts"
     )
 }
 
@@ -115,6 +120,7 @@ pub fn coordinator_seat(definition: &FleetDefinition) -> Result<FleetTarget, Tar
         })
         .ok_or_else(|| TargetError::NoSeatYet {
             who: "the coordinator".to_owned(),
+            task: None,
             why: "The coordinator is launched when the fleet starts; send again once it has started, or address a session by id".to_owned(),
         })
 }

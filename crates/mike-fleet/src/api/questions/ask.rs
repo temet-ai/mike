@@ -74,8 +74,12 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
     }
     let asker = session(persist, &body.from, "from").await?;
     let to = destination(persist, asker, &body.to).await?;
+    let note = about_note(persist, body.about.as_deref()).await?;
+    let Some(recipient) = to.session else {
+        return Ok(Prepared { asker, to, note });
+    };
     let known = persist
-        .session_row_id(to.session)
+        .session_row_id(recipient)
         .await
         .map_err(|err| Box::new(database(err)))?;
     if known.is_none() {
@@ -83,24 +87,23 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
             StatusCode::NOT_FOUND,
             format!(
                 "recipient session {} (to `{}`) does not exist, so nothing was asked; ask a seat that is running, or the fleet's author",
-                to.session,
+                recipient,
                 body.to.trim()
             ),
         )));
     }
     if let Some(closed) = persist
         .fleet()
-        .closed_fleet_seat(to.session)
+        .closed_fleet_seat(recipient)
         .await
         .map_err(|err| Box::new(database(err)))?
     {
         return Err(Box::new(crate::api::handlers::mailbox_error(
             StatusCode::CONFLICT,
             "recipient_closed",
-            closed.refusal(to.session),
+            closed.refusal(recipient),
         )));
     }
-    let note = about_note(persist, body.about.as_deref()).await?;
     Ok(Prepared { asker, to, note })
 }
 
@@ -115,7 +118,7 @@ pub async fn post_question(State(state): State<BaseState>, Json(body): Json<AskB
     let run = run_of(persist, prepared.asker).await;
     let new = AskedQuestion {
         asker: prepared.asker,
-        to_session: Some(prepared.to.session),
+        to_session: prepared.to.session,
         to_task: prepared.to.task.as_deref(),
         run_id: run.as_deref(),
         about_note: prepared.note.as_ref().map(|n| n.note_uuid),
@@ -137,6 +140,7 @@ pub async fn post_question(State(state): State<BaseState>, Json(body): Json<AskB
             "run_id": row.run_id,
             "about": row.about_note,
             "mailed": mailed,
+            "held": row.to_session.is_none(),
         })),
     )
         .into_response()

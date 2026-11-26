@@ -40,8 +40,9 @@ fn ask_tool() -> Tool {
              seat and listed in the fleet digest. `about`: the id of a note the question is \
              about (a brief part, a finding); the recipient sees the note's title with the \
              question. Returns `question_id`, `state`, `to_session`, `to_task`, `run_id` and \
-             whether the recipient was `mailed`. Refused: an empty question, an unknown session \
-             or note, a `to` that names no seat yet, and `fleet` (a question goes to one seat).",
+             whether the recipient was `mailed`. A `task:<id>` whose seat has not started yet is \
+             `held` and mailed to the seat when it starts. Refused: an empty question, an \
+             unknown session or note, and `fleet` (a question goes to one seat).",
         ),
         object_schema(
             vec![

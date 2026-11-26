@@ -68,6 +68,6 @@ async fn ask_to_a_session_that_exists_is_prepared() -> anyhow::Result<()> {
     let Ok(prepared) = prepare(&persist, &body).await else {
         anyhow::bail!("an ask to an existing session was refused");
     };
-    assert_eq!(prepared.to.session, recipient);
+    assert_eq!(prepared.to.session, Some(recipient));
     db.cleanup().await
 }

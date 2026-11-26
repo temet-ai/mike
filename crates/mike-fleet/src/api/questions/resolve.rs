@@ -12,7 +12,7 @@ pub const REFERENCE: &str = "reference";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Destination {
-    pub session: Uuid,
+    pub session: Option<Uuid>,
     pub task: Option<String>,
 }
 
@@ -65,7 +65,7 @@ async fn reference_seat(
         .and_then(|s| Uuid::parse_str(s.trim()).ok());
     reference
         .map(|session| Destination {
-            session,
+            session: Some(session),
             task: None,
         })
         .ok_or_else(|| {
@@ -93,14 +93,23 @@ pub async fn destination(
         return reference_seat(persist, asker).await;
     }
     match persist.fleet().resolve_fleet_target(asker, to).await {
-        Ok(Some(FleetTarget::Seat { session, task })) => Ok(Destination { session, task }),
+        Ok(Some(FleetTarget::Seat { session, task })) => Ok(Destination {
+            session: Some(session),
+            task,
+        }),
         Ok(Some(FleetTarget::Seats(_))) => Err(Box::new(problem(
             StatusCode::BAD_REQUEST,
             "a question goes to one seat: give a session id, task:<id>, owner:<path> or reference",
         ))),
         Ok(None) => session(persist, to, "to").await.map(|session| Destination {
-            session,
+            session: Some(session),
             task: None,
+        }),
+        Err(TargetError::NoSeatYet {
+            task: Some(task), ..
+        }) => Ok(Destination {
+            session: None,
+            task: Some(task),
         }),
         Err(err) => Err(refused(err)),
     }

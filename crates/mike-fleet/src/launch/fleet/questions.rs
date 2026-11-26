@@ -236,3 +236,28 @@ pub async fn escalate(persist: &PersistHandle, row: &FleetRow) {
     };
     escalate_run(persist, &def, run).await;
 }
+
+pub async fn deliver_held(persist: &PersistHandle, run: &str, seats: &[(String, Uuid)]) {
+    let rows = match persist.launch().assign_held_questions(run, seats).await {
+        Ok(rows) => rows,
+        Err(err) => {
+            tracing::warn!(error = %err, run, "questions: could not hand held questions to their seats");
+            return;
+        }
+    };
+    for row in rows {
+        let Some(to) = row.to_session else { continue };
+        let note = match row.about_note {
+            Some(id) => persist.launch().note_ref(id).await.ok().flatten(),
+            None => None,
+        };
+        let mail = asked_mail(&row, note.as_ref());
+        if let Err(err) = persist
+            .launch()
+            .insert_message(Uuid::new_v4(), to, Some(row.asker), &mail)
+            .await
+        {
+            tracing::warn!(error = %err, %to, question = %row.question_uuid, "questions: a held question was given to its seat but not mailed; it stays in the seat's open questions");
+        }
+    }
+}

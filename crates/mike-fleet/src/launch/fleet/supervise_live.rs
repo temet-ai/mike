@@ -268,6 +268,7 @@ pub async fn pass(
     };
     let stopping = row.state == STOPPING;
     let mut seats = Vec::new();
+    let mut started = Vec::new();
     for task in def.tasks.keys() {
         let Some(session) =
             crate::launch::fleet::definition::task_run(status, task).and_then(|run| run.session)
@@ -281,9 +282,11 @@ pub async fn pass(
         if let Some(facts) = seat_facts(task, session, &events, &seen) {
             if seen.confirmed_by_request {
                 confirm(&live, &facts, &events).await;
+                started.push((task.clone(), session));
             }
             seats.push(facts);
         }
     }
+    crate::launch::fleet::questions::deliver_held(persist, run_id, &started).await;
     run(&live, &SystemClock, &seats, &[], &[]).await
 }
