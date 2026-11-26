@@ -314,12 +314,6 @@ async fn the_pass_judges_a_filed_report_from_its_note_and_then_has_nothing_pendi
     assert_eq!(f.judge(&model).await?.len(), 1);
     assert_eq!(f.verdicts().await?, 1);
     assert!(
-        f.inbox()
-            .await?
-            .iter()
-            .any(|b| b.starts_with("[mike judge] PASS task P1"))
-    );
-    assert!(
         f.judge(&model).await?.is_empty(),
         "a judged report is not judged again"
     );

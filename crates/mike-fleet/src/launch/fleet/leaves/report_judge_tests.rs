@@ -212,9 +212,8 @@ async fn a_passing_judge_verdict_is_recorded_against_the_report_and_accepts_the_
     assert_eq!(verdicts[0].payload["note_uuid"], json!(report.note));
     let mail = f.inbox().await?;
     assert!(
-        mail.iter()
-            .any(|body| body.starts_with("[mike judge] PASS task P1 C1")),
-        "{mail:?}"
+        !mail.iter().any(|body| body.starts_with("[mike judge]")),
+        "a pass is not mailed: {mail:?}"
     );
     let status = f.status().await?;
     let p1 = status.tasks.iter().find(|t| t.id == "P1").unwrap();

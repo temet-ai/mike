@@ -185,7 +185,9 @@ async fn record(persist: &PersistHandle, report: &ReportToJudge, answer: &JudgeA
             tracing::warn!(error = %err, task = %report.task, "fleet judge: could not record a verdict");
         }
     }
-    tell_seat(persist, report.seat, &verdict_mail(report, answer)).await;
+    if answer.verdict != JudgeVerdict::Pass {
+        tell_seat(persist, report.seat, &verdict_mail(report, answer)).await;
+    }
 }
 
 pub async fn tell_seat(persist: &PersistHandle, seat: Uuid, body: &str) {
@@ -199,14 +201,9 @@ pub async fn tell_seat(persist: &PersistHandle, seat: Uuid, body: &str) {
 }
 
 fn verdict_mail(report: &ReportToJudge, answer: &JudgeAnswer) -> String {
-    let word = if answer.verdict == JudgeVerdict::Pass {
-        "PASS"
-    } else {
-        "FAIL"
-    };
     let short = report.sha.get(..10).unwrap_or(&report.sha);
     let mut text = format!(
-        "[mike judge] {word} task {} {} at {short}: {}",
+        "[mike judge] FAIL task {} {} at {short}: {}",
         report.task,
         answer.criteria.join(", "),
         answer.observation.trim()
