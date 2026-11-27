@@ -133,6 +133,33 @@ async fn change_author_is_scored_against_the_session_that_committed_the_file() -
     env.finish().await
 }
 
+#[tokio::test]
+async fn change_author_record_past_one_day_is_not_rescanned() -> anyhow::Result<()> {
+    let Some(env) = Env::boot(0).await? else {
+        return Ok(());
+    };
+    let other = other_session(&env).await?;
+    let (a, b) = (env.session_id, other.id);
+    let id = author_record(&env, "stale.rs", &format!("s{a}"), [a, b]).await?;
+    sqlx::query(
+        "UPDATE decisions.records SET created_at = now() - interval '2 days' WHERE id = $1",
+    )
+    .bind(id)
+    .execute(env.handle.pool())
+    .await?;
+    let change = Change {
+        kind: "commit",
+        session: a,
+        paths: vec!["stale.rs".to_owned()],
+        author: "shell",
+        minutes: -2 * 24 * 60 + 10,
+    };
+    change_event(&env, change).await?;
+    assert_eq!(env.sync().await?, 0);
+    assert!(env.labels(id).await?.is_empty());
+    env.finish().await
+}
+
 async fn run_with_fleet(env: &Env, run: &str, state: &str) -> anyhow::Result<()> {
     sqlx::query("INSERT INTO launch.runs (run_id, backend) VALUES ($1, 'herdr')")
         .bind(run)
