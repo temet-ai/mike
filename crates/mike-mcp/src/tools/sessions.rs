@@ -189,10 +189,10 @@ fn get_session_threads_tool() -> Tool {
             "session_id",
             json!({
                 "type": "string",
-                "description": "Session UUID whose threads to list — every thread it has sent to or received from, as sender or recipient of any message in it."
+                "description": "Mike session UUID whose threads to list; omit to use trusted caller context. Includes every thread it has sent to or received from."
             }),
         )],
-        &["session_id"],
+        &[],
     );
     Tool::new(
         Cow::Borrowed(TOOL_GET_SESSION_THREADS),

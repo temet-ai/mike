@@ -56,6 +56,11 @@ capture and injection boundary.
 
 ## Mail and context
 
+Codex can send mail with `send_session_message` without supplying `from`.
+Mike identifies the caller from the Codex thread and uses its Mike session ID.
+Child sessions have their own sender identity. An explicit sender that disagrees
+with the calling session is refused.
+
 Mike adds pending mail and reminders to eligible model requests as external context.
 The session view retains both the original request and the outgoing request so you
 can inspect what Mike added. Peer content does not grant operator approval or change
@@ -91,6 +96,7 @@ is not visible through this route.
 | What you see | What to do |
 |---|---|
 | The launched session has no captures | Check that mike is running and that the session uses Mike's proxy URL, then send a prompt. |
+| Mail cannot resolve the Codex thread to a Mike session | Check that model traffic goes through Mike and that captures appear. After updating Mike MCP, reconnect that server or start a new session. |
 | A body is marked interrupted | The connection ended before the complete body arrived; the received bytes are retained. |
 | A body downloads instead of displaying text | It contains binary or encoded data; the download preserves it. |
 

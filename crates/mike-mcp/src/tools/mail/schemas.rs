@@ -29,14 +29,14 @@ fn send_session_message_properties() -> Vec<(&'static str, Value)> {
             "from",
             json!({
                 "type": "string",
-                "description": "Sender session UUID. Omit it and your own id is filled from this call's capture. An explicit `from` is checked against the sender resolved from this call's own tool_use in the capture: a confirmed mismatch is refused, nothing is sent, and the error names both ids; if that resolution is unavailable the send goes through with `from_unverified: true` in the result."
+                "description": "Sender Mike session UUID. Codex request metadata or CODEX_THREAD_ID resolves through Mike's runtime binding. Otherwise the captured send identifies the sender before process identity is considered. A sender conflicting with a bound Codex caller or confirmed capture is refused. Process fallback and unconfirmed explicit senders are marked from_unverified."
             }),
         ),
         (
             "request_reply",
             json!({
                 "type": "boolean",
-                "description": "Kept for older callers; it changes nothing. A send always carries your own id (from this call's tool_use in the capture, else CLAUDE_CODE_SESSION_ID, which sets `from_unverified: true`), and fails with a tool error when neither resolves."
+                "description": "Kept for older callers; it changes nothing. A send always carries a sender resolved from trusted caller context or this call's capture, and fails when neither resolves and no explicit sender is provided."
             }),
         ),
         (
@@ -130,10 +130,10 @@ pub(super) fn get_session_messages_tool() -> Tool {
             "session_id",
             json!({
                 "type": "string",
-                "description": "Session UUID whose mailbox to read — normally your own."
+                "description": "Mike session UUID whose mailbox to read. Omit to read your own mailbox using trusted caller context."
             }),
         )],
-        &["session_id"],
+        &[],
     );
     Tool::new(
         Cow::Borrowed(TOOL_GET_SESSION_MESSAGES),
@@ -160,7 +160,7 @@ pub(super) fn ack_session_message_tool() -> Tool {
                 "session_id",
                 json!({
                     "type": "string",
-                    "description": "Your own session UUID — the recipient the message was addressed to. Acking cannot reach across recipients."
+                    "description": "Your Mike session UUID, the recipient. Omit to use trusted caller context. Acking cannot reach across recipients."
                 }),
             ),
             (
@@ -171,7 +171,7 @@ pub(super) fn ack_session_message_tool() -> Tool {
                 }),
             ),
         ],
-        &["session_id", "message_uuid"],
+        &["message_uuid"],
     );
     Tool::new(
         Cow::Borrowed(TOOL_ACK_SESSION_MESSAGE),
@@ -196,7 +196,7 @@ pub(super) fn verify_session_message_tool() -> Tool {
                 "session_id",
                 json!({
                     "type": "string",
-                    "description": "Your own session UUID — the claimed recipient."
+                    "description": "Your Mike session UUID, the claimed recipient. Omit to use trusted caller context."
                 }),
             ),
             (
@@ -207,7 +207,7 @@ pub(super) fn verify_session_message_tool() -> Tool {
                 }),
             ),
         ],
-        &["session_id", "message_uuid"],
+        &["message_uuid"],
     );
     Tool::new(
         Cow::Borrowed(TOOL_VERIFY_SESSION_MESSAGE),
@@ -234,7 +234,7 @@ pub(super) fn verify_message_read_tool() -> Tool {
                 "session_id",
                 json!({
                     "type": "string",
-                    "description": "Your own session UUID — the claimed sender."
+                    "description": "Your Mike session UUID, the claimed sender. Omit to use trusted caller context."
                 }),
             ),
             (
@@ -245,7 +245,7 @@ pub(super) fn verify_message_read_tool() -> Tool {
                 }),
             ),
         ],
-        &["session_id", "message_uuid"],
+        &["message_uuid"],
     );
     Tool::new(
         Cow::Borrowed(TOOL_VERIFY_MESSAGE_READ),

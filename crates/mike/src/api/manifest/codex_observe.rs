@@ -7,6 +7,13 @@ use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route(
+        "GET",
+        "/api/codex/session",
+        Coverage::Exempt {
+            reason: "mike-mcp resolves native Codex caller thread metadata to a canonical Mike session; internal transport identity lookup, not a session investigation tool",
+        },
+    ),
+    route(
         "POST",
         "/api/codex/observe/hooks",
         Coverage::Exempt {
@@ -31,7 +38,12 @@ pub(super) const ROUTES: &[RouteEntry] = &[
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
+        .route("/api/codex/session", get(crate::api::codex_session::get))
         .route("/api/codex/observe/hooks", post(api::post_hook))
         .route("/api/codex/observe/otel/v1/{signal}", post(api::post_otel))
         .route("/api/codex/observe/sessions", get(api::list_observed))
 }
+
+#[cfg(test)]
+#[path = "codex_session_tests.rs"]
+mod tests;

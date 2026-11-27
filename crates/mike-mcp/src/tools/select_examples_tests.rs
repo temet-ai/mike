@@ -14,7 +14,14 @@ const ENVELOPE_EXTRAS: [&str; 2] = ["window_note", "next_cursor"];
 fn extra_arguments(tool: &str) -> Map<String, Value> {
     let extra = match tool {
         "get_request_body" => json!({"id": 1}),
-        "write_session_note" | "list_session_notes" => json!({"session_id": "x"}),
+        "write_session_note"
+        | "list_session_notes"
+        | "get_session_messages"
+        | "get_session_threads"
+        | "ack_session_message"
+        | "verify_session_message"
+        | "verify_message_read"
+        | "workspace_heartbeat" => json!({"session_id": "x"}),
         "get_prompt_composition" => json!({"id": "x"}),
         "list_supplied_items" => json!({"request_id": 1}),
         "wright_checks" => json!({"action": "list"}),

@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-25
+updated: 2026-11-27
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -191,6 +191,7 @@ Where the Jev decisions layer lives: the client `OpenRouterClient::decide` and t
 | Managed Codex fleet seats: app-server start, resume and turn control | `crates/mike-codex/` (independent client), `launch/codex/` (host integration), `mail_outbox/codex.rs` (mail delivery) | Fleet `runtime: codex`; real-runtime checks remain opt-in host tests | [`CODEX_DEVELOPMENT.md`](CODEX_DEVELOPMENT.md) |
 | Ordinary Codex terminals with proxy capture and shared launch identity | `mike-codex/interactive.rs` and `setup.rs` (provider), `mike-launch/launch/codex/interactive.rs` (host), `mike-runtime/runtime/codex_proxy_identity.rs` (binding), `mike-features/proxy/responses_capture/` (capture) | `mike spawn open <folder> --runtime codex`; MCP `spawn_session(runtime: "codex")`; fresh sessions on terminal, tmux or Herdr-core | [Codex guide](user-guide/codex.md), [`CODEX_DEVELOPMENT.md`](CODEX_DEVELOPMENT.md) |
 | Codex proxy mail/reminders and native idle notice | `mike-codex/injection.rs` and `queue.rs` (provider), `mike-features/proxy/responses_capture/` (host), `mike-launch/mail_outbox/codex_queue.rs`, `mailbox.capture_deliveries` (receipt) | Focused provider, capture/mail receipt and recovery tests; native queue probe on Codex 0.171/0.172 | [`CODEX_DEVELOPMENT.md`](CODEX_DEVELOPMENT.md), [`INJECTION_TRUST`](INJECTION_TRUST.md) |
+| Codex MCP caller and mail sender identity | `mike-mcp/src/caller/codex.rs`, `mike-runtime/src/api/codex_session.rs` | MCP request metadata resolves through `GET /api/codex/session`; native children retain their own sender | [`MCP_BRIDGE.md`](MCP_BRIDGE.md#codex-caller-identity) |
 | Workspace roster: which sessions are live in a project, heartbeats, channel claims | `workspace/`, `workspace_reaper.rs` | REST `/api/workspace/*`; MCP `get_workspace_roster`, `get_fleet_graph`; toggle `workspace_capture_registration` (on) | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md) |
 | Mail between sessions, threads, questions and answers; delivery as a reminder, as native peer mail, or over a Claude Code channel | `store/persistence/mailbox/`, `mcp_channel.rs`, `mailbox_reaper.rs` | MCP `send_session_message`, `get_session_messages`, `ask`, `answer`, `decline`, `read_thread`; REST `/api/sessions/{id}/message*`, `/api/threads/*`; UI `/comms`, `/sessions/<id>/comms`; toggles `native_peer_mail`, `mailbox_redelivery` (off); mod `mike-mail` | [`INJECTION_TRUST.md`](INJECTION_TRUST.md), user guide [reading-sessions](user-guide/reading-sessions.md) |
 | Work threads: work that outlives a session, with checkpoints and dependencies | `work_threads/` | `mike thread import`; REST `/api/work-threads/*`; MCP `work_thread_list\|get\|checkpoint\|add_entry`; mod `thread` | user guide [threads](user-guide/threads.md) |

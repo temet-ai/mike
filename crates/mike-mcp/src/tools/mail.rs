@@ -62,8 +62,6 @@ pub(crate) struct SendSessionMessageArgs {
     #[serde(default)]
     pub(crate) from: Option<String>,
     #[serde(default)]
-    pub(crate) request_reply: Option<bool>,
-    #[serde(default)]
     pub(crate) thread_id: Option<String>,
     #[serde(default)]
     pub(crate) in_reply_to: Option<String>,
@@ -99,6 +97,7 @@ pub(crate) async fn call_tool(
     client: &InspectClient,
     name: &str,
     arguments: Option<Map<String, Value>>,
+    caller_session: Option<crate::caller::CallerSession<'_>>,
 ) -> Result<CallToolResult, RmcpError> {
     match name {
         TOOL_SEND_SESSION_MESSAGE => {
@@ -113,7 +112,7 @@ pub(crate) async fn call_tool(
                 client,
                 &args.message,
                 args.from.as_deref(),
-                args.request_reply.unwrap_or(false),
+                caller_session,
             )
             .await?;
             let value = client

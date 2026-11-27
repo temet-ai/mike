@@ -67,7 +67,9 @@ use schema::{
 
 pub(crate) use arg_check::{check_arguments, reject_missing_required, with_corrections};
 pub use catalogue::{CORE_TOOL_NAMES, Profile, all_tools, tools_for_profile};
+#[cfg(test)]
 pub(crate) use dispatch::call_tool;
+pub(crate) use dispatch::call_tool_as;
 
 pub use conditions::{TOOL_CANCEL_CONDITION, TOOL_LIST_CONDITIONS, TOOL_WAIT_FOR};
 pub use config_history::{TOOL_GET_CONFIG_SNAPSHOT, TOOL_LIST_CONFIG_CHANGES};

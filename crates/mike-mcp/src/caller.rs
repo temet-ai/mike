@@ -3,7 +3,14 @@ use serde_json::{Map, Value};
 
 use crate::client::InspectClient;
 
+pub(crate) mod codex;
 pub(crate) mod retrospective;
+
+#[derive(Clone, Copy)]
+pub(crate) enum CallerSession<'a> {
+    Codex(&'a str),
+    Process(&'a str),
+}
 
 const SESSION_TAGGED_TOOLS: [&str; 6] = [
     "what_changed",
@@ -82,7 +89,13 @@ async fn supply_required(
 ) -> Result<Option<Map<String, Value>>, ErrorData> {
     let field = match name {
         "ask" | "answer" | "decline" => "from",
-        "write_session_note" => "session_id",
+        "write_session_note"
+        | "get_session_messages"
+        | "get_session_threads"
+        | "ack_session_message"
+        | "verify_session_message"
+        | "verify_message_read"
+        | "workspace_heartbeat" => "session_id",
         "work_thread_list"
         | "work_thread_get"
         | "work_thread_checkpoint"
@@ -101,8 +114,9 @@ async fn supply_required(
             ErrorData::invalid_params(
                 format!(
                     "{name} requires `{field}` when trusted caller context is unavailable. \
-                 Pass it explicitly, or launch mike-mcp with a valid CLAUDE_CODE_SESSION_ID \
-                 (or MIKE_SESSION_ID), for example 00000000-0000-4000-8000-000000000001."
+                 Pass it explicitly, enable Mike observation for this Codex thread, or launch \
+                 mike-mcp with a valid CLAUDE_CODE_SESSION_ID (or MIKE_SESSION_ID), for example \
+                 00000000-0000-4000-8000-000000000001."
                 ),
                 None,
             )

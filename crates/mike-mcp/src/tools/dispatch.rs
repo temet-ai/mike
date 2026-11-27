@@ -11,13 +11,27 @@ use super::{
 };
 use crate::client::InspectClient;
 
+#[cfg(test)]
 pub(crate) async fn call_tool(
     client: &InspectClient,
     name: &str,
     arguments: Option<Map<String, Value>>,
 ) -> Result<CallToolResult, RmcpError> {
+    call_tool_as(client, name, arguments, None).await
+}
+
+pub(crate) async fn call_tool_as(
+    client: &InspectClient,
+    name: &str,
+    arguments: Option<Map<String, Value>>,
+    caller_session: Option<crate::caller::CallerSession<'_>>,
+) -> Result<CallToolResult, RmcpError> {
     let (arguments, selectors) = extract_select(arguments)?;
-    let result = dispatch(client, name, arguments).await?;
+    let result = if mail::owns(name) {
+        mail::call_tool(client, name, arguments, caller_session).await?
+    } else {
+        dispatch(client, name, arguments).await?
+    };
     Ok(apply_projection(result, &selectors))
 }
 
@@ -26,9 +40,6 @@ async fn dispatch(
     name: &str,
     arguments: Option<Map<String, Value>>,
 ) -> Result<CallToolResult, RmcpError> {
-    if mail::owns(name) {
-        return mail::call_tool(client, name, arguments).await;
-    }
     if requests::owns(name) {
         return requests::call_tool(client, name, arguments).await;
     }

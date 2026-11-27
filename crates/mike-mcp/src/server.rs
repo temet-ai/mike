@@ -44,6 +44,7 @@ pub(crate) struct McpServer {
     client: InspectClient,
     profile: Profile,
     session_uuid: Option<String>,
+    codex_thread_id: Option<String>,
     tools_reported: Arc<AtomicBool>,
 }
 
@@ -57,6 +58,7 @@ impl McpServer {
             client,
             profile,
             session_uuid,
+            codex_thread_id: None,
             tools_reported: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -71,28 +73,57 @@ impl McpServer {
         tell_proxy_tools_listed(&self.client, session).await;
     }
 
+    #[cfg(test)]
     async fn dispatch_tool(
         &self,
         name: &str,
         arguments: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> Result<CallToolResponse, RmcpError> {
+        self.dispatch_request(
+            CallToolRequestParams::new(name.to_string())
+                .with_arguments(arguments.unwrap_or_default()),
+        )
+        .await
+    }
+
+    async fn dispatch_request(
+        &self,
+        request: CallToolRequestParams,
+    ) -> Result<CallToolResponse, RmcpError> {
+        let name = request.name.as_ref();
         crate::caller::retrospective::permit(self.profile, name)?;
-        let (arguments, corrections) = tools::check_arguments(name, arguments)?;
+        let (arguments, corrections) = tools::check_arguments(name, request.arguments)?;
+        let native_thread = crate::caller::codex::request_thread(request.meta.as_ref())?
+            .or(self.codex_thread_id.as_deref());
+        let session = match crate::caller::codex::resolve(
+            &self.client,
+            native_thread,
+            self.session_uuid.as_deref(),
+        )
+        .await
+        {
+            Ok(session) => session,
+            Err(error) if crate::caller::codex::requires_identity(name) => return Err(error),
+            Err(error) => {
+                tracing::debug!(%error, "Codex caller identity unavailable for inspection");
+                None
+            }
+        };
         let arguments = crate::caller::retrospective::authorize(
             self.profile,
             name,
             arguments,
-            self.session_uuid.as_deref(),
+            session.as_deref(),
         )?;
-        let arguments = crate::caller::supply_defaults(
-            &self.client,
-            name,
-            arguments,
-            self.session_uuid.as_deref(),
-        )
-        .await?;
+        let arguments =
+            crate::caller::supply_defaults(&self.client, name, arguments, session.as_deref())
+                .await?;
         tools::reject_missing_required(name, arguments.as_ref())?;
-        tools::call_tool(&self.client, name, arguments)
+        let caller = session.as_deref().map(|session| match native_thread {
+            Some(_) => crate::caller::CallerSession::Codex(session),
+            None => crate::caller::CallerSession::Process(session),
+        });
+        tools::call_tool_as(&self.client, name, arguments, caller)
             .await
             .map(|result| tools::with_corrections(result, &corrections))
             .map(CallToolResponse::from)
@@ -255,11 +286,11 @@ impl ServerHandler for McpServer {
 
     async fn call_tool(
         &self,
-        request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        mut request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, RmcpError> {
-        self.dispatch_tool(request.name.as_ref(), request.arguments)
-            .await
+        request.meta = Some(context.meta);
+        self.dispatch_request(request).await
     }
 
     async fn list_resources(
@@ -288,6 +319,14 @@ impl ServerHandler for McpServer {
 mod argument_tests;
 
 #[cfg(test)]
+#[path = "server/codex_mail_tests.rs"]
+mod codex_mail_tests;
+
+#[cfg(test)]
+#[path = "server/codex_transport_tests.rs"]
+mod codex_transport_tests;
+
+#[cfg(test)]
 #[path = "server/retrospective_tests.rs"]
 mod retrospective_tests;
 
@@ -298,7 +337,11 @@ pub async fn run_stdio_server(
 ) -> anyhow::Result<()> {
     use anyhow::Context;
     let client = InspectClient::new(base_url);
-    let server = McpServer::new(client, profile, session_uuid);
+    let mut server = McpServer::new(client, profile, session_uuid);
+    server.codex_thread_id = crate::caller::codex::process_thread(
+        std::env::var("CLAUDE_CODE_SESSION_ID").ok().as_deref(),
+        std::env::var("CODEX_THREAD_ID").ok(),
+    );
     let transport = LegacyOnly::new(
         IntoTransport::<RoleServer, std::io::Error, TransportAdapterAsyncRW>::into_transport(
             stdio(),

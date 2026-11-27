@@ -2,8 +2,8 @@
 title: MCP Bridge
 status: active
 created: 2026-07-08
-updated: 2026-11-10
-summary: How to build, register, and use mike-mcp — the MCP bridge that exposes captured proxy traffic as structured tools inside a Claude Code session.
+updated: 2026-11-27
+summary: How to build, register, and use mike-mcp from Claude Code and Codex sessions.
 ---
 
 # MCP Bridge
@@ -67,6 +67,24 @@ mike's inspect bind. Set it to point the bridge at a non-default inspect address
 authentication**; a Host/Origin allow-list is the only middleware in front of it, and it does not
 stop any local process. See [`SECURITY.md`](SECURITY.md) before pointing either the proxy or this
 variable at anything other than loopback.
+
+### Codex caller identity
+
+[Codex setup](user-guide/codex.md) registers the same bridge. Codex supplies its
+native thread in MCP request metadata (`threadId` or
+`x-codex-turn-metadata.thread_id`). The bridge resolves that thread through
+`GET /api/codex/session?thread_id=...` to the existing Mike session. A native
+thread ID is not a Mike session ID, even when both look like UUIDs.
+
+Mail uses this resolved caller automatically. An explicit `from` must agree
+with it. Per-call identity takes precedence over `CODEX_THREAD_ID` and inherited
+process session IDs, so a child cannot send as its parent. The lookup creates no
+session: unobserved or ambiguous threads cannot send mail. Route the session's
+model traffic through Mike to establish its binding. Inspection remains available
+when the caller cannot be identified.
+
+After installing a changed `mike-mcp`, reconnect the client's Mike MCP server
+or start a new session so it runs the new binary.
 
 ## 3. Tool profiles: `core` (default) vs `--full`
 
@@ -267,17 +285,18 @@ Full-only mailbox tools: `ack_session_message` (acknowledge a message you receiv
 `verify_message_read` (the delivery receipt of a message you sent) and `confirm_message_receipt`
 (did the addressed session actually act on a message).
 
-**Reply addresses.** A sender asks for a reply with `request_reply: true` and
-does not type its own id. The bridge finds this call's own
-`send_session_message` tool_use in the capture (`/api/body/find` for the
-message text, then an exact match on the request's parsed tool calls) and uses
-that session as `from`. An explicit `from` is still accepted, but one that
-contradicts the confirmed caller is refused and nothing is queued; the error
-names both ids. When the call cannot be found in the capture yet, the send goes
-through as given and the result carries `from_unverified: true`.
-`CLAUDE_CODE_SESSION_ID` is only a fallback for `request_reply`, never grounds
-for a refusal: a harness process can carry a different id from the
-conversation. Two backstops sit in the proxy: the self-identity reminder is
+**Reply addresses.** Every send needs a sender; `request_reply` remains accepted
+for older callers and changes nothing. A Codex call uses its resolved runtime
+binding. For Claude, the bridge finds this call's own `send_session_message`
+tool_use in the capture (`/api/body/find` for the message text, then an exact
+match on the request's parsed tool calls) and uses that session as `from`.
+An explicit `from` that contradicts either confirmed identity is refused and
+nothing is queued; the error names both IDs. When neither confirms the caller,
+an explicit sender is marked `from_unverified: true`. A process ID is used only
+when that session has primary-turn activity, and is also marked unverified.
+Process identity is never grounds for refusing an explicit sender: a harness
+process can carry a different ID from the conversation.
+Two backstops sit in the proxy: the self-identity reminder is
 re-injected whenever its id line is missing from the outbound request, and
 response analysis queues a correction into the session's next turn when a mail
 call names another session as the caller's own.

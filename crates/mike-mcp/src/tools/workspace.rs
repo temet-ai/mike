@@ -90,10 +90,10 @@ fn workspace_heartbeat_tool() -> Tool {
             "session_id",
             json!({
                 "type": "string",
-                "description": "Session id (a canonical UUID). An agent should pass its own session id here."
+                "description": "Your Mike session UUID. Omit to use trusted caller context."
             }),
         )],
-        &["session_id"],
+        &[],
     );
     Tool::new(
         Cow::Borrowed(TOOL_WORKSPACE_HEARTBEAT),

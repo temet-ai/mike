@@ -17,6 +17,12 @@ async fn caller_defaults_fill_only_the_expected_identity_field() -> anyhow::Resu
         ("answer", "from"),
         ("decline", "from"),
         ("write_session_note", "session_id"),
+        ("get_session_messages", "session_id"),
+        ("get_session_threads", "session_id"),
+        ("ack_session_message", "session_id"),
+        ("verify_session_message", "session_id"),
+        ("verify_message_read", "session_id"),
+        ("workspace_heartbeat", "session_id"),
     ] {
         let result = supply_defaults(
             &client,

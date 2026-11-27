@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-11-25
+updated: 2026-11-27
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -44,6 +44,15 @@ Ordinary terminal launch selects Codex with `mike spawn open <folder> --runtime 
 or `spawn_session(runtime: "codex")`. A launch-specific proxy URL binds the native
 thread to the reserved Mike session; child threads remain distinct. Setup registers
 MCP and removes Mike-owned hooks. Capture, identity and context injection use the proxy.
+
+The MCP bridge resolves Codex's per-call thread metadata through
+`GET /api/codex/session?thread_id=...`. This read-only route looks up the existing
+runtime binding and returns the canonical Mike session only when the binding is
+unique. Native child threads therefore use their own session even when the MCP
+process inherited a parent's launch environment. Missing or ambiguous bindings
+cannot authorize mail under the parent. The bridge supplies this caller to mail
+and other session defaults; an explicit mail sender that contradicts it is refused.
+Claude callers retain their process identity and captured-send fallback.
 
 `mike-codex::injection` validates and splices Responses input from seekable streams,
 without rebuilding the original JSON or imposing a body cap. The host reuses Mike's
