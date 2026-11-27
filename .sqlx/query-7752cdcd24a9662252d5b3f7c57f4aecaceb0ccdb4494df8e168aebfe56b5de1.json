@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.knowledge_upkeep (id, reconciled_at) VALUES (1, now())\n             ON CONFLICT (id) DO UPDATE SET reconciled_at = EXCLUDED.reconciled_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "7752cdcd24a9662252d5b3f7c57f4aecaceb0ccdb4494df8e168aebfe56b5de1"
+}

@@ -2884,6 +2884,20 @@ count items and their embeddings per model.
 
 ---
 
+### `memory.knowledge_upkeep`
+
+Created in `20261127021500_knowledge_upkeep.sql`. One row (`id = 1`): when the knowledge sweep last
+reconciled every knowledge kind with its source, on any machine. `reconcile_knowledge_items` writes it; the
+sweep reads it when its clock in memory is empty or expired (a new process, or a machine the
+`knowledge_embedding` lease has just moved to) and skips the reconcile while it is under 24 hours old.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `SMALLINT` | PK, `CHECK (id = 1)` |
+| `reconciled_at` | `TIMESTAMPTZ` | Time of the last full reconcile |
+
+---
+
 ### `memory.knowledge_embedding_chunks`
 
 Added in `20260920000010_knowledge_embeddings.sql`; re-keyed from `(reference, ordinal)` to

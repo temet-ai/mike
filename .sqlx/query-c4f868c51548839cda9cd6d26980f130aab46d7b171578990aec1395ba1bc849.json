@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT GREATEST(EXTRACT(EPOCH FROM now() - reconciled_at), 0)::float8 AS \"age_secs!\"\n                 FROM memory.knowledge_upkeep\n                WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "age_secs!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c4f868c51548839cda9cd6d26980f130aab46d7b171578990aec1395ba1bc849"
+}
