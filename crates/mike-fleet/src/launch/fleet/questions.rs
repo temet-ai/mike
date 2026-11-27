@@ -246,18 +246,23 @@ pub async fn deliver_held(persist: &PersistHandle, run: &str, seats: &[(String, 
         }
     };
     for row in rows {
-        let Some(to) = row.to_session else { continue };
-        let note = match row.about_note {
-            Some(id) => persist.launch().note_ref(id).await.ok().flatten(),
-            None => None,
-        };
-        let mail = asked_mail(&row, note.as_ref());
-        if let Err(err) = persist
-            .launch()
-            .insert_message(Uuid::new_v4(), to, Some(row.asker), &mail)
-            .await
-        {
-            tracing::warn!(error = %err, %to, question = %row.question_uuid, "questions: a held question was given to its seat but not mailed; it stays in the seat's open questions");
+        if let Some(to) = row.to_session {
+            mail_held(persist, to, &row).await;
         }
+    }
+}
+
+async fn mail_held(persist: &PersistHandle, to: Uuid, row: &QuestionRow) {
+    let note = match row.about_note {
+        Some(id) => persist.launch().note_ref(id).await.ok().flatten(),
+        None => None,
+    };
+    let mail = asked_mail(row, note.as_ref());
+    if let Err(err) = persist
+        .launch()
+        .insert_message(Uuid::new_v4(), to, Some(row.asker), &mail)
+        .await
+    {
+        tracing::warn!(error = %err, %to, question = %row.question_uuid, "questions: a held question was given to its seat but not mailed; it stays in the seat's open questions");
     }
 }

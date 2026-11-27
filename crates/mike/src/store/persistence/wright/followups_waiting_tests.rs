@@ -46,8 +46,9 @@ async fn followups_waiting_check_skips_a_code_defect_the_repair_owns_and_counts_
         age(&env, id).await?;
     }
     sqlx::query(
-        "INSERT INTO wright.repairs (finding_id, problem_id, owning_part, state, worktree, branch)
-         VALUES ($1, $2, 'wire', 'healthy', '/w', 'b')",
+        "INSERT INTO wright.repairs (finding_id, problem_id, owning_part, state, worktree, branch,
+                                     merge_sha, landed_at, deployed_at, healthy_at)
+         VALUES ($1, $2, 'wire', 'healthy', '/w', 'b', 'm', now(), now(), now())",
     )
     .bind(repaired)
     .bind(problem)

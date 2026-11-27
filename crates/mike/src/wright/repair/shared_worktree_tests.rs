@@ -17,8 +17,12 @@ fn is_dated_batch_dir_dated_folder_true_shared_folder_false() {
     assert!(is_dated_batch_dir(Path::new(
         "/r/.claude/worktrees/wright-fixes-2026-11-24"
     )));
-    assert!(!is_dated_batch_dir(Path::new("/r/.claude/worktrees/wright-fixes")));
-    assert!(!is_dated_batch_dir(Path::new("/r/.claude/worktrees/wright-fixesx")));
+    assert!(!is_dated_batch_dir(Path::new(
+        "/r/.claude/worktrees/wright-fixes"
+    )));
+    assert!(!is_dated_batch_dir(Path::new(
+        "/r/.claude/worktrees/wright-fixesx"
+    )));
 }
 
 #[tokio::test]
@@ -47,7 +51,10 @@ async fn next_day_batch_landed_yesterday_reuses_the_folder_and_its_build_output(
     assert_eq!(batches[1].state, batch_states::OPEN);
     assert_eq!(batches[1].worktree, batches[0].worktree);
     assert_eq!(batches[1].worktree, dir.display().to_string());
-    assert!(dir.join("target/kept").exists(), "the build output carries over");
+    assert!(
+        dir.join("target/kept").exists(),
+        "the build output carries over"
+    );
     assert_eq!(
         sh(&dir, &["rev-parse", "--abbrev-ref", "HEAD"])?,
         bench.batch_branch()
@@ -58,8 +65,7 @@ async fn next_day_batch_landed_yesterday_reuses_the_folder_and_its_build_output(
 }
 
 #[tokio::test]
-async fn today_waits_while_yesterday_in_the_shared_folder_is_still_landing()
--> anyhow::Result<()> {
+async fn today_waits_while_yesterday_in_the_shared_folder_is_still_landing() -> anyhow::Result<()> {
     let bench = Bench::boot(WritesFiles::new(&[])).await?;
     let yesterday = bench.open_batch().await?;
     bench.backdate(yesterday.id).await?;
@@ -84,8 +90,13 @@ async fn dated_batch_folder_from_before_is_removed_when_its_batch_ends() -> anyh
         .map_err(anyhow::Error::msg)?;
     assert!(dated.exists());
 
-    worktree::remove_batch(&bench.ctx.runner, &bench.ctx.repo, &dated, &[branch.clone()])
-        .await?;
+    worktree::remove_batch(
+        &bench.ctx.runner,
+        &bench.ctx.repo,
+        &dated,
+        std::slice::from_ref(&branch),
+    )
+    .await?;
     assert!(!dated.exists());
     assert!(sh(&bench.ctx.repo.root, &["branch", "--list", &branch])?.is_empty());
     bench.cleanup().await
