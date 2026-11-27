@@ -184,10 +184,13 @@ fn candidate_sockets() -> [(BackendId, Option<PathBuf>); 3] {
     let tmux_dir = std::env::var_os("TMUX_TMPDIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("/tmp"));
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| home.as_ref().map(|h| h.join(".local/state")));
     [
         (
             BackendId::HerdrCore,
-            runtime.map(|r| r.join("herdr-core/default.sock")),
+            herdr_core_socket(runtime, state),
         ),
         (
             BackendId::Herdr,
@@ -200,6 +203,47 @@ fn candidate_sockets() -> [(BackendId, Option<PathBuf>); 3] {
             uid().map(|u| tmux_dir.join(format!("tmux-{u}/default"))),
         ),
     ]
+}
+
+pub fn herdr_core_socket(runtime: Option<PathBuf>, state: Option<PathBuf>) -> Option<PathBuf> {
+    let under_runtime = runtime.map(|r| r.join("herdr-core/default.sock"));
+    let under_state = state.map(|s| s.join("herdr-core/default/default.sock"));
+    match (under_runtime, under_state) {
+        (Some(r), _) if r.exists() => Some(r),
+        (_, Some(s)) if s.exists() => Some(s),
+        (r, s) => r.or(s),
+    }
+}
+
+#[cfg(test)]
+mod herdr_core_socket_tests {
+    use super::herdr_core_socket;
+
+    #[test]
+    fn the_state_folder_socket_is_used_when_there_is_no_runtime_socket() -> std::io::Result<()> {
+        let state = tempfile::tempdir()?;
+        let folder = state.path().join("herdr-core/default");
+        std::fs::create_dir_all(&folder)?;
+        let socket = folder.join("default.sock");
+        std::fs::write(&socket, b"")?;
+        let missing_runtime = state.path().join("no-runtime");
+        assert_eq!(
+            herdr_core_socket(Some(missing_runtime), Some(state.path().to_path_buf())),
+            Some(socket)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_runtime_socket_wins_when_it_exists() -> std::io::Result<()> {
+        let runtime = tempfile::tempdir()?;
+        let folder = runtime.path().join("herdr-core");
+        std::fs::create_dir_all(&folder)?;
+        let socket = folder.join("default.sock");
+        std::fs::write(&socket, b"")?;
+        assert_eq!(herdr_core_socket(Some(runtime.path().to_path_buf()), None), Some(socket));
+        Ok(())
+    }
 }
 
 fn uid() -> Option<u32> {
