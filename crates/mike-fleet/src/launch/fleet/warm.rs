@@ -104,11 +104,6 @@ async fn finish_one(
     report
 }
 
-/// Waits until the template has run its prompt and come to rest, and returns
-/// the terminal backend it runs in. The backend is the one recorded on the
-/// template's launch row: the launcher may choose a different backend from
-/// `launch_backend` (it follows the caller's terminal or the one running), and
-/// only the backend that opened the pane can report its state.
 async fn loaded(
     state: &BaseState,
     persist: &PersistHandle,
@@ -145,8 +140,6 @@ async fn loaded(
     }
 }
 
-/// The backend to read a template's state from: the one its launch row says
-/// opened it, or the configured one while there is no row yet.
 pub fn watched_backend<'a>(launched: Option<&'a str>, configured: &'a str) -> &'a str {
     launched
         .filter(|backend| !backend.trim().is_empty())
@@ -233,10 +226,6 @@ impl Progress {
         }
     }
 
-    /// Why the wait ended without the template loading. When the backend never
-    /// listed the session at all, the template may well have loaded: mike was
-    /// reading a terminal the template does not run in, or one that does not
-    /// report agents, and the message says so.
     pub fn timed_out(&self, backend: &str, seconds: u64) -> String {
         if self.seen {
             format!(

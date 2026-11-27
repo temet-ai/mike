@@ -1,8 +1,3 @@
-//! Whether a running fleet still has ready work that no seat has been started
-//! for. Reconcile ends a fleet once every seat has exited; between closing the
-//! templates and launching the first workers a fleet has no open seat at all,
-//! and it must not be ended in that gap.
-
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use std::collections::BTreeSet;
 
@@ -13,9 +8,6 @@ use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, FleetSeatRow};
 
-/// The queued tasks whose `after` tasks are released and that have never had a
-/// worker seat in this run. A task whose seat was launched and has exited is
-/// left out, so a fleet whose seats were all closed still ends.
 pub fn never_started(
     def: &FleetDefinition,
     released: &BTreeSet<String>,
@@ -38,9 +30,6 @@ pub fn never_started(
     .collect()
 }
 
-/// The seats that were started: their pane opened or their session sent a
-/// request. A launch that failed to open leaves a row with neither, and its
-/// task still needs a seat.
 pub fn launched_seats(rows: &[FleetSeatRow]) -> BTreeSet<String> {
     rows.iter()
         .filter(|row| row.opened_at.is_some() || row.requests > 0)
@@ -48,9 +37,6 @@ pub fn launched_seats(rows: &[FleetSeatRow]) -> BTreeSet<String> {
         .collect()
 }
 
-/// True while a seat is being started for the run, or while a ready task has
-/// never had a seat. A failure to read the fleet counts as nothing waiting, so
-/// a fleet mike cannot read still ends as it did before.
 pub async fn waiting_to_start(state: &BaseState, persist: &PersistHandle, row: &FleetRow) -> bool {
     let Some(run) = row.run_id.as_deref() else {
         return false;
