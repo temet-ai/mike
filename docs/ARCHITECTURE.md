@@ -41,7 +41,8 @@ document storage, session identity and reader routes. This adds no process or
 separately released service.
 
 Ordinary terminal launch selects Codex with `mike spawn open <folder> --runtime codex`
-or `spawn_session(runtime: "codex")`. A launch-specific proxy URL binds the native
+or `spawn_session(runtime: "codex")`, using the same selected terminal backend as
+Claude. Herdr receives the requested agent kind. A launch-specific proxy URL binds the native
 thread to the reserved Mike session; child threads remain distinct. Setup registers
 MCP and removes Mike-owned hooks. Capture, identity and context injection use the proxy.
 
@@ -53,6 +54,12 @@ process inherited a parent's launch environment. Missing or ambiguous bindings
 cannot authorize mail under the parent. The bridge supplies this caller to mail
 and other session defaults; an explicit mail sender that contradicts it is refused.
 Claude callers retain their process identity and captured-send fallback.
+
+Herdr also uses this resolver to translate its native Codex thread identity for
+listing, finding and closing a launched session. Opening returns the reserved Mike
+ID; later lookups require the observed binding. Closing checks the current native
+thread again, so a replacement thread in the same pane cannot be stopped using the
+previous session's ID. Missing bindings leave the pane open.
 
 `mike-codex::injection` validates and splices Responses input from seekable streams,
 without rebuilding the original JSON or imposing a body cap. The host reuses Mike's

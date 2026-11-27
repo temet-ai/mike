@@ -159,6 +159,7 @@ impl Effects for Live<'_> {
 
 async fn observed(
     persist: &PersistHandle,
+    inspect_addr: &str,
     run: &str,
     session: Uuid,
     launches: &[UnsettledFleetLaunch],
@@ -184,7 +185,8 @@ async fn observed(
         .filter(|l| l.opened && l.session_uuid == Some(session))
     {
         if matches!(
-            crate::launch::fleet::shutdown::seat_exit::observe(persist, run, seat).await,
+            crate::launch::fleet::shutdown::seat_exit::observe(persist, inspect_addr, run, seat)
+                .await,
             Ok(Some(true))
         ) {
             process_gone = true;
@@ -278,7 +280,15 @@ pub async fn pass(
         if finished.contains(task) && !stopping {
             continue;
         }
-        let seen = observed(persist, run_id, session, &launches, stopping).await;
+        let seen = observed(
+            persist,
+            &state.config().inspect_listen_addr,
+            run_id,
+            session,
+            &launches,
+            stopping,
+        )
+        .await;
         if let Some(facts) = seat_facts(task, session, &events, &seen) {
             if seen.confirmed_by_request {
                 confirm(&live, &facts, &events).await;

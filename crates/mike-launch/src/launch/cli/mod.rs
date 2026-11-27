@@ -88,7 +88,8 @@ async fn dispatch(args: SpawnArgs, overrides: CliOverrides) -> Result<i32, Launc
     connect::fold_settings(&mut config, &reach).await;
     pinned.apply(&mut config.launch);
     let caller = CallerTerminal::from_env();
-    let (choice, backend) = backend_choice::resolve(&config.launch, explicit, &caller).await?;
+    let (choice, mut backend) = backend_choice::resolve(&config.launch, explicit, &caller).await?;
+    backend.set_inspect_addr(&config.inspect_listen_addr);
     tracing::debug!(backend = %choice.id, reason = %choice.reason, "mike spawn: chose the terminal backend");
     run_command(
         &config,

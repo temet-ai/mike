@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use super::cli::{DEFAULT_TIMEOUT, HerdrCli, argv, str_field};
-use super::surface::{agent_session_uuid, claude_agents, pane_exists};
+use super::surface::{agents, pane_exists};
 use crate::launch::backend::{CloseOutcome, Surface};
 use crate::launch::error::LaunchError;
 
@@ -45,22 +45,22 @@ async fn session_mismatch(
     pane: &str,
     expected: uuid::Uuid,
 ) -> Result<Option<String>, LaunchError> {
-    let agents = claude_agents(cli).await?;
+    let agents = agents(cli).await?;
     let Some(agent) = agents
         .iter()
         .find(|a| str_field(a, "pane_id") == Some(pane))
     else {
         return Ok(Some(format!(
-            "pane {pane} hosts no claude session (expected {expected})"
+            "pane {pane} hosts no supported agent session (expected {expected})"
         )));
     };
-    match agent_session_uuid(agent) {
+    match super::identity::session(cli, agent).await? {
         Some(actual) if actual == expected => Ok(None),
         Some(actual) => Ok(Some(format!(
             "pane {pane} hosts session {actual}, not {expected}"
         ))),
         None => Ok(Some(format!(
-            "pane {pane} hosts a claude agent with no known session id (expected {expected})"
+            "pane {pane} hosts an agent with no known Mike session id (expected {expected})"
         ))),
     }
 }

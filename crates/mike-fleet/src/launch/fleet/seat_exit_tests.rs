@@ -54,14 +54,26 @@ async fn a_seat_whose_session_ended_is_exited_and_a_live_one_is_not() -> anyhow:
     register(&handle, live).await?;
     handle.end_workspace_registration(ended, None).await?;
     let run = "fleet-seat-exit";
-    assert_eq!(observe(&handle, run, &seat(Some(ended))).await?, Some(true));
-    assert_eq!(observe(&handle, run, &seat(Some(live))).await?, None);
+    assert_eq!(
+        observe(&handle, "127.0.0.1:1", run, &seat(Some(ended))).await?,
+        Some(true)
+    );
+    assert_eq!(
+        observe(&handle, "127.0.0.1:1", run, &seat(Some(live))).await?,
+        None
+    );
     let mut never_opened = seat(Some(ended));
     never_opened.opened = false;
-    assert_eq!(observe(&handle, run, &never_opened).await?, None);
-    assert_eq!(observe(&handle, run, &seat(None)).await?, None);
     assert_eq!(
-        observe(&handle, run, &seat(Some(Uuid::new_v4()))).await?,
+        observe(&handle, "127.0.0.1:1", run, &never_opened).await?,
+        None
+    );
+    assert_eq!(
+        observe(&handle, "127.0.0.1:1", run, &seat(None)).await?,
+        None
+    );
+    assert_eq!(
+        observe(&handle, "127.0.0.1:1", run, &seat(Some(Uuid::new_v4()))).await?,
         None
     );
     db.cleanup().await?;

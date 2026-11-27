@@ -383,9 +383,10 @@ async fn room(state: &BaseState) -> (usize, String) {
         .parse::<BackendId>()
         .ok()
         .and_then(backend_for);
-    let Some(backend) = backend else {
+    let Some(mut backend) = backend else {
         return (0, "no terminal backend is configured".into());
     };
+    backend.set_inspect_addr(&state.config().inspect_listen_addr);
     match backend.list().await {
         Ok(open) => (
             limit.saturating_sub(open.len()),

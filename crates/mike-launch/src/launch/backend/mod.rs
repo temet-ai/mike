@@ -274,6 +274,7 @@ pub enum CloseOutcome {
 #[async_trait]
 pub trait TerminalBackend: Send + Sync {
     fn id(&self) -> BackendId;
+    fn set_inspect_addr(&mut self, _address: &str) {}
     fn capabilities(&self) -> Capabilities;
     async fn probe(&self) -> ProbeReport;
     async fn validate(&self) -> ValidationReport;

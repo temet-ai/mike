@@ -11,6 +11,36 @@ use crate::launch::{BackendId, ChannelCheck, LaunchError, Surface, backend_for};
 pub use crate::launch::cli::test_kit::open_tokens;
 
 #[tokio::test]
+async fn prepare_codex_preserves_selected_herdr_backend_without_claude_trust() -> anyhow::Result<()>
+{
+    let home = tempfile::tempdir()?;
+    let project = project_dir(home.path());
+    let backend = fake();
+    let config = LaunchConfig {
+        auto_trust: false,
+        ..LaunchConfig::trusting()
+    };
+    let runner = runner(&backend, &config, home.path());
+    let prepared = open::prepare(
+        &runner,
+        open_tokens(&project, &["--runtime", "codex"]),
+        &mut Cursor::new(""),
+    )
+    .await
+    .map_err(|failure| anyhow::anyhow!("{}", failure.error))?;
+    assert_eq!(prepared.output.backend, BackendId::Herdr);
+    assert_eq!(
+        prepared.split.runtime,
+        mike_base::runtime::RuntimeKind::Codex
+    );
+    assert!(
+        !std::fs::read_to_string(home.path().join(".claude.json"))?
+            .contains("hasTrustDialogAccepted")
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn open_success_prints_the_contract_object_and_exits_zero() {
     let home = tempfile::tempdir().unwrap();
     let project = project_dir(home.path());

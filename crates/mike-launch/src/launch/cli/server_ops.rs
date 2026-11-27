@@ -13,7 +13,10 @@ pub async fn resolve_backend(
     explicit: Option<BackendId>,
     caller: &CallerTerminal,
 ) -> Result<(BackendChoice, Box<dyn TerminalBackend>), LaunchError> {
-    backend_choice::resolve(&state.config().launch, explicit, caller).await
+    let (choice, mut backend) =
+        backend_choice::resolve(&state.config().launch, explicit, caller).await?;
+    backend.set_inspect_addr(&state.config().inspect_listen_addr);
+    Ok((choice, backend))
 }
 
 pub async fn configured_backend(

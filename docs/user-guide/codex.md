@@ -33,11 +33,9 @@ mike spawn open /path/to/project --runtime codex -- --dangerously-bypass-approva
 ```
 
 The `spawn_session` tool accepts `runtime: "codex"` and an optional `args` array.
-Claude remains the default when runtime is omitted. Codex launches support fresh
-interactive sessions on Herdr-core, tmux or a desktop terminal; warm templates and
-forks still require Claude. Legacy Herdr does not support Codex. Select a supported
-backend before the subcommand, for example
-`mike --launch-backend tmux spawn open /path/to/project --runtime codex`.
+Claude remains the default when runtime is omitted. Codex uses the same terminal
+backend as Claude, including Herdr and Herdr-core. You do not need to choose a
+different backend to change runtime. Warm templates and forks still require Claude.
 Operator telemetry is preserved. The older Mike-installed exporter is disabled;
 session identity comes from the proxy.
 

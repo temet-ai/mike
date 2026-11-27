@@ -137,6 +137,13 @@ argument kept in order; a literal `--` forwards the rest verbatim. The shared fl
 The legacy `-m <model>` and `-p`/`--prompt` forms are rejected with a usage error rather than
 being passed through to claude.
 
+Codex uses the same backend selection as Claude. Herdr starts it with
+`agent start --kind codex`. Its native thread ID is resolved through Mike's inspect
+API for list, find and kill; it is not interpreted as a Mike UUID. Until that binding
+has been observed, `kill --session` cannot confirm the pane's identity and leaves it
+open. The final close check resolves the current thread again to protect a replacement
+session in the same pane.
+
 When `open`, `warm`, `fork` or `spawn_session` names a recorded `fleet-<slug>-<8 hex digits>`
 run and supplies a role or seat, it inherits the fleet's effective seat settings before opening:
 scratch directories, config isolation, plugin defaults, MCP profile and the definition's

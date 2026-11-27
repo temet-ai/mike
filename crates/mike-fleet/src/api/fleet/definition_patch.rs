@@ -152,7 +152,9 @@ fn home_dir() -> PathBuf {
 
 fn resolve_backend(state: &BaseState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
     let id: BackendId = state.config().launch.backend.parse()?;
-    backend_for(id).ok_or(LaunchError::BackendNone)
+    let mut backend = backend_for(id).ok_or(LaunchError::BackendNone)?;
+    backend.set_inspect_addr(&state.config().inspect_listen_addr);
+    Ok(backend)
 }
 
 pub async fn environment_problems(

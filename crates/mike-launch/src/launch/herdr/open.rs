@@ -7,7 +7,7 @@ use super::channels_dialog;
 use super::cli::{DEFAULT_TIMEOUT, HerdrCli, str_field};
 use super::prompt::{self, PromptOutcome};
 use super::run_layout;
-use super::surface::{PaneRef, agent_session_uuid, pane_at_shell_prompt, pane_pid};
+use super::surface::{PaneRef, pane_at_shell_prompt, pane_pid};
 use crate::launch::backend::{BackendId, OpenRequest, Placement, RunSeat, SplitDirection, Surface};
 use crate::launch::error::LaunchError;
 
@@ -25,9 +25,9 @@ struct Target {
 }
 
 pub async fn open(cli: &HerdrCli, req: &OpenRequest) -> Result<Surface, LaunchError> {
-    if req.program != "claude" {
+    if !matches!(req.program.as_str(), "claude" | "codex") {
         return Err(LaunchError::Unsupported(format!(
-            "herdr starts `claude` from the pane's PATH itself; the program override `{}` cannot be honoured",
+            "herdr starts `claude` or `codex` from the pane's PATH itself; the program override `{}` cannot be honoured",
             req.program
         )));
     }
@@ -37,10 +37,11 @@ pub async fn open(cli: &HerdrCli, req: &OpenRequest) -> Result<Surface, LaunchEr
         Some(run) => run_target(cli, run, &folder, &env).await?,
         None => folder_target(cli, req, &folder, &env).await?,
     };
-    let wants_channels = req
-        .args
-        .iter()
-        .any(|a| a == crate::launch::DEV_CHANNELS_FLAG);
+    let wants_channels = req.program == "claude"
+        && req
+            .args
+            .iter()
+            .any(|a| a == crate::launch::DEV_CHANNELS_FLAG);
     let (started, _) = tokio::join!(
         agent_start_when_shell_ready(cli, req, &target),
         confirm_channels_dialog(cli, &target.pane.pane, wants_channels),
@@ -308,7 +309,9 @@ async fn agent_start_when_shell_ready(
     req: &OpenRequest,
     target: &Target,
 ) -> Result<(Option<String>, Option<uuid::Uuid>), LaunchError> {
-    super::browser_guard::prepare(cli, &req.args, &target.pane.pane).await?;
+    if req.program == "claude" {
+        super::browser_guard::prepare(cli, &req.args, &target.pane.pane).await?;
+    }
     let deadline = tokio::time::Instant::now() + PANE_BUSY_RETRY_BUDGET;
     loop {
         match agent_start(cli, req, &target.pane.pane).await {
@@ -335,7 +338,7 @@ async fn agent_start(
         "start",
         &req.name,
         "--kind",
-        "claude",
+        &req.program,
         "--pane",
         pane,
         "--timeout",
@@ -348,16 +351,18 @@ async fn agent_start(
             let agent = result.get("agent").unwrap_or(&Value::Null);
             Ok((
                 str_field(agent, "agent_status").map(str::to_string),
-                agent_session_uuid(agent),
+                opened_session(req, agent),
             ))
         }
         Err(err) if err.backend_code() == Some("agent_not_ready") => {
-            Ok(agent_state_after_not_ready(cli, &req.name).await)
+            Ok(agent_state_after_not_ready(cli, req).await)
         }
-        Err(err) if is_start_wait_timeout(&err) => match running_agent_state(cli, pane).await {
-            Some(state) => Ok(state),
-            None => Err(err),
-        },
+        Err(err) if is_start_wait_timeout(&err) => {
+            match running_agent_state(cli, req, pane).await {
+                Some(state) => Ok(state),
+                None => Err(err),
+            }
+        }
         Err(err) => Err(err),
     }
 }
@@ -368,6 +373,7 @@ fn is_start_wait_timeout(err: &LaunchError) -> bool {
 
 async fn running_agent_state(
     cli: &HerdrCli,
+    req: &OpenRequest,
     pane: &str,
 ) -> Option<(Option<String>, Option<uuid::Uuid>)> {
     let result = cli
@@ -375,7 +381,7 @@ async fn running_agent_state(
         .await
         .ok()?;
     let agent = result.get("agent")?;
-    if str_field(agent, "agent") != Some("claude") {
+    if str_field(agent, "agent") != Some(req.program.as_str()) {
         return None;
     }
     Some((
@@ -384,16 +390,16 @@ async fn running_agent_state(
                 .unwrap_or("working")
                 .to_string(),
         ),
-        agent_session_uuid(agent),
+        opened_session(req, agent),
     ))
 }
 
 async fn agent_state_after_not_ready(
     cli: &HerdrCli,
-    name: &str,
+    req: &OpenRequest,
 ) -> (Option<String>, Option<uuid::Uuid>) {
     match cli
-        .run_json(&args(&["agent", "get", name]), DEFAULT_TIMEOUT)
+        .run_json(&args(&["agent", "get", &req.name]), DEFAULT_TIMEOUT)
         .await
     {
         Ok(result) => {
@@ -404,10 +410,21 @@ async fn agent_state_after_not_ready(
                         .unwrap_or("agent_not_ready")
                         .to_string(),
                 ),
-                agent_session_uuid(agent),
+                opened_session(req, agent),
             )
         }
-        Err(_) => (Some("agent_not_ready".to_string()), None),
+        Err(_) => (
+            Some("agent_not_ready".to_string()),
+            opened_session(req, &Value::Null),
+        ),
+    }
+}
+
+fn opened_session(req: &OpenRequest, agent: &Value) -> Option<uuid::Uuid> {
+    if req.program == "codex" {
+        req.session_uuid()
+    } else {
+        super::identity::claude_session(agent)
     }
 }
 

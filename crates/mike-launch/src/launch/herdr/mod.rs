@@ -3,6 +3,7 @@ pub mod channels_dialog;
 pub mod cli;
 pub mod close;
 pub mod display;
+mod identity;
 pub mod open;
 pub mod pane;
 pub mod probe;
@@ -54,6 +55,14 @@ impl HerdrBackend {
 impl TerminalBackend for HerdrBackend {
     fn id(&self) -> BackendId {
         BackendId::Herdr
+    }
+
+    fn set_inspect_addr(&mut self, address: &str) {
+        self.cli.inspect_url = if address.contains("://") {
+            address.trim_end_matches('/').into()
+        } else {
+            format!("http://{}", address.trim_end_matches('/'))
+        };
     }
 
     fn capabilities(&self) -> Capabilities {

@@ -45,11 +45,14 @@ impl KillReport {
 pub async fn execute(runner: &Runner<'_>, session: Uuid) -> Result<KillReport, LaunchError> {
     let row = runner.ledger.find_launch_by_session(session).await;
     let launch_id = row.as_ref().map(|r| r.id);
-    let recorded = row
+    let mut recorded = row
         .as_ref()
         .and_then(|r| r.backend.parse::<crate::launch::BackendId>().ok())
         .filter(|id| *id != runner.backend.id())
         .and_then(crate::launch::backend_for);
+    if let (Some(backend), Some(address)) = (&mut recorded, &runner.inspect_addr) {
+        backend.set_inspect_addr(address);
+    }
     let backend = recorded.as_deref().unwrap_or(runner.backend);
     let Some(surface) = backend.find_by_session(session).await? else {
         return Ok(KillReport::no_op(

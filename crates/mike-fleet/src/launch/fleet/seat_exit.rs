@@ -17,10 +17,11 @@ pub fn key(run: &str, seat: &UnsettledFleetLaunch) -> Option<RootKey> {
 
 pub async fn observe(
     persist: &PersistHandle,
+    inspect_addr: &str,
     run: &str,
     seat: &UnsettledFleetLaunch,
 ) -> Result<Option<bool>, LaunchError> {
-    if let Some(exited) = observe_root(run, seat).await? {
+    if let Some(exited) = observe_root(inspect_addr, run, seat).await? {
         return Ok(Some(exited));
     }
     Ok(session_ended(persist, seat).await.then_some(true))
@@ -36,16 +37,21 @@ async fn session_ended(persist: &PersistHandle, seat: &UnsettledFleetLaunch) -> 
     )
 }
 
-async fn observe_root(run: &str, seat: &UnsettledFleetLaunch) -> Result<Option<bool>, LaunchError> {
+async fn observe_root(
+    inspect_addr: &str,
+    run: &str,
+    seat: &UnsettledFleetLaunch,
+) -> Result<Option<bool>, LaunchError> {
     let Some(key) = key(run, seat) else {
         return Ok(None);
     };
     if let Some(exited) = local_root::observed_exit(&key) {
         return Ok(Some(exited));
     }
-    let Some(backend) = backend_for(seat.backend.parse()?) else {
+    let Some(mut backend) = backend_for(seat.backend.parse()?) else {
         return Ok(None);
     };
+    backend.set_inspect_addr(inspect_addr);
     let Some(session) = seat.session_uuid else {
         return Ok(None);
     };

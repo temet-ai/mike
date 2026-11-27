@@ -57,7 +57,10 @@ pub async fn reconcile(
     };
     let seats = fleet_db.unsettled_fleet_launches(run).await?;
     for seat in seats.iter().filter(|seat| seat.opened) {
-        if matches!(seat_exit::observe(persist, run, seat).await, Ok(Some(true))) {
+        if matches!(
+            seat_exit::observe(persist, &state.config().inspect_listen_addr, run, seat).await,
+            Ok(Some(true))
+        ) {
             fleet_db
                 .record_fleet_launch_verified_exit(seat.id, run, EXITED)
                 .await?;
@@ -325,7 +328,9 @@ pub(super) async fn stop_seat(
         closed: false,
         note: None,
         launch_id: seat.id,
-        process_exited: seat_exit::observe(persist, run, seat).await.unwrap_or(None),
+        process_exited: seat_exit::observe(persist, &state.config().inspect_listen_addr, run, seat)
+            .await
+            .unwrap_or(None),
     };
     if report.process_exited != Some(true) {
         match seat.session_uuid {
@@ -333,7 +338,9 @@ pub(super) async fn stop_seat(
                 Ok(killed) => {
                     report.closed = killed.closed;
                     report.process_exited =
-                        seat_exit::observe(persist, run, seat).await.unwrap_or(None);
+                        seat_exit::observe(persist, &state.config().inspect_listen_addr, run, seat)
+                            .await
+                            .unwrap_or(None);
                     report.note = killed.note;
                 }
                 Err(error) => report.note = Some(error.to_string()),

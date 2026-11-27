@@ -170,11 +170,6 @@ pub async fn prepare(
     let mut split = split_launch_args(tokens).map_err(bare)?;
     let raw_folder = take_folder(&mut split).map_err(bare)?;
     let mut output = skeleton(runner.backend.id(), &raw_folder, &split);
-    if split.runtime == RuntimeKind::Codex && runner.backend.id() == BackendId::Herdr {
-        return Err(fail(output, LaunchError::Unsupported(
-            "the legacy herdr backend starts Claude only; select herdr-core, tmux or terminal for Codex".into(),
-        ), "unsupported_runtime"));
-    }
     if runner.backend.id() == BackendId::None {
         return Err(fail(output, LaunchError::BackendNone, "backend_none"));
     }

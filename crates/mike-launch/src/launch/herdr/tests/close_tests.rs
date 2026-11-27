@@ -174,7 +174,7 @@ async fn find_by_session_matches_case_insensitively_and_ignores_other_agents() {
     fake.answer(
         "agent list",
         &agents(vec![
-            agent_entry("w1:p1", "codex", Some(SESSION), "idle"),
+            agent_entry("w1:p1", "pi", Some(SESSION), "idle"),
             agent_entry("w1:p2", "claude", Some(&SESSION.to_uppercase()), "working"),
             agent_entry("w1:p3", "claude", None, "unknown"),
         ]),
@@ -191,10 +191,10 @@ async fn find_by_session_matches_case_insensitively_and_ignores_other_agents() {
 }
 
 #[tokio::test]
-async fn find_by_session_unknown_uuid_is_none_and_list_filters_to_claude() {
+async fn find_by_session_unknown_uuid_is_none_and_list_filters_supported_agents() {
     let fake = FakeHerdr::new();
     let listing = agents(vec![
-        agent_entry("w1:p1", "codex", Some(SESSION), "idle"),
+        agent_entry("w1:p1", "pi", Some(SESSION), "idle"),
         agent_entry("w1:p2", "claude", None, "idle"),
     ]);
     fake.answer("agent list", &listing)

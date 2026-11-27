@@ -6,6 +6,7 @@
 
 pub mod channels_dialog_tests;
 pub mod close_tests;
+mod codex_tests;
 pub mod fake;
 pub mod live;
 pub mod open_busy_tests;

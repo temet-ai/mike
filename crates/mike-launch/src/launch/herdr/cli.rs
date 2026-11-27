@@ -13,11 +13,16 @@ pub const INSTALL_REMEDY: &str = "install herdr from https://herdr.dev and put i
 #[derive(Debug, Clone)]
 pub struct HerdrCli {
     bin: PathBuf,
+    pub(crate) inspect_url: String,
 }
 
 impl HerdrCli {
     pub fn new(bin: impl Into<PathBuf>) -> Self {
-        Self { bin: bin.into() }
+        Self {
+            bin: bin.into(),
+            inspect_url: std::env::var("MIKE_INSPECT_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:9989".into()),
+        }
     }
 
     pub fn bin(&self) -> &Path {

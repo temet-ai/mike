@@ -334,9 +334,10 @@ async fn live_states(
     let Ok(id) = state.config().launch.backend.parse() else {
         return Default::default();
     };
-    let Some(backend) = crate::launch::backend_for(id) else {
+    let Some(mut backend) = crate::launch::backend_for(id) else {
         return Default::default();
     };
+    backend.set_inspect_addr(&state.config().inspect_listen_addr);
     match backend.list().await {
         Ok(surfaces) => surfaces
             .into_iter()

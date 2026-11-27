@@ -119,13 +119,14 @@ async fn loaded(
             .await
             .map_err(|e| e.to_string())?;
         let watched = watched_backend(row.as_ref().map(|r| r.backend.as_str()), &configured);
-        let backend = watched
+        let mut backend = watched
             .parse::<BackendId>()
             .ok()
             .and_then(backend_for)
             .ok_or_else(|| {
                 format!("mike has no {watched} terminal backend to read the template's state from")
             })?;
+        backend.set_inspect_addr(&state.config().inspect_listen_addr);
         let agent = agent_state(backend.as_ref(), session).await;
         let in_flight = state.in_flight.is_session_busy(&session.to_string());
         match progress.step(row.as_ref().map(Launch::of), agent.as_deref(), in_flight) {
