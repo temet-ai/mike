@@ -99,6 +99,18 @@ fn repair_policy_allows_ordinary_code_docs_and_tests() {
 }
 
 #[test]
+fn repair_policy_code_named_after_credentials_is_allowed() {
+    for path in [
+        "crates/mike-lessons/src/judge_worker/supply_verdict/credential_hold.rs",
+        "crates/mike/src/wright/repair/credentials_refusal_tests.rs",
+        "crates/mike/src/api/secrets_view.rs",
+    ] {
+        assert_eq!(category(path), None, "{path}");
+        assert_eq!(check(&[file(path, 3, 1)], ""), Ok(()), "{path}");
+    }
+}
+
+#[test]
 fn repair_policy_refuses_a_migration_that_changes_a_toggle_and_allows_one_that_changes_wright() {
     let path = "crates/mike-base/src/store/persistence/migrations/20991231000000_tidy.sql";
     let toggles = "+++ b/x.sql\n+UPDATE config.feature_toggles SET enabled = true;\n";

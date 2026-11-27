@@ -258,3 +258,14 @@ pub(crate) static JOBS: [Job; 8] = [
     DECISIONS_LOOP,
     KIT_REVIEWS,
 ];
+
+#[cfg(test)]
+pub(crate) fn leased_job_names() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = JOBS
+        .iter()
+        .filter(|j| j.leased)
+        .map(|j| j.name)
+        .collect();
+    names.sort_unstable();
+    names
+}
