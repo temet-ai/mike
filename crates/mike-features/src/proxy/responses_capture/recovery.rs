@@ -130,9 +130,13 @@ async fn recover_one(
     let Some(_lock) = lock(path).map_err(|error| error.to_string())? else {
         return Ok(());
     };
-    let bytes = tokio::fs::read(path.join("manifest.json"))
-        .await
-        .map_err(|error| error.to_string())?;
+    let bytes = match tokio::fs::read(path.join("manifest.json")).await {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return remove_if_only_lock(path).await;
+        }
+        Err(error) => return Err(error.to_string()),
+    };
     let mut manifest: Manifest =
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
     if manifest.exchange.status == "pending" {
@@ -151,6 +155,27 @@ async fn recover_one(
     super::record::finish_delivery(persist, &manifest)
         .await
         .map_err(|error| error.to_string())?;
+    tokio::fs::remove_dir_all(path)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn remove_if_only_lock(path: &std::path::Path) -> Result<(), String> {
+    let mut entries = tokio::fs::read_dir(path)
+        .await
+        .map_err(|error| error.to_string())?;
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|error| error.to_string())?
+    {
+        if entry.file_name() != "capture.lock" {
+            return Err(format!(
+                "no manifest.json, but {} is staged",
+                entry.file_name().to_string_lossy()
+            ));
+        }
+    }
     tokio::fs::remove_dir_all(path)
         .await
         .map_err(|error| error.to_string())

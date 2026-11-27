@@ -318,3 +318,27 @@ async fn recovery_retries_proxy_identity_after_an_outage_without_hooks() -> anyh
     assert!(registered);
     Ok(())
 }
+
+#[tokio::test]
+async fn recovery_staging_with_only_a_lock_is_removed_and_one_with_a_body_is_kept()
+-> anyhow::Result<()> {
+    let h = harness("http://127.0.0.1:1", "http://127.0.0.1:1")
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("capture test requires the test database"))?;
+    let root = h
+        .state
+        .capture_root
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("capture directory missing"))?;
+    let empty = root.join(Uuid::new_v4().to_string());
+    let orphan = root.join(Uuid::new_v4().to_string());
+    for directory in [&empty, &orphan] {
+        tokio::fs::create_dir_all(directory).await?;
+        tokio::fs::write(directory.join("capture.lock"), b"").await?;
+    }
+    tokio::fs::write(orphan.join("request"), REQUEST).await?;
+    super::recovery::recover(h.state.clone()).await;
+    assert!(!empty.exists());
+    assert!(orphan.join("request").exists());
+    Ok(())
+}

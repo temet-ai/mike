@@ -20,7 +20,10 @@ fn registration_path_wright_run_without_directory_names_a_mike_checkout_or_nothi
     headers.insert(RUN_HEADER, HeaderValue::from_static("7"));
     let path = registration_path(&headers, "");
     assert!(
-        path.is_empty() || std::path::Path::new(&path).join("crates/mike/Cargo.toml").is_file(),
+        path.is_empty()
+            || std::path::Path::new(&path)
+                .join("crates/mike/Cargo.toml")
+                .is_file(),
         "{path} is neither empty nor a mike checkout"
     );
 }
