@@ -174,3 +174,44 @@ async fn reads_outpace_writes_saves_table_counters_with_each_statement_snapshot(
     assert_eq!((snapshots, orphans), (1, 0));
     db.cleanup().await
 }
+
+#[tokio::test]
+async fn reads_outpace_writes_stored_query_never_builds_a_regex_per_relation() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let query: String =
+        sqlx::query_scalar("SELECT query FROM wright.checks WHERE name = 'reads_outpace_writes'")
+            .fetch_one(db.handle.pool())
+            .await?;
+    assert!(!query.contains("r.pattern"), "{query}");
+    assert!(!query.contains("rels AS"), "{query}");
+    assert!(
+        query.contains("CROSS JOIN LATERAL wright.statement_relations(b.query)"),
+        "{query}"
+    );
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn statement_relations_names_public_qualified_and_quoted_tables_only() -> anyhow::Result<()> {
+    let db = boot().await?;
+    let pool = db.handle.pool();
+    sqlx::query("CREATE SCHEMA rare_ns").execute(pool).await?;
+    sqlx::query("CREATE TABLE rare_ns.rare_other (id int)")
+        .execute(pool)
+        .await?;
+    let named: Vec<String> = sqlx::query_scalar(
+        "SELECT r.relid::regclass::text
+           FROM wright.statement_relations(
+                    'SELECT 1 FROM rare_lookup a
+                       JOIN Public.rare_view v ON true
+                       JOIN \"rare_ns\".\"rare_other\" o ON true
+                       LEFT JOIN rare_other u ON true
+                       JOIN pg_catalog.pg_class k ON true
+                       JOIN rare_missing x ON true') r
+          ORDER BY 1",
+    )
+    .fetch_all(pool)
+    .await?;
+    assert_eq!(named, ["rare_lookup", "rare_ns.rare_other", "rare_view"]);
+    db.cleanup().await
+}
