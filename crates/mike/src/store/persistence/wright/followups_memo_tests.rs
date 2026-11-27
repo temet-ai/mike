@@ -71,3 +71,70 @@ async fn handing_off_a_followup_notifies_the_change_feed() -> anyhow::Result<()>
     assert_eq!(payload["op"], "UPDATE");
     env.db.cleanup().await
 }
+
+fn filed_limit(daily_filed: i32) -> super::FollowupLimitsPatch {
+    super::FollowupLimitsPatch {
+        daily_filed: Some(daily_filed),
+        ..super::FollowupLimitsPatch::default()
+    }
+}
+
+#[tokio::test]
+async fn followup_limits_with_a_fed_feed_are_kept_until_the_limits_change() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let here = PersistHandle::connect(&env.db.database_url).await?;
+    let feed = fed(&here);
+    let first = here.web().wright_followup_limits().await?.daily_filed;
+
+    env.persist
+        .web()
+        .patch_wright_followup_limits(&filed_limit(first + 1))
+        .await?;
+    assert_eq!(here.web().wright_followup_limits().await?.daily_filed, first);
+
+    feed.record(RowChangedTable::WrightFollowups, None);
+    assert_eq!(here.web().wright_followup_limits().await?.daily_filed, first);
+
+    feed.record(RowChangedTable::WrightFollowupLimits, None);
+    assert_eq!(
+        here.web().wright_followup_limits().await?.daily_filed,
+        first + 1
+    );
+    env.db.cleanup().await
+}
+
+#[tokio::test]
+async fn followup_limits_patched_through_the_same_handle_are_read_fresh() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let here = PersistHandle::connect(&env.db.database_url).await?;
+    let _feed = fed(&here);
+    let first = here.web().wright_followup_limits().await?.daily_filed;
+    here.web()
+        .patch_wright_followup_limits(&filed_limit(first + 1))
+        .await?;
+    assert_eq!(
+        here.web().wright_followup_limits().await?.daily_filed,
+        first + 1
+    );
+    env.db.cleanup().await
+}
+
+#[tokio::test]
+async fn patching_followup_limits_notifies_the_change_feed() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let mut listener = PgListener::connect(&env.db.database_url).await?;
+    listener.listen("proxy.row_changed").await?;
+    env.persist
+        .web()
+        .patch_wright_followup_limits(&filed_limit(4))
+        .await?;
+    let payload: serde_json::Value = loop {
+        let note = tokio::time::timeout(Duration::from_secs(5), listener.recv()).await??;
+        let payload: serde_json::Value = serde_json::from_str(note.payload())?;
+        if payload["table"] == "wright_followup_limits" {
+            break payload;
+        }
+    };
+    assert_eq!(payload["op"], "UPDATE");
+    env.db.cleanup().await
+}
