@@ -11,7 +11,7 @@ use super::plan::worker_seat_name;
 use super::staff::{Waiting, startable, unstarted_tasks};
 use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::fleet::FleetRow;
+use crate::store::persistence::fleet::{FleetRow, FleetSeatRow};
 
 /// The queued tasks whose `after` tasks are released and that have never had a
 /// worker seat in this run. A task whose seat was launched and has exited is
@@ -36,6 +36,16 @@ pub fn never_started(
             .is_some_and(|task| !launched_seats.contains(&worker_seat_name(&task.discipline, id)))
     })
     .collect()
+}
+
+/// The seats that were started: their pane opened or their session sent a
+/// request. A launch that failed to open leaves a row with neither, and its
+/// task still needs a seat.
+pub fn launched_seats(rows: &[FleetSeatRow]) -> BTreeSet<String> {
+    rows.iter()
+        .filter(|row| row.opened_at.is_some() || row.requests > 0)
+        .filter_map(|row| row.seat.clone())
+        .collect()
 }
 
 /// True while a seat is being started for the run, or while a ready task has
@@ -77,14 +87,12 @@ async fn unstaffed(
 ) -> Result<Vec<String>, String> {
     let def = FleetDefinition::from_value(&row.definition)?;
     let status = super::status::assemble(state, row).await?;
-    let launched: BTreeSet<String> = persist
+    let rows = persist
         .fleet()
         .fleet_seat_rows(run)
         .await
-        .map_err(|error| error.to_string())?
-        .into_iter()
-        .filter_map(|r| r.seat)
-        .collect();
+        .map_err(|error| error.to_string())?;
+    let launched = launched_seats(&rows);
     let released = super::release::released(persist, &def, &status).await;
     Ok(never_started(
         &def,
