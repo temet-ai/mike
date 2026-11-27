@@ -75,6 +75,7 @@ pub fn spawn_session_judge_worker(state: &AppState) {
             toggles,
             settings,
             live_config,
+            v3_configs: Default::default(),
             shutdown,
         })
         .await;
@@ -103,6 +104,7 @@ struct SessionJudgeWorkerDeps {
     toggles: Arc<ArcSwap<FeatureToggles>>,
     settings: Arc<ArcSwap<crate::settings::SettingsOverlay>>,
     live_config: Arc<crate::config::live::LiveConfig>,
+    v3_configs: crate::judge_worker::session_end::live::ConfigMemo,
     shutdown: CancellationToken,
 }
 
@@ -131,6 +133,7 @@ impl SessionJudgeWorkerDeps {
             config,
             toggles: &self.toggles,
             settings: &self.settings,
+            v3_configs: &self.v3_configs,
         };
         let runtime = resolve_session_judge_runtime(&self.settings.load(), config);
         run_poll(&poll_deps, &runtime, breaker).await;
@@ -285,6 +288,7 @@ pub async fn run_session_judge_once(state: &AppState) -> anyhow::Result<()> {
         config: &config,
         toggles: &state.feature_toggle_overlay,
         settings: &state.settings_overlay,
+        v3_configs: &Default::default(),
     };
     run_poll(&deps, &runtime, &mut breaker).await;
     Ok(())

@@ -96,6 +96,7 @@ fn poll<'a>(
         turn_judge_live_bundle_id: f.bundle.id,
         turn_confidence_threshold: 0.5,
         jev,
+        config_memo: Default::default(),
     }
 }
 

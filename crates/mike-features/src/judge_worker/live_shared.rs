@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 use chrono::{DateTime, Duration, Utc};
 use dashmap::DashMap;
 
+use super::bundle_memo::BundleMemo;
 use super::claim_gate::ClaimGate;
+use super::live_judge::LiveBundle;
 
 #[derive(Debug, Clone, Default)]
 pub struct LiveJudgeShared {
@@ -13,6 +15,7 @@ pub struct LiveJudgeShared {
     queue_reconciled_bundle: Arc<AtomicI64>,
     queue_reconciled_at_unix: Arc<AtomicI64>,
     claim_gate: Arc<Mutex<ClaimGate>>,
+    bundles: BundleMemo<LiveBundle>,
 }
 
 pub struct InFlightGuard {
@@ -35,6 +38,10 @@ impl LiveJudgeShared {
             in_flight: self.in_flight.clone(),
             turn_id,
         })
+    }
+
+    pub fn bundles(&self) -> &BundleMemo<LiveBundle> {
+        &self.bundles
     }
 
     pub fn is_in_flight(&self, turn_id: i64) -> bool {

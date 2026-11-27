@@ -140,7 +140,7 @@ async fn drain_owned_run(
     if run.id != run_id || !started(poll, &run).await {
         return None;
     }
-    let cfg = load_config(poll.persist, poll.bundle_id).await?;
+    let cfg = load_config(poll.persist, &poll.config_memo, poll.bundle_id).await?;
     let window = SessionRejudgeWindow {
         bundle_id: poll.bundle_id,
         since: run.window_since,

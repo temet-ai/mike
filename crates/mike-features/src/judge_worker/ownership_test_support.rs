@@ -48,7 +48,7 @@ impl Fixture {
         persist
             .upsert_setting("turn_judge.live_bundle_id", &json!(bundle_id))
             .await?;
-        let bundle = load_live_bundle(&persist, bundle_id)
+        let bundle = load_live_bundle(&persist, &LiveJudgeShared::default(), bundle_id)
             .await
             .context("test bundle")?;
         let turns = seed_turns(&persist, turn_count).await?;

@@ -1,3 +1,4 @@
+pub mod bundle_memo;
 mod claim_gate;
 pub mod immediate;
 pub mod jev_turn;
