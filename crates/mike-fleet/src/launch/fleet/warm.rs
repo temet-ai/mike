@@ -95,7 +95,7 @@ async fn finish_one(
         return report;
     }
     let loaded = match loaded(state, persist, plan.session).await {
-        Ok(()) => record(state, persist, def, (&facts.run_id, &discipline), &plan).await,
+        Ok(backend) => record(&backend, persist, def, (&facts.run_id, &discipline), &plan).await,
         Err(problem) => Err(problem),
     };
     close(state, plan.session).await;
@@ -104,15 +104,17 @@ async fn finish_one(
     report
 }
 
-async fn loaded(state: &BaseState, persist: &PersistHandle, session: Uuid) -> Result<(), String> {
-    let backend = state
-        .config()
-        .launch
-        .backend
-        .parse::<BackendId>()
-        .ok()
-        .and_then(backend_for)
-        .ok_or_else(|| "no terminal backend to read the template's state from".to_string())?;
+/// Waits until the template has run its prompt and come to rest, and returns
+/// the terminal backend it runs in. The backend is the one recorded on the
+/// template's launch row: the launcher may choose a different backend from
+/// `launch_backend` (it follows the caller's terminal or the one running), and
+/// only the backend that opened the pane can report its state.
+async fn loaded(
+    state: &BaseState,
+    persist: &PersistHandle,
+    session: Uuid,
+) -> Result<String, String> {
+    let configured = state.config().launch.backend.clone();
     let deadline = tokio::time::Instant::now() + LOAD_WAIT;
     let mut progress = Progress::default();
     loop {
@@ -121,21 +123,34 @@ async fn loaded(state: &BaseState, persist: &PersistHandle, session: Uuid) -> Re
             .find_launch_by_session(session)
             .await
             .map_err(|e| e.to_string())?;
+        let watched = watched_backend(row.as_ref().map(|r| r.backend.as_str()), &configured);
+        let backend = watched
+            .parse::<BackendId>()
+            .ok()
+            .and_then(backend_for)
+            .ok_or_else(|| {
+                format!("mike has no {watched} terminal backend to read the template's state from")
+            })?;
         let agent = agent_state(backend.as_ref(), session).await;
         let in_flight = state.in_flight.is_session_busy(&session.to_string());
         match progress.step(row.as_ref().map(Launch::of), agent.as_deref(), in_flight) {
-            Step::Loaded => return Ok(()),
+            Step::Loaded => return Ok(watched.to_string()),
             Step::Failed(problem) => return Err(problem),
             Step::Wait => {}
         }
         if tokio::time::Instant::now() >= deadline {
-            return Err(format!(
-                "the template had not finished loading after {} seconds; its workers start cold",
-                LOAD_WAIT.as_secs()
-            ));
+            return Err(progress.timed_out(watched, LOAD_WAIT.as_secs()));
         }
         tokio::time::sleep(LOAD_POLL).await;
     }
+}
+
+/// The backend to read a template's state from: the one its launch row says
+/// opened it, or the configured one while there is no row yet.
+pub fn watched_backend<'a>(launched: Option<&'a str>, configured: &'a str) -> &'a str {
+    launched
+        .filter(|backend| !backend.trim().is_empty())
+        .unwrap_or(configured)
 }
 
 async fn agent_state(backend: &dyn TerminalBackend, session: Uuid) -> Option<String> {
@@ -151,6 +166,7 @@ async fn agent_state(backend: &dyn TerminalBackend, session: Uuid) -> Option<Str
 pub struct Progress {
     worked: bool,
     quiet: u32,
+    seen: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -184,6 +200,9 @@ impl Progress {
         agent: Option<&str>,
         request_in_flight: bool,
     ) -> Step {
+        if agent.is_some() {
+            self.seen = true;
+        }
         let Some(launch) = launch else {
             return Step::Wait;
         };
@@ -213,10 +232,26 @@ impl Progress {
             Step::Wait
         }
     }
+
+    /// Why the wait ended without the template loading. When the backend never
+    /// listed the session at all, the template may well have loaded: mike was
+    /// reading a terminal the template does not run in, or one that does not
+    /// report agents, and the message says so.
+    pub fn timed_out(&self, backend: &str, seconds: u64) -> String {
+        if self.seen {
+            format!(
+                "the template had not finished loading after {seconds} seconds; its workers start cold"
+            )
+        } else {
+            format!(
+                "the {backend} terminal backend never reported the template's session in {seconds} seconds, so mike could not tell whether it loaded; its workers start cold"
+            )
+        }
+    }
 }
 
 async fn record(
-    state: &BaseState,
+    backend: &str,
     persist: &PersistHandle,
     def: &FleetDefinition,
     (run_id, discipline): (&str, &str),
@@ -226,7 +261,7 @@ async fn record(
         name: template_name(run_id, discipline),
         session_uuid: plan.session,
         folder: def.repo.clone(),
-        backend: state.config().launch.backend.clone(),
+        backend: backend.to_string(),
         model: Some(plan.model.clone()),
         agent: Some(plan.agent.clone()),
         claude_args: seat::claude_args(def, plan),
@@ -323,121 +358,5 @@ pub async fn retire(persist: &PersistHandle, def: &FleetDefinition, run_id: &str
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{Launch, Progress, Step};
-
-    fn launch(result: &'static str, confirmed: bool) -> Option<Launch<'static>> {
-        Some(Launch {
-            result,
-            confirmed,
-            reason: None,
-        })
-    }
-
-    #[test]
-    fn a_template_is_loaded_once_its_prompt_ran_and_its_pane_stays_at_rest() {
-        let mut progress = Progress::default();
-        assert_eq!(progress.step(None, None, false), Step::Wait);
-        assert_eq!(
-            progress.step(launch("pending", false), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("working"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Loaded
-        );
-    }
-
-    #[test]
-    fn a_pane_that_goes_back_to_work_is_not_loaded_yet() {
-        let mut progress = Progress::default();
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("working"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("done"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("done"), false),
-            Step::Loaded
-        );
-    }
-
-    #[test]
-    fn an_unconfirmed_prompt_counts_only_after_the_pane_was_seen_working() {
-        let mut progress = Progress::default();
-        assert_eq!(
-            progress.step(launch("unconfirmed", false), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("unconfirmed", false), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("unconfirmed", false), Some("working"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("unconfirmed", false), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("unconfirmed", false), Some("idle"), false),
-            Step::Loaded
-        );
-    }
-
-    #[test]
-    fn a_failed_launch_ends_the_wait_with_its_reason() {
-        let mut progress = Progress::default();
-        let failed = Some(Launch {
-            result: "failed",
-            confirmed: false,
-            reason: Some("surface_cap"),
-        });
-        assert_eq!(
-            progress.step(failed, None, false),
-            Step::Failed("surface_cap".into())
-        );
-    }
-
-    #[test]
-    fn a_template_with_a_request_in_flight_is_not_loaded() {
-        let mut progress = Progress::default();
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), true),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), true),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Wait
-        );
-        assert_eq!(
-            progress.step(launch("success", true), Some("idle"), false),
-            Step::Loaded
-        );
-    }
-}
+#[path = "warm_tests.rs"]
+mod tests;

@@ -65,6 +65,7 @@ pub async fn reconcile(
         }
     }
     if !fleet_db.unsettled_fleet_launches(run).await?.is_empty()
+        || super::unlaunched::waiting_to_start(state, persist, &fresh).await
         || left_unchecked(state, persist, &fresh).await
     {
         return Ok(false);

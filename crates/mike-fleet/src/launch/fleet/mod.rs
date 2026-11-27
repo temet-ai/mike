@@ -136,6 +136,7 @@ pub mod tick;
 pub mod timed_command;
 pub mod told;
 pub mod tool_examples;
+pub mod unlaunched;
 pub mod wake;
 pub mod warm;
 pub mod watch;
