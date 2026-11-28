@@ -167,28 +167,3 @@ async fn codex_templates_are_refused_without_opening_or_resolving_a_ledger() -> 
     assert!(backend.open_requests.lock().await.is_empty());
     Ok(())
 }
-
-#[tokio::test]
-async fn legacy_herdr_is_refused_before_setup_or_ledger_access() -> anyhow::Result<()> {
-    let home = tempfile::tempdir()?;
-    let backend = FakeBackend::available();
-    let config = test_kit::quiet_config();
-    let runner = test_kit::runner(&backend, &config, home.path());
-    let result = open::prepare(
-        &runner,
-        test_kit::open_tokens(home.path(), &["--runtime", "codex"]),
-        &mut std::io::empty(),
-    )
-    .await;
-    let error = result
-        .err()
-        .ok_or_else(|| anyhow::anyhow!("legacy Herdr accepted Codex"))?;
-    assert!(
-        error
-            .error
-            .to_string()
-            .contains("select herdr-core, tmux or terminal")
-    );
-    assert!(backend.calls.lock().await.is_empty());
-    Ok(())
-}

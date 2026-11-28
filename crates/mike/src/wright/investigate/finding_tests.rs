@@ -61,6 +61,20 @@ fn investigate_finding_without_established_cause_says_so() -> anyhow::Result<()>
 }
 
 #[test]
+fn investigate_finding_with_a_confirmed_external_cause_needs_no_owning_part() -> anyhow::Result<()> {
+    let repo = repo()?;
+    let mut doc = established();
+    doc["owning_part"] = Value::Null;
+    doc["kind"] = json!("external");
+    let finding = validate(doc.to_string().as_bytes(), repo.path())
+        .map_err(anyhow::Error::msg)?
+        .finding;
+    assert!(finding.cause_established);
+    assert!(finding.owning_part.is_none());
+    Ok(())
+}
+
+#[test]
 fn investigate_finding_with_a_confirmed_cause_and_no_suspected_one_takes_the_confirmed()
 -> anyhow::Result<()> {
     let repo = repo()?;

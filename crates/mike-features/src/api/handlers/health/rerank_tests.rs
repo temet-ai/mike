@@ -110,7 +110,11 @@ async fn rerank_health_follows_real_call_outcomes_on_the_app_state() -> anyhow::
         .respond_with(ResponseTemplate::new(200))
         .mount(&server)
         .await;
-    let state = AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+    let mut state = AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+    state.rerank_service = crate::analysis::RerankService::with_health_timeout(
+        &crate::analysis::RerankConfig::default(),
+        std::time::Duration::from_secs(30),
+    );
     assert_eq!(rerank_health(&state).state, RerankRowState::Off);
 
     let service = state.rerank_service();

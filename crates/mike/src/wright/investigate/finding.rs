@@ -169,7 +169,9 @@ fn cause(doc: &FindingDoc, repo: &Path) -> Result<(Option<String>, Option<String
     };
     match (doc.cause_established, &confirmed, &part) {
         (true, None, _) => Err("cause_established is true but confirmed_cause is missing".to_owned()),
-        (true, _, None) => Err("cause_established is true but owning_part is missing".to_owned()),
+        (true, _, None) if doc.kind == "code_defect" => Err(
+            "cause_established is true for a code_defect but owning_part is missing".to_owned(),
+        ),
         (false, Some(_), _) => Err(
             "cause_established is false but confirmed_cause is set; leave it null when the cause was not established"
                 .to_owned(),
