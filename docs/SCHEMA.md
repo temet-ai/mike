@@ -2884,6 +2884,20 @@ count items and their embeddings per model.
 
 ---
 
+### `memory.knowledge_upkeep`
+
+Created in `20261127021500_knowledge_upkeep.sql`. One row (`id = 1`): when the knowledge sweep last
+reconciled every knowledge kind with its source, on any machine. `reconcile_knowledge_items` writes it; the
+sweep reads it when its clock in memory is empty or expired (a new process, or a machine the
+`knowledge_embedding` lease has just moved to) and skips the reconcile while it is under 24 hours old.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `SMALLINT` | PK, `CHECK (id = 1)` |
+| `reconciled_at` | `TIMESTAMPTZ` | Time of the last full reconcile |
+
+---
+
 ### `memory.knowledge_embedding_chunks`
 
 Added in `20260920000010_knowledge_embeddings.sql`; re-keyed from `(reference, ordinal)` to
@@ -6754,6 +6768,7 @@ Changes to the seeded set since then:
 - `20261120166800_wright_repair_22_superseded.sql` drops repair 22 and closes the two problems it served, because its target statement was replaced.
 - `20261120166990_idle_polls_statement_counters.sql` adds `wright.statement_counters` (`queryid`, `taken_at`, `calls`, `rows`, `total_ms`, `stats_since`; primary key `queryid, taken_at`). The watch runner fills it before each `idle_polls` pass (`watch/counters.rs`): a new snapshot of every statement of a role in `params.roles` once its newest is `min_window_minutes` old or its counters were reset, keeping the two newest per statement and dropping statements not seen for 6 hours. `idle_polls` now judges each statement from its newest snapshot at least `min_window_minutes` old instead of from episode bases, so a statement it never flagged is no longer judged over its whole history; the param `window_hours` goes.
 - `20261124170000_wright_repeated_messages.sql` adds the check `repeated_messages`: over `window_hours` (6) of messages stored (`messages.messages.last_seen`, which is never updated after insert), it counts the copies of a message its session already stored in that window, grouped by the `predecessor_rule` of the request that first used each copy, and reports a rule with `min_repeats` (50) repeats or more that are `max_repeat_share` (0.1) or more of what it stored; the evidence names the rule, the counts, the repeated bytes, the sessions and the newest request that stored a repeat.
+- `20261127120000_wright_reads_outpace_writes_named_relations.sql` adds `wright.statement_relations(statement_text text) RETURNS TABLE (relid oid)` (SQL, `STABLE`): the relations named after FROM and JOIN in a statement, read with one regex and looked up in `pg_class` by name (an unqualified name is in schema `public`; only `r`, `p`, `v`, `m` relations outside `pg_*` and `information_schema`). `reads_outpace_writes` reads it once per busy statement instead of joining every busy statement with every relation through a per-relation regex (`b.query ~* r.pattern`), which ran busy × relations regexes on every pass.
 - `20261124150000_wright_query_checks_full_text.sql` captures the whole statement of the query checks (`slow_queries`, `reads_outpace_writes`, `idle_polls`) without touching a problem's identity. A problem is identified by `UNIQUE (check_name, scope, resource)`, and a btree entry cannot hold a whole statement (a first version of this migration that put it in the resource failed on a row of 22000 bytes), so the resource stays `query <queryid>: ` plus the first 120 characters of the collapsed text. The evidence field `query` of the three checks is the whole text (it was cut at 160, and at 4000 for `slow_queries`), and `slow_queries` compares whole collapsed texts to find a statement that came back under a new queryid (`text_key`, it compared the first 120 characters). `wright.problems.statement` (`TEXT NULL`, not indexed, null for a check that is not about a statement) holds the whole text: `open_findings.sql` sets it from the evidence `query` of a `scope = 'query'` finding on every pass and rewrites it only when it changed; the migration fills it for existing query problems, open or healthy, from `pg_stat_statements` by the queryid in the resource, where the statement is still there and starts with the text the resource names. The view `wright.cause_queue` gains `statement`, the representative problem's, after its existing columns.
 - `20261123100000_wright_reads_outpace_writes.sql` adds `wright.table_counters` (`taken_at`, `relid`, `writes`: `n_tup_ins + n_tup_upd + n_tup_del` from `pg_stat_user_tables`; primary key `taken_at, relid`) and the check `reads_outpace_writes`. The runner writes every table's counters in the same transaction as each statement snapshot and deletes a table snapshot once no statement snapshot has its `taken_at`. The check reports a read-only statement run `calls_per_hour` or more times an hour that is read `reads_per_write` or more times per row written to the tables its FROM and JOIN clauses name (through views and partitions), over the `idle_polls` window, whether or not it returns rows.
 
@@ -7048,6 +7063,7 @@ Columns: `session_id` (= `session_uuid::text`), `project_path`, `first_seen`, `l
 | `trg_workspace_questions_row_changed`, `trg_workspace_questions_row_changed_update` | `workspace.questions` | AFTER INSERT; AFTER UPDATE when the row changed; `20261120166992` | `proxy.row_changed`, table `workspace_questions`, `session_id` the recipient's uuid |
 | `trg_wright_repairs_row_changed`, `trg_wright_repairs_row_changed_update` | `wright.repairs` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_repairs` |
 | `trg_wright_followups_row_changed`, `trg_wright_followups_row_changed_update` | `wright.followups` | AFTER INSERT; AFTER UPDATE OF `state` when it changed; `20261120166992` | `proxy.row_changed`, table `wright_followups` |
+| `trg_wright_followup_limits_row_changed`, `trg_wright_followup_limits_row_changed_update` | `wright.followup_limits` | AFTER INSERT; AFTER UPDATE when the row changed; `20261127090000` | `proxy.row_changed`, table `wright_followup_limits` |
 | `trg_steering_enrolments_row_changed`, `trg_steering_enrolments_row_changed_update` | `steering.enrolments` | AFTER INSERT OR DELETE; AFTER UPDATE when the row changed; skipped when the session row is gone; `20261120170100` | `proxy.row_changed`, table `steering_enrolments`, `session_id` the session's uuid |
 | `trg_sessions_enrolments_row_changed_delete` | `sessions.sessions` | AFTER DELETE; `20261120170100` | `proxy.row_changed`, table `steering_enrolments`, `session_id` the deleted session's uuid |
 | `trg_change_generations_row_changed`, `trg_change_generations_row_changed_update` | `memory.change_generations` | AFTER INSERT; AFTER UPDATE OF `generation` when it changed; `20261120167900` | `proxy.row_changed`, table `change_generations`, `id` the generation's name |

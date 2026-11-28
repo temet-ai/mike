@@ -19,7 +19,18 @@ impl Default for NoLiveHandoffs {
     }
 }
 
-const TO_FILE: &str = include_str!("sql/followups/to_file.sql");
+struct KeptLimits(Memo<FollowupLimits>);
+
+impl Default for KeptLimits {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[RowChangedTable::WrightFollowupLimits],
+            per_session: &[],
+        }))
+    }
+}
+
+const TO_FILE:&str = include_str!("sql/followups/to_file.sql");
 const FILED_TODAY: &str = include_str!("sql/followups/filed_today.sql");
 const MARK_FILED: &str = include_str!("sql/followups/mark_filed.sql");
 const NEXT_HANDOFF: &str = include_str!("sql/followups/next_handoff.sql");
@@ -247,6 +258,23 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
     }
 
     pub(crate) async fn wright_followup_limits(self) -> Result<FollowupLimits, PersistError> {
+        let kept = self.memo::<KeptLimits>();
+        let memo = self
+            .feed_memos
+            .fed_feed()
+            .and(self.feed_memos.bound(&kept.0));
+        if let Some(limits) = memo.as_ref().and_then(|memo| memo.get(Uuid::nil())) {
+            return Ok(limits);
+        }
+        let ticket = memo.as_ref().map(|memo| memo.ticket());
+        let limits = self.read_wright_followup_limits().await?;
+        if let (Some(memo), Some(ticket)) = (memo, ticket) {
+            memo.remember(Uuid::nil(), ticket, limits.clone());
+        }
+        Ok(limits)
+    }
+
+    async fn read_wright_followup_limits(self) -> Result<FollowupLimits, PersistError> {
         Ok(
             sqlx::query_as(LIMITS) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
                 .fetch_one(self.pool())
@@ -261,18 +289,19 @@ impl crate::store::persistence::web_repo::WebDb<'_> {
         if let Some(fixers) = &patch.fixers {
             check_fixers(fixers)?;
         }
-        Ok(
-            sqlx::query_as(PATCH_LIMITS) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
-                .bind(patch.repo.as_deref())
-                .bind(patch.daily_filed)
-                .bind(patch.daily_handoffs)
-                .bind(patch.max_attempts)
-                .bind(patch.recurrence_actions)
-                .bind(patch.recurrence_days)
-                .bind(patch.fixers.as_deref().map(Json))
-                .bind(patch.fix_host.as_deref())
-                .fetch_one(self.pool())
-                .await?,
-        )
+        let patched = sqlx::query_as(PATCH_LIMITS) // grader-allow: runtime include_str! query, as the Wright persistence is written; no .sqlx entry on this branch
+            .bind(patch.repo.as_deref())
+            .bind(patch.daily_filed)
+            .bind(patch.daily_handoffs)
+            .bind(patch.max_attempts)
+            .bind(patch.recurrence_actions)
+            .bind(patch.recurrence_days)
+            .bind(patch.fixers.as_deref().map(Json))
+            .bind(patch.fix_host.as_deref())
+            .fetch_one(self.pool())
+            .await?;
+        self.feed_memos
+            .record(RowChangedTable::WrightFollowupLimits, None);
+        Ok(patched)
     }
 }

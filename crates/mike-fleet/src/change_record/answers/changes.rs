@@ -69,6 +69,17 @@ pub async fn changes_limited(
         .fleet()
         .change_place(caller.session_id, &caller.checkout)
         .await?;
+    changes_from_place(persist, caller, since, scope, limit, place).await
+}
+
+pub(super) async fn changes_from_place(
+    persist: &PersistHandle,
+    caller: &Caller,
+    since: &Since,
+    scope: &Scope,
+    limit: i64,
+    place: i64,
+) -> Result<ChangesAnswer, AnswerError> {
     let Some(prefixes) = prefixes_for(persist, caller, scope).await? else {
         return Ok(ChangesAnswer::empty(place));
     };

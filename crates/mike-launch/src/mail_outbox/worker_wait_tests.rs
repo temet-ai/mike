@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{UNBOUND_WATCHED, WATCHED, Wait, wait_for_mail};
+use super::{Backlog, UNBOUND_WATCHED, WATCHED, Wait, wait_for_mail};
 use crate::change_feed::{ChangeFeed, Generation};
 use crate::store::models::RowChangedTable;
 
@@ -86,4 +86,34 @@ async fn outbox_wait_without_codex_bindings_returns_when_one_is_bound() {
 #[tokio::test]
 async fn outbox_wait_without_a_change_feed_returns_after_the_sweep_interval() {
     assert!(ticks_on_the_interval(&ChangeFeed::default(), Wait::Change(&WATCHED)).await);
+}
+
+#[test]
+fn outbox_claims_on_the_first_sweep() {
+    assert!(Backlog::default().should_claim(true, 0));
+}
+
+#[test]
+fn outbox_after_an_empty_claim_skips_the_claim_until_mail_is_mirrored() {
+    let idle = Backlog {
+        may_hold_open: false,
+    };
+    assert!(!idle.should_claim(true, 0));
+    assert!(idle.should_claim(true, 1));
+}
+
+#[test]
+fn outbox_with_mail_left_open_claims_again() {
+    let busy = Backlog {
+        may_hold_open: true,
+    };
+    assert!(busy.should_claim(true, 0));
+}
+
+#[test]
+fn outbox_without_a_change_feed_claims_every_sweep() {
+    let idle = Backlog {
+        may_hold_open: false,
+    };
+    assert!(idle.should_claim(false, 0));
 }

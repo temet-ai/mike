@@ -34,6 +34,7 @@ pub struct LivePoll<'a> {
     pub turn_judge_live_bundle_id: i64,
     pub turn_confidence_threshold: f32,
     pub jev: Option<&'a crate::llm::decisions::point::Decider>,
+    pub config_memo: ConfigMemo,
 }
 
 pub fn verdict_row<'a>(
@@ -82,7 +83,22 @@ pub fn verdict_row<'a>(
     }
 }
 
-pub async fn load_config(persist: &PersistHandle, bundle_id: i64) -> Option<SessionJudgeV3Config> {
+pub type ConfigMemo = crate::judge_worker::bundle_memo::BundleMemo<SessionJudgeV3Config>;
+
+pub async fn load_config(
+    persist: &PersistHandle,
+    memo: &ConfigMemo,
+    bundle_id: i64,
+) -> Option<SessionJudgeV3Config> {
+    let mut cfg = memo
+        .get_or_load(bundle_id, || read_config(persist, bundle_id))
+        .await?;
+    cfg.model =
+        crate::llm::provider::resolve(Some(crate::llm::provider::ModelTier::Fast), &cfg.model);
+    Some(cfg)
+}
+
+async fn read_config(persist: &PersistHandle, bundle_id: i64) -> Option<SessionJudgeV3Config> {
     let row = ok_or_warn(
         persist.eval().get_bundle(bundle_id).await,
         "session_judge_v3.read_bundle",
@@ -91,13 +107,10 @@ pub async fn load_config(persist: &PersistHandle, bundle_id: i64) -> Option<Sess
         crate::judge_worker::live_judge::mark_bundle_live(persist, bundle_id, ANNOUNCE_SOURCE)
             .await;
     }
-    let mut cfg = ok_or_warn(
+    ok_or_warn(
         SessionJudgeV3Config::from_bundle_components(&row.components),
         "session_judge_v3.bundle_components",
-    )?;
-    cfg.model =
-        crate::llm::provider::resolve(Some(crate::llm::provider::ModelTier::Fast), &cfg.model);
-    Some(cfg)
+    )
 }
 
 const ANNOUNCE_SOURCE: &str =
@@ -251,7 +264,7 @@ impl LivePoll<'_> {
         if breaker.should_skip(Instant::now()) {
             return 0;
         }
-        let Some(cfg) = load_config(self.persist, self.bundle_id).await else {
+        let Some(cfg) = load_config(self.persist, &self.config_memo, self.bundle_id).await else {
             return 0;
         };
         let selection = V3Selection {

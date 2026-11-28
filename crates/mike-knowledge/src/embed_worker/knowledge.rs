@@ -237,10 +237,7 @@ async fn keep_items_current(
     service: &EmbeddingService,
     upkeep: &mut SweepUpkeep,
 ) -> Result<(), PersistError> {
-    if upkeep
-        .reconciled
-        .is_none_or(|at| at.elapsed() >= RECONCILE_EVERY)
-    {
+    if reconcile_due(persist, upkeep).await? {
         let changed = persist.knowledge().reconcile_knowledge_items().await?;
         log_reconciled(changed);
         upkeep.reconciled = Some(Instant::now());
@@ -254,6 +251,25 @@ async fn keep_items_current(
         upkeep.marked_model = Some(model);
     }
     Ok(())
+}
+
+async fn reconcile_due(
+    persist: &PersistHandle,
+    upkeep: &mut SweepUpkeep,
+) -> Result<bool, PersistError> {
+    if upkeep
+        .reconciled
+        .is_some_and(|at| at.elapsed() < RECONCILE_EVERY)
+    {
+        return Ok(false);
+    }
+    match persist.knowledge().knowledge_reconciled_age().await? {
+        Some(age) if age < RECONCILE_EVERY => {
+            upkeep.reconciled = Some(Instant::now().checked_sub(age).unwrap_or_else(Instant::now));
+            Ok(false)
+        }
+        _ => Ok(true),
+    }
 }
 
 fn log_reconciled(changed: i64) {

@@ -27,6 +27,7 @@ pub struct SessionPollDeps<'a> {
     pub config: &'a SessionJudgeConfig,
     pub toggles: &'a std::sync::Arc<arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>>,
     pub settings: &'a std::sync::Arc<arc_swap::ArcSwap<crate::settings::SettingsOverlay>>,
+    pub v3_configs: &'a crate::judge_worker::session_end::live::ConfigMemo,
 }
 
 pub async fn run_poll(
@@ -133,6 +134,7 @@ async fn run_v3_poll(
         turn_judge_live_bundle_id: runtime.turn_judge_live_bundle_id,
         turn_confidence_threshold: runtime.turn_confidence_threshold,
         jev: jev.as_ref(),
+        config_memo: deps.v3_configs.clone(),
     };
     let judged = poll.run(breaker).await;
     if i64::try_from(judged).unwrap_or(0) < batch {

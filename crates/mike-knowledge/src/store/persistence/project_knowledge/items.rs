@@ -3,6 +3,7 @@ use super::PENDING_BATCH;
 use crate::store::persistence::PersistError;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct KnowledgeEmbeddingSource {
@@ -132,7 +133,24 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         if changed > 0 {
             self.forget_knowledge_coverage();
         }
+        sqlx::query!(
+            "INSERT INTO memory.knowledge_upkeep (id, reconciled_at) VALUES (1, now())
+             ON CONFLICT (id) DO UPDATE SET reconciled_at = EXCLUDED.reconciled_at"
+        )
+        .execute(self.pool())
+        .await?;
         Ok(changed)
+    }
+
+    pub async fn knowledge_reconciled_age(self) -> Result<Option<Duration>, PersistError> {
+        let age = sqlx::query_scalar!(
+            r#"SELECT GREATEST(EXTRACT(EPOCH FROM now() - reconciled_at), 0)::float8 AS "age_secs!"
+                 FROM memory.knowledge_upkeep
+                WHERE id = 1"#
+        )
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(age.map(|secs| Duration::try_from_secs_f64(secs).unwrap_or(Duration::MAX)))
     }
 
     pub async fn keep_unchanged_knowledge_embedding(

@@ -9,10 +9,12 @@ WITH picked AS (
            ) AS candidates
       FROM decisions.records r
      WHERE r.point = 'change_author'
-       AND r.created_at >= now() - interval '30 days'
+       AND r.created_at >= now() - interval '1 day'
        AND r.applied = 'chosen'
        AND r.answers -> 'who' ->> 'choice' ~ '^(s[0-9]+|unknown)$'
        AND r.state ->> 'changed_file' IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM decisions.outcomes o
+                        WHERE o.record_id = r.id AND o.label_source = 'next_commit_author')
 ),
 committed AS (
     SELECT DISTINCT ON (p.record_id)
@@ -34,6 +36,4 @@ SELECT c.record_id,
        jsonb_build_object('change_event_id', c.event_id, 'committer_session', c.committer,
                           'picked', c.pick)
   FROM committed c
- WHERE NOT EXISTS (SELECT 1 FROM decisions.outcomes o
-                    WHERE o.record_id = c.record_id AND o.label_source = 'next_commit_author')
 ON CONFLICT (record_id, label_source, label) DO NOTHING

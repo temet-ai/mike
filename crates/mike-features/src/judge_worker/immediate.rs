@@ -153,7 +153,7 @@ impl ImmediateJudge {
         breaker: &mut CircuitBreaker,
     ) -> Option<usize> {
         let llm = crate::llm::key::keyed_client(&self.llm, &self.key_slot)?;
-        let bundle = load_live_bundle(&self.persist, target.bundle_id).await?;
+        let bundle = load_live_bundle(&self.persist, &self.shared, target.bundle_id).await?;
         announce_bundle(&self.persist, &self.shared, &bundle).await;
         let reservation =
             reserve_claim_batch(&llm, false, i64::try_from(ids.len()).unwrap_or(1)).ok()?;

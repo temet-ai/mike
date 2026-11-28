@@ -33,9 +33,10 @@ pub fn spawn_mail_outbox(state: &BaseState) {
     let feed = state.change_feed.clone();
     state.tracker.spawn(async move {
         let mut bindings = Bindings::default();
+        let mut backlog = Backlog::default();
         loop {
             let since = feed.generation();
-            let wait = pass(&persist, &feed, &mut bindings, since).await;
+            let wait = pass(&persist, &feed, &mut bindings, &mut backlog, since).await;
             tokio::select! {
                 biased;
                 () = shutdown.cancelled() => break,
@@ -55,10 +56,11 @@ async fn pass(
     persist: &PersistHandle,
     feed: &ChangeFeed,
     bindings: &mut Bindings,
+    backlog: &mut Backlog,
     since: Generation,
 ) -> Wait {
     match bindings.bound(persist, feed, since).await {
-        Ok(true) => after_sweep(sweep(persist).await),
+        Ok(true) => after_sweep(sweep(persist, backlog, feed.is_fed()).await),
         Ok(false) => Wait::Change(&UNBOUND_WATCHED),
         Err(error) => {
             tracing::warn!(error = %error, "mail_outbox: reading Codex bindings failed");
@@ -113,11 +115,46 @@ async fn wait_for_mail(feed: &ChangeFeed, wait: Wait, since: Generation) {
     }
 }
 
-pub async fn sweep(persist: &PersistHandle) -> Result<bool, PersistError> {
+/// Whether the outbox may hold mail ready to claim. A claim that came back
+/// empty stays empty until this worker mirrors new mail in, since a row turns
+/// ready only by being inserted without a notification; every other change to a
+/// ready row happens inside a sweep that claimed it. Another process's mirror
+/// is claimed by that process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Backlog {
+    may_hold_open: bool,
+}
+
+impl Default for Backlog {
+    fn default() -> Self {
+        Self {
+            may_hold_open: true,
+        }
+    }
+}
+
+impl Backlog {
+    fn should_claim(self, fed: bool, mirrored: u64) -> bool {
+        !fed || self.may_hold_open || mirrored > 0
+    }
+}
+
+async fn sweep(
+    persist: &PersistHandle,
+    backlog: &mut Backlog,
+    fed: bool,
+) -> Result<bool, PersistError> {
     let pool = persist.pool();
     let mirrored = mirror_codex_mail(pool, MIRROR_BATCH).await?;
     let reconciled = persist.runtime().reconcile_runtime_mail_outbox().await?;
-    let open = store::open_messages(pool, DELIVER_BATCH).await?;
+    let open = if backlog.should_claim(fed, mirrored) {
+        backlog.may_hold_open = true;
+        let open = store::open_messages(pool, DELIVER_BATCH).await?;
+        backlog.may_hold_open = !open.is_empty();
+        open
+    } else {
+        Vec::new()
+    };
     let mut queue_jobs = tokio::task::JoinSet::new();
     for message in &open {
         settle_message(persist, *message, &mut queue_jobs).await?;

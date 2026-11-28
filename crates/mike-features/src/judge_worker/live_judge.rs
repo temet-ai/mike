@@ -25,6 +25,7 @@ use super::v2_judge::{V2InsertTarget, V2JudgeConfig, context_from_row, judge_tur
 
 const ANNOUNCE_SOURCE: &str = r#"{"actor":"judge_worker","reason":"turn_judge.live_bundle_id"}"#;
 
+#[derive(Debug, Clone)]
 pub struct LiveBundle {
     pub id: i64,
     pub status: String,
@@ -60,7 +61,23 @@ impl LiveJudge<'_> {
     }
 }
 
-pub async fn load_live_bundle(persist: &PersistHandle, bundle_id: i64) -> Option<LiveBundle> {
+pub async fn load_live_bundle(
+    persist: &PersistHandle,
+    shared: &LiveJudgeShared,
+    bundle_id: i64,
+) -> Option<LiveBundle> {
+    let mut bundle = shared
+        .bundles()
+        .get_or_load(bundle_id, || read_live_bundle(persist, bundle_id))
+        .await?;
+    bundle.cfg.model = crate::llm::provider::resolve(
+        Some(crate::llm::provider::ModelTier::Standard),
+        &bundle.cfg.model,
+    );
+    Some(bundle)
+}
+
+async fn read_live_bundle(persist: &PersistHandle, bundle_id: i64) -> Option<LiveBundle> {
     let Some(row) = ok_or_warn(
         persist.eval().get_bundle(bundle_id).await,
         "live_judge.read_bundle",
@@ -69,13 +86,11 @@ pub async fn load_live_bundle(persist: &PersistHandle, bundle_id: i64) -> Option
         warn_missing_bundle(bundle_id);
         return None;
     };
-    let mut cfg = ok_or_warn(
+    let cfg = ok_or_warn(
         V2JudgeConfig::from_bundle_components(&row.components),
         "live_judge.bundle_components",
     )?;
     ok_or_warn(cfg.ensure_live(), "live_judge.bundle_slices")?;
-    cfg.model =
-        crate::llm::provider::resolve(Some(crate::llm::provider::ModelTier::Standard), &cfg.model);
     Some(LiveBundle {
         id: row.id,
         status: row.status,

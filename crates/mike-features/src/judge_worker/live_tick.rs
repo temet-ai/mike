@@ -30,7 +30,7 @@ pub struct LiveTickReport {
 }
 
 pub async fn run_live_tick(t: LiveTick<'_>, breaker: &mut CircuitBreaker) -> LiveTickReport {
-    let Some(bundle) = load_live_bundle(t.persist, t.overlay.turn_judge_live_bundle_id).await
+    let Some(bundle) = load_live_bundle(t.persist, t.shared, t.overlay.turn_judge_live_bundle_id).await
     else {
         return LiveTickReport::default();
     };

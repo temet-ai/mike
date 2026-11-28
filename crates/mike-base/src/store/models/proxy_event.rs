@@ -35,6 +35,7 @@ pub enum RowChangedTable {
     WorkspaceQuestions,
     WrightRepairs,
     WrightFollowups,
+    WrightFollowupLimits,
     SteeringEnrolments,
     ChangeGenerations,
     WrightCheckRuns,
